@@ -19,14 +19,14 @@ LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
 INC = -I.
-#OPT = -O3 -fno-omit-frame-pointer -flto -g -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480 # -g0 
-OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
+# Optimization flags for the compiler:
+# -O3          : Maximum optimization level for performance (includes -O2 plus more aggressive optimizations)
+# -flto        : Link Time Optimization - enables cross-file optimization during linking
+# -g0          : No debug information (reduces binary size, incompatible with debugging)
+# -fopt-info-inline-all=inline_report.txt : Generate detailed inline optimization report to file
+# --param max-inline-insns-auto=480 : Set auto-inlining threshold to 480 instructions (more aggressive inlining)
 
-# Define additional preprocessor definitions based on conditional variables
-USE := USE_ALL USE_PLL USE_HSE USE_LSE USE_ADC USE_USART USE_I2C USE_SPI 
-USE += USE_BTN USE_RTC USE_TIM2 USE_DMA USE_CRC USE_RNG USE_IWDG USE_WWDG 
-USE += USE_EXTI USE_FLASH USE_SWD OVRCLK
-DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
+# OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
 
 # Define the toolchain to use
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
