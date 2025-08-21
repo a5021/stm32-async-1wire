@@ -1,4 +1,3 @@
-
 # Define the name of the project target and the build directory
 TARGET = ds18b20_demo
 BUILD_DIR = build
@@ -19,6 +18,7 @@ LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
 INC = -I.
+
 # Optimization flags for the compiler:
 # -O3          : Maximum optimization level for performance (includes -O2 plus more aggressive optimizations)
 # -flto        : Link Time Optimization - enables cross-file optimization during linking
@@ -26,7 +26,7 @@ INC = -I.
 # -fopt-info-inline-all=inline_report.txt : Generate detailed inline optimization report to file
 # --param max-inline-insns-auto=480 : Set auto-inlining threshold to 480 instructions (more aggressive inlining)
 
-# OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
+OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
 
 # Define the toolchain to use
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
@@ -103,10 +103,103 @@ LIB = -lc -lm -lnosys
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDS) $(LIB) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # Suppress RWX segment warnings
-LDFLAGS += -Wl,--no-warn-rwx-segment
+LDFLAGS += -Wl,--no-warn-rwx-segments
+
+# =============================================================================
+# DEPENDENCY DOWNLOADING SECTION
+# =============================================================================
+
+# Tools detection - prefer wget
+WGET := $(shell command -v wget 2> /dev/null)
+
+# Base URLs
+RAW_URL = https://raw.githubusercontent.com
+ST_URL = $(RAW_URL)/STMicroelectronics/
+CMSIS_URL = $(ST_URL)STM32CubeF1/master/Drivers/CMSIS/Include
+F1_URL = $(ST_URL)cmsis_device_f1/master
+SVD_URL = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
+
+# Required external files (needed for build but not in repo)
+EXTERNAL_DEPS = system_stm32f1xx.c \
+                startup_stm32f103xb.s \
+                stm32f1xx.h \
+                stm32f103xb.h \
+                system_stm32f1xx.h \
+                cmsis_compiler.h \
+                cmsis_gcc.h \
+                cmsis_version.h \
+                core_cm3.h \
+                STM32F103xx.svd
+
+# Download function using wget
+define download_file
+	@echo "Downloading $(2)..."
+	@if [ -z "$(WGET)" ]; then \
+		echo "Error: wget is required but not found. Please install wget."; \
+		exit 1; \
+	fi
+	@$(WGET) -q -O "$(2)" "$(1)" && echo "  OK" || (echo "  FAILED"; exit 1)
+endef
+
+# File-specific download rules
+download-system_stm32f1xx.c:
+	$(call download_file,$(F1_URL)/Source/Templates/system_stm32f1xx.c,system_stm32f1xx.c)
+
+download-startup_stm32f103xb.s:
+	$(call download_file,$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s,startup_stm32f103xb.s)
+
+download-stm32f1xx.h:
+	$(call download_file,$(F1_URL)/Include/stm32f1xx.h,stm32f1xx.h)
+
+download-stm32f103xb.h:
+	$(call download_file,$(F1_URL)/Include/stm32f103xb.h,stm32f103xb.h)
+
+download-system_stm32f1xx.h:
+	$(call download_file,$(F1_URL)/Include/system_stm32f1xx.h,system_stm32f1xx.h)
+
+download-cmsis_compiler.h:
+	$(call download_file,$(CMSIS_URL)/cmsis_compiler.h,cmsis_compiler.h)
+
+download-cmsis_gcc.h:
+	$(call download_file,$(CMSIS_URL)/cmsis_gcc.h,cmsis_gcc.h)
+
+download-cmsis_version.h:
+	$(call download_file,$(CMSIS_URL)/cmsis_version.h,cmsis_version.h)
+
+download-core_cm3.h:
+	$(call download_file,$(CMSIS_URL)/core_cm3.h,core_cm3.h)
+
+download-STM32F103xx.svd:
+	$(call download_file,$(SVD_URL),STM32F103xx.svd)
+
+# Check if files exist and download if missing
+check-deps:
+	@for file in $(EXTERNAL_DEPS); do \
+		if [ ! -f "$$file" ]; then \
+			echo "$$file not found, downloading..."; \
+			$(MAKE) download-$$file; \
+		else \
+			echo "$$file already exists"; \
+		fi \
+	done
+
+# Target to download all dependencies
+download-deps: check-deps
+	@echo "All build dependencies checked/downloaded successfully"
+
+# Clean external dependencies
+clean-deps:
+	rm -f $(EXTERNAL_DEPS)
+
+# =============================================================================
+# BUILD TARGETS
+# =============================================================================
+
+# Set 'all' as the default target
+.DEFAULT_GOAL := all
 
 # Build all targets by default: the ELF binary, the HEX file, and the raw binary file
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 # Define the object files that need to be built from C and assembly source files
 OBJ = $(addprefix $(BUILD_DIR)/,$(notdir $(SRC:.c=.o)))
@@ -140,14 +233,9 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@
 
-# Perform the 'test' target, which enables all conditional definitions and builds the project
-test:  FLAG += -DUSE_ALL=1
-test:  all
-
-# Perform the 'debug' target, which enables SWD and debug symbols and builds the project
+# Perform the 'debug' target, which enables debug symbols and builds the project
 debug: OPT = -Og -g3 -gdwarf
-debug: FLAG += -DUSE_SWD=1
-debug: all
+debug: download-deps all
 
 # Display compiler version information.
 gccversion :
@@ -168,5 +256,18 @@ clean:
 
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all          - Build project (downloads dependencies if needed) [DEFAULT]"
+	@echo "  download-deps - Download all missing build dependencies"
+	@echo "  clean-deps   - Remove downloaded dependencies"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  debug        - Build with debug symbols"
+	@echo "  program      - Program device using ST-LINK"
+	@echo "  jprogram     - Program device using J-LINK"
+	@echo "  gccversion   - Show compiler version"
+	@echo "  help         - Show this help"
 
 # *** EOF ***
