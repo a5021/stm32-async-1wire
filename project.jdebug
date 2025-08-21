@@ -1,0 +1,39 @@
+void OnProjectLoad (void) {
+  Edit.SysVar (VAR_HSS_SPEED, FREQ_100_HZ);
+  Project.SetDevice ("STM32F103C8");
+  Project.SetHostIF ("USB", "");
+  Project.SetTargetIF ("SWD");
+  Project.SetTIFSpeed ("4 MHz");
+  Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M3.svd");
+  Project.AddSvdFile ("STM32F103xx.svd");
+  File.Open ("build/ds18b20_demo.elf");
+}
+
+void AfterTargetReset (void) {
+  _SetupTarget();
+}
+
+void AfterTargetDownload (void) {
+  _SetupTarget();
+}
+
+void _SetupTarget(void) {
+  unsigned int SP;
+  unsigned int PC;
+  unsigned int VectorTableAddr;
+
+  VectorTableAddr = Elf.GetBaseAddr();
+
+  SP = Target.ReadU32(VectorTableAddr);
+  if (SP != 0xFFFFFFFF) {
+    Target.SetReg("SP", SP);
+  }
+
+  PC = Elf.GetEntryPointPC();
+  if (PC != 0xFFFFFFFF) {
+    Target.SetReg("PC", PC);
+  } else {
+    Util.Error("Project script error: failed to set up entry point PC", 1);
+  }
+}
+
