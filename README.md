@@ -91,6 +91,99 @@ void ds18b20_temp_ready(int16_t temp) {
 }
 ```
 
+## Building the Project with `make`
+
+This project uses a `Makefile` to simplify building, cleaning, and
+programming the STM32 firmware. Below are the available commands and
+their purpose.
+
+### **Prerequisites**
+
+-   **Toolchain:** `arm-none-eabi-gcc` and related utilities (`objcopy`,
+    `size`) must be installed.
+-   **wget:** Required for downloading external dependencies.
+-   **Programmer tools:**
+    -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe`
+        (Windows)
+    -   **J-LINK:** `JFlashExe` or `JFlash.Exe`
+
+### **Basic Usage**
+
+Run `make` in the project root directory.
+
+``` bash
+make
+```
+
+This will: 1. Check and download required external dependencies (CMSIS
+headers, startup code, linker script, etc.). 2. Compile the source files
+and assemble the startup code. 3. Link everything into an ELF
+executable. 4. Generate `.hex` and `.bin` files for flashing. 5. Print
+the size of the final binary.
+
+The default output directory is `build/`.
+
+### **Common Targets**
+
+  `make` or `make all`   Build the project (default target).
+
+  `make debug`           Build with debug symbols (`-Og -g3`).
+
+  `make clean`           Remove all build artifacts (object files, binaries,
+                         map file).
+
+  `make download-deps`   Download all missing external dependencies.
+
+  `make clean-deps`      Remove downloaded external dependencies.
+
+  `make gccversion`      Show the version of `arm-none-eabi-gcc`.
+
+  `make help`            Display all available targets.
+
+
+### **Programming the Device**
+
+After building, you can program the firmware to the STM32 device using:
+
+-   **ST-LINK:**
+
+    ``` bash
+    make program
+    ```
+
+    -   Uses `st-flash` on Linux/macOS or `ST-LINK_CLI.exe` on Windows.
+    -   Writes the generated `.hex` file to the MCU flash and resets the
+        device.
+
+-   **J-LINK:**
+
+    ``` bash
+    make jprogram
+    ```
+
+    -   Uses Segger J-Link utilities (`JFlashExe` or `JFlash.Exe`).
+    -   Automatically loads and programs the `.hex` file.
+
+### **Configuration Notes**
+
+-   **Target Name:** The firmware target name is `ds18b20_demo`.
+
+-   **Build Directory:** Default is `build/`.
+
+-   **Optimization Level:**
+
+    -   **Release:** `-O3 -flto` (default).
+    -   **Debug:** `-Og -g3`.
+
+-   **MCU Flags:** Configured for `STM32F103xB` (Cortex-M3).
+
+-   **Additional Defines:** You can pass extra preprocessor flags by
+    setting `EXTRA_FLAGS`:
+
+    ``` bash
+    make EXTRA_FLAGS=MY_FEATURE
+    ```
+
 ## ⚙️ Architecture
 
 ### Hybrid Hardware Automation
