@@ -90,8 +90,7 @@ void ds18b20_temp_ready(int16_t temp) {
     }
 }
 ```
-
-## Building the Project with `make`
+## 🔧 Building the Project with `make`
 
 This project uses a `Makefile` to simplify building, cleaning, and
 programming the STM32 firmware. Below are the available commands and
