@@ -139,7 +139,12 @@ __WEAK void ds18b20_led_control(unsigned action) {
  * @brief Default weak implementation for temperature ready callback - reports results
  * @param[in] temp_tenths Temperature value in tenths of degrees Celsius, or error code
  */
+#if defined ELAPSED_TIME
+__WEAK void ds18b20_temp_ready(int16_t temp_tenths, uint32_t t) {
+    (void)t;
+#else
 __WEAK void ds18b20_temp_ready(int16_t temp_tenths) {
+#endif
     (void)temp_tenths;
     // Default implementation - empty (no temperature handling)
 }
@@ -371,6 +376,11 @@ void ds18b20_init(void) {
  * @note Uses timer update interrupt flag to determine when operations complete
  */
 void ds18b20_poll(void) {
+
+    #if defined ELAPSED_TIME
+        static uint32_t elapsed_time;
+    #endif
+
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish
     if (!(TIM1->SR & TIM_SR(UIF))) return;
@@ -380,6 +390,9 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
         case 0: // IDLE - Initialize for new measurement cycle
+             #if defined ELAPSED_TIME
+                 elapsed_time = DWT->CYCCNT;
+             #endif
             // Initialize union memory (fills with 0xFF pattern)
             ctx.fill_union = (uint64_t)-1;
             // Transition to START state
@@ -405,7 +418,11 @@ void ds18b20_poll(void) {
                 ctx.current_state = 3;
             } else {
                 // No device present - report error and pause
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR);
+                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR
+                #if defined ELAPSED_TIME
+                    , DWT->CYCCNT - elapsed_time
+                #endif
+                );
                 // Start inter-measurement pause
                 start_cycle_pause();
                 // Return to IDLE state
@@ -436,7 +453,11 @@ void ds18b20_poll(void) {
                 ctx.current_state = 6;
             } else {
                 // No device present - report error and pause
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR);
+                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR
+                #if defined ELAPSED_TIME
+                    , DWT->CYCCNT - elapsed_time
+                #endif
+                );
                 // Start inter-measurement pause
                 start_cycle_pause();
                 // Return to IDLE state
@@ -460,10 +481,18 @@ void ds18b20_poll(void) {
             // Validate CRC and report temperature or error
             if (ctx.scratchpad[8] == check_scratchpad_crc()) {
                 // CRC valid - decode and report temperature
-                ds18b20_temp_ready(decode_temperature());
+                ds18b20_temp_ready(decode_temperature()
+                #if defined ELAPSED_TIME
+                    , DWT->CYCCNT - elapsed_time
+                #endif
+                );
             } else {
                 // CRC invalid - report error
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_CRC_FAIL);
+                ds18b20_temp_ready(DS18B20_TEMP_ERROR_CRC_FAIL
+                #if defined ELAPSED_TIME
+                    , DWT->CYCCNT - elapsed_time
+                #endif
+                );
             }
 
             // Start inter-measurement pause period
@@ -474,7 +503,11 @@ void ds18b20_poll(void) {
 
         default:
             // Unexpected state - report generic error
-            ds18b20_temp_ready(DS18B20_TEMP_ERROR_GENERIC);
+            ds18b20_temp_ready(DS18B20_TEMP_ERROR_GENERIC
+            #if defined ELAPSED_TIME
+                , DWT->CYCCNT - elapsed_time
+            #endif
+            );
             // Return to IDLE state
             ctx.current_state = 0;
             break;

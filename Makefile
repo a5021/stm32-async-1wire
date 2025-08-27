@@ -16,7 +16,7 @@ SRC = system_stm32f1xx.c demo.c ds18b20.c
 ASM = startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
-DEF = -DSTM32F103xB
+DEF = -DSTM32F103xB $(if $(EXTRA_FLAGS),-D$(EXTRA_FLAGS),)
 INC = -I.
 
 # Optimization flags for the compiler:
@@ -260,14 +260,14 @@ clean:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all          - Build project (downloads dependencies if needed) [DEFAULT]"
+	@echo "  all           - Build project (downloads dependencies if needed) [DEFAULT]"
 	@echo "  download-deps - Download all missing build dependencies"
-	@echo "  clean-deps   - Remove downloaded dependencies"
-	@echo "  clean        - Remove build artifacts"
-	@echo "  debug        - Build with debug symbols"
-	@echo "  program      - Program device using ST-LINK"
-	@echo "  jprogram     - Program device using J-LINK"
-	@echo "  gccversion   - Show compiler version"
-	@echo "  help         - Show this help"
+	@echo "  clean-deps    - Remove downloaded dependencies"
+	@echo "  clean         - Remove build artifacts"
+	@echo "  debug         - Build with debug symbols"
+	@echo "  program       - Program device using ST-LINK"
+	@echo "  jprogram      - Program device using J-LINK"
+	@echo "  gccversion    - Show compiler version"
+	@echo "  help          - Show this help"
 
 # *** EOF ***
