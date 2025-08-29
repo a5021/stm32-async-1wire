@@ -75,9 +75,32 @@ __STATIC_FORCEINLINE void uart_poll_tx(void) {
 }
 
 /**
+ * @brief Configure system clock to 72MHz using PLL
+ */
+__STATIC_FORCEINLINE void configure_system_clock(void) {
+    // Enable HSI and HSE oscillators
+    RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
+    // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
+    RCC->CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2;
+    // Enable PLL
+    RCC->CR = RCC_CR_HSION | RCC_CR_HSEON | RCC_CR_PLLON;
+    // Wait for PLL and HSE ready flags
+    while ((RCC_CR_PLLRDY | RCC_CR_HSERDY) != (RCC->CR & (RCC_CR_PLLRDY | RCC_CR_HSERDY)));
+    // Configure flash latency for 72MHz operation
+    FLASH->ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY_2;
+    // Switch system clock to PLL
+    RCC->CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_SW_PLL;
+    // Wait for system clock switch to PLL
+    while ((RCC->CFGR & RCC_CFGR_SWS_PLL) != RCC_CFGR_SWS_PLL);
+    // Disable HSI oscillator
+    RCC->CR &= ~RCC_CR_HSION;
+}
+
+/**
  * @brief Initialize microcontroller peripherals for UART communication and LED control
  */
 __STATIC_FORCEINLINE void hardware_init(void) {
+
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
     RCC->APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);
 
@@ -182,18 +205,20 @@ void ds18b20_temp_ready(int16_t temp) {
  */
 int main(void) {
 
+    configure_system_clock(); // Configure system clock for MCU
+
     hardware_init(); // Initialize hardware peripherals (non-blocking)
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message to UART buffer
     ds18b20_init();  // Initialize DS18B20 driver (non-blocking)
     
-    // Initialize DWT cycle counter after system clock is configured
+    // Optional: Initialize DWT cycle counter for performance measurements
     #if defined ELAPSED_TIME
-        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; 
-        DWT->CYCCNT = 0; 
-        DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;   // Enable trace and debug blocks
+        DWT->CYCCNT = 0;                                  // Reset cycle counter
+        DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;              // Enable cycle counting
     #endif
 
-    for (;;) {  // Main non-blocking event loop
+    for (;;) {          // Main event loop (non-blocking, cooperative multitasking)
         
         ds18b20_poll(); // Poll DS18B20 state machine - advances 1-Wire communication state
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer

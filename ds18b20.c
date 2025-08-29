@@ -315,43 +315,6 @@ __STATIC_FORCEINLINE void read_data(void) {
 }
 
 /**
- * @brief Configure system clock to 72MHz using PLL
- */
-__STATIC_FORCEINLINE void configure_system_clock(void) {
-    // Enable HSI and HSE oscillators
-    R.CR = RCC_CR(HSION, HSEON);
-    // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
-    R.CFGR = RCC_CFGR(PLLSRC, PLLMULL9, PPRE1_DIV2);
-    // Enable PLL
-    R.CR = RCC_CR(HSION, HSEON, PLLON);
-    // Wait for PLL and HSE ready flags
-    while (RCC_CR(PLLRDY, HSERDY) != (R.CR & RCC_CR(PLLRDY, HSERDY)));
-    // Configure flash latency for 72MHz operation
-    F.ACR = FLASH_ACR(PRFTBE, LATENCY_2);
-    // Switch system clock to PLL
-    R.CFGR = RCC_CFGR(PLLSRC, PLLMULL9, PPRE1_DIV2, SW_PLL);
-    // Wait for system clock switch to PLL
-    while ((R.CFGR & RCC_CFGR(SWS_PLL)) != RCC_CFGR(SWS_PLL));
-    // Disable HSI oscillator to save power
-    R.CR &= ~RCC_CR(HSION);
-}
-
-/**
- * @brief Initialize low-level peripherals for DS18B20 communication
- */
-__STATIC_FORCEINLINE void init_peripherals_lowlevel(void) {
-    // Enable clocks for required peripherals: GPIOA, GPIOC, TIM1, DMA1
-    R.APB2ENR |= RCC_APB2ENR(IOPAEN, IOPCEN, TIM1EN);
-    R.AHBENR  |= RCC_AHBENR(DMA1EN);
-    // Configure timer prescaler for 1µs resolution (72MHz/72 = 1MHz)
-    T1.PSC     = TIM_PRESCALER;
-    T1.EGR     = TIM_EGR(UG);
-    T1.BDTR    = TIM_BDTR(MOE);
-    // Configure PA8 for 1-Wire communication (alternate function open drain)
-    PA.CRH    |= GPIO_CRH(CNF8_0, CNF8_1, MODE8_1);
-}
-
-/**
  * @}
  */
 
@@ -364,10 +327,15 @@ __STATIC_FORCEINLINE void init_peripherals_lowlevel(void) {
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
  */
 void ds18b20_init(void) {
-    // Configure system clock to 72MHz
-    configure_system_clock();
-    // Initialize low-level peripherals for 1-Wire communication
-    init_peripherals_lowlevel();
+    // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
+    R.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
+    R.AHBENR  |= RCC_AHBENR(DMA1EN);
+    // Configure timer prescaler for 1µs resolution (72MHz/72 = 1MHz)
+    T1.PSC     = TIM_PRESCALER;
+    T1.EGR     = TIM_EGR(UG);
+    T1.BDTR    = TIM_BDTR(MOE);
+    // Configure PA8 for 1-Wire communication (alternate function open drain)
+    PA.CRH    |= GPIO_CRH(CNF8_0, CNF8_1, MODE8_1);
 }
 
 /**
