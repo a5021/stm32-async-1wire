@@ -2,22 +2,17 @@
 TARGET = ds18b20_demo
 BUILD_DIR = build
 
-ifeq (0, 1)
-	# Set build directory based on make goals (debug or release)
-	ifeq ($(MAKECMDGOALS), debug)
-    		BUILD_DIR := $(addsuffix -debug, $(BUILD_DIR))
-	else
-		BUILD_DIR := $(addsuffix -release, $(BUILD_DIR))
-	endif
-endif
-
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
 SRC = system_stm32f1xx.c demo.c ds18b20.c
 ASM = startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
-DEF = -DSTM32F103xB $(if $(EXTRA_FLAGS),-D$(EXTRA_FLAGS),)
+DEF = -DSTM32F103xB
 INC = -I.
+
+# Define additional preprocessor definitions based on conditional variables
+USE := USE_HSI ELAPSED_TIME
+DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
 
 # Optimization flags for the compiler:
 # -O3          : Maximum optimization level for performance (includes -O2 plus more aggressive optimizations)
@@ -102,8 +97,21 @@ FLAG += -MMD -MP -MF $(@:%.o=%.d)
 LIB = -lc -lm -lnosys
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDS) $(LIB) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
-# Suppress RWX segment warnings
-LDFLAGS += -Wl,--no-warn-rwx-segments
+# ---------- compiler / linker version detection ----------
+GCC_VERSION    := $(shell $(CC) -dumpfullversion)
+GCC_VER_NUM    := $(shell echo $(GCC_VERSION) | awk -F. '{printf "%d%02d%02d",$$1,$$2,$$3}')
+GCC_GE_12      := $(shell [ $(GCC_VER_NUM) -ge 120000 ] && echo 1)
+
+LD_VERSION     := $(shell $(LD) --version | awk '/^GNU ld/ {print $$NF; exit}')
+LD_VER_NUM     := $(shell echo $(LD_VERSION) | awk -F. '{printf "%d%02d",$$1,$$2}')
+LD_GE_2_39     := $(shell [ $(LD_VER_NUM) -ge 239 ] && echo 1)
+
+$(info Using GCC $(GCC_VERSION), Binutils $(LD_VERSION))
+
+# ---------- suppress RWX segment warnings ----------
+ifneq ($(or $(GCC_GE_12),$(LD_GE_2_39)),)
+  LDFLAGS += -Wl,--no-warn-rwx-segments
+endif
 
 # =============================================================================
 # DEPENDENCY DOWNLOADING SECTION
