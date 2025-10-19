@@ -23,17 +23,20 @@ DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
 
 OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
 
-# Define the toolchain to use
+# Define the toolchain prefix
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
 
-#$(info The value of TOOLCHAIN is: $(TOOLCHAIN))
-#$(info The value of DEF is: $(DEF))
+# Wrapper to quote paths with spaces
+Q = $(if $(findstring $(space),$(1)),"$(1)",$(1))
 
-# Define the compiler, assembler, object copy, and size utilities
-CC = $(TOOLCHAIN)gcc
-AS = $(TOOLCHAIN)gcc -x assembler-with-cpp
-CP = $(TOOLCHAIN)objcopy
-SZ = $(TOOLCHAIN)size
+CC = $(call Q,$(TOOLCHAIN)gcc)
+LD = $(call Q,$(TOOLCHAIN)ld)
+AS = $(call Q,$(TOOLCHAIN)gcc) -x assembler-with-cpp
+CP = $(call Q,$(TOOLCHAIN)objcopy)
+SZ = $(call Q,$(TOOLCHAIN)size)
+
+# Define space for the Q function
+space := $(subst ,, )
 
 # Define utility programs used for programming the device
 HEX = $(CP) -O ihex
@@ -98,18 +101,18 @@ LIB = -lc -lm -lnosys
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDS) $(LIB) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # ---------- compiler / linker version detection ----------
-GCC_VERSION    := $(shell $(CC) -dumpfullversion)
-GCC_VER_NUM    := $(shell echo $(GCC_VERSION) | awk -F. '{printf "%d%02d%02d",$$1,$$2,$$3}')
-GCC_GE_12      := $(shell [ $(GCC_VER_NUM) -ge 120000 ] && echo 1)
+GCC_INFO    := $(shell $(CC) -dumpfullversion 2>/dev/null | awk -F. '{print $$0, ($$1*10000+$$2*100+$$3>=120000)}')
+GCC_VERSION := $(word 1,$(GCC_INFO))
+GCC_GE_12   := $(word 2,$(GCC_INFO))
 
-LD_VERSION     := $(shell $(LD) --version | awk '/^GNU ld/ {print $$NF; exit}')
-LD_VER_NUM     := $(shell echo $(LD_VERSION) | awk -F. '{printf "%d%02d",$$1,$$2}')
-LD_GE_2_39     := $(shell [ $(LD_VER_NUM) -ge 239 ] && echo 1)
+LD_INFO     := $(shell $(LD) --version 2>/dev/null | awk '/^GNU ld/ {match($$NF,/([0-9]+)\.([0-9]+)/,v); print v[0], (v[1]*100+v[2]>=239); exit}')
+LD_VERSION  := $(word 1,$(LD_INFO))
+LD_GE_2_39  := $(word 2,$(LD_INFO))
 
-$(info Using GCC $(GCC_VERSION), Binutils $(LD_VERSION))
+$(info using GCC $(GCC_VERSION), Binutils $(LD_VERSION))
 
 # ---------- suppress RWX segment warnings ----------
-ifneq ($(or $(GCC_GE_12),$(LD_GE_2_39)),)
+ifneq ($(or $(filter 1,$(GCC_GE_12)),$(filter 1,$(LD_GE_2_39))),)
   LDFLAGS += -Wl,--no-warn-rwx-segments
 endif
 
