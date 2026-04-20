@@ -63,25 +63,25 @@
 #if 1
 // --- Universal BITS Macro ---
 // Helper macro: paste together PREFIX_, REG, and BF to form a bitfield macro name
-#define _BITS_ONE(PREFIX_, REG, BF) PREFIX_##REG##_##BF
+#define _BITS_ONE(PREFIX_, REG, BF) (PREFIX_##REG##_##BF)
 
 // Recursive macros to combine 1–16 bitfields using the '|' operator
-#define _BITS_1(PREFIX_, REG, BF) _BITS_ONE(PREFIX_, REG, BF)
-#define _BITS_2(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_1(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_3(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_2(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_4(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_3(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_5(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_4(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_6(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_5(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_7(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_6(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_8(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_7(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_9(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_8(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_10(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_9(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_11(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_10(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_12(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_11(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_13(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_12(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_14(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_13(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_15(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_14(PREFIX_, REG, __VA_ARGS__)
-#define _BITS_16(PREFIX_, REG, BF, ...) _BITS_ONE(PREFIX_, REG, BF) | _BITS_15(PREFIX_, REG, __VA_ARGS__)
+#define _BITS_1(PREFIX_, REG, BF)       (_BITS_ONE(PREFIX_, REG, BF))
+#define _BITS_2(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_1(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_3(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_2(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_4(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_3(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_5(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_4(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_6(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_5(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_7(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_6(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_8(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_7(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_9(PREFIX_, REG, BF, ...)  (_BITS_ONE(PREFIX_, REG, BF) | _BITS_8(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_10(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_9(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_11(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_10(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_12(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_11(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_13(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_12(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_14(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_13(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_15(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_14(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_16(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_15(PREFIX_, REG, __VA_ARGS__))
 
 // Macro to count the number of variadic arguments (up to 16)
 #define _BITS_NARG(...) _BITS_NARG_(__VA_ARGS__,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1)
@@ -93,7 +93,16 @@
 #define _BITS_CHOOSER(count)  _BITS_CHOOSER1(count)
 
 // Main macro: expands to a mask of all requested bitfields for a given peripheral register
-#define BITS(PREFIX_, REG, ...)     (_BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__))
+#define BITS(PREFIX_, REG, ...)                                           \
+(                                                                         \
+    0                                                                     \
+    + sizeof(struct {                                                     \
+        _Static_assert(sizeof(#__VA_ARGS__) > 1,                          \
+            "BITS(): at least one bitfield must be provided");            \
+        int _dummy;                                                       \
+    })                                                                    \
+    + _BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__)   \
+)
 
 // --- Peripheral Type Wrappers ---
 // These wrappers make it easy to use the BITS macro for each peripheral type.
