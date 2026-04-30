@@ -41,13 +41,13 @@ Note: A 4.7kΩ pull-up resistor is required between the PA8 and 3.3V lines.
 
 ### 1. Include the Driver
 
-```
+```C
 #include "ds18b20.h"
 ```
 
 ### 2. Initialize the Driver
 
-```
+```C
 int main(void) {
     ds18b20_init();  // One-time initialization
 
@@ -60,7 +60,7 @@ int main(void) {
 
 ### 3. Implement Callbacks (Optional)
 
-```
+```C
 // LED status indication
 void ds18b20_led_control(unsigned action) {
     if (action) {
@@ -274,24 +274,24 @@ Kickstart behavior
 
 ### Core Functions
 
-```
+```C
 void ds18b20_init(void);
 ```
 Initialize the DS18B20 driver. Configures the system clock to 72MHz, enables peripherals (GPIOA, TIM1, DMA1), and sets up the timer prescaler for 1µs resolution. This function does NOT start the state machine.
 
-```
+```C
 void ds18b20_poll(void);
 ```
 The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
 
 ### Weak Callbacks
 
-```
+```C
 void ds18b20_led_control(unsigned action);
 ```
 Called to indicate measurement status (LED control). action is 1 for start, 0 for stop.
 
-```
+```C
 void ds18b20_temp_ready(int16_t temp);
 ```
 Called when a temperature measurement is complete or an error occurs.
@@ -315,19 +315,11 @@ Called when a temperature measurement is complete or an error occurs.
 ### Timing Constants
 
 Adjustable in ds18b20.c:
-```
+```C
 #define RESET_PULSE_MIN       480U    // µs
 #define RESET_PULSE_MAX       540U    // µs
 #define ONE_PULSE                1    // µs
 #define ZERO_PULSE              60    // µs
-```
-
-### Pin Configuration
-
-Modify in ds18b20.c:
-```
-// Change PA8 to desired pin
-GPIOA->CRH |= GPIO_CRH_CNF8_0 | GPIO_CRH_MODE8_1;
 ```
 
 ## Troubleshooting
