@@ -2,7 +2,7 @@
 
 A bare-metal, register-level driver for the DS18B20 temperature sensor. This driver uses a sophisticated hybrid architecture with a hardware timer (TIM1) and DMA to achieve precise 1-Wire protocol timing without any software delays, busy-waits, or interrupts.
 
-## 🚀 Features
+## Features
 
 - Pure Bare-Metal: Direct register manipulation, no HAL or LL libraries.
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
@@ -11,14 +11,14 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - Weak Function Callbacks: Customizable LED control and temperature reporting.
 - CRC Validation: Automatic checksum verification of sensor data.
 
-## 📋 Requirements
+## Requirements
 
 - Microcontroller: STM32F103C8T6 (Blue Pill) or compatible
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM or Keil with C99 support
 - Clock Configuration: 72MHz system clock (configured by the driver)
 
-## 📁 File Structure
+## File Structure
 
 ```
 ├── demo.c              # Example application with UART output
@@ -27,7 +27,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 └── macro.h             # STM32 register access macros
 ```
 
-## 🛠️ Hardware Connections
+## Hardware Connections
 
 | STM32F103 Pin | Function     | DS18B20 Pin |
 |---------------|--------------|-------------|
@@ -37,7 +37,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 Note: A 4.7kΩ pull-up resistor is required between the PA8 and 3.3V lines.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Include the Driver
 
@@ -90,7 +90,7 @@ void ds18b20_temp_ready(int16_t temp) {
     }
 }
 ```
-## 🔧 Building the Project with `make`
+## Building the Project with `make`
 
 This project uses a `Makefile` to simplify building, cleaning, and
 programming the STM32 firmware. Below are the available commands and
@@ -183,7 +183,7 @@ After building, you can program the firmware to the STM32 device using:
     make EXTRA_FLAGS=MY_FEATURE
     ```
 
-## ⚙️ Architecture
+## Architecture
 
 ### Hybrid Hardware Automation
 
@@ -270,7 +270,7 @@ Kickstart behavior
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
 | **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
-## 📊 API Reference
+## API Reference
 
 ### Core Functions
 
@@ -302,7 +302,7 @@ Called when a temperature measurement is complete or an error occurs.
 - DS18B20_TEMP_ERROR_CRC_FAIL: Data corruption detected via CRC mismatch.
 - DS18B20_TEMP_ERROR_GENERIC: Unspecified communication error.
 
-## 📈 Performance
+## Performance
 
 - Time to result (one measurement): ~0.76 s (750 ms conversion + protocol overhead)
 - Inter-measurement pause: 5 s (configurable)
@@ -310,7 +310,7 @@ Called when a temperature measurement is complete or an error occurs.
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
-## 🔧 Configuration
+## Configuration
 
 ### Timing Constants
 
@@ -330,7 +330,7 @@ Modify in ds18b20.c:
 GPIOA->CRH |= GPIO_CRH_CNF8_0 | GPIO_CRH_MODE8_1;
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -356,11 +356,11 @@ GPIOA->CRH |= GPIO_CRH_CNF8_0 | GPIO_CRH_MODE8_1;
   - Precise "write" slots: a short ~1–2µs low for a '1', a long ~60µs low for a '0'.
 - Inspect Captured Data: Examine the ctx.edge[] array after a reset or the ctx.pulse[] array after a read to see the raw timing data the driver is using to detect presence and decode bits.
 
-## 📄 License
+## License
 
 This project is released under the MIT License. See the LICENSE file for details.
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (git checkout -b feature/AmazingFeature)
@@ -368,11 +368,11 @@ This project is released under the MIT License. See the LICENSE file for details
 4. Push to the branch (git push origin feature/AmazingFeature)
 5. Open a Pull Request
 
-## 📞 Support
+## Support
 
 For issues and questions, please open an issue on GitHub.
 
-## 📚 References
+## References
 
 - DS18B20 Datasheet  
   https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
