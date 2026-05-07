@@ -11,30 +11,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the source code from the repository
+      # Step 1: Checkout the source code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Cache the Arm Toolchain to avoid re-downloading (~100MB)
+      # Step 2: Cache the Arm Toolchain (Version 15.2)
       - name: Cache Arm Toolchain
         id: cache-toolchain
         uses: actions/cache@v3
         with:
           path: /opt/gcc-arm-none-eabi
-          key: ${{ runner.os }}-gcc-arm-none-eabi-10.3
+          # Key updated to 15.2 to avoid conflicts with older cached versions
+          key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
 
-      # Step 3: Download and install the toolchain if not found in cache
+      # Step 3: Install Toolchain if not in cache (using .tar.xz format)
       - name: Install Toolchain
         if: steps.cache-toolchain.outputs.cache-hit != 'true'
         run: |
           sudo mkdir -p /opt/gcc-arm-none-eabi
-          wget -qO- https://arm.com | sudo tar -xjv -C /opt/gcc-arm-none-eabi --strip-components=1
+          # Note: Using -xJv flag for XZ compression
+          wget -qO- https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz | sudo tar -xJv -C /opt/gcc-arm-none-eabi --strip-components=1
 
-      # Step 4: Add the compiler to the environment PATH
+      # Step 4: Add the toolchain binaries to the PATH
       - name: Add Toolchain to PATH
         run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
 
-      # Step 5: Cache project dependencies (CMSIS, etc.) located in libs/ folder
+      # Step 5: Cache project dependencies (e.g., CMSIS in libs/ folder)
       - name: Cache Project Dependencies
         id: cache-deps
         uses: actions/cache@v3
@@ -42,21 +44,24 @@ jobs:
           path: libs/
           key: ${{ runner.os }}-libs-${{ hashFiles('Makefile') }}
 
-      # Step 6: Trigger dependency download defined in your Makefile
+      # Step 6: Download dependencies only if cache is missing
       - name: Download Dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: make download-deps
 
-      # Step 7: Run the compilation process
+      # Step 7: Run the compilation
       - name: Build Project
-        run: make
+        run: |
+          mkdir -p build
+          make
 
-      # Step 8: Upload the resulting binary as a build artifact
+      # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ds18b20-demo-binaries
+          name: stm32-binaries
           path: |
             build/*.elf
             build/*.bin
             build/*.hex
+
