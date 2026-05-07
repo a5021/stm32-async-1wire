@@ -1,4 +1,4 @@
-name: STM32 Build CI
+name: STM32 Build Pipeline
 
 on:
   push:
@@ -11,18 +11,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # Step 1: Checkout the source code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    
-    - name: Install ARM GNU Toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi build-essential
-        make download-deps
-    
-    - name: Build Project
-      run: |
-        make
-        # arm-none-eabi-gcc -c ds18b20.c -mcpu=cortex-m3 -mthumb -O2 -Wall
+      # Step 2: Cache the Arm Toolchain to avoid re-downloading (~100MB)
+      - name: Cache Arm Toolchain
+        id: cache-toolchain
+        uses: actions/cache@v3
+        with:
+          path: /opt/gcc-arm-none-eabi
+          key: ${{ runner.os }}-gcc-arm-none-eabi-10.3
+
+      # Step 3: Download and install the toolchain if not found in cache
+      - name: Install Toolchain
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          sudo mkdir -p /opt/gcc-arm-none-eabi
+          wget -qO- https://arm.com | sudo tar -xjv -C /opt/gcc-arm-none-eabi --strip-components=1
+
+      # Step 4: Add the compiler to the environment PATH
+      - name: Add Toolchain to PATH
+        run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
+
+      # Step 5: Cache project dependencies (CMSIS, etc.) located in libs/ folder
+      - name: Cache Project Dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: libs/
+          key: ${{ runner.os }}-libs-${{ hashFiles('Makefile') }}
+
+      # Step 6: Trigger dependency download defined in your Makefile
+      - name: Download Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: make download-deps
+
+      # Step 7: Run the compilation process
+      - name: Build Project
+        run: make
+
+      # Step 8: Upload the resulting binary as a build artifact
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ds18b20-demo-binaries
+          path: |
+            build/*.elf
+            build/*.bin
+            build/*.hex
