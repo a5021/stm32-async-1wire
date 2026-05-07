@@ -1,0 +1,28 @@
+name: STM32 Build CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    
+    - name: Install ARM GNU Toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi build-essential
+
+    
+    - name: Build Project
+      run: |
+        make
+        # arm-none-eabi-gcc -c ds18b20.c -mcpu=cortex-m3 -mthumb -O2 -Wall
