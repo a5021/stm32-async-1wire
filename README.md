@@ -1,3 +1,4 @@
+[![STM32 Build CI](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/build.yml/badge.svg)](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/build.yml)
 # Non-Blocking DS18B20 Driver for STM32F103
 
 A bare-metal, register-level driver for the DS18B20 temperature sensor. This driver uses a sophisticated hybrid architecture with a hardware timer (TIM1) and DMA to achieve precise 1-Wire protocol timing without any software delays, busy-waits, or interrupts.
