@@ -4,7 +4,7 @@
 #include "stm32f1xx.h"
 
 #ifdef __cplusplus
- extern C {
+extern "C" {
 #endif
 
 #define NO  0
@@ -95,13 +95,12 @@
 // Main macro: expands to a mask of all requested bitfields for a given peripheral register
 #define BITS(PREFIX_, REG, ...)                                           \
 (                                                                         \
-    0                                                                     \
-    + sizeof(struct {                                                     \
+    (void)sizeof(struct {                                                 \
         _Static_assert(sizeof(#__VA_ARGS__) > 1,                          \
             "BITS(): at least one bitfield must be provided");            \
         int _dummy;                                                       \
-    })                                                                    \
-    + _BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__)   \
+    }),                                                                   \
+    _BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__)     \
 )
 
 // --- Peripheral Type Wrappers ---
@@ -305,229 +304,7 @@
 #define DMA_ISR(...)           BITS(DMA_, ISR, __VA_ARGS__)
 #define DMA_IFCR(...)          BITS(DMA_, IFCR, __VA_ARGS__)
 
-#else
-// Helper macro to concatenate tokens
-#define CONCAT(a, b) a##b
-#define CONCAT3(a, b, c) a##b##_##c
 
-// Main macro to generate bitfield masks
-#define BITS(PREFIX, REG, ...) \
-    (0 | CONCAT(_BITS_, _NARG(__VA_ARGS__))(PREFIX, REG, __VA_ARGS__))
-
-// Helper macros to count the number of arguments
-#define _NARG(...) _NARG_(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-#define _NARG_(...) _NARG__(__VA_ARGS__)
-#define _NARG__(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
-
-// Macros to handle different numbers of arguments
-#define _BITS_1(PREFIX, REG, BF) CONCAT3(PREFIX, REG, BF)
-#define _BITS_2(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_1(PREFIX, REG, __VA_ARGS__)
-#define _BITS_3(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_2(PREFIX, REG, __VA_ARGS__)
-#define _BITS_4(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_3(PREFIX, REG, __VA_ARGS__)
-#define _BITS_5(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_4(PREFIX, REG, __VA_ARGS__)
-#define _BITS_6(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_5(PREFIX, REG, __VA_ARGS__)
-#define _BITS_7(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_6(PREFIX, REG, __VA_ARGS__)
-#define _BITS_8(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_7(PREFIX, REG, __VA_ARGS__)
-#define _BITS_9(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_8(PREFIX, REG, __VA_ARGS__)
-#define _BITS_10(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_9(PREFIX, REG, __VA_ARGS__)
-#define _BITS_11(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_10(PREFIX, REG, __VA_ARGS__)
-#define _BITS_12(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_11(PREFIX, REG, __VA_ARGS__)
-#define _BITS_13(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_12(PREFIX, REG, __VA_ARGS__)
-#define _BITS_14(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_13(PREFIX, REG, __VA_ARGS__)
-#define _BITS_15(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_14(PREFIX, REG, __VA_ARGS__)
-#define _BITS_16(PREFIX, REG, BF, ...) _BITS_1(PREFIX, REG, BF) | _BITS_15(PREFIX, REG, __VA_ARGS__)
-
-// Peripheral-specific wrappers
-#define RCC_BITS(reg, ...) BITS(RCC_, reg, __VA_ARGS__)
-#define GPIO_BITS(reg, ...) BITS(GPIO_, reg, __VA_ARGS__)
-#define AFIO_BITS(reg, ...) BITS(AFIO_, reg, __VA_ARGS__)
-#define TIM_BITS(reg, ...) BITS(TIM_, reg, __VA_ARGS__)
-#define USART_BITS(reg, ...) BITS(USART_, reg, __VA_ARGS__)
-#define UART_BITS(reg, ...) BITS(UART_, reg, __VA_ARGS__)
-#define SPI_BITS(reg, ...) BITS(SPI_, reg, __VA_ARGS__)
-#define I2C_BITS(reg, ...) BITS(I2C_, reg, __VA_ARGS__)
-#define CAN_BITS(reg, ...) BITS(CAN_, reg, __VA_ARGS__)
-#define ADC_BITS(reg, ...) BITS(ADC_, reg, __VA_ARGS__)
-#define DAC_BITS(reg, ...) BITS(DAC_, reg, __VA_ARGS__)
-#define CRC_BITS(reg, ...) BITS(CRC_, reg, __VA_ARGS__)
-#define USB_BITS(reg, ...) BITS(USB_, reg, __VA_ARGS__)
-#define BKP_BITS(reg, ...) BITS(BKP_, reg, __VA_ARGS__)
-#define PWR_BITS(reg, ...) BITS(PWR_, reg, __VA_ARGS__)
-#define FLASH_BITS(reg, ...) BITS(FLASH_, reg, __VA_ARGS__)
-#define DBGMCU_BITS(reg, ...) BITS(DBGMCU_, reg, __VA_ARGS__)
-#define WWDG_BITS(reg, ...) BITS(WWDG_, reg, __VA_ARGS__)
-#define IWDG_BITS(reg, ...) BITS(IWDG_, reg, __VA_ARGS__)
-#define RTC_BITS(reg, ...) BITS(RTC_, reg, __VA_ARGS__)
-#define EXTI_BITS(reg, ...) BITS(EXTI_, reg, __VA_ARGS__)
-#define DMA_BITS(reg, ...) BITS(DMA_, reg, __VA_ARGS__)
-
-// Register shortcuts for RCC
-#define RCC_CR(...) RCC_BITS(CR, __VA_ARGS__)
-#define RCC_CFGR(...) RCC_BITS(CFGR, __VA_ARGS__)
-#define RCC_CIR(...) RCC_BITS(CIR, __VA_ARGS__)
-#define RCC_APB2RSTR(...) RCC_BITS(APB2RSTR, __VA_ARGS__)
-#define RCC_APB1RSTR(...) RCC_BITS(APB1RSTR, __VA_ARGS__)
-#define RCC_AHBENR(...) RCC_BITS(AHBENR, __VA_ARGS__)
-#define RCC_APB2ENR(...) RCC_BITS(APB2ENR, __VA_ARGS__)
-#define RCC_APB1ENR(...) RCC_BITS(APB1ENR, __VA_ARGS__)
-#define RCC_BDCR(...) RCC_BITS(BDCR, __VA_ARGS__)
-#define RCC_CSR(...) RCC_BITS(CSR, __VA_ARGS__)
-
-// Register shortcuts for GPIO
-#define GPIO_CRL(...) GPIO_BITS(CRL, __VA_ARGS__)
-#define GPIO_CRH(...) GPIO_BITS(CRH, __VA_ARGS__)
-#define GPIO_IDR(...) GPIO_BITS(IDR, __VA_ARGS__)
-#define GPIO_ODR(...) GPIO_BITS(ODR, __VA_ARGS__)
-#define GPIO_BSRR(...) GPIO_BITS(BSRR, __VA_ARGS__)
-#define GPIO_BRR(...) GPIO_BITS(BRR, __VA_ARGS__)
-#define GPIO_LCKR(...) GPIO_BITS(LCKR, __VA_ARGS__)
-
-// Register shortcuts for AFIO
-#define AFIO_EVCR(...) AFIO_BITS(EVCR, __VA_ARGS__)
-#define AFIO_MAPR(...) AFIO_BITS(MAPR, __VA_ARGS__)
-#define AFIO_EXTICR1(...) AFIO_BITS(EXTICR1, __VA_ARGS__)
-#define AFIO_EXTICR2(...) AFIO_BITS(EXTICR2, __VA_ARGS__)
-#define AFIO_EXTICR3(...) AFIO_BITS(EXTICR3, __VA_ARGS__)
-#define AFIO_EXTICR4(...) AFIO_BITS(EXTICR4, __VA_ARGS__)
-#define AFIO_MAPR2(...) AFIO_BITS(MAPR2, __VA_ARGS__)
-
-// Register shortcuts for TIM
-#define TIM_CR1(...) TIM_BITS(CR1, __VA_ARGS__)
-#define TIM_CR2(...) TIM_BITS(CR2, __VA_ARGS__)
-#define TIM_SMCR(...) TIM_BITS(SMCR, __VA_ARGS__)
-#define TIM_DIER(...) TIM_BITS(DIER, __VA_ARGS__)
-#define TIM_SR(...) TIM_BITS(SR, __VA_ARGS__)
-#define TIM_EGR(...) TIM_BITS(EGR, __VA_ARGS__)
-#define TIM_CCMR1(...) TIM_BITS(CCMR1, __VA_ARGS__)
-#define TIM_CCMR2(...) TIM_BITS(CCMR2, __VA_ARGS__)
-#define TIM_CCER(...) TIM_BITS(CCER, __VA_ARGS__)
-#define TIM_CNT(...) TIM_BITS(CNT, __VA_ARGS__)
-#define TIM_PSC(...) TIM_BITS(PSC, __VA_ARGS__)
-#define TIM_ARR(...) TIM_BITS(ARR, __VA_ARGS__)
-#define TIM_CCR1(...) TIM_BITS(CCR1, __VA_ARGS__)
-#define TIM_CCR2(...) TIM_BITS(CCR2, __VA_ARGS__)
-#define TIM_CCR3(...) TIM_BITS(CCR3, __VA_ARGS__)
-#define TIM_CCR4(...) TIM_BITS(CCR4, __VA_ARGS__)
-#define TIM_DCR(...) TIM_BITS(DCR, __VA_ARGS__)
-#define TIM_DMAR(...) TIM_BITS(DMAR, __VA_ARGS__)
-
-// Register shortcuts for USART
-#define USART_SR(...) USART_BITS(SR, __VA_ARGS__)
-#define USART_DR(...) USART_BITS(DR, __VA_ARGS__)
-#define USART_BRR(...) USART_BITS(BRR, __VA_ARGS__)
-#define USART_CR1(...) USART_BITS(CR1, __VA_ARGS__)
-#define USART_CR2(...) USART_BITS(CR2, __VA_ARGS__)
-#define USART_CR3(...) USART_BITS(CR3, __VA_ARGS__)
-#define USART_GTPR(...) USART_BITS(GTPR, __VA_ARGS__)
-
-// Register shortcuts for SPI
-#define SPI_CR1(...) SPI_BITS(CR1, __VA_ARGS__)
-#define SPI_CR2(...) SPI_BITS(CR2, __VA_ARGS__)
-#define SPI_SR(...) SPI_BITS(SR, __VA_ARGS__)
-#define SPI_DR(...) SPI_BITS(DR, __VA_ARGS__)
-#define SPI_CRCPR(...) SPI_BITS(CRCPR, __VA_ARGS__)
-#define SPI_RXCRCR(...) SPI_BITS(RXCRCR, __VA_ARGS__)
-#define SPI_TXCRCR(...) SPI_BITS(TXCRCR, __VA_ARGS__)
-#define SPI_I2SCFGR(...) SPI_BITS(I2SCFGR, __VA_ARGS__)
-#define SPI_I2SPR(...) SPI_BITS(I2SPR, __VA_ARGS__)
-
-// Register shortcuts for I2C
-#define I2C_CR1(...) I2C_BITS(CR1, __VA_ARGS__)
-#define I2C_CR2(...) I2C_BITS(CR2, __VA_ARGS__)
-#define I2C_OAR1(...) I2C_BITS(OAR1, __VA_ARGS__)
-#define I2C_OAR2(...) I2C_BITS(OAR2, __VA_ARGS__)
-#define I2C_DR(...) I2C_BITS(DR, __VA_ARGS__)
-#define I2C_SR1(...) I2C_BITS(SR1, __VA_ARGS__)
-#define I2C_SR2(...) I2C_BITS(SR2, __VA_ARGS__)
-#define I2C_CCR(...) I2C_BITS(CCR, __VA_ARGS__)
-#define I2C_TRISE(...) I2C_BITS(TRISE, __VA_ARGS__)
-
-// Register shortcuts for ADC
-#define ADC_SR(...) ADC_BITS(SR, __VA_ARGS__)
-#define ADC_CR1(...) ADC_BITS(CR1, __VA_ARGS__)
-#define ADC_CR2(...) ADC_BITS(CR2, __VA_ARGS__)
-#define ADC_SMPR1(...) ADC_BITS(SMPR1, __VA_ARGS__)
-#define ADC_SMPR2(...) ADC_BITS(SMPR2, __VA_ARGS__)
-#define ADC_JOFR1(...) ADC_BITS(JOFR1, __VA_ARGS__)
-#define ADC_JOFR2(...) ADC_BITS(JOFR2, __VA_ARGS__)
-#define ADC_JOFR3(...) ADC_BITS(JOFR3, __VA_ARGS__)
-#define ADC_JOFR4(...) ADC_BITS(JOFR4, __VA_ARGS__)
-#define ADC_HTR(...) ADC_BITS(HTR, __VA_ARGS__)
-#define ADC_LTR(...) ADC_BITS(LTR, __VA_ARGS__)
-#define ADC_SQR1(...) ADC_BITS(SQR1, __VA_ARGS__)
-#define ADC_SQR2(...) ADC_BITS(SQR2, __VA_ARGS__)
-#define ADC_SQR3(...) ADC_BITS(SQR3, __VA_ARGS__)
-#define ADC_JSQR(...) ADC_BITS(JSQR, __VA_ARGS__)
-#define ADC_JDR1(...) ADC_BITS(JDR1, __VA_ARGS__)
-#define ADC_JDR2(...) ADC_BITS(JDR2, __VA_ARGS__)
-#define ADC_JDR3(...) ADC_BITS(JDR3, __VA_ARGS__)
-#define ADC_JDR4(...) ADC_BITS(JDR4, __VA_ARGS__)
-#define ADC_DR(...) ADC_BITS(DR, __VA_ARGS__)
-
-// Register shortcuts for EXTI
-#define EXTI_IMR(...) EXTI_BITS(IMR, __VA_ARGS__)
-#define EXTI_EMR(...) EXTI_BITS(EMR, __VA_ARGS__)
-#define EXTI_RTSR(...) EXTI_BITS(RTSR, __VA_ARGS__)
-#define EXTI_FTSR(...) EXTI_BITS(FTSR, __VA_ARGS__)
-#define EXTI_SWIER(...) EXTI_BITS(SWIER, __VA_ARGS__)
-#define EXTI_PR(...) EXTI_BITS(PR, __VA_ARGS__)
-
-// Register shortcuts for PWR
-#define PWR_CR(...) PWR_BITS(CR, __VA_ARGS__)
-#define PWR_CSR(...) PWR_BITS(CSR, __VA_ARGS__)
-
-// Register shortcuts for FLASH
-#define FLASH_ACR(...) FLASH_BITS(ACR, __VA_ARGS__)
-#define FLASH_KEYR(...) FLASH_BITS(KEYR, __VA_ARGS__)
-#define FLASH_OPTKEYR(...) FLASH_BITS(OPTKEYR, __VA_ARGS__)
-#define FLASH_SR(...) FLASH_BITS(SR, __VA_ARGS__)
-#define FLASH_CR(...) FLASH_BITS(CR, __VA_ARGS__)
-#define FLASH_AR(...) FLASH_BITS(AR, __VA_ARGS__)
-#define FLASH_OBR(...) FLASH_BITS(OBR, __VA_ARGS__)
-#define FLASH_WRPR(...) FLASH_BITS(WRPR, __VA_ARGS__)
-
-// Register shortcuts for BKP
-#define BKP_RTCCR(...) BKP_BITS(RTCCR, __VA_ARGS__)
-#define BKP_CR(...) BKP_BITS(CR, __VA_ARGS__)
-#define BKP_CSR(...) BKP_BITS(CSR, __VA_ARGS__)
-
-// Register shortcuts for CRC
-#define CRC_DR(...) CRC_BITS(DR, __VA_ARGS__)
-#define CRC_IDR(...) CRC_BITS(IDR, __VA_ARGS__)
-#define CRC_CR(...) CRC_BITS(CR, __VA_ARGS__)
-
-// Register shortcuts for WWDG
-#define WWDG_CR(...) WWDG_BITS(CR, __VA_ARGS__)
-#define WWDG_CFR(...) WWDG_BITS(CFR, __VA_ARGS__)
-#define WWDG_SR(...) WWDG_BITS(SR, __VA_ARGS__)
-
-// Register shortcuts for IWDG
-#define IWDG_KR(...) IWDG_BITS(KR, __VA_ARGS__)
-#define IWDG_PR(...) IWDG_BITS(PR, __VA_ARGS__)
-#define IWDG_RLR(...) IWDG_BITS(RLR, __VA_ARGS__)
-#define IWDG_SR(...) IWDG_BITS(SR, __VA_ARGS__)
-
-// Register shortcuts for RTC
-#define RTC_CRH(...) RTC_BITS(CRH, __VA_ARGS__)
-#define RTC_CRL(...) RTC_BITS(CRL, __VA_ARGS__)
-#define RTC_PRLH(...) RTC_BITS(PRLH, __VA_ARGS__)
-#define RTC_PRLL(...) RTC_BITS(PRLL, __VA_ARGS__)
-#define RTC_DIVH(...) RTC_BITS(DIVH, __VA_ARGS__)
-#define RTC_DIVL(...) RTC_BITS(DIVL, __VA_ARGS__)
-#define RTC_CNTH(...) RTC_BITS(CNTH, __VA_ARGS__)
-#define RTC_CNTL(...) RTC_BITS(CNTL, __VA_ARGS__)
-#define RTC_ALRH(...) RTC_BITS(ALRH, __VA_ARGS__)
-#define RTC_ALRL(...) RTC_BITS(ALRL, __VA_ARGS__)
-
-// Register shortcuts for DMA
-#define DMA_CCR(...) DMA_BITS(CCR, __VA_ARGS__)
-#define DMA_CNDTR(...) DMA_BITS(CNDTR, __VA_ARGS__)
-#define DMA_CPAR(...) DMA_BITS(CPAR, __VA_ARGS__)
-#define DMA_CMAR(...) DMA_BITS(CMAR, __VA_ARGS__)
-#define DMA_ISR(...) DMA_BITS(ISR, __VA_ARGS__)
-#define DMA_IFCR(...) DMA_BITS(IFCR, __VA_ARGS__)
-
-#endif
 
 #if defined(__GNUC__) && ! defined(__clang__)
   //void _close_r(void){} void _close(void){} void _lseek_r(void){} void _lseek(void){} void _read_r(void){} void _read(void){} void _write_r(void){}
