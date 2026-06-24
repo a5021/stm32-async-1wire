@@ -304,7 +304,7 @@ extern "C" {
 #define DMA_ISR(...)           BITS(DMA_, ISR, __VA_ARGS__)
 #define DMA_IFCR(...)          BITS(DMA_, IFCR, __VA_ARGS__)
 
-
+#endif
 
 #if defined(__GNUC__) && ! defined(__clang__)
   //void _close_r(void){} void _close(void){} void _lseek_r(void){} void _lseek(void){} void _read_r(void){} void _read(void){} void _write_r(void){}
