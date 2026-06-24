@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-#define NO  0
-#define YES (!NO)
-
 #define D11 (*DMA1_Channel1) /* 0x40020008 */
 #define D12 (*DMA1_Channel2) /* 0x4002001C */
 #define D13 (*DMA1_Channel3) /* 0x40020030 */
