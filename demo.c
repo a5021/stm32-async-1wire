@@ -186,7 +186,11 @@ void ds18b20_temp_ready(int16_t temp) {
         int frac = temp % 10;       // Get fractional part (tenths)
         if (frac < 0) frac = -frac; // Ensure fractional part is positive
         uart_write_str("Temperature: ");
-        uart_write_int(whole);      // Display whole part
+        if (whole == 0 && temp < 0) {
+            uart_write_str("-0");   // Handle -0.5°C case
+        } else {
+            uart_write_int(whole);  // Display whole part
+        }
         uart_write_str(".");        // Decimal point
         uart_write_int(frac);       // Display fractional part
         uart_write_str(" C");       // Units
