@@ -1,8 +1,6 @@
 #ifndef __MACRO_H
 #define __MACRO_H
 
-#include "stm32f1xx.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
