@@ -1,0 +1,20 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+SpaceBeforeParens: ControlStatements
+ColumnLimit: 0
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+ReflowComments: false
+AlignEscapedNewlines: Left
+SpaceAfterCStyleCast: false
+IndentPPDirectives: None
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 1000000
+...

@@ -66,6 +66,16 @@ void ds18b20_init(void);
 void ds18b20_poll(void);
 
 /**
+ * @brief Temperature ready callback (weak)
+ * @param[in] temp Temperature in tenths of degrees Celsius, or error code
+ */
+#if defined(ELAPSED_TIME)
+void ds18b20_temp_ready(int16_t temp, uint32_t t);
+#else
+void ds18b20_temp_ready(int16_t temp);
+#endif
+
+/**
  * @}
  */
 

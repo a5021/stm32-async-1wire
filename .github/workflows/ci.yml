@@ -1,0 +1,49 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check code formatting
+        run: clang-format --dry-run --Werror ds18b20.h ds18b20.c demo.c macro.h
+
+  cppcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+      - name: Download CMSIS dependencies
+        run: make download-deps
+      - name: Run static analysis
+        run: cppcheck --platform=arm32 --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem -I. -DSTM32F103xB ds18b20.c demo.c
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GCC
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Cache CMSIS dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: libs/
+          key: ${{ runner.os }}-libs-${{ hashFiles('Makefile') }}
+      - name: Download dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: make download-deps
+      - name: Build release
+        run: make
+      - name: Build with GCC analyzer
+        run: make clean && make all EXT="-fanalyzer"
+        continue-on-error: true

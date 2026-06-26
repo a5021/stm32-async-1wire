@@ -49,18 +49,6 @@ JLINK_FLAGS = -openprj./stm32f103cb.jflash -open$(BUILD_DIR)/$(TARGET).hex -hide
 
 ifeq ($(OS), Windows_NT)
 
-    FLAG += -D WIN32
-    ifeq ($(PROCESSOR_ARCHITEW6432), AMD64)
-        FLAG += -D AMD64
-    else
-        ifeq ($(PROCESSOR_ARCHITECTURE), AMD64)
-            FLAG += -D AMD64
-        endif
-        ifeq ($(PROCESSOR_ARCHITECTURE), x86)
-            FLAG += -D IA32
-        endif
-    endif
-
     STLINK = ST-LINK_CLI.exe
     STLINK_FLAGS = -c UR -V -P $(BUILD_DIR)/$(TARGET).hex -HardRst -Run
 
@@ -74,13 +62,6 @@ else
     endif
     ifeq ($(UNAME_S), Darwin)
         FLAG += -D OSX
-    endif
-    UNAME_P := $(shell uname -p)
-    ifeq ($(UNAME_P), x86_64)
-        FLAG += -D AMD64
-    endif
-    ifneq ($(filter %86, $(UNAME_P)),)
-        FLAG += -D IA32
     endif
     ifneq ($(filter arm%, $(UNAME_P)),)
         FLAG += -D ARM

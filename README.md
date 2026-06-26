@@ -1,4 +1,5 @@
 [![STM32 Build CI](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/build.yml/badge.svg)](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/build.yml)
+[![Code Quality](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/ci.yml/badge.svg)](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # Non-Blocking DS18B20 Driver for STM32F103
 
