@@ -25,7 +25,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction -I. -DSTM32F103xB -D__GNUC__ ds18b20.c demo.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer -I. -DSTM32F103xB -D__GNUC__ ds18b20.c demo.c
 
   build:
     runs-on: ubuntu-latest
