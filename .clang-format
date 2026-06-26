@@ -7,11 +7,12 @@ PointerAlignment: Left
 SpaceBeforeParens: ControlStatements
 ColumnLimit: 0
 AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterReturnType: None
 AlwaysBreakAfterDefinitionReturnType: None
 ReflowComments: false
+AlignTrailingComments: false
 AlignEscapedNewlines: Left
 SpaceAfterCStyleCast: false
 IndentPPDirectives: None

@@ -37,9 +37,9 @@ extern "C" {
  * @brief Special error values (0.1°C units, outside -550..1250 range)
  * @note These values are outside the normal temperature range to indicate errors
  */
-#define DS18B20_TEMP_ERROR_GENERIC    INT16_MIN      /**< Generic/unspecified error */
+#define DS18B20_TEMP_ERROR_GENERIC INT16_MIN /**< Generic/unspecified error */
 #define DS18B20_TEMP_ERROR_NO_SENSOR (INT16_MIN + 1) /**< No sensor detected on bus */
-#define DS18B20_TEMP_ERROR_CRC_FAIL  (INT16_MIN + 2) /**< CRC checksum validation failed */
+#define DS18B20_TEMP_ERROR_CRC_FAIL (INT16_MIN + 2) /**< CRC checksum validation failed */
 
 /**
  * @}
