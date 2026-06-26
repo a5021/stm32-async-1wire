@@ -17,12 +17,12 @@ extern "C" {
 #define A2  (*ADC2)   /* 0x40012800 */
 #define A   (*AFIO)   /* 0x40010000 */
 
-#define B   (*BKP)    /* 0x40006C00 */
-#define C   (*CRC)    /* 0x40023000 */
+#define BK  (*BKP)    /* 0x40006C00 */
+#define CR  (*CRC)    /* 0x40023000 */
 #define C1  (*CAN1)   /* 0x40006400 */
-#define D   (*DBGMCU) /* 0xE0042000 */
-#define E   (*EXTI)   /* 0x40010400 */
-#define F   (*FLASH)  /* 0x40022000 */
+#define DB  (*DBGMCU) /* 0xE0042000 */
+#define EX  (*EXTI)   /* 0x40010400 */
+#define FL  (*FLASH)  /* 0x40022000 */
 
 #define PA  (*GPIOA)  /* 0x40010800 */
 #define PB  (*GPIOB)  /* 0x40010C00 */
@@ -31,12 +31,12 @@ extern "C" {
 
 #define I1  (*I2C1)   /* 0x40005400 */
 #define I2  (*I2C2)   /* 0x40005800 */
-#define I   (*IWDG)   /* 0x40003000 */
+#define IW  (*IWDG)   /* 0x40003000 */
 
 #define O   (*OB)     /* 0x1FFFF800 */
 
-#define P   (*PWR)    /* 0x40007000 */
-#define R   (*RCC)    /* 0x40021000 */
+#define PW  (*PWR)    /* 0x40007000 */
+#define RC  (*RCC)    /* 0x40021000 */
 #define RT  (*RTC)    /* 0x40002800 */
 
 #define S1  (*SPI1)   /* 0x40013000 */

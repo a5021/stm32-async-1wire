@@ -328,8 +328,8 @@ __STATIC_FORCEINLINE void read_data(void) {
  */
 void ds18b20_init(void) {
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
-    R.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
-    R.AHBENR  |= RCC_AHBENR(DMA1EN);
+    RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
+    RC.AHBENR  |= RCC_AHBENR(DMA1EN);
     // Configure timer prescaler for 1µs resolution (72MHz/72 = 1MHz)
     T1.PSC     = TIM_PRESCALER;
     T1.EGR     = TIM_EGR(UG);
@@ -351,9 +351,9 @@ void ds18b20_poll(void) {
 
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish
-    if (!(TIM1->SR & TIM_SR(UIF))) return;
+    if (!(T1.SR & TIM_SR(UIF))) return;
     // Clear timer update interrupt flag
-    TIM1->SR = 0;
+    T1.SR = 0;
 
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
