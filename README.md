@@ -24,10 +24,25 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 ## File Structure
 
 ```
-├── demo.c              # Example application with UART output
-├── ds18b20.c           # Main driver implementation
-├── ds18b20.h           # Driver interface and constants
-└── macro.h             # STM32 register access macros
+├── inc/                    # Project header files
+│   ├── ds18b20.h           # Driver interface and constants
+│   └── macro.h             # STM32 register access macros
+├── src/                    # Project source files
+│   ├── demo.c              # Example application with UART output
+│   └── ds18b20.c           # Main driver implementation
+├── CMSIS/                  # Build-time dependencies (gitignored)
+│   ├── core/               # ARM CMSIS 5 core headers
+│   └── device/             # STM32F1 device headers and startup
+├── .vscode/                # VSCode workspace configuration
+│   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
+│   ├── launch.json         # Debug configuration (F5, J-Link)
+│   ├── c_cpp_properties.json  # IntelliSense paths
+│   ├── extensions.json     # Recommended extensions
+│   └── settings.json       # Editor settings
+├── build/                  # Build artifacts (generated)
+├── STM32F103XB_FLASH.ld    # Linker script (with .noinit section)
+├── Makefile
+└── stm32f103cb.jflash      # J-Flash project file
 ```
 
 ## Hardware Connections
@@ -93,78 +108,65 @@ void ds18b20_temp_ready(int16_t temp) {
     }
 }
 ```
-## Building the Project with `make`
+## Building
 
-This project uses a `Makefile` to simplify building, cleaning, and
-programming the STM32 firmware. Below are the available commands and
-their purpose.
+### Prerequisites
 
-### **Prerequisites**
-
--   **Toolchain:** `arm-none-eabi-gcc` and related utilities (`objcopy`,
-    `size`) must be installed.
--   **wget:** Required for downloading external dependencies.
+-   **Toolchain:** `arm-none-eabi-gcc` (GCC 12+ recommended) and related
+    utilities (`objcopy`, `size`).
+-   **wget:** Required for downloading CMSIS build dependencies.
 -   **Programmer tools:**
-    -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe`
-        (Windows)
-    -   **J-LINK:** `JFlashExe` or `JFlash.Exe`
+    -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
+    -   **J-LINK:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
 
-### **Basic Usage**
+### CMSIS Dependencies
 
-Run `make` in the project root directory.
+ARM CMSIS core headers and STM32F1 device files are not stored in the
+repository. They are downloaded automatically at build time to
+`CMSIS/core/` and `CMSIS/device/`:
 
-``` bash
-make
+```bash
+make download-deps
 ```
 
-This will: 1. Check and download required external dependencies (CMSIS
-headers, startup code, linker script, etc.). 2. Compile the source files
-and assemble the startup code. 3. Link everything into an ELF
-executable. 4. Generate `.hex` and `.bin` files for flashing. 5. Print
-the size of the final binary.
+To remove them:
 
-The default output directory is `build/`.
+```bash
+make clean-deps
+```
 
-### **Common Targets**
+License files are also downloadable:
 
-  `make` or `make all`   Build the project (default target).
+```bash
+make download-licenses
+```
 
-  `make debug`           Build with debug symbols (`-Og -g3`).
+### Build
 
-  `make clean`           Remove all build artifacts (object files, binaries,
-                         map file).
+```bash
+make            # Release build (-O3 -flto)
+make debug      # Debug build (-Og -g3)
+```
 
-  `make download-deps`   Download all missing external dependencies.
+Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 
-  `make clean-deps`      Remove downloaded external dependencies.
+### Common Targets
 
-  `make gccversion`      Show the version of `arm-none-eabi-gcc`.
+| Target | Description |
+|--------|-------------|
+| `make` / `make all` | Build release |
+| `make debug` | Build with debug symbols |
+| `make clean` | Remove build artifacts |
+| `make download-deps` | Download CMSIS dependencies |
+| `make clean-deps` | Remove downloaded dependencies |
+| `make program` | Flash via ST-LINK |
+| `make jprogram` | Flash via J-LINK |
+| `make help` | Show all targets |
 
-  `make help`            Display all available targets.
+### Flash
 
-
-### **Programming the Device**
-
-After building, you can program the firmware to the STM32 device using:
-
--   **ST-LINK:**
-
-    ``` bash
-    make program
-    ```
-
-    -   Uses `st-flash` on Linux/macOS or `ST-LINK_CLI.exe` on Windows.
-    -   Writes the generated `.hex` file to the MCU flash and resets the
-        device.
-
--   **J-LINK:**
-
-    ``` bash
-    make jprogram
-    ```
-
-    -   Uses Segger J-Link utilities (`JFlashExe` or `JFlash.Exe`).
-    -   Automatically loads and programs the `.hex` file.
+-   **ST-LINK:** `make program` (uses `st-flash` / `ST-LINK_CLI.exe`)
+-   **J-LINK:** `make jprogram` (uses `JFlashExe` / `JFlash.Exe`)
 
 ### **Configuration Notes**
 
@@ -185,6 +187,44 @@ After building, you can program the firmware to the STM32 device using:
     ``` bash
     make EXTRA_FLAGS=MY_FEATURE
     ```
+
+## VSCode Integration
+
+The repository includes `.vscode/` workspace configuration for a
+convenient development workflow.
+
+### Extensions
+
+When opening the project, VSCode will prompt to install recommended
+extensions (see `.vscode/extensions.json`):
+
+- **Cortex-Debug** (`marus25.cortex-debug`) — ARM Cortex-M debugging via
+  J-Link / OpenOCD / ST-Link
+- **C/C++ Extension Pack** (`ms-vscode.cpptools-extension-pack`) —
+  IntelliSense with CMSIS headers, code navigation
+- **Clang-Format** (`xaver.clang-format`) — automatic formatting using
+  the project's `.clang-format` style
+
+### Building
+
+Press **Ctrl+Shift+B** to run the default build task (`make`). Other
+tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
+
+- `Build (release)` — `make` (default)
+- `Build (debug)` — `make debug`
+- `Clean` — `make clean`
+- `Program (J-Link)` / `Program (ST-Link)` — flash the device
+- `Download dependencies` — `make download-deps`
+
+### Debugging
+
+1. Connect a J-Link debugger via SWD.
+2. Open `src/demo.c` and set a breakpoint in `main()`.
+3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
+   flash it, run to `main()`, and halt.
+
+The SVD file is loaded automatically for peripheral register views in
+the debug sidebar.
 
 ## Architecture
 
@@ -343,13 +383,24 @@ Adjustable in ds18b20.c:
 
 ### Debugging Tips
 
-- Monitor the State Variable: Check the value of ctx.current_state in a debugger to see the current step in the communication sequence.
-- Check the Update Flag: Read the TIM1->SR register. If the driver seems idle, a set UIF bit indicates a completed operation is waiting to be processed by ds18b20_poll().
-- Inspect the GPIO: Use an oscilloscope on PA8 to verify the 1-Wire waveforms. Look for:
+- Use Debug Build: The release build (`-O3 -flto`) aggressively optimizes
+  the driver, which may inline or eliminate static variables like `ctx`.
+  Use `make debug` (`-Og -g3`) for debugging.
+- VSCode: Press F5 to build (debug) and launch a J-Link debug session.
+  The SVD file provides peripheral register views.
+- Monitor the State Variable: Check `ctx.current_state` in a debugger to
+  see the current step in the communication sequence.
+- Check the Update Flag: Read `TIM1->SR`. If the driver seems idle,
+  a set UIF bit indicates a completed operation waiting to be processed
+  by `ds18b20_poll()`.
+- Inspect the GPIO: Use an oscilloscope on PA8 to verify the 1-Wire
+  waveforms. Look for:
   - A clean ~480µs reset pulse (MCU pulls low, then releases).
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
-  - Precise "write" slots: a short ~1–2µs low for a '1', a long ~60µs low for a '0'.
-- Inspect Captured Data: Examine the ctx.edge[] array after a reset or the ctx.pulse[] array after a read to see the raw timing data the driver is using to detect presence and decode bits.
+  - Precise write slots: a short ~1-2µs low for a '1', a long ~60µs low
+    for a '0'.
+- Inspect Captured Data: Examine `ctx.edge[]` after a reset or
+  `ctx.pulse[]` after a read to see the raw timing data.
 
 ## License
 

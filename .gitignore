@@ -42,6 +42,11 @@
 *.idb
 *.pdb
 
+# Temp files from debug sessions
+.gdb_cmd*.txt
+.jlink_cmd*.txt
+*.jdebug.user
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd
