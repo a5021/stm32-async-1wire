@@ -25,7 +25,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer -I. -DSTM32F103xB -D__GNUC__ ds18b20.c demo.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer -I. -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ ds18b20.c demo.c
 
   build:
     runs-on: ubuntu-latest
@@ -37,8 +37,8 @@ jobs:
         id: cache-deps
         uses: actions/cache@v3
         with:
-          path: libs/
-          key: ${{ runner.os }}-libs-${{ hashFiles('Makefile') }}
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: make download-deps

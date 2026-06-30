@@ -2,13 +2,17 @@
 TARGET = ds18b20_demo
 BUILD_DIR = build
 
+# CMSIS directory structure for third-party build dependencies
+CMSIS_CORE_DIR   = CMSIS/core
+CMSIS_DEVICE_DIR = CMSIS/device
+
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-SRC = system_stm32f1xx.c demo.c ds18b20.c
-ASM = startup_stm32f103xb.s
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c demo.c ds18b20.c
+ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
-INC = -I.
+INC = -I. -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Define additional preprocessor definitions based on conditional variables
 USE := USE_HSI ELAPSED_TIME
@@ -21,7 +25,7 @@ DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
 # -fopt-info-inline-all=inline_report.txt : Generate detailed inline optimization report to file
 # --param max-inline-insns-auto=480 : Set auto-inlining threshold to 480 instructions (more aggressive inlining)
 
-OPT = -O3 -flto -g0 -fopt-info-inline-all=inline_report.txt --param max-inline-insns-auto=480
+OPT = -O3 -flto -g0 -fopt-info-inline-all=$(BUILD_DIR)/inline_report.txt --param max-inline-insns-auto=480
 
 # Define the toolchain prefix
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
@@ -107,81 +111,104 @@ WGET := $(shell command -v wget 2> /dev/null)
 # Base URLs
 RAW_URL = https://raw.githubusercontent.com
 ST_URL = $(RAW_URL)/STMicroelectronics/
-CMSIS_URL = $(ST_URL)STM32CubeF1/master/Drivers/CMSIS/Include
+CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/master/CMSIS/Core/Include
 F1_URL = $(ST_URL)cmsis_device_f1/master
 SVD_URL = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 
 # Required external files (needed for build but not in repo)
-EXTERNAL_DEPS = system_stm32f1xx.c \
-                startup_stm32f103xb.s \
-                stm32f1xx.h \
-                stm32f103xb.h \
-                system_stm32f1xx.h \
-                cmsis_compiler.h \
-                cmsis_gcc.h \
-                cmsis_version.h \
-                core_cm3.h \
-                STM32F103xx.svd
+EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
+                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
+                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
+                $(CMSIS_CORE_DIR)/cmsis_version.h \
+                $(CMSIS_DEVICE_DIR)/stm32f1xx.h \
+                $(CMSIS_DEVICE_DIR)/stm32f103xb.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32f1xx.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c \
+                $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s \
+                $(CMSIS_DEVICE_DIR)/STM32F103xx.svd
+
+# License files
+CMSIS_CORE_LICENSE_URL = https://raw.githubusercontent.com/ARM-software/CMSIS_5/master/LICENSE.txt
+DEVICE_F1_LICENSE_URL = https://raw.githubusercontent.com/STMicroelectronics/cmsis_device_f1/master/License.md
+
+CMSIS_CORE_LICENSE = $(CMSIS_CORE_DIR)/LICENSE.txt
+CMSIS_DEVICE_LICENSE = $(CMSIS_DEVICE_DIR)/LICENSE
+
+LICENSE_FILES = $(CMSIS_CORE_LICENSE) $(CMSIS_DEVICE_LICENSE)
 
 # Download function using wget
 define download_file
-	@echo "Downloading $(2)..."
+	@echo "  Downloading $(2)..."
 	@if [ -z "$(WGET)" ]; then \
 		echo "Error: wget is required but not found. Please install wget."; \
 		exit 1; \
 	fi
-	@$(WGET) -q -O "$(2)" "$(1)" && echo "  OK" || (echo "  FAILED"; exit 1)
+	@$(WGET) -q -O "$(2)" "$(1)" && echo "    OK" || (echo "    FAILED"; exit 1)
 endef
 
-# File-specific download rules
-download-system_stm32f1xx.c:
-	$(call download_file,$(F1_URL)/Source/Templates/system_stm32f1xx.c,system_stm32f1xx.c)
+# Create CMSIS directories
+$(CMSIS_CORE_DIR):
+	mkdir -p $@
 
-download-startup_stm32f103xb.s:
-	$(call download_file,$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s,startup_stm32f103xb.s)
+$(CMSIS_DEVICE_DIR):
+	mkdir -p $@
 
-download-stm32f1xx.h:
-	$(call download_file,$(F1_URL)/Include/stm32f1xx.h,stm32f1xx.h)
+# ARM CMSIS Core headers (Apache 2.0)
+$(CMSIS_CORE_DIR)/core_cm3.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/core_cm3.h,$@)
 
-download-stm32f103xb.h:
-	$(call download_file,$(F1_URL)/Include/stm32f103xb.h,stm32f103xb.h)
+$(CMSIS_CORE_DIR)/cmsis_compiler.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/cmsis_compiler.h,$@)
 
-download-system_stm32f1xx.h:
-	$(call download_file,$(F1_URL)/Include/system_stm32f1xx.h,system_stm32f1xx.h)
+$(CMSIS_CORE_DIR)/cmsis_gcc.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/cmsis_gcc.h,$@)
 
-download-cmsis_compiler.h:
-	$(call download_file,$(CMSIS_URL)/cmsis_compiler.h,cmsis_compiler.h)
+$(CMSIS_CORE_DIR)/cmsis_version.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/cmsis_version.h,$@)
 
-download-cmsis_gcc.h:
-	$(call download_file,$(CMSIS_URL)/cmsis_gcc.h,cmsis_gcc.h)
+# cmsis_device_f1 headers and sources (Apache 2.0)
+$(CMSIS_DEVICE_DIR)/stm32f1xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F1_URL)/Include/stm32f1xx.h,$@)
 
-download-cmsis_version.h:
-	$(call download_file,$(CMSIS_URL)/cmsis_version.h,cmsis_version.h)
+$(CMSIS_DEVICE_DIR)/stm32f103xb.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F1_URL)/Include/stm32f103xb.h,$@)
 
-download-core_cm3.h:
-	$(call download_file,$(CMSIS_URL)/core_cm3.h,core_cm3.h)
+$(CMSIS_DEVICE_DIR)/system_stm32f1xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F1_URL)/Include/system_stm32f1xx.h,$@)
 
-download-STM32F103xx.svd:
-	$(call download_file,$(SVD_URL),STM32F103xx.svd)
+# cmsis_device_f1 sources (Apache 2.0)
+$(CMSIS_DEVICE_DIR)/system_stm32f1xx.c: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F1_URL)/Source/Templates/system_stm32f1xx.c,$@)
+
+$(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s,$@)
+
+# SVD file
+$(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(SVD_URL),$@)
+
+# License download targets
+$(CMSIS_CORE_LICENSE): | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_LICENSE_URL),$@)
+
+$(CMSIS_DEVICE_LICENSE): | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(DEVICE_F1_LICENSE_URL),$@)
 
 # Check if files exist and download if missing
-check-deps:
-	@for file in $(EXTERNAL_DEPS); do \
-		if [ ! -f "$$file" ]; then \
-			echo "$$file not found, downloading..."; \
-			$(MAKE) download-$$file; \
-		else \
-			echo "$$file already exists"; \
-		fi \
-	done
+check-deps: $(EXTERNAL_DEPS)
+	@echo "All build dependencies present"
 
 # Target to download all dependencies
 download-deps: check-deps
 	@echo "All build dependencies checked/downloaded successfully"
 
+# Target to download all license files
+download-licenses: $(LICENSE_FILES)
+	@echo "All license files downloaded"
+
 # Clean external dependencies
 clean-deps:
-	rm -f $(EXTERNAL_DEPS)
+	rm -rf $(CMSIS_CORE_DIR) $(CMSIS_DEVICE_DIR)
 
 # =============================================================================
 # BUILD TARGETS
@@ -252,14 +279,15 @@ clean:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all           - Build project (downloads dependencies if needed) [DEFAULT]"
-	@echo "  download-deps - Download all missing build dependencies"
-	@echo "  clean-deps    - Remove downloaded dependencies"
-	@echo "  clean         - Remove build artifacts"
-	@echo "  debug         - Build with debug symbols"
-	@echo "  program       - Program device using ST-LINK"
-	@echo "  jprogram      - Program device using J-LINK"
-	@echo "  gccversion    - Show compiler version"
-	@echo "  help          - Show this help"
+	@echo "  all             - Build project (downloads dependencies if needed) [DEFAULT]"
+	@echo "  download-deps   - Download all missing build dependencies"
+	@echo "  download-licenses - Download third-party license files to CMSIS/"
+	@echo "  clean-deps      - Remove downloaded dependencies and CMSIS/ directories"
+	@echo "  clean           - Remove build artifacts"
+	@echo "  debug           - Build with debug symbols"
+	@echo "  program         - Program device using ST-LINK"
+	@echo "  jprogram        - Program device using J-LINK"
+	@echo "  gccversion      - Show compiler version"
+	@echo "  help            - Show this help"
 
 # *** EOF ***

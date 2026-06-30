@@ -36,13 +36,13 @@ jobs:
       - name: Add Toolchain to PATH
         run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
 
-      # Step 5: Cache project dependencies (e.g., CMSIS in libs/ folder)
+      # Step 5: Cache project dependencies (CMSIS headers, SVD)
       - name: Cache Project Dependencies
         id: cache-deps
         uses: actions/cache@v3
         with:
-          path: libs/
-          key: ${{ runner.os }}-libs-${{ hashFiles('Makefile') }}
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
 
       # Step 6: Download dependencies only if cache is missing
       - name: Download Dependencies
@@ -51,9 +51,7 @@ jobs:
 
       # Step 7: Run the compilation
       - name: Build Project
-        run: |
-          mkdir -p build
-          make
+        run: make
 
       # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts

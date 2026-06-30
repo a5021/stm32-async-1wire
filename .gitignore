@@ -54,6 +54,12 @@ dkms.conf
 # debug information files
 *.dwo
 
-# build artifacts
+# Build output
+build/
+
+# Build artifacts
 inline_report.txt
 jflash.log
+
+# CMSIS build dependencies (downloaded at build time)
+CMSIS/
