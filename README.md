@@ -193,18 +193,6 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 The repository includes `.vscode/` workspace configuration for a
 convenient development workflow.
 
-### Extensions
-
-When opening the project, VSCode will prompt to install recommended
-extensions (see `.vscode/extensions.json`):
-
-- **Cortex-Debug** (`marus25.cortex-debug`) — ARM Cortex-M debugging via
-  J-Link / OpenOCD / ST-Link
-- **C/C++ Extension Pack** (`ms-vscode.cpptools-extension-pack`) —
-  IntelliSense with CMSIS headers, code navigation
-- **Clang-Format** (`xaver.clang-format`) — automatic formatting using
-  the project's `.clang-format` style
-
 ### Building
 
 Press **Ctrl+Shift+B** to run the default build task (`make`). Other
