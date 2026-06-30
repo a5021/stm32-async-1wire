@@ -7,12 +7,12 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c demo.c ds18b20.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/demo.c src/ds18b20.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
-INC = -I. -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Define additional preprocessor definitions based on conditional variables
 USE := USE_HSI ELAPSED_TIME

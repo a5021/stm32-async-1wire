@@ -14,7 +14,7 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check code formatting
-        run: clang-format --dry-run --Werror ds18b20.h
+        run: clang-format --dry-run --Werror inc/ds18b20.h
 
   cppcheck:
     runs-on: ubuntu-latest
@@ -25,7 +25,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=comparePointers -I. -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ ds18b20.c demo.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ src/ds18b20.c src/demo.c
 
   build:
     runs-on: ubuntu-latest
