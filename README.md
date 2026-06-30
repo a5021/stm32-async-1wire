@@ -206,13 +206,18 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 ### Debugging
 
-1. Connect a J-Link debugger via SWD.
+1. In the **Run and Debug** panel (`Ctrl+Shift+D`), select the debug
+   configuration: **"Debug (J-Link)"** or **"Debug (ST-Link)"**.
 2. Open `src/demo.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
 
 The SVD file is loaded automatically for peripheral register views in
 the debug sidebar.
+
+**J-Link:** Connect a SEGGER J-Link debugger via SWD.  
+**ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
+boards) via SWD.
 
 ## Architecture
 
