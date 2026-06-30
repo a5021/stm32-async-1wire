@@ -13,6 +13,23 @@
             "svdFile": "${workspaceRoot}/CMSIS/device/STM32F103xx.svd",
             "runToEntryPoint": "main",
             "preLaunchTask": "Build (debug)"
+        },
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/ds18b20_demo.elf",
+            "name": "Debug (ST-Link)",
+            "device": "STM32F103C8",
+            "interface": "swd",
+            "svdFile": "${workspaceRoot}/CMSIS/device/STM32F103xx.svd",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "Build (debug)",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f1x.cfg"
+            ]
         }
     ]
 }
