@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "STM32F103",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F103xB",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        }
+    ],
+    "version": 4
+}

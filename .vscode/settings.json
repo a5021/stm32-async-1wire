@@ -1,0 +1,6 @@
+{
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.clang_format_sortIncludes": false,
+    "editor.formatOnSave": true,
+    "cortex-debug.enableTelemetry": false
+}
