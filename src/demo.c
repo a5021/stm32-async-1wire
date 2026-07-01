@@ -120,11 +120,11 @@ __STATIC_FORCEINLINE void hardware_init(void) {
 }
 
 /**
- * @brief Weak implementation for DS18B20 LED control - provides visual feedback
- * @param[in] action 0 to turn LED off, non-zero to turn LED on
+ * @brief Busy indicator - toggles LED during measurement
+ * @param[in] action 0 = idle, non-zero = busy
  * @note Non-blocking LED control using atomic BSRR register operations
  */
-void ds18b20_led_control(unsigned action) {
+void ds18b20_busy(unsigned action) {
     if (action) {
         // Turn LED on (PC13 low due to pull-up LED configuration)
         // BSRR BR register: atomic bit reset operation
@@ -167,13 +167,13 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
 }
 
 /**
- * @brief Weak implementation for DS18B20 temperature ready callback - handles temperature display
+ * @brief Weak implementation for DS18B20 measurement completion callback - handles result display
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
  */
 #if defined ELAPSED_TIME
-void ds18b20_temp_ready(int16_t temp, uint32_t t) {
+void ds18b20_complete(int16_t temp, uint32_t t) {
 #else
-void ds18b20_temp_ready(int16_t temp) {
+void ds18b20_complete(int16_t temp) {
 #endif
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) {  // No sensor detected error - enqueue error message
         uart_write_str("DS18B20 error: no sensor detected.\r\n");

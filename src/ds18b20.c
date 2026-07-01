@@ -127,23 +127,23 @@ static const uint8_t read_cmd[] = { BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 
  */
 
 /**
- * @brief Default weak implementation for LED control - provides visual feedback during operations
- * @param[in] action 0 to turn LED off, non-zero to turn LED on
+ * @brief Default weak implementation for busy indicator (e.g. LED toggling during measurement)
+ * @param[in] action 0 = idle, non-zero = busy
  */
-__WEAK void ds18b20_led_control(unsigned action) {
+__WEAK void ds18b20_busy(unsigned action) {
     (void)action;
     // Default implementation - empty (no LED control)
 }
 
 /**
- * @brief Default weak implementation for temperature ready callback - reports results
+ * @brief Default weak implementation for measurement completion callback
  * @param[in] temp_tenths Temperature value in tenths of degrees Celsius, or error code
  */
 #if defined ELAPSED_TIME
-__WEAK void ds18b20_temp_ready(int16_t temp_tenths, uint32_t t) {
+__WEAK void ds18b20_complete(int16_t temp_tenths, uint32_t t) {
     (void)t;
 #else
-__WEAK void ds18b20_temp_ready(int16_t temp_tenths) {
+__WEAK void ds18b20_complete(int16_t temp_tenths) {
 #endif
     (void)temp_tenths;
     // Default implementation - empty (no temperature handling)
@@ -370,7 +370,7 @@ void ds18b20_poll(void) {
 
         case 1: // START - Begin measurement cycle, turn on LED
             // Turn on LED to indicate measurement in progress
-            ds18b20_led_control(!0);
+            ds18b20_busy(!0);
             // Initiate 1-Wire bus reset sequence
             reset_bus();
             // Transition to CONVERT state
@@ -386,7 +386,7 @@ void ds18b20_poll(void) {
                 ctx.current_state = 3;
             } else {
                 // No device present - report error and pause
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR
+                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR
                 #if defined ELAPSED_TIME
                     , DWT->CYCCNT - elapsed_time
                 #endif
@@ -421,7 +421,7 @@ void ds18b20_poll(void) {
                 ctx.current_state = 6;
             } else {
                 // No device present - report error and pause
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_NO_SENSOR
+                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR
                 #if defined ELAPSED_TIME
                     , DWT->CYCCNT - elapsed_time
                 #endif
@@ -444,19 +444,19 @@ void ds18b20_poll(void) {
             // Decode captured pulse durations into scratchpad bytes
             decode_scratchpad();
             // Turn off LED to indicate measurement complete
-            ds18b20_led_control(0);
+            ds18b20_busy(0);
 
             // Validate CRC and report temperature or error
             if (ctx.scratchpad[8] == check_scratchpad_crc()) {
                 // CRC valid - decode and report temperature
-                ds18b20_temp_ready(decode_temperature()
+                ds18b20_complete(decode_temperature()
                 #if defined ELAPSED_TIME
                     , DWT->CYCCNT - elapsed_time
                 #endif
                 );
             } else {
                 // CRC invalid - report error
-                ds18b20_temp_ready(DS18B20_TEMP_ERROR_CRC_FAIL
+                ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL
                 #if defined ELAPSED_TIME
                     , DWT->CYCCNT - elapsed_time
                 #endif
@@ -471,7 +471,7 @@ void ds18b20_poll(void) {
 
         default:
             // Unexpected state - report generic error
-            ds18b20_temp_ready(DS18B20_TEMP_ERROR_GENERIC
+            ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC
             #if defined ELAPSED_TIME
                 , DWT->CYCCNT - elapsed_time
             #endif

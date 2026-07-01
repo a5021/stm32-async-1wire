@@ -47,6 +47,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 ## Hardware Connections
 
+### DS18B20 Sensor
+
 | STM32F103 Pin | Function     | DS18B20 Pin |
 |---------------|--------------|-------------|
 | PA8           | 1-Wire Data  | DQ (Data)   |
@@ -54,6 +56,17 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 | GND           | Ground       | GND         |
 
 Note: A 4.7kΩ pull-up resistor is required between the PA8 and 3.3V lines.
+
+### Debug UART (optional)
+
+| STM32F103 Pin | Function            | USB-UART Adapter |
+|---------------|---------------------|------------------|
+| PA9           | USART1 TX (115200)  | RX               |
+| GND           | Ground              | GND              |
+
+Connect a USB-UART adapter to see diagnostic output (sensor errors,
+temperature readings). No RX connection is needed — the firmware is
+transmit-only.
 
 ## Quick Start
 
@@ -79,8 +92,8 @@ int main(void) {
 ### 3. Implement Callbacks (Optional)
 
 ```C
-// LED status indication
-void ds18b20_led_control(unsigned action) {
+// Busy indicator — e.g. LED toggling during measurement
+void ds18b20_busy(unsigned action) {
     if (action) {
         // Turn LED on (measurement in progress)
         GPIOC->BSRR = GPIO_BSRR_BR13;
@@ -90,8 +103,8 @@ void ds18b20_led_control(unsigned action) {
     }
 }
 
-// Temperature result handling
-void ds18b20_temp_ready(int16_t temp) {
+// Measurement complete callback — handle result or error
+void ds18b20_complete(int16_t temp) {
     if (temp >= -550 && temp <= 1250) {
         // Valid temperature in tenths of °C
         printf("Temperature: %d.%d°C\n", temp/10, abs(temp%10));
@@ -323,14 +336,14 @@ The Core Driver Function: Must be called from the main loop. It checks the Timer
 ### Weak Callbacks
 
 ```C
-void ds18b20_led_control(unsigned action);
+void ds18b20_busy(unsigned action);
 ```
-Called to indicate measurement status (LED control). action is 1 for start, 0 for stop.
+Called to indicate busy/idle status (one application is LED toggling). action is 1 for busy (measurement in progress), 0 for idle.
 
 ```C
-void ds18b20_temp_ready(int16_t temp);
+void ds18b20_complete(int16_t temp);
 ```
-Called when a temperature measurement is complete or an error occurs.
+Called when a measurement cycle completes — provides temperature data or an error code.
 
 ### Error Codes
 

@@ -15,8 +15,8 @@
  * Usage:
  * 1. Call ds18b20_init() once at startup
  * 2. Call ds18b20_poll() repeatedly from main loop
- * 3. Implement weak callbacks ds18b20_led_control() and ds18b20_temp_ready()
- *    to handle LED feedback and temperature results
+ * 3. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
+ *    to handle status indication and temperature results
  */
 
 #ifndef DS18B20_H
@@ -66,13 +66,13 @@ void ds18b20_init(void);
 void ds18b20_poll(void);
 
 /**
- * @brief Temperature ready callback (weak)
+ * @brief Measurement complete callback (weak)
  * @param[in] temp Temperature in tenths of degrees Celsius, or error code
  */
 #if defined(ELAPSED_TIME)
-void ds18b20_temp_ready(int16_t temp, uint32_t t);
+void ds18b20_complete(int16_t temp, uint32_t t);
 #else
-void ds18b20_temp_ready(int16_t temp);
+void ds18b20_complete(int16_t temp);
 #endif
 
 /**
