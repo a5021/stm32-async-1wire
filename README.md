@@ -194,11 +194,12 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 
 -   **MCU Flags:** Configured for `STM32F103xB` (Cortex-M3).
 
--   **Additional Defines:** You can pass extra preprocessor flags by
-    setting `EXTRA_FLAGS`:
+-   **Additional Defines:** Preprocessor flags can be toggled by make
+    variables. For example, to run on HSI 8MHz instead of HSE+PLL 72MHz:
 
     ``` bash
-    make EXTRA_FLAGS=MY_FEATURE
+    make HSI_8MHZ=1
+    make debug HSI_8MHZ=1
     ```
 
 ## VSCode Integration

@@ -42,8 +42,12 @@ static DS18B20_ctx_t ctx;
  * @{
  */
 
-/** @brief Timer configuration for 1µs resolution (72MHz system clock / 72 = 1MHz) */
-#define TIM_PRESCALER           71        
+/** @brief Timer configuration for 1µs resolution (PSC = SYSCLK / 1MHz - 1) */
+#ifdef HSI_8MHZ
+#define TIM_PRESCALER           7   // 8MHz / 8 = 1MHz → 1µs/tick
+#else
+#define TIM_PRESCALER           71  // 72MHz / 72 = 1MHz → 1µs/tick
+#endif        
 /** @brief Minimum reset pulse duration in microseconds */
 #define RESET_PULSE_MIN       480U        
 /** @brief Maximum reset pulse duration in microseconds */

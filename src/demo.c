@@ -75,9 +75,15 @@ __STATIC_FORCEINLINE void uart_poll_tx(void) {
 }
 
 /**
- * @brief Configure system clock to 72MHz using PLL
+ * @brief Configure system clock (8MHz via HSI or 72MHz via HSE+PLL)
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
+#ifdef HSI_8MHZ
+    RCC->CR = RCC_CR_HSION;
+    while (!(RCC->CR & RCC_CR_HSIRDY));
+    RCC->CFGR = RCC_CFGR_SW_HSI;
+    while ((RCC->CFGR & RCC_CFGR_SWS_HSI) != RCC_CFGR_SWS_HSI);
+#else
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
@@ -94,6 +100,7 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
     while ((RCC->CFGR & RCC_CFGR_SWS_PLL) != RCC_CFGR_SWS_PLL);
     // Disable HSI oscillator
     RCC->CR &= ~RCC_CR_HSION;
+#endif
 }
 
 /**
@@ -115,7 +122,11 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOC->CRH |=  GPIO_CRH_MODE13_1;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+#ifdef HSI_8MHZ
+    USART1->BRR = USART_BRR_CALC(8000000, 115200); // PCLK2=8MHz
+#else
     USART1->BRR = USART_BRR_CALC(72000000, 115200); // PCLK2=72MHz
+#endif
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE;      // Enable USART1; TX enable only
 }
 

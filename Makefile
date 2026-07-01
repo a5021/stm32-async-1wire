@@ -15,7 +15,9 @@ DEF = -DSTM32F103xB
 INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Define additional preprocessor definitions based on conditional variables
-USE := USE_HSI ELAPSED_TIME
+# make HSI_8MHZ=1  →  -DHSI_8MHZ=1  (run on HSI 8MHz instead of HSE+PLL 72MHz)
+# make ELAPSED_TIME=1  →  -DELAPSED_TIME=1  (include timing measurement)
+USE := HSI_8MHZ ELAPSED_TIME
 DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
 
 # Optimization flags for the compiler:
