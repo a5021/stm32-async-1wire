@@ -75,7 +75,7 @@ static DS18B20_ctx_t ctx;
 /** @brief Size of edge capture buffer for presence detection */
 #define CAPTURE_BUF_SIZE         2        
 /** @brief Duration of '1' bit pulse in microseconds */
-#define ONE_PULSE                1        
+#define ONE_PULSE                5
 /** @brief Duration of '0' bit pulse in microseconds */
 #define ZERO_PULSE              60        
 /** @brief Total length of DS18B20 scratchpad in bytes */
@@ -274,7 +274,7 @@ __STATIC_FORCEINLINE void reset_bus(void) {
 __STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
     // Configure timer for command transmission using DMA
     T1.RCR = DS18B20_DMA_TRANSFERS - 1;   // Number of repetitions (16 transfers)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + 1;  // Total bit slot time (62µs)
+    T1.ARR = ONE_PULSE + ZERO_PULSE + 5;  // Total bit slot time
     T1.CCR1 = cmd[0];                     // First pulse duration
     T1.CCR4 = ONE_PULSE + ZERO_PULSE;     // Update trigger time
     // Configure channel 1 for output compare mode
@@ -299,7 +299,7 @@ __STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
 __STATIC_FORCEINLINE void read_data(void) {
     // Configure timer for data reading with input capture
     T1.RCR = DS18B20_SCRATCHPAD_BITS - 1; // Number of repetitions (72 bits)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + 1;  // Total bit slot time (62µs)
+    T1.ARR = ONE_PULSE + ZERO_PULSE + 5;  // Total bit slot time
     T1.CCR1 = ONE_PULSE;                  // Read pulse duration (1µs)
     // Configure channel 1 for output compare (generate read pulse)
     // Configure channel 2 for input capture (measure return pulse durations)

@@ -18,7 +18,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 - Microcontroller: STM32F103C8T6 (Blue Pill) or compatible
 - Sensor: DS18B20 digital temperature sensor
-- Toolchain: GCC ARM or Keil with C99 support
+- Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: 72MHz system clock (configured by the driver)
 
 ## File Structure
@@ -194,13 +194,17 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 
 -   **MCU Flags:** Configured for `STM32F103xB` (Cortex-M3).
 
--   **Additional Defines:** Preprocessor flags can be toggled by make
-    variables. For example, to run on HSI 8MHz instead of HSE+PLL 72MHz:
+-   **HSI 8MHz Build:** By default the firmware runs on HSE 8MHz + PLL
+    ×9 = 72MHz. Pass `HSI_8MHZ=1` to use the internal RC oscillator
+    (HSI) at 8MHz without an external crystal or PLL:
 
     ``` bash
     make HSI_8MHZ=1
     make debug HSI_8MHZ=1
     ```
+
+    The timer prescaler and USART baud rate are adjusted automatically.
+    Useful for testing on bare minimum hardware (no HSE crystal).
 
 ## VSCode Integration
 
@@ -257,9 +261,13 @@ This driver uses an advanced technique that combines multiple hardware features:
 
 - TIM1 & Channels 1, 2, 4: The core timer resources.
   - CH1 (PWM Mode 2, Output Compare): Configured in PWM Mode 2, driving PA8 as the 1-Wire output on an active-low bus.
-    - Each 1-Wire bit time slot is implemented as a single PWM period with a low (active) portion encoding the bit:
-      - Short low (~1–2µs) → logical '1'
-      - Long low (~60µs) → logical '0'
+     - Each 1-Wire bit time slot is implemented as a single PWM period
+       with a low (active) portion encoding the bit:
+       - Short low (~5µs) → logical '1'
+       - Long low (~60µs) → logical '0'
+     - Total slot = `ONE_PULSE + ZERO_PULSE + guard` = 5 + 60 + 5 = 70µs.
+       The +5µs guard band prevents overlap between consecutive slots
+       due to bus rise time and DMA latency.
     - Reset (~480µs) is generated as an extended low period (active-low) within a ~960µs slot.
   - CH2 (Input Capture, Indirect mode): Shares the same PA8 pin internally. Used to capture presence pulses and read-slot timings after CH1 releases the bus to idle-high; DMA transfers CCR2 capture values to memory.
   - CH4: Used as a DMA trigger, feeding CCR1 duty cycles (for CH1 output) and facilitating capture operations.
@@ -302,7 +310,7 @@ Kickstart behavior
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - READ (state 6)
-  - On UIF: read_data() schedules 72 slots (RCR=71; ARR≈62µs). CH1 emits ~1µs active-low kick at each slot start and then releases; CH2 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
+  - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH1 emits ~5µs active-low kick at each slot start and then releases; CH2 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
 
 - DECODE (state 7)
   - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; start 5s pause; set state=0.
@@ -404,8 +412,8 @@ Adjustable in ds18b20.c:
   waveforms. Look for:
   - A clean ~480µs reset pulse (MCU pulls low, then releases).
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
-  - Precise write slots: a short ~1-2µs low for a '1', a long ~60µs low
-    for a '0'.
+  - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
+    for a '0' (slot = 5 + 60 + 5 = 70µs).
 - Inspect Captured Data: Examine `ctx.edge[]` after a reset or
   `ctx.pulse[]` after a read to see the raw timing data.
 
