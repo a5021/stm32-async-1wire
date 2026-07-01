@@ -13,12 +13,12 @@ jobs:
     steps:
       # Step 1: Checkout the source code
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Step 2: Cache the Arm Toolchain (Version 15.2)
       - name: Cache Arm Toolchain
         id: cache-toolchain
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: /opt/gcc-arm-none-eabi
           # Key updated to 15.2 to avoid conflicts with older cached versions
@@ -39,7 +39,7 @@ jobs:
       # Step 5: Cache project dependencies (CMSIS headers, SVD)
       - name: Cache Project Dependencies
         id: cache-deps
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}

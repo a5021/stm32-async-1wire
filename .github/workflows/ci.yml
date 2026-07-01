@@ -10,7 +10,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check code formatting
@@ -19,7 +19,7 @@ jobs:
   cppcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
       - name: Download CMSIS dependencies
@@ -30,12 +30,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ARM GCC
         uses: carlosperate/arm-none-eabi-gcc-action@v1
       - name: Cache CMSIS dependencies
         id: cache-deps
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
