@@ -68,6 +68,9 @@ Connect a USB-UART adapter to see diagnostic output (sensor errors,
 temperature readings). No RX connection is needed — the firmware is
 transmit-only.
 
+The UART output uses a ring buffer with polled TX (TXE flag checked
+in main loop) — fully non-blocking, no interrupts.
+
 ## Quick Start
 
 ### 1. Include the Driver
