@@ -35,7 +35,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 │   └── device/             # STM32F1 device headers and startup
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
-│   ├── launch.json         # Debug configuration (F5, J-Link)
+│   ├── launch.json         # Debug configuration (F5, J-Link / ST-Link)
 │   ├── c_cpp_properties.json  # IntelliSense paths
 │   ├── extensions.json     # Recommended extensions
 │   └── settings.json       # Editor settings
