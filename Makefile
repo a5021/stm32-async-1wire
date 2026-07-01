@@ -107,8 +107,11 @@ endif
 # DEPENDENCY DOWNLOADING SECTION
 # =============================================================================
 
-# Tools detection - prefer wget
+# Tools detection - prefer wget, fall back to curl
 WGET := $(shell command -v wget 2> /dev/null)
+CURL := $(shell command -v curl 2> /dev/null)
+DOWNLOAD_TOOL  = $(or $(WGET),$(CURL))
+DOWNLOAD_FLAGS = $(if $(WGET),-q -O,-s -o)
 
 # Base URLs
 RAW_URL = https://raw.githubusercontent.com
@@ -138,14 +141,14 @@ CMSIS_DEVICE_LICENSE = $(CMSIS_DEVICE_DIR)/LICENSE
 
 LICENSE_FILES = $(CMSIS_CORE_LICENSE) $(CMSIS_DEVICE_LICENSE)
 
-# Download function using wget
+# Download function using wget or curl
 define download_file
 	@echo "  Downloading $(2)..."
-	@if [ -z "$(WGET)" ]; then \
-		echo "Error: wget is required but not found. Please install wget."; \
+	@if [ -z "$(DOWNLOAD_TOOL)" ]; then \
+		echo "Error: neither wget nor curl found. Please install one of them."; \
 		exit 1; \
 	fi
-	@$(WGET) -q -O "$(2)" "$(1)" && echo "    OK" || (echo "    FAILED"; exit 1)
+	@$(DOWNLOAD_TOOL) $(DOWNLOAD_FLAGS) "$(2)" "$(1)" && echo "    OK" || (echo "    FAILED"; exit 1)
 endef
 
 # Create CMSIS directories
