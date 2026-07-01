@@ -75,15 +75,10 @@ __STATIC_FORCEINLINE void uart_poll_tx(void) {
 }
 
 /**
- * @brief Configure system clock (8MHz via HSI or 72MHz via HSE+PLL)
+ * @brief Configure system clock (72MHz via HSE+PLL, or skip for HSI 8MHz)
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
-#ifdef HSI_8MHZ
-    RCC->CR = RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
-    RCC->CFGR = RCC_CFGR_SW_HSI;
-    while ((RCC->CFGR & RCC_CFGR_SWS_HSI) != RCC_CFGR_SWS_HSI);
-#else
+#if !defined(HSI_8MHZ)
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
@@ -101,6 +96,7 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
     // Disable HSI oscillator
     RCC->CR &= ~RCC_CR_HSION;
 #endif
+    // HSI_8MHZ: MCU already runs on HSI 8MHz after reset — nothing to configure
 }
 
 /**
