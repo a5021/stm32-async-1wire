@@ -19,7 +19,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - Microcontroller: STM32F103C8T6 (Blue Pill) or compatible
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: 72MHz system clock (configured by the driver)
+- Clock Configuration: 72MHz via HSE+PLL (default) or 8MHz via HSI (`make HSI_8MHZ=1`)
 
 ## File Structure
 
@@ -338,7 +338,7 @@ Kickstart behavior
 ```C
 void ds18b20_init(void);
 ```
-Initialize the DS18B20 driver. Configures the system clock to 72MHz, enables peripherals (GPIOA, TIM1, DMA1), and sets up the timer prescaler for 1µs resolution. This function does NOT start the state machine.
+Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `demo.c`). This function does NOT start the state machine.
 
 ```C
 void ds18b20_poll(void);

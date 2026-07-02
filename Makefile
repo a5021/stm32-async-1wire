@@ -142,7 +142,7 @@ LICENSE_FILES = $(CMSIS_CORE_LICENSE) $(CMSIS_DEVICE_LICENSE)
 
 # Download function using wget or curl
 define download_file
-	@echo "  Downloading $(2)..."
+	@echo "  Downloading $(1)..."
 	@if [ -z "$(DOWNLOAD_TOOL)" ]; then \
 		echo "Error: neither wget nor curl found. Please install one of them."; \
 		exit 1; \

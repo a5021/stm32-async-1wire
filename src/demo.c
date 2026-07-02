@@ -78,7 +78,7 @@ __STATIC_FORCEINLINE void uart_poll_tx(void) {
  * @brief Configure system clock (72MHz via HSE+PLL, or skip for HSI 8MHz)
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
-#if !defined(HSI_8MHZ)
+#ifndef HSI_8MHZ
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
@@ -156,11 +156,13 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
         *(--p) = '0';
     } else {
         int is_negative = 0;
-        unsigned int uvalue = value;
+        unsigned int uvalue;
         
         if (value < 0) {  // Handle negative numbers
             is_negative = 1;
-            uvalue = -value;
+            uvalue = (unsigned int)-(value + 1) + 1;
+        } else {
+            uvalue = value;
         }
        
         do {  // Convert digits from least significant to most significant

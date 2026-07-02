@@ -77,7 +77,9 @@ static DS18B20_ctx_t ctx;
 /** @brief Duration of '1' bit pulse in microseconds */
 #define ONE_PULSE                5
 /** @brief Duration of '0' bit pulse in microseconds */
-#define ZERO_PULSE              60        
+#define ZERO_PULSE              60
+/** @brief Guard band between slots to prevent overlap due to bus rise time and DMA latency */
+#define GUARD_BAND               5        
 /** @brief Total length of DS18B20 scratchpad in bytes */
 #define DS18B20_SCRATCHPAD_LEN   9        
 /** @brief Standard 8 bits per byte */
@@ -93,7 +95,7 @@ static DS18B20_ctx_t ctx;
 #define PAUSE_5S     62500, 79  /**< 5s pause between measurement cycles (62.5ms × 80) */
 
 /**
- * @brief Convert byte bit to pulse duration (1µs for '1', 60µs for '0')
+ * @brief Convert byte bit to pulse duration (ONE_PULSE µs for '1', ZERO_PULSE µs for '0')
  * @param B Byte value
  * @param N Bit position (0-7)
  * @return Pulse duration in microseconds
@@ -272,7 +274,7 @@ __STATIC_FORCEINLINE void reset_bus(void) {
 __STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
     // Configure timer for command transmission using DMA
     T1.RCR = DS18B20_DMA_TRANSFERS - 1;   // Number of repetitions (16 transfers)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + 5;  // Total bit slot time
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;  // Total bit slot time
     T1.CCR1 = cmd[0];                     // First pulse duration
     T1.CCR4 = ONE_PULSE + ZERO_PULSE;     // Update trigger time
     // Configure channel 1 for output compare mode
@@ -297,8 +299,8 @@ __STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
 __STATIC_FORCEINLINE void read_data(void) {
     // Configure timer for data reading with input capture
     T1.RCR = DS18B20_SCRATCHPAD_BITS - 1; // Number of repetitions (72 bits)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + 5;  // Total bit slot time
-    T1.CCR1 = ONE_PULSE;                  // Read pulse duration (1µs)
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;  // Total bit slot time
+    T1.CCR1 = ONE_PULSE;                  // Read pulse duration (ONE_PULSE µs)
     // Configure channel 1 for output compare (generate read pulse)
     // Configure channel 2 for input capture (measure return pulse durations)
     T1.CCMR1 = TIM_CCMR1(OC1M_0,OC1M_1,OC1M_2,OC1PE, CC2S_1,IC2F_0,IC2F_1,IC2F_2);
@@ -332,9 +334,10 @@ void ds18b20_init(void) {
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
     RC.AHBENR  |= RCC_AHBENR(DMA1EN);
-    // Configure timer prescaler for 1µs resolution (72MHz/72 = 1MHz)
+    // Configure timer prescaler for 1µs resolution (SYSCLK / 1000000 - 1)
     T1.PSC     = TIM_PRESCALER;
     T1.EGR     = TIM_EGR(UG);
+    __DSB();
     T1.BDTR    = TIM_BDTR(MOE);
     // Configure PA8 for 1-Wire communication (alternate function open drain)
     PA.CRH    |= GPIO_CRH(CNF8_0, CNF8_1, MODE8_1);
