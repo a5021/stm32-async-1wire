@@ -66,14 +66,16 @@ void ds18b20_init(void);
 void ds18b20_poll(void);
 
 /**
+ * @brief Busy indicator callback (weak)
+ * @param[in] action 0 = idle, non-zero = busy
+ */
+void ds18b20_busy(unsigned action);
+
+/**
  * @brief Measurement complete callback (weak)
  * @param[in] temp Temperature in tenths of degrees Celsius, or error code
  */
-#if defined(ELAPSED_TIME)
-void ds18b20_complete(int16_t temp, uint32_t t);
-#else
 void ds18b20_complete(int16_t temp);
-#endif
 
 /**
  * @}

@@ -350,12 +350,12 @@ The Core Driver Function: Must be called from the main loop. It checks the Timer
 ```C
 void ds18b20_busy(unsigned action);
 ```
-Called to indicate busy/idle status (one application is LED toggling). action is 1 for busy (measurement in progress), 0 for idle.
+Called to indicate busy/idle status — toggle an LED, for example. `action` is non-zero for busy (measurement in progress), 0 for idle.
 
 ```C
 void ds18b20_complete(int16_t temp);
 ```
-Called when a measurement cycle completes — provides temperature data or an error code.
+Called when a measurement cycle completes — provides temperature data in tenths of degrees Celsius, or an error code (`DS18B20_TEMP_ERROR_*`).
 
 ### Error Codes
 
@@ -379,9 +379,11 @@ Adjustable in ds18b20.c:
 ```C
 #define RESET_PULSE_MIN       480U    // µs
 #define RESET_PULSE_MAX       540U    // µs
-#define ONE_PULSE                1    // µs
-#define ZERO_PULSE              60    // µs
+#define ONE_PULSE                5    // µs (short low = write-1)
+#define ZERO_PULSE              60    // µs (long low = write-0)
+#define GUARD_BAND               5    // µs (built into slot formula)
 ```
+Slot formula: `ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND` = 70µs total.
 
 ## Troubleshooting
 

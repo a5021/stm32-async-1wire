@@ -87,7 +87,10 @@ static DS18B20_ctx_t ctx;
 /** @brief Threshold to distinguish short/long pulses (10µs) */
 #define SHORT_PULSE_MAX       0x0A        
 /** @brief Number of DMA transfers for command transmission */
-#define DS18B20_DMA_TRANSFERS   16        
+#define DS18B20_DMA_TRANSFERS   16
+/** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
+#define PAUSE_750MS  62500, 11  /**< 750ms delay for temperature conversion (62.5ms × 12) */
+#define PAUSE_5S     62500, 79  /**< 5s pause between measurement cycles (62.5ms × 80) */
 
 /**
  * @brief Convert byte bit to pulse duration (1µs for '1', 60µs for '0')
@@ -95,7 +98,7 @@ static DS18B20_ctx_t ctx;
  * @param N Bit position (0-7)
  * @return Pulse duration in microseconds
  */
-#define B2P(B, N) (B) & (1 << N) ? ONE_PULSE : ZERO_PULSE
+#define B2P(B, N) (((B) & (1 << (N))) ? ONE_PULSE : ZERO_PULSE)
 
 /**
  * @brief Convert entire byte to sequence of pulse durations for transmission
@@ -117,7 +120,7 @@ static const uint8_t read_cmd[] = { BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 
  */
 #define FORCE_UPDATE_EVENT(T) do { \
     (T).EGR = TIM_EGR(UG); \
-    while(!((T).SR & TIM_SR(UIF))); \
+    __DSB(); \
     (T).SR &= ~TIM_SR(UIF); \
 } while(0)
 
@@ -143,12 +146,7 @@ __WEAK void ds18b20_busy(unsigned action) {
  * @brief Default weak implementation for measurement completion callback
  * @param[in] temp_tenths Temperature value in tenths of degrees Celsius, or error code
  */
-#if defined ELAPSED_TIME
-__WEAK void ds18b20_complete(int16_t temp_tenths, uint32_t t) {
-    (void)t;
-#else
 __WEAK void ds18b20_complete(int16_t temp_tenths) {
-#endif
     (void)temp_tenths;
     // Default implementation - empty (no temperature handling)
 }
@@ -233,13 +231,13 @@ __STATIC_FORCEINLINE void start_timer(uint16_t arr, uint8_t rcr) {
  * @brief Wait for temperature conversion to complete (750ms typical)
  * @note Non-blocking - starts timer that will generate update event when complete
  */
-__STATIC_FORCEINLINE void wait_conversion(void) { start_timer(62500, 11); }
+__STATIC_FORCEINLINE void wait_conversion(void) { start_timer(PAUSE_750MS); }
 
 /**
- * @brief Start inter-measurement pause period (500ms)
+ * @brief Start inter-measurement pause period (5s)
  * @note Non-blocking - starts timer for inter-measurement delay
  */
-__STATIC_FORCEINLINE void start_cycle_pause(void) { start_timer(62500, 79); }
+__STATIC_FORCEINLINE void start_cycle_pause(void) { start_timer(PAUSE_5S); }
 
 /**
  * @brief Initialize 1-Wire bus reset sequence using timer and DMA
@@ -349,10 +347,6 @@ void ds18b20_init(void) {
  */
 void ds18b20_poll(void) {
 
-    #if defined ELAPSED_TIME
-        static uint32_t elapsed_time;
-    #endif
-
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish
     if (!(T1.SR & TIM_SR(UIF))) return;
@@ -362,9 +356,6 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
         case 0: // IDLE - Initialize for new measurement cycle
-             #if defined ELAPSED_TIME
-                 elapsed_time = DWT->CYCCNT;
-             #endif
             // Initialize union memory (fills with 0xFF pattern)
             ctx.fill_union = (uint64_t)-1;
             // Transition to START state
@@ -390,11 +381,7 @@ void ds18b20_poll(void) {
                 ctx.current_state = 3;
             } else {
                 // No device present - report error and pause
-                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR
-                #if defined ELAPSED_TIME
-                    , DWT->CYCCNT - elapsed_time
-                #endif
-                );
+                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
                 // Start inter-measurement pause
                 start_cycle_pause();
                 // Return to IDLE state
@@ -425,11 +412,7 @@ void ds18b20_poll(void) {
                 ctx.current_state = 6;
             } else {
                 // No device present - report error and pause
-                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR
-                #if defined ELAPSED_TIME
-                    , DWT->CYCCNT - elapsed_time
-                #endif
-                );
+                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
                 // Start inter-measurement pause
                 start_cycle_pause();
                 // Return to IDLE state
@@ -453,18 +436,10 @@ void ds18b20_poll(void) {
             // Validate CRC and report temperature or error
             if (ctx.scratchpad[8] == check_scratchpad_crc()) {
                 // CRC valid - decode and report temperature
-                ds18b20_complete(decode_temperature()
-                #if defined ELAPSED_TIME
-                    , DWT->CYCCNT - elapsed_time
-                #endif
-                );
+                ds18b20_complete(decode_temperature());
             } else {
                 // CRC invalid - report error
-                ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL
-                #if defined ELAPSED_TIME
-                    , DWT->CYCCNT - elapsed_time
-                #endif
-                );
+                ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
             }
 
             // Start inter-measurement pause period
@@ -475,11 +450,7 @@ void ds18b20_poll(void) {
 
         default:
             // Unexpected state - report generic error
-            ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC
-            #if defined ELAPSED_TIME
-                , DWT->CYCCNT - elapsed_time
-            #endif
-            );
+            ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
             // Return to IDLE state
             ctx.current_state = 0;
             break;

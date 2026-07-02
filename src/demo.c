@@ -177,11 +177,7 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
  * @brief Weak implementation for DS18B20 measurement completion callback - handles result display
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
  */
-#if defined ELAPSED_TIME
-void ds18b20_complete(int16_t temp, uint32_t t) {
-#else
 void ds18b20_complete(int16_t temp) {
-#endif
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) {  // No sensor detected error - enqueue error message
         uart_write_str("DS18B20 error: no sensor detected.\r\n");
     } else if (temp == DS18B20_TEMP_ERROR_CRC_FAIL) {  // CRC check failed error - enqueue error message
@@ -201,11 +197,6 @@ void ds18b20_complete(int16_t temp) {
         uart_write_str(".");        // Decimal point
         uart_write_int(frac);       // Display fractional part
         uart_write_str(" C");       // Units
-        #if defined ELAPSED_TIME
-            uart_write_str(" (");   // Parenthesis
-            uart_write_int(t / 72); // Display time elapsed
-            uart_write_str(" us)"); // Parenthesis
-        #endif
         uart_write_str("\r\n");     // And newline
     }
 }
@@ -221,13 +212,6 @@ int main(void) {
     hardware_init(); // Initialize hardware peripherals (non-blocking)
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message to UART buffer
     ds18b20_init();  // Initialize DS18B20 driver (non-blocking)
-    
-    // Optional: Initialize DWT cycle counter for performance measurements
-    #if defined ELAPSED_TIME
-        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;   // Enable trace and debug blocks
-        DWT->CYCCNT = 0;                                  // Reset cycle counter
-        DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;              // Enable cycle counting
-    #endif
 
     for (;;) {          // Main event loop (non-blocking, cooperative multitasking)
         
