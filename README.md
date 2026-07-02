@@ -11,8 +11,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
-- Weak Function Callbacks: Customizable LED control and temperature reporting.
-- CRC Validation: Automatic checksum verification of sensor data.
+- Weak Function Callbacks: Customizable hooks for busy state (e.g. LED) and measurement result (temperature or error).
+- CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
 
 ## Requirements
 
