@@ -1,6 +1,6 @@
 #include "ds18b20.h"
-#include "stm32f1xx.h"
 #include "macro.h"
+#include "stm32f1xx.h"
 
 /**
  * @defgroup DS18B20_Private_Types DS18B20 Private Types
@@ -13,12 +13,12 @@
  */
 typedef struct {
     union {
-        volatile uint16_t edge[36];       /**< Edge timestamps for presence detection */
-        volatile uint8_t  pulse[72];      /**< Pulse durations for data decoding */
-        uint8_t           scratchpad[9];  /**< Sensor scratchpad data */
-        uint64_t          fill_union;     /**< Utility field for filling the union */
+        volatile uint16_t edge[36]; /**< Edge timestamps for presence detection */
+        volatile uint8_t pulse[72]; /**< Pulse durations for data decoding */
+        uint8_t scratchpad[9]; /**< Sensor scratchpad data */
+        uint64_t fill_union; /**< Utility field for filling the union */
     };
-    uint8_t               current_state;  /**< Current state of the state machine */
+    uint8_t current_state; /**< Current state of the state machine */
 } DS18B20_ctx_t;
 
 /**
@@ -44,55 +44,55 @@ static DS18B20_ctx_t ctx;
 
 /** @brief Timer configuration for 1µs resolution (PSC = SYSCLK / 1MHz - 1) */
 #ifdef HSI_8MHZ
-#define TIM_PRESCALER           7   // 8MHz / 8 = 1MHz → 1µs/tick
+#define TIM_PRESCALER 7 // 8MHz / 8 = 1MHz → 1µs/tick
 #else
-#define TIM_PRESCALER           71  // 72MHz / 72 = 1MHz → 1µs/tick
-#endif        
+#define TIM_PRESCALER 71 // 72MHz / 72 = 1MHz → 1µs/tick
+#endif
 /** @brief Minimum reset pulse duration in microseconds */
-#define RESET_PULSE_MIN       480U        
+#define RESET_PULSE_MIN 480U
 /** @brief Maximum reset pulse duration in microseconds */
-#define RESET_PULSE_MAX       540U        
+#define RESET_PULSE_MAX 540U
 /** @brief Minimum presence pulse positive width in microseconds */
-#define POSITIVE_WIDTH_MIN     15U        
+#define POSITIVE_WIDTH_MIN 15U
 /** @brief Maximum presence pulse positive width in microseconds */
-#define POSITIVE_WIDTH_MAX     60U        
+#define POSITIVE_WIDTH_MAX 60U
 /** @brief Minimum presence pulse negative width in microseconds */
-#define NEGATIVE_WIDTH_MIN     60U        
+#define NEGATIVE_WIDTH_MIN 60U
 /** @brief Maximum presence pulse negative width in microseconds */
-#define NEGATIVE_WIDTH_MAX    240U        
+#define NEGATIVE_WIDTH_MAX 240U
 /** @brief Calculated minimum presence pulse timing */
-#define PRESENCE_PULSE_MIN   (RESET_PULSE_MIN + POSITIVE_WIDTH_MIN + NEGATIVE_WIDTH_MIN)
+#define PRESENCE_PULSE_MIN (RESET_PULSE_MIN + POSITIVE_WIDTH_MIN + NEGATIVE_WIDTH_MIN)
 /** @brief Calculated maximum presence pulse timing */
-#define PRESENCE_PULSE_MAX   (RESET_PULSE_MAX + POSITIVE_WIDTH_MAX + NEGATIVE_WIDTH_MAX)
+#define PRESENCE_PULSE_MAX (RESET_PULSE_MAX + POSITIVE_WIDTH_MAX + NEGATIVE_WIDTH_MAX)
 /** @brief Duration to drive bus low during reset in microseconds */
-#define RESET_PULSE_DURATION   RESET_PULSE_MIN  
+#define RESET_PULSE_DURATION RESET_PULSE_MIN
 /** @brief Total reset timeslot timeout in microseconds */
-#define RESET_TIMEOUT          (RESET_PULSE_MIN * 2) 
+#define RESET_TIMEOUT (RESET_PULSE_MIN * 2)
 /** @brief CRC8 polynomial for DS18B20 scratchpad validation (Dallas/Maxim algorithm) */
-#define DS18B20_CRC8_POLY     0x8C        
+#define DS18B20_CRC8_POLY 0x8C
 /** @brief Number of bytes to include in CRC calculation */
-#define DS18B20_CRC8_BYTES       8        
+#define DS18B20_CRC8_BYTES 8
 /** @brief Size of edge capture buffer for presence detection */
-#define CAPTURE_BUF_SIZE         2        
+#define CAPTURE_BUF_SIZE 2
 /** @brief Duration of '1' bit pulse in microseconds */
-#define ONE_PULSE                5
+#define ONE_PULSE 5
 /** @brief Duration of '0' bit pulse in microseconds */
-#define ZERO_PULSE              60
+#define ZERO_PULSE 60
 /** @brief Guard band between slots to prevent overlap due to bus rise time and DMA latency */
-#define GUARD_BAND               5        
+#define GUARD_BAND 5
 /** @brief Total length of DS18B20 scratchpad in bytes */
-#define DS18B20_SCRATCHPAD_LEN   9        
+#define DS18B20_SCRATCHPAD_LEN 9
 /** @brief Standard 8 bits per byte */
-#define DS18B20_BITS_PER_BYTE    8        
+#define DS18B20_BITS_PER_BYTE 8
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
 /** @brief Threshold to distinguish short/long pulses (10µs) */
-#define SHORT_PULSE_MAX       0x0A        
+#define SHORT_PULSE_MAX 0x0A
 /** @brief Number of DMA transfers for command transmission */
-#define DS18B20_DMA_TRANSFERS   16
+#define DS18B20_DMA_TRANSFERS 16
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
-#define PAUSE_750MS  62500, 11  /**< 750ms delay for temperature conversion (62.5ms × 12) */
-#define PAUSE_5S     62500, 79  /**< 5s pause between measurement cycles (62.5ms × 80) */
+#define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
+#define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
 
 /**
  * @brief Convert byte bit to pulse duration (ONE_PULSE µs for '1', ZERO_PULSE µs for '0')
@@ -106,25 +106,26 @@ static DS18B20_ctx_t ctx;
  * @brief Convert entire byte to sequence of pulse durations for transmission
  * @param B Byte value to convert
  */
-#define BYTE_TO_PULSES(B) \
-    B2P(B, 0), B2P(B, 1), B2P(B, 2), B2P(B, 3),\
-    B2P(B, 4), B2P(B, 5), B2P(B, 6), B2P(B, 7)
+#define BYTE_TO_PULSES(B)                       \
+    B2P(B, 0), B2P(B, 1), B2P(B, 2), B2P(B, 3), \
+        B2P(B, 4), B2P(B, 5), B2P(B, 6), B2P(B, 7)
 
 /** @brief DS18B20 Convert T command sequence in pulse duration format */
-static const uint8_t conv_cmd[] = { BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44), 0 };
+static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44), 0};
 
 /** @brief DS18B20 Read Scratchpad command sequence in pulse duration format */
-static const uint8_t read_cmd[] = { BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0 };
+static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0};
 
 /**
  * @brief Force timer update event and wait for update flag - used for timer initialization
  * @param T Timer register structure
  */
-#define FORCE_UPDATE_EVENT(T) do { \
-    (T).EGR = TIM_EGR(UG); \
-    __DSB(); \
-    (T).SR &= ~TIM_SR(UIF); \
-} while(0)
+#define FORCE_UPDATE_EVENT(T)   \
+    do {                        \
+        (T).EGR = TIM_EGR(UG);  \
+        __DSB();                \
+        (T).SR &= ~TIM_SR(UIF); \
+    } while (0)
 
 /**
  * @}
@@ -185,9 +186,9 @@ __STATIC_FORCEINLINE void decode_scratchpad(void) {
             // Determine if pulse represents logic '1' or '0' based on duration threshold
             // Pulses <= 10µs are considered logic '1', > 10µs are logic '0'
             if (ctx.pulse[bit_start + bit] <= SHORT_PULSE_MAX) {
-                ctx.scratchpad[byte] |= (1 << bit);  // Set bit to 1
+                ctx.scratchpad[byte] |= (1 << bit); // Set bit to 1
             } else {
-                ctx.scratchpad[byte] &= ~(1 << bit);  // Reset bit to 0
+                ctx.scratchpad[byte] &= ~(1 << bit); // Reset bit to 0
             }
         }
     }
@@ -222,7 +223,8 @@ __STATIC_FORCEINLINE unsigned check_presence(void) {
  * @param[in] rcr Repetition counter value
  */
 __STATIC_FORCEINLINE void start_timer(uint16_t arr, uint8_t rcr) {
-    T1.ARR = arr; T1.RCR = rcr;
+    T1.ARR = arr;
+    T1.RCR = rcr;
     // Force update event to load new values
     FORCE_UPDATE_EVENT(T1);
     // Start timer in One Pulse Mode (OPM) - runs once then stops
@@ -246,24 +248,24 @@ __STATIC_FORCEINLINE void start_cycle_pause(void) { start_timer(PAUSE_5S); }
  */
 __STATIC_FORCEINLINE void reset_bus(void) {
     // Configure timer for reset pulse generation (480µs low)
-    T1.ARR  = RESET_TIMEOUT;              // Total reset slot time (960µs)
-    T1.CCR1 = RESET_PULSE_DURATION;       // Reset pulse duration (480µs)
+    T1.ARR = RESET_TIMEOUT; // Total reset slot time (960µs)
+    T1.CCR1 = RESET_PULSE_DURATION; // Reset pulse duration (480µs)
     // Configure channel 1 for output compare (drive bus low)
     // Configure channel 2 for input capture (detect presence pulse)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0,OC1M_1,OC1M_2,OC1PE, CC2S_1, IC2F_0,IC2F_1,IC2F_2);
-    T1.CCER  = TIM_CCER(CC1E, CC2E);      // Enable both channels
-    T1.RCR   = 0;                         // No repetition
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
+    T1.RCR = 0; // No repetition
     // Configure DMA to capture presence pulse edge timestamps
-    D13.CCR  = 0;                         // Clear DMA configuration
-    D13.CPAR = (uint32_t)&T1.CCR2;        // DMA destination: timer capture register
-    D13.CMAR = (uint32_t)ctx.edge;        // DMA source: edge timestamp buffer
-    D13.CNDTR= CAPTURE_BUF_SIZE;          // Number of transfers (2 edges)
-    D13.CCR  = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN); // Enable DMA with memory increment
+    D13.CCR = 0; // Clear DMA configuration
+    D13.CPAR = (uint32_t)&T1.CCR2; // DMA destination: timer capture register
+    D13.CMAR = (uint32_t)ctx.edge; // DMA source: edge timestamp buffer
+    D13.CNDTR = CAPTURE_BUF_SIZE; // Number of transfers (2 edges)
+    D13.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN); // Enable DMA with memory increment
     // Force timer update to load configuration
     FORCE_UPDATE_EVENT(T1);
-    T1.CCR1 = 0;                          // Clear output compare value
-    T1.DIER = TIM_DIER(CC2DE);            // Enable DMA request on capture
-    T1.CR1  = TIM_CR1(OPM, CEN);          // Start timer in one-pulse mode
+    T1.CCR1 = 0; // Clear output compare value
+    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
 }
 
 /**
@@ -271,25 +273,25 @@ __STATIC_FORCEINLINE void reset_bus(void) {
  * @param[in] cmd Pointer to command sequence in pulse duration format
  * @note Non-blocking - configures hardware to transmit command automatically
  */
-__STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
+__STATIC_FORCEINLINE void send_command(const uint8_t* cmd) {
     // Configure timer for command transmission using DMA
-    T1.RCR = DS18B20_DMA_TRANSFERS - 1;   // Number of repetitions (16 transfers)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;  // Total bit slot time
-    T1.CCR1 = cmd[0];                     // First pulse duration
-    T1.CCR4 = ONE_PULSE + ZERO_PULSE;     // Update trigger time
+    T1.RCR = DS18B20_DMA_TRANSFERS - 1; // Number of repetitions (16 transfers)
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    T1.CCR1 = cmd[0]; // First pulse duration
+    T1.CCR4 = ONE_PULSE + ZERO_PULSE; // Update trigger time
     // Configure channel 1 for output compare mode
-    T1.CCMR1 = TIM_CCMR1(OC1M_0,OC1M_1,OC1M_2);
-    T1.CCER = TIM_CCER(CC1E);             // Enable output compare
-    T1.DIER = TIM_DIER(CC4DE);            // Enable DMA request on update
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
+    T1.CCER = TIM_CCER(CC1E); // Enable output compare
+    T1.DIER = TIM_DIER(CC4DE); // Enable DMA request on update
     // Force timer update to load configuration
     FORCE_UPDATE_EVENT(T1);
     // Configure DMA to transmit command pulse sequence
-    D14.CCR = 0;                          // Clear DMA configuration
-    D14.CPAR = (uint32_t)&TIM1->CCR1;     // DMA destination: output compare register
-    D14.CMAR = (uint32_t)&cmd[1];         // DMA source: command data (skip first byte)
-    D14.CNDTR = DS18B20_DMA_TRANSFERS;    // Number of transfers
+    D14.CCR = 0; // Clear DMA configuration
+    D14.CPAR = (uint32_t)&TIM1->CCR1; // DMA destination: output compare register
+    D14.CMAR = (uint32_t)&cmd[1]; // DMA source: command data (skip first byte)
+    D14.CNDTR = DS18B20_DMA_TRANSFERS; // Number of transfers
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN); // Enable DMA with memory increment
-    T1.CR1 = TIM_CR1(OPM, CEN);           // Start timer in one-pulse mode
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
 }
 
 /**
@@ -299,23 +301,23 @@ __STATIC_FORCEINLINE void send_command(const uint8_t *cmd) {
 __STATIC_FORCEINLINE void read_data(void) {
     // Configure timer for data reading with input capture
     T1.RCR = DS18B20_SCRATCHPAD_BITS - 1; // Number of repetitions (72 bits)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;  // Total bit slot time
-    T1.CCR1 = ONE_PULSE;                  // Read pulse duration (ONE_PULSE µs)
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    T1.CCR1 = ONE_PULSE; // Read pulse duration (ONE_PULSE µs)
     // Configure channel 1 for output compare (generate read pulse)
     // Configure channel 2 for input capture (measure return pulse durations)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0,OC1M_1,OC1M_2,OC1PE, CC2S_1,IC2F_0,IC2F_1,IC2F_2);
-    T1.CCER = TIM_CCER(CC1E, CC2E);       // Enable both channels
-    T1.DIER = TIM_DIER(CC2DE);            // Enable DMA request on capture
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
+    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
     // Force timer update to load configuration
     FORCE_UPDATE_EVENT(T1);
-    T1.CCR1 = 0;                          // Clear output compare value
+    T1.CCR1 = 0; // Clear output compare value
     // Configure DMA to capture pulse durations into pulse buffer
-    D13.CCR = 0;                          // Clear DMA configuration
-    D13.CPAR = (uint32_t)&T1.CCR2;        // DMA destination: capture register
-    D13.CMAR = (uint32_t)ctx.pulse;       // DMA source: pulse duration buffer
-    D13.CNDTR= DS18B20_SCRATCHPAD_BITS;   // Number of transfers (72 bits)
+    D13.CCR = 0; // Clear DMA configuration
+    D13.CPAR = (uint32_t)&T1.CCR2; // DMA destination: capture register
+    D13.CMAR = (uint32_t)ctx.pulse; // DMA source: pulse duration buffer
+    D13.CNDTR = DS18B20_SCRATCHPAD_BITS; // Number of transfers (72 bits)
     D13.CCR = DMA_CCR(MINC, PSIZE_0, EN); // Enable DMA with memory increment
-    T1.CR1 = TIM_CR1(OPM, CEN);           // Start timer in one-pulse mode
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
 }
 
 /**
@@ -333,14 +335,14 @@ __STATIC_FORCEINLINE void read_data(void) {
 void ds18b20_init(void) {
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
-    RC.AHBENR  |= RCC_AHBENR(DMA1EN);
+    RC.AHBENR |= RCC_AHBENR(DMA1EN);
     // Configure timer prescaler for 1µs resolution (SYSCLK / 1000000 - 1)
-    T1.PSC     = TIM_PRESCALER;
-    T1.EGR     = TIM_EGR(UG);
+    T1.PSC = TIM_PRESCALER;
+    T1.EGR = TIM_EGR(UG);
     __DSB();
-    T1.BDTR    = TIM_BDTR(MOE);
+    T1.BDTR = TIM_BDTR(MOE);
     // Configure PA8 for 1-Wire communication (alternate function open drain)
-    PA.CRH    |= GPIO_CRH(CNF8_0, CNF8_1, MODE8_1);
+    PA.CRH |= GPIO_CRH(CNF8_0, CNF8_1, MODE8_1);
 }
 
 /**
@@ -358,105 +360,105 @@ void ds18b20_poll(void) {
 
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
-        case 0: // IDLE - Initialize for new measurement cycle
-            // Initialize union memory (fills with 0xFF pattern)
-            ctx.fill_union = (uint64_t)-1;
-            // Transition to START state
-            ctx.current_state = 1;
-            /* fallthrough to START state immediately */
-            /* fallthrough  */
+    case 0: // IDLE - Initialize for new measurement cycle
+        // Initialize union memory (fills with 0xFF pattern)
+        ctx.fill_union = (uint64_t)-1;
+        // Transition to START state
+        ctx.current_state = 1;
+        /* fallthrough to START state immediately */
+        /* fallthrough  */
 
-        case 1: // START - Begin measurement cycle, turn on LED
-            // Turn on LED to indicate measurement in progress
-            ds18b20_busy(!0);
-            // Initiate 1-Wire bus reset sequence
-            reset_bus();
-            // Transition to CONVERT state
-            ctx.current_state = 2;
-            break;
+    case 1: // START - Begin measurement cycle, turn on LED
+        // Turn on LED to indicate measurement in progress
+        ds18b20_busy(!0);
+        // Initiate 1-Wire bus reset sequence
+        reset_bus();
+        // Transition to CONVERT state
+        ctx.current_state = 2;
+        break;
 
-        case 2: // CONVERT - Check presence and send convert command
-            // Verify DS18B20 presence using captured edge timestamps
-            if (check_presence()) {
-                // Device present - send temperature conversion command
-                send_command(conv_cmd);
-                // Transition to WAIT state to allow conversion time
-                ctx.current_state = 3;
-            } else {
-                // No device present - report error and pause
-                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-                // Start inter-measurement pause
-                start_cycle_pause();
-                // Return to IDLE state
-                ctx.current_state = 0;
-            }
-            break;
-
-        case 3: // WAIT - Wait for temperature conversion to complete
-            // Start timer for conversion wait period (750ms typical)
-            wait_conversion();
-            // Transition to CONTINUE state
-            ctx.current_state = 4;
-            break;
-
-        case 4: // CONTINUE - Prepare for data readback
-            // Initiate second 1-Wire bus reset sequence
-            reset_bus();
-            // Transition to REQUEST state
-            ctx.current_state = 5;
-            break;
-
-        case 5: // REQUEST - Check presence and send read command
-            // Verify DS18B20 presence again
-            if (check_presence()) {
-                // Device present - send read scratchpad command
-                send_command(read_cmd);
-                // Transition to READ state
-                ctx.current_state = 6;
-            } else {
-                // No device present - report error and pause
-                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-                // Start inter-measurement pause
-                start_cycle_pause();
-                // Return to IDLE state
-                ctx.current_state = 0;
-            }
-            break;
-
-        case 6: // READ - Read scratchpad data from sensor
-            // Initiate scratchpad data read using timer capture and DMA
-            read_data();
-            // Transition to DECODE state
-            ctx.current_state = 7;
-            break;
-
-        case 7: // DECODE - Process received data and report temperature
-            // Decode captured pulse durations into scratchpad bytes
-            decode_scratchpad();
-            // Turn off LED to indicate measurement complete
-            ds18b20_busy(0);
-
-            // Validate CRC and report temperature or error
-            if (ctx.scratchpad[8] == check_scratchpad_crc()) {
-                // CRC valid - decode and report temperature
-                ds18b20_complete(decode_temperature());
-            } else {
-                // CRC invalid - report error
-                ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
-            }
-
-            // Start inter-measurement pause period
+    case 2: // CONVERT - Check presence and send convert command
+        // Verify DS18B20 presence using captured edge timestamps
+        if (check_presence()) {
+            // Device present - send temperature conversion command
+            send_command(conv_cmd);
+            // Transition to WAIT state to allow conversion time
+            ctx.current_state = 3;
+        } else {
+            // No device present - report error and pause
+            ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+            // Start inter-measurement pause
             start_cycle_pause();
-            // Return to IDLE state for next measurement cycle
-            ctx.current_state = 0;
-            break;
-
-        default:
-            // Unexpected state - report generic error
-            ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
             // Return to IDLE state
             ctx.current_state = 0;
-            break;
+        }
+        break;
+
+    case 3: // WAIT - Wait for temperature conversion to complete
+        // Start timer for conversion wait period (750ms typical)
+        wait_conversion();
+        // Transition to CONTINUE state
+        ctx.current_state = 4;
+        break;
+
+    case 4: // CONTINUE - Prepare for data readback
+        // Initiate second 1-Wire bus reset sequence
+        reset_bus();
+        // Transition to REQUEST state
+        ctx.current_state = 5;
+        break;
+
+    case 5: // REQUEST - Check presence and send read command
+        // Verify DS18B20 presence again
+        if (check_presence()) {
+            // Device present - send read scratchpad command
+            send_command(read_cmd);
+            // Transition to READ state
+            ctx.current_state = 6;
+        } else {
+            // No device present - report error and pause
+            ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+            // Start inter-measurement pause
+            start_cycle_pause();
+            // Return to IDLE state
+            ctx.current_state = 0;
+        }
+        break;
+
+    case 6: // READ - Read scratchpad data from sensor
+        // Initiate scratchpad data read using timer capture and DMA
+        read_data();
+        // Transition to DECODE state
+        ctx.current_state = 7;
+        break;
+
+    case 7: // DECODE - Process received data and report temperature
+        // Decode captured pulse durations into scratchpad bytes
+        decode_scratchpad();
+        // Turn off LED to indicate measurement complete
+        ds18b20_busy(0);
+
+        // Validate CRC and report temperature or error
+        if (ctx.scratchpad[8] == check_scratchpad_crc()) {
+            // CRC valid - decode and report temperature
+            ds18b20_complete(decode_temperature());
+        } else {
+            // CRC invalid - report error
+            ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+        }
+
+        // Start inter-measurement pause period
+        start_cycle_pause();
+        // Return to IDLE state for next measurement cycle
+        ctx.current_state = 0;
+        break;
+
+    default:
+        // Unexpected state - report generic error
+        ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
+        // Return to IDLE state
+        ctx.current_state = 0;
+        break;
     }
 }
 
