@@ -1,0 +1,58 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in the DS18B20 driver
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Before submitting,
+        please check the [Troubleshooting](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6#troubleshooting)
+        section of the README — most issues are wiring-related.
+  - type: textarea
+    id: describe
+    attributes:
+      label: Describe the bug
+      description: What did you expect to happen, and what actually happened?
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Hardware
+      description: Board and sensor used (e.g. Blue Pill STM32F103C8T6, DS18B20)
+    validations:
+      required: true
+  - type: textarea
+    id: wiring
+    attributes:
+      label: Wiring
+      description: How is the sensor connected (pin, pull-up resistor value, power)?
+    validations:
+      required: true
+  - type: dropdown
+    id: clock
+    attributes:
+      label: Clock configuration
+      options:
+        - HSE 8MHz + PLL x9 = 72MHz (default)
+        - HSI 8MHz (make HSI_8MHZ=1)
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: UART diagnostics / output
+      description: Any serial output or error messages observed
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Steps that trigger the issue
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Toolchain version, OS, build command used (make / make debug)

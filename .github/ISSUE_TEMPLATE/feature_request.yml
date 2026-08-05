@@ -1,0 +1,40 @@
+name: Feature Request
+description: Suggest an enhancement or new capability for the driver
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. The driver's design goals
+        are: non-blocking, interrupt-free, minimal CPU usage, pure
+        bare-metal (no HAL/LL). Please keep your request in that spirit.
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: What problem does this feature solve, and for what application?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe how the feature could work or behave
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Any workarounds or alternative approaches you considered
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope of change
+      options:
+        - Driver API change (inc/ds18b20.h)
+        - Driver internals (src/ds18b20.c)
+        - Demo application (src/demo.c)
+        - Build system / tooling
+        - Documentation
+      multiple: true
