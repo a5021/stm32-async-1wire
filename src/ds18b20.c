@@ -622,15 +622,22 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
                 } else if (id_bit_number < last_discrepancy) {
                     // Follow the previously taken path
                     direction = (rom[byte_idx] & mask) ? 1u : 0u;
+                    if (direction == 0) {
+                        // Remember the last 0-branch taken at a discrepancy
+                        last_zero = id_bit_number;
+                    }
                 } else {
                     // At the discrepancy point take the '1' branch first
                     direction = (id_bit_number == last_discrepancy) ? 1u : 0u;
+                    if (direction == 0) {
+                        // Remember the last 0-branch taken at a discrepancy
+                        last_zero = id_bit_number;
+                    }
                 }
                 if (direction) {
                     rom[byte_idx] |= mask;
                 } else {
                     rom[byte_idx] &= (uint8_t)~mask;
-                    last_zero = id_bit_number;
                 }
                 write_bit(direction);
                 id_bit_number++;
