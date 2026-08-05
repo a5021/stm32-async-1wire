@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   last-discrepancy algorithm and CRC-8 validation, and reports each device's
   64-bit ROM address via a callback. The demo scans the bus once at startup
   and prints every found device before starting normal measurements.
+- Per-device addressing (`ds18b20_select()`): the non-blocking measurement
+  path can now target one specific DS18B20 by its 64-bit ROM address using
+  the Match ROM command (0x55). Passing NULL keeps the legacy Skip ROM
+  (single-sensor) behaviour. The demo measures a single device directly, or
+  cycles through all found devices in turn when more than one is present.
+
+### Fixed
+
+- The non-blocking measurement state machine never started after the blocking
+  device search: the search clears the timer update flag on every operation,
+  which left the driver idling in state 0 forever waiting for a UIF that never
+  arrived. `ds18b20_search_devices()` now leaves a pending update flag so the
+  first `ds18b20_poll()` call begins a measurement cycle immediately.
 
 ## [1.0.0] - 2026-08-05
 

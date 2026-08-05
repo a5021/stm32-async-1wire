@@ -10,6 +10,11 @@
 #define DS18B20_SEARCH_MAX_DEVICES 8u
 #endif
 
+// ======== Selected device state (round-robin measurement) ========
+static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8]; // ROMs found at startup
+static uint8_t found_count = 0; // how many devices were found
+static uint8_t select_index = 0; // index of the currently selected device
+
 // Validate that buffer size is a power of two for efficient masking operations
 #if (UART_TX_BUF_SIZE & (UART_TX_BUF_SIZE - 1u)) != 0
 #error "UART_TX_BUF_SIZE must be a power of two (e.g., 32, 64, 128, 256)."
@@ -192,11 +197,17 @@ __STATIC_FORCEINLINE void uart_write_hex(uint8_t b) {
 }
 
 /**
- * @brief Device search callback - prints the 64-bit ROM address in hex
+ * @brief Device search callback - stores the ROM and prints it in hex
  * @param[in] rom Pointer to the 8-byte ROM address (LSB first)
  * @return 0 to continue the search
  */
 static uint8_t device_found_sink(const uint8_t* rom) {
+    if (found_count < DS18B20_SEARCH_MAX_DEVICES) {
+        for (uint8_t i = 0; i < 8; i++) {
+            found_roms[found_count][i] = rom[i];
+        }
+        found_count++;
+    }
     uart_write_str("  ROM: ");
     for (uint8_t i = 0; i < 8; i++) {
         uart_write_hex(rom[i]);
@@ -221,7 +232,26 @@ __STATIC_FORCEINLINE void search_devices_and_report(void) {
         uart_write_str("Found ");
         uart_write_int(count);
         uart_write_str(" device(s).\r\n");
+        select_index = 0;
+        ds18b20_select(found_roms[select_index]);
+        if (count == 1) {
+            uart_write_str("Measuring the single device.\r\n");
+        } else {
+            uart_write_str("Measuring devices in turn.\r\n");
+        }
     }
+}
+
+/**
+ * @brief Print the ROM address of the currently selected device (best-effort)
+ */
+__STATIC_FORCEINLINE void print_selected_rom(void) {
+    uart_write_str(" -> ");
+    for (uint8_t i = 0; i < 8; i++) {
+        uart_write_hex(found_roms[select_index][i]);
+        if (i != 7) (void)uart_tx_enqueue_byte(' ');
+    }
+    uart_write_str("\r\n");
 }
 
 /**
@@ -249,6 +279,13 @@ void ds18b20_complete(int16_t temp) {
         uart_write_int(frac); // Display fractional part
         uart_write_str(" C"); // Units
         uart_write_str("\r\n"); // And newline
+    }
+
+    // Round-robin: switch to the next device for the next measurement cycle
+    if (found_count > 1) {
+        select_index = (uint8_t)((select_index + 1u) % found_count);
+        ds18b20_select(found_roms[select_index]);
+        print_selected_rom();
     }
 }
 

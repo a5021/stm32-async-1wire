@@ -15,6 +15,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
 - Device Search: Blocking Search ROM (0xF0) at startup to enumerate all
   sensors on the bus and read their 64-bit ROM addresses.
+- Per-Device Addressing: Select one specific sensor by its ROM address
+  (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
 
 ## Requirements
 
@@ -89,6 +91,9 @@ int main(void) {
 
     // Optional: enumerate all devices on the bus (blocking, startup only)
     uint8_t n = ds18b20_search_devices(my_sink, 16);
+
+    // Optional: measure one specific device by its ROM address
+    if (n > 0) ds18b20_select(my_rom);  // my_rom captured in my_sink
 
     while (1) {
         ds18b20_poll();  // Call repeatedly from main loop
@@ -308,7 +313,10 @@ Kickstart behavior
 
 - CONVERT (state 2)
   - On UIF, check_presence() with ctx.edge[].
-    - If present: send_command(conv_cmd) “Skip ROM 0xCC + Convert T 0x44” via CH1+DMA (16 slots, RCR=15); set state=3.
+    - If present: send convert command via CH1+DMA. With no selected device,
+      this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
+      device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
+      + Convert T 0x44" (80 slots, RCR=79). Set state=3.
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - WAIT (state 3)
@@ -319,7 +327,10 @@ Kickstart behavior
 
 - REQUEST (state 5)
   - On UIF, check_presence().
-    - If present: send_command(read_cmd) “Skip ROM 0xCC + Read 0xBE” via CH1+DMA (16 slots); set state=6.
+    - If present: send read command via CH1+DMA. With no selected device,
+      this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
+      selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
+      (80 slots). Set state=6.
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - READ (state 6)
@@ -334,10 +345,10 @@ Kickstart behavior
 | :----------- | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
 | **0**        | **IDLE**       | Initial state. Immediately falls through into START with no events required; prepares the context for a new measurement cycle by initializing the data union. | State 1 (START)                                                                                             |
 | **1**        | **START**      | Begins the measurement cycle. Turns on the user LED (if implemented) and initiates a **1-Wire bus reset** sequence to detect devices.     | State 2 (CONVERT)                                                                                           |
-| **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error.                                         |
+| **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command — either via **Skip ROM (0xCC)** to all devices, or via **Match ROM (0x55) + device ROM** to the device selected with `ds18b20_select()`. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error. |
 | **3**        | **WAIT**       | Starts a non-blocking timer delay (~750 ms) to wait for the temperature conversion inside the DS18B20 to complete.                       | State 4 (CONTINUE)                                                                                          |
 | **4**        | **CONTINUE**   | Initiates a second **1-Wire bus reset** sequence to prepare for reading the converted data.                                              | State 5 (REQUEST)                                                                                           |
-| **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
+| **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command — via **Skip ROM (0xCC)** or **Match ROM (0x55) + device ROM** depending on the selected device. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
 | **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
@@ -370,8 +381,22 @@ number of devices found.
 on the timer update flag for the duration of the search. It is intended for
 **one-time use at startup**, before the main loop starts calling
 `ds18b20_poll()`. It reuses the same hardware-timed 1-Wire primitives but does
-not affect the non-blocking measurement path, which continues to use Skip-ROM
-(single-sensor) addressing.
+not affect the non-blocking measurement path.
+
+### Per-Device Addressing
+
+```C
+void ds18b20_select(const uint8_t *rom);
+```
+Selects which DS18B20 device the non-blocking measurement path targets, using
+its 64-bit ROM address (LSB first, as reported by `ds18b20_search_devices()`).
+With a device selected, the driver sends the **Match ROM (0x55)** command plus
+the device ROM before every Convert T / Read Scratchpad operation, so only that
+device responds. Pass `NULL` to clear the selection and return to the legacy
+**Skip ROM (0xCC)** single-sensor behaviour.
+
+The demo measures the single device directly when exactly one is found, and
+cycles through all found devices in turn when several are present.
 
 ### Weak Callbacks
 

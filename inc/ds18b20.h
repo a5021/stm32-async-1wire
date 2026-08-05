@@ -17,8 +17,9 @@
  * Usage:
  * 1. Call ds18b20_init() once at startup
  * 2. (Optional) Call ds18b20_search_devices() to enumerate bus devices
- * 3. Call ds18b20_poll() repeatedly from main loop
- * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
+ * 3. (Optional) Call ds18b20_select() to measure one specific device
+ * 4. Call ds18b20_poll() repeatedly from main loop
+ * 5. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
 
@@ -81,10 +82,23 @@ void ds18b20_poll(void);
  *       whole search (~15 ms per device). Intended for one-time use at startup
  *       before the main loop starts polling. It reuses the same hardware-timed
  *       1-Wire primitives as the state machine but does not touch the
- *       non-blocking measurement path, which continues to use Skip-ROM
- *       (single-sensor) addressing.
+ *       non-blocking measurement path. After the search, pass one of the
+ *       reported ROM addresses to ds18b20_select() to measure that device;
+ *       otherwise the measurement path keeps using Skip-ROM (single-sensor)
+ *       addressing.
  */
 uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices);
+
+/**
+ * @brief Select which DS18B20 device to measure by its ROM address
+ * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to
+ *                return to Skip ROM (broadcast) addressing
+ * @note With a non-NULL address, the state machine sends Match ROM (0x55)
+ *       plus the device address before each command, so only that device
+ *       responds. Pass NULL to keep the legacy single-sensor Skip ROM
+ *       behaviour. The address should come from ds18b20_search_devices().
+ */
+void ds18b20_select(const uint8_t* rom);
 
 /**
  * @brief Busy indicator callback (weak)

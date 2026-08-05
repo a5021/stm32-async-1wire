@@ -8,36 +8,6 @@
  */
 
 /**
- * @brief DS18B20 driver context structure using union for memory efficiency
- * @note Different stages of communication use the same memory for different purposes
- */
-typedef struct {
-    union {
-        volatile uint16_t edge[36]; /**< Edge timestamps for presence detection */
-        volatile uint8_t pulse[72]; /**< Pulse durations for data decoding */
-        uint8_t scratchpad[9]; /**< Sensor scratchpad data */
-        uint64_t fill_union; /**< Utility field for filling the union */
-    };
-    uint8_t current_state; /**< Current state of the state machine */
-} DS18B20_ctx_t;
-
-/**
- * @}
- */
-
-/**
- * @defgroup DS18B20_Private_Variables DS18B20 Private Variables
- * @{
- */
-
-/** @brief Global driver context instance */
-static DS18B20_ctx_t ctx;
-
-/**
- * @}
- */
-
-/**
  * @defgroup DS18B20_Private_Constants DS18B20 Private Constants
  * @{
  */
@@ -92,6 +62,14 @@ static DS18B20_ctx_t ctx;
 #define DS18B20_ROM_BITS (DS18B20_ROM_BYTES * DS18B20_BITS_PER_BYTE)
 /** @brief DS18B20 Search ROM command */
 #define DS18B20_SEARCH_ROM 0xF0
+/** @brief DS18B20 Match ROM command */
+#define DS18B20_MATCH_ROM 0x55
+/** @brief DS18B20 Convert T command */
+#define DS18B20_CONVERT_T 0x44
+/** @brief DS18B20 Read Scratchpad command */
+#define DS18B20_READ_SCRATCHPAD 0xBE
+/** @brief Total slots for Match ROM + 8-byte ROM + command */
+#define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
 /** @brief Threshold to distinguish short/long pulses (10µs) */
 #define SHORT_PULSE_MAX 0x0A
 /** @brief Number of DMA transfers for command transmission */
@@ -132,6 +110,44 @@ static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0
         __DSB();                \
         (T).SR &= ~TIM_SR(UIF); \
     } while (0)
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Private_Types DS18B20 Private Types
+ * @{
+ */
+
+/**
+ * @brief DS18B20 driver context structure using union for memory efficiency
+ * @note Different stages of communication use the same memory for different purposes
+ */
+typedef struct {
+    union {
+        volatile uint16_t edge[36]; /**< Edge timestamps for presence detection */
+        volatile uint8_t pulse[72]; /**< Pulse durations for data decoding */
+        uint8_t scratchpad[9]; /**< Sensor scratchpad data */
+        uint64_t fill_union; /**< Utility field for filling the union */
+    };
+    uint8_t current_state; /**< Current state of the state machine */
+    uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
+    uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
+    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command */
+} DS18B20_ctx_t;
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Private_Variables DS18B20 Private Variables
+ * @{
+ */
+
+/** @brief Global driver context instance */
+static DS18B20_ctx_t ctx;
 
 /**
  * @}
@@ -285,13 +301,15 @@ __STATIC_FORCEINLINE void reset_bus(void) {
 }
 
 /**
- * @brief Transmit command sequence to DS18B20 using DMA
+ * @brief Transmit a command sequence of arbitrary length to DS18B20 using DMA
  * @param[in] cmd Pointer to command sequence in pulse duration format
- * @note Non-blocking - configures hardware to transmit command automatically
+ * @param[in] slots Number of bit slots (bits) to transmit
+ * @note Non-blocking - configures hardware to transmit command automatically.
+ *       The buffer must hold `slots` pulse values plus a trailing 0 sentinel.
  */
-__STATIC_FORCEINLINE void send_command(const uint8_t* cmd) {
+__STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     // Configure timer for command transmission using DMA
-    T1.RCR = DS18B20_DMA_TRANSFERS - 1; // Number of repetitions (16 transfers)
+    T1.RCR = slots - 1; // Number of repetitions (one slot per transfer)
     T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
     T1.CCR1 = cmd[0]; // First pulse duration
     T1.CCR4 = ONE_PULSE + ZERO_PULSE; // Update trigger time
@@ -305,9 +323,46 @@ __STATIC_FORCEINLINE void send_command(const uint8_t* cmd) {
     D14.CCR = 0; // Clear DMA configuration
     D14.CPAR = (uint32_t)&TIM1->CCR1; // DMA destination: output compare register
     D14.CMAR = (uint32_t)&cmd[1]; // DMA source: command data (skip first byte)
-    D14.CNDTR = DS18B20_DMA_TRANSFERS; // Number of transfers
+    D14.CNDTR = slots; // Number of transfers
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN); // Enable DMA with memory increment
     T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+}
+
+/**
+ * @brief Transmit a two-byte command sequence (Skip ROM + command) using DMA
+ * @param[in] cmd Pointer to command sequence in pulse duration format
+ * @note Non-blocking - configures hardware to transmit command automatically
+ */
+__STATIC_FORCEINLINE void send_command(const uint8_t* cmd) {
+    send_command_n(cmd, DS18B20_DMA_TRANSFERS);
+}
+
+/**
+ * @brief Encode a byte into pulse durations (ONE_PULSE for '1', ZERO_PULSE for '0')
+ * @param[out] out Output buffer (8 entries)
+ * @param[in] byte Byte value to encode
+ */
+__STATIC_FORCEINLINE void encode_byte_pulses(uint8_t* out, uint8_t byte) {
+    for (uint8_t i = 0; i < DS18B20_BITS_PER_BYTE; i++) {
+        out[i] = (byte & (1u << i)) ? (uint8_t)ONE_PULSE : (uint8_t)ZERO_PULSE;
+    }
+}
+
+/**
+ * @brief Build the Match ROM command pulse sequence for the selected device
+ * @param[in] cmd_byte Command byte to send after the ROM address
+ * @note Fills ctx.addr_cmd with Match ROM (0x55) + selected ROM + command.
+ */
+__STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
+    uint8_t* p = ctx.addr_cmd;
+    encode_byte_pulses(p, DS18B20_MATCH_ROM);
+    p += DS18B20_BITS_PER_BYTE;
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        encode_byte_pulses(p, ctx.selected_rom[i]);
+        p += DS18B20_BITS_PER_BYTE;
+    }
+    encode_byte_pulses(p, cmd_byte);
+    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = 0; // DMA sentinel
 }
 
 /**
@@ -457,6 +512,27 @@ void ds18b20_init(void) {
 }
 
 /**
+ * @brief Select which DS18B20 device to measure by its ROM address
+ * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to
+ *                return to Skip ROM (broadcast) addressing
+ * @note With a non-NULL address, the state machine sends Match ROM (0x55)
+ *       plus the device address before each command, so only that device
+ *       responds. Pass NULL (or a freshly initialised driver) to keep the
+ *       legacy single-sensor Skip ROM behaviour. The address should come from
+ *       ds18b20_search_devices().
+ */
+void ds18b20_select(const uint8_t* rom) {
+    if (rom == 0) {
+        ctx.address_mode = 0;
+        return;
+    }
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        ctx.selected_rom[i] = rom[i];
+    }
+    ctx.address_mode = 1;
+}
+
+/**
  * @brief Main state machine function - must be called periodically from main loop
  * @note Non-blocking state machine that advances 1-Wire communication state
  * @note Uses timer update interrupt flag to determine when operations complete
@@ -491,8 +567,14 @@ void ds18b20_poll(void) {
     case 2: // CONVERT - Check presence and send convert command
         // Verify DS18B20 presence using captured edge timestamps
         if (check_presence()) {
-            // Device present - send temperature conversion command
-            send_command(conv_cmd);
+            // Device present - send temperature conversion command,
+            // addressing all devices (Skip ROM) or the selected one (Match ROM)
+            if (ctx.address_mode) {
+                build_addr_cmd(DS18B20_CONVERT_T);
+                send_command_n(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
+            } else {
+                send_command(conv_cmd);
+            }
             // Transition to WAIT state to allow conversion time
             ctx.current_state = 3;
         } else {
@@ -522,8 +604,14 @@ void ds18b20_poll(void) {
     case 5: // REQUEST - Check presence and send read command
         // Verify DS18B20 presence again
         if (check_presence()) {
-            // Device present - send read scratchpad command
-            send_command(read_cmd);
+            // Device present - send read scratchpad command,
+            // addressing all devices (Skip ROM) or the selected one (Match ROM)
+            if (ctx.address_mode) {
+                build_addr_cmd(DS18B20_READ_SCRATCHPAD);
+                send_command_n(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
+            } else {
+                send_command(read_cmd);
+            }
             // Transition to READ state
             ctx.current_state = 6;
         } else {
@@ -574,6 +662,18 @@ void ds18b20_poll(void) {
 }
 
 /**
+ * @brief Kick the non-blocking state machine so the next poll() starts a cycle
+ * @note The blocking search clears the timer update flag on every operation,
+ *       which would otherwise leave the state machine waiting forever for the
+ *       UIF that idles in state 0. Setting UIF here restores the original
+ *       behaviour where the first poll() after startup began a measurement.
+ */
+__STATIC_FORCEINLINE void kick_state_machine(void) {
+    T1.EGR = TIM_EGR(UG);
+    __DSB();
+}
+
+/**
  * @brief Search the 1-Wire bus and report every device ROM address
  * @param[in] sink Callback invoked once per found device with its 64-bit ROM
  *                 address (LSB first). May be NULL to only count devices.
@@ -613,7 +713,7 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
                 read_2bits(&id_bit, &cmp_bit);
                 if (id_bit && cmp_bit) {
                     // No device follows this path - search tree exhausted
-                    last_discrepancy = 0;
+                    kick_state_machine();
                     return found;
                 }
                 if (id_bit != cmp_bit) {
@@ -660,6 +760,8 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
         }
     }
 
+    // Kick the non-blocking state machine (see kick_state_machine)
+    kick_state_machine();
     return found;
 }
 
