@@ -13,6 +13,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
 - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
 - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
+- Device Search: Blocking Search ROM (0xF0) at startup to enumerate all
+  sensors on the bus and read their 64-bit ROM addresses.
 
 ## Requirements
 
@@ -84,6 +86,9 @@ in main loop) — fully non-blocking, no interrupts.
 ```C
 int main(void) {
     ds18b20_init();  // One-time initialization
+
+    // Optional: enumerate all devices on the bus (blocking, startup only)
+    uint8_t n = ds18b20_search_devices(my_sink, 16);
 
     while (1) {
         ds18b20_poll();  // Call repeatedly from main loop
@@ -260,6 +265,11 @@ This driver uses an advanced technique that combines multiple hardware features:
 3. Hardware Completion Events: The state machine advances only when the hardware timer signals that its current automated task is complete.
 4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
 
+> The one deliberate exception is `ds18b20_search_devices()`: it is a blocking
+> startup-only helper that reuses the same hardware-timed 1-Wire primitives
+> (timer + DMA) but waits for each slot synchronously, because the bus scan
+> runs once at boot when the CPU is otherwise idle.
+
 ### Hardware Resources Used
 
 - TIM1 & Channels 1, 2, 4: The core timer resources.
@@ -344,6 +354,24 @@ Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets 
 void ds18b20_poll(void);
 ```
 The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
+
+### Device Search (blocking)
+
+```C
+uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t *rom), uint8_t max_devices);
+```
+Enumerates every DS18B20 device on the 1-Wire bus using the standard Maxim
+Search ROM (0xF0) algorithm with the last-discrepancy method and CRC-8
+validation. Invokes `sink` once per found device with its 64-bit ROM address
+(LSB first); the callback may return non-zero to stop early. Returns the
+number of devices found.
+
+**Note:** This is a **blocking** function (~15 ms per device) — it busy-waits
+on the timer update flag for the duration of the search. It is intended for
+**one-time use at startup**, before the main loop starts calling
+`ds18b20_poll()`. It reuses the same hardware-timed 1-Wire primitives but does
+not affect the non-blocking measurement path, which continues to use Skip-ROM
+(single-sensor) addressing.
 
 ### Weak Callbacks
 

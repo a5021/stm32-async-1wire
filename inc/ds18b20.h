@@ -7,15 +7,18 @@
  * 
  * Key features:
  * - Pure bare-metal, register-level programming
- * - No interrupts, no software delays, no busy-waits
+ * - No interrupts; no software delays or busy-waits in the measurement path
  * - Hardware timer-based timing with DMA for data capture
  * - Non-blocking state machine architecture
  * - Weak function callbacks for customization
+ * - Optional blocking startup scan (ds18b20_search_devices) to enumerate
+ *   all sensors on the bus and read their 64-bit ROM addresses
  * 
  * Usage:
  * 1. Call ds18b20_init() once at startup
- * 2. Call ds18b20_poll() repeatedly from main loop
- * 3. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
+ * 2. (Optional) Call ds18b20_search_devices() to enumerate bus devices
+ * 3. Call ds18b20_poll() repeatedly from main loop
+ * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
 
@@ -64,6 +67,24 @@ void ds18b20_init(void);
  * timer and DMA to handle timing-critical operations without software delays.
  */
 void ds18b20_poll(void);
+
+/**
+ * @brief Enumerate all DS18B20 devices on the 1-Wire bus (blocking)
+ * @param[in] sink Callback invoked once per found device with its 64-bit ROM
+ *                 address (LSB first). May be NULL to only count devices.
+ *                 Return a non-zero value from the callback to stop the search
+ *                 early; the device is still counted in the return value.
+ * @param[in] max_devices Maximum number of devices to report (0 aborts the
+ *                        search and returns 0)
+ * @return Number of devices found on the bus
+ * @note BLOCKING function: it busy-waits on the timer update flag for the
+ *       whole search (~15 ms per device). Intended for one-time use at startup
+ *       before the main loop starts polling. It reuses the same hardware-timed
+ *       1-Wire primitives as the state machine but does not touch the
+ *       non-blocking measurement path, which continues to use Skip-ROM
+ *       (single-sensor) addressing.
+ */
+uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices);
 
 /**
  * @brief Busy indicator callback (weak)

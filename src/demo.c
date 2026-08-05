@@ -3,7 +3,11 @@
 
 // ======== Config: printing buffer size (power of two) ========
 #ifndef UART_TX_BUF_SIZE
-#define UART_TX_BUF_SIZE 128u // set to 128 or 256 as desired
+#define UART_TX_BUF_SIZE 256u // set to 128 or 256 as desired
+#endif
+// ======== Config: maximum devices reported by the startup bus scan ========
+#ifndef DS18B20_SEARCH_MAX_DEVICES
+#define DS18B20_SEARCH_MAX_DEVICES 8u
 #endif
 
 // Validate that buffer size is a power of two for efficient masking operations
@@ -178,6 +182,49 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
 }
 
 /**
+ * @brief Enqueue one byte as two uppercase hexadecimal digits (best-effort)
+ * @param[in] b Byte to convert and transmit
+ */
+__STATIC_FORCEINLINE void uart_write_hex(uint8_t b) {
+    static const char hex[] = "0123456789ABCDEF";
+    (void)uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]);
+    (void)uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
+}
+
+/**
+ * @brief Device search callback - prints the 64-bit ROM address in hex
+ * @param[in] rom Pointer to the 8-byte ROM address (LSB first)
+ * @return 0 to continue the search
+ */
+static uint8_t device_found_sink(const uint8_t* rom) {
+    uart_write_str("  ROM: ");
+    for (uint8_t i = 0; i < 8; i++) {
+        uart_write_hex(rom[i]);
+        if (i != 7) (void)uart_tx_enqueue_byte(' ');
+    }
+    uart_write_str("\r\n");
+    return 0;
+}
+
+/**
+ * @brief Run the blocking bus scan once at startup and report the result
+ * @note The output is enqueued into the UART ring buffer; it is flushed by
+ *       uart_poll_tx() once the main loop starts. Up to ~5 devices fit in
+ *       the buffer before the output is truncated (best-effort).
+ */
+__STATIC_FORCEINLINE void search_devices_and_report(void) {
+    uart_write_str("Searching 1-Wire bus...\r\n");
+    uint8_t count = ds18b20_search_devices(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    if (count == 0) {
+        uart_write_str("No devices on the 1-Wire bus.\r\n");
+    } else {
+        uart_write_str("Found ");
+        uart_write_int(count);
+        uart_write_str(" device(s).\r\n");
+    }
+}
+
+/**
  * @brief Weak implementation for DS18B20 measurement completion callback - handles result display
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
  */
@@ -216,6 +263,7 @@ int main(void) {
     hardware_init(); // Initialize hardware peripherals (non-blocking)
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message to UART buffer
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
+    search_devices_and_report(); // Blocking one-time bus scan (all sensors)
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
 

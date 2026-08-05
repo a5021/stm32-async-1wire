@@ -86,6 +86,12 @@ static DS18B20_ctx_t ctx;
 #define DS18B20_BITS_PER_BYTE 8
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
+/** @brief Number of bytes in a device ROM address */
+#define DS18B20_ROM_BYTES 8
+/** @brief Total number of bits in a device ROM address */
+#define DS18B20_ROM_BITS (DS18B20_ROM_BYTES * DS18B20_BITS_PER_BYTE)
+/** @brief DS18B20 Search ROM command */
+#define DS18B20_SEARCH_ROM 0xF0
 /** @brief Threshold to distinguish short/long pulses (10µs) */
 #define SHORT_PULSE_MAX 0x0A
 /** @brief Number of DMA transfers for command transmission */
@@ -155,16 +161,18 @@ __WEAK void ds18b20_complete(int16_t temp_tenths) {
 }
 
 /**
- * @brief Calculate CRC8 checksum for DS18B20 scratchpad data validation
- * @return CRC8 checksum value
+ * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
+ * @param[in] data Input buffer
+ * @param[in] len Number of bytes to process
+ * @return CRC-8 checksum value
  */
-__STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
+__STATIC_FORCEINLINE uint8_t crc8_calc(const uint8_t* data, uint8_t len) {
     uint8_t crc = 0;
-    // Process each byte in the scratchpad (first 8 bytes) for CRC calculation
-    for (uint8_t i = 0; i < DS18B20_CRC8_BYTES; i++) {
-        uint8_t inByte = ctx.scratchpad[i];
+    // Process each byte in the buffer
+    for (uint8_t i = 0; i < len; i++) {
+        uint8_t inByte = data[i];
         // Process each bit in the byte using Dallas/Maxim CRC8 algorithm
-        for (uint8_t b = 0; b < 8; b++) {
+        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
             uint8_t mix = (crc ^ inByte) & 0x01;
             crc >>= 1;
             if (mix) crc ^= DS18B20_CRC8_POLY;
@@ -172,6 +180,14 @@ __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
         }
     }
     return crc;
+}
+
+/**
+ * @brief Calculate CRC8 checksum for DS18B20 scratchpad data validation
+ * @return CRC8 checksum value
+ */
+__STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
+    return crc8_calc(ctx.scratchpad, DS18B20_CRC8_BYTES);
 }
 
 /**
@@ -325,6 +341,101 @@ __STATIC_FORCEINLINE void read_data(void) {
  */
 
 /**
+ * @defgroup DS18B20_Blocking_Search DS18B20 Blocking Bus Search
+ * @brief One-time, blocking helpers used by ds18b20_search_devices()
+ * @note These are the only functions in the driver that busy-wait on UIF.
+ *       They reuse the same hardware-timed 1-Wire primitives as the state
+ *       machine but wait for each operation synchronously.
+ * @{
+ */
+
+/**
+ * @brief Wait for the timer to finish its current one-shot operation
+ * @note Busy-waits on the update flag. Used only by the blocking search.
+ */
+__STATIC_FORCEINLINE void wait_timer_done(void) {
+    __DSB();
+    while (!(T1.SR & TIM_SR(UIF))) {
+    }
+    T1.SR = 0;
+}
+
+/**
+ * @brief Write one bit to the 1-Wire bus as a single hardware-timed slot
+ * @param[in] bit 1 = short low pulse (~5µs), 0 = long low pulse (~60µs)
+ * @note Blocking: waits for the slot to finish before returning.
+ */
+__STATIC_FORCEINLINE void write_bit(uint8_t bit) {
+    T1.RCR = 0; // Single slot, no repetition
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    T1.CCR1 = bit ? ONE_PULSE : ZERO_PULSE; // Pulse duration encodes the bit
+    // Configure channel 1 for output compare (drive bus low during the pulse)
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
+    T1.CCER = TIM_CCER(CC1E); // Enable output compare
+    T1.DIER = 0; // No DMA for a single bit slot
+    FORCE_UPDATE_EVENT(T1);
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    wait_timer_done();
+}
+
+/**
+ * @brief Write one byte to the 1-Wire bus, LSB first
+ * @param[in] byte Byte value to transmit
+ * @note Blocking: 8 sequential single-slot writes, waits between slots.
+ */
+__STATIC_FORCEINLINE void send_byte(uint8_t byte) {
+    for (uint8_t i = 0; i < DS18B20_BITS_PER_BYTE; i++) {
+        write_bit((byte >> i) & 0x01);
+    }
+}
+
+/**
+ * @brief Read two consecutive bits from the 1-Wire bus (Search ROM pair)
+ * @param[out] id_bit First bit read in the slot
+ * @param[out] cmp_bit Second (complement) bit read in the same slot
+ * @note Blocking: runs two read slots (RCR=1) in a single timer transaction
+ *       and decodes the captured pulse widths like read_data() does.
+ */
+__STATIC_FORCEINLINE void read_2bits(uint8_t* id_bit, uint8_t* cmp_bit) {
+    volatile uint8_t samples[2];
+    T1.RCR = 1; // Two read slots
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    T1.CCR1 = ONE_PULSE; // Read pulse duration (ONE_PULSE µs)
+    // Configure channel 1 for output compare (generate read pulse)
+    // Configure channel 2 for input capture (measure return pulse durations)
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
+    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
+    FORCE_UPDATE_EVENT(T1);
+    T1.CCR1 = 0; // Clear output compare value
+    // Configure DMA to capture pulse durations into the local buffer
+    D13.CCR = 0; // Clear DMA configuration
+    D13.CPAR = (uint32_t)&T1.CCR2; // DMA destination: capture register
+    D13.CMAR = (uint32_t)samples; // DMA source: local sample buffer
+    D13.CNDTR = 2; // Number of transfers (2 bits)
+    D13.CCR = DMA_CCR(MINC, PSIZE_0, EN); // Enable DMA with memory increment
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    wait_timer_done();
+    // Decode using the same threshold as decode_scratchpad()
+    *id_bit = (samples[0] <= SHORT_PULSE_MAX) ? 1u : 0u;
+    *cmp_bit = (samples[1] <= SHORT_PULSE_MAX) ? 1u : 0u;
+}
+
+/**
+ * @brief Perform a blocking 1-Wire reset and check for a presence pulse
+ * @return 1 if at least one device answered the reset, 0 otherwise
+ */
+__STATIC_FORCEINLINE uint8_t search_reset(void) {
+    reset_bus();
+    wait_timer_done();
+    return check_presence();
+}
+
+/**
+ * @}
+ */
+
+/**
  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions
  * @{
  */
@@ -460,6 +571,89 @@ void ds18b20_poll(void) {
         ctx.current_state = 0;
         break;
     }
+}
+
+/**
+ * @brief Search the 1-Wire bus and report every device ROM address
+ * @param[in] sink Callback invoked once per found device with its 64-bit ROM
+ *                 address (LSB first). May be NULL to only count devices.
+ *                 Return non-zero from the callback to stop the search early.
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @return Number of devices found on the bus
+ * @note Blocking - intended for one-time use at startup. Implements the
+ *       standard Maxim 1-Wire Search ROM (0xF0) algorithm with the
+ *       last-discrepancy method and CRC-8 validation.
+ */
+uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices) {
+    uint8_t rom[DS18B20_ROM_BYTES] = {0};
+    uint8_t found = 0;
+    uint8_t last_device = 0;
+    uint16_t last_discrepancy = 0;
+
+    if (max_devices == 0) {
+        return 0;
+    }
+
+    // Repeat the search until every device has been enumerated
+    while (!last_device && found < max_devices) {
+        if (!search_reset()) {
+            // No device answered - reset and stop the search
+            last_discrepancy = 0;
+            break;
+        }
+
+        send_byte(DS18B20_SEARCH_ROM);
+
+        uint16_t id_bit_number = 1;
+        uint16_t last_zero = 0;
+        for (uint8_t byte_idx = 0; byte_idx < DS18B20_ROM_BYTES; byte_idx++) {
+            uint8_t mask = 1;
+            for (uint8_t bit_idx = 0; bit_idx < DS18B20_BITS_PER_BYTE; bit_idx++) {
+                uint8_t id_bit, cmp_bit, direction;
+                read_2bits(&id_bit, &cmp_bit);
+                if (id_bit && cmp_bit) {
+                    // No device follows this path - search tree exhausted
+                    last_discrepancy = 0;
+                    return found;
+                }
+                if (id_bit != cmp_bit) {
+                    // Single device on this path - its bit fixes the direction
+                    direction = id_bit;
+                } else if (id_bit_number < last_discrepancy) {
+                    // Follow the previously taken path
+                    direction = (rom[byte_idx] & mask) ? 1u : 0u;
+                } else {
+                    // At the discrepancy point take the '1' branch first
+                    direction = (id_bit_number == last_discrepancy) ? 1u : 0u;
+                }
+                if (direction) {
+                    rom[byte_idx] |= mask;
+                } else {
+                    rom[byte_idx] &= (uint8_t)~mask;
+                    last_zero = id_bit_number;
+                }
+                write_bit(direction);
+                id_bit_number++;
+                mask <<= 1;
+            }
+        }
+        last_discrepancy = last_zero;
+
+        // Validate the assembled ROM address
+        if (crc8_calc(rom, DS18B20_ROM_BYTES) != 0) {
+            break;
+        }
+
+        found++;
+        if (sink && sink(rom)) {
+            break; // Callback requested an early stop
+        }
+        if (last_discrepancy == 0) {
+            last_device = 1; // This was the last device on the bus
+        }
+    }
+
+    return found;
 }
 
 /**

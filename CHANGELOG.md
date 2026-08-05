@@ -6,6 +6,15 @@ are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Blocking 1-Wire device search (`ds18b20_search_devices()`): enumerates all
+  DS18B20 devices on the bus using the Search ROM command (0xF0) with the
+  last-discrepancy algorithm and CRC-8 validation, and reports each device's
+  64-bit ROM address via a callback. The demo scans the bus once at startup
+  and prints every found device before starting normal measurements.
+
 ## [1.0.0] - 2026-08-05
 
 ### Added
