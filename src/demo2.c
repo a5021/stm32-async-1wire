@@ -31,45 +31,8 @@ static uint8_t uart_tx_tail = 0; // read index - points to oldest data
 static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transmission
 
 /**
- * @brief Non-blocking function to enqueue a single byte into the UART transmit buffer
- * @param[in] b Byte to enqueue
- * @return 1 on success, 0 if buffer full
- * @note Returns immediately without blocking
- */
-__STATIC_FORCEINLINE int uart_tx_enqueue_byte(uint8_t b) {
-    uint8_t head = uart_tx_head;
-    // Calculate next head position with wrap-around using power-of-two mask
-    uint8_t next = (uint8_t)((head + 1u) & UART_TX_IDX_MASK);
-    if (next == uart_tx_tail) { // Check if buffer is full
-        return 0; // Buffer full - non-blocking return
-    }
-
-    uart_tx_buf[head] = b; // Store byte at current head position
-    uart_tx_head = next; // Atomically update head pointer
-    return 1; // Success
-}
-
-/**
- * @brief Non-blocking function to enqueue entire null-terminated string into UART transmit buffer
- * @param[in] s Null-terminated string to enqueue
- * @return Number of characters successfully enqueued
- */
-__STATIC_FORCEINLINE int uart_write_str(const char* s) {
-    const char* start = s;
-    // Process each character until null terminator
-    while (*s) {
-        // Try to enqueue current character, break on buffer full (non-blocking)
-        if (!uart_tx_enqueue_byte((uint8_t)*s)) break;
-        s++;
-    }
-    // Return count of successfully enqueued characters
-    return (int)(s - start);
-}
-
-/**
- * @brief Non-blocking function to advance UART transmission by at most one byte
- * @note Must be called periodically to feed UART hardware from buffer
- * @note Returns immediately without blocking
+ * @brief Advance UART transmission by at most one byte (non-blocking)
+ * @note Must be called periodically to feed UART hardware from the buffer
  */
 __STATIC_FORCEINLINE void uart_poll_tx(void) {
     // Check if UART is ready to transmit (TXE flag set) and buffer not empty
@@ -80,6 +43,54 @@ __STATIC_FORCEINLINE void uart_poll_tx(void) {
         uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
         // Write byte to UART data register for transmission
         USART1->DR = b;
+    }
+}
+
+/**
+ * @brief Enqueue a single byte into the UART transmit buffer (lossless)
+ * @param[in] b Byte to enqueue
+ * @note Blocks only while the buffer is full, polling uart_poll_tx() to make
+ *       room - a byte is never dropped. With a 256-byte buffer the worst-case
+ *       stall at 115200 baud is ~23 ms.
+ */
+__STATIC_FORCEINLINE void uart_tx_enqueue_byte(uint8_t b) {
+    for (;;) {
+        uint8_t head = uart_tx_head;
+        // Calculate next head position with wrap-around using power-of-two mask
+        uint8_t next = (uint8_t)((head + 1u) & UART_TX_IDX_MASK);
+        if (next != uart_tx_tail) { // Room is available
+            uart_tx_buf[head] = b; // Store byte at current head position
+            uart_tx_head = next; // Update head pointer
+            return;
+        }
+        uart_poll_tx(); // Make room by feeding one byte to the UART
+    }
+}
+
+/**
+ * @brief Enqueue an entire null-terminated string (lossless)
+ * @param[in] s Null-terminated string to enqueue
+ */
+__STATIC_FORCEINLINE void uart_write_str(const char* s) {
+    while (*s) {
+        uart_tx_enqueue_byte((uint8_t)*s);
+        s++;
+    }
+}
+
+/**
+ * @brief Blocking drain of the UART TX ring buffer
+ * @note Waits until every enqueued byte has been shifted out (TC set).
+ *       Call once at startup after the bus-scan report so the banner is
+ *       never truncated, regardless of buffer size vs. message length.
+ *       At 115200 baud a 256-byte buffer drains in ~23 ms.
+ */
+__STATIC_FORCEINLINE void uart_tx_flush(void) {
+    while (uart_tx_tail != uart_tx_head) {
+        uart_poll_tx();
+    }
+    while (!(USART1->SR & USART_SR_TC)) {
+        ;
     }
 }
 
@@ -183,7 +194,7 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
 
         if (is_negative) *(--p) = '-'; // Add negative sign if needed
     }
-    (void)uart_write_str(p); // best-effort enqueue to UART buffer
+    uart_write_str(p);
 }
 
 /**
@@ -192,8 +203,8 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
  */
 __STATIC_FORCEINLINE void uart_write_hex(uint8_t b) {
     static const char hex[] = "0123456789ABCDEF";
-    (void)uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]);
-    (void)uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
+    uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]);
+    uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
 }
 
 /**
@@ -212,7 +223,7 @@ static uint8_t device_found_sink(const uint8_t* rom) {
     uart_write_str("  ROM: ");
     for (uint8_t i = 0; i < 8; i++) {
         uart_write_hex(rom[i]);
-        if (i != 7) (void)uart_tx_enqueue_byte(' ');
+        if (i != 7) uart_tx_enqueue_byte(' ');
     }
     uart_write_str(is_ds18b20 ? "\r\n" : " (not DS18B20, skipped)\r\n");
     return 0;
@@ -220,9 +231,8 @@ static uint8_t device_found_sink(const uint8_t* rom) {
 
 /**
  * @brief Run the blocking bus scan once at startup and report the result
- * @note The output is enqueued into the UART ring buffer; it is flushed by
- *       uart_poll_tx() once the main loop starts. Up to ~5 devices fit in
- *       the buffer before the output is truncated (best-effort).
+ * @note The output is enqueued into the UART ring buffer; call uart_tx_flush()
+ *       afterwards so the full banner is transmitted before the main loop.
  */
 __STATIC_FORCEINLINE void search_devices_and_report(void) {
     uart_write_str("Searching 1-Wire bus...\r\n");
@@ -244,15 +254,14 @@ __STATIC_FORCEINLINE void search_devices_and_report(void) {
 }
 
 /**
- * @brief Print the ROM address of the currently selected device (best-effort)
+ * @brief Print the ROM address of the currently selected device followed by ": "
  */
-__STATIC_FORCEINLINE void print_selected_rom(void) {
-    uart_write_str(" -> ");
+__STATIC_FORCEINLINE void print_device_prefix(void) {
     for (uint8_t i = 0; i < 8; i++) {
         uart_write_hex(found_roms[select_index][i]);
-        if (i != 7) (void)uart_tx_enqueue_byte(' ');
+        if (i != 7) uart_tx_enqueue_byte(' ');
     }
-    uart_write_str("\r\n");
+    uart_write_str(": ");
 }
 
 /**
@@ -260,17 +269,17 @@ __STATIC_FORCEINLINE void print_selected_rom(void) {
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
  */
 void ds18b20_complete(int16_t temp) {
+    print_device_prefix(); // ROM of the device that was just measured
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) { // No sensor detected error - enqueue error message
-        uart_write_str("DS18B20 error: no sensor detected.\r\n");
+        uart_write_str("no sensor detected.\r\n");
     } else if (temp == DS18B20_TEMP_ERROR_CRC_FAIL) { // CRC check failed error - enqueue error message
-        uart_write_str("DS18B20 error: CRC check failed.\r\n");
+        uart_write_str("CRC check failed.\r\n");
     } else if (temp == DS18B20_TEMP_ERROR_GENERIC) { // Generic error - enqueue error message
-        uart_write_str("DS18B20 error: generic failure.\r\n");
+        uart_write_str("generic failure.\r\n");
     } else { // Valid temperature reading - format and display
         int whole = temp / 10; // Get whole degrees (temp is in tenths)
         int frac = temp % 10; // Get fractional part (tenths)
         if (frac < 0) frac = -frac; // Ensure fractional part is positive
-        uart_write_str("Temperature: ");
         if (whole == 0 && temp < 0) {
             uart_write_str("-0"); // Handle -0.5°C case
         } else {
@@ -278,15 +287,13 @@ void ds18b20_complete(int16_t temp) {
         }
         uart_write_str("."); // Decimal point
         uart_write_int(frac); // Display fractional part
-        uart_write_str(" C"); // Units
-        uart_write_str("\r\n"); // And newline
+        uart_write_str(" C\r\n"); // Units and newline
     }
 
     // Round-robin: switch to the next device for the next measurement cycle
     if (found_count > 1) {
         select_index = (uint8_t)((select_index + 1u) % found_count);
         ds18b20_select(found_roms[select_index]);
-        print_selected_rom();
     }
 }
 
@@ -302,6 +309,7 @@ int main(void) {
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message to UART buffer
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
     search_devices_and_report(); // Blocking one-time bus scan (all sensors)
+    uart_tx_flush(); // Block until the startup banner is fully transmitted
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
 
