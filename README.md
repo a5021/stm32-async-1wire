@@ -32,7 +32,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 │   ├── ds18b20.h           # Driver interface and constants
 │   └── macro.h             # STM32 register access macros
 ├── src/                    # Project source files
-│   ├── demo.c              # Example application with UART output
+│   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
+│   ├── demo2.c             # Example: device search + sequential poll of all
 │   └── ds18b20.c           # Main driver implementation
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
@@ -48,6 +49,31 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 ├── Makefile
 └── stm32f103cb.jflash      # J-Flash project file
 ```
+
+## Examples
+
+Two ready-to-run example applications are provided; select one with `APP`:
+
+| APP     | File             | Behaviour                                                        |
+|---------|------------------|------------------------------------------------------------------|
+| `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
+| `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
+
+```bash
+make                # build demo  -> build/ds18b20_demo.elf
+make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
+make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
+```
+
+Notes:
+
+- `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
+  With several sensors connected, all of them respond to the read command and
+  the bus data collides (CRC failures are expected).
+- `demo2` measures the devices found at startup one at a time, in round-robin
+  order. With exactly one sensor it behaves like `demo`.
+- Programming targets (`make jprogram` / `make program`) flash whichever
+  example is currently selected by `APP`.
 
 ## Hardware Connections
 

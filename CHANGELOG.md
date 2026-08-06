@@ -12,13 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blocking 1-Wire device search (`ds18b20_search_devices()`): enumerates all
   DS18B20 devices on the bus using the Search ROM command (0xF0) with the
   last-discrepancy algorithm and CRC-8 validation, and reports each device's
-  64-bit ROM address via a callback. The demo scans the bus once at startup
-  and prints every found device before starting normal measurements.
+  64-bit ROM address via a callback. The `demo2` example scans the bus once
+  at startup and prints every found device before starting normal measurements.
 - Per-device addressing (`ds18b20_select()`): the non-blocking measurement
   path can now target one specific DS18B20 by its 64-bit ROM address using
   the Match ROM command (0x55). Passing NULL keeps the legacy Skip ROM
   (single-sensor) behaviour. The demo measures a single device directly, or
   cycles through all found devices in turn when more than one is present.
+- Two example applications, selected with `make APP=demo|demo2`:
+  - `src/demo.c` — unconditional polling of a single sensor via Skip ROM
+    (the original, pre-search behaviour);
+  - `src/demo2.c` — startup device search plus sequential round-robin
+    polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`).
 
 ### Fixed
 
