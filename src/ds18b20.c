@@ -751,6 +751,15 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
             break;
         }
 
+        // Only report DS18B20 devices; other 1-Wire families share the bus
+        // but are not temperature sensors and must not be measured as one.
+        if (rom[0] != DS18B20_FAMILY_CODE) {
+            if (last_discrepancy == 0) {
+                last_device = 1; // This was the last device on the bus
+            }
+            continue;
+        }
+
         found++;
         if (sink && sink(rom)) {
             break; // Callback requested an early stop

@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which left the driver idling in state 0 forever waiting for a UIF that never
   arrived. `ds18b20_search_devices()` now leaves a pending update flag so the
   first `ds18b20_poll()` call begins a measurement cycle immediately.
+- The device search reported every 1-Wire device on the bus, not just DS18B20
+  temperature sensors: other families (DS2401, DS1990, etc.) were stored and
+  polled as if they were DS18B20s. `ds18b20_search_devices()` now skips any
+  device whose ROM family code is not `DS18B20_FAMILY_CODE` (0x28), and the
+  `demo2` example double-checks the family code before storing an address.
 
 ## [1.0.0] - 2026-08-05
 

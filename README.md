@@ -14,7 +14,9 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
 - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
 - Device Search: Blocking Search ROM (0xF0) at startup to enumerate all
-  sensors on the bus and read their 64-bit ROM addresses.
+  DS18B20 sensors on the bus and read their 64-bit ROM addresses. Only devices
+  with the DS18B20 family code (0x28) are reported; other 1-Wire devices are
+  skipped.
 - Per-Device Addressing: Select one specific sensor by its ROM address
   (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
 
@@ -399,9 +401,11 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t *rom), uint8_t max_
 ```
 Enumerates every DS18B20 device on the 1-Wire bus using the standard Maxim
 Search ROM (0xF0) algorithm with the last-discrepancy method and CRC-8
-validation. Invokes `sink` once per found device with its 64-bit ROM address
-(LSB first); the callback may return non-zero to stop early. Returns the
-number of devices found.
+validation. Only devices whose ROM family code is `DS18B20_FAMILY_CODE` (0x28)
+are reported; any other 1-Wire device on the bus is silently skipped. Invokes
+`sink` once per found device with its 64-bit ROM address (LSB first); the
+callback may return non-zero to stop early. Returns the number of devices
+found.
 
 **Note:** This is a **blocking** function (~15 ms per device) — it busy-waits
 on the timer update flag for the duration of the search. It is intended for

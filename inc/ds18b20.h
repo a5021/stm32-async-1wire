@@ -46,6 +46,13 @@ extern "C" {
 #define DS18B20_TEMP_ERROR_CRC_FAIL (INT16_MIN + 2) /**< CRC checksum validation failed */
 
 /**
+ * @brief DS18B20 1-Wire family code (LSB of the 64-bit ROM address)
+ * @note Other 1-Wire devices on the bus use different family codes and are
+ *       skipped by the device search.
+ */
+#define DS18B20_FAMILY_CODE 0x28
+
+/**
  * @}
  */
 
@@ -71,21 +78,24 @@ void ds18b20_poll(void);
 
 /**
  * @brief Enumerate all DS18B20 devices on the 1-Wire bus (blocking)
- * @param[in] sink Callback invoked once per found device with its 64-bit ROM
- *                 address (LSB first). May be NULL to only count devices.
- *                 Return a non-zero value from the callback to stop the search
- *                 early; the device is still counted in the return value.
+ * @param[in] sink Callback invoked once per found DS18B20 device with its
+ *                 64-bit ROM address (LSB first). May be NULL to only count
+ *                 devices. Return a non-zero value from the callback to stop
+ *                 the search early; the device is still counted in the return
+ *                 value.
  * @param[in] max_devices Maximum number of devices to report (0 aborts the
  *                        search and returns 0)
- * @return Number of devices found on the bus
+ * @return Number of DS18B20 devices found on the bus
  * @note BLOCKING function: it busy-waits on the timer update flag for the
  *       whole search (~15 ms per device). Intended for one-time use at startup
  *       before the main loop starts polling. It reuses the same hardware-timed
  *       1-Wire primitives as the state machine but does not touch the
- *       non-blocking measurement path. After the search, pass one of the
- *       reported ROM addresses to ds18b20_select() to measure that device;
- *       otherwise the measurement path keeps using Skip-ROM (single-sensor)
- *       addressing.
+ *       non-blocking measurement path. The Search ROM (0xF0) algorithm
+ *       enumerates every 1-Wire device on the bus; only devices whose ROM
+ *       family code is DS18B20_FAMILY_CODE (0x28) are reported, other devices
+ *       are silently skipped. After the search, pass one of the reported ROM
+ *       addresses to ds18b20_select() to measure that device; otherwise the
+ *       measurement path keeps using Skip-ROM (single-sensor) addressing.
  */
 uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices);
 

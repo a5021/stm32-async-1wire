@@ -202,7 +202,8 @@ __STATIC_FORCEINLINE void uart_write_hex(uint8_t b) {
  * @return 0 to continue the search
  */
 static uint8_t device_found_sink(const uint8_t* rom) {
-    if (found_count < DS18B20_SEARCH_MAX_DEVICES) {
+    const uint8_t is_ds18b20 = (rom[0] == DS18B20_FAMILY_CODE);
+    if (is_ds18b20 && found_count < DS18B20_SEARCH_MAX_DEVICES) {
         for (uint8_t i = 0; i < 8; i++) {
             found_roms[found_count][i] = rom[i];
         }
@@ -213,7 +214,7 @@ static uint8_t device_found_sink(const uint8_t* rom) {
         uart_write_hex(rom[i]);
         if (i != 7) (void)uart_tx_enqueue_byte(' ');
     }
-    uart_write_str("\r\n");
+    uart_write_str(is_ds18b20 ? "\r\n" : " (not DS18B20, skipped)\r\n");
     return 0;
 }
 
