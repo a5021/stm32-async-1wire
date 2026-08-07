@@ -32,8 +32,10 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 ```
 ├── inc/                    # Project header files
 │   ├── ds18b20.h           # Driver interface and constants
+│   ├── app.h               # Shared application layer (UART, clock, init)
 │   └── macro.h             # STM32 register access macros
 ├── src/                    # Project source files
+│   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
 │   ├── demo2.c             # Example: device search + sequential poll of all
 │   └── ds18b20.c           # Main driver implementation
@@ -69,6 +71,8 @@ make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 
 Notes:
 
+- Both examples use `app_init()` (from `inc/app.h`) to set up the system
+  clock, USART1 TX and the busy LED in a single call.
 - `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
   With several sensors connected, all of them respond to the read command and
   the bus data collides (CRC failures are expected).
@@ -131,6 +135,11 @@ int main(void) {
 ```
 
 ### 3. Implement Callbacks (Optional)
+
+Both callbacks are optional. Default weak implementations are provided by the
+driver, and `src/app.c` additionally supplies a default `ds18b20_busy()` that
+drives the onboard LED (PC13). The examples override both: `ds18b20_busy()`
+switches the LED and `ds18b20_complete()` formats and prints the result.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
@@ -387,7 +396,7 @@ Kickstart behavior
 ```C
 void ds18b20_init(void);
 ```
-Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `demo.c`). This function does NOT start the state machine.
+Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start the state machine.
 
 ```C
 void ds18b20_poll(void);
