@@ -720,8 +720,7 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
         // back to search mode. Omitting it stops the search after the first
         // device (verified on 5x DS18B20 hardware).
         if (!search_reset()) {
-            // No device answered - reset and stop the search
-            last_discrepancy = 0;
+            // No device answered - stop the search
             break;
         }
 
