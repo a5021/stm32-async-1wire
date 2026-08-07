@@ -303,10 +303,12 @@ protocol on embedded systems:
 
 ### Trade-offs
 
-**Cost.** This driver consumes dedicated hardware resources — TIM1, DMA1
-channels 3/4, and PA8 — that cannot be used for other purposes. Bit-banging
-approaches need only a single GPIO pin and no DMA, making them more portable
-across MCUs with limited peripherals.
+**Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA1
+channels (CH3 for input capture, CH4 for the CCR1 feed) — that cannot be used
+for other purposes. The 1-Wire data line itself occupies PA8, but any approach
+needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
+approaches, by contrast, need only that one pin and no DMA, making them more
+portable across MCUs with limited peripherals.
 
 **Precision vs. portability.** Timer+DMA provides deterministic 1µs resolution
 with zero jitter, because the CPU is never in the timing-critical path. Software
@@ -314,12 +316,6 @@ delays degrade under interrupt load, and even timer-ISR approaches incur jitter
 from preemption. The trade-off is complexity: this driver's hardware configuration
 is ~150 lines of register-level code versus ~20 lines for a typical bit-bang
 implementation.
-
-**CPU availability.** Both bit-banging and this driver run without interrupts, but
-bit-banging blocks the CPU for the entire transaction (~15ms per measurement
-cycle). This driver frees the CPU during the entire measurement — the state
-machine advances only when hardware signals completion via the timer update flag,
-so the main loop remains free for other tasks between polls.
 
 ## Architecture
 
