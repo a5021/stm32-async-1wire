@@ -95,10 +95,10 @@
         B2P(B, 4), B2P(B, 5), B2P(B, 6), B2P(B, 7)
 
 /** @brief DS18B20 Convert T command sequence in pulse duration format */
-static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44), 0};
+static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44)};
 
 /** @brief DS18B20 Read Scratchpad command sequence in pulse duration format */
-static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0};
+static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE)};
 
 /**
  * @brief Force timer update event and wait for update flag - used for timer initialization
@@ -134,7 +134,7 @@ typedef struct {
     uint8_t current_state; /**< Current state of the state machine */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command */
+    uint8_t addr_cmd[DS18B20_MATCH_SLOTS]; /**< Pulse buffer for Match ROM command */
 } DS18B20_ctx_t;
 
 /**
@@ -305,7 +305,8 @@ __STATIC_FORCEINLINE void reset_bus(void) {
  * @param[in] cmd Pointer to command sequence in pulse duration format
  * @param[in] slots Number of bit slots (bits) to transmit
  * @note Non-blocking - configures hardware to transmit command automatically.
- *       The buffer must hold `slots` pulse values plus a trailing 0 sentinel.
+ *       The buffer must hold `slots` pulse values; the first one is written
+ *       to CCR1 directly, the remaining `slots-1` are fed via DMA.
  */
 __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     // Configure timer for command transmission using DMA
@@ -323,7 +324,11 @@ __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     D14.CCR = 0; // Clear DMA configuration
     D14.CPAR = (uint32_t)&T1.CCR1; // DMA destination: output compare register
     D14.CMAR = (uint32_t)&cmd[1]; // DMA source: command data (skip first byte)
-    D14.CNDTR = slots; // Number of transfers
+    // One transfer per timer period, minus the first period whose CCR1 value
+    // was preloaded above. The timer still generates 'slots' DMA requests,
+    // but the DMA channel auto-disables after the final transfer (NDTR hits 0)
+    // and the remaining request is ignored.
+    D14.CNDTR = slots - 1; // Number of CCR1 updates needed
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN); // Enable DMA with memory increment
     T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
 }
@@ -362,7 +367,6 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
         p += DS18B20_BITS_PER_BYTE;
     }
     encode_byte_pulses(p, cmd_byte);
-    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = 0; // DMA sentinel
 }
 
 /**
