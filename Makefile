@@ -16,12 +16,17 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/ds18b20.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/ds18b20.c src/app.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
 INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+
+# Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
+UART_TX_SIZE_demo  = 128
+UART_TX_SIZE_demo2 = 256
+DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
 # make HSI_8MHZ=1  →  -DHSI_8MHZ=1  (run on HSI 8MHz instead of HSE+PLL 72MHz)

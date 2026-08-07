@@ -70,6 +70,8 @@
 #define DS18B20_READ_SCRATCHPAD 0xBE
 /** @brief Total slots for Match ROM + 8-byte ROM + command */
 #define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
+/** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
+#define DS18B20_PREFIX_SLOTS ((DS18B20_ROM_BYTES + 1) * DS18B20_BITS_PER_BYTE)
 /** @brief Threshold to distinguish short/long pulses (10µs) */
 #define SHORT_PULSE_MAX 0x0A
 /** @brief Number of DMA transfers for command transmission */
@@ -354,11 +356,12 @@ __STATIC_FORCEINLINE void encode_byte_pulses(uint8_t* out, uint8_t byte) {
 }
 
 /**
- * @brief Build the Match ROM command pulse sequence for the selected device
- * @param[in] cmd_byte Command byte to send after the ROM address
- * @note Fills ctx.addr_cmd with Match ROM (0x55) + selected ROM + command.
+ * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)
+ * @note Fills the first DS18B20_PREFIX_SLOTS entries of ctx.addr_cmd.
+ *       The prefix depends only on the selected device, so it is built
+ *       once in ds18b20_select() and reused for every command.
  */
-__STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
+__STATIC_FORCEINLINE void build_addr_prefix(void) {
     uint8_t* p = ctx.addr_cmd;
     encode_byte_pulses(p, DS18B20_MATCH_ROM);
     p += DS18B20_BITS_PER_BYTE;
@@ -366,7 +369,16 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
         encode_byte_pulses(p, ctx.selected_rom[i]);
         p += DS18B20_BITS_PER_BYTE;
     }
-    encode_byte_pulses(p, cmd_byte);
+}
+
+/**
+ * @brief Append one command byte to the pre-built Match ROM prefix
+ * @param[in] cmd_byte Command byte to send after the ROM address
+ * @note Requires build_addr_prefix() to have been called for the current
+ *       selected device. Only the last byte (8 slots) is re-encoded per call.
+ */
+__STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
+    encode_byte_pulses(&ctx.addr_cmd[DS18B20_PREFIX_SLOTS], cmd_byte);
 }
 
 /**
@@ -533,6 +545,7 @@ void ds18b20_select(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         ctx.selected_rom[i] = rom[i];
     }
+    build_addr_prefix(); // Build the invariant Match ROM prefix once per selection
     ctx.address_mode = 1;
 }
 
