@@ -287,6 +287,40 @@ the debug sidebar.
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
 boards) via SWD.
 
+## Comparison with Common 1-Wire Techniques
+
+The DS18B20 uses the 1-Wire bus protocol, which communicates over a single data
+line with strict timing requirements. Several approaches exist to handle this
+protocol on embedded systems:
+
+| Technique | How it works | Blocking? | Timing precision | Typical use |
+|---|---|---|---|---|
+| **Bit-banging + delay** (e.g. OneWire Arduino) | GPIO toggling with `delayMicroseconds()`, interrupts disabled | Yes | Low (compiler/optimization dependent) | Hobbyist Arduino projects |
+| **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi- | Medium | RTOS-based firmware |
+| **UART bit-banging** | UART at 9600/115200 baud emulates 1-Wire timings | Depends | Medium | Systems with spare UARTs |
+| **Hardware 1-Wire master** | Dedicated IC (DS2482) or kernel subsystem (Linux w1-gpio) | No | High | Linux SBCs, complex systems |
+| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values autonomously; timer self-disables after each transaction | No | High (1µs resolution, zero jitter) | STM32 resource-constrained firmware |
+
+### Trade-offs
+
+**Cost.** This driver consumes dedicated hardware resources — TIM1, DMA1
+channels 3/4, and PA8 — that cannot be used for other purposes. Bit-banging
+approaches need only a single GPIO pin and no DMA, making them more portable
+across MCUs with limited peripherals.
+
+**Precision vs. portability.** Timer+DMA provides deterministic 1µs resolution
+with zero jitter, because the CPU is never in the timing-critical path. Software
+delays degrade under interrupt load, and even timer-ISR approaches incur jitter
+from preemption. The trade-off is complexity: this driver's hardware configuration
+is ~150 lines of register-level code versus ~20 lines for a typical bit-bang
+implementation.
+
+**CPU availability.** Both bit-banging and this driver run without interrupts, but
+bit-banging blocks the CPU for the entire transaction (~15ms per measurement
+cycle). This driver frees the CPU during the entire measurement — the state
+machine advances only when hardware signals completion via the timer update flag,
+so the main loop remains free for other tasks between polls.
+
 ## Architecture
 
 ### Hybrid Hardware Automation
