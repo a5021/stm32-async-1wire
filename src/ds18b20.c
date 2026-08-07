@@ -321,7 +321,7 @@ __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     FORCE_UPDATE_EVENT(T1);
     // Configure DMA to transmit command pulse sequence
     D14.CCR = 0; // Clear DMA configuration
-    D14.CPAR = (uint32_t)&TIM1->CCR1; // DMA destination: output compare register
+    D14.CPAR = (uint32_t)&T1.CCR1; // DMA destination: output compare register
     D14.CMAR = (uint32_t)&cmd[1]; // DMA source: command data (skip first byte)
     D14.CNDTR = slots; // Number of transfers
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN); // Enable DMA with memory increment
