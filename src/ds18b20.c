@@ -696,6 +696,12 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
 
     // Repeat the search until every device has been enumerated
     while (!last_device && found < max_devices) {
+        // A reset + presence pulse is required before EVERY Search ROM pass:
+        // after a completed search transaction the found device is left
+        // selected (waiting for a function command) and the other devices go
+        // into a "not participating" state, so only a reset brings them all
+        // back to search mode. Omitting it stops the search after the first
+        // device (verified on 5x DS18B20 hardware).
         if (!search_reset()) {
             // No device answered - reset and stop the search
             last_discrepancy = 0;

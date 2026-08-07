@@ -81,12 +81,17 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
 #ifndef HSI_8MHZ
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
+    // Wait for HSE to stabilize - HSERDY is the hardware stabilization
+    // indicator, so no fixed delay is required
+    while (!(RCC->CR & RCC_CR_HSERDY))
+        ;
     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2
     RCC->CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2;
-    // Enable PLL
-    RCC->CR = RCC_CR_HSION | RCC_CR_HSEON | RCC_CR_PLLON;
-    // Wait for PLL and HSE ready flags
-    while ((RCC_CR_PLLRDY | RCC_CR_HSERDY) != (RCC->CR & (RCC_CR_PLLRDY | RCC_CR_HSERDY)))
+    // Enable PLL only after HSE is confirmed stable, so the PLL locks on a
+    // valid clock (per RM0008: HSE must be ready before enabling the PLL)
+    RCC->CR |= RCC_CR_PLLON;
+    // Wait for the PLL to lock
+    while (!(RCC->CR & RCC_CR_PLLRDY))
         ;
     // Configure flash latency for 72MHz operation
     FLASH->ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY_2;
