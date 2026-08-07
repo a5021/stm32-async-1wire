@@ -70,12 +70,15 @@ __STATIC_FORCEINLINE void uart_tx_enqueue_byte(uint8_t b) {
 /**
  * @brief Enqueue an entire null-terminated string (lossless)
  * @param[in] s Null-terminated string to enqueue
+ * @return Number of characters enqueued
  */
-__STATIC_FORCEINLINE void uart_write_str(const char* s) {
+__STATIC_FORCEINLINE int uart_write_str(const char* s) {
+    const char* start = s;
     while (*s) {
         uart_tx_enqueue_byte((uint8_t)*s);
         s++;
     }
+    return (int)(s - start);
 }
 
 /**
@@ -173,8 +176,9 @@ void ds18b20_busy(unsigned action) {
 /**
  * @brief Convert integer to string and enqueue for UART transmission
  * @param[in] value Integer value to convert and transmit
+ * @return Number of characters enqueued
  */
-__STATIC_FORCEINLINE void uart_write_int(int value) {
+__STATIC_FORCEINLINE int uart_write_int(int value) {
     char buf[7]; // enough for -32768 and '\0'
     char* p = buf + sizeof(buf) - 1;
     *p = '\0';
@@ -199,17 +203,19 @@ __STATIC_FORCEINLINE void uart_write_int(int value) {
 
         if (is_negative) *(--p) = '-'; // Add negative sign if needed
     }
-    uart_write_str(p);
+    return uart_write_str(p);
 }
 
 /**
- * @brief Enqueue one byte as two uppercase hexadecimal digits (best-effort)
+ * @brief Enqueue one byte as two uppercase hexadecimal digits
  * @param[in] b Byte to convert and transmit
+ * @return Number of characters enqueued (always 2)
  */
-__STATIC_FORCEINLINE void uart_write_hex(uint8_t b) {
+__STATIC_FORCEINLINE int uart_write_hex(uint8_t b) {
     static const char hex[] = "0123456789ABCDEF";
     uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]);
     uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
+    return 2;
 }
 
 /**
@@ -260,13 +266,15 @@ __STATIC_FORCEINLINE void search_devices_and_report(void) {
 
 /**
  * @brief Print the ROM address of the currently selected device followed by ": "
+ * @return Number of characters enqueued
  */
-__STATIC_FORCEINLINE void print_device_prefix(void) {
+__STATIC_FORCEINLINE int print_device_prefix(void) {
     for (uint8_t i = 0; i < 8; i++) {
         uart_write_hex(found_roms[select_index][i]);
         if (i != 7) uart_tx_enqueue_byte(' ');
     }
     uart_write_str(": ");
+    return 25; // 8 bytes * 2 hex chars + 7 spaces + ": "
 }
 
 /**
@@ -274,31 +282,40 @@ __STATIC_FORCEINLINE void print_device_prefix(void) {
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
  */
 void ds18b20_complete(int16_t temp) {
-    print_device_prefix(); // ROM of the device that was just measured
+    int line_len = print_device_prefix(); // ROM of the device that was just measured
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) { // No sensor detected error - enqueue error message
-        uart_write_str("no sensor detected.\r\n");
+        line_len += uart_write_str("no sensor detected.");
     } else if (temp == DS18B20_TEMP_ERROR_CRC_FAIL) { // CRC check failed error - enqueue error message
-        uart_write_str("CRC check failed.\r\n");
+        line_len += uart_write_str("CRC check failed.");
     } else if (temp == DS18B20_TEMP_ERROR_GENERIC) { // Generic error - enqueue error message
-        uart_write_str("generic failure.\r\n");
+        line_len += uart_write_str("generic failure.");
     } else { // Valid temperature reading - format and display
         int whole = temp / 10; // Get whole degrees (temp is in tenths)
         int frac = temp % 10; // Get fractional part (tenths)
         if (frac < 0) frac = -frac; // Ensure fractional part is positive
         if (whole == 0 && temp < 0) {
-            uart_write_str("-0"); // Handle -0.5°C case
+            line_len += uart_write_str("-0"); // Handle -0.5°C case
         } else {
-            uart_write_int(whole); // Display whole part
+            line_len += uart_write_int(whole); // Display whole part
         }
-        uart_write_str("."); // Decimal point
-        uart_write_int(frac); // Display fractional part
-        uart_write_str(" C\r\n"); // Units and newline
+        line_len += uart_write_str("."); // Decimal point
+        line_len += uart_write_int(frac); // Display fractional part
+        line_len += uart_write_str(" C"); // Units
     }
+    uart_write_str("\r\n"); // And newline (not counted in line length)
 
     // Round-robin: switch to the next device for the next measurement cycle
     if (found_count > 1) {
         select_index = (uint8_t)((select_index + 1u) % found_count);
         ds18b20_select(found_roms[select_index]);
+        if (select_index == 0) {
+            // Every sensor has been measured - close the cycle with a
+            // separator as wide as the measurement line
+            for (int i = 0; i < line_len; i++) {
+                uart_tx_enqueue_byte('-');
+            }
+            uart_write_str("\r\n");
+        }
     }
 }
 
