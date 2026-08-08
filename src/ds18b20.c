@@ -554,11 +554,11 @@ static void ds18b20_restore(void) {
 
 /** @brief Search state machine phases */
 typedef enum {
-    DS18B20_SEARCH_RESET,     /**< reset scheduled; check presence, send 0xF0 */
-    DS18B20_SEARCH_CMD,       /**< 0xF0 sent; prepare first bit iteration */
+    DS18B20_SEARCH_RESET, /**< reset scheduled; check presence, send 0xF0 */
+    DS18B20_SEARCH_CMD, /**< 0xF0 sent; prepare first bit iteration */
     DS18B20_SEARCH_READ_PAIR, /**< id/cmp pair read; compute and write direction */
     DS18B20_SEARCH_WRITE_DIR, /**< direction written; advance bit counters */
-    DS18B20_SEARCH_DONE       /**< search finished; restore the driver state */
+    DS18B20_SEARCH_DONE /**< search finished; restore the driver state */
 } search_phase_t;
 
 /**
@@ -581,7 +581,7 @@ typedef struct {
 } search_ctx_t;
 
 /** @brief Global search context instance */
-static search_ctx_t s;
+static search_ctx_t search_ctx;
 
 /**
  * @brief Start a non-blocking device search
@@ -590,18 +590,18 @@ static search_ctx_t s;
  */
 void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-        s.rom[i] = 0;
+        search_ctx.rom[i] = 0;
     }
-    s.sink = sink;
-    s.max = max_devices;
-    s.found = 0;
-    s.finished = 0;
-    s.last_discrepancy = 0;
+    search_ctx.sink = sink;
+    search_ctx.max = max_devices;
+    search_ctx.found = 0;
+    search_ctx.finished = 0;
+    search_ctx.last_discrepancy = 0;
     if (max_devices == 0) {
-        s.phase = DS18B20_SEARCH_DONE;
+        search_ctx.phase = DS18B20_SEARCH_DONE;
         return;
     }
-    s.phase = DS18B20_SEARCH_RESET;
+    search_ctx.phase = DS18B20_SEARCH_RESET;
     ds18b20_bus_reset(); // Schedule the first hardware operation
 }
 
@@ -610,15 +610,15 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
  * @return 1 when the search is finished, 0 while still running
  */
 uint8_t ds18b20_search_poll(void) {
-    if (s.finished) {
+    if (search_ctx.finished) {
         return 1;
     }
 
-    if (s.phase == DS18B20_SEARCH_DONE) {
+    if (search_ctx.phase == DS18B20_SEARCH_DONE) {
         // No hardware operation is pending at the end of the search: hand the
         // timer back to the measurement state machine exactly once.
         ds18b20_restore();
-        s.finished = 1;
+        search_ctx.finished = 1;
         return 1;
     }
 
@@ -628,100 +628,100 @@ uint8_t ds18b20_search_poll(void) {
         return 0;
     }
 
-    switch (s.phase) {
+    switch (search_ctx.phase) {
     case DS18B20_SEARCH_RESET:
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so start a new search pass with the Search ROM command.
         if (!ds18b20_bus_present()) {
-            s.phase = DS18B20_SEARCH_DONE;
+            search_ctx.phase = DS18B20_SEARCH_DONE;
             break;
         }
-        ds18b20_bus_encode_byte(s.pulses, DS18B20_SEARCH_ROM);
-        ds18b20_bus_write_slots(s.pulses, DS18B20_BITS_PER_BYTE);
-        s.phase = DS18B20_SEARCH_CMD;
+        ds18b20_bus_encode_byte(search_ctx.pulses, DS18B20_SEARCH_ROM);
+        ds18b20_bus_write_slots(search_ctx.pulses, DS18B20_BITS_PER_BYTE);
+        search_ctx.phase = DS18B20_SEARCH_CMD;
         break;
 
     case DS18B20_SEARCH_CMD:
         // 0xF0 sent: prepare the first bit iteration and read the id/cmp pair.
-        s.id_bit_number = 1;
-        s.last_zero = 0;
+        search_ctx.id_bit_number = 1;
+        search_ctx.last_zero = 0;
         ds18b20_bus_read_pair();
-        s.phase = DS18B20_SEARCH_READ_PAIR;
+        search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
         break;
 
     case DS18B20_SEARCH_READ_PAIR: {
-        const uint8_t byte_idx = (s.id_bit_number - 1) / DS18B20_BITS_PER_BYTE;
-        const uint8_t mask = (uint8_t)(1u << ((s.id_bit_number - 1) % DS18B20_BITS_PER_BYTE));
+        const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / DS18B20_BITS_PER_BYTE;
+        const uint8_t mask = (uint8_t)(1u << ((search_ctx.id_bit_number - 1) % DS18B20_BITS_PER_BYTE));
         const uint8_t id_bit = ds18b20_bus_pair_id();
         const uint8_t cmp_bit = ds18b20_bus_pair_cmp();
         uint8_t direction;
 
         if (id_bit && cmp_bit) {
             // No device follows this path - search tree exhausted
-            s.phase = DS18B20_SEARCH_DONE;
+            search_ctx.phase = DS18B20_SEARCH_DONE;
             break;
         }
         if (id_bit != cmp_bit) {
             // Single device on this path - its bit fixes the direction
             direction = id_bit;
-        } else if (s.id_bit_number < s.last_discrepancy) {
+        } else if (search_ctx.id_bit_number < search_ctx.last_discrepancy) {
             // Follow the previously taken path
-            direction = (s.rom[byte_idx] & mask) ? 1u : 0u;
+            direction = (search_ctx.rom[byte_idx] & mask) ? 1u : 0u;
             if (direction == 0) {
                 // Remember the last 0-branch taken at a discrepancy
-                s.last_zero = s.id_bit_number;
+                search_ctx.last_zero = search_ctx.id_bit_number;
             }
         } else {
             // At the discrepancy point take the '1' branch first
-            direction = (s.id_bit_number == s.last_discrepancy) ? 1u : 0u;
+            direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;
             if (direction == 0) {
                 // Remember the last 0-branch taken at a discrepancy
-                s.last_zero = s.id_bit_number;
+                search_ctx.last_zero = search_ctx.id_bit_number;
             }
         }
         if (direction) {
-            s.rom[byte_idx] |= mask;
+            search_ctx.rom[byte_idx] |= mask;
         } else {
-            s.rom[byte_idx] &= (uint8_t)~mask;
+            search_ctx.rom[byte_idx] &= (uint8_t)~mask;
         }
         ds18b20_bus_write_bit(direction);
-        s.phase = DS18B20_SEARCH_WRITE_DIR;
+        search_ctx.phase = DS18B20_SEARCH_WRITE_DIR;
         break;
     }
 
     case DS18B20_SEARCH_WRITE_DIR:
         // Direction written: advance to the next bit or finish the device.
-        s.id_bit_number++;
-        if (s.id_bit_number <= DS18B20_ROM_BITS) {
+        search_ctx.id_bit_number++;
+        if (search_ctx.id_bit_number <= DS18B20_ROM_BITS) {
             ds18b20_bus_read_pair();
-            s.phase = DS18B20_SEARCH_READ_PAIR;
+            search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
             break;
         }
 
         // All 64 bits of the current ROM assembled - validate it.
-        s.last_discrepancy = s.last_zero;
-        if (ds18b20_crc8(s.rom, DS18B20_ROM_BYTES) != 0) {
-            s.phase = DS18B20_SEARCH_DONE;
+        search_ctx.last_discrepancy = search_ctx.last_zero;
+        if (ds18b20_crc8(search_ctx.rom, DS18B20_ROM_BYTES) != 0) {
+            search_ctx.phase = DS18B20_SEARCH_DONE;
             break;
         }
-        if (s.rom[0] == DS18B20_FAMILY_CODE) {
-            s.found++;
-            if (s.sink && s.sink(s.rom)) {
-                s.phase = DS18B20_SEARCH_DONE;
+        if (search_ctx.rom[0] == DS18B20_FAMILY_CODE) {
+            search_ctx.found++;
+            if (search_ctx.sink && search_ctx.sink(search_ctx.rom)) {
+                search_ctx.phase = DS18B20_SEARCH_DONE;
                 break;
             }
-            if (s.found >= s.max) {
-                s.phase = DS18B20_SEARCH_DONE;
+            if (search_ctx.found >= search_ctx.max) {
+                search_ctx.phase = DS18B20_SEARCH_DONE;
                 break;
             }
         }
-        if (s.last_discrepancy == 0) {
-            s.phase = DS18B20_SEARCH_DONE;
+        if (search_ctx.last_discrepancy == 0) {
+            search_ctx.phase = DS18B20_SEARCH_DONE;
             break;
         }
         // Another device may exist - run another search pass.
         ds18b20_bus_reset();
-        s.phase = DS18B20_SEARCH_RESET;
+        search_ctx.phase = DS18B20_SEARCH_RESET;
         break;
 
     default:
@@ -735,7 +735,7 @@ uint8_t ds18b20_search_poll(void) {
  * @brief Number of DS18B20 devices found (valid once the search finished)
  * @return Count of found devices
  */
-uint8_t ds18b20_search_count(void) { return s.found; }
+uint8_t ds18b20_search_count(void) { return search_ctx.found; }
 
 /**
  * @}
