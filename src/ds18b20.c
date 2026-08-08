@@ -115,6 +115,12 @@ static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE)};
  * @note Different stages of communication use the same memory for different purposes
  */
 typedef struct {
+    /**
+     * @brief Union overlay for memory efficiency
+     * @warning CRITICAL INVARIANT: scratchpad[n] aliases pulse[n] (same byte).
+     *          decode_scratchpad() MUST read all 8 bits of pulse[byte*8..byte*8+7]
+     *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.
+     */
     union {
         volatile uint16_t edge[36]; /**< Edge timestamps for presence detection */
         volatile uint8_t pulse[72]; /**< Pulse durations for data decoding */
@@ -198,21 +204,17 @@ __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
 
 /**
  * @brief Decode pulse durations into scratchpad bytes using bit timing analysis
+ * @note Branchless implementation: accumulates bits into native-width variable,
+ *       then writes once per byte. Relies on union aliasing invariant — see DS18B20_ctx_t.
  */
 __STATIC_FORCEINLINE void decode_scratchpad(void) {
-    // Process each byte in the scratchpad (9 bytes total)
     for (unsigned byte = 0; byte < DS18B20_SCRATCHPAD_LEN; ++byte) {
-        const unsigned bit_start = byte * DS18B20_BITS_PER_BYTE;
-        // Process each bit in the byte (8 bits per byte)
+        const unsigned base = byte * DS18B20_BITS_PER_BYTE;
+        unsigned value = 0;
         for (unsigned bit = 0; bit < DS18B20_BITS_PER_BYTE; ++bit) {
-            // Determine if pulse represents logic '1' or '0' based on duration threshold
-            // Pulses <= 10µs are considered logic '1', > 10µs are logic '0'
-            if (ctx.pulse[bit_start + bit] <= SHORT_PULSE_MAX) {
-                ctx.scratchpad[byte] |= (1 << bit); // Set bit to 1
-            } else {
-                ctx.scratchpad[byte] &= ~(1 << bit); // Reset bit to 0
-            }
+            value |= (unsigned)(ctx.pulse[base + bit] <= SHORT_PULSE_MAX) << bit;
         }
+        ctx.scratchpad[byte] = (uint8_t)value;
     }
 }
 
