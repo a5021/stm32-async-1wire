@@ -566,6 +566,28 @@ void ds18b20_select(const uint8_t* rom) {
 }
 
 /**
+ * @brief Check presence and issue command (shared by CONVERT and REQUEST states)
+ * @param[in] cmd_byte Command byte to send
+ * @param[in] skip_tbl Skip-ROM command table (for broadcast mode)
+ * @param[in] next_state State to transition to on success
+ */
+static void issue_command(uint8_t cmd_byte, const uint8_t *skip_tbl, ds18b20_state_t next_state) {
+    if (!check_presence()) {
+        ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+        start_cycle_pause();
+        ctx.current_state = DS18B20_ST_IDLE;
+        return;
+    }
+    if (ctx.address_mode) {
+        build_addr_cmd(cmd_byte);
+        send_command_n(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
+    } else {
+        send_command(skip_tbl);
+    }
+    ctx.current_state = next_state;
+}
+
+/**
  * @brief Main state machine function - must be called periodically from main loop
  * @note Non-blocking state machine that advances 1-Wire communication state
  * @note Uses timer update interrupt flag to determine when operations complete
@@ -580,88 +602,48 @@ void ds18b20_poll(void) {
 
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
-    case 0: // IDLE - Initialize for new measurement cycle
+    case DS18B20_ST_IDLE:
         // Initialize union memory (fills with 0xFF pattern)
         ctx.fill_union = (uint64_t)-1;
         // Transition to START state
-        ctx.current_state = 1;
+        ctx.current_state = DS18B20_ST_START;
         /* fallthrough to START state immediately */
-        /* fallthrough  */
+        __attribute__((fallthrough));
 
-    case 1: // START - Begin measurement cycle, turn on LED
+    case DS18B20_ST_START:
         // Turn on LED to indicate measurement in progress
         ds18b20_busy(!0);
         // Initiate 1-Wire bus reset sequence
         reset_bus();
         // Transition to CONVERT state
-        ctx.current_state = 2;
+        ctx.current_state = DS18B20_ST_CONVERT;
         break;
 
-    case 2: // CONVERT - Check presence and send convert command
-        // Verify DS18B20 presence using captured edge timestamps
-        if (check_presence()) {
-            // Device present - send temperature conversion command,
-            // addressing all devices (Skip ROM) or the selected one (Match ROM)
-            if (ctx.address_mode) {
-                build_addr_cmd(DS18B20_CONVERT_T);
-                send_command_n(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
-            } else {
-                send_command(conv_cmd);
-            }
-            // Transition to WAIT state to allow conversion time
-            ctx.current_state = 3;
-        } else {
-            // No device present - report error and pause
-            ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-            // Start inter-measurement pause
-            start_cycle_pause();
-            // Return to IDLE state
-            ctx.current_state = 0;
-        }
+    case DS18B20_ST_CONVERT:
+        issue_command(DS18B20_CONVERT_T, conv_cmd, DS18B20_ST_WAIT);
         break;
 
-    case 3: // WAIT - Wait for temperature conversion to complete
+    case DS18B20_ST_WAIT:
         // Start timer for conversion wait period (750ms typical)
         wait_conversion();
-        // Transition to CONTINUE state
-        ctx.current_state = 4;
+        ctx.current_state = DS18B20_ST_CONTINUE;
         break;
 
-    case 4: // CONTINUE - Prepare for data readback
+    case DS18B20_ST_CONTINUE:
         // Initiate second 1-Wire bus reset sequence
         reset_bus();
-        // Transition to REQUEST state
-        ctx.current_state = 5;
+        ctx.current_state = DS18B20_ST_REQUEST;
         break;
 
-    case 5: // REQUEST - Check presence and send read command
-        // Verify DS18B20 presence again
-        if (check_presence()) {
-            // Device present - send read scratchpad command,
-            // addressing all devices (Skip ROM) or the selected one (Match ROM)
-            if (ctx.address_mode) {
-                build_addr_cmd(DS18B20_READ_SCRATCHPAD);
-                send_command_n(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
-            } else {
-                send_command(read_cmd);
-            }
-            // Transition to READ state
-            ctx.current_state = 6;
-        } else {
-            // No device present - report error and pause
-            ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-            // Start inter-measurement pause
-            start_cycle_pause();
-            // Return to IDLE state
-            ctx.current_state = 0;
-        }
+    case DS18B20_ST_REQUEST:
+        issue_command(DS18B20_READ_SCRATCHPAD, read_cmd, DS18B20_ST_READ);
         break;
 
-    case 6: // READ - Read scratchpad data from sensor
+    case DS18B20_ST_READ:
         // Initiate scratchpad data read using timer capture and DMA
         read_data();
         // Transition to DECODE state
-        ctx.current_state = 7;
+        ctx.current_state = DS18B20_ST_DECODE;
         break;
 
     case 7: // DECODE - Process received data and report temperature
