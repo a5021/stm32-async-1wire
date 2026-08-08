@@ -11,8 +11,15 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
-- Weak Function Callbacks: Hooks for driver busy state and measurement completion.
-- CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
+ - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
+ - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
+ - Non-Blocking Device Search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
+   `ds18b20_search_count()` find every DS18B20 on the bus. The low-level
+   1-Wire bus primitives and the Search ROM state machine live inside the
+   driver, so the public API is a small high-level interface only — zero
+   busy-waits, consistent with the non-blocking measurement path.
+ - Per-Device Addressing: Select one specific sensor by its ROM address
+   (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
 
 ## Requirements
 
@@ -25,11 +32,15 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 ```
 ├── inc/                    # Project header files
-│   ├── ds18b20.h           # Driver interface and constants
+│   ├── ds18b20.h           # Driver interface (high-level API) and constants
+│   ├── app.h               # Shared application layer (UART, clock, init)
 │   └── macro.h             # STM32 register access macros
 ├── src/                    # Project source files
-│   ├── demo.c              # Example application with UART output
-│   └── ds18b20.c           # Main driver implementation
+│   ├── app.c               # app_init(), UART TX ring buffer, busy LED
+│   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
+│   ├── demo2.c             # Example: device search + sequential poll of all
+│   └── ds18b20.c           # Driver: state machine + internal bus primitives
+│                           #          + non-blocking Search ROM
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32F1 device headers and startup
@@ -44,6 +55,33 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 ├── Makefile
 └── stm32f103cb.jflash      # J-Flash project file
 ```
+
+## Examples
+
+Two ready-to-run example applications are provided; select one with `APP`:
+
+| APP     | File             | Behaviour                                                        |
+|---------|------------------|------------------------------------------------------------------|
+| `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
+| `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
+
+```bash
+make                # build demo  -> build/ds18b20_demo.elf
+make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
+make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
+```
+
+Notes:
+
+- Both examples use `app_init()` (from `inc/app.h`) to set up the system
+  clock, USART1 TX and the busy LED in a single call.
+- `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
+  With several sensors connected, all of them respond to the read command and
+  the bus data collides (CRC failures are expected).
+- `demo2` measures the devices found at startup one at a time, in round-robin
+  order. With exactly one sensor it behaves like `demo`.
+- Programming targets (`make jprogram` / `make program`) flash whichever
+  example is currently selected by `APP`.
 
 ## Hardware Connections
 
@@ -85,6 +123,13 @@ in main loop) — fully non-blocking, no interrupts.
 int main(void) {
     ds18b20_init();  // One-time initialization
 
+    // Optional: run the non-blocking device search to find every sensor on
+    // the bus. See demo2.c for a complete example. The search hands the
+    // driver back to poll() automatically when finished.
+
+    // Optional: measure one specific device by its ROM address
+    ds18b20_select(my_rom);  // my_rom from a bus search
+
     while (1) {
         ds18b20_poll();  // Call repeatedly from main loop
         // Other application code...
@@ -93,6 +138,11 @@ int main(void) {
 ```
 
 ### 3. Implement Callbacks (Optional)
+
+Both callbacks are optional. Default weak implementations are provided by the
+driver, and `src/app.c` additionally supplies a default `ds18b20_busy()` that
+drives the onboard LED (PC13). The examples override both: `ds18b20_busy()`
+switches the LED and `ds18b20_complete()` formats and prints the result.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
@@ -240,6 +290,36 @@ the debug sidebar.
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
 boards) via SWD.
 
+## Comparison with Common 1-Wire Techniques
+
+The DS18B20 uses the 1-Wire bus protocol, which communicates over a single data
+line with strict timing requirements. Several approaches exist to handle this
+protocol on embedded systems:
+
+| Technique | How it works | Blocking? | Timing precision | Typical use |
+|---|---|---|---|---|
+| **Bit-banging + delay** (e.g. OneWire Arduino) | GPIO toggling with `delayMicroseconds()`, interrupts disabled | Yes | Low (compiler/optimization dependent) | Hobbyist Arduino projects |
+| **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi- | Medium | RTOS-based firmware |
+| **UART bit-banging** | UART at 9600/115200 baud emulates 1-Wire timings | Depends | Medium | Systems with spare UARTs |
+| **Hardware 1-Wire master** | Dedicated IC (DS2482) or kernel subsystem (Linux w1-gpio) | No | High | Linux SBCs, complex systems |
+| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values autonomously; timer self-disables after each transaction | No | High (1µs resolution, zero jitter) | STM32 resource-constrained firmware |
+
+### Trade-offs
+
+**Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA1
+channels (CH3 for input capture, CH4 for the CCR1 feed) — that cannot be used
+for other purposes. The 1-Wire data line itself occupies PA8, but any approach
+needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
+approaches, by contrast, need only that one pin and no DMA, making them more
+portable across MCUs with limited peripherals.
+
+**Precision vs. portability.** Timer+DMA provides deterministic 1µs resolution
+with zero jitter, because the CPU is never in the timing-critical path. Software
+delays degrade under interrupt load, and even timer-ISR approaches incur jitter
+from preemption. The trade-off is complexity: this driver's hardware configuration
+is ~150 lines of register-level code versus ~20 lines for a typical bit-bang
+implementation.
+
 ## Architecture
 
 ### Hybrid Hardware Automation
@@ -258,7 +338,15 @@ This driver uses an advanced technique that combines multiple hardware features:
 1. No Software Delays: No `delay_us()` or similar functions.
 2. No Interrupts: Does not configure or use the NVIC. Fully deterministic.
 3. Hardware Completion Events: The state machine advances only when the hardware timer signals that its current automated task is complete.
-4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
+ 4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
+
+> The driver ships with a built-in non-blocking device search
+> (`ds18b20_search_*`) for multi-sensor buses. The Maxim Search ROM (0xF0)
+> algorithm is implemented as a compact state machine inside the driver; it
+> performs exactly one hardware-timed operation per poll call — consistent with
+> the non-blocking measurement path, there are no busy-waits anywhere. All
+> low-level bus operations stay internal to the driver. See `demo2.c` for a
+> complete Search ROM example.
 
 ### Hardware Resources Used
 
@@ -298,7 +386,10 @@ Kickstart behavior
 
 - CONVERT (state 2)
   - On UIF, check_presence() with ctx.edge[].
-    - If present: send_command(conv_cmd) “Skip ROM 0xCC + Convert T 0x44” via CH1+DMA (16 slots, RCR=15); set state=3.
+    - If present: send convert command via CH1+DMA. With no selected device,
+      this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
+      device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
+      + Convert T 0x44" (80 slots, RCR=79). Set state=3.
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - WAIT (state 3)
@@ -309,7 +400,10 @@ Kickstart behavior
 
 - REQUEST (state 5)
   - On UIF, check_presence().
-    - If present: send_command(read_cmd) “Skip ROM 0xCC + Read 0xBE” via CH1+DMA (16 slots); set state=6.
+    - If present: send read command via CH1+DMA. With no selected device,
+      this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
+      selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
+      (80 slots). Set state=6.
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - READ (state 6)
@@ -324,10 +418,10 @@ Kickstart behavior
 | :----------- | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
 | **0**        | **IDLE**       | Initial state. Immediately falls through into START with no events required; prepares the context for a new measurement cycle by initializing the data union. | State 1 (START)                                                                                             |
 | **1**        | **START**      | Begins the measurement cycle. Turns on the user LED (if implemented) and initiates a **1-Wire bus reset** sequence to detect devices.     | State 2 (CONVERT)                                                                                           |
-| **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error.                                         |
+| **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command — either via **Skip ROM (0xCC)** to all devices, or via **Match ROM (0x55) + device ROM** to the device selected with `ds18b20_select()`. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error. |
 | **3**        | **WAIT**       | Starts a non-blocking timer delay (~750 ms) to wait for the temperature conversion inside the DS18B20 to complete.                       | State 4 (CONTINUE)                                                                                          |
 | **4**        | **CONTINUE**   | Initiates a second **1-Wire bus reset** sequence to prepare for reading the converted data.                                              | State 5 (REQUEST)                                                                                           |
-| **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
+| **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command — via **Skip ROM (0xCC)** or **Match ROM (0x55) + device ROM** depending on the selected device. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
 | **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
@@ -338,12 +432,53 @@ Kickstart behavior
 ```C
 void ds18b20_init(void);
 ```
-Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `demo.c`). This function does NOT start the state machine.
+Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start the state machine.
 
 ```C
 void ds18b20_poll(void);
 ```
 The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
+
+### Internal 1-Wire Bus Primitives
+
+The non-blocking 1-Wire bus primitives (`ds18b20_bus_reset()`,
+`ds18b20_bus_done()`, `ds18b20_bus_present()`, `ds18b20_bus_encode_byte()`,
+`ds18b20_bus_write_slots()`, `ds18b20_bus_write_bit()`,
+`ds18b20_bus_read_pair()`, `ds18b20_bus_pair_id()`, `ds18b20_bus_pair_cmp()`),
+`ds18b20_crc8()` and the Search ROM state machine are **private to the driver**
+(`static` in `src/ds18b20.c`). They are not part of the public API; the
+built-in device search is the supported way to enumerate the bus.
+
+### Device Search
+
+```C
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_search_poll(void);
+uint8_t ds18b20_search_count(void);
+```
+Non-blocking Maxim Search ROM (0xF0) over the whole bus, implemented as a
+compact state machine that performs exactly one hardware operation per
+`ds18b20_search_poll()` call. `sink` is invoked once per found DS18B20 device
+with its 8-byte ROM address; `max_devices` caps the reported count. Poll
+`ds18b20_search_poll()` from the main loop until it returns 1 — it restores
+`ds18b20_poll()` state automatically. `ds18b20_search_count()` returns how many
+devices were found. Only devices with family code `DS18B20_FAMILY_CODE` (0x28)
+are reported. See `demo2.c`.
+
+### Per-Device Addressing
+
+```C
+void ds18b20_select(const uint8_t *rom);
+```
+Selects which DS18B20 device the non-blocking measurement path targets, using
+its 64-bit ROM address (LSB first, e.g. from a bus search). With a device
+selected, the driver sends the **Match ROM (0x55)** command plus the device ROM
+before every Convert T / Read Scratchpad operation, so only that device
+responds. Pass `NULL` to clear the selection and return to the legacy **Skip
+ROM (0xCC)** single-sensor behaviour.
+
+The demo measures the single device directly when exactly one is found, and
+cycles through all found devices in turn when several are present.
 
 ### Weak Callbacks
 
