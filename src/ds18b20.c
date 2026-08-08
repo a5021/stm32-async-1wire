@@ -61,9 +61,9 @@
 /** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
 #define DS18B20_PREFIX_SLOTS ((DS18B20_ROM_BYTES + 1) * DS18B20_BITS_PER_BYTE)
 /** @brief Threshold to distinguish short/long pulses (10µs) */
-#define SHORT_PULSE_MAX 0x0A
-/** @brief Number of DMA transfers for command transmission */
-#define DS18B20_DMA_TRANSFERS 16
+#define SHORT_PULSE_MAX 10U
+/** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
+#define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
 #define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
 #define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
@@ -122,9 +122,9 @@ typedef struct {
      *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.
      */
     union {
-        volatile uint16_t edge[36]; /**< Edge timestamps for presence detection */
-        volatile uint8_t pulse[72]; /**< Pulse durations for data decoding */
-        uint8_t scratchpad[9]; /**< Sensor scratchpad data */
+        volatile uint16_t edge[DS18B20_SCRATCHPAD_BITS / 2]; /**< Edge timestamps for presence detection */
+        volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
+        uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
         uint64_t fill_union; /**< Utility field for filling the union */
     };
     uint8_t current_state; /**< Current state of the state machine */
@@ -629,7 +629,7 @@ void ds18b20_poll(void) {
         }
 
         // Validate CRC and report temperature or error
-        if (ctx.scratchpad[8] == check_scratchpad_crc()) {
+        if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {
             // CRC valid - decode and report temperature
             ds18b20_complete(decode_temperature());
         } else {
