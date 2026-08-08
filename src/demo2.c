@@ -1,10 +1,12 @@
 /**
  * @file demo2.c
  * @brief Multi-sensor example: startup bus scan + round-robin polling
- * 
- * Demonstrates ds18b20_search_devices() to enumerate every DS18B20 on the
- * bus, then ds18b20_select() to measure each sensor in turn. The shared
- * platform layer (app.h/app.c) hides the UART and clock setup.
+ *
+ * Demonstrates a Maxim 1-Wire Search ROM bus scan using the driver's
+ * low-level blocking primitives (ds18b20_reset, ds18b20_write_bit,
+ * ds18b20_read_bit, ds18b20_crc8), then ds18b20_select() to measure each
+ * sensor in turn. The shared platform layer (app.h/app.c) hides the UART and
+ * clock setup.
  */
 
 #include "app.h"
@@ -42,13 +44,120 @@ static uint8_t device_found_sink(const uint8_t* rom) {
 }
 
 /**
+ * @brief Enumerate all DS18B20 devices on the 1-Wire bus (blocking)
+ * @param[in] sink Callback invoked once per found DS18B20 device with its
+ *                 64-bit ROM address (LSB first). May be NULL to only count
+ *                 devices. Return non-zero from the callback to stop the
+ *                 search early.
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @return Number of DS18B20 devices found on the bus
+ * @note BLOCKING: busy-waits on the timer update flag (~15 ms per device).
+ *       Intended for one-time use at startup before the main loop starts
+ *       polling. Implements the standard Maxim 1-Wire Search ROM (0xF0)
+ *       algorithm with the last-discrepancy method and CRC-8 validation.
+ *       Only devices whose ROM family code is DS18B20_FAMILY_CODE (0x28)
+ *       are reported; other 1-Wire devices are silently skipped.
+ */
+static uint8_t search_all_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices) {
+    uint8_t rom[DS18B20_ROM_BYTES] = {0};
+    uint8_t found = 0;
+    uint8_t last_device = 0;
+    uint16_t last_discrepancy = 0;
+
+    if (max_devices == 0) {
+        return 0;
+    }
+
+    while (!last_device && found < max_devices) {
+        // A reset + presence pulse is required before EVERY Search ROM pass:
+        // after a completed search transaction the found device is left
+        // selected and the other devices go into a "not participating"
+        // state, so only a reset brings them all back to search mode.
+        if (!ds18b20_reset()) {
+            break;
+        }
+
+        ds18b20_write_byte(DS18B20_SEARCH_ROM);
+
+        uint16_t id_bit_number = 1;
+        uint16_t last_zero = 0;
+        for (uint8_t byte_idx = 0; byte_idx < DS18B20_ROM_BYTES; byte_idx++) {
+            uint8_t mask = 1;
+            for (uint8_t bit_idx = 0; bit_idx < DS18B20_BITS_PER_BYTE; bit_idx++) {
+                uint8_t id_bit = ds18b20_read_bit();
+                uint8_t cmp_bit = ds18b20_read_bit();
+                uint8_t direction;
+                if (id_bit && cmp_bit) {
+                    // No device follows this path - search tree exhausted
+                    ds18b20_restore();
+                    return found;
+                }
+                if (id_bit != cmp_bit) {
+                    // Single device on this path - its bit fixes the direction
+                    direction = id_bit;
+                } else if (id_bit_number < last_discrepancy) {
+                    // Follow the previously taken path
+                    direction = (rom[byte_idx] & mask) ? 1u : 0u;
+                    if (direction == 0) {
+                        // Remember the last 0-branch taken at a discrepancy
+                        last_zero = id_bit_number;
+                    }
+                } else {
+                    // At the discrepancy point take the '1' branch first
+                    direction = (id_bit_number == last_discrepancy) ? 1u : 0u;
+                    if (direction == 0) {
+                        // Remember the last 0-branch taken at a discrepancy
+                        last_zero = id_bit_number;
+                    }
+                }
+                if (direction) {
+                    rom[byte_idx] |= mask;
+                } else {
+                    rom[byte_idx] &= (uint8_t)~mask;
+                }
+                ds18b20_write_bit(direction);
+                id_bit_number++;
+                mask <<= 1;
+            }
+        }
+        last_discrepancy = last_zero;
+
+        // Validate the assembled ROM address
+        if (ds18b20_crc8(rom, DS18B20_ROM_BYTES) != 0) {
+            break;
+        }
+
+        // Only report DS18B20 devices; other 1-Wire families share the bus
+        // but are not temperature sensors and must not be measured as one.
+        if (rom[0] != DS18B20_FAMILY_CODE) {
+            if (last_discrepancy == 0) {
+                last_device = 1; // This was the last device on the bus
+            }
+            continue;
+        }
+
+        found++;
+        if (sink && sink(rom)) {
+            break; // Callback requested an early stop
+        }
+        if (last_discrepancy == 0) {
+            last_device = 1; // This was the last device on the bus
+        }
+    }
+
+    // Restore the non-blocking state machine so the first poll() begins
+    ds18b20_restore();
+    return found;
+}
+
+/**
  * @brief Run the blocking bus scan once at startup and report the result
  * @note The output is enqueued into the UART ring buffer; call uart_tx_flush()
  *       afterwards so the full banner is transmitted before the main loop.
  */
 static void search_devices_and_report(void) {
     uart_write_str("Searching 1-Wire bus...\r\n");
-    uint8_t count = ds18b20_search_devices(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    uint8_t count = search_all_devices(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
     if (count == 0) {
         uart_write_str("No devices on the 1-Wire bus.\r\n");
     } else {

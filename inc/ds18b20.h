@@ -11,15 +11,15 @@
  * - Hardware timer-based timing with DMA for data capture
  * - Non-blocking state machine architecture
  * - Weak function callbacks for customization
- * - Optional blocking startup scan (ds18b20_search_devices) to enumerate
- *   all sensors on the bus and read their 64-bit ROM addresses
+ * - Low-level blocking primitives (ds18b20_reset, ds18b20_write_bit, etc.)
+ *   for custom 1-Wire protocols such as device search
  * 
  * Usage:
  * 1. Call ds18b20_init() once at startup
- * 2. (Optional) Call ds18b20_search_devices() to enumerate bus devices
- * 3. (Optional) Call ds18b20_select() to measure one specific device
- * 4. Call ds18b20_poll() repeatedly from main loop
- * 5. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
+ * 2. Call ds18b20_poll() repeatedly from main loop
+ * 3. (Optional) Use low-level primitives for custom protocols; call
+ *    ds18b20_restore() before returning to poll()
+ * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
 
@@ -53,6 +53,96 @@ extern "C" {
 #define DS18B20_FAMILY_CODE 0x28
 
 /**
+ * @brief Standard 8 bits per byte
+ */
+#define DS18B20_BITS_PER_BYTE 8
+
+/**
+ * @brief Number of bytes in a device ROM address
+ */
+#define DS18B20_ROM_BYTES 8
+
+/**
+ * @brief DS18B20 Search ROM command
+ */
+#define DS18B20_SEARCH_ROM 0xF0
+
+/**
+ * @brief DS18B20 Match ROM command
+ */
+#define DS18B20_MATCH_ROM 0x55
+
+/**
+ * @brief DS18B20 Convert T command
+ */
+#define DS18B20_CONVERT_T 0x44
+
+/**
+ * @brief DS18B20 Read Scratchpad command
+ */
+#define DS18B20_READ_SCRATCHPAD 0xBE
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_LowLevel Low-Level Blocking 1-Wire Primitives
+ * @brief Blocking primitives for custom 1-Wire protocols (e.g., device search).
+ * @warning These busy-wait on hardware completion. They use the same TIM1/DMA
+ *          as the non-blocking state machine and MUST NOT be called while
+ *          polling is active. After using these, call ds18b20_restore()
+ *          before starting ds18b20_poll().
+ * @{
+ */
+
+/**
+ * @brief Perform a blocking 1-Wire reset and check for a presence pulse
+ * @return 1 if at least one device answered the reset, 0 otherwise
+ */
+uint8_t ds18b20_reset(void);
+
+/**
+ * @brief Write one bit to the 1-Wire bus as a single hardware-timed slot
+ * @param[in] bit 1 = short low pulse (~5µs), 0 = long low pulse (~60µs)
+ */
+void ds18b20_write_bit(uint8_t bit);
+
+/**
+ * @brief Read one bit from the 1-Wire bus as a single hardware-timed slot
+ * @return The bit value read (0 or 1)
+ */
+uint8_t ds18b20_read_bit(void);
+
+/**
+ * @brief Write one byte to the 1-Wire bus, LSB first
+ * @param[in] byte Byte value to transmit
+ */
+void ds18b20_write_byte(uint8_t byte);
+
+/**
+ * @brief Read one byte from the 1-Wire bus, LSB first
+ * @return The byte value read
+ */
+uint8_t ds18b20_read_byte(void);
+
+/**
+ * @brief Restore the non-blocking state machine after using low-level primitives
+ * @note Call this after finishing low-level operations and before starting
+ *       ds18b20_poll(). It re-primes the state machine so the first poll()
+ *       begins a measurement cycle.
+ */
+void ds18b20_restore(void);
+
+/**
+ * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
+ * @param[in] data Input buffer
+ * @param[in] len Number of bytes to process
+ * @return CRC-8 checksum value
+ */
+uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
+
+/**
  * @}
  */
 
@@ -69,35 +159,12 @@ void ds18b20_init(void);
 /**
  * @brief Advance the state machine (non-blocking)
  * @note Call periodically from main loop
- * 
+ *
  * This function implements the core non-blocking state machine that manages
  * the 1-Wire communication protocol with the DS18B20 sensor. It uses hardware
  * timer and DMA to handle timing-critical operations without software delays.
  */
 void ds18b20_poll(void);
-
-/**
- * @brief Enumerate all DS18B20 devices on the 1-Wire bus (blocking)
- * @param[in] sink Callback invoked once per found DS18B20 device with its
- *                 64-bit ROM address (LSB first). May be NULL to only count
- *                 devices. Return a non-zero value from the callback to stop
- *                 the search early; the device is still counted in the return
- *                 value.
- * @param[in] max_devices Maximum number of devices to report (0 aborts the
- *                        search and returns 0)
- * @return Number of DS18B20 devices found on the bus
- * @note BLOCKING function: it busy-waits on the timer update flag for the
- *       whole search (~15 ms per device). Intended for one-time use at startup
- *       before the main loop starts polling. It reuses the same hardware-timed
- *       1-Wire primitives as the state machine but does not touch the
- *       non-blocking measurement path. The Search ROM (0xF0) algorithm
- *       enumerates every 1-Wire device on the bus; only devices whose ROM
- *       family code is DS18B20_FAMILY_CODE (0x28) are reported, other devices
- *       are silently skipped. After the search, pass one of the reported ROM
- *       addresses to ds18b20_select() to measure that device; otherwise the
- *       measurement path keeps using Skip-ROM (single-sensor) addressing.
- */
-uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_devices);
 
 /**
  * @brief Select which DS18B20 device to measure by its ROM address
@@ -106,7 +173,8 @@ uint8_t ds18b20_search_devices(uint8_t (*sink)(const uint8_t* rom), uint8_t max_
  * @note With a non-NULL address, the state machine sends Match ROM (0x55)
  *       plus the device address before each command, so only that device
  *       responds. Pass NULL to keep the legacy single-sensor Skip ROM
- *       behaviour. The address should come from ds18b20_search_devices().
+ *       behaviour. To measure a specific device, pass its ROM address
+ *       (e.g., from a bus search) to ds18b20_select().
  */
 void ds18b20_select(const uint8_t* rom);
 
