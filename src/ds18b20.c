@@ -668,6 +668,16 @@ void ds18b20_poll(void) {
         // Turn off LED to indicate measurement complete
         ds18b20_busy(0);
 
+        // Validate reserved bytes per DS18B20 specification:
+        // Byte 5 must be 0xFF, Byte 7 must be 0x10.
+        // This catches all-zero, all-0xFF, and bus fault conditions.
+        if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
+            ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            start_cycle_pause();
+            ctx.current_state = 0;
+            break;
+        }
+
         // Validate CRC and report temperature or error
         if (ctx.scratchpad[8] == check_scratchpad_crc()) {
             // CRC valid - decode and report temperature
