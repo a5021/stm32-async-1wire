@@ -268,28 +268,33 @@ __STATIC_FORCEINLINE void wait_conversion(void) { start_timer(PAUSE_750MS); }
 __STATIC_FORCEINLINE void start_cycle_pause(void) { start_timer(PAUSE_5S); }
 
 /**
+ * @brief Configure timer and DMA for capture operation
+ * @param[out] dst Destination buffer for captured data
+ * @param[in] count Number of transfers
+ * @param[in] width DMA transfer width: 8 for 8-bit, 16 for 16-bit
+ */
+__STATIC_FORCEINLINE void arm_capture(volatile void *dst, uint16_t count, uint16_t width) {
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E);
+    T1.DIER = TIM_DIER(CC2DE);
+    FORCE_UPDATE_EVENT(T1);
+    T1.CCR1 = 0;
+    D13.CCR = 0;
+    D13.CPAR = (uint32_t)&T1.CCR2;
+    D13.CMAR = (uint32_t)dst;
+    D13.CNDTR = count;
+    D13.CCR = (1u << 7) | (1u << 8) | ((width == 16 ? 1u : 0u) << 10) | (1u << 0); // MINC|PSIZE_0|MSIZE|EN
+    T1.CR1 = TIM_CR1(OPM, CEN);
+}
+
+/**
  * @brief Initialize 1-Wire bus reset sequence using timer and DMA
  */
 __STATIC_FORCEINLINE void reset_bus(void) {
-    // Configure timer for reset pulse generation (480µs low)
-    T1.ARR = RESET_TIMEOUT; // Total reset slot time (960µs)
-    T1.CCR1 = RESET_PULSE_DURATION; // Reset pulse duration (480µs)
-    // Configure channel 1 for output compare (drive bus low)
-    // Configure channel 2 for input capture (detect presence pulse)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
-    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
-    T1.RCR = 0; // No repetition
-    // Configure DMA to capture presence pulse edge timestamps
-    D13.CCR = 0; // Clear DMA configuration
-    D13.CPAR = (uint32_t)&T1.CCR2; // DMA destination: timer capture register
-    D13.CMAR = (uint32_t)ctx.edge; // DMA source: edge timestamp buffer
-    D13.CNDTR = CAPTURE_BUF_SIZE; // Number of transfers (2 edges)
-    D13.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN); // Enable DMA with memory increment
-    // Force timer update to load configuration
-    FORCE_UPDATE_EVENT(T1);
-    T1.CCR1 = 0; // Clear output compare value
-    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
-    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    T1.RCR = 0;
+    T1.ARR = RESET_TIMEOUT;
+    T1.CCR1 = RESET_PULSE_DURATION;
+    arm_capture((volatile void *)ctx.edge, CAPTURE_BUF_SIZE, 16);
 }
 
 /**
@@ -297,32 +302,22 @@ __STATIC_FORCEINLINE void reset_bus(void) {
  * @param[in] cmd Pointer to command sequence in pulse duration format
  * @param[in] slots Number of bit slots (bits) to transmit
  * @note Non-blocking - configures hardware to transmit command automatically.
- *       The buffer must hold `slots` pulse values; the first one is written
- *       to CCR1 directly, the remaining `slots-1` are fed via DMA.
  */
 __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
-    // Configure timer for command transmission using DMA
-    T1.RCR = slots - 1; // Number of repetitions (one slot per transfer)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
-    T1.CCR1 = cmd[0]; // First pulse duration
-    T1.CCR4 = ONE_PULSE + ZERO_PULSE; // Update trigger time
-    // Configure channel 1 for output compare mode
+    T1.RCR = slots - 1;
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
+    T1.CCR1 = cmd[0];
+    T1.CCR4 = ONE_PULSE + ZERO_PULSE;
     T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
-    T1.CCER = TIM_CCER(CC1E); // Enable output compare
-    T1.DIER = TIM_DIER(CC4DE); // Enable DMA request on update
-    // Force timer update to load configuration
+    T1.CCER = TIM_CCER(CC1E);
+    T1.DIER = TIM_DIER(CC4DE);
     FORCE_UPDATE_EVENT(T1);
-    // Configure DMA to transmit command pulse sequence
-    D14.CCR = 0; // Clear DMA configuration
-    D14.CPAR = (uint32_t)&T1.CCR1; // DMA destination: output compare register
-    D14.CMAR = (uint32_t)&cmd[1]; // DMA source: command data (skip first byte)
-    // One transfer per timer period, minus the first period whose CCR1 value
-    // was preloaded above. The timer still generates 'slots' DMA requests,
-    // but the DMA channel auto-disables after the final transfer (NDTR hits 0)
-    // and the remaining request is ignored.
-    D14.CNDTR = slots - 1; // Number of CCR1 updates needed
-    D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN); // Enable DMA with memory increment
-    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    D14.CCR = 0;
+    D14.CPAR = (uint32_t)&T1.CCR1;
+    D14.CMAR = (uint32_t)&cmd[1];
+    D14.CNDTR = slots - 1;
+    D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
+    T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
 /**
@@ -376,25 +371,10 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
  * @note Non-blocking - configures hardware to capture data automatically
  */
 __STATIC_FORCEINLINE void read_data(void) {
-    // Configure timer for data reading with input capture
-    T1.RCR = DS18B20_SCRATCHPAD_BITS - 1; // Number of repetitions (72 bits)
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
-    T1.CCR1 = ONE_PULSE; // Read pulse duration (ONE_PULSE µs)
-    // Configure channel 1 for output compare (generate read pulse)
-    // Configure channel 2 for input capture (measure return pulse durations)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
-    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
-    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
-    // Force timer update to load configuration
-    FORCE_UPDATE_EVENT(T1);
-    T1.CCR1 = 0; // Clear output compare value
-    // Configure DMA to capture pulse durations into pulse buffer
-    D13.CCR = 0; // Clear DMA configuration
-    D13.CPAR = (uint32_t)&T1.CCR2; // DMA destination: capture register
-    D13.CMAR = (uint32_t)ctx.pulse; // DMA source: pulse duration buffer
-    D13.CNDTR = DS18B20_SCRATCHPAD_BITS; // Number of transfers (72 bits)
-    D13.CCR = DMA_CCR(MINC, PSIZE_0, EN); // Enable DMA with memory increment
-    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    T1.RCR = DS18B20_SCRATCHPAD_BITS - 1;
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
+    T1.CCR1 = ONE_PULSE;
+    arm_capture((volatile void *)ctx.pulse, DS18B20_SCRATCHPAD_BITS, DMA_CCR_MSIZE_0);
 }
 
 /**
@@ -460,25 +440,11 @@ void ds18b20_write_byte(uint8_t byte) {
  */
 uint8_t ds18b20_read_bit(void) {
     volatile uint8_t sample = 0;
-    T1.RCR = 0; // Single slot, no repetition
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
-    T1.CCR1 = ONE_PULSE; // Read pulse duration (ONE_PULSE µs)
-    // Configure channel 1 for output compare (generate read pulse)
-    // Configure channel 2 for input capture (measure return pulse duration)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
-    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
-    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
-    FORCE_UPDATE_EVENT(T1);
-    T1.CCR1 = 0; // Clear output compare value
-    // Configure DMA to capture pulse duration into the local buffer
-    D13.CCR = 0; // Clear DMA configuration
-    D13.CPAR = (uint32_t)&T1.CCR2; // DMA source: capture register
-    D13.CMAR = (uint32_t)&sample; // DMA destination: local sample buffer
-    D13.CNDTR = 1; // Number of transfers (1 bit)
-    D13.CCR = DMA_CCR(MINC, PSIZE_0, EN); // Enable DMA with memory increment
-    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+    T1.RCR = 0;
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
+    T1.CCR1 = ONE_PULSE;
+    arm_capture((volatile void *)&sample, 1, DMA_CCR_MSIZE_0);
     wait_timer_done();
-    // Decode using the same threshold as decode_scratchpad()
     return (sample <= SHORT_PULSE_MAX) ? 1u : 0u;
 }
 
