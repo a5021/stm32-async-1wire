@@ -13,11 +13,11 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
  - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
  - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
- - Low-Level Blocking Primitives: Optional `ds18b20_reset()`, `ds18b20_write_bit()`,
-   `ds18b20_read_bit()`, `ds18b20_write_byte()`, `ds18b20_read_byte()`, and
-   `ds18b20_crc8()` for custom 1-Wire protocols (e.g., device search). These
-   busy-wait on hardware completion and are clearly separated from the
-   non-blocking measurement path.
+ - Non-Blocking Device Search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
+   `ds18b20_search_count()` find every DS18B20 on the bus. The low-level
+   1-Wire bus primitives and the Search ROM state machine live inside the
+   driver, so the public API is a small high-level interface only — zero
+   busy-waits, consistent with the non-blocking measurement path.
  - Per-Device Addressing: Select one specific sensor by its ROM address
    (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
 
@@ -32,14 +32,15 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 ```
 ├── inc/                    # Project header files
-│   ├── ds18b20.h           # Driver interface and constants
+│   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── app.h               # Shared application layer (UART, clock, init)
 │   └── macro.h             # STM32 register access macros
 ├── src/                    # Project source files
 │   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
 │   ├── demo2.c             # Example: device search + sequential poll of all
-│   └── ds18b20.c           # Main driver implementation
+│   └── ds18b20.c           # Driver: state machine + internal bus primitives
+│                           #          + non-blocking Search ROM
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32F1 device headers and startup
@@ -122,9 +123,9 @@ in main loop) — fully non-blocking, no interrupts.
 int main(void) {
     ds18b20_init();  // One-time initialization
 
-    // Optional: use low-level blocking primitives for custom protocols
-    // (e.g., device search). See demo2.c for a complete Search ROM example.
-    // After using primitives, call ds18b20_restore() before polling.
+    // Optional: run the non-blocking device search to find every sensor on
+    // the bus. See demo2.c for a complete example. The search hands the
+    // driver back to poll() automatically when finished.
 
     // Optional: measure one specific device by its ROM address
     ds18b20_select(my_rom);  // my_rom from a bus search
@@ -339,11 +340,13 @@ This driver uses an advanced technique that combines multiple hardware features:
 3. Hardware Completion Events: The state machine advances only when the hardware timer signals that its current automated task is complete.
  4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
 
-> The driver also exposes low-level blocking primitives (`ds18b20_reset()`, `ds18b20_write_bit()`,
-> `ds18b20_read_bit()`, `ds18b20_write_byte()`, `ds18b20_read_byte()`, `ds18b20_crc8()`)
-> for custom 1-Wire protocols such as device search. These busy-wait on hardware
-> completion and are clearly separated from the non-blocking measurement path.
-> See `demo2.c` for a complete Search ROM implementation built on these primitives.
+> The driver ships with a built-in non-blocking device search
+> (`ds18b20_search_*`) for multi-sensor buses. The Maxim Search ROM (0xF0)
+> algorithm is implemented as a compact state machine inside the driver; it
+> performs exactly one hardware-timed operation per poll call — consistent with
+> the non-blocking measurement path, there are no busy-waits anywhere. All
+> low-level bus operations stay internal to the driver. See `demo2.c` for a
+> complete Search ROM example.
 
 ### Hardware Resources Used
 
@@ -436,48 +439,31 @@ void ds18b20_poll(void);
 ```
 The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
 
-### Low-Level Blocking Primitives
+### Internal 1-Wire Bus Primitives
 
-These functions provide direct, bit-level access to the 1-Wire bus for custom
-protocols (e.g., device search). They busy-wait on hardware completion and use
-the same TIM1/DMA resources as the non-blocking state machine, so they **must
-not be called while polling is active**. After using these primitives, call
-`ds18b20_restore()` before starting `ds18b20_poll()`. See `demo2.c` for a
-complete Search ROM implementation built on these primitives.
+The non-blocking 1-Wire bus primitives (`ds18b20_bus_reset()`,
+`ds18b20_bus_done()`, `ds18b20_bus_present()`, `ds18b20_bus_encode_byte()`,
+`ds18b20_bus_write_slots()`, `ds18b20_bus_write_bit()`,
+`ds18b20_bus_read_pair()`, `ds18b20_bus_pair_id()`, `ds18b20_bus_pair_cmp()`),
+`ds18b20_crc8()` and the Search ROM state machine are **private to the driver**
+(`static` in `src/ds18b20.c`). They are not part of the public API; the
+built-in device search is the supported way to enumerate the bus.
 
-```C
-uint8_t ds18b20_reset(void);
-```
-Performs a 1-Wire bus reset and checks for a presence pulse. Returns 1 if at
-least one device answered, 0 otherwise.
+### Device Search
 
 ```C
-void ds18b20_write_bit(uint8_t bit);
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_search_poll(void);
+uint8_t ds18b20_search_count(void);
 ```
-Writes one bit to the bus as a single hardware-timed slot. `bit = 1` produces a
-short low pulse (~5µs); `bit = 0` produces a long low pulse (~60µs).
-
-```C
-uint8_t ds18b20_read_bit(void);
-```
-Reads one bit from the bus as a single hardware-timed slot and returns its value.
-
-```C
-void ds18b20_write_byte(uint8_t byte);
-uint8_t ds18b20_read_byte(void);
-```
-Write/read one byte, LSB first, as 8 consecutive bit slots.
-
-```C
-void ds18b20_restore(void);
-```
-Restores the non-blocking state machine after using low-level primitives. Call
-this before the first `ds18b20_poll()` to re-prime the measurement cycle.
-
-```C
-uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
-```
-Calculates the Dallas/Maxim CRC-8 checksum over a byte buffer.
+Non-blocking Maxim Search ROM (0xF0) over the whole bus, implemented as a
+compact state machine that performs exactly one hardware operation per
+`ds18b20_search_poll()` call. `sink` is invoked once per found DS18B20 device
+with its 8-byte ROM address; `max_devices` caps the reported count. Poll
+`ds18b20_search_poll()` from the main loop until it returns 1 — it restores
+`ds18b20_poll()` state automatically. `ds18b20_search_count()` returns how many
+devices were found. Only devices with family code `DS18B20_FAMILY_CODE` (0x28)
+are reported. See `demo2.c`.
 
 ### Per-Device Addressing
 

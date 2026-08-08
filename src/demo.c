@@ -45,7 +45,6 @@ int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
 
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message
-    uart_tx_flush(); // Block until the banner is fully transmitted
 
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
 

@@ -11,14 +11,18 @@
  * - Hardware timer-based timing with DMA for data capture
  * - Non-blocking state machine architecture
  * - Weak function callbacks for customization
- * - Low-level blocking primitives (ds18b20_reset, ds18b20_write_bit, etc.)
- *   for custom 1-Wire protocols such as device search
+ * - Built-in non-blocking device search (ds18b20_search_*) for multi-sensor
+ *   buses, with zero busy-waits
+ * 
+ * All low-level 1-Wire bus operations and the Search ROM state machine live
+ * inside the driver. The public interface is intentionally small: start and
+ * poll the driver, select a device, and (optionally) run a bus scan.
  * 
  * Usage:
  * 1. Call ds18b20_init() once at startup
  * 2. Call ds18b20_poll() repeatedly from main loop
- * 3. (Optional) Use low-level primitives for custom protocols; call
- *    ds18b20_restore() before returning to poll()
+ * 3. (Optional) Run the non-blocking device search (ds18b20_search_*) before
+ *    starting poll(); the search helper hands back to poll() automatically
  * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
@@ -53,94 +57,49 @@ extern "C" {
 #define DS18B20_FAMILY_CODE 0x28
 
 /**
- * @brief Standard 8 bits per byte
- */
-#define DS18B20_BITS_PER_BYTE 8
-
-/**
  * @brief Number of bytes in a device ROM address
  */
 #define DS18B20_ROM_BYTES 8
-
-/**
- * @brief DS18B20 Search ROM command
- */
-#define DS18B20_SEARCH_ROM 0xF0
-
-/**
- * @brief DS18B20 Match ROM command
- */
-#define DS18B20_MATCH_ROM 0x55
-
-/**
- * @brief DS18B20 Convert T command
- */
-#define DS18B20_CONVERT_T 0x44
-
-/**
- * @brief DS18B20 Read Scratchpad command
- */
-#define DS18B20_READ_SCRATCHPAD 0xBE
 
 /**
  * @}
  */
 
 /**
- * @defgroup DS18B20_LowLevel Low-Level Blocking 1-Wire Primitives
- * @brief Blocking primitives for custom 1-Wire protocols (e.g., device search).
- * @warning These busy-wait on hardware completion. They use the same TIM1/DMA
- *          as the non-blocking state machine and MUST NOT be called while
- *          polling is active. After using these, call ds18b20_restore()
- *          before starting ds18b20_poll().
+ * @defgroup DS18B20_Search DS18B20 Non-Blocking Device Search
+ * @brief Maxim Search ROM (0xF0) state machine, driven from the main loop
+ *        like the measurement state machine. It filters by family code,
+ *        validates the CRC and reports each found DS18B20 via a callback.
+ *        When the search finishes it hands the timer back to ds18b20_poll().
  * @{
  */
 
 /**
- * @brief Perform a blocking 1-Wire reset and check for a presence pulse
- * @return 1 if at least one device answered the reset, 0 otherwise
+ * @brief Callback invoked for every DS18B20 found by the search
+ * @param[in] rom Pointer to the 8-byte ROM address (LSB first)
+ * @return 0 to continue the search, non-zero to stop
+ * @note The pointer is only valid for the duration of the callback.
  */
-uint8_t ds18b20_reset(void);
+typedef uint8_t (*ds18b20_search_sink_t)(const uint8_t* rom);
 
 /**
- * @brief Write one bit to the 1-Wire bus as a single hardware-timed slot
- * @param[in] bit 1 = short low pulse (~5µs), 0 = long low pulse (~60µs)
+ * @brief Start a non-blocking device search
+ * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
  */
-void ds18b20_write_bit(uint8_t bit);
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 
 /**
- * @brief Read one bit from the 1-Wire bus as a single hardware-timed slot
- * @return The bit value read (0 or 1)
+ * @brief Advance the non-blocking device search by one hardware operation
+ * @return 1 when the search is finished, 0 while still running
  */
-uint8_t ds18b20_read_bit(void);
+uint8_t ds18b20_search_poll(void);
 
 /**
- * @brief Write one byte to the 1-Wire bus, LSB first
- * @param[in] byte Byte value to transmit
+ * @brief Number of DS18B20 devices found (valid once the search finished)
+ * @return Count of found devices
  */
-void ds18b20_write_byte(uint8_t byte);
-
-/**
- * @brief Read one byte from the 1-Wire bus, LSB first
- * @return The byte value read
- */
-uint8_t ds18b20_read_byte(void);
-
-/**
- * @brief Restore the non-blocking state machine after using low-level primitives
- * @note Call this after finishing low-level operations and before starting
- *       ds18b20_poll(). It re-primes the state machine so the first poll()
- *       begins a measurement cycle.
- */
-void ds18b20_restore(void);
-
-/**
- * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
- * @param[in] data Input buffer
- * @param[in] len Number of bytes to process
- * @return CRC-8 checksum value
- */
-uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
+uint8_t ds18b20_search_count(void);
 
 /**
  * @}
