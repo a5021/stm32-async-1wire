@@ -64,6 +64,8 @@
 #define SHORT_PULSE_MAX 10U
 /** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
+/** @brief DMA channel control bits for 16-bit capture: MINC | PSIZE_0 | EN */
+#define DS18B20_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
 #define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
 #define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
@@ -235,10 +237,12 @@ __STATIC_FORCEINLINE int16_t decode_temperature(void) {
  * @return 1 if device present, 0 if no device detected
  */
 __STATIC_FORCEINLINE unsigned check_presence(void) {
+    uint16_t reset = ctx.edge[0];
+    uint16_t presence = ctx.edge[1];
     // Validate that reset pulse duration is within specification
     // and presence pulse timing indicates a responding device
-    return (ctx.edge[0] >= RESET_PULSE_MIN) && (ctx.edge[0] <= RESET_PULSE_MAX) &&
-           (ctx.edge[1] >= PRESENCE_PULSE_MIN) && (ctx.edge[1] <= PRESENCE_PULSE_MAX);
+    return (reset >= RESET_PULSE_MIN) && (reset <= RESET_PULSE_MAX) &&
+           (presence >= PRESENCE_PULSE_MIN) && (presence <= PRESENCE_PULSE_MAX);
 }
 
 /**
@@ -283,7 +287,7 @@ __STATIC_FORCEINLINE void arm_capture(volatile void *dst, uint16_t count, uint16
     D13.CPAR = (uint32_t)&T1.CCR2;
     D13.CMAR = (uint32_t)dst;
     D13.CNDTR = count;
-    D13.CCR = (1u << 7) | (1u << 8) | ((width == 16 ? 1u : 0u) << 10) | (1u << 0); // MINC|PSIZE_0|MSIZE|EN
+    D13.CCR = DS18B20_DMA_CCR_CAPTURE | ((width == 16) ? DMA_CCR_MSIZE_1 : 0);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
