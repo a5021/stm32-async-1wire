@@ -5,55 +5,6 @@ are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [Unreleased]
-
-### Added
-
-- Non-blocking device search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
-  `ds18b20_search_count()`. Implements the Maxim Search ROM (0xF0) algorithm as
-  a compact state machine that performs exactly one hardware operation per poll
-  call, then hands the timer back to the measurement path automatically. See
-  `demo2.c`.
-- Shared application layer (`inc/app.h`, `src/app.c`): non-blocking UART TX ring
-  buffer, `app_init()` for clock + UART + LED setup, and a default
-  `ds18b20_busy()` LED indicator. Both examples now `#include "app.h"` and
-  delegate hardware setup to the shared layer.
-- Match ROM prefix caching: `ds18b20_select()` builds the invariant 72-slot
-  Match ROM prefix once per selection, so each subsequent measurement patches
-  only the last byte (8 slots instead of 80).
-
-### Changed
-
-- **Breaking:** the public API is now a small high-level interface only:
-  `ds18b20_init()`, `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
-  `ds18b20_busy()`/`ds18b20_complete()`, and the `ds18b20_search_*` family.
-  All low-level 1-Wire bus primitives (`ds18b20_bus_*`), `ds18b20_crc8()` and
-  the Search ROM state machine moved inside the library (`src/ds18b20.c`) and
-  became `static`; the separate `inc/ds18b20_search.h` /
-  `src/ds18b20_search.c` files were removed.
-- **Breaking:** the blocking low-level primitives (`ds18b20_reset()`,
-  `ds18b20_write_bit()`, `ds18b20_read_bit()`, `ds18b20_write_byte()`,
-  `ds18b20_read_byte()`) were removed.
-- UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
-  the ring buffer is full instead of busy-waiting, and the blocking
-  `uart_tx_flush()` was removed.
-- Protocol constants (`DS18B20_SEARCH_ROM`, `DS18B20_MATCH_ROM`,
-  `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_BITS_PER_BYTE`)
-  are now private to `src/ds18b20.c`; the public header keeps only
-  `DS18B20_FAMILY_CODE`, `DS18B20_ROM_BYTES` and the error codes.
-- DMA transfer count sized to `slots-1` instead of using a sentinel value.
-
-### Fixed
-
-- The non-blocking measurement state machine never started after a blocking
-  device search: the search clears the timer update flag on every operation,
-  which left the driver idling in state 0 forever waiting for a UIF that never
-  arrived. The search now calls `ds18b20_restore()` so the first
-  `ds18b20_poll()` call begins a measurement cycle immediately.
-- The device search reported every 1-Wire device on the bus, not just DS18B20
-  temperature sensors: other families (DS2401, DS1990, etc.) were stored and
-  polled as if they were DS18B20s. The search now skips any device whose ROM
-  family code is not `DS18B20_FAMILY_CODE` (0x28).
 
 ## [1.0.0] - 2026-08-05
 

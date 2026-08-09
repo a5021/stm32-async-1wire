@@ -1,14 +1,5 @@
-# Select the example application: demo (single sensor, Skip ROM) or
-# demo2 (device search + sequential polling of every sensor on the bus)
-#   make            -> builds demo   (ds18b20_demo.elf)
-#   make APP=demo2  -> builds demo2  (ds18b20_demo2.elf)
-APP ?= demo
-ifeq ($(filter $(APP),demo demo2),)
-$(error APP must be 'demo' (single sensor) or 'demo2' (search + poll all))
-endif
-
 # Define the name of the project target and the build directory
-TARGET = ds18b20_$(APP)
+TARGET = ds18b20_demo
 BUILD_DIR = build
 
 # CMSIS directory structure for third-party build dependencies
@@ -16,17 +7,12 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/ds18b20.c src/app.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/demo.c src/ds18b20.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB
 INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
-
-# Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
-UART_TX_SIZE_demo  = 128
-UART_TX_SIZE_demo2 = 256
-DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
 # make HSI_8MHZ=1  →  -DHSI_8MHZ=1  (run on HSI 8MHz instead of HSE+PLL 72MHz)
