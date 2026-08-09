@@ -34,13 +34,14 @@ USE := HSI_8MHZ
 DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
 
 # Optimization flags for the compiler:
-# -O3          : Maximum optimization level for performance (includes -O2 plus more aggressive optimizations)
-# -flto        : Link Time Optimization - enables cross-file optimization during linking
-# -g0          : No debug information (reduces binary size, incompatible with debugging)
-# -fopt-info-inline-all=inline_report.txt : Generate detailed inline optimization report to file
-# --param max-inline-insns-auto=480 : Set auto-inlining threshold to 480 instructions (more aggressive inlining)
+# -Os         : Optimize for code size. This driver is polled on a millisecond
+#               cadence, so compact code matters more than raw speed. Saves
+#               ~65% flash vs the old -O3 + --param max-inline-insns-auto=480
+#               (which ballooned main() to ~9 KB by forcing massive inlining).
+# -flto       : Link Time Optimization - cross-file optimization during linking
+# -g0         : No debug information (reduces binary size, incompatible with debugging)
 
-OPT = -O3 -flto -g0 -fopt-info-inline-all=$(BUILD_DIR)/inline_report.txt --param max-inline-insns-auto=480
+OPT = -Os -flto -g0
 
 # Define the toolchain prefix
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-

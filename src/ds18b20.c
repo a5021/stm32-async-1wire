@@ -378,7 +378,7 @@ __STATIC_FORCEINLINE void read_data(void) {
     T1.RCR = DS18B20_SCRATCHPAD_BITS - 1;
     T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
     T1.CCR1 = ONE_PULSE;
-    arm_capture((volatile void *)ctx.pulse, DS18B20_SCRATCHPAD_BITS, DMA_CCR_MSIZE_0);
+    arm_capture((volatile void *)ctx.pulse, DS18B20_SCRATCHPAD_BITS, 8);
 }
 
 /**
@@ -447,7 +447,7 @@ uint8_t ds18b20_read_bit(void) {
     T1.RCR = 0;
     T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
     T1.CCR1 = ONE_PULSE;
-    arm_capture((volatile void *)&sample, 1, DMA_CCR_MSIZE_0);
+    arm_capture((volatile void *)&sample, 1, 8);
     wait_timer_done();
     return (sample <= SHORT_PULSE_MAX) ? 1u : 0u;
 }
