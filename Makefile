@@ -1,10 +1,12 @@
-# Select the example application: demo (single sensor, Skip ROM) or
-# demo2 (device search + sequential polling of every sensor on the bus)
-#   make            -> builds demo   (ds18b20_demo.elf)
-#   make APP=demo2  -> builds demo2  (ds18b20_demo2.elf)
+# Select the example application: demo (single sensor, Skip ROM),
+# demo2 (device search + sequential polling of every sensor on the bus) or
+# stress (demo2 flow with the device search repeated every measurement cycle)
+#   make               -> builds demo   (ds18b20_demo.elf)
+#   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
+#   make APP=stress    -> builds stress (ds18b20_stress.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2),)
-$(error APP must be 'demo' (single sensor) or 'demo2' (search + poll all))
+ifeq ($(filter $(APP),demo demo2 stress),)
+$(error APP must be 'demo' (single sensor), 'demo2' (search + poll all) or 'stress' (repeated search))
 endif
 
 # Define the name of the project target and the build directory
@@ -26,6 +28,7 @@ INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
+UART_TX_SIZE_stress = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
