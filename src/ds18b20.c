@@ -514,110 +514,6 @@ static uint8_t ds18b20_bus_pair_cmp(void) {
  */
 
 /**
- * @defgroup DS18B20_LowLevel DS18B20 Low-Level Blocking 1-Wire Primitives
- * @brief Blocking primitives for custom 1-Wire protocols. They busy-wait on
- *        hardware completion and MUST NOT be called while ds18b20_poll() or
- *        the device search is active. After using them, call ds18b20_restore()
- *        before returning to the non-blocking state machine.
- * @{
- */
-
-/**
- * @brief Wait for the timer to finish its current one-shot operation
- * @note Busy-waits on the update flag. Used only by the low-level primitives.
- */
-static void wait_timer_done(void) {
-    __DSB();
-    while (!(T1.SR & TIM_SR(UIF))) {
-    }
-    T1.SR = 0;
-}
-
-/**
- * @brief Perform a blocking 1-Wire reset and check for a presence pulse
- * @return 1 if at least one device answered the reset, 0 otherwise
- */
-uint8_t ds18b20_reset(void) {
-    reset_bus();
-    wait_timer_done();
-    return check_presence();
-}
-
-/**
- * @brief Write one bit to the 1-Wire bus as a single hardware-timed slot
- * @param[in] bit 1 = short low pulse (~5µs), 0 = long low pulse (~60µs)
- * @note Blocking: waits for the slot to finish before returning.
- */
-void ds18b20_write_bit(uint8_t bit) {
-    T1.RCR = 0; // Single slot, no repetition
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
-    T1.CCR1 = bit ? ONE_PULSE : ZERO_PULSE; // Pulse duration encodes the bit
-    // Configure channel 1 for output compare (drive bus low during the pulse)
-    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
-    T1.CCER = TIM_CCER(CC1E); // Enable output compare
-    T1.DIER = 0; // No DMA for a single bit slot
-    FORCE_UPDATE_EVENT(T1);
-    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
-    wait_timer_done();
-}
-
-/**
- * @brief Write one byte to the 1-Wire bus, LSB first
- * @param[in] byte Byte value to transmit
- * @note Blocking: 8 sequential single-slot writes, waits between slots.
- */
-void ds18b20_write_byte(uint8_t byte) {
-    for (uint8_t i = 0; i < DS18B20_BITS_PER_BYTE; i++) {
-        ds18b20_write_bit((byte >> i) & 0x01);
-    }
-}
-
-/**
- * @brief Read one bit from the 1-Wire bus as a single hardware-timed slot
- * @return The bit value read (0 or 1)
- * @note Blocking: waits for the slot to finish before returning.
- */
-uint8_t ds18b20_read_bit(void) {
-    volatile uint8_t sample = 0;
-    T1.RCR = 0;
-    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
-    T1.CCR1 = ONE_PULSE;
-    arm_capture((volatile void *)&sample, 1, 8);
-    wait_timer_done();
-    return (sample <= SHORT_PULSE_MAX) ? 1u : 0u;
-}
-
-/**
- * @brief Read one byte from the 1-Wire bus, LSB first
- * @return The byte value read
- * @note Blocking: 8 sequential single-slot reads, waits between slots.
- */
-uint8_t ds18b20_read_byte(void) {
-    uint8_t byte = 0;
-    for (uint8_t i = 0; i < DS18B20_BITS_PER_BYTE; i++) {
-        if (ds18b20_read_bit()) {
-            byte |= (1u << i);
-        }
-    }
-    return byte;
-}
-
-/**
- * @brief Restore the non-blocking state machine after using low-level primitives
- * @note Call this after finishing low-level operations and before starting
- *       ds18b20_poll(). It re-primes the state machine so the first poll()
- *       begins a measurement cycle.
- */
-void ds18b20_restore(void) {
-    T1.EGR = TIM_EGR(UG);
-    __DSB();
-}
-
-/**
- * @}
- */
-
-/**
  * @defgroup DS18B20_Search_Internal DS18B20 Internal Non-Blocking Device Search
  * @brief Maxim Search ROM (0xF0) state machine. The algorithm is inherently
  *        sequential: the direction bit written at position i determines which
@@ -696,7 +592,8 @@ uint8_t ds18b20_search_poll(void) {
     if (search_ctx.phase == DS18B20_SEARCH_DONE) {
         // No hardware operation is pending at the end of the search: hand the
         // timer back to the measurement state machine exactly once.
-        ds18b20_restore();
+        T1.EGR = TIM_EGR(UG);
+        __DSB();
         search_ctx.finished = 1;
         return 1;
     }

@@ -13,8 +13,6 @@
  * - Weak function callbacks for customization
  * - Built-in non-blocking device search (ds18b20_search_*) for multi-sensor
  *   buses, with zero busy-waits
- * - Low-level blocking primitives (ds18b20_reset, ds18b20_write_bit, etc.)
- *   for custom 1-Wire protocols
  * 
  * Usage:
  * 1. Call ds18b20_init() once at startup
@@ -143,52 +141,9 @@ uint8_t ds18b20_search_count(void);
  */
 
 /**
- * @defgroup DS18B20_LowLevel Low-Level Blocking 1-Wire Primitives
- * @brief Blocking primitives for custom 1-Wire protocols (e.g., device search).
- * @warning These busy-wait on hardware completion. They use the same TIM1/DMA
- *          as the non-blocking state machine and MUST NOT be called while
- *          polling is active. After using these, call ds18b20_restore()
- *          before starting ds18b20_poll().
+ * @defgroup DS18B20_Exported_Functions DS18B20 Exported Functions
  * @{
  */
-
-/**
- * @brief Perform a blocking 1-Wire reset and check for a presence pulse
- * @return 1 if at least one device answered the reset, 0 otherwise
- */
-uint8_t ds18b20_reset(void);
-
-/**
- * @brief Write one bit to the 1-Wire bus as a single hardware-timed slot
- * @param[in] bit 1 = short low pulse (~5µs), 0 = long low pulse (~60µs)
- */
-void ds18b20_write_bit(uint8_t bit);
-
-/**
- * @brief Read one bit from the 1-Wire bus as a single hardware-timed slot
- * @return The bit value read (0 or 1)
- */
-uint8_t ds18b20_read_bit(void);
-
-/**
- * @brief Write one byte to the 1-Wire bus, LSB first
- * @param[in] byte Byte value to transmit
- */
-void ds18b20_write_byte(uint8_t byte);
-
-/**
- * @brief Read one byte from the 1-Wire bus, LSB first
- * @return The byte value read
- */
-uint8_t ds18b20_read_byte(void);
-
-/**
- * @brief Restore the non-blocking state machine after using low-level primitives
- * @note Call this after finishing low-level operations and before starting
- *       ds18b20_poll(). It re-primes the state machine so the first poll()
- *       begins a measurement cycle.
- */
-void ds18b20_restore(void);
 
 /**
  * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
@@ -197,15 +152,6 @@ void ds18b20_restore(void);
  * @return CRC-8 checksum value
  */
 uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
-
-/**
- * @}
- */
-
-/**
- * @defgroup DS18B20_Exported_Functions DS18B20 Exported Functions
- * @{
- */
 
 /**
  * @brief Initialize DS18B20 driver hardware and peripherals

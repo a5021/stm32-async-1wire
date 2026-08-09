@@ -449,24 +449,13 @@ and the Search ROM state machine are **private to the driver** (`static` in
 `src/ds18b20.c`). They are not part of the public API; the built-in device
 search is the supported way to enumerate the bus.
 
-### Low-Level Blocking Primitives
-
-For custom 1-Wire protocols the driver also exposes blocking primitives:
+### CRC Utility
 
 ```C
-uint8_t ds18b20_reset(void);
-void ds18b20_write_bit(uint8_t bit);
-uint8_t ds18b20_read_bit(void);
-void ds18b20_write_byte(uint8_t byte);
-uint8_t ds18b20_read_byte(void);
 uint8_t ds18b20_crc8(const uint8_t *data, uint8_t len);
-void ds18b20_restore(void);
 ```
-
-These busy-wait on hardware completion and use the same TIM1/DMA as the
-non-blocking path, so they MUST NOT be called while `ds18b20_poll()` or the
-device search is active. Call `ds18b20_restore()` after finishing low-level
-operations so the next `ds18b20_poll()` begins a measurement cycle.
+Calculates the Dallas/Maxim CRC-8 used by the driver to validate ROM codes and
+scratchpad data. Exposed publicly as a small utility (e.g., for host tools).
 
 ### Device Search
 

@@ -24,18 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The public API now combines the high-level interface (`ds18b20_init()`,
-  `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
-  `ds18b20_busy()`/`ds18b20_complete()`) with the `ds18b20_search_*` family
-  and the low-level blocking primitives (`ds18b20_reset()`,
-  `ds18b20_write_bit()`, `ds18b20_read_bit()`, `ds18b20_write_byte()`,
-  `ds18b20_read_byte()`, `ds18b20_crc8()`, `ds18b20_restore()`). The internal
-  1-Wire bus helpers (`ds18b20_bus_*`) and the Search ROM state machine live
-  inside the library (`src/ds18b20.c`).
+- The public API is strictly non-blocking: the high-level interface
+  (`ds18b20_init()`, `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
+  `ds18b20_busy()`/`ds18b20_complete()`) plus the `ds18b20_search_*` family
+  and the CRC utility `ds18b20_crc8()`. The internal 1-Wire bus helpers
+  (`ds18b20_bus_*`) and the Search ROM state machine live inside the library
+  (`src/ds18b20.c`).
 - The non-blocking device search is driven from the main loop exactly like the
   measurement state machine: each `ds18b20_search_poll()` performs one
   hardware operation. It filters by `DS18B20_FAMILY_CODE`, validates the ROM
-  CRC and calls `ds18b20_restore()` before handing back to `ds18b20_poll()`.
+  CRC and forces a timer update event before handing back to `ds18b20_poll()`.
 - UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
   the ring buffer is full instead of busy-waiting, and the blocking
   `uart_tx_flush()` was removed.
@@ -44,13 +42,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are exported by the header for use with the public API and host tests.
 - DMA transfer count sized to `slots-1` instead of using a sentinel value.
 
+### Removed
+
+- Legacy low-level blocking 1-Wire primitives (`ds18b20_reset()`,
+  `ds18b20_write_bit()`, `ds18b20_read_bit()`, `ds18b20_write_byte()`,
+  `ds18b20_read_byte()`, `ds18b20_restore()`) were removed from the public
+  API. They busy-waited on hardware completion and were the only blocking
+  path in the driver. Device enumeration is now handled exclusively by the
+  non-blocking `ds18b20_search_*` family; `ds18b20_crc8()` is kept as a
+  public utility.
+
 ### Fixed
 
-- The non-blocking measurement state machine never started after a blocking
-  device search: the search clears the timer update flag on every operation,
-  which left the driver idling in state 0 forever waiting for a UIF that never
-  arrived. The search now calls `ds18b20_restore()` so the first
-  `ds18b20_poll()` call begins a measurement cycle immediately.
+- The non-blocking measurement state machine never started after a device
+  search: the search clears the timer update flag on every operation, which
+  left the driver idling in state 0 forever waiting for a UIF that never
+  arrived. The search now forces a timer update event on completion so the
+  first `ds18b20_poll()` call begins a measurement cycle immediately.
 - The device search reported every 1-Wire device on the bus, not just DS18B20
   temperature sensors: other families (DS2401, DS1990, etc.) were stored and
   polled as if they were DS18B20s. The search now skips any device whose ROM
