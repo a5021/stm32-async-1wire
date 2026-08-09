@@ -11,14 +11,16 @@
  * - Hardware timer-based timing with DMA for data capture
  * - Non-blocking state machine architecture
  * - Weak function callbacks for customization
+ * - Built-in non-blocking device search (ds18b20_search_*) for multi-sensor
+ *   buses, with zero busy-waits
  * - Low-level blocking primitives (ds18b20_reset, ds18b20_write_bit, etc.)
- *   for custom 1-Wire protocols such as device search
+ *   for custom 1-Wire protocols
  * 
  * Usage:
  * 1. Call ds18b20_init() once at startup
  * 2. Call ds18b20_poll() repeatedly from main loop
- * 3. (Optional) Use low-level primitives for custom protocols; call
- *    ds18b20_restore() before returning to poll()
+ * 3. (Optional) Run the non-blocking device search (ds18b20_search_*) before
+ *    starting poll(); the search helper hands back to poll() automatically
  * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
@@ -95,6 +97,46 @@ typedef enum {
  * @brief DS18B20 Read Scratchpad command
  */
 #define DS18B20_READ_SCRATCHPAD 0xBE
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Search DS18B20 Non-Blocking Device Search
+ * @brief Maxim Search ROM (0xF0) state machine, driven from the main loop
+ *        like the measurement state machine. It filters by family code,
+ *        validates the CRC and reports each found DS18B20 via a callback.
+ *        When the search finishes it hands the timer back to ds18b20_poll().
+ * @{
+ */
+
+/**
+ * @brief Callback invoked for every DS18B20 found by the search
+ * @param[in] rom Pointer to the 8-byte ROM address (LSB first)
+ * @return 0 to continue the search, non-zero to stop
+ * @note The pointer is only valid for the duration of the callback.
+ */
+typedef uint8_t (*ds18b20_search_sink_t)(const uint8_t* rom);
+
+/**
+ * @brief Start a non-blocking device search
+ * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ */
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+
+/**
+ * @brief Advance the non-blocking device search by one hardware operation
+ * @return 1 when the search is finished, 0 while still running
+ */
+uint8_t ds18b20_search_poll(void);
+
+/**
+ * @brief Number of DS18B20 devices found (valid once the search finished)
+ * @return Count of found devices
+ */
+uint8_t ds18b20_search_count(void);
 
 /**
  * @}

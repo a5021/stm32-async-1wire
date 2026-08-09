@@ -28,35 +28,37 @@ void uart_poll_tx(void) {
 }
 
 /**
- * @brief Enqueue a single byte into the UART transmit buffer (lossless)
+ * @brief Enqueue a single byte into the UART transmit buffer (non-blocking)
  * @param[in] b Byte to enqueue
- * @note Blocks only while the buffer is full, polling uart_poll_tx() to make
- *       room - a byte is never dropped
+ * @return 1 if enqueued, 0 if the buffer is full (byte dropped)
+ * @note Never blocks: when the buffer is full the byte is dropped so the
+ *       caller's code path stays non-blocking.
  */
-void uart_tx_enqueue_byte(uint8_t b) {
-    for (;;) {
-        uint8_t head = uart_tx_head;
-        // Calculate next head position with wrap-around using power-of-two mask
-        uint8_t next = (uint8_t)((head + 1u) & UART_TX_IDX_MASK);
-        if (next != uart_tx_tail) { // Room is available
-            uart_tx_buf[head] = b; // Store byte at current head position
-            uart_tx_head = next; // Update head pointer
-            return;
-        }
-        uart_poll_tx(); // Make room by feeding one byte to the UART
+uint8_t uart_tx_enqueue_byte(uint8_t b) {
+    uint8_t head = uart_tx_head;
+    // Calculate next head position with wrap-around using power-of-two mask
+    uint8_t next = (uint8_t)((head + 1u) & UART_TX_IDX_MASK);
+    if (next != uart_tx_tail) { // Room is available
+        uart_tx_buf[head] = b; // Store byte at current head position
+        uart_tx_head = next; // Update head pointer
+        return 1;
     }
+    return 0; // Buffer full - drop the byte to stay non-blocking
 }
 
 /**
- * @brief Enqueue an entire null-terminated string (lossless)
+ * @brief Enqueue an entire null-terminated string (non-blocking)
  * @param[in] s Null-terminated string to enqueue
- * @return Number of characters enqueued
+ * @return Number of characters actually enqueued (may be less than strlen)
  */
 int uart_write_str(const char* s) {
     const char* start = s;
     while (*s) {
-        uart_tx_enqueue_byte((uint8_t)*s);
-        s++;
+        if (uart_tx_enqueue_byte((uint8_t)*s)) {
+            s++;
+        } else {
+            break; // Buffer full - stop to stay non-blocking
+        }
     }
     return (int)(s - start);
 }
@@ -96,29 +98,14 @@ int uart_write_int(int value) {
 }
 
 /**
- * @brief Enqueue one byte as two uppercase hexadecimal digits
+ * @brief Enqueue one byte as two uppercase hexadecimal digits (non-blocking)
  * @param[in] b Byte to convert and transmit
- * @return Number of characters enqueued (always 2)
+ * @return Number of characters actually enqueued (0, 1 or 2)
  */
 int uart_write_hex(uint8_t b) {
     static const char hex[] = "0123456789ABCDEF";
-    uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]);
-    uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
-    return 2;
-}
-
-/**
- * @brief Blocking drain of the UART TX ring buffer
- * @note Waits until every enqueued byte has been shifted out (TC set).
- *       Call once at startup so the banner is never truncated.
- */
-void uart_tx_flush(void) {
-    while (uart_tx_tail != uart_tx_head) {
-        uart_poll_tx();
-    }
-    while (!(USART1->SR & USART_SR_TC)) {
-        ;
-    }
+    return (int)uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]) +
+           (int)uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
 }
 
 /**

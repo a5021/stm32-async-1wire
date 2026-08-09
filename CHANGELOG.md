@@ -9,13 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Low-level blocking 1-Wire primitives for custom protocols such as device
-  search: `ds18b20_reset()`, `ds18b20_write_bit()`, `ds18b20_read_bit()`,
-  `ds18b20_write_byte()`, `ds18b20_read_byte()`, `ds18b20_restore()`, and
-  `ds18b20_crc8()`. These busy-wait on hardware completion and are clearly
-  separated from the non-blocking measurement path. See `demo2.c` for a
-  complete Search ROM implementation built on these primitives.
-- Shared application layer (`inc/app.h`, `src/app.c`): lossless UART TX ring
+- Non-blocking device search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
+  `ds18b20_search_count()`. Implements the Maxim Search ROM (0xF0) algorithm as
+  a compact state machine that performs exactly one hardware operation per poll
+  call, then hands the timer back to the measurement path automatically. See
+  `demo2.c`.
+- Shared application layer (`inc/app.h`, `src/app.c`): non-blocking UART TX ring
   buffer, `app_init()` for clock + UART + LED setup, and a default
   `ds18b20_busy()` LED indicator. Both examples now `#include "app.h"` and
   delegate hardware setup to the shared layer.
@@ -25,19 +24,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** `ds18b20_search_devices()` removed from the library. The
-  blocking search algorithm now lives in `demo2.c` as `search_all_devices()`,
-  built on the public low-level primitives. Users who need device search can
-  copy and adapt the demo implementation.
+- The public API now combines the high-level interface (`ds18b20_init()`,
+  `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
+  `ds18b20_busy()`/`ds18b20_complete()`) with the `ds18b20_search_*` family
+  and the low-level blocking primitives (`ds18b20_reset()`,
+  `ds18b20_write_bit()`, `ds18b20_read_bit()`, `ds18b20_write_byte()`,
+  `ds18b20_read_byte()`, `ds18b20_crc8()`, `ds18b20_restore()`). The internal
+  1-Wire bus helpers (`ds18b20_bus_*`) and the Search ROM state machine live
+  inside the library (`src/ds18b20.c`).
+- The non-blocking device search is driven from the main loop exactly like the
+  measurement state machine: each `ds18b20_search_poll()` performs one
+  hardware operation. It filters by `DS18B20_FAMILY_CODE`, validates the ROM
+  CRC and calls `ds18b20_restore()` before handing back to `ds18b20_poll()`.
+- UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
+  the ring buffer is full instead of busy-waiting, and the blocking
+  `uart_tx_flush()` was removed.
 - Protocol constants (`DS18B20_SEARCH_ROM`, `DS18B20_MATCH_ROM`,
-  `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_ROM_BYTES`,
-  `DS18B20_BITS_PER_BYTE`) moved from `src/ds18b20.c` to `inc/ds18b20.h`
-  so low-level API users can build custom protocols.
+  `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_BITS_PER_BYTE`)
+  are exported by the header for use with the public API and host tests.
 - DMA transfer count sized to `slots-1` instead of using a sentinel value.
 
 ### Fixed
 
-- The non-blocking measurement state machine never started after the blocking
+- The non-blocking measurement state machine never started after a blocking
   device search: the search clears the timer update flag on every operation,
   which left the driver idling in state 0 forever waiting for a UIF that never
   arrived. The search now calls `ds18b20_restore()` so the first

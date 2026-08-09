@@ -9,7 +9,7 @@
  * Usage:
  * 1. #include "app.h" (defines UART_TX_BUF_SIZE, or -D on the command line)
  * 2. Call app_init() once at startup
- * 3. Use uart_write_*() to enqueue strings to the lossless TX ring buffer
+ * 3. Use uart_write_*() to enqueue strings to the non-blocking TX ring buffer
  * 4. Call uart_poll_tx() periodically to feed the UART from the buffer
  */
 
@@ -45,39 +45,33 @@ void app_init(void);
 void uart_poll_tx(void);
 
 /**
- * @brief Enqueue a single byte into the USART1 TX ring buffer (lossless)
+ * @brief Enqueue a single byte into the USART1 TX ring buffer (non-blocking)
  * @param[in] b Byte to enqueue
- * @note Blocks only while the buffer is full, polling uart_poll_tx() to make
- *       room - a byte is never dropped
+ * @return 1 if enqueued, 0 if the buffer is full (byte dropped)
+ * @note Never blocks: when the buffer is full the byte is dropped so the
+ *       caller's code path stays non-blocking.
  */
-void uart_tx_enqueue_byte(uint8_t b);
+uint8_t uart_tx_enqueue_byte(uint8_t b);
 
 /**
- * @brief Enqueue a null-terminated string (lossless)
+ * @brief Enqueue a null-terminated string (non-blocking)
  * @param[in] s Null-terminated string to enqueue
- * @return Number of characters enqueued
+ * @return Number of characters actually enqueued (may be less than strlen)
  */
 int uart_write_str(const char* s);
 
 /**
- * @brief Enqueue an integer as a decimal string (lossless)
+ * @brief Enqueue an integer as a decimal string (non-blocking)
  * @param[in] value Integer value to enqueue (full 32-bit range supported)
- * @return Number of characters enqueued
+ * @return Number of characters actually enqueued
  */
 int uart_write_int(int value);
 
 /**
- * @brief Enqueue a byte as two uppercase hexadecimal digits
+ * @brief Enqueue a byte as two uppercase hexadecimal digits (non-blocking)
  * @param[in] b Byte to enqueue
- * @return Number of characters enqueued (always 2)
+ * @return Number of characters actually enqueued (0, 1 or 2)
  */
 int uart_write_hex(uint8_t b);
-
-/**
- * @brief Blocking drain of the USART1 TX ring buffer
- * @note Waits until every enqueued byte has been shifted out (TC set).
- *       Use once at startup so banners are never truncated.
- */
-void uart_tx_flush(void);
 
 #endif // APP_H

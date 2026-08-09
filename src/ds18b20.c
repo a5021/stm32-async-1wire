@@ -50,12 +50,19 @@
 #define ZERO_PULSE 60
 /** @brief Guard band between slots to prevent overlap due to bus rise time and DMA latency */
 #define GUARD_BAND 5
+/** @brief Number of bits in a byte */
+#define DS18B20_BITS_PER_BYTE 8
 /** @brief Total length of DS18B20 scratchpad in bytes */
 #define DS18B20_SCRATCHPAD_LEN 9
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
 /** @brief Total number of bits in a device ROM address */
 #define DS18B20_ROM_BITS (DS18B20_ROM_BYTES * DS18B20_BITS_PER_BYTE)
+/** @brief DS18B20 1-Wire command codes (internal protocol details) */
+#define DS18B20_SEARCH_ROM 0xF0 /**< Search ROM */
+#define DS18B20_MATCH_ROM 0x55 /**< Match ROM */
+#define DS18B20_READ_SCRATCHPAD 0xBE /**< Read Scratchpad */
+#define DS18B20_CONVERT_T 0x44 /**< Convert T */
 /** @brief Total slots for Match ROM + 8-byte ROM + command */
 #define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
 /** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
@@ -386,14 +393,132 @@ __STATIC_FORCEINLINE void read_data(void) {
  */
 
 /**
+ * @defgroup DS18B20_Bus DS18B20 Internal 1-Wire Bus Primitives
+ * @brief Private non-blocking 1-Wire bus primitives used by the measurement
+ *        state machine and the built-in device search. Each function only
+ *        schedules a hardware-timed operation on TIM1/DMA and returns
+ *        immediately. They are internal to the driver and not exposed to the
+ *        application.
+ * @{
+ */
+
+/**
+ * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)
+ */
+static void ds18b20_bus_reset(void) { reset_bus(); }
+
+/**
+ * @brief Non-blocking completion check for the scheduled bus operation
+ * @return 1 if finished (update flag cleared), 0 while still running
+ */
+static uint8_t ds18b20_bus_done(void) {
+    if (T1.SR & TIM_SR(UIF)) {
+        T1.SR = 0;
+        return 1u;
+    }
+    return 0u;
+}
+
+/**
+ * @brief Check presence of the last scheduled bus reset
+ * @return 1 if at least one device answered, 0 otherwise
+ */
+static uint8_t ds18b20_bus_present(void) { return (uint8_t)check_presence(); }
+
+/**
+ * @brief Encode a byte into pulse durations (ONE_PULSE for '1', ZERO_PULSE for '0')
+ * @param[out] out Output buffer (8 entries)
+ * @param[in] byte Byte value to encode
+ */
+static void ds18b20_bus_encode_byte(uint8_t* out, uint8_t byte) {
+    encode_byte_pulses(out, byte);
+}
+
+/**
+ * @brief Schedule a write of `slots` bit slots
+ * @note Non-blocking: configures the hardware and returns. The pulses buffer
+ *       must stay valid until ds18b20_bus_done() reports completion, since
+ *       the DMA feeds CCR1 from it (except for a single slot, written directly).
+ */
+static void ds18b20_bus_write_slots(const uint8_t* pulses, uint16_t slots) {
+    if (slots == 1) {
+        // Single slot: no DMA needed, avoids a zero-length DMA transaction
+        T1.RCR = 0; // Single slot, no repetition
+        T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+        T1.CCR1 = pulses[0]; // Pulse duration encodes the bit
+        // Configure channel 1 for output compare (drive bus low during the pulse)
+        T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
+        T1.CCER = TIM_CCER(CC1E); // Enable output compare
+        T1.DIER = 0; // No DMA for a single bit slot
+        FORCE_UPDATE_EVENT(T1);
+        T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+        return;
+    }
+    send_command_n(pulses, slots);
+}
+
+/**
+ * @brief Schedule a single-slot write of one raw bit (encodes 0/1 to a pulse)
+ * @param[in] bit Bit value to write (0 or 1)
+ */
+static void ds18b20_bus_write_bit(uint8_t bit) {
+    uint8_t pulse = bit ? (uint8_t)ONE_PULSE : (uint8_t)ZERO_PULSE;
+    ds18b20_bus_write_slots(&pulse, 1);
+}
+
+/**
+ * @brief Schedule a two-slot read for the Search ROM id/cmp bit pair
+ * @note Non-blocking: captures both slot timings into ctx.edge via DMA.
+ *       Read the decoded bits with ds18b20_bus_pair_id()/cmp() once
+ *       ds18b20_bus_done() reports completion.
+ */
+static void ds18b20_bus_read_pair(void) {
+    // Configure timer for a two-slot read (id_bit, cmp_bit)
+    T1.RCR = 1; // Two read slots, then a single update event
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    T1.CCR1 = ONE_PULSE; // Read pulse duration (ONE_PULSE µs)
+    // Configure channel 1 for output compare (generate read pulse)
+    // Configure channel 2 for input capture (measure return pulse durations)
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
+    T1.DIER = TIM_DIER(CC2DE); // Enable DMA request on capture
+    FORCE_UPDATE_EVENT(T1);
+    T1.CCR1 = 0; // Clear output compare value
+    // Configure DMA to capture both slot timings into the edge buffer
+    D13.CCR = 0; // Clear DMA configuration
+    D13.CPAR = (uint32_t)&T1.CCR2; // DMA source: capture register
+    D13.CMAR = (uint32_t)ctx.edge; // DMA destination: edge timestamp buffer
+    D13.CNDTR = 2; // Number of transfers (id_bit, cmp_bit)
+    D13.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN); // Enable DMA with memory increment
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+}
+
+/**
+ * @brief Decode the id-bit of the last ds18b20_bus_read_pair()
+ * @return Bit value (0 or 1)
+ */
+static uint8_t ds18b20_bus_pair_id(void) {
+    return (ctx.edge[0] <= SHORT_PULSE_MAX) ? 1u : 0u;
+}
+
+/**
+ * @brief Decode the cmp-bit of the last ds18b20_bus_read_pair()
+ * @return Bit value (0 or 1)
+ */
+static uint8_t ds18b20_bus_pair_cmp(void) {
+    return (ctx.edge[1] <= SHORT_PULSE_MAX) ? 1u : 0u;
+}
+
+/**
+ * @}
+ */
+
+/**
  * @defgroup DS18B20_LowLevel DS18B20 Low-Level Blocking 1-Wire Primitives
- * @brief Blocking primitives for custom 1-Wire protocols (e.g., device search).
- * @note These busy-wait on the timer update flag. They reuse the same
- *       hardware-timed 1-Wire primitives as the state machine but wait for
- *       each operation synchronously. They MUST NOT be called while the
- *       non-blocking state machine is active (between ds18b20_init() and
- *       the first ds18b20_poll()). After using these, call ds18b20_restore()
- *       before starting ds18b20_poll().
+ * @brief Blocking primitives for custom 1-Wire protocols. They busy-wait on
+ *        hardware completion and MUST NOT be called while ds18b20_poll() or
+ *        the device search is active. After using them, call ds18b20_restore()
+ *        before returning to the non-blocking state machine.
  * @{
  */
 
@@ -406,6 +531,16 @@ static void wait_timer_done(void) {
     while (!(T1.SR & TIM_SR(UIF))) {
     }
     T1.SR = 0;
+}
+
+/**
+ * @brief Perform a blocking 1-Wire reset and check for a presence pulse
+ * @return 1 if at least one device answered the reset, 0 otherwise
+ */
+uint8_t ds18b20_reset(void) {
+    reset_bus();
+    wait_timer_done();
+    return check_presence();
 }
 
 /**
@@ -468,16 +603,6 @@ uint8_t ds18b20_read_byte(void) {
 }
 
 /**
- * @brief Perform a blocking 1-Wire reset and check for a presence pulse
- * @return 1 if at least one device answered the reset, 0 otherwise
- */
-uint8_t ds18b20_reset(void) {
-    reset_bus();
-    wait_timer_done();
-    return check_presence();
-}
-
-/**
  * @brief Restore the non-blocking state machine after using low-level primitives
  * @note Call this after finishing low-level operations and before starting
  *       ds18b20_poll(). It re-primes the state machine so the first poll()
@@ -487,6 +612,209 @@ void ds18b20_restore(void) {
     T1.EGR = TIM_EGR(UG);
     __DSB();
 }
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Search_Internal DS18B20 Internal Non-Blocking Device Search
+ * @brief Maxim Search ROM (0xF0) state machine. The algorithm is inherently
+ *        sequential: the direction bit written at position i determines which
+ *        devices keep participating at position i+1, so the whole transaction
+ *        cannot be batched into a single DMA pass like the fixed measurement
+ *        sequence. Instead, the linear blocking loop is decomposed into a
+ *        compact state machine with loop counters kept in the context
+ *        (id_bit_number, last_discrepancy, ...). Each state performs exactly
+ *        one hardware-timed operation via the internal bus primitives, so a
+ *        poll call never blocks.
+ * @{
+ */
+
+/** @brief Search state machine phases */
+typedef enum {
+    DS18B20_SEARCH_RESET, /**< reset scheduled; check presence, send 0xF0 */
+    DS18B20_SEARCH_CMD, /**< 0xF0 sent; prepare first bit iteration */
+    DS18B20_SEARCH_READ_PAIR, /**< id/cmp pair read; compute and write direction */
+    DS18B20_SEARCH_WRITE_DIR, /**< direction written; advance bit counters */
+    DS18B20_SEARCH_DONE /**< search finished; restore the driver state */
+} search_phase_t;
+
+/**
+ * @brief Non-blocking search context
+ * @note Holds the loop counters of the search algorithm; the persistent pulse
+ *       buffer (pulses) must stay valid across poll calls because the DMA
+ *       feeds CCR1 from it asynchronously while the 0xF0 command is sent.
+ */
+typedef struct {
+    search_phase_t phase; /**< Current phase of the search state machine */
+    uint8_t rom[DS18B20_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
+    uint8_t pulses[DS18B20_BITS_PER_BYTE]; /**< Pulse buffer for the 0xF0 command */
+    uint8_t id_bit_number; /**< Current bit position (1..64) */
+    uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
+    uint16_t last_zero; /**< Last position where the '0' branch was taken */
+    uint8_t found; /**< Number of DS18B20 devices found */
+    uint8_t max; /**< Maximum number of devices to report */
+    uint8_t finished; /**< 1 once the search has completed */
+    ds18b20_search_sink_t sink; /**< Per-device callback */
+} search_ctx_t;
+
+/** @brief Global search context instance */
+static search_ctx_t search_ctx;
+
+/**
+ * @brief Start a non-blocking device search
+ * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ */
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        search_ctx.rom[i] = 0;
+    }
+    search_ctx.sink = sink;
+    search_ctx.max = max_devices;
+    search_ctx.found = 0;
+    search_ctx.finished = 0;
+    search_ctx.last_discrepancy = 0;
+    if (max_devices == 0) {
+        search_ctx.phase = DS18B20_SEARCH_DONE;
+        return;
+    }
+    search_ctx.phase = DS18B20_SEARCH_RESET;
+    ds18b20_bus_reset(); // Schedule the first hardware operation
+}
+
+/**
+ * @brief Advance the non-blocking device search
+ * @return 1 when the search is finished, 0 while still running
+ */
+uint8_t ds18b20_search_poll(void) {
+    if (search_ctx.finished) {
+        return 1;
+    }
+
+    if (search_ctx.phase == DS18B20_SEARCH_DONE) {
+        // No hardware operation is pending at the end of the search: hand the
+        // timer back to the measurement state machine exactly once.
+        ds18b20_restore();
+        search_ctx.finished = 1;
+        return 1;
+    }
+
+    // Wait for the currently scheduled hardware operation to complete.
+    // This is a non-blocking poll, not a busy-wait.
+    if (!ds18b20_bus_done()) {
+        return 0;
+    }
+
+    switch (search_ctx.phase) {
+    case DS18B20_SEARCH_RESET:
+        // Reset completed: a presence pulse means at least one device is on
+        // the bus, so start a new search pass with the Search ROM command.
+        if (!ds18b20_bus_present()) {
+            search_ctx.phase = DS18B20_SEARCH_DONE;
+            break;
+        }
+        ds18b20_bus_encode_byte(search_ctx.pulses, DS18B20_SEARCH_ROM);
+        ds18b20_bus_write_slots(search_ctx.pulses, DS18B20_BITS_PER_BYTE);
+        search_ctx.phase = DS18B20_SEARCH_CMD;
+        break;
+
+    case DS18B20_SEARCH_CMD:
+        // 0xF0 sent: prepare the first bit iteration and read the id/cmp pair.
+        search_ctx.id_bit_number = 1;
+        search_ctx.last_zero = 0;
+        ds18b20_bus_read_pair();
+        search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
+        break;
+
+    case DS18B20_SEARCH_READ_PAIR: {
+        const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / DS18B20_BITS_PER_BYTE;
+        const uint8_t mask = (uint8_t)(1u << ((search_ctx.id_bit_number - 1) % DS18B20_BITS_PER_BYTE));
+        const uint8_t id_bit = ds18b20_bus_pair_id();
+        const uint8_t cmp_bit = ds18b20_bus_pair_cmp();
+        uint8_t direction;
+
+        if (id_bit && cmp_bit) {
+            // No device follows this path - search tree exhausted
+            search_ctx.phase = DS18B20_SEARCH_DONE;
+            break;
+        }
+        if (id_bit != cmp_bit) {
+            // Single device on this path - its bit fixes the direction
+            direction = id_bit;
+        } else if (search_ctx.id_bit_number < search_ctx.last_discrepancy) {
+            // Follow the previously taken path
+            direction = (search_ctx.rom[byte_idx] & mask) ? 1u : 0u;
+            if (direction == 0) {
+                // Remember the last 0-branch taken at a discrepancy
+                search_ctx.last_zero = search_ctx.id_bit_number;
+            }
+        } else {
+            // At the discrepancy point take the '1' branch first
+            direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;
+            if (direction == 0) {
+                // Remember the last 0-branch taken at a discrepancy
+                search_ctx.last_zero = search_ctx.id_bit_number;
+            }
+        }
+        if (direction) {
+            search_ctx.rom[byte_idx] |= mask;
+        } else {
+            search_ctx.rom[byte_idx] &= (uint8_t)~mask;
+        }
+        ds18b20_bus_write_bit(direction);
+        search_ctx.phase = DS18B20_SEARCH_WRITE_DIR;
+        break;
+    }
+
+    case DS18B20_SEARCH_WRITE_DIR:
+        // Direction written: advance to the next bit or finish the device.
+        search_ctx.id_bit_number++;
+        if (search_ctx.id_bit_number <= DS18B20_ROM_BITS) {
+            ds18b20_bus_read_pair();
+            search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
+            break;
+        }
+
+        // All 64 bits of the current ROM assembled - validate it.
+        search_ctx.last_discrepancy = search_ctx.last_zero;
+        if (ds18b20_crc8(search_ctx.rom, DS18B20_ROM_BYTES) != 0) {
+            search_ctx.phase = DS18B20_SEARCH_DONE;
+            break;
+        }
+        if (search_ctx.rom[0] == DS18B20_FAMILY_CODE) {
+            search_ctx.found++;
+            if (search_ctx.sink && search_ctx.sink(search_ctx.rom)) {
+                search_ctx.phase = DS18B20_SEARCH_DONE;
+                break;
+            }
+            if (search_ctx.found >= search_ctx.max) {
+                search_ctx.phase = DS18B20_SEARCH_DONE;
+                break;
+            }
+        }
+        if (search_ctx.last_discrepancy == 0) {
+            search_ctx.phase = DS18B20_SEARCH_DONE;
+            break;
+        }
+        // Another device may exist - run another search pass.
+        ds18b20_bus_reset();
+        search_ctx.phase = DS18B20_SEARCH_RESET;
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Number of DS18B20 devices found (valid once the search finished)
+ * @return Count of found devices
+ */
+uint8_t ds18b20_search_count(void) { return search_ctx.found; }
 
 /**
  * @}
@@ -521,7 +849,7 @@ void ds18b20_init(void) {
  *       plus the device address before each command, so only that device
  *       responds. Pass NULL (or a freshly initialised driver) to keep the
  *       legacy single-sensor Skip ROM behaviour. The address should come from
- *       a bus search using the low-level primitives.
+ *       the non-blocking device search (ds18b20_search_*).
  */
 void ds18b20_select(const uint8_t* rom) {
     if (rom == 0) {
