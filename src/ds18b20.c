@@ -287,7 +287,7 @@ __STATIC_FORCEINLINE void arm_capture(volatile void *dst, uint16_t count, uint16
     D13.CPAR = (uint32_t)&T1.CCR2;
     D13.CMAR = (uint32_t)dst;
     D13.CNDTR = count;
-    D13.CCR = DS18B20_DMA_CCR_CAPTURE | ((width == 16) ? DMA_CCR_MSIZE_1 : 0);
+    D13.CCR = DS18B20_DMA_CCR_CAPTURE | ((width == 16) ? DMA_CCR_MSIZE_0 : 0);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
