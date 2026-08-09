@@ -1,6 +1,17 @@
 #include "ds18b20.h"
 #include "macro.h"
 #include "stm32f1xx.h"
+#ifndef HOST_BUILD
+#include "app.h"
+// Search diagnostics. WARNING: keep this DISABLED on real hardware. Each
+// per-operation print is a blocking UART write of ~100-200µs between the merged
+// search slots; the DS18B20's slot timer keeps running during that gap and
+// samples the bus state, so the write-1 direction bits get misread as 0 and the
+// device search drops sensors (observed: 5 real devices found with DIAG off,
+// but only 2 of them survive with DIAG on). If diagnostics are needed, buffer
+// the values in RAM and dump them after the search completes.
+// #define DS18B20_SEARCH_DIAG
+#endif
 
 /**
  * @defgroup DS18B20_Private_Types DS18B20 Private Types
@@ -153,6 +164,19 @@ typedef struct {
 
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
+
+/**
+ * @brief Edge capture buffer for the merged search write+read operation
+ * @note Holds [write-slot edge, id_bit, cmp_bit]. Channel 2 capture runs for
+ *       the whole timer pass, so the direction-write rising edge is captured
+ *       into entry 0 as well; id/cmp must be decoded from entries 1 and 2.
+ */
+static volatile uint16_t search_edge3[3];
+/**
+ * @brief Read pulse duration reloaded by DMA for read slots 2-3 of the
+ *        merged search operation (channel 4 feeds CCR1 from this)
+ */
+static const uint8_t search_read_pulse = ONE_PULSE;
 
 /**
  * @}
@@ -413,6 +437,15 @@ static void ds18b20_bus_reset(void) { reset_bus(); }
  */
 static uint8_t ds18b20_bus_done(void) {
     if (T1.SR & TIM_SR(UIF)) {
+        // The one-pulse timer stopped with CNT=0 and CCR1 holding the last read
+        // pulse, so OC1 was holding the open-drain bus LOW through the whole
+        // inter-operation gap. A DS18B20 mid-search treats a >120µs low as a
+        // corrupted slot: its own slot counter syncs to that stale falling edge
+        // and it samples the NEXT write pulse (1 in particular) as a 0, dropping
+        // off the search tree. Release the bus as soon as the operation ends so
+        // the gap is the idle HIGH state and the next write pulse produces a
+        // clean falling edge the devices can re-sync to.
+        T1.CCR1 = 0;
         T1.SR = 0;
         return 1u;
     }
@@ -510,6 +543,61 @@ static uint8_t ds18b20_bus_pair_cmp(void) {
 }
 
 /**
+ * @brief Schedule a merged single-slot write followed by a two-slot read pair
+ * @param[in] bit Direction bit to write in slot 1 (0 or 1)
+ * @note Non-blocking: one timer pass runs three slots — a write of `bit`
+ *       (slot 1), then a read of the next id/cmp pair (slots 2-3). This
+ *       halves the number of timer passes per search bit compared to a plain
+ *       write followed by a separate read pair.
+ * @note OC1 is configured in PWM mode WITHOUT preload (OC1PE clear), so the
+ *       CCR4-triggered DMA reload of the read pulse takes effect immediately
+ *       at the end of slot 1. With OC1PE set the reload would be buffered in
+ *       the preload register and never applied before the read slots.
+ * @note Channel 2 input capture is armed for the whole pass, so the write-slot
+ *       rising edge lands in search_edge3[0]. Decode the id/cmp bits from
+ *       search_edge3[1] and search_edge3[2] once ds18b20_bus_done() returns 1.
+ */
+static void ds18b20_bus_write_then_read(uint8_t bit) {
+    const uint8_t write_pulse = bit ? (uint8_t)ONE_PULSE : (uint8_t)ZERO_PULSE;
+    T1.RCR = 2; // Three slots, then a single update event
+    T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
+    // Arm the direction pulse first. The bus was released idle-high by
+    // ds18b20_bus_done(), so this write produces the single clean falling edge
+    // the devices re-sync their slot timer to; the pulse then holds the bus low
+    // through the whole (fast) setup. Holding it from the top instead of arming
+    // it right before CEN means the CC2 capture is armed while the bus is low,
+    // so the open-drain RC rise can never be mistaken for a slot edge.
+    T1.CCR1 = write_pulse; // Slot 1 write pulse encodes the direction bit
+    T1.CCR4 = ONE_PULSE + ZERO_PULSE; // End-of-slot reload trigger
+    // OC1 in PWM mode (no preload so the reload is immediate), CC2 capture armed
+    T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
+    T1.CCER = TIM_CCER(CC1E, CC2E); // Enable both channels
+    // Disconnect DMA requests while re-arming the channels, then re-connect
+    // them only after the timer flags are clean and just before starting.
+    // (The end-of-slot CC4 compare event of the previous merged operation can
+    // leave a pending request that fires the reload DMA immediately on re-arm,
+    // overwriting the freshly written direction pulse in CCR1.)
+    T1.DIER = 0;
+    FORCE_UPDATE_EVENT(T1);
+    // DMA Ch3: capture all three slot edges into the merged-edge buffer
+    D13.CCR = 0;
+    D13.CPAR = (uint32_t)&T1.CCR2;
+    D13.CMAR = (uint32_t)search_edge3;
+    D13.CNDTR = 3;
+    D13.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
+    // DMA Ch4: reload CCR1 with the read pulse for slots 2-3 after slot 1
+    D14.CCR = 0;
+    D14.CPAR = (uint32_t)&T1.CCR1;
+    D14.CMAR = (uint32_t)&search_read_pulse;
+    D14.CNDTR = 1;
+    D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
+    T1.SR = 0; // Clear any pending capture/compare flags before enabling DMA requests
+    T1.DIER = TIM_DIER(CC2DE, CC4DE); // Capture + CCR1 reload via DMA
+    T1.CCR1 = write_pulse; // Re-arm the direction pulse (safe against a stale CC4 DMA reload)
+    T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
+}
+
+/**
  * @}
  */
 
@@ -531,8 +619,9 @@ static uint8_t ds18b20_bus_pair_cmp(void) {
 typedef enum {
     DS18B20_SEARCH_RESET, /**< reset scheduled; check presence, send 0xF0 */
     DS18B20_SEARCH_CMD, /**< 0xF0 sent; prepare first bit iteration */
-    DS18B20_SEARCH_READ_PAIR, /**< id/cmp pair read; compute and write direction */
-    DS18B20_SEARCH_WRITE_DIR, /**< direction written; advance bit counters */
+    DS18B20_SEARCH_READ_PAIR, /**< first id/cmp pair read; compute and write direction */
+    DS18B20_SEARCH_WRITE_READ, /**< merged direction write + next pair read completed */
+    DS18B20_SEARCH_WRITE_DIR, /**< final direction written; advance bit counters */
     DS18B20_SEARCH_DONE /**< search finished; restore the driver state */
 } search_phase_t;
 
@@ -581,6 +670,58 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
 }
 
 /**
+ * @brief Process one decoded id/cmp pair: pick a direction, update the ROM,
+ *        and schedule the next hardware operation
+ * @param[in] id_bit Id bit of the current position
+ * @param[in] cmp_bit Complement bit of the current position
+ * @note For all but the last bit the direction write is merged with the read
+ *       of the next pair (DS18B20_SEARCH_WRITE_READ); the 64th bit is written
+ *       alone so the device can be finalized.
+ */
+static void ds18b20_search_advance_bit(uint8_t id_bit, uint8_t cmp_bit) {
+    const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / DS18B20_BITS_PER_BYTE;
+    const uint8_t mask = (uint8_t)(1u << ((search_ctx.id_bit_number - 1) % DS18B20_BITS_PER_BYTE));
+    uint8_t direction;
+
+    if (id_bit && cmp_bit) {
+        // No device follows this path - search tree exhausted
+        search_ctx.phase = DS18B20_SEARCH_DONE;
+        return;
+    }
+    if (id_bit != cmp_bit) {
+        // Single device on this path - its bit fixes the direction
+        direction = id_bit;
+    } else if (search_ctx.id_bit_number < search_ctx.last_discrepancy) {
+        // Follow the previously taken path
+        direction = (search_ctx.rom[byte_idx] & mask) ? 1u : 0u;
+        if (direction == 0) {
+            // Remember the last 0-branch taken at a discrepancy
+            search_ctx.last_zero = search_ctx.id_bit_number;
+        }
+    } else {
+        // At the discrepancy point take the '1' branch first
+        direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;
+        if (direction == 0) {
+            // Remember the last 0-branch taken at a discrepancy
+            search_ctx.last_zero = search_ctx.id_bit_number;
+        }
+    }
+    if (direction) {
+        search_ctx.rom[byte_idx] |= mask;
+    } else {
+        search_ctx.rom[byte_idx] &= (uint8_t)~mask;
+    }
+    if (search_ctx.id_bit_number < DS18B20_ROM_BITS) {
+        // Merge the direction write with the read of the next id/cmp pair.
+        ds18b20_bus_write_then_read(direction);
+        search_ctx.phase = DS18B20_SEARCH_WRITE_READ;
+    } else {
+        ds18b20_bus_write_bit(direction);
+        search_ctx.phase = DS18B20_SEARCH_WRITE_DIR;
+    }
+}
+
+/**
  * @brief Advance the non-blocking device search
  * @return 1 when the search is finished, 0 while still running
  */
@@ -625,56 +766,44 @@ uint8_t ds18b20_search_poll(void) {
         search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
         break;
 
-    case DS18B20_SEARCH_READ_PAIR: {
-        const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / DS18B20_BITS_PER_BYTE;
-        const uint8_t mask = (uint8_t)(1u << ((search_ctx.id_bit_number - 1) % DS18B20_BITS_PER_BYTE));
-        const uint8_t id_bit = ds18b20_bus_pair_id();
-        const uint8_t cmp_bit = ds18b20_bus_pair_cmp();
-        uint8_t direction;
-
-        if (id_bit && cmp_bit) {
-            // No device follows this path - search tree exhausted
-            search_ctx.phase = DS18B20_SEARCH_DONE;
-            break;
-        }
-        if (id_bit != cmp_bit) {
-            // Single device on this path - its bit fixes the direction
-            direction = id_bit;
-        } else if (search_ctx.id_bit_number < search_ctx.last_discrepancy) {
-            // Follow the previously taken path
-            direction = (search_ctx.rom[byte_idx] & mask) ? 1u : 0u;
-            if (direction == 0) {
-                // Remember the last 0-branch taken at a discrepancy
-                search_ctx.last_zero = search_ctx.id_bit_number;
-            }
-        } else {
-            // At the discrepancy point take the '1' branch first
-            direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;
-            if (direction == 0) {
-                // Remember the last 0-branch taken at a discrepancy
-                search_ctx.last_zero = search_ctx.id_bit_number;
-            }
-        }
-        if (direction) {
-            search_ctx.rom[byte_idx] |= mask;
-        } else {
-            search_ctx.rom[byte_idx] &= (uint8_t)~mask;
-        }
-        ds18b20_bus_write_bit(direction);
-        search_ctx.phase = DS18B20_SEARCH_WRITE_DIR;
+    case DS18B20_SEARCH_READ_PAIR:
+        // First id/cmp pair decoded from the plain two-slot read.
+#ifdef DS18B20_SEARCH_DIAG
+        uart_write_str("[P#1 ");
+        uart_write_int(ds18b20_bus_pair_id());
+        uart_write_str("/");
+        uart_write_int(ds18b20_bus_pair_cmp());
+        uart_write_str("] ");
+#endif
+        ds18b20_search_advance_bit(ds18b20_bus_pair_id(), ds18b20_bus_pair_cmp());
         break;
-    }
+
+    case DS18B20_SEARCH_WRITE_READ:
+        // The merged operation wrote the direction for the previous bit and
+        // captured the id/cmp pair of the current bit into search_edge3.
+        search_ctx.id_bit_number++;
+#ifdef DS18B20_SEARCH_DIAG
+        uart_write_str("[W+R#");
+        uart_write_int(search_ctx.id_bit_number);
+        uart_write_str(" ");
+        for (uint8_t di = 0; di < 3; di++) {
+            uart_write_int(search_edge3[di]);
+            uart_write_str(":");
+        }
+        uart_write_str("->");
+        uart_write_int((search_edge3[1] <= SHORT_PULSE_MAX) ? 1u : 0u);
+        uart_write_str("/");
+        uart_write_int((search_edge3[2] <= SHORT_PULSE_MAX) ? 1u : 0u);
+        uart_write_str("] ");
+#endif
+        ds18b20_search_advance_bit(
+            (search_edge3[1] <= SHORT_PULSE_MAX) ? 1u : 0u,
+            (search_edge3[2] <= SHORT_PULSE_MAX) ? 1u : 0u);
+        break;
 
     case DS18B20_SEARCH_WRITE_DIR:
-        // Direction written: advance to the next bit or finish the device.
+        // The final (64th) direction bit was written: the ROM is assembled.
         search_ctx.id_bit_number++;
-        if (search_ctx.id_bit_number <= DS18B20_ROM_BITS) {
-            ds18b20_bus_read_pair();
-            search_ctx.phase = DS18B20_SEARCH_READ_PAIR;
-            break;
-        }
-
-        // All 64 bits of the current ROM assembled - validate it.
         search_ctx.last_discrepancy = search_ctx.last_zero;
         if (ds18b20_crc8(search_ctx.rom, DS18B20_ROM_BYTES) != 0) {
             search_ctx.phase = DS18B20_SEARCH_DONE;
