@@ -308,7 +308,7 @@ __STATIC_FORCEINLINE void start_cycle_pause(void) { start_timer(PAUSE_5S); }
  * @param[in] count Number of transfers
  * @param[in] width DMA transfer width: 8 for 8-bit, 16 for 16-bit
  */
-__STATIC_FORCEINLINE void arm_capture(volatile void *dst, uint16_t count, uint16_t width) {
+__STATIC_FORCEINLINE void arm_capture(volatile void* dst, uint16_t count, uint16_t width) {
     T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE, CC2S_1, IC2F_0, IC2F_1, IC2F_2);
     T1.CCER = TIM_CCER(CC1E, CC2E);
     T1.DIER = TIM_DIER(CC2DE);
@@ -329,7 +329,7 @@ __STATIC_FORCEINLINE void reset_bus(void) {
     T1.RCR = 0;
     T1.ARR = RESET_TIMEOUT;
     T1.CCR1 = RESET_PULSE_DURATION;
-    arm_capture((volatile void *)ctx.edge, CAPTURE_BUF_SIZE, 16);
+    arm_capture((volatile void*)ctx.edge, CAPTURE_BUF_SIZE, 16);
 }
 
 /**
@@ -409,7 +409,7 @@ __STATIC_FORCEINLINE void read_data(void) {
     T1.RCR = DS18B20_SCRATCHPAD_BITS - 1;
     T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND;
     T1.CCR1 = ONE_PULSE;
-    arm_capture((volatile void *)ctx.pulse, DS18B20_SCRATCHPAD_BITS, 8);
+    arm_capture((volatile void*)ctx.pulse, DS18B20_SCRATCHPAD_BITS, 8);
 }
 
 /**
@@ -895,7 +895,7 @@ void ds18b20_select(const uint8_t* rom) {
  * @param[in] skip_tbl Skip-ROM command table (for broadcast mode)
  * @param[in] next_state State to transition to on success
  */
-static void issue_command(uint8_t cmd_byte, const uint8_t *skip_tbl, ds18b20_state_t next_state) {
+static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_state_t next_state) {
     if (!check_presence()) {
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
         start_cycle_pause();

@@ -1,12 +1,10 @@
-# Select the example application: demo (single sensor, Skip ROM),
-# demo2 (device search + sequential polling of every sensor on the bus) or
-# stress (demo2 flow with the device search repeated every measurement cycle)
+# Select the example application: demo (single sensor, Skip ROM) or
+# demo2 (device search + sequential polling of every sensor on the bus)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
-#   make APP=stress    -> builds stress (ds18b20_stress.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2 stress),)
-$(error APP must be 'demo' (single sensor), 'demo2' (search + poll all) or 'stress' (repeated search))
+ifeq ($(filter $(APP),demo demo2),)
+$(error APP must be 'demo' (single sensor) or 'demo2' (search + poll all))
 endif
 
 # Define the name of the project target and the build directory
@@ -28,7 +26,6 @@ INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
-UART_TX_SIZE_stress = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
@@ -242,20 +239,23 @@ clean-deps:
 # Build all targets by default: the ELF binary, the HEX file, and the raw binary file
 all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
-# Define the object files that need to be built from C and assembly source files
-OBJ = $(addprefix $(BUILD_DIR)/,$(notdir $(SRC:.c=.o)))
+# Define the object files that need to be built from C and assembly source files.
+# Every object is prefixed with the app name (e.g. build/demo_app.o), because
+# the compile flags differ per app (-DUART_TX_BUF_SIZE) and shared objects like
+# app.o would otherwise be reused stale across `make APP=...` invocations.
+OBJ = $(addprefix $(BUILD_DIR)/$(APP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
-OBJ += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM:.s=.o)))
+OBJ += $(addprefix $(BUILD_DIR)/$(APP)_,$(notdir $(ASM:.s=.o)))
 vpath %.s $(sort $(dir $(ASM))) # Set the search path for assembly source files
 
 # Specify how to compile a C source file into an object file
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/$(APP)_%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
 
 # Specify how to compile an assembly source file into an object file
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
-	$(AS) -c $(FLAG) $(OPT) $(EXT) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+$(BUILD_DIR)/$(APP)_%.o: %.s Makefile | $(BUILD_DIR)
+	$(AS) -c $(FLAG) $(OPT) $(EXT) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(APP)_$(notdir $(<:.s=.lst)) $< -o $@
 
 # Specify how to build the final executable file
 $(BUILD_DIR)/$(TARGET).elf: $(OBJ) Makefile
