@@ -94,6 +94,11 @@ int main(void) {
 
 ### 3. Implement Callbacks (Optional)
 
+> **Note:** The example below is illustrative pseudo-code (uses `printf`).
+> The actual `demo.c` prints via a custom non-blocking UART ring buffer
+> (`uart_write_str` / `uart_write_int`), since the firmware has no
+> `printf`/`_write` implementation.
+
 ```C
 // Busy indicator — e.g. LED toggling during measurement
 void ds18b20_busy(unsigned action) {
