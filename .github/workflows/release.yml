@@ -97,7 +97,7 @@ jobs:
             - **True non-blocking 1-Wire**: TIM1 Output Compare + Input Capture with DMA — a hardware state machine does the timing, the CPU just polls a flag
             - **Zero interrupts**: no NVIC IRQs at all
             - **Pure bare-metal C**: register-level, no HAL/LL, arm-none-eabi-gcc
-            - **Accuracy**: 0.1 °C resolution, ±0.5 °C typical, one reading every ~0.76 s
+            - **Accuracy**: 12-bit sensor resolution (0.0625 °C), ±0.5 °C typical, one reading every ~0.76 s
             - **CRC-8 validation** on every 9-byte scratchpad read
             - **Weak callbacks** `ds18b20_busy()` / `ds18b20_complete()`
             - **Two build variants**: 72 MHz (HSE+PLL) and 8 MHz (HSI) via `make HSI_8MHZ=1`

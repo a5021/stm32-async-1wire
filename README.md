@@ -369,7 +369,7 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 - Time to result (one measurement): ~0.76 s (750 ms conversion + protocol overhead)
 - Inter-measurement pause: 5 s (configurable)
-- Precision: 0.1°C resolution
+- Sensor resolution: 12-bit (0.0625°C); result reported in 0.1°C steps
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
