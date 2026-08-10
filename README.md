@@ -130,7 +130,9 @@ void ds18b20_complete(int16_t temp) {
 
 -   **Toolchain:** `arm-none-eabi-gcc` (GCC 12+ recommended) and related
     utilities (`objcopy`, `size`).
--   **wget:** Required for downloading CMSIS build dependencies.
+-   **wget or curl:** At least one is required for downloading CMSIS
+    build dependencies (the Makefile uses `wget` if available, otherwise
+    falls back to `curl`).
 -   **Programmer tools:**
     -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
     -   **J-LINK:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
