@@ -105,10 +105,10 @@
         B2P(B, 4), B2P(B, 5), B2P(B, 6), B2P(B, 7)
 
 /** @brief DS18B20 Convert T command sequence in pulse duration format */
-static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44)};
+static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44), 0};
 
 /** @brief DS18B20 Read Scratchpad command sequence in pulse duration format */
-static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE)};
+static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0};
 
 /**
  * @brief Force timer update event and wait for update flag - used for timer initialization
@@ -150,7 +150,7 @@ typedef struct {
     uint8_t current_state; /**< Current state of the state machine */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t addr_cmd[DS18B20_MATCH_SLOTS]; /**< Pulse buffer for Match ROM command */
+    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
 } DS18B20_ctx_t;
 
 /**
@@ -173,10 +173,13 @@ static DS18B20_ctx_t ctx;
  */
 static volatile uint16_t search_edge3[3];
 /**
- * @brief Read pulse duration reloaded by DMA for read slots 2-3 of the
- *        merged search operation (channel 4 feeds CCR1 from this)
+ * @brief Read pulse durations reloaded by DMA for the merged search operation
+ *        (channel 4 feeds CCR1 from this). Entry 0 is loaded at slot 1's CC4
+ *        event and kicks read slots 2-3, entry 1 re-arms the slot-3 kick, and
+ *        the trailing 0 is written during slot 3 so the one-pulse timer stops
+ *        with the line released to idle HIGH (hardware bus release).
  */
-static const uint8_t search_read_pulse = ONE_PULSE;
+static const uint8_t search_read_pulse[3] = {ONE_PULSE, ONE_PULSE, 0};
 
 /**
  * @}
@@ -337,6 +340,11 @@ __STATIC_FORCEINLINE void reset_bus(void) {
  * @param[in] cmd Pointer to command sequence in pulse duration format
  * @param[in] slots Number of bit slots (bits) to transmit
  * @note Non-blocking - configures hardware to transmit command automatically.
+ * @note The buffer must hold `slots + 1` entries and the entry at index
+ *       `slots` must be 0: the final CC4-triggered DMA transfer feeds that
+ *       trailing 0 into CCR1 during the last slot, so the one-pulse timer
+ *       stops with the line already released to idle HIGH (hardware bus
+ *       release — no software CCR1 write needed afterwards).
  */
 __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     T1.RCR = slots - 1;
@@ -350,7 +358,7 @@ __STATIC_FORCEINLINE void send_command_n(const uint8_t* cmd, uint16_t slots) {
     D14.CCR = 0;
     D14.CPAR = (uint32_t)&T1.CCR1;
     D14.CMAR = (uint32_t)&cmd[1];
-    D14.CNDTR = slots - 1;
+    D14.CNDTR = slots; // Feed slots 2..N, then the trailing 0 (bus release)
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
@@ -437,15 +445,14 @@ static void ds18b20_bus_reset(void) { reset_bus(); }
  */
 static uint8_t ds18b20_bus_done(void) {
     if (T1.SR & TIM_SR(UIF)) {
-        // The one-pulse timer stopped with CNT=0 and CCR1 holding the last read
-        // pulse, so OC1 was holding the open-drain bus LOW through the whole
-        // inter-operation gap. A DS18B20 mid-search treats a >120µs low as a
-        // corrupted slot: its own slot counter syncs to that stale falling edge
-        // and it samples the NEXT write pulse (1 in particular) as a 0, dropping
-        // off the search tree. Release the bus as soon as the operation ends so
-        // the gap is the idle HIGH state and the next write pulse produces a
-        // clean falling edge the devices can re-sync to.
-        T1.CCR1 = 0;
+        // No software bus release needed: every operation now returns the line
+        // to idle HIGH in hardware. DMA-fed writes (send_command_n,
+        // write_then_read) append a trailing 0 to the CCR1 feed, and the
+        // direct-write/capture operations (reset, read, single slot) use an
+        // OC1PE preload of 0 — both applied exactly when the one-pulse timer
+        // stops. The bus therefore idles HIGH between slots regardless of how
+        // long software takes to poll, and the next write pulse produces a
+        // clean falling edge the DS18B20s re-sync to.
         T1.SR = 0;
         return 1u;
     }
@@ -472,6 +479,8 @@ static void ds18b20_bus_encode_byte(uint8_t* out, uint8_t byte) {
  * @note Non-blocking: configures the hardware and returns. The pulses buffer
  *       must stay valid until ds18b20_bus_done() reports completion, since
  *       the DMA feeds CCR1 from it (except for a single slot, written directly).
+ * @note For `slots > 1` the buffer must also hold a trailing 0 at index
+ *       `slots` (see send_command_n) so the bus is released in hardware.
  */
 static void ds18b20_bus_write_slots(const uint8_t* pulses, uint16_t slots) {
     if (slots == 1) {
@@ -479,11 +488,14 @@ static void ds18b20_bus_write_slots(const uint8_t* pulses, uint16_t slots) {
         T1.RCR = 0; // Single slot, no repetition
         T1.ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND; // Total bit slot time
         T1.CCR1 = pulses[0]; // Pulse duration encodes the bit
-        // Configure channel 1 for output compare (drive bus low during the pulse)
-        T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2);
+        // Configure channel 1 for output compare (drive bus low during the pulse).
+        // OC1PE plus a preload zero release the bus at the terminal update event,
+        // exactly when the one-pulse timer stops (hardware bus release).
+        T1.CCMR1 = TIM_CCMR1(OC1M_0, OC1M_1, OC1M_2, OC1PE);
         T1.CCER = TIM_CCER(CC1E); // Enable output compare
         T1.DIER = 0; // No DMA for a single bit slot
         FORCE_UPDATE_EVENT(T1);
+        T1.CCR1 = 0; // Preload 0 -> line idles HIGH when the timer stops
         T1.CR1 = TIM_CR1(OPM, CEN); // Start timer in one-pulse mode
         return;
     }
@@ -585,11 +597,13 @@ static void ds18b20_bus_write_then_read(uint8_t bit) {
     D13.CMAR = (uint32_t)search_edge3;
     D13.CNDTR = 3;
     D13.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
-    // DMA Ch4: reload CCR1 with the read pulse for slots 2-3 after slot 1
+    // DMA Ch4: reload CCR1 with the read pulse for slots 2-3, then write the
+    // trailing 0 during slot 3 so the one-pulse timer stops with the line
+    // released to idle HIGH (hardware bus release).
     D14.CCR = 0;
     D14.CPAR = (uint32_t)&T1.CCR1;
-    D14.CMAR = (uint32_t)&search_read_pulse;
-    D14.CNDTR = 1;
+    D14.CMAR = (uint32_t)search_read_pulse;
+    D14.CNDTR = 3;
     D14.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
     T1.SR = 0; // Clear any pending capture/compare flags before enabling DMA requests
     T1.DIER = TIM_DIER(CC2DE, CC4DE); // Capture + CCR1 reload via DMA
@@ -622,7 +636,10 @@ typedef enum {
     DS18B20_SEARCH_READ_PAIR, /**< first id/cmp pair read; compute and write direction */
     DS18B20_SEARCH_WRITE_READ, /**< merged direction write + next pair read completed */
     DS18B20_SEARCH_WRITE_DIR, /**< final direction written; advance bit counters */
-    DS18B20_SEARCH_DONE /**< search finished; restore the driver state */
+    DS18B20_SEARCH_DONE, /**< search finished; restore the driver state */
+#ifdef DS18B20_TEST_HARNESS
+    DS18B20_SEARCH_GAP /**< [TEST] timed idle-HIGH gap before the next slot */
+#endif
 } search_phase_t;
 
 /**
@@ -634,7 +651,7 @@ typedef enum {
 typedef struct {
     search_phase_t phase; /**< Current phase of the search state machine */
     uint8_t rom[DS18B20_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
-    uint8_t pulses[DS18B20_BITS_PER_BYTE]; /**< Pulse buffer for the 0xF0 command */
+    uint8_t pulses[DS18B20_BITS_PER_BYTE + 1]; /**< Pulse buffer for the 0xF0 command (+ trailing 0 for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -647,6 +664,21 @@ typedef struct {
 /** @brief Global search context instance */
 static search_ctx_t search_ctx;
 
+#ifdef DS18B20_TEST_HARNESS
+/** @brief [TEST] Idle-HIGH gap (µs) inserted after every completed search
+ *         operation before scheduling the next one (0 = no gap). */
+static uint16_t test_gap_us;
+/** @brief [TEST] Search phase to resume after the gap wait completes */
+static uint8_t test_gap_pending_phase;
+
+/**
+ * @brief [TEST] Set the idle-HIGH gap injected between search slots
+ * @param[in] us Gap duration in microseconds (0 disables the injection)
+ * @note Temporary test hook for the RTOS-latency experiment only.
+ */
+void ds18b20_test_set_gap_us(uint16_t us) { test_gap_us = us; }
+#endif
+
 /**
  * @brief Start a non-blocking device search
  * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
@@ -656,6 +688,9 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
+    // Trailing zero consumed by the CCR1-feed DMA's final transfer: this is the
+    // hardware bus release after the 0xF0 command (see send_command_n).
+    search_ctx.pulses[DS18B20_BITS_PER_BYTE] = 0;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;
@@ -744,6 +779,20 @@ uint8_t ds18b20_search_poll(void) {
     if (!ds18b20_bus_done()) {
         return 0;
     }
+
+#ifdef DS18B20_TEST_HARNESS
+    // [TEST] Inject a hardware-timed idle-HIGH gap between search slots to
+    // measure the DS18B20's tolerance to a delayed next slot (RTOS scenario).
+    if (test_gap_us != 0u && search_ctx.phase != DS18B20_SEARCH_GAP) {
+        test_gap_pending_phase = (uint8_t)search_ctx.phase;
+        search_ctx.phase = DS18B20_SEARCH_GAP;
+        start_timer(test_gap_us, 0);
+        return 0;
+    }
+    if (search_ctx.phase == DS18B20_SEARCH_GAP) {
+        search_ctx.phase = (search_phase_t)test_gap_pending_phase;
+    }
+#endif
 
     switch (search_ctx.phase) {
     case DS18B20_SEARCH_RESET:

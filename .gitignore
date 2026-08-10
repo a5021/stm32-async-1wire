@@ -68,3 +68,5 @@ jflash.log
 
 # CMSIS build dependencies (downloaded at build time)
 CMSIS/
+
+# RTOS-latency experiment build artifactstestbin/

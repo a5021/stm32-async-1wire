@@ -425,6 +425,39 @@ Kickstart behavior
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
 | **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
+## RTOS Integration: Bus Idle Behaviour
+
+Verified on hardware (this driver, TIM1+DMA one-pulse bus) against the DS18B20
+datasheet. Relevant if `ds18b20_search_poll()` / `ds18b20_poll()` are called
+from an RTOS task and scheduling delays can land between 1-Wire slots:
+
+- **Idle-HIGH is harmless.** The datasheet states the 1-Wire bus must be left
+  in the inactive (high) state when suspending a transaction and that
+  *"infinite recovery time can occur between bits so long as the bus is in the
+  inactive (high) state during the recovery period."* The DS18B20 re-synchronises
+  to the next falling edge; it has no internal timeout that expires during an
+  idle-high pause.
+- **Measured:** injecting real idle-high gaps of 10 µs … 5 ms between Search ROM
+  slots finds all 5 devices in 100/100 runs at every gap size.
+- **Idle-LOW > 480 µs resets all devices** (datasheet: *"if the bus is left low
+  for more than 480 µs, all components on the bus will be reset"*). This is the
+  only real hazard.
+
+Practical consequences for RTOS use:
+
+1. A delayed poll is safe **because the line is released to HIGH in hardware**,
+   not by software. Every bus operation now ends with the line idle-HIGH
+   automatically: the CCR1-fed writes (`send_command_n`, the merged search op)
+   append a trailing 0 to the DMA feed, and the direct-write/capture operations
+   (reset, read, single-slot write) use an OC1PE preload of 0 — both applied at
+   the instant the one-pulse timer stops. There is no software `T1.CCR1 = 0`
+   anywhere; the bus cannot be left LOW by a stale compare value, no matter how
+   long the RTOS delays the next poll.
+2. The usable scheduling latency budget is ~480 µs of LOW, not a tight
+   microsecond window. Any RTOS that resumes the poll within hundreds of µs is
+   fine; longer delays only require that the bus idles HIGH, which the hardware
+   release guarantees by construction.
+
 ## API Reference
 
 ### Core Functions

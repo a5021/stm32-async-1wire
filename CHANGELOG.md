@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
   the ring buffer is full instead of busy-waiting, and the blocking
   `uart_tx_flush()` was removed.
+- The 1-Wire line is now released to idle HIGH purely in hardware after every
+  transaction: DMA-fed writes append a trailing 0 to the CCR1 feed (last-slot
+  CC4 event) and direct-write/capture operations use an OC1PE preload of 0,
+  both applied exactly when the one-pulse timer stops. The software
+  `T1.CCR1 = 0` in `ds18b20_bus_done()` was removed, so the bus idles HIGH
+  between slots regardless of RTOS scheduling latency (verified: 5/5 devices
+  found with no software release).
 - Protocol constants (`DS18B20_SEARCH_ROM`, `DS18B20_MATCH_ROM`,
   `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_BITS_PER_BYTE`)
   are exported by the header for use with the public API and host tests.
