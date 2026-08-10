@@ -14,7 +14,18 @@ jobs:
       - name: Install clang-format (pinned)
         run: pip install clang-format==18.1.8
       - name: Check code formatting
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/app.h src/ds18b20.c src/app.c src/demo.c src/demo2.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/app.h src/ds18b20.c src/app.c src/demo.c src/demo2.c tests/mock/*.h tests/mock/*.c tests/test/*.c
+
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install host GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc
+      - name: Download CMSIS dependencies
+        run: make download-deps
+      - name: Build and run host tests
+        run: make test
 
   cppcheck:
     runs-on: ubuntu-latest

@@ -18,13 +18,13 @@
  *  and the timer has stopped (CR1.CEN == 0).
  * ============================================================ */
 
-#include "unity.h"
-#include "hw_model.h"
-#include "ds18b20_test_access.h"
 #include "ds18b20.h"
+#include "ds18b20_test_access.h"
+#include "hw_model.h"
 #include "stm32f1xx.h"
+#include "unity.h"
 
-#define ONE  5u
+#define ONE 5u
 #define ZERO 60u
 
 static void complete_op(uint32_t max_slots) {
@@ -39,9 +39,14 @@ static void assert_bus_released(void) {
 
 /* --- capture sources --- */
 static uint16_t src_reset_present(uint32_t i) { return i == 0 ? 510u : 700u; }
-static uint16_t src_reset_absent(uint32_t i)  { (void)i; return 100u; }
-static uint16_t src_wr_read_one(uint32_t i)    { return i == 0 ? 0u : (i == 1 ? ONE : ZERO); }
-static uint16_t src_wr_read_zero(uint32_t i)   { return i == 0 ? 0u : (i == 1 ? ZERO : ONE); }
+static uint16_t src_reset_absent(uint32_t i) {
+    (void)i;
+    return 100u;
+}
+static uint16_t src_wr_read_one(uint32_t i) { return i == 0 ? 0u : (i == 1 ? ONE : ZERO); }
+static uint16_t src_wr_read_zero(uint32_t i) { return i == 0 ? 0u : (i == 1 ? ZERO : ONE); }
+static uint16_t src_pair_id_one(uint32_t i) { return i == 0 ? ONE : ZERO; }
+static uint16_t src_pair_id_zero(uint32_t i) { return i == 0 ? ZERO : ONE; }
 
 static const uint8_t* g_scratch;
 static uint16_t src_read_scratchpad(uint32_t i) {
@@ -123,7 +128,7 @@ void test_merged_write_read_trailing_zero(void) {
     TEST_ASSERT_EQUAL_UINT32(3, hw_capture_count());
     assert_bus_released();
 
-    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_edge(1));  /* id bit = 1 */
+    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_edge(1)); /* id bit = 1 */
     TEST_ASSERT_EQUAL_UINT16(ZERO, test_search_edge(2)); /* cmp bit = 0 */
 }
 
@@ -192,6 +197,58 @@ void test_sequence_stays_released_between_ops(void) {
 }
 
 /*-------------------------------------------------------------
+ *  Standalone read_pair (rcr=1, 2 captures): OC1PE preload 0,
+ *  id/cmp decoded from ctx.edge, bus released on completion.
+ * -----------------------------------------------------------*/
+void test_read_pair_standalone_release(void) {
+    hw_set_capture_source(src_pair_id_one);
+    test_bus_read_pair();
+    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
+    TEST_ASSERT_EQUAL_UINT16(0, mock_tim1.CCR1); /* preload 0 */
+    complete_op(4);
+    assert_bus_released();
+    TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());
+    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_edge(0));
+    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_edge(1));
+
+    hw_set_capture_source(src_pair_id_zero);
+    test_bus_read_pair();
+    complete_op(4);
+    assert_bus_released();
+    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_edge(0));
+    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_edge(1));
+}
+
+/*-------------------------------------------------------------
+ *  Long pure-timer waits (wait_conversion = 750ms, RCR=11;
+ *  start_cycle_pause = 5s, RCR=79). They never touch CCR1,
+ *  so the line stays idle HIGH for the whole wait and the bus
+ *  is still released when the timer stops.
+ * -----------------------------------------------------------*/
+void test_wait_and_pause_keep_bus_released(void) {
+    uint8_t cmd[17];
+    for (int i = 0; i < 16; i++) {
+        cmd[i] = (i & 1) ? (uint8_t)ONE : (uint8_t)ZERO;
+    }
+    cmd[16] = 0;
+    hw_register_buf(&cmd[1]);
+    hw_set_capture_source(NULL);
+    test_bus_send_command_n(cmd, 16);
+    complete_op(20);
+    assert_bus_released();
+
+    test_bus_wait_conversion();
+    TEST_ASSERT_EQUAL_UINT8(11, mock_tim1.RCR);
+    complete_op(100); /* 12 slots */
+    assert_bus_released();
+
+    test_bus_start_cycle_pause();
+    TEST_ASSERT_EQUAL_UINT8(79, mock_tim1.RCR);
+    complete_op(100); /* 80 slots */
+    assert_bus_released();
+}
+
+/*-------------------------------------------------------------
  *  Run all bus-release tests
  * -----------------------------------------------------------*/
 void run_test_bus_release(void) {
@@ -200,6 +257,8 @@ void run_test_bus_release(void) {
     TEST_RUN(test_reset_releases_and_presence_detect);
     TEST_RUN(test_merged_write_read_trailing_zero);
     TEST_RUN(test_merged_write_read_decodes_zeros);
+    TEST_RUN(test_read_pair_standalone_release);
     TEST_RUN(test_read_data_hardware_path_decode);
+    TEST_RUN(test_wait_and_pause_keep_bus_released);
     TEST_RUN(test_sequence_stays_released_between_ops);
 }

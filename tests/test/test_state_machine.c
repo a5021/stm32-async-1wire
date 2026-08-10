@@ -9,10 +9,12 @@
  *          CONTINUE(4) -> REQUEST(5) -> READ(6) -> DECODE(7) -> IDLE(0)
  * ============================================================ */
 
-#include "unity.h"
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
+#include "hw_model.h"
 #include "stm32f1xx.h"
+#include "unity.h"
+#include <string.h>
 
 /*-------------------------------------------------------------
  *  Callback spy for ds18b20_complete
@@ -89,8 +91,8 @@ void test_state_machine_convert_with_presence_pass(void) {
     ds18b20_test_set_state(2);
 
     /* Set presence edges to valid values */
-    ds18b20_test_set_edge(0, 510);  /* Reset pulse within range */
-    ds18b20_test_set_edge(1, 700);  /* Presence pulse within range */
+    ds18b20_test_set_edge(0, 510); /* Reset pulse within range */
+    ds18b20_test_set_edge(1, 700); /* Presence pulse within range */
 
     /* Simulate UIF set */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -112,8 +114,8 @@ void test_state_machine_convert_with_presence_fail(void) {
     ds18b20_test_set_state(2);
 
     /* Set presence edges to invalid values (device not present) */
-    ds18b20_test_set_edge(0, 100);  /* Too short */
-    ds18b20_test_set_edge(1, 100);  /* Too short */
+    ds18b20_test_set_edge(0, 100); /* Too short */
+    ds18b20_test_set_edge(1, 100); /* Too short */
 
     /* Simulate UIF set */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -230,7 +232,7 @@ void test_state_machine_decode_with_valid_crc(void) {
     /* Set up scratchpad with valid CRC */
     /* Temperature: 22.25°C -> raw = 0x0164 */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8);  /* Compute valid CRC */
+    temp_data[8] = ds18b20_crc8(temp_data, 8); /* Compute valid CRC */
 
     for (int i = 0; i < 9; i++) {
         ds18b20_test_set_scratchpad(i, temp_data[i]);
@@ -468,6 +470,313 @@ void test_state_machine_decode_wrong_byte5_reports_error(void) {
 }
 
 /*-------------------------------------------------------------
+ *  E2E: bus search finds one device, select it (Match ROM),
+ *  then run the full measurement cycle and get a temperature.
+ * -----------------------------------------------------------*/
+#define E2E_ONE 5u
+#define E2E_ZERO 60u
+
+static uint8_t g_e2e_rom[8];
+static uint8_t g_e2e_wr_bit;
+
+static uint8_t e2e_sink(const uint8_t* rom) {
+    memcpy(g_e2e_rom, rom, 8);
+    return 0;
+}
+
+static uint16_t e2e_capture_src(uint32_t idx) {
+    uint8_t rcr = (uint8_t)mock_tim1.RCR;
+    if (rcr == 0) {
+        return idx == 0 ? 510u : 700u; /* reset + presence pulse */
+    }
+    if (rcr == 1) { /* first read pair: bit 1 */
+        uint8_t b = (g_e2e_rom[0] >> 0) & 1u;
+        return (idx == 0) ? (b ? E2E_ONE : E2E_ZERO) : (b ? E2E_ZERO : E2E_ONE);
+    }
+    /* merged write+read capturing bit g_e2e_wr_bit */
+    uint8_t byte = (g_e2e_wr_bit - 1u) / 8u;
+    uint8_t bit = (g_e2e_wr_bit - 1u) % 8u;
+    uint8_t b = (g_e2e_rom[byte] >> bit) & 1u;
+    if (idx == 0) return 0u;
+    if (idx == 1) return b ? E2E_ONE : E2E_ZERO;
+    g_e2e_wr_bit++;
+    return b ? E2E_ZERO : E2E_ONE;
+}
+
+void test_state_machine_search_select_measure_e2e(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* Phase 1: bus search finds exactly one device */
+    uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    memcpy(g_e2e_rom, serial, 7);
+    g_e2e_rom[7] = ds18b20_crc8(g_e2e_rom, 7);
+
+    g_e2e_wr_bit = 2;
+    hw_set_capture_source(e2e_capture_src);
+    ds18b20_search_start(e2e_sink, 1);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            uint8_t ok = hw_run_until_uif(100);
+            TEST_ASSERT_TRUE(ok);
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_poll()); /* finished flag */
+
+    /* Phase 2: select the found device -> Match ROM addressing */
+    ds18b20_select(g_e2e_rom);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
+
+    /* Phase 3: full measurement cycle in Match ROM mode */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
+
+    uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
+    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b,
+                                   (temp_data[i] >> b) & 1u ? E2E_ONE : E2E_ZERO);
+        }
+    }
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(222, spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  Test: ds18b20_init() configures clocks, prescaler and GPIO
+ * -----------------------------------------------------------*/
+void test_state_machine_init_configures_registers(void) {
+    hw_reset_all();
+    ds18b20_init();
+
+    TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_IOPAEN | RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
+    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
+    TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
+    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
+    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF8_0 | GPIO_CRH_CNF8_1 | GPIO_CRH_MODE8_1, mock_gpioa.CRH);
+}
+
+/*-------------------------------------------------------------
+ *  Test: ds18b20_busy() spy - START sets busy, DECODE clears it
+ * -----------------------------------------------------------*/
+static int spy_busy_calls;
+static unsigned spy_busy_last_action;
+
+void ds18b20_busy(unsigned action) {
+    spy_busy_calls++;
+    spy_busy_last_action = action;
+}
+
+void test_state_machine_busy_spy(void) {
+    spy_reset();
+    spy_busy_calls = 0;
+    spy_busy_last_action = 0;
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* IDLE -> START -> CONVERT: busy(1) at START */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_calls);
+    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_last_action);
+
+    /* Decode with valid CRC: busy(0) at DECODE */
+    uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
+    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b,
+                                   (temp_data[i] >> b) & 1u ? 5u : 60u);
+        }
+    }
+    ds18b20_test_set_state(7);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
+}
+
+/*-------------------------------------------------------------
+ *  Test: NO_SENSOR error in the REQUEST state (after a
+ *  successful CONVERT) reports the error and returns to IDLE
+ * -----------------------------------------------------------*/
+void test_state_machine_request_presence_fail(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    ds18b20_test_set_state(5);
+    ds18b20_test_set_edge(0, 100); /* bad reset */
+    ds18b20_test_set_edge(1, 100); /* bad presence */
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  Test: CRC_FAIL in the middle of a full cycle - CONVERT passes,
+ *  then the scratchpad read returns a bad CRC
+ * -----------------------------------------------------------*/
+void test_state_machine_crc_fail_mid_cycle(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* Full cycle with a corrupted scratchpad read */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
+
+    /* Corrupt the data so the CRC fails */
+    uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
+    temp_data[8] = (uint8_t)(ds18b20_crc8(temp_data, 8) ^ 0xFF); /* bad CRC */
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b,
+                                   (temp_data[i] >> b) & 1u ? 5u : 60u);
+        }
+    }
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  Test: Full Skip-ROM cycle produces the exact temperature
+ *  (matches the E2E Match-ROM value; Skip ROM broadcast mode)
+ * -----------------------------------------------------------*/
+void test_state_machine_full_cycle_skip_rom_value(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_set_address_mode(0);
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
+
+    uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
+    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b,
+                                   (temp_data[i] >> b) & 1u ? 5u : 60u);
+        }
+    }
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(222, spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
  *  Run all state machine tests
  * -----------------------------------------------------------*/
 void run_test_state_machine(void) {
@@ -488,4 +797,10 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_decode_all_zero_reports_error);
     TEST_RUN(test_state_machine_decode_all_FF_reports_error);
     TEST_RUN(test_state_machine_decode_wrong_byte5_reports_error);
+    TEST_RUN(test_state_machine_search_select_measure_e2e);
+    TEST_RUN(test_state_machine_init_configures_registers);
+    TEST_RUN(test_state_machine_busy_spy);
+    TEST_RUN(test_state_machine_request_presence_fail);
+    TEST_RUN(test_state_machine_crc_fail_mid_cycle);
+    TEST_RUN(test_state_machine_full_cycle_skip_rom_value);
 }

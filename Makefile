@@ -310,6 +310,12 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_scratchpad.c \
             $(TEST_DIR)/test_bus_release.c \
             $(TEST_DIR)/test_search.c \
+            $(TEST_DIR)/test_crc8.c \
+            $(TEST_DIR)/test_pulse_encoding.c \
+            $(TEST_DIR)/test_presence.c \
+            $(TEST_DIR)/test_rom_addressing.c \
+            $(TEST_DIR)/test_timing.c \
+            $(TEST_DIR)/test_temperature.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_access.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected

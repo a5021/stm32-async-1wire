@@ -18,7 +18,6 @@ extern "C" {
 #define A   (*AFIO)   /* 0x40010000 */
 
 #define BK  (*BKP)    /* 0x40006C00 */
-#define CR  (*CRC)    /* 0x40023000 */
 #define C1  (*CAN1)   /* 0x40006400 */
 #define DB  (*DBGMCU) /* 0xE0042000 */
 #define EX  (*EXTI)   /* 0x40010400 */

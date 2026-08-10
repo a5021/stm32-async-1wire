@@ -48,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_BITS_PER_BYTE`)
   are exported by the header for use with the public API and host tests.
 - DMA transfer count sized to `slots-1` instead of using a sentinel value.
+- Removed the global `#define CR` peripheral alias from `inc/macro.h`: it
+  collided with the `RCC_TypeDef.CR` field name after CMSIS headers were
+  included, expanding the field into a pointer that shifted every RCC register
+  offset on 64-bit host builds.
+- Added a host test suite (`make test`): the driver is compiled as a single
+  translation unit against a TIM1/DMA behavioural model and a register mock.
+  118 tests cover the state machine, device search, CRC-8, pulse encoding,
+  presence detection, scratchpad decode, temperature conversion, timing and
+  bus release. The suite runs in CI.
 
 ### Removed
 

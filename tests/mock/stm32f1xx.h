@@ -72,34 +72,35 @@ extern RCC_TypeDef mock_rcc;
 #define RCC (&mock_rcc)
 
 /* --- Bit-field constants used by the driver --- */
-#define RCC_APB2ENR_IOPAEN     0x00000004u
-#define RCC_APB2ENR_TIM1EN     0x00000800u
-#define RCC_AHBENR_DMA1EN      0x00000001u
-#define GPIO_CRH_CNF8_0        0x00000800u
-#define GPIO_CRH_CNF8_1        0x00001000u
-#define GPIO_CRH_MODE8_1       0x00000200u
-#define TIM_BDTR_MOE           0x00008000u
-#define TIM_EGR_UG             0x00000001u
-#define TIM_SR_UIF             0x00000001u
-#define TIM_CR1_CEN            0x00000001u
-#define TIM_CR1_OPM            0x00000008u
-#define TIM_CCMR1_OC1M_0       0x00000010u
-#define TIM_CCMR1_OC1M_1       0x00000020u
-#define TIM_CCMR1_OC1M_2       0x00000040u
-#define TIM_CCMR1_OC1PE        0x00000080u
-#define TIM_CCMR1_CC2S_1       0x00000200u
-#define TIM_CCMR1_IC2F_0       0x00001000u
-#define TIM_CCMR1_IC2F_1       0x00002000u
-#define TIM_CCMR1_IC2F_2       0x00004000u
-#define TIM_CCER_CC1E          0x00000001u
-#define TIM_CCER_CC2E          0x00000010u
-#define TIM_DIER_CC2DE         0x00000400u
-#define TIM_DIER_CC4DE         0x00001000u
-#define DMA_CCR_EN             0x00000001u
-#define DMA_CCR_DIR            0x00000010u
-#define DMA_CCR_MINC           0x00000080u
-#define DMA_CCR_PSIZE_0        0x00000100u
-#define DMA_CCR_MSIZE_0        0x00000400u
+#define RCC_APB2ENR_IOPAEN 0x00000004u
+#define RCC_APB2ENR_TIM1EN 0x00000800u
+#define RCC_AHBENR_DMA1EN 0x00000001u
+#define GPIO_CRH_CNF8_0 0x00000800u
+#define GPIO_CRH_CNF8_1 0x00001000u
+#define GPIO_CRH_MODE8_1 0x00000200u
+#define TIM_BDTR_MOE 0x00008000u
+#define TIM_EGR_UG 0x00000001u
+#define TIM_SR_UIF 0x00000001u
+#define TIM_CR1_CEN 0x00000001u
+#define TIM_CR1_OPM 0x00000008u
+#define TIM_CCMR1_OC1M_0 0x00000010u
+#define TIM_CCMR1_OC1M_1 0x00000020u
+#define TIM_CCMR1_OC1M_2 0x00000040u
+#define TIM_CCMR1_OC1PE 0x00000080u
+#define TIM_CCMR1_CC2S_1 0x00000200u
+#define TIM_CCMR1_IC2F_0 0x00001000u
+#define TIM_CCMR1_IC2F_1 0x00002000u
+#define TIM_CCMR1_IC2F_2 0x00004000u
+#define TIM_CCER_CC1E 0x00000001u
+#define TIM_CCER_CC2E 0x00000010u
+#define TIM_DIER_CC2DE 0x00000400u
+#define TIM_DIER_CC4DE 0x00001000u
+#define DMA_CCR_EN 0x00000001u
+#define DMA_CCR_DIR 0x00000010u
+#define DMA_CCR_MINC 0x00000080u
+#define DMA_CCR_PSIZE_0 0x00000100u
+#define DMA_CCR_MSIZE_0 0x00000400u
+#define DMA_CCR_MSIZE_1 0x00000800u
 
 /* --- Compiler helpers the driver expects from CMSIS --- */
 #ifndef __STATIC_FORCEINLINE

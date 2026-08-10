@@ -222,6 +222,7 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 |--------|-------------|
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
+| `make test` | Build and run host tests (PC toolchain) |
 | `make clean` | Remove build artifacts |
 | `make download-deps` | Download CMSIS dependencies |
 | `make clean-deps` | Remove downloaded dependencies |
@@ -233,6 +234,28 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 
 -   **ST-LINK:** `make program` (uses `st-flash` / `ST-LINK_CLI.exe`)
 -   **J-LINK:** `make jprogram` (uses `JFlashExe` / `JFlash.Exe`)
+
+### Testing
+
+The driver ships with a host test suite that runs entirely on the PC, no
+hardware required:
+
+```bash
+make test
+```
+
+The driver is compiled as a single translation unit
+(`tests/mock/ds18b20_test_access.c` includes `src/ds18b20.c`) against a
+behavioural model of the TIM1/DMA hardware (`tests/mock/hw_model.c`) and a
+register mock of the STM32F1 CMSIS header. 118 tests cover:
+
+-   State machine transitions (idle → start → measure → read → decode)
+-   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
+-   CRC-8 (Dallas/Maxim) verification
+-   1-Wire pulse encoding and presence detection
+-   Scratchpad decode and temperature conversion (incl. negative values)
+-   Timing configuration and register setup
+-   Bus release behaviour between slots
 
 ### **Configuration Notes**
 
