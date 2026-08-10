@@ -280,7 +280,7 @@ This driver uses an advanced technique that combines multiple hardware features:
        due to bus rise time and DMA latency.
     - Reset (~480µs) is generated as an extended low period (active-low) within a ~960µs slot.
   - CH2 (Input Capture, Indirect mode): Shares the same PA8 pin internally. Used to capture presence pulses and read-slot timings after CH1 releases the bus to idle-high; DMA transfers CCR2 capture values to memory.
-  - CH4: Used as a DMA trigger, feeding CCR1 duty cycles (for CH1 output) and facilitating capture operations.
+  - CH4 (Output Compare): Used during command transmission only. Its compare event (CCR4 = 65µs, just before each 70µs slot ends) triggers the DMA request that makes DMA1_Channel4 write the next pulse duration into CCR1. Not used for capture — capture uses CH2 (CC2DE).
 - RCR (Repetition Counter Register): Key to the state machine operation. Instead of generating an Update Event on every period, RCR controls how many timer repetitions occur before UIF is set.
   - Example: RCR=15 → the timer generates 16 PWM slots (bits) via DMA, then asserts UIF once at the end, signaling software to proceed.
   - This allows grouping a full command (two bytes), the entire 72-bit read, or long delays into single hardware-driven transactions, freeing the CPU until completion.
