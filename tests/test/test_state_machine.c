@@ -12,7 +12,7 @@
 #include "unity.h"
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
-#include "macro.h"
+#include "stm32f1xx.h"
 
 /*-------------------------------------------------------------
  *  Callback spy for ds18b20_complete

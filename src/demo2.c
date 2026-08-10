@@ -15,6 +15,10 @@
 #include "app.h"
 #include "ds18b20.h"
 
+#ifdef DS18B20_TEST_HARNESS
+extern void ds18b20_test_set_gap_us(uint16_t us); // [TEST] temporary hook
+#endif
+
 // ======== Config: maximum devices reported by the startup bus scan ========
 #ifndef DS18B20_SEARCH_MAX_DEVICES
 #define DS18B20_SEARCH_MAX_DEVICES 8u
@@ -38,12 +42,14 @@ static uint8_t device_found_sink(const uint8_t* rom) {
         found_roms[found_count][i] = rom[i];
     }
     found_count++;
+#ifndef DS18B20_TEST_HARNESS
     uart_write_str("  ROM: ");
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         uart_write_hex(rom[i]);
         if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
     }
     uart_write_str("\r\n");
+#endif
     return 0;
 }
 
@@ -51,6 +57,7 @@ static uint8_t device_found_sink(const uint8_t* rom) {
  * @brief Report the bus scan result once the non-blocking search finished
  * @note Non-blocking: only enqueues into the UART TX ring buffer.
  */
+#ifndef DS18B20_TEST_HARNESS
 static void report_search_result(void) {
     if (found_count == 0) {
         uart_write_str("No devices on the 1-Wire bus.\r\n");
@@ -67,6 +74,7 @@ static void report_search_result(void) {
         }
     }
 }
+#endif // !DS18B20_TEST_HARNESS
 
 /**
  * @brief Print the ROM address of the currently selected device followed by ": "
@@ -134,6 +142,50 @@ int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
 
     uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message
+
+#ifdef DS18B20_TEST_HARNESS
+    // [TEST] Gap sweep: run the non-blocking search repeatedly, inserting a
+    // timed idle-HIGH gap after every search slot. For each gap value, K runs
+    // are executed and the found-device count is logged, so the DS18B20's
+    // tolerance to a delayed next slot (RTOS scenario) can be measured.
+    static const uint16_t gap_table[] = {0u, 5u, 10u, 15u, 20u, 25u, 30u, 40u, 50u};
+    const uint8_t num_gaps = (uint8_t)(sizeof(gap_table) / sizeof(gap_table[0]));
+    const uint8_t runs_per_gap = 100u;
+    uint8_t gap_idx = 0;
+    uint8_t run = 0;
+    ds18b20_init();
+    uart_write_str("Search gap sweep:\r\n");
+    ds18b20_test_set_gap_us(gap_table[gap_idx]);
+    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    for (;;) {
+        if (search_running) {
+            if (ds18b20_search_poll()) {
+                search_running = 0;
+                found_count = ds18b20_search_count();
+                uart_write_str("GAP=");
+                uart_write_int(gap_table[gap_idx]);
+                uart_write_str(" run=");
+                uart_write_int(run);
+                uart_write_str(" found=");
+                uart_write_int(found_count);
+                uart_write_str("\r\n");
+                run++;
+                if (run >= runs_per_gap) {
+                    run = 0;
+                    gap_idx++;
+                    if (gap_idx >= num_gaps) {
+                        gap_idx = 0; // soak: loop the sweep forever
+                    }
+                    ds18b20_test_set_gap_us(gap_table[gap_idx]);
+                }
+                found_count = 0;
+                ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+                search_running = 1;
+            }
+        }
+        uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
+    }
+#else
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES); // Start scan
@@ -153,4 +205,5 @@ int main(void) {
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
         // Other non-blocking tasks can be added here
     }
+#endif
 }

@@ -13,15 +13,7 @@
 #include "unity.h"
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
-#include "macro.h"
-
-void setUp(void) {
-    ds18b20_test_reset_ctx();
-}
-
-void tearDown(void) {
-    /* Nothing to clean up */
-}
+#include "stm32f1xx.h"
 
 /*-------------------------------------------------------------
  *  Test: All short pulses (<=10µs) produce all 0xFF bytes

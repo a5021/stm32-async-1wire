@@ -295,6 +295,39 @@ jprogram: $(BUILD_DIR)/$(TARGET).hex
 clean:
 	rm -fR $(BUILD_DIR)
 
+# =============================================================================
+# HOST TESTS (compiled with the host toolchain, run on the build machine)
+# The driver is compiled through tests/mock/ds18b20_test_access.c (which
+# #includes src/ds18b20.c); hardware behaviour is simulated by hw_model.c.
+# =============================================================================
+
+HOST_CC ?= gcc
+TEST_MOCK = tests/mock
+TEST_DIR  = tests/test
+TEST_OUT  = build/test
+TEST_SRC  = $(TEST_DIR)/test_main.c \
+            $(TEST_DIR)/test_state_machine.c \
+            $(TEST_DIR)/test_scratchpad.c \
+            $(TEST_DIR)/test_bus_release.c \
+            $(TEST_DIR)/test_search.c \
+            $(TEST_MOCK)/hw_model.c \
+            $(TEST_MOCK)/ds18b20_test_access.c
+# Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
+# on a 64-bit host; suppress the size warnings.
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -Wall -Wextra \
+            -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+TEST_INC  = -Iinc -I$(TEST_MOCK)
+
+.PHONY: test
+test: $(TEST_OUT)/ds18b20_test.exe
+	$(TEST_OUT)/ds18b20_test.exe
+
+$(TEST_OUT)/ds18b20_test.exe: $(TEST_SRC) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) -o $@
+
+$(TEST_OUT):
+	mkdir -p $@
+
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
 
@@ -306,6 +339,7 @@ help:
 	@echo "  download-licenses - Download third-party license files to CMSIS/"
 	@echo "  clean-deps      - Remove downloaded dependencies and CMSIS/ directories"
 	@echo "  clean           - Remove build artifacts"
+	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
