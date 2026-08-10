@@ -210,8 +210,8 @@ make download-licenses
 ### Build
 
 ```bash
-make            # Release build (-O3 -flto)
-make debug      # Debug build (-Og -g3)
+make            # Release build (-Os -flto -g0)
+make debug      # Debug build (-Og -g3 -gdwarf)
 ```
 
 Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
@@ -265,8 +265,8 @@ register mock of the STM32F1 CMSIS header. 118 tests cover:
 
 -   **Optimization Level:**
 
-    -   **Release:** `-O3 -flto` (default).
-    -   **Debug:** `-Og -g3`.
+    -   **Release:** `-Os -flto -g0` (default).
+    -   **Debug:** `-Og -g3 -gdwarf`.
 
 -   **MCU Flags:** Configured for `STM32F103xB` (Cortex-M3).
 
@@ -500,7 +500,8 @@ The Core Driver Function: Must be called from the main loop. It checks the Timer
 The non-blocking 1-Wire bus primitives (`ds18b20_bus_reset()`,
 `ds18b20_bus_done()`, `ds18b20_bus_present()`, `ds18b20_bus_encode_byte()`,
 `ds18b20_bus_write_slots()`, `ds18b20_bus_write_bit()`,
-`ds18b20_bus_read_pair()`, `ds18b20_bus_pair_id()`, `ds18b20_bus_pair_cmp()`)
+`ds18b20_bus_read_pair()`, `ds18b20_bus_write_then_read()`,
+`ds18b20_bus_pair_id()`, `ds18b20_bus_pair_cmp()`)
 and the Search ROM state machine are **private to the driver** (`static` in
 `src/ds18b20.c`). They are not part of the public API; the built-in device
 search is the supported way to enumerate the bus.
@@ -602,9 +603,9 @@ Slot formula: `ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND` = 70µs total.
 
 ### Debugging Tips
 
-- Use Debug Build: The release build (`-O3 -flto`) aggressively optimizes
+- Use Debug Build: The release build (`-Os -flto -g0`) aggressively optimizes
   the driver, which may inline or eliminate static variables like `ctx`.
-  Use `make debug` (`-Og -g3`) for debugging.
+  Use `make debug` (`-Og -g3 -gdwarf`) for debugging.
 - VSCode: Press F5 to build (debug) and launch a J-Link debug session.
   The SVD file provides peripheral register views.
 - Monitor the State Variable: Check `ctx.current_state` in a debugger to
