@@ -1000,7 +1000,7 @@ void ds18b20_poll(void) {
 
     case DS18B20_ST_START:
         // Turn on LED to indicate measurement in progress
-        ds18b20_busy(!0);
+        ds18b20_busy(1);
         // Initiate 1-Wire bus reset sequence
         reset_bus();
         // Transition to CONVERT state

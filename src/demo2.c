@@ -86,7 +86,8 @@ static int print_device_prefix(void) {
         if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
     }
     uart_write_str(": ");
-    return 25; // 8 bytes * 2 hex chars + 7 spaces + ": "
+    // 8 bytes * 2 hex chars + 7 separator spaces + ": " (kept in sync with the loop)
+    return (int)(DS18B20_ROM_BYTES * 2 + (DS18B20_ROM_BYTES - 1) + 2);
 }
 
 /**
