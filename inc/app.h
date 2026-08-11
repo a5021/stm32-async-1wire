@@ -27,6 +27,12 @@
 #error "UART_TX_BUF_SIZE must be a power of two (e.g., 32, 64, 128, 256)."
 #endif
 
+/* Ring indices are uint8_t (see app.c), so the buffer cannot exceed 256 bytes:
+ * above that, (index + 1) & mask would overflow the 8-bit head/tail. */
+#if (UART_TX_BUF_SIZE > 256u)
+#error "UART_TX_BUF_SIZE must not exceed 256 (ring buffer indices are uint8_t)."
+#endif
+
 /** Mask for ring buffer index wrapping (power of two optimization) */
 #define UART_TX_IDX_MASK (UART_TX_BUF_SIZE - 1u)
 /** UART baud rate register value with rounding for accuracy */
