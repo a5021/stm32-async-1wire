@@ -1020,6 +1020,25 @@ void ds18b20_poll(void) {
         // Turn off LED to indicate measurement complete
         ds18b20_busy(0);
 
+        // Match ROM mode: if the addressed device is absent, nobody drives
+        // the bus after the address, so the whole scratchpad reads back as
+        // 0xFF. Report it as a missing sensor instead of a bogus CRC error.
+        if (ctx.address_mode) {
+            uint8_t all_ones = 1;
+            for (uint8_t i = 0; i < DS18B20_SCRATCHPAD_LEN; i++) {
+                if (ctx.scratchpad[i] != 0xFF) {
+                    all_ones = 0;
+                    break;
+                }
+            }
+            if (all_ones) {
+                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+                start_cycle_pause();
+                ctx.current_state = DS18B20_ST_IDLE;
+                break;
+            }
+        }
+
         // Validate reserved bytes per DS18B20 specification:
         // Byte 5 must be 0xFF, Byte 7 must be 0x10.
         // This catches all-zero, all-0xFF, and bus fault conditions.

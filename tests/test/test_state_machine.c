@@ -442,8 +442,77 @@ void test_state_machine_decode_all_FF_reports_error(void) {
 }
 
 /*-------------------------------------------------------------
- *  Test: DECODE with wrong reserved byte 5 reports error
+ *  Test: DECODE with all-0xFF scratchpad in Match ROM mode
+ *  reports NO_SENSOR (B2: the addressed device is absent and
+ *  nothing drives the bus after the Match ROM address)
  * -----------------------------------------------------------*/
+void test_state_machine_decode_all_FF_match_rom_reports_no_sensor(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* Enable Match ROM addressing (a device is selected) */
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
+
+    /* Set state to DECODE */
+    ds18b20_test_set_state(7);
+
+    /* All-0xFF scratchpad: simulate a bus that nobody drives after the
+     * Match ROM address (undriven line reads back as all '1' bits) */
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b, 5u);
+        }
+    }
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    /* Must be NO_SENSOR, not a bogus CRC error */
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+
+    /* State should return to IDLE */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  Test: DECODE with corrupted (non 0xFF) scratchpad in Match ROM
+ *  mode still reports CRC error (B2 heuristic must not swallow
+ *  genuine communication corruption)
+ * -----------------------------------------------------------*/
+void test_state_machine_decode_corrupt_match_rom_reports_crc(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* Enable Match ROM addressing (a device is selected) */
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+
+    /* Set state to DECODE */
+    ds18b20_test_set_state(7);
+
+    /* Scratchpad that is NOT all 0xFF but fails the reserved-byte check */
+    uint8_t bad_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0x00, 0x08, 0x10, 0x10};
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b, (bad_data[i] >> b) & 1u ? 5u : 60u);
+        }
+    }
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    /* Must remain a CRC error */
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+
+    /* State should return to IDLE */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
 void test_state_machine_decode_wrong_byte5_reports_error(void) {
     spy_reset();
     ds18b20_init();
@@ -796,6 +865,8 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_match_rom_mode);
     TEST_RUN(test_state_machine_decode_all_zero_reports_error);
     TEST_RUN(test_state_machine_decode_all_FF_reports_error);
+    TEST_RUN(test_state_machine_decode_all_FF_match_rom_reports_no_sensor);
+    TEST_RUN(test_state_machine_decode_corrupt_match_rom_reports_crc);
     TEST_RUN(test_state_machine_decode_wrong_byte5_reports_error);
     TEST_RUN(test_state_machine_search_select_measure_e2e);
     TEST_RUN(test_state_machine_init_configures_registers);
