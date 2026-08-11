@@ -16,8 +16,8 @@ void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
 }
 
-uint8_t ds18b20_test_get_state(void) { return ctx.current_state; }
-void ds18b20_test_set_state(uint8_t s) { ctx.current_state = s; }
+ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
+void ds18b20_test_set_state(ds18b20_state_t s) { ctx.current_state = s; }
 
 void ds18b20_test_reset_ctx(void) {
     ctx.fill_union = (uint64_t)-1; /* 0xFF fill, same as ds18b20_poll() */

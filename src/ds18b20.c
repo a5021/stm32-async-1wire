@@ -140,7 +140,7 @@ typedef struct {
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
         uint64_t fill_union; /**< Utility field for filling the union */
     };
-    uint8_t current_state; /**< Current state of the state machine */
+    ds18b20_state_t current_state; /**< Current state of the state machine */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
@@ -873,6 +873,14 @@ uint8_t ds18b20_search_poll(void) {
         search_ctx.phase = DS18B20_SEARCH_RESET;
         break;
 
+    case DS18B20_SEARCH_DONE:
+#ifdef DS18B20_TEST_HARNESS
+    case DS18B20_SEARCH_GAP:
+#endif
+        // DONE and GAP are handled before the switch (see above); keep as a
+        // no-op so -Wswitch-enum stays satisfied.
+        break;
+
     default:
         break;
     }
@@ -1014,7 +1022,7 @@ void ds18b20_poll(void) {
         ctx.current_state = DS18B20_ST_DECODE;
         break;
 
-    case 7: // DECODE - Process received data and report temperature
+    case DS18B20_ST_DECODE: // Process received data and report temperature
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete
@@ -1045,7 +1053,7 @@ void ds18b20_poll(void) {
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
             start_cycle_pause();
-            ctx.current_state = 0;
+            ctx.current_state = DS18B20_ST_IDLE;
             break;
         }
 
@@ -1061,14 +1069,14 @@ void ds18b20_poll(void) {
         // Start inter-measurement pause period
         start_cycle_pause();
         // Return to IDLE state for next measurement cycle
-        ctx.current_state = 0;
+        ctx.current_state = DS18B20_ST_IDLE;
         break;
 
     default:
         // Unexpected state - report generic error
         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
         // Return to IDLE state
-        ctx.current_state = 0;
+        ctx.current_state = DS18B20_ST_IDLE;
         break;
     }
 }

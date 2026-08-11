@@ -4,10 +4,11 @@
  * #includes src/ds18b20.c, so the driver is compiled ONLY through that TU
  * (it must not also be compiled separately). */
 #include <stdint.h>
+#include "ds18b20.h"
 
 /* State machine / scratchpad accessors (used by the legacy unit tests). */
-uint8_t ds18b20_test_get_state(void);
-void ds18b20_test_set_state(uint8_t s);
+ds18b20_state_t ds18b20_test_get_state(void);
+void ds18b20_test_set_state(ds18b20_state_t s);
 void ds18b20_test_reset_ctx(void);
 void ds18b20_test_set_edge(uint8_t i, uint16_t v);
 uint16_t ds18b20_test_get_edge(uint8_t i);
