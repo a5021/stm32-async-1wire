@@ -61,19 +61,12 @@
 #define ZERO_PULSE 60
 /** @brief Guard band between slots to prevent overlap due to bus rise time and DMA latency */
 #define GUARD_BAND 5
-/** @brief Number of bits in a byte */
-#define DS18B20_BITS_PER_BYTE 8
 /** @brief Total length of DS18B20 scratchpad in bytes */
 #define DS18B20_SCRATCHPAD_LEN 9
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
 /** @brief Total number of bits in a device ROM address */
 #define DS18B20_ROM_BITS (DS18B20_ROM_BYTES * DS18B20_BITS_PER_BYTE)
-/** @brief DS18B20 1-Wire command codes (internal protocol details) */
-#define DS18B20_SEARCH_ROM 0xF0 /**< Search ROM */
-#define DS18B20_MATCH_ROM 0x55 /**< Match ROM */
-#define DS18B20_READ_SCRATCHPAD 0xBE /**< Read Scratchpad */
-#define DS18B20_CONVERT_T 0x44 /**< Convert T */
 /** @brief Total slots for Match ROM + 8-byte ROM + command */
 #define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
 /** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
