@@ -177,6 +177,10 @@ void ds18b20_poll(void);
  *       responds. Pass NULL to keep the legacy single-sensor Skip ROM
  *       behaviour. To measure a specific device, pass its ROM address
  *       (e.g., from a bus search) to ds18b20_select().
+ * @note The selection is applied only between measurement cycles (driver
+ *       IDLE); calls made mid-cycle are ignored. It is safe to re-select from
+ *       inside the ds18b20_complete() callback, which the driver invokes
+ *       already in the IDLE state.
  */
 void ds18b20_select(const uint8_t* rom);
 

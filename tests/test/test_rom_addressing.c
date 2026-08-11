@@ -116,6 +116,33 @@ void test_rom_addressing_different_roms_different_prefixes(void) {
     TEST_ASSERT_TRUE(differs);
 }
 
+/*-------------------------------------------------------------
+ *  Test: select() is ignored mid-cycle, applied at IDLE
+ *  (R2 fix: applying it mid-cycle would corrupt in-flight Match ROM DMA)
+ * -----------------------------------------------------------*/
+void test_rom_addressing_select_ignored_mid_cycle(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+
+    /* Mid-cycle (non-IDLE state): selection must be rejected */
+    ds18b20_test_set_state(DS18B20_ST_WAIT);
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
+
+    /* Back to IDLE: selection is applied */
+    ds18b20_test_set_state(DS18B20_ST_IDLE);
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
+
+    uint8_t selected_rom[8];
+    ds18b20_test_get_selected_rom(selected_rom);
+    for (int i = 0; i < 8; i++) {
+        TEST_ASSERT_EQUAL_UINT8(rom[i], selected_rom[i]);
+    }
+}
+
 void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_NULL_clears_mode);
     TEST_RUN(test_rom_addressing_select_copies_rom);
@@ -125,4 +152,5 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_prefix_unchanged_after_cmd);
     TEST_RUN(test_rom_addressing_read_scratchpad_encoding);
     TEST_RUN(test_rom_addressing_different_roms_different_prefixes);
+    TEST_RUN(test_rom_addressing_select_ignored_mid_cycle);
 }

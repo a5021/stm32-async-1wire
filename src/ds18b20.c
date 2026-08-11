@@ -928,8 +928,18 @@ void ds18b20_init(void) {
  *       responds. Pass NULL (or a freshly initialised driver) to keep the
  *       legacy single-sensor Skip ROM behaviour. The address should come from
  *       the non-blocking device search (ds18b20_search_*).
+ * @note The selection is applied only between measurement cycles (driver
+ *       IDLE). Calls made while a cycle is running are ignored: applying them
+ *       mid-cycle would overwrite ctx.addr_cmd while the DMA is still feeding
+ *       it, corrupting the in-flight bus transaction. Re-call once the cycle
+ *       finished (e.g., from ds18b20_complete(), which the driver invokes
+ *       already in the IDLE state).
  */
 void ds18b20_select(const uint8_t* rom) {
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        // Mid-cycle call - reject to keep the in-flight transaction intact.
+        return;
+    }
     if (rom == 0) {
         ctx.address_mode = 0;
         return;
@@ -949,9 +959,11 @@ void ds18b20_select(const uint8_t* rom) {
  */
 static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_state_t next_state) {
     if (!check_presence()) {
+        // Return to IDLE before the callback so a re-selection from inside
+        // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
+        ctx.current_state = DS18B20_ST_IDLE;
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
         start_cycle_pause();
-        ctx.current_state = DS18B20_ST_IDLE;
         return;
     }
     if (ctx.address_mode) {
@@ -1040,9 +1052,9 @@ void ds18b20_poll(void) {
                 }
             }
             if (all_ones) {
+                ctx.current_state = DS18B20_ST_IDLE;
                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
                 start_cycle_pause();
-                ctx.current_state = DS18B20_ST_IDLE;
                 break;
             }
         }
@@ -1051,11 +1063,15 @@ void ds18b20_poll(void) {
         // Byte 5 must be 0xFF, Byte 7 must be 0x10.
         // This catches all-zero, all-0xFF, and bus fault conditions.
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
+            ctx.current_state = DS18B20_ST_IDLE;
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
             start_cycle_pause();
-            ctx.current_state = DS18B20_ST_IDLE;
             break;
         }
+
+        // Return to IDLE before the callback so a re-selection from inside
+        // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
+        ctx.current_state = DS18B20_ST_IDLE;
 
         // Validate CRC and report temperature or error
         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {
@@ -1068,15 +1084,12 @@ void ds18b20_poll(void) {
 
         // Start inter-measurement pause period
         start_cycle_pause();
-        // Return to IDLE state for next measurement cycle
-        ctx.current_state = DS18B20_ST_IDLE;
         break;
 
     default:
         // Unexpected state - report generic error
-        ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
-        // Return to IDLE state
         ctx.current_state = DS18B20_ST_IDLE;
+        ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
         break;
     }
 }
