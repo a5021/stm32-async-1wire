@@ -582,7 +582,7 @@ void test_state_machine_search_select_measure_e2e(void) {
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(222, spy_complete_value);
+    TEST_ASSERT_EQUAL_INT(223, spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
 
@@ -772,7 +772,7 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(222, spy_complete_value);
+    TEST_ASSERT_EQUAL_INT(223, spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
 

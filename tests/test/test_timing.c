@@ -68,10 +68,10 @@ void test_timing_start_cycle_pause_5s(void) {
 }
 
 void test_timing_temperature_formula(void) {
-    /* raw = 0x0164 = 356 -> 22.25°C -> 222 tenths */
-    TEST_ASSERT_EQUAL_INT(222, (int)(((int16_t)0x0164 * 10) / 16));
+    /* raw = 0x0164 = 356 -> 22.25°C -> 223 tenths (round-half-away-from-zero) */
+    TEST_ASSERT_EQUAL_INT(223, (int)(((int32_t)0x0164 * 10 + 8) / 16));
     /* raw = 0x0000 -> 0 */
-    TEST_ASSERT_EQUAL_INT(0, (int)(((int16_t)0x0000 * 10) / 16));
+    TEST_ASSERT_EQUAL_INT(0, (int)(((int32_t)0x0000 * 10 + 8) / 16));
 }
 
 void run_test_timing(void) {

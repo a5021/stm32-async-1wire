@@ -2,7 +2,7 @@
  *  test_temperature.c - Temperature Decoding Tests
  *
  *  Tests decode_temperature(): raw scratchpad bytes 0/1 (LSB/MSB)
- *  -> tenths of °C via (raw * 10) / 16.
+ *  -> tenths of °C via round-half-away-from-zero (raw * 10 +/- 8) / 16.
  * ============================================================ */
 
 #include "ds18b20.h"
@@ -20,11 +20,11 @@ void test_temperature_zero_raw_returns_zero(void) {
 }
 
 void test_temperature_22_25C(void) {
-    TEST_ASSERT_EQUAL_INT(222, decode_temp_from_raw(0x64, 0x01));
+    TEST_ASSERT_EQUAL_INT(223, decode_temp_from_raw(0x64, 0x01));
 }
 
 void test_temperature_25_0625C(void) {
-    TEST_ASSERT_EQUAL_INT(250, decode_temp_from_raw(0x91, 0x01));
+    TEST_ASSERT_EQUAL_INT(251, decode_temp_from_raw(0x91, 0x01));
 }
 
 void test_temperature_125C_max(void) {
@@ -48,11 +48,19 @@ void test_temperature_0_5C(void) {
 }
 
 void test_temperature_smallest_positive(void) {
-    TEST_ASSERT_EQUAL_INT(0, decode_temp_from_raw(0x01, 0x00));
+    TEST_ASSERT_EQUAL_INT(1, decode_temp_from_raw(0x01, 0x00));
 }
 
 void test_temperature_smallest_negative(void) {
-    TEST_ASSERT_EQUAL_INT(0, decode_temp_from_raw(0xFF, 0xFF));
+    TEST_ASSERT_EQUAL_INT(-1, decode_temp_from_raw(0xFF, 0xFF));
+}
+
+void test_temperature_neg_0_4C(void) {
+    TEST_ASSERT_EQUAL_INT(-4, decode_temp_from_raw(0xF9, 0xFF));
+}
+
+void test_temperature_neg_0_9C(void) {
+    TEST_ASSERT_EQUAL_INT(-9, decode_temp_from_raw(0xF1, 0xFF));
 }
 
 void test_temperature_85C_power_on_reset(void) {
@@ -70,5 +78,7 @@ void run_test_temperature(void) {
     TEST_RUN(test_temperature_0_5C);
     TEST_RUN(test_temperature_smallest_positive);
     TEST_RUN(test_temperature_smallest_negative);
+    TEST_RUN(test_temperature_neg_0_4C);
+    TEST_RUN(test_temperature_neg_0_9C);
     TEST_RUN(test_temperature_85C_power_on_reset);
 }

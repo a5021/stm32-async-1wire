@@ -254,9 +254,11 @@ __STATIC_FORCEINLINE void decode_scratchpad(void) {
 __STATIC_FORCEINLINE int16_t decode_temperature(void) {
     // Combine LSB and MSB of temperature register (bytes 0 and 1)
     int16_t raw = (int16_t)((ctx.scratchpad[1] << 8) | ctx.scratchpad[0]);
-    // Convert to tenths of degrees Celsius (raw value in 1/16th degrees)
-    // Multiply by 10 then divide by 16 to get value in tenths of degree
-    return (raw * 10) / 16;
+    // Convert to tenths of degrees Celsius (raw value in 1/16th degrees):
+    // multiply by 10 and divide by 16 with round-half-away-from-zero so the
+    // sign is preserved for small negative values (raw = -1 would otherwise
+    // truncate to 0 and report +0.0 °C for a temperature below freezing).
+    return (int16_t)(((int32_t)raw * 10 + ((raw < 0) ? -8 : 8)) / 16);
 }
 
 /**
