@@ -51,6 +51,9 @@ void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v);
 /* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */
 void ds18b20_test_set_gap_us(uint16_t us);
 
+/* Reset the search context to "no search running" (finished, DONE phase). */
+void ds18b20_test_reset_search(void);
+
 /* Register the driver's internal DMA buffers with the hardware model. */
 void ds18b20_test_register_buffers(void);
 

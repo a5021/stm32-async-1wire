@@ -68,3 +68,17 @@ uint8_t test_ds18b20_bus_done(void) { return ds18b20_bus_done(); }
 uint8_t test_bus_present(void) { return ds18b20_bus_present(); }
 uint16_t test_search_edge(uint8_t i) { return search_edge3[i]; }
 void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v) { search_edge3[i] = v; }
+
+void ds18b20_test_reset_search(void) {
+    search_ctx.finished = 1;
+    search_ctx.phase = DS18B20_SEARCH_DONE;
+    search_ctx.found = 0;
+    search_ctx.max = 0;
+    search_ctx.sink = NULL;
+    search_ctx.id_bit_number = 0;
+    search_ctx.last_discrepancy = 0;
+    search_ctx.last_zero = 0;
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        search_ctx.rom[i] = 0;
+    }
+}

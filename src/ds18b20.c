@@ -158,6 +158,14 @@ typedef struct {
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
 
+/* B1 guard: send_command_n() reads cmd[slots] as the trailing zero-pulse that
+ * the final DMA transfer feeds into CCR1 to release the 1-Wire bus. The
+ * addr_cmd buffer must therefore hold DS18B20_MATCH_SLOTS + 1 entries, not
+ * DS18B20_MATCH_SLOTS, or that last slot reads one byte past the buffer. */
+_Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
+               "addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing "
+               "bus-release pulse consumed by send_command_n()");
+
 /**
  * @brief Edge capture buffer for the merged search write+read operation
  * @note Holds [write-slot edge, id_bit, cmp_bit]. Channel 2 capture runs for
@@ -392,6 +400,12 @@ __STATIC_FORCEINLINE void build_addr_prefix(void) {
         encode_byte_pulses(p, ctx.selected_rom[i]);
         p += DS18B20_BITS_PER_BYTE;
     }
+    /* B1: guarantee the trailing zero-pulse that send_command_n() reads as its
+     * final DMA transfer into CCR1 is present, even though build_addr_cmd()
+     * only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1. Without this, the
+     * bus-release pulse would depend on whatever happened to sit at
+     * addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not guaranteed). */
+    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = 0;
 }
 
 /**
@@ -680,6 +694,14 @@ void ds18b20_test_set_gap_us(uint16_t us) { test_gap_us = us; }
  * @param[in] max_devices Maximum number of devices to report (0 aborts)
  */
 void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    // Ownership guard: the search and the measurement state machine share
+    // TIM1/DMA, so a new search may only be started when the timer is free.
+    if (!search_ctx.finished) {
+        return; // a search is already running
+    }
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        return; // a measurement cycle is in progress
+    }
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
@@ -907,6 +929,9 @@ uint8_t ds18b20_search_count(void) { return search_ctx.found; }
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
  */
 void ds18b20_init(void) {
+    // No search running after init: lets the measurement state machine own the
+    // timer until the application starts a device search.
+    search_ctx.finished = 1;
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
     RC.AHBENR |= RCC_AHBENR(DMA1EN);
@@ -962,6 +987,9 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
         // Return to IDLE before the callback so a re-selection from inside
         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
         ctx.current_state = DS18B20_ST_IDLE;
+        // Turn the busy indicator off: busy(1) was set in START and this early
+        // exit skips the DECODE state where busy(0) is normally cleared.
+        ds18b20_busy(0);
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
         start_cycle_pause();
         return;
@@ -981,6 +1009,11 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
  * @note Uses timer update interrupt flag to determine when operations complete
  */
 void ds18b20_poll(void) {
+    // Ownership guard: while the device search owns the timer, the measurement
+    // state machine must stay out of the way and not react to search UIFs.
+    if (!search_ctx.finished) {
+        return;
+    }
 
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish

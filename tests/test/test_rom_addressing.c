@@ -13,6 +13,10 @@
 #define ONE_P 5u
 #define ZERO_P 60u
 
+/* Mirror of the driver-internal DS18B20_MATCH_SLOTS so bounds tests use the
+ * real slot count (= (DS18B20_ROM_BYTES + 2) * 8 = 80) rather than a literal. */
+#define ADDR_CMD_SLOTS ((DS18B20_ROM_BYTES + 2) * 8)
+
 void test_rom_addressing_select_NULL_clears_mode(void) {
     uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
     ds18b20_select(rom);
@@ -143,6 +147,26 @@ void test_rom_addressing_select_ignored_mid_cycle(void) {
     }
 }
 
+/*-------------------------------------------------------------
+ *  Test: B1 - trailing bus-release sentinel (addr_cmd[DS18B20_MATCH_SLOTS])
+ *  stays 0. send_command_n() reads that slot as the final zero-pulse that
+ *  releases the 1-Wire bus; if it were ever non-zero or written out of
+ *  bounds the last slot would glitch. build_addr_prefix() now zeroes it
+ *  explicitly and the buffer is sized DS18B20_MATCH_SLOTS + 1.
+ * -----------------------------------------------------------*/
+void test_rom_addressing_trailing_bus_release_sentinel(void) {
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+    ds18b20_test_build_addr_cmd(DS18B20_CONVERT_T);
+
+    /* Sentinel at index DS18B20_MATCH_SLOTS (== ADDR_CMD_SLOTS) must be 0. */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_addr_cmd((uint8_t)ADDR_CMD_SLOTS));
+
+    /* And the address bytes themselves must not spill past slot 79. */
+    uint8_t marker = ds18b20_test_get_addr_cmd((uint8_t)(ADDR_CMD_SLOTS - 1));
+    TEST_ASSERT_TRUE(marker == ONE_P || marker == ZERO_P);
+}
+
 void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_NULL_clears_mode);
     TEST_RUN(test_rom_addressing_select_copies_rom);
@@ -153,4 +177,5 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_read_scratchpad_encoding);
     TEST_RUN(test_rom_addressing_different_roms_different_prefixes);
     TEST_RUN(test_rom_addressing_select_ignored_mid_cycle);
+    TEST_RUN(test_rom_addressing_trailing_bus_release_sentinel);
 }

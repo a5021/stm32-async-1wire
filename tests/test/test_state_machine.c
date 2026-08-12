@@ -23,6 +23,10 @@
 static int16_t spy_complete_value;
 static int spy_complete_called;
 
+/* Busy-indicator spy: records the last ds18b20_busy() action. */
+static int spy_busy_calls;
+static unsigned spy_busy_last_action;
+
 void ds18b20_complete(int16_t temp) {
     spy_complete_value = temp;
     spy_complete_called = 1;
@@ -31,6 +35,8 @@ void ds18b20_complete(int16_t temp) {
 void spy_reset(void) {
     spy_complete_value = 0;
     spy_complete_called = 0;
+    spy_busy_calls = 0;
+    spy_busy_last_action = 0;
 }
 
 /*-------------------------------------------------------------
@@ -107,6 +113,7 @@ void test_state_machine_convert_with_presence_pass(void) {
  *  Test: CONVERT state with presence check fail
  * -----------------------------------------------------------*/
 void test_state_machine_convert_with_presence_fail(void) {
+    spy_reset();
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
@@ -125,6 +132,8 @@ void test_state_machine_convert_with_presence_fail(void) {
 
     /* After failure, state goes back to IDLE (0) with pause timer running */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+    /* Busy indicator must be cleared even though DECODE was skipped. */
+    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
 }
 
 /*-------------------------------------------------------------
@@ -672,9 +681,6 @@ void test_state_machine_init_configures_registers(void) {
 /*-------------------------------------------------------------
  *  Test: ds18b20_busy() spy - START sets busy, DECODE clears it
  * -----------------------------------------------------------*/
-static int spy_busy_calls;
-static unsigned spy_busy_last_action;
-
 void ds18b20_busy(unsigned action) {
     spy_busy_calls++;
     spy_busy_last_action = action;
@@ -728,6 +734,39 @@ void test_state_machine_request_presence_fail(void) {
     TEST_ASSERT_TRUE(spy_complete_called);
     TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+    /* Busy indicator must be cleared even though DECODE was skipped. */
+    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
+}
+
+/*-------------------------------------------------------------
+ *  Test: a presence failure in issue_command (CONVERT state) must
+ *  clear the busy indicator. busy(1) is asserted in START; the early
+ *  error exit used to skip DECODE (where busy(0) normally lives), so
+ *  it must clear busy itself.
+ * -----------------------------------------------------------*/
+void test_state_machine_presence_fail_clears_busy(void) {
+    spy_reset();
+    spy_busy_calls = 0;
+    spy_busy_last_action = 0;
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_last_action); /* busy ON */
+
+    /* Now in CONVERT with no device present: issue_command must fail and
+     * turn busy OFF before reporting NO_SENSOR. */
+    ds18b20_test_set_edge(0, 100); /* bad reset */
+    ds18b20_test_set_edge(1, 100); /* bad presence */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action); /* busy OFF */
 }
 
 /*-------------------------------------------------------------
@@ -872,6 +911,7 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_init_configures_registers);
     TEST_RUN(test_state_machine_busy_spy);
     TEST_RUN(test_state_machine_request_presence_fail);
+    TEST_RUN(test_state_machine_presence_fail_clears_busy);
     TEST_RUN(test_state_machine_crc_fail_mid_cycle);
     TEST_RUN(test_state_machine_full_cycle_skip_rom_value);
 }

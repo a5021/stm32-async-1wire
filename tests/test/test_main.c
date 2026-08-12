@@ -16,6 +16,7 @@ void setUp(void) {
     hw_reset_all();
     ds18b20_test_register_buffers();
     ds18b20_test_reset_ctx();
+    ds18b20_test_reset_search();
     ds18b20_test_set_gap_us(0);
 }
 

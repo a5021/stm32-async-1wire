@@ -445,6 +445,43 @@ void test_search_pair_11_terminates(void) {
 }
 
 /*-------------------------------------------------------------
+ *  A NULL sink must not be dereferenced. The search still runs to
+ *  completion and counts devices internally, but the per-device
+ *  callback is never invoked: exercises the `if (search_ctx.sink
+ *  && ...)` guard in ds18b20.c.
+ * -----------------------------------------------------------*/
+void test_search_null_sink_completes(void) {
+    uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    memcpy(g_rom, serial, 7);
+    g_rom[7] = ds18b20_crc8(g_rom, 7);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    hw_set_capture_source(search_capture_src);
+    ds18b20_search_start(NULL, 1);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            uint8_t ok = hw_run_until_uif(100);
+            TEST_ASSERT_TRUE(ok);
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+
+    /* Device found internally... */
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_count());
+    /* ...but the NULL sink was never invoked. */
+    TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
+}
+
+/*-------------------------------------------------------------
  *  A device whose ROM CRC is wrong is rejected: the search runs
  *  the full 64 bits, then discards the ROM and reports nothing.
  * -----------------------------------------------------------*/
@@ -605,6 +642,116 @@ void test_search_gap_between_slots(void) {
 }
 
 /*-------------------------------------------------------------
+ *  The search and the measurement state machine share TIM1/DMA.
+ *  While a search runs, ds18b20_poll() must NOT react to the
+ *  search's UIF or advance the measurement state machine.
+ * -----------------------------------------------------------*/
+void test_search_poll_ignored_while_search_running(void) {
+    uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    memcpy(g_rom, serial, 7);
+    g_rom[7] = ds18b20_crc8(g_rom, 7);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    hw_set_capture_source(search_capture_src);
+    ds18b20_search_start(sink, 1);
+
+    /* Complete the reset so the search is mid-flight and UIF is set. */
+    if (mock_tim1.CR1 & TIM_CR1_CEN) {
+        TEST_ASSERT_TRUE(hw_run_until_uif(100));
+    }
+
+    /* Mid-search: poll() must not consume the UIF nor advance the state. */
+    ds18b20_test_set_state(DS18B20_ST_WAIT);
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
+
+    /* The search itself still consumes the same UIF and runs to completion. */
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(100));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_count());
+
+    /* poll() stayed out of the way the whole time: the measurement state was
+     * never advanced while the search owned the timer. */
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  ds18b20_search_start() while a search is already running is
+ *  ignored: the running search keeps its original sink and max.
+ * -----------------------------------------------------------*/
+static uint8_t g_reentry_b_calls;
+static uint8_t reentry_sink_b(const uint8_t* rom) {
+    (void)rom;
+    g_reentry_b_calls++;
+    return 0;
+}
+
+void test_search_start_reentry_ignored(void) {
+    uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    memcpy(g_rom, serial, 7);
+    g_rom[7] = ds18b20_crc8(g_rom, 7);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    g_reentry_b_calls = 0;
+    hw_set_capture_source(search_capture_src);
+    ds18b20_search_start(sink, 1);
+
+    /* Re-entry while running must be ignored: the second sink/max must not
+     * overwrite the running search. */
+    ds18b20_search_start(reentry_sink_b, 4);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(100));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(1, g_found_count); /* original sink got the device */
+    TEST_ASSERT_EQUAL_UINT8(0, g_reentry_b_calls); /* second sink never called */
+}
+
+/*-------------------------------------------------------------
+ *  ds18b20_search_start() mid-measurement (non-IDLE state) is
+ *  ignored: nothing is scheduled and no search is started.
+ * -----------------------------------------------------------*/
+void test_search_start_blocked_mid_measurement(void) {
+    /* Non-IDLE measurement state: the timer belongs to the measurement. */
+    ds18b20_test_set_state(DS18B20_ST_CONVERT);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    ds18b20_search_start(sink, 1);
+
+    /* No search scheduled: nothing was armed and poll reports "no search". */
+    TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_poll());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
+}
+
+/*-------------------------------------------------------------
  *  Run all search tests
  * -----------------------------------------------------------*/
 void run_test_search(void) {
@@ -618,7 +765,11 @@ void run_test_search(void) {
     TEST_RUN(test_search_max_zero_aborts);
     TEST_RUN(test_search_sink_early_stop);
     TEST_RUN(test_search_pair_11_terminates);
+    TEST_RUN(test_search_null_sink_completes);
     TEST_RUN(test_search_rejects_bad_crc_rom);
     TEST_RUN(test_search_four_devices_found);
     TEST_RUN(test_search_gap_between_slots);
+    TEST_RUN(test_search_poll_ignored_while_search_running);
+    TEST_RUN(test_search_start_reentry_ignored);
+    TEST_RUN(test_search_start_blocked_mid_measurement);
 }
