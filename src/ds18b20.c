@@ -159,6 +159,8 @@ typedef struct {
     };
     ds18b20_state_t current_state; /**< Current state of the state machine */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
+    uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
+    uint8_t scan_index; /**< Index of the device currently read in scan mode */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
@@ -175,6 +177,11 @@ typedef struct {
 
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
+
+/** @brief ROM table of the discovered devices (filled by the device search). */
+static uint8_t dev_roms[DS18B20_MAX_DEVICES][DS18B20_ROM_BYTES];
+/** @brief Number of devices currently stored in dev_roms. */
+static uint8_t dev_count;
 
 /* B1 guard: send_command_n() reads cmd[slots] as the trailing zero-pulse that
  * the final DMA transfer feeds into CCR1 to release the 1-Wire bus. The
@@ -326,11 +333,23 @@ __STATIC_FORCEINLINE void start_timer(uint16_t arr, uint8_t rcr) {
  */
 __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {
     switch (res) {
-    case 9: *arr = 9375; *rcr = 9; break; /* 10 × 9.375ms = 93.75ms */
-    case 10: *arr = 18750; *rcr = 9; break; /* 10 × 18.75ms = 187.5ms */
-    case 11: *arr = 18750; *rcr = 19; break; /* 20 × 18.75ms = 375ms */
+    case 9:
+        *arr = 9375;
+        *rcr = 9;
+        break; /* 10 × 9.375ms = 93.75ms */
+    case 10:
+        *arr = 18750;
+        *rcr = 9;
+        break; /* 10 × 18.75ms = 187.5ms */
+    case 11:
+        *arr = 18750;
+        *rcr = 19;
+        break; /* 20 × 18.75ms = 375ms */
     case 12:
-    default: *arr = 62500; *rcr = 11; break; /* 12 × 62.5ms = 750ms */
+    default:
+        *arr = 62500;
+        *rcr = 11;
+        break; /* 12 × 62.5ms = 750ms */
     }
 }
 
@@ -758,6 +777,7 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     search_ctx.found = 0;
     search_ctx.finished = 0;
     search_ctx.last_discrepancy = 0;
+    dev_count = 0;
     if (max_devices == 0) {
         search_ctx.phase = DS18B20_SEARCH_DONE;
         return;
@@ -922,6 +942,15 @@ uint8_t ds18b20_search_poll(void) {
         }
         if (search_ctx.rom[0] == DS18B20_FAMILY_CODE) {
             search_ctx.found++;
+            // Store the ROM in the driver's device table for scan mode. The
+            // table is capped at DS18B20_MAX_DEVICES; extra devices are still
+            // reported to the sink but not addressable in scan mode.
+            if (dev_count < DS18B20_MAX_DEVICES) {
+                for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+                    dev_roms[dev_count][i] = search_ctx.rom[i];
+                }
+                dev_count++;
+            }
             if (search_ctx.sink && search_ctx.sink(search_ctx.rom)) {
                 search_ctx.phase = DS18B20_SEARCH_DONE;
                 break;
@@ -1027,8 +1056,11 @@ __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
  *       actually used, not always at the end of the buffer.
  */
 __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
+    // In scan mode the config write must reach every sensor, so the Match ROM
+    // address is skipped even if a single-device address is still selected.
+    const uint8_t use_match = ctx.address_mode && !ctx.scan_mode;
     uint8_t* p = res_ctx.pulses;
-    if (ctx.address_mode) {
+    if (use_match) {
         encode_byte_pulses(p, DS18B20_MATCH_ROM);
         p += DS18B20_BITS_PER_BYTE;
         for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
@@ -1046,7 +1078,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     encode_byte_pulses(p, DS18B20_RES_TL);
     p += DS18B20_BITS_PER_BYTE;
     encode_byte_pulses(p, res_config_byte(res));
-    res_ctx.pulses[ctx.address_mode ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN] = 0;
+    res_ctx.pulses[use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN] = 0;
 }
 
 /**
@@ -1146,6 +1178,69 @@ uint8_t ds18b20_set_resolution_poll(void) {
 uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
 
 /**
+ * @brief Finish the current scan-mode device read
+ * @note Called after every per-device report in scan mode. Advances to the
+ *       next device (CONTINUE, skipping a fresh conversion) or, after the last
+ *       device, returns to IDLE and starts the inter-measurement pause so the
+ *       next round begins with a new broadcast Convert T. In single-device
+ *       mode it only starts the inter-measurement pause.
+ */
+static void scan_finish_or_next(void) {
+    if (!ctx.scan_mode) {
+        start_cycle_pause();
+        return;
+    }
+    ctx.scan_index++;
+    if (ctx.scan_index < dev_count) {
+        ctx.current_state = DS18B20_ST_CONTINUE;
+    } else {
+        ctx.current_state = DS18B20_ST_IDLE;
+        start_cycle_pause();
+    }
+}
+
+/**
+ * @brief Begin simultaneous conversion of every discovered device
+ * @see ds18b20_scan_start() in ds18b20.h
+ */
+void ds18b20_scan_start(void) {
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        return; // a measurement cycle is in progress
+    }
+    if (!search_ctx.finished || !res_ctx.finished) {
+        return; // the search or a resolution change owns the timer
+    }
+    if (dev_count == 0) {
+        return; // nothing discovered: there is no device to convert
+    }
+    ctx.scan_mode = 1;
+    ctx.scan_index = 0;
+}
+
+/**
+ * @brief Number of DS18B20 devices stored by the driver
+ * @see ds18b20_device_count() in ds18b20.h
+ */
+uint8_t ds18b20_device_count(void) { return dev_count; }
+
+/**
+ * @brief ROM address of a discovered device
+ * @see ds18b20_device_rom() in ds18b20.h
+ */
+const uint8_t* ds18b20_device_rom(uint8_t index) {
+    if (index >= dev_count) {
+        return 0;
+    }
+    return dev_roms[index];
+}
+
+/**
+ * @brief Index of the device whose result ds18b20_complete() just reported
+ * @see ds18b20_scan_index() in ds18b20.h
+ */
+uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
+
+/**
  * @}
  */
 
@@ -1166,6 +1261,8 @@ void ds18b20_init(void) {
     // set_resolution tells us otherwise.
     res_ctx.finished = 1;
     ctx.resolution = DS18B20_RES_DEFAULT;
+    ctx.scan_mode = 0;
+    ctx.scan_index = 0;
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
     RC.AHBENR |= RCC_AHBENR(DMA1EN);
@@ -1199,6 +1296,8 @@ void ds18b20_select(const uint8_t* rom) {
         // Mid-cycle call - reject to keep the in-flight transaction intact.
         return;
     }
+    // Explicit single-device addressing: leave simultaneous-conversion mode.
+    ctx.scan_mode = 0;
     if (rom == 0) {
         ctx.address_mode = 0;
         return;
@@ -1276,6 +1375,12 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_CONVERT:
+        if (ctx.scan_mode) {
+            // Scan mode: broadcast Convert T (Skip ROM) so every sensor starts
+            // converting in parallel; a single conversion wait covers them all.
+            ctx.scan_index = 0; // new round: read back starting from device 0
+            ctx.address_mode = 0;
+        }
         issue_command(DS18B20_CONVERT_T, conv_cmd, DS18B20_ST_WAIT);
         break;
 
@@ -1292,6 +1397,14 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_REQUEST:
+        if (ctx.scan_mode) {
+            // Scan mode: read the current device back via Match ROM.
+            for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+                ctx.selected_rom[i] = dev_roms[ctx.scan_index][i];
+            }
+            build_addr_prefix();
+            ctx.address_mode = 1;
+        }
         issue_command(DS18B20_READ_SCRATCHPAD, read_cmd, DS18B20_ST_READ);
         break;
 
@@ -1308,6 +1421,14 @@ void ds18b20_poll(void) {
         // Turn off LED to indicate measurement complete
         ds18b20_busy(0);
 
+        // Return to IDLE before the callback so a re-selection from inside
+        // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
+        // Scan mode keeps its own per-device addressing, so it stays in DECODE
+        // and reports every device before returning to IDLE at the round end.
+        if (!ctx.scan_mode) {
+            ctx.current_state = DS18B20_ST_IDLE;
+        }
+
         // Match ROM mode: if the addressed device is absent, nobody drives
         // the bus after the address, so the whole scratchpad reads back as
         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.
@@ -1320,9 +1441,8 @@ void ds18b20_poll(void) {
                 }
             }
             if (all_ones) {
-                ctx.current_state = DS18B20_ST_IDLE;
                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-                start_cycle_pause();
+                scan_finish_or_next();
                 break;
             }
         }
@@ -1331,15 +1451,10 @@ void ds18b20_poll(void) {
         // Byte 5 must be 0xFF, Byte 7 must be 0x10.
         // This catches all-zero, all-0xFF, and bus fault conditions.
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
-            ctx.current_state = DS18B20_ST_IDLE;
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
-            start_cycle_pause();
+            scan_finish_or_next();
             break;
         }
-
-        // Return to IDLE before the callback so a re-selection from inside
-        // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
-        ctx.current_state = DS18B20_ST_IDLE;
 
         // Validate CRC and report temperature or error
         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {
@@ -1358,8 +1473,10 @@ void ds18b20_poll(void) {
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
         }
 
-        // Start inter-measurement pause period
-        start_cycle_pause();
+        // Next scan-mode device (CONTINUE, no fresh conversion) or, after the
+        // last device, back to IDLE plus the inter-measurement pause. In
+        // single-device mode this only starts the pause.
+        scan_finish_or_next();
         break;
 
     default:

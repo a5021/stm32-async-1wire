@@ -14,7 +14,7 @@ jobs:
       - name: Install clang-format (pinned)
         run: pip install clang-format==18.1.8
       - name: Check code formatting
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/app.h src/ds18b20.c src/app.c src/demo.c src/demo2.c tests/mock/*.h tests/mock/*.c tests/test/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/app.h src/ds18b20.c src/app.c src/demo.c src/demo2.c src/demo3.c tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ src/ds18b20.c src/app.c src/demo.c src/demo2.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ src/ds18b20.c src/app.c src/demo.c src/demo2.c src/demo3.c
 
   build:
     runs-on: ubuntu-latest
@@ -57,6 +57,8 @@ jobs:
         run: make
       - name: Build release (demo2)
         run: make APP=demo2
+      - name: Build release (demo3)
+        run: make APP=demo3
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true

@@ -127,6 +127,15 @@ typedef enum {
 #define DS18B20_RES_DEFAULT 12
 
 /**
+ * @brief Maximum number of DS18B20 devices tracked by the driver
+ * @note Size of the internal device table filled by the device search; the
+ *       simultaneous-conversion (scan) mode uses it to address every sensor.
+ */
+#ifndef DS18B20_MAX_DEVICES
+#define DS18B20_MAX_DEVICES 8
+#endif
+
+/**
  * @}
  */
 
@@ -211,6 +220,56 @@ uint8_t ds18b20_set_resolution_poll(void);
  *       so it also tracks a resolution changed externally.
  */
 uint8_t ds18b20_get_resolution(void);
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Scan DS18B20 Simultaneous Multi-Device Conversion
+ * @brief Convert every discovered sensor at the same time with one broadcast
+ *        Convert T (Skip ROM), then read each sensor back through Match ROM.
+ *        A single conversion time covers all devices: N x 750ms becomes
+ *        750ms + N x read. Each sensor's temperature is reported through
+ *        ds18b20_complete() in device-table order.
+ *
+ * The device table is filled by the non-blocking device search
+ * (ds18b20_search_*). Scan mode assumes a single resolution across all
+ * sensors (the driver writes the config broadcast) and is mutually exclusive
+ * with the single-device ds18b20_select() addressing.
+ * @{
+ */
+
+/**
+ * @brief Begin simultaneous conversion of every discovered device
+ * @note Schedules a broadcast Convert T (Skip ROM) so all sensors convert in
+ *       parallel; the driver then reads each one via Match ROM. Ignored
+ *       mid-cycle or while a device search / resolution change owns the timer.
+ * @note ds18b20_select() (single-device addressing) clears scan mode; call
+ *       ds18b20_scan_start() again to resume simultaneous conversion.
+ */
+void ds18b20_scan_start(void);
+
+/**
+ * @brief Number of DS18B20 devices stored by the driver
+ * @return Count of discovered devices (valid once the search finished)
+ */
+uint8_t ds18b20_device_count(void);
+
+/**
+ * @brief ROM address of a discovered device
+ * @param[in] index Device index (0 .. ds18b20_device_count()-1)
+ * @return Pointer to the 8-byte ROM (LSB first), or NULL for an out-of-range
+ *         index
+ * @note The pointer is valid until the next device search.
+ */
+const uint8_t* ds18b20_device_rom(uint8_t index);
+
+/**
+ * @brief Index of the device whose result ds18b20_complete() just reported
+ * @return Current device index inside ds18b20_complete() during scan mode
+ */
+uint8_t ds18b20_scan_index(void);
 
 /**
  * @}

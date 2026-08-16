@@ -3,8 +3,8 @@
 /* Access to driver internals: implemented in ds18b20_test_access.c which
  * #includes src/ds18b20.c, so the driver is compiled ONLY through that TU
  * (it must not also be compiled separately). */
-#include <stdint.h>
 #include "ds18b20.h"
+#include <stdint.h>
 
 /* State machine / scratchpad accessors (used by the legacy unit tests). */
 ds18b20_state_t ds18b20_test_get_state(void);
@@ -53,6 +53,14 @@ void ds18b20_test_set_gap_us(uint16_t us);
 
 /* Reset the search context to "no search running" (finished, DONE phase). */
 void ds18b20_test_reset_search(void);
+
+/* Device-table / scan-mode accessors (simultaneous multi-device conversion). */
+void ds18b20_test_set_device(uint8_t index, const uint8_t* rom);
+void ds18b20_test_set_device_count(uint8_t n);
+uint8_t ds18b20_test_get_device_count(void);
+uint8_t ds18b20_test_get_scan_mode(void);
+void ds18b20_test_set_scan_mode(uint8_t m);
+uint8_t ds18b20_test_get_scan_index(void);
 
 /* Resolution-change accessors (resolution state machine in src/ds18b20.c). */
 void ds18b20_test_set_resolution(uint8_t r); /* set ctx.resolution directly */

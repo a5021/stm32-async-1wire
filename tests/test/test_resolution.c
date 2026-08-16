@@ -89,10 +89,10 @@ void test_resolution_wait_timing_matches_table(void) {
         uint8_t rcr;
         uint32_t us;
     } k_wait[] = {
-        {9, 9375, 9, 93750},    /* 10 x 9.375ms = 93.75ms */
+        {9, 9375, 9, 93750}, /* 10 x 9.375ms = 93.75ms */
         {10, 18750, 9, 187500}, /* 10 x 18.75ms = 187.5ms */
-        {11, 18750, 19, 375000},/* 20 x 18.75ms = 375ms */
-        {12, 62500, 11, 750000},/* 12 x 62.5ms = 750ms */
+        {11, 18750, 19, 375000}, /* 20 x 18.75ms = 375ms */
+        {12, 62500, 11, 750000}, /* 12 x 62.5ms = 750ms */
     };
     for (unsigned i = 0; i < sizeof(k_wait) / sizeof(k_wait[0]); i++) {
         hw_reset_all();

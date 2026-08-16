@@ -24,6 +24,8 @@ void ds18b20_test_reset_ctx(void) {
     ctx.fill_union = (uint64_t)-1; /* 0xFF fill, same as ds18b20_poll() */
     ctx.current_state = DS18B20_ST_IDLE;
     ctx.address_mode = 0;
+    ctx.scan_mode = 0;
+    ctx.scan_index = 0;
     ctx.resolution = DS18B20_RES_DEFAULT; /* 12 bit, DS18B20 power-on default */
 }
 
@@ -91,7 +93,23 @@ void ds18b20_test_reset_search(void) {
     search_ctx.id_bit_number = 0;
     search_ctx.last_discrepancy = 0;
     search_ctx.last_zero = 0;
+    dev_count = 0;
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
 }
+
+void ds18b20_test_set_device(uint8_t index, const uint8_t* rom) {
+    if (index >= DS18B20_MAX_DEVICES) {
+        return;
+    }
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        dev_roms[index][i] = rom[i];
+    }
+}
+
+void ds18b20_test_set_device_count(uint8_t n) { dev_count = n; }
+uint8_t ds18b20_test_get_device_count(void) { return dev_count; }
+uint8_t ds18b20_test_get_scan_mode(void) { return ctx.scan_mode; }
+void ds18b20_test_set_scan_mode(uint8_t m) { ctx.scan_mode = m; }
+uint8_t ds18b20_test_get_scan_index(void) { return ctx.scan_index; }

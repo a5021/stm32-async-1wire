@@ -24,10 +24,17 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
    configured conversion resolution requires (93.75ms @ 9-bit … 750ms @ 12-bit),
    so lowering the resolution speeds up the measurement cycle.
  - Non-Blocking Resolution Change: `ds18b20_set_resolution()` /
-   `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
-   between measurement cycles with zero busy-waits, mirroring the device search
-   state machine. The resolution is also auto-derived from every valid
-   scratchpad read (`ds18b20_get_resolution()`).
+    `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
+    between measurement cycles with zero busy-waits, mirroring the device search
+    state machine. The resolution is also auto-derived from every valid
+    scratchpad read (`ds18b20_get_resolution()`).
+ - Simultaneous Multi-Device Conversion: `ds18b20_scan_start()` converts every
+    discovered sensor in parallel with one broadcast `Convert T` (Skip ROM) and
+    reads each one back via Match ROM, so N devices take one conversion wait
+    plus N reads. Each reading is reported through `ds18b20_complete()` in
+    device-table order; `ds18b20_scan_index()`, `ds18b20_device_rom()` and
+    `ds18b20_device_count()` identify the sensors (requires the device search
+    to have run first; assumes a uniform resolution).
 
 ## Requirements
 
@@ -47,6 +54,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 │   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
 │   ├── demo2.c             # Example: device search + sequential poll of all
+│   ├── demo3.c             # Example: device search + simultaneous conversion
 │   └── ds18b20.c           # Driver: state machine + internal bus primitives
 │                           #          + non-blocking Search ROM
 ├── CMSIS/                  # Build-time dependencies (gitignored)
@@ -66,28 +74,37 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 ## Examples
 
-Two ready-to-run example applications are provided; select one with `APP`:
+Three ready-to-run example applications are provided; select one with `APP`:
 
 | APP     | File             | Behaviour                                                        |
 |---------|------------------|------------------------------------------------------------------|
 | `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
+| `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 
 ```bash
 make                # build demo  -> build/ds18b20_demo.elf
 make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
+make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
 make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 ```
 
 Notes:
 
-- Both examples use `app_init()` (from `inc/app.h`) to set up the system
+- All examples use `app_init()` (from `inc/app.h`) to set up the system
   clock, USART1 TX and the busy LED in a single call.
 - `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
   With several sensors connected, all of them respond to the read command and
   the bus data collides (CRC failures are expected).
 - `demo2` measures the devices found at startup one at a time, in round-robin
   order. With exactly one sensor it behaves like `demo`.
+- `demo3` (scan mode) converts every discovered sensor in parallel: a single
+  conversion wait covers all devices, so N devices take `1 x conversion + N x
+  read` instead of `N x conversion`. Each reading is reported through
+  `ds18b20_complete()` in device-table order; `ds18b20_scan_index()` /
+  `ds18b20_device_rom()` identify the sensor. Scan mode assumes a uniform
+  resolution (the config is written broadcast) and is mutually exclusive with
+  `ds18b20_select()`.
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
 

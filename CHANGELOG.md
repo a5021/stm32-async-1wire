@@ -29,16 +29,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (alarms disabled) and the change is not persisted to the EEPROM.
 - `ds18b20_get_resolution()` reports the current resolution, auto-derived from
   every valid scratchpad read (byte 4, R1/R0 bits).
+- Simultaneous multi-device conversion: `ds18b20_scan_start()` converts every
+  discovered device in parallel with one broadcast `Convert T` (Skip ROM), then
+  reads each one back via Match ROM in device-table order. One conversion wait
+  covers all sensors (`750ms + N x read` instead of `N x 750ms`). Each reading
+  is reported through `ds18b20_complete()`; `ds18b20_scan_index()`,
+  `ds18b20_device_rom()` and `ds18b20_device_count()` identify the sensor. A
+  missing device reports `DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues.
+  `ds18b20_select()` (single-device addressing) clears scan mode; the config
+  write for a resolution change is broadcast in scan mode. See `demo3.c`.
 
 ### Changed
 
 - The public API is strictly non-blocking: the high-level interface
   (`ds18b20_init()`, `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
   `ds18b20_busy()`/`ds18b20_complete()`) plus the `ds18b20_search_*` family,
-  the `ds18b20_set_resolution_*` family and the CRC utility `ds18b20_crc8()`.
-  The internal 1-Wire bus helpers (`ds18b20_bus_*`), the Search ROM state
-  machine and the resolution-change state machine live inside the library
-  (`src/ds18b20.c`).
+  the `ds18b20_scan_*` family, the `ds18b20_set_resolution_*` family and the
+  CRC utility `ds18b20_crc8()`. The internal 1-Wire bus helpers
+  (`ds18b20_bus_*`), the Search ROM state machine and the resolution-change
+  state machine live inside the library (`src/ds18b20.c`).
 - The non-blocking device search is driven from the main loop exactly like the
   measurement state machine: each `ds18b20_search_poll()` performs one
   hardware operation. It filters by `DS18B20_FAMILY_CODE`, validates the ROM

@@ -11,33 +11,18 @@
 
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
+#include "ds18b20_test_spy.h"
 #include "hw_model.h"
 #include "stm32f1xx.h"
 #include "unity.h"
 #include <string.h>
 
 /*-------------------------------------------------------------
- *  Callback spy for ds18b20_complete
- *  Records the last value passed to the callback
+ *  Callback spy for ds18b20_complete/ds18b20_busy
+ *  (shared module: tests/mock/ds18b20_test_spy.c)
  * -----------------------------------------------------------*/
-static int16_t spy_complete_value;
-static int spy_complete_called;
 
-/* Busy-indicator spy: records the last ds18b20_busy() action. */
-static int spy_busy_calls;
-static unsigned spy_busy_last_action;
-
-void ds18b20_complete(int16_t temp) {
-    spy_complete_value = temp;
-    spy_complete_called = 1;
-}
-
-void spy_reset(void) {
-    spy_complete_value = 0;
-    spy_complete_called = 0;
-    spy_busy_calls = 0;
-    spy_busy_last_action = 0;
-}
+void spy_reset(void) { test_spy_reset(); }
 
 /*-------------------------------------------------------------
  *  Test: Initial state after ds18b20_init()
@@ -133,7 +118,7 @@ void test_state_machine_convert_with_presence_fail(void) {
     /* After failure, state goes back to IDLE (0) with pause timer running */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
     /* Busy indicator must be cleared even though DECODE was skipped. */
-    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
+    TEST_ASSERT_EQUAL_UINT8(0, test_spy_busy_last_action);
 }
 
 /*-------------------------------------------------------------
@@ -415,8 +400,8 @@ void test_state_machine_decode_all_zero_reports_error(void) {
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, test_spy_complete_value);
 
     /* State should return to IDLE */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
@@ -443,8 +428,8 @@ void test_state_machine_decode_all_FF_reports_error(void) {
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, test_spy_complete_value);
 
     /* State should return to IDLE */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
@@ -480,8 +465,8 @@ void test_state_machine_decode_all_FF_match_rom_reports_no_sensor(void) {
     ds18b20_poll();
 
     /* Must be NO_SENSOR, not a bogus CRC error */
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_value);
 
     /* State should return to IDLE */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
@@ -516,8 +501,8 @@ void test_state_machine_decode_corrupt_match_rom_reports_crc(void) {
     ds18b20_poll();
 
     /* Must remain a CRC error */
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, test_spy_complete_value);
 
     /* State should return to IDLE */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
@@ -540,8 +525,8 @@ void test_state_machine_decode_wrong_byte5_reports_error(void) {
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, test_spy_complete_value);
 
     /* State should return to IDLE */
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
@@ -659,8 +644,8 @@ void test_state_machine_search_select_measure_e2e(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(223, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(223, test_spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
 
@@ -681,23 +666,18 @@ void test_state_machine_init_configures_registers(void) {
 /*-------------------------------------------------------------
  *  Test: ds18b20_busy() spy - START sets busy, DECODE clears it
  * -----------------------------------------------------------*/
-void ds18b20_busy(unsigned action) {
-    spy_busy_calls++;
-    spy_busy_last_action = action;
-}
-
 void test_state_machine_busy_spy(void) {
     spy_reset();
-    spy_busy_calls = 0;
-    spy_busy_last_action = 0;
+    test_spy_busy_calls = 0;
+    test_spy_busy_last_action = 0;
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
     /* IDLE -> START -> CONVERT: busy(1) at START */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
-    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_calls);
-    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_last_action);
+    TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_calls);
+    TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_last_action);
 
     /* Decode with valid CRC: busy(0) at DECODE */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
@@ -712,7 +692,7 @@ void test_state_machine_busy_spy(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
+    TEST_ASSERT_EQUAL_UINT8(0, test_spy_busy_last_action);
 }
 
 /*-------------------------------------------------------------
@@ -731,11 +711,11 @@ void test_state_machine_request_presence_fail(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
     /* Busy indicator must be cleared even though DECODE was skipped. */
-    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action);
+    TEST_ASSERT_EQUAL_UINT8(0, test_spy_busy_last_action);
 }
 
 /*-------------------------------------------------------------
@@ -746,15 +726,15 @@ void test_state_machine_request_presence_fail(void) {
  * -----------------------------------------------------------*/
 void test_state_machine_presence_fail_clears_busy(void) {
     spy_reset();
-    spy_busy_calls = 0;
-    spy_busy_last_action = 0;
+    test_spy_busy_calls = 0;
+    test_spy_busy_last_action = 0;
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
     /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
-    TEST_ASSERT_EQUAL_UINT8(1, spy_busy_last_action); /* busy ON */
+    TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_last_action); /* busy ON */
 
     /* Now in CONVERT with no device present: issue_command must fail and
      * turn busy OFF before reporting NO_SENSOR. */
@@ -763,10 +743,10 @@ void test_state_machine_presence_fail_clears_busy(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
-    TEST_ASSERT_EQUAL_UINT8(0, spy_busy_last_action); /* busy OFF */
+    TEST_ASSERT_EQUAL_UINT8(0, test_spy_busy_last_action); /* busy OFF */
 }
 
 /*-------------------------------------------------------------
@@ -822,8 +802,8 @@ void test_state_machine_crc_fail_mid_cycle(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_CRC_FAIL, test_spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
 
@@ -879,8 +859,8 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
-    TEST_ASSERT_TRUE(spy_complete_called);
-    TEST_ASSERT_EQUAL_INT(223, spy_complete_value);
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(223, test_spy_complete_value);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
 
