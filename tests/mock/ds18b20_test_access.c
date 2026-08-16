@@ -5,6 +5,7 @@
 #include "ds18b20_test_access.h"
 #include "../src/ds18b20.c"
 #include "hw_model.h"
+#include <stddef.h>
 
 void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)&ctx.edge);
