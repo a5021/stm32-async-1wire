@@ -301,26 +301,26 @@ extern "C" {
   //void _close_r(void){} void _close(void){} void _lseek_r(void){} void _lseek(void){} void _read_r(void){} void _read(void){} void _write_r(void){}
 
   // Stubs to suppress newlib-nano warnings
-    int _close(int file) {
+    __attribute__((weak)) int _close(int file) {
         (void)file;
         return -1;
     }
     
-    int _lseek(int file, int ptr, int dir) {
+    __attribute__((weak)) int _lseek(int file, int ptr, int dir) {
         (void)file;
         (void)ptr;
         (void)dir;
         return -1;
     }
     
-    int _read(int file, char *ptr, int len) {
+    __attribute__((weak)) int _read(int file, char *ptr, int len) {
         (void)file;
         (void)ptr;
         (void)len;
         return -1;
     }
     
-    int _write(int file, char *ptr, int len) {
+    __attribute__((weak)) int _write(int file, char *ptr, int len) {
         (void)file;
         (void)ptr;
         (void)len;

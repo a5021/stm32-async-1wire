@@ -8,12 +8,13 @@
  * (9 -> 10 -> 11 -> 12 bit) between measurements through the non-blocking
  * ds18b20_set_resolution()/ds18b20_set_resolution_poll() API, so the
  * resolution-aware conversion wait is exercised live: at 9-bit a cycle
- * completes ~8x faster than at 12-bit. All low-level bus operations and the
- * search/resolution state machines live inside the driver; the example only
- * uses the public high-level interface. Nothing in this example blocks: the
- * search and the resolution change advance by one hardware operation per poll
- * call from the main loop. The shared platform layer (app.h/app.c) hides the
- * UART and clock setup.
+ * completes ~8x faster than at 12-bit. All low-level bus operations live in
+ * the shared 1-Wire layer (onewire.h/onewire.c), and the driver's
+ * search/resolution state machines build on it; the example only uses the
+ * public high-level interface. Everything is non-blocking: the search and the
+ * resolution change advance by one hardware operation per poll call from the
+ * main loop. The shared platform layer (app.h/app.c) hides the UART and clock
+ * setup.
  */
 
 #include "app.h"

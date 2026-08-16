@@ -14,10 +14,15 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
  - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
  - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
  - Non-Blocking Device Search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
-   `ds18b20_search_count()` find every DS18B20 on the bus. The low-level
-   1-Wire bus primitives and the Search ROM state machine live inside the
-   driver, so the public API is a small high-level interface only — zero
-   busy-waits, consistent with the non-blocking measurement path.
+   `ds18b20_search_count()` find every DS18B20 on the bus. The engine is the
+   generic Search ROM state machine of the shared 1-Wire layer; the driver
+   stays a small high-level interface on top of it.
+ - Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
+   non-blocking 1-Wire master. The bus primitives (reset, presence, write/read
+   slots, multi-byte read) and the generic Maxim Search ROM engine are
+   scheduled on TIM1/DMA and complete asynchronously. `src/ds18b20.c` is built
+   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
+   as-is.
  - Non-Blocking Alarm Search: `ds18b20_alarm_search_start()`,
    `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
    DS18B20 devices currently in alarm state (temperature outside the TH/TL
@@ -53,6 +58,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 ```
 ├── inc/                    # Project header files
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
+│   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── app.h               # Shared application layer (UART, clock, init)
 │   └── macro.h             # STM32 register access macros
 ├── src/                    # Project source files
@@ -60,8 +66,9 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
 │   ├── demo2.c             # Example: device search + sequential poll of all
 │   ├── demo3.c             # Example: device search + simultaneous conversion
-│   └── ds18b20.c           # Driver: state machine + internal bus primitives
-│                           #          + non-blocking Search ROM
+│   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
+│   │                       #               + non-blocking Search ROM engine
+│   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32F1 device headers and startup
@@ -274,10 +281,10 @@ hardware required:
 make test
 ```
 
-The driver is compiled as a single translation unit
-(`tests/mock/ds18b20_test_access.c` includes `src/ds18b20.c`) against a
-behavioural model of the TIM1/DMA hardware (`tests/mock/hw_model.c`) and a
-register mock of the STM32F1 CMSIS header. 157 tests cover:
+Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
+unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
+TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the STM32F1
+CMSIS header. 157 tests cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -288,6 +295,9 @@ register mock of the STM32F1 CMSIS header. 157 tests cover:
     bus release, ownership guards, presence-abort and scratchpad auto-derivation
 -   CRC-8 (Dallas/Maxim) verification
 -   1-Wire pulse encoding and presence detection
+-   1-Wire layer coverage: reset/presence timing, write-then-read merge,
+-    multi-slot writes, multi-byte reads, search engine (device + alarm),
+-    ownership guards and the search edge buffers
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
@@ -400,11 +410,33 @@ This driver uses an advanced technique that combines multiple hardware features:
 
 > The driver ships with a built-in non-blocking device search
 > (`ds18b20_search_*`) for multi-sensor buses. The Maxim Search ROM (0xF0)
-> algorithm is implemented as a compact state machine inside the driver; it
-> performs exactly one hardware-timed operation per poll call — consistent with
-> the non-blocking measurement path, there are no busy-waits anywhere. All
-> low-level bus operations stay internal to the driver. See `demo2.c` for a
+> algorithm is implemented as a compact state machine in the shared 1-Wire
+> layer; it performs exactly one hardware-timed operation per poll call,
+> consistent with the non-blocking measurement path. See `demo2.c` for a
 > complete Search ROM example.
+
+### Shared 1-Wire Layer
+
+All bus-level protocol lives in `src/onewire.c` (interface in `inc/onewire.h`),
+a reusable 1-Wire master that the DS18B20 driver builds on:
+
+- `onewire_init()`, `onewire_reset()`, `onewire_present()`,
+  `onewire_write_slots()`, `onewire_write_bit()`, `onewire_encode_byte()`,
+  `onewire_read_pair()`, `onewire_write_then_read()`, `onewire_pair_bits()`,
+  `onewire_read_data()`, `onewire_start_timer()`, `onewire_bus_done()` — the
+  TIM1/DMA bus primitives.
+- `onewire_search_start()`, `onewire_search_poll()`,
+  `onewire_search_count()`, `onewire_search_active()` — the generic Maxim
+  Search ROM engine, shared by `ds18b20_search_*` and
+  `ds18b20_alarm_search_*`.
+- `onewire_crc8()` — the Dallas/Maxim CRC-8 utility.
+
+Every operation is scheduled as one hardware transaction on TIM1/DMA and
+completes asynchronously; the caller advances it by polling
+`onewire_bus_done()` / `onewire_search_poll()`. The layer owns its own capture
+edge buffers, keeps the line released to idle HIGH after every transaction, and
+is fully covered by the host test suite. See the API Reference below for the
+complete `onewire_*` surface.
 
 ### Hardware Resources Used
 
@@ -532,16 +564,38 @@ void ds18b20_poll(void);
 ```
 The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
 
-### Internal 1-Wire Bus Primitives
+### 1-Wire Layer (shared)
 
-The non-blocking 1-Wire bus primitives (`ds18b20_bus_reset()`,
-`ds18b20_bus_done()`, `ds18b20_bus_present()`, `ds18b20_bus_encode_byte()`,
-`ds18b20_bus_write_slots()`, `ds18b20_bus_write_bit()`,
-`ds18b20_bus_read_pair()`, `ds18b20_bus_write_then_read()`,
-`ds18b20_bus_pair_id()`, `ds18b20_bus_pair_cmp()`)
-and the Search ROM state machine are **private to the driver** (`static` in
-`src/ds18b20.c`). They are not part of the public API; the built-in device
-search is the supported way to enumerate the bus.
+The 1-Wire bus primitives and the Search ROM engine are **not** part of the
+driver — they live in the shared 1-Wire layer (`inc/onewire.h` +
+`src/onewire.c`) that `src/ds18b20.c` is built on. Full interface:
+
+```C
+void        onewire_init(void);
+uint8_t     onewire_bus_done(void);
+void        onewire_reset(volatile uint16_t *edge_out);
+uint8_t     onewire_present(const volatile uint16_t *edge);
+void        onewire_write_slots(const uint8_t *pulses, uint16_t slots);
+void        onewire_write_bit(uint8_t bit);
+void        onewire_encode_byte(uint8_t *out, uint8_t byte);
+void        onewire_read_pair(volatile uint16_t *edge_out);
+void        onewire_write_then_read(uint8_t bit);
+void        onewire_pair_bits(const volatile uint16_t *edge,
+                              uint8_t *id_bit, uint8_t *cmp_bit);
+void        onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
+void        onewire_start_timer(uint16_t arr, uint8_t rcr);
+uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
+void        onewire_search_start(onewire_search_sink_t sink,
+                                 uint8_t max_devices, uint8_t command,
+                                 uint8_t family);
+uint8_t     onewire_search_poll(void);
+uint8_t     onewire_search_count(void);
+uint8_t     onewire_search_active(void);
+```
+
+Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
+`onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
+for its own `ds18b20_search_*` / `ds18b20_alarm_search_*` wrappers.
 
 ### CRC Utility
 
@@ -710,7 +764,7 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ### Timing Constants
 
-Adjustable in ds18b20.c:
+Adjustable in onewire.c:
 ```C
 #define RESET_PULSE_MIN       480U    // µs
 #define RESET_PULSE_MAX       540U    // µs
@@ -754,8 +808,9 @@ Slot formula: `ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND` = 70µs total.
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
-- Inspect Captured Data: Examine `ctx.edge[]` after a reset or
-  `ctx.pulse[]` after a read to see the raw timing data.
+- Inspect Captured Data: Examine the 1-Wire layer's `ctx.edge[]` after a reset
+  or `ctx.pulse[]` after a read (in `src/onewire.c`) to see the raw timing
+  data.
 
 ## License
 

@@ -18,6 +18,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alarm search never repopulates the scan-mode device table, so the addresses
   found by a previous device search stay valid while the alarm state of the bus
   is polled.
+- Universal non-blocking 1-Wire layer: `inc/onewire.h` + `src/onewire.c`. The
+  bus primitives (reset, presence, write/read slots, merged write-then-read,
+  multi-byte read) and the generic Maxim Search ROM engine
+  (`onewire_search_start()`, `onewire_search_poll()`, `onewire_search_count()`,
+  `onewire_search_active()`) now live in a shared layer that any 1-Wire slave
+  driver (DS18B20 today, DS2413/DS2431 later) is built on. Every operation is
+  scheduled on TIM1/DMA and completes asynchronously; callers poll
+  `onewire_bus_done()` / `onewire_search_poll()` to advance, never wait. The
+  layer is registered for capture via its own edge buffers and keeps the same
+  hardware bus release to idle HIGH after every transaction. It also provides
+  the Dallas/Maxim CRC-8 utility `onewire_crc8()`.
+
+### Changed
+
+- The 1-Wire bus primitives and the Search ROM state machine moved out of the
+  driver into the shared layer. `src/ds18b20.c` now builds on `onewire_*`; the
+  public `ds18b20.h` API (including the `ds18b20_bus_*`-free surface) is
+  unchanged, and the driver's `ds18b20_init()` initializes the layer for you.
+- `inc/macro.h` newlib-nano syscall stubs (`_read`, `_write`, `_close`,
+  `_lseek`) are now `weak`: the layer and the driver each include `macro.h`,
+  and weak definitions keep the multi-translation-unit firmware link clean.
 
 ## [1.1.0] - 2026-08-16
 

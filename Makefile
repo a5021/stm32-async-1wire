@@ -24,7 +24,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 ifneq ($(filter $(APP),diag),)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/app.c
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/ds18b20.c src/app.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
 endif
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
@@ -343,7 +343,7 @@ TEST_INC  = -Iinc -I$(TEST_MOCK)
 test: $(TEST_OUT)/ds18b20_test.exe
 	$(TEST_OUT)/ds18b20_test.exe
 
-$(TEST_OUT)/ds18b20_test.exe: $(TEST_SRC) Makefile | $(TEST_OUT)
+$(TEST_OUT)/ds18b20_test.exe: $(TEST_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) -o $@
 
 $(TEST_OUT):

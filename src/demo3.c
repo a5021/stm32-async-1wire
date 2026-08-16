@@ -7,11 +7,12 @@
  * with a single broadcast Convert T (Skip ROM) and read each one back through
  * Match ROM. One conversion wait covers every device; the temperature of each
  * sensor is reported through ds18b20_complete() in device-table order.
- * All low-level bus operations and the search/scan state machines live inside
- * the driver; this example only uses the public high-level interface. Nothing
- * blocks: the search and the scan advance by one hardware operation per poll
- * call from the main loop. The shared platform layer (app.h/app.c) hides the
- * UART and clock setup.
+ * All low-level bus operations live in the shared 1-Wire layer
+ * (onewire.h/onewire.c), and the driver's search/scan state machines build on
+ * it; this example only uses the public high-level interface. Everything is
+ * non-blocking: the search and the scan advance by one hardware operation per
+ * poll call from the main loop. The shared platform layer (app.h/app.c) hides
+ * the UART and clock setup.
  */
 
 #include "app.h"
