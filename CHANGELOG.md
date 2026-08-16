@@ -94,6 +94,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The scan mode stalled after the first device read on real hardware: after a
+  per-device read-back the state machine sat in `CONTINUE` waiting for a UIF
+  that never came, because `DECODE` arms no timer and only the inter-measurement
+  pause (single-device path) or a new conversion provides one. A 1ms scheduling
+  bridge timer is now armed between scan-mode reads so every device in the table
+  is reported each round (verified on an 8-sensor bus: 8 readings per round).
 - The non-blocking measurement state machine never started after a device
   search: the search clears the timer update flag on every operation, which
   left the driver idling in state 0 forever waiting for a UIF that never

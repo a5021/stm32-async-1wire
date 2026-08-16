@@ -80,6 +80,7 @@
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
 #define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
 #define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
+#define SCAN_DEVICE_GAP 1000, 0 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 /** @brief TH byte written together with the config register by the resolution
  *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
  *         0 disables the alarm trigger threshold. */
@@ -1193,6 +1194,11 @@ static void scan_finish_or_next(void) {
     ctx.scan_index++;
     if (ctx.scan_index < dev_count) {
         ctx.current_state = DS18B20_ST_CONTINUE;
+        /* DECODE armed nothing, so without a running timer no UIF would ever
+         * drive the CONTINUE state again (single-device mode gets its UIF from
+         * the inter-measurement pause). Arm a short scheduling delay: its UIF
+         * is the bridge to CONTINUE, which then arms the real bus reset. */
+        start_timer(SCAN_DEVICE_GAP);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
         start_cycle_pause();

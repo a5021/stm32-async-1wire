@@ -120,8 +120,13 @@ static void read_one_device(uint8_t expected_index, uint8_t expect_more,
     TEST_ASSERT_EQUAL_UINT8(expected_index, test_spy_complete_indices[before]);
     if (expect_more) {
         TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
+        /* The scheduling bridge timer must be armed: DECODE armed nothing, and
+         * without it no UIF would ever drive CONTINUE (the original stall). */
+        TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     } else {
         TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+        /* Inter-measurement pause armed after the last device. */
+        TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     }
 }
 
@@ -302,6 +307,7 @@ void test_broadcast_missing_device_continues(void) {
     TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_values[1]);
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_complete_indices[1]);
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
+    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN); /* bridge armed after NO_SENSOR too */
 
     /* Device 2: valid reading, round ends at IDLE. */
     read_one_device(2, 0, 223);
