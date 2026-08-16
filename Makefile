@@ -1,10 +1,12 @@
-# Select the example application: demo (single sensor, Skip ROM) or
+# Select the example application: demo (single sensor, Skip ROM),
 # demo2 (device search + sequential polling of every sensor on the bus)
+# or diag (standalone bit-bang 1-Wire diagnostics of a single sensor)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
+#   make APP=diag      -> builds diag   (ds18b20_diag.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2),)
-$(error APP must be 'demo' (single sensor) or 'demo2' (search + poll all))
+ifeq ($(filter $(APP),demo demo2 diag),)
+$(error APP must be 'demo', 'demo2' or 'diag')
 endif
 
 # Define the name of the project target and the build directory
@@ -16,7 +18,12 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
+# The diag app is a standalone bit-bang tool and does not link the driver.
+ifneq ($(filter $(APP),diag),)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/app.c
+else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/ds18b20.c src/app.c
+endif
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
@@ -26,6 +33,7 @@ INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
+UART_TX_SIZE_diag  = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
@@ -316,6 +324,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_rom_addressing.c \
             $(TEST_DIR)/test_timing.c \
             $(TEST_DIR)/test_temperature.c \
+            $(TEST_DIR)/test_resolution.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_access.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected

@@ -14,6 +14,7 @@ void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)((uintptr_t)ctx.addr_cmd + 1u)); /* &addr_cmd[1] */
     hw_register_buf((const void*)((uintptr_t)search_ctx.pulses + 1u)); /* &pulses[1] */
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
+    hw_register_buf((const void*)((uintptr_t)res_ctx.pulses + 1u)); /* &res_ctx.pulses[1] */
 }
 
 ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
@@ -23,6 +24,18 @@ void ds18b20_test_reset_ctx(void) {
     ctx.fill_union = (uint64_t)-1; /* 0xFF fill, same as ds18b20_poll() */
     ctx.current_state = DS18B20_ST_IDLE;
     ctx.address_mode = 0;
+    ctx.resolution = DS18B20_RES_DEFAULT; /* 12 bit, DS18B20 power-on default */
+}
+
+void ds18b20_test_set_resolution(uint8_t r) { ctx.resolution = r; }
+
+uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return res_ctx.pulses[i]; }
+
+void ds18b20_test_reset_resolution(void) {
+    res_ctx.phase = DS18B20_RES_DONE;
+    res_ctx.pending_res = DS18B20_RES_DEFAULT;
+    res_ctx.applied = 0;
+    res_ctx.finished = 1;
 }
 
 void ds18b20_test_set_edge(uint8_t i, uint16_t v) { ctx.edge[i] = v; }

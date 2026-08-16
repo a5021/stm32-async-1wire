@@ -97,6 +97,36 @@ typedef enum {
 #define DS18B20_READ_SCRATCHPAD 0xBE
 
 /**
+ * @brief DS18B20 Write Scratchpad command
+ * @note Writes TH, TL and the configuration register in one command.
+ */
+#define DS18B20_WRITE_SCRATCHPAD 0x4E
+
+/**
+ * @brief DS18B20 Copy Scratchpad command
+ * @note Copies the scratchpad into the EEPROM (non-volatile). Not used by
+ *       the resolution state machine: the new configuration takes effect
+ *       immediately and Copy Scratchpad would require a strong pull-up
+ *       (parasitic power) to be safe.
+ */
+#define DS18B20_COPY_SCRATCHPAD 0x48
+
+/**
+ * @brief Minimum supported temperature resolution in bits
+ */
+#define DS18B20_RES_MIN 9
+
+/**
+ * @brief Maximum supported temperature resolution in bits
+ */
+#define DS18B20_RES_MAX 12
+
+/**
+ * @brief Default temperature resolution in bits (power-on default of DS18B20)
+ */
+#define DS18B20_RES_DEFAULT 12
+
+/**
  * @}
  */
 
@@ -135,6 +165,52 @@ uint8_t ds18b20_search_poll(void);
  * @return Count of found devices
  */
 uint8_t ds18b20_search_count(void);
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Resolution DS18B20 Non-Blocking Resolution Change
+ * @brief Change the temperature conversion resolution (9..12 bit) between
+ *        measurement cycles. The sensor answers Convert T (0x44) after
+ *        93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms
+ *        (12 bit); this driver waits exactly as long as the configured
+ *        resolution requires and hands the timer back to ds18b20_poll()
+ *        when the change is complete.
+ *
+ * The configuration is written to the volatile scratchpad (Write Scratchpad
+ * 0x4E): it takes effect immediately and is not persisted to the EEPROM.
+ * Alarm trigger registers TH/TL are reset to 0x00 (disabled).
+ * @{
+ */
+
+/**
+ * @brief Start a non-blocking resolution change
+ * @param[in] bits New resolution in bits: DS18B20_RES_MIN (9) .. DS18B20_RES_MAX (12)
+ * @note Out-of-range values are ignored. The change is scheduled only between
+ *       measurement cycles and only while the device search is idle; otherwise
+ *       it is ignored. While running, it owns TIM1/DMA; poll it with
+ *       ds18b20_set_resolution_poll() until it reports completion, then call
+ *       ds18b20_poll() again to resume measuring with the new resolution.
+ */
+void ds18b20_set_resolution(uint8_t bits);
+
+/**
+ * @brief Advance the non-blocking resolution change by one hardware operation
+ * @return 1 when the change is finished (successfully or aborted), 0 while running
+ * @note When this returns 1 the next measurement uses the requested resolution
+ *       (if the config write actually completed).
+ */
+uint8_t ds18b20_set_resolution_poll(void);
+
+/**
+ * @brief Current conversion resolution in bits
+ * @return Resolution in bits (9..12); the default is 12
+ * @note Auto-derived from the last valid scratchpad read (byte 4, R1/R0),
+ *       so it also tracks a resolution changed externally.
+ */
+uint8_t ds18b20_get_resolution(void);
 
 /**
  * @}

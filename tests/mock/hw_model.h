@@ -23,9 +23,11 @@ void hw_set_capture_source(hw_capture_fn fn);
  * when the driver feeds from cmd[1]). */
 void hw_register_buf(const void* ptr);
 
-/* Log of CCR1 values written by the channel-4 DMA feed (per operation). */
+/* Log of CCR1 values written by the channel-4 DMA feed (per operation).
+ * Sized for the longest DMA-fed write (the Match ROM resolution config
+ * write: 104 slots). */
 typedef struct {
-    uint16_t values[64];
+    uint16_t values[128];
     uint8_t count;
 } hw_ccr1_feed_log_t;
 const hw_ccr1_feed_log_t* hw_ccr1_feed_log(void);

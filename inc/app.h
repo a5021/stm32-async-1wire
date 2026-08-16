@@ -51,6 +51,12 @@ void app_init(void);
 void uart_poll_tx(void);
 
 /**
+ * @brief Block until every enqueued byte has been transmitted
+ * @note Blocking, intended for diagnostic/blocking code paths only
+ */
+void uart_flush(void);
+
+/**
  * @brief Enqueue a single byte into the USART1 TX ring buffer (non-blocking)
  * @param[in] b Byte to enqueue
  * @return 1 if enqueued, 0 if the buffer is full (byte dropped)

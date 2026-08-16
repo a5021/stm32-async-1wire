@@ -54,6 +54,13 @@ void ds18b20_test_set_gap_us(uint16_t us);
 /* Reset the search context to "no search running" (finished, DONE phase). */
 void ds18b20_test_reset_search(void);
 
+/* Resolution-change accessors (resolution state machine in src/ds18b20.c). */
+void ds18b20_test_set_resolution(uint8_t r); /* set ctx.resolution directly */
+uint8_t ds18b20_test_get_res_pulse(uint8_t i); /* pre-built res_ctx.pulses[i] */
+
+/* Reset the resolution context to "no change running" (finished, DONE phase). */
+void ds18b20_test_reset_resolution(void);
+
 /* Register the driver's internal DMA buffers with the hardware model. */
 void ds18b20_test_register_buffers(void);
 

@@ -80,6 +80,23 @@
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
 #define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
 #define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
+/** @brief TH byte written together with the config register by the resolution
+ *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
+ *         0 disables the alarm trigger threshold. */
+#define DS18B20_RES_TH 0x00
+/** @brief TL byte written together with the config register by the resolution
+ *         state machine. 0 disables the alarm trigger threshold. */
+#define DS18B20_RES_TL 0x00
+/** @brief Bytes in the resolution config write for Skip ROM mode
+ *         (Skip ROM 0xCC + Write Scratchpad 0x4E + TH + TL + CFG) */
+#define DS18B20_RES_BYTES_MIN (1 + 1 + 3)
+/** @brief Bytes in the resolution config write for Match ROM mode
+ *         (Match ROM 0x55 + 8-byte ROM + 0x4E + TH + TL + CFG) */
+#define DS18B20_RES_BYTES_MAX (1 + DS18B20_ROM_BYTES + 1 + 3)
+/** @brief Slots for the Skip ROM resolution config write */
+#define DS18B20_RES_SLOTS_MIN (DS18B20_RES_BYTES_MIN * DS18B20_BITS_PER_BYTE)
+/** @brief Slots for the Match ROM resolution config write */
+#define DS18B20_RES_SLOTS_MAX (DS18B20_RES_BYTES_MAX * DS18B20_BITS_PER_BYTE)
 
 /**
  * @brief Convert byte bit to pulse duration (ONE_PULSE µs for '1', ZERO_PULSE µs for '0')
@@ -144,6 +161,7 @@ typedef struct {
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
+    uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
 } DS18B20_ctx_t;
 
 /**
@@ -297,10 +315,37 @@ __STATIC_FORCEINLINE void start_timer(uint16_t arr, uint8_t rcr) {
 }
 
 /**
- * @brief Wait for temperature conversion to complete (750ms typical)
- * @note Non-blocking - starts timer that will generate update event when complete
+ * @brief Map a conversion resolution to its exact DS18B20 conversion time
+ * @param[in] res Resolution in bits (9..12)
+ * @param[out] arr Auto-reload value (one timer period in µs)
+ * @param[out] rcr Repetition counter (number of periods - 1)
+ * @note DS18B20 datasheet conversion times: 9-bit 93.75ms, 10-bit 187.5ms,
+ *       11-bit 375ms, 12-bit 750ms. The (ARR, RCR) pairs below reproduce
+ *       exactly those minimum waits at 1µs/tick with the invariant
+ *       (RCR + 1) × ARR = wait in µs.
  */
-__STATIC_FORCEINLINE void wait_conversion(void) { start_timer(PAUSE_750MS); }
+__STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {
+    switch (res) {
+    case 9: *arr = 9375; *rcr = 9; break; /* 10 × 9.375ms = 93.75ms */
+    case 10: *arr = 18750; *rcr = 9; break; /* 10 × 18.75ms = 187.5ms */
+    case 11: *arr = 18750; *rcr = 19; break; /* 20 × 18.75ms = 375ms */
+    case 12:
+    default: *arr = 62500; *rcr = 11; break; /* 12 × 62.5ms = 750ms */
+    }
+}
+
+/**
+ * @brief Wait for temperature conversion to complete
+ * @note Non-blocking - starts a timer that generates an update event when the
+ *       conversion of the currently configured resolution (ctx.resolution)
+ *       is guaranteed finished: 93.75ms (9 bit) .. 750ms (12 bit).
+ */
+__STATIC_FORCEINLINE void wait_conversion(void) {
+    uint16_t arr;
+    uint8_t rcr;
+    resolution_to_wait(ctx.resolution, &arr, &rcr);
+    start_timer(arr, rcr);
+}
 
 /**
  * @brief Start inter-measurement pause period (5s)
@@ -921,6 +966,190 @@ uint8_t ds18b20_search_count(void) { return search_ctx.found; }
  */
 
 /**
+ * @defgroup DS18B20_Resolution_Internal DS18B20 Internal Non-Blocking Resolution Change
+ * @brief Change the temperature conversion resolution (9..12 bit) with the same
+ *        non-blocking discipline as the device search: every state performs
+ *        exactly one hardware-timed operation via the internal bus primitives,
+ *        so a poll call never blocks. The config write is sent with Write
+ *        Scratchpad (0x4E) + TH + TL + CFG; it takes effect immediately and is
+ *        not persisted to the EEPROM (no Copy Scratchpad, which would need a
+ *        strong pull-up under parasitic power).
+ * @{
+ */
+
+/** @brief Resolution state machine phases */
+typedef enum {
+    DS18B20_RES_RESET, /**< reset scheduled; check presence */
+    DS18B20_RES_WRITE, /**< config write scheduled (skip/match + 0x4E + TH + TL + CFG) */
+    DS18B20_RES_DONE /**< operation finished; hand the timer back to the measurement */
+} res_phase_t;
+
+/**
+ * @brief Non-blocking resolution change context
+ * @note The pulse buffer must stay valid across poll calls because the DMA
+ *       feeds CCR1 from it asynchronously while the config write is sent.
+ */
+typedef struct {
+    res_phase_t phase; /**< Current phase of the resolution state machine */
+    uint8_t pending_res; /**< Resolution (bits) to apply */
+    uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
+    uint8_t finished; /**< 1 once the operation has completed (or aborted) */
+    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
+} res_ctx_t;
+
+/** @brief Global resolution context instance */
+static res_ctx_t res_ctx;
+
+/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
+ * transfer must always be present at the exact slot index used for the write
+ * (see build_res_pulses); the buffer is sized for the longest (Match ROM) mode. */
+_Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
+               "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
+               "trailing bus-release pulse consumed by send_command_n()");
+
+/**
+ * @brief Build the DS18B20 configuration register byte for a resolution
+ * @param[in] res Resolution in bits (9..12)
+ * @return Configuration register byte (R1/R0 bits set, rest at reset value)
+ * @note 9 bit -> 0x1F, 10 bit -> 0x3F, 11 bit -> 0x5F, 12 bit -> 0x7F.
+ */
+__STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
+    return (uint8_t)(0x1Fu | ((res - DS18B20_RES_MIN) << 5));
+}
+
+/**
+ * @brief Pre-build the resolution config write into res_ctx.pulses
+ * @param[in] res Resolution in bits (9..12)
+ * @note Encodes Skip ROM (0xCC) or Match ROM (0x55 + selected ROM) followed by
+ *       Write Scratchpad (0x4E), TH, TL and the config byte. The trailing
+ *       zero-pulse that send_command_n() consumes as the final DMA transfer
+ *       (hardware bus release) is written at the slot index of the mode
+ *       actually used, not always at the end of the buffer.
+ */
+__STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
+    uint8_t* p = res_ctx.pulses;
+    if (ctx.address_mode) {
+        encode_byte_pulses(p, DS18B20_MATCH_ROM);
+        p += DS18B20_BITS_PER_BYTE;
+        for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+            encode_byte_pulses(p, ctx.selected_rom[i]);
+            p += DS18B20_BITS_PER_BYTE;
+        }
+    } else {
+        encode_byte_pulses(p, 0xCC); /* Skip ROM */
+        p += DS18B20_BITS_PER_BYTE;
+    }
+    encode_byte_pulses(p, DS18B20_WRITE_SCRATCHPAD);
+    p += DS18B20_BITS_PER_BYTE;
+    encode_byte_pulses(p, DS18B20_RES_TH);
+    p += DS18B20_BITS_PER_BYTE;
+    encode_byte_pulses(p, DS18B20_RES_TL);
+    p += DS18B20_BITS_PER_BYTE;
+    encode_byte_pulses(p, res_config_byte(res));
+    res_ctx.pulses[ctx.address_mode ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN] = 0;
+}
+
+/**
+ * @brief Start a non-blocking resolution change
+ * @param[in] bits New resolution in bits: DS18B20_RES_MIN (9) .. DS18B20_RES_MAX (12)
+ * @note Out-of-range values are ignored. The change is scheduled only between
+ *       measurement cycles and only while the device search is idle; otherwise
+ *       it is ignored. While running, it owns TIM1/DMA; poll it with
+ *       ds18b20_set_resolution_poll() until it reports completion, then call
+ *       ds18b20_poll() again to resume measuring with the new resolution.
+ */
+void ds18b20_set_resolution(uint8_t bits) {
+    if (bits < DS18B20_RES_MIN || bits > DS18B20_RES_MAX) {
+        return; // out of range - ignore
+    }
+    if (!res_ctx.finished) {
+        return; // a resolution change is already running
+    }
+    if (!search_ctx.finished) {
+        return; // the device search owns the timer
+    }
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        return; // a measurement cycle is in progress
+    }
+    res_ctx.pending_res = bits;
+    res_ctx.applied = 0;
+    res_ctx.finished = 0;
+    build_res_pulses(bits); // Pre-build the config write for the current address mode
+    res_ctx.phase = DS18B20_RES_RESET;
+    ds18b20_bus_reset(); // Schedule the first hardware operation
+}
+
+/**
+ * @brief Advance the non-blocking resolution change by one hardware operation
+ * @return 1 when the change is finished (successfully or aborted), 0 while running
+ * @note When this returns 1 the next measurement uses the requested resolution
+ *       if (and only if) the config write actually completed; an aborted change
+ *       (e.g. no device present) leaves the resolution unchanged.
+ */
+uint8_t ds18b20_set_resolution_poll(void) {
+    if (res_ctx.finished) {
+        return 1;
+    }
+
+    if (res_ctx.phase == DS18B20_RES_DONE) {
+        // The last hardware operation completed (config written or aborted):
+        // hand the timer back to the measurement state machine exactly once.
+        T1.EGR = TIM_EGR(UG);
+        __DSB();
+        if (res_ctx.applied) {
+            ctx.resolution = res_ctx.pending_res;
+        }
+        res_ctx.finished = 1;
+        return 1;
+    }
+
+    // Wait for the currently scheduled hardware operation to complete.
+    // This is a non-blocking poll, not a busy-wait.
+    if (!ds18b20_bus_done()) {
+        return 0;
+    }
+
+    switch (res_ctx.phase) {
+    case DS18B20_RES_RESET:
+        // Reset completed: a presence pulse means at least one device is on
+        // the bus, so send the config write for the requested resolution.
+        if (!ds18b20_bus_present()) {
+            res_ctx.phase = DS18B20_RES_DONE;
+            break;
+        }
+        ds18b20_bus_write_slots(res_ctx.pulses,
+                                ctx.address_mode ? DS18B20_RES_SLOTS_MAX
+                                                 : DS18B20_RES_SLOTS_MIN);
+        res_ctx.phase = DS18B20_RES_WRITE;
+        break;
+
+    case DS18B20_RES_WRITE:
+        // Config write completed: the sensor now uses the new resolution.
+        res_ctx.applied = 1;
+        res_ctx.phase = DS18B20_RES_DONE;
+        break;
+
+    case DS18B20_RES_DONE:
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Current conversion resolution in bits
+ * @return Resolution in bits (9..12); the default is 12
+ * @note Auto-derived from the last valid scratchpad read (byte 4, R1/R0),
+ *       so it also tracks a resolution changed externally.
+ */
+uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
+
+/**
+ * @}
+ */
+
+/**
  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions
  * @{
  */
@@ -932,6 +1161,11 @@ void ds18b20_init(void) {
     // No search running after init: lets the measurement state machine own the
     // timer until the application starts a device search.
     search_ctx.finished = 1;
+    // No resolution change running after init; the DS18B20 powers up at 12 bit
+    // (750ms conversion), so wait for exactly that until a scratchpad read or
+    // set_resolution tells us otherwise.
+    res_ctx.finished = 1;
+    ctx.resolution = DS18B20_RES_DEFAULT;
     // Enable clocks for required peripherals: GPIOA, TIM1, DMA1
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
     RC.AHBENR |= RCC_AHBENR(DMA1EN);
@@ -1009,9 +1243,10 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
  * @note Uses timer update interrupt flag to determine when operations complete
  */
 void ds18b20_poll(void) {
-    // Ownership guard: while the device search owns the timer, the measurement
-    // state machine must stay out of the way and not react to search UIFs.
-    if (!search_ctx.finished) {
+    // Ownership guard: while the device search or a resolution change owns the
+    // timer, the measurement state machine must stay out of the way and not
+    // react to their UIFs.
+    if (!search_ctx.finished || !res_ctx.finished) {
         return;
     }
 
@@ -1108,10 +1343,18 @@ void ds18b20_poll(void) {
 
         // Validate CRC and report temperature or error
         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {
-            // CRC valid - decode and report temperature
+            // CRC valid - decode and report temperature. The scratchpad is
+            // trustworthy, so also trust the config byte (byte 4, R1/R0 bits
+            // 6:5) and adapt the conversion wait for the next cycle: this keeps
+            // the wait in sync with a resolution changed via
+            // ds18b20_set_resolution() or externally. (R1/R0 are 0..3, so the
+            // derived value is always within DS18B20_RES_MIN..DS18B20_RES_MAX.)
+            // It is derived only on a valid CRC so a corrupted config byte can
+            // never shorten the next conversion wait prematurely.
+            ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] >> 5) & 0x3);
             ds18b20_complete(decode_temperature());
         } else {
-            // CRC invalid - report error
+            // CRC invalid - report error (resolution kept unchanged)
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
         }
 

@@ -21,14 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Match ROM prefix caching: `ds18b20_select()` builds the invariant 72-slot
   Match ROM prefix once per selection, so each subsequent measurement patches
   only the last byte (8 slots instead of 80).
+- Non-blocking resolution change: `ds18b20_set_resolution()` /
+  `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
+  between measurement cycles, mirroring the device search state machine (one
+  hardware operation per poll, zero busy-waits). The config is written with
+  Write Scratchpad (0x4E) to the volatile scratchpad; TH/TL are reset to 0
+  (alarms disabled) and the change is not persisted to the EEPROM.
+- `ds18b20_get_resolution()` reports the current resolution, auto-derived from
+  every valid scratchpad read (byte 4, R1/R0 bits).
 
 ### Changed
 
 - The public API is strictly non-blocking: the high-level interface
   (`ds18b20_init()`, `ds18b20_poll()`, `ds18b20_select()`, the weak callbacks
-  `ds18b20_busy()`/`ds18b20_complete()`) plus the `ds18b20_search_*` family
-  and the CRC utility `ds18b20_crc8()`. The internal 1-Wire bus helpers
-  (`ds18b20_bus_*`) and the Search ROM state machine live inside the library
+  `ds18b20_busy()`/`ds18b20_complete()`) plus the `ds18b20_search_*` family,
+  the `ds18b20_set_resolution_*` family and the CRC utility `ds18b20_crc8()`.
+  The internal 1-Wire bus helpers (`ds18b20_bus_*`), the Search ROM state
+  machine and the resolution-change state machine live inside the library
   (`src/ds18b20.c`).
 - The non-blocking device search is driven from the main loop exactly like the
   measurement state machine: each `ds18b20_search_poll()` performs one
@@ -37,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
   the ring buffer is full instead of busy-waiting, and the blocking
   `uart_tx_flush()` was removed.
+- The conversion wait is now resolution-aware: `wait_conversion()` waits
+  exactly the datasheet time of the configured resolution (93.75ms @ 9-bit,
+  187.5ms @ 10-bit, 375ms @ 11-bit, 750ms @ 12-bit) instead of a fixed 750ms,
+  so lower resolutions complete 8× faster.
 - The 1-Wire line is now released to idle HIGH purely in hardware after every
   transaction: DMA-fed writes append a trailing 0 to the CCR1 feed (last-slot
   CC4 event) and direct-write/capture operations use an OC1PE preload of 0,
@@ -45,8 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   between slots regardless of RTOS scheduling latency (verified: 5/5 devices
   found with no software release).
 - Protocol constants (`DS18B20_SEARCH_ROM`, `DS18B20_MATCH_ROM`,
-  `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_BITS_PER_BYTE`)
-  are exported by the header for use with the public API and host tests.
+  `DS18B20_CONVERT_T`, `DS18B20_READ_SCRATCHPAD`, `DS18B20_WRITE_SCRATCHPAD`,
+  `DS18B20_COPY_SCRATCHPAD`, `DS18B20_RES_MIN`/`DS18B20_RES_MAX`/
+  `DS18B20_RES_DEFAULT`, `DS18B20_BITS_PER_BYTE`) are exported by the header
+  for use with the public API and host tests.
 - DMA transfer count sized to `slots-1` instead of using a sentinel value.
 - Removed the global `#define CR` peripheral alias from `inc/macro.h`: it
   collided with the `RCC_TypeDef.CR` field name after CMSIS headers were
@@ -54,9 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offset on 64-bit host builds.
 - Added a host test suite (`make test`): the driver is compiled as a single
   translation unit against a TIM1/DMA behavioural model and a register mock.
-  118 tests cover the state machine, device search, CRC-8, pulse encoding,
-  presence detection, scratchpad decode, temperature conversion, timing and
-  bus release. The suite runs in CI.
+  145 tests cover the state machine, device search, resolution change, CRC-8,
+  pulse encoding, presence detection, scratchpad decode, temperature
+  conversion, timing and bus release. The suite runs in CI.
 
 ### Removed
 

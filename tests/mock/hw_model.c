@@ -85,7 +85,7 @@ static void dma14_transfer(void) {
     if (d->CNDTR == 0) {
         d->CCR &= ~DMA_CCR_EN;
     }
-    if (feed_log.count < 64u) {
+    if (feed_log.count < 128u) {
         feed_log.values[feed_log.count++] = val;
     }
 }

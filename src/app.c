@@ -12,8 +12,8 @@ static uint8_t uart_tx_tail = 0; // read index - points to oldest data
 static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transmission
 
 /**
- * @brief Advance UART transmission by at most one byte (non-blocking)
- * @note Must be called periodically to feed UART hardware from the buffer
+ * @brief Advance USART1 transmission by at most one byte (non-blocking)
+ * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
     // Check if UART is ready to transmit (TXE flag set) and buffer not empty
@@ -24,6 +24,17 @@ void uart_poll_tx(void) {
         uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
         // Write byte to UART data register for transmission
         USART1->DR = b;
+    }
+}
+
+/**
+ * @brief Block until every enqueued byte has been transmitted
+ * @note Blocking, intended for diagnostic/blocking code paths only; the
+ *       demos keep the non-blocking uart_poll_tx() discipline.
+ */
+void uart_flush(void) {
+    while (uart_tx_tail != uart_tx_head) {
+        uart_poll_tx();
     }
 }
 

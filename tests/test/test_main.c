@@ -17,6 +17,7 @@ void setUp(void) {
     ds18b20_test_register_buffers();
     ds18b20_test_reset_ctx();
     ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
     ds18b20_test_set_gap_us(0);
 }
 
@@ -34,6 +35,7 @@ extern void run_test_presence(void);
 extern void run_test_rom_addressing(void);
 extern void run_test_timing(void);
 extern void run_test_temperature(void);
+extern void run_test_resolution(void);
 
 int main(void) {
     run_test_scratchpad();
@@ -46,6 +48,7 @@ int main(void) {
     run_test_rom_addressing();
     run_test_timing();
     run_test_temperature();
+    run_test_resolution();
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
     return unity_failures ? 1 : 0;
 }

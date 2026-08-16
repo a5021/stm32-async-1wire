@@ -4,12 +4,16 @@
  *
  * Demonstrates a Maxim 1-Wire Search ROM bus scan using the driver's
  * non-blocking device search (ds18b20_search_*), then ds18b20_select() to
- * measure each sensor in turn. All low-level bus operations and the search
- * state machine live inside the driver; the example only uses the public
- * high-level interface. Nothing in this example blocks: the search advances
- * by one hardware operation per ds18b20_search_poll() call from the main
- * loop. The shared platform layer (app.h/app.c) hides the UART and clock
- * setup.
+ * measure each sensor in turn. It also cycles the conversion resolution
+ * (9 -> 10 -> 11 -> 12 bit) between measurements through the non-blocking
+ * ds18b20_set_resolution()/ds18b20_set_resolution_poll() API, so the
+ * resolution-aware conversion wait is exercised live: at 9-bit a cycle
+ * completes ~8x faster than at 12-bit. All low-level bus operations and the
+ * search/resolution state machines live inside the driver; the example only
+ * uses the public high-level interface. Nothing in this example blocks: the
+ * search and the resolution change advance by one hardware operation per poll
+ * call from the main loop. The shared platform layer (app.h/app.c) hides the
+ * UART and clock setup.
  */
 
 #include "app.h"
@@ -29,6 +33,17 @@ static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8]; // ROMs found at start
 static uint8_t found_count = 0; // how many devices were found
 static uint8_t select_index = 0; // index of the currently selected device
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
+
+// ======== Non-blocking resolution change (resolution demo) ========
+// After every measurement the demo queues the next resolution for the device
+// about to be measured. The change runs from the main loop through
+// ds18b20_set_resolution()/ds18b20_set_resolution_poll() while the driver's
+// own measurement poll is suspended by the ownership guard.
+static const uint8_t res_cycle[] = {DS18B20_RES_MIN, 10u, 11u, DS18B20_RES_MAX};
+#define RES_CYCLE_LEN (sizeof(res_cycle) / sizeof(res_cycle[0]))
+static uint8_t res_cycle_idx = 0; // index into res_cycle[]
+static uint8_t next_resolution = 0; // 0 = none pending, else the resolution to apply
+static uint8_t res_change_busy = 0; // 1 while ds18b20_set_resolution_poll() is running
 
 /**
  * @brief Device search callback - stores the ROM and prints it in hex
@@ -130,6 +145,15 @@ void ds18b20_complete(int16_t temp) {
             uart_write_str("\r\n");
         }
     }
+
+    // Resolution demo: queue the next resolution (9 -> 10 -> 11 -> 12 -> 9)
+    // for the device that will be measured next. The change itself is applied
+    // non-blocking from the main loop before the next measurement cycle.
+    res_cycle_idx = (uint8_t)((res_cycle_idx + 1u) % RES_CYCLE_LEN);
+    next_resolution = res_cycle[res_cycle_idx];
+    uart_write_str("  next resolution: ");
+    uart_write_int(next_resolution);
+    uart_write_str(" bit\r\n");
 }
 
 /**
@@ -175,7 +199,7 @@ int main(void) {
                     run = 0;
                     gap_idx++;
                     if (gap_idx >= num_gaps) {
-                        gap_idx = 0; // soak: loop the sweep forever
+                        gap_idx = 0; // loop the sweep forever
                     }
                     ds18b20_test_set_gap_us(gap_table[gap_idx]);
                 }
@@ -201,7 +225,26 @@ int main(void) {
                 report_search_result();
             }
         } else {
-            ds18b20_poll(); // Poll DS18B20 state machine - measures devices in turn
+            if (res_change_busy) {
+                // Advance the non-blocking resolution change by one hardware op
+                if (ds18b20_set_resolution_poll()) {
+                    res_change_busy = 0;
+                    uart_write_str("  resolution applied: ");
+                    uart_write_int(ds18b20_get_resolution());
+                    uart_write_str(" bit\r\n");
+                    // The resolution change forces a timer update event, so the
+                    // next ds18b20_poll() begins a measurement immediately,
+                    // now with the faster (or slower) conversion wait.
+                }
+            } else if (next_resolution != 0) {
+                // Ownership guard: a no-op unless the driver is IDLE and no
+                // search/resolution transaction is running.
+                ds18b20_set_resolution(next_resolution);
+                next_resolution = 0;
+                res_change_busy = 1;
+            } else {
+                ds18b20_poll(); // Poll DS18B20 state machine - measures devices in turn
+            }
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
         // Other non-blocking tasks can be added here

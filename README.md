@@ -20,6 +20,14 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
    busy-waits, consistent with the non-blocking measurement path.
  - Per-Device Addressing: Select one specific sensor by its ROM address
    (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
+ - Resolution-Aware Conversion Wait: The driver waits exactly as long as the
+   configured conversion resolution requires (93.75ms @ 9-bit … 750ms @ 12-bit),
+   so lowering the resolution speeds up the measurement cycle.
+ - Non-Blocking Resolution Change: `ds18b20_set_resolution()` /
+   `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
+   between measurement cycles with zero busy-waits, mirroring the device search
+   state machine. The resolution is also auto-derived from every valid
+   scratchpad read (`ds18b20_get_resolution()`).
 
 ## Requirements
 
@@ -247,10 +255,13 @@ make test
 The driver is compiled as a single translation unit
 (`tests/mock/ds18b20_test_access.c` includes `src/ds18b20.c`) against a
 behavioural model of the TIM1/DMA hardware (`tests/mock/hw_model.c`) and a
-register mock of the STM32F1 CMSIS header. 118 tests cover:
+register mock of the STM32F1 CMSIS header. 145 tests cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
+-   Non-blocking resolution change (`ds18b20_set_resolution_*`): exact wait
+    timings for 9/10/11/12 bit, Skip ROM and Match ROM config writes, CCR1-feed
+    bus release, ownership guards, presence-abort and scratchpad auto-derivation
 -   CRC-8 (Dallas/Maxim) verification
 -   1-Wire pulse encoding and presence detection
 -   Scratchpad decode and temperature conversion (incl. negative values)
@@ -416,7 +427,9 @@ Kickstart behavior
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - WAIT (state 3)
-  - On UIF: wait_conversion() schedules ~750ms (start_timer(62500,11)); set state=4.
+  - On UIF: wait_conversion() schedules exactly the conversion time of the
+    configured resolution `ctx.resolution` (9-bit: 10×9.375ms; 10-bit:
+    10×18.75ms; 11-bit: 20×18.75ms; 12-bit: 12×62.5ms = 750ms); set state=4.
 
 - CONTINUE (state 4)
   - On UIF: run reset_bus() again; set state=5.
@@ -442,7 +455,7 @@ Kickstart behavior
 | **0**        | **IDLE**       | Initial state. Immediately falls through into START with no events required; prepares the context for a new measurement cycle by initializing the data union. | State 1 (START)                                                                                             |
 | **1**        | **START**      | Begins the measurement cycle. Turns on the user LED (if implemented) and initiates a **1-Wire bus reset** sequence to detect devices.     | State 2 (CONVERT)                                                                                           |
 | **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command — either via **Skip ROM (0xCC)** to all devices, or via **Match ROM (0x55) + device ROM** to the device selected with `ds18b20_select()`. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error. |
-| **3**        | **WAIT**       | Starts a non-blocking timer delay (~750 ms) to wait for the temperature conversion inside the DS18B20 to complete.                       | State 4 (CONTINUE)                                                                                          |
+| **3**        | **WAIT**       | Starts a non-blocking timer delay for the temperature conversion of the configured resolution (93.75ms @ 9-bit … 750ms @ 12-bit) to complete. The resolution is auto-derived from each valid scratchpad read and updated by `ds18b20_set_resolution()`.                       | State 4 (CONTINUE)                                                                                          |
 | **4**        | **CONTINUE**   | Initiates a second **1-Wire bus reset** sequence to prepare for reading the converted data.                                              | State 5 (REQUEST)                                                                                           |
 | **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command — via **Skip ROM (0xCC)** or **Match ROM (0x55) + device ROM** depending on the selected device. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
@@ -545,6 +558,42 @@ ROM (0xCC)** single-sensor behaviour.
 The demo measures the single device directly when exactly one is found, and
 cycles through all found devices in turn when several are present.
 
+### Resolution Change
+
+```C
+void ds18b20_set_resolution(uint8_t bits);
+uint8_t ds18b20_set_resolution_poll(void);
+uint8_t ds18b20_get_resolution(void);
+```
+
+Change the temperature conversion resolution between measurement cycles,
+non-blocking and without interrupts, mirroring the device search state machine:
+
+- `bits` is the new resolution in bits — `DS18B20_RES_MIN` (9) …
+  `DS18B20_RES_MAX` (12). Out-of-range values are ignored. The change is only
+  accepted while the measurement state machine is IDLE and no device search is
+  running; it is ignored otherwise.
+- The configuration is written to the volatile scratchpad with **Write
+  Scratchpad (0x4E)** (TH/TL are reset to 0, disabling the alarm triggers) and
+  takes effect immediately; it is **not** persisted to the EEPROM (Copy
+  Scratchpad would need a strong pull-up under parasitic power).
+- Poll `ds18b20_set_resolution_poll()` from the main loop until it returns 1,
+  then resume `ds18b20_poll()`. The next measurement waits exactly as long as
+  the new resolution requires (e.g. 93.75ms at 9-bit instead of 750ms).
+- `ds18b20_get_resolution()` returns the current resolution. It is updated by a
+  successful resolution change and auto-derived from every valid scratchpad
+  read (byte 4, R1/R0), so it also tracks a resolution changed externally.
+
+Example — drop to 9-bit to measure 8× faster:
+
+```C
+ds18b20_set_resolution(9);
+while (!ds18b20_set_resolution_poll()) {
+    /* keep calling from the main loop; never blocks */
+}
+/* ds18b20_get_resolution() == 9; ds18b20_poll() resumes with the fast wait */
+```
+
 ### Weak Callbacks
 
 ```C
@@ -565,9 +614,11 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ## Performance
 
-- Time to result (one measurement): ~0.76 s (750 ms conversion + protocol overhead)
+- Time to result (one measurement): 93.75ms @ 9-bit … ~0.76 s @ 12-bit
+  (conversion + protocol overhead; the conversion wait follows the configured
+  resolution, see `ds18b20_set_resolution()`)
 - Inter-measurement pause: 5 s (configurable)
-- Precision: 0.1°C resolution
+- Precision: 0.1°C resolution at 12-bit (coarser steps at lower resolutions)
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
