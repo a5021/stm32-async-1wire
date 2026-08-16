@@ -19,6 +19,7 @@ void setUp(void) {
     ds18b20_test_reset_ctx();
     ds18b20_test_reset_search();
     ds18b20_test_reset_resolution();
+    ds18b20_test_reset_txn();
     test_spy_reset();
     ds18b20_test_set_gap_us(0);
 }
@@ -40,6 +41,9 @@ extern void run_test_timing(void);
 extern void run_test_temperature(void);
 extern void run_test_resolution(void);
 extern void run_test_broadcast(void);
+extern void run_test_read_rom(void);
+extern void run_test_alarm_thresholds(void);
+extern void run_test_eeprom(void);
 
 int main(void) {
     run_test_scratchpad();
@@ -55,6 +59,9 @@ int main(void) {
     run_test_temperature();
     run_test_resolution();
     run_test_broadcast();
+    run_test_read_rom();
+    run_test_alarm_thresholds();
+    run_test_eeprom();
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
     return unity_failures ? 1 : 0;
 }

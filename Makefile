@@ -1,14 +1,16 @@
 # Select the example application: demo (single sensor, Skip ROM),
 # demo2 (device search + sequential polling of every sensor on the bus),
-# demo3 (device search + simultaneous broadcast conversion of every sensor)
-# or diag (standalone bit-bang 1-Wire diagnostics of a single sensor)
+# demo3 (device search + simultaneous broadcast conversion of every sensor),
+# demo4 (device search + command transactions: ROM, power supply, TH/TL,
+#        Copy/Recall EEPROM) or diag (standalone bit-bang 1-Wire diagnostics)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
 #   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
+#   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
 #   make APP=diag      -> builds diag   (ds18b20_diag.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2 demo3 diag),)
-$(error APP must be 'demo', 'demo2', 'demo3' or 'diag')
+ifeq ($(filter $(APP),demo demo2 demo3 demo4 diag),)
+$(error APP must be 'demo', 'demo2', 'demo3', 'demo4' or 'diag')
 endif
 
 # Define the name of the project target and the build directory
@@ -36,6 +38,7 @@ INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
+UART_TX_SIZE_demo4 = 256
 UART_TX_SIZE_diag  = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
@@ -330,6 +333,9 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_temperature.c \
             $(TEST_DIR)/test_resolution.c \
             $(TEST_DIR)/test_broadcast.c \
+            $(TEST_DIR)/test_read_rom.c \
+            $(TEST_DIR)/test_alarm_thresholds.c \
+            $(TEST_DIR)/test_eeprom.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
             $(TEST_MOCK)/ds18b20_test_access.c

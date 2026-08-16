@@ -24,10 +24,18 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
    on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
    as-is.
  - Non-Blocking Alarm Search: `ds18b20_alarm_search_start()`,
-   `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
-   DS18B20 devices currently in alarm state (temperature outside the TH/TL
-   thresholds set with Write Scratchpad). It uses the same Maxim search engine
-   as the device search and leaves the scan-mode device table untouched.
+    `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
+    DS18B20 devices currently in alarm state (temperature outside the TH/TL
+    thresholds set with Write Scratchpad). It uses the same Maxim search engine
+    as the device search and leaves the scan-mode device table untouched.
+ - Non-Blocking Command Transactions: `ds18b20_read_rom()`,
+    `ds18b20_set_alarm_thresholds()`, `ds18b20_read_scratchpad()`,
+    `ds18b20_copy_scratchpad()`, `ds18b20_recall_eeprom()` and
+    `ds18b20_read_power_supply()` drive the DS18B20 commands
+    (0x33 / 0x4E / 0xBE / 0x48 / 0xB8 / 0xB4) with the same poll discipline as
+    the device search — each `*_poll()` advances one hardware operation and
+    hands the timer back to `ds18b20_poll()` when the transaction finishes.
+    See `demo4.c`.
  - Per-Device Addressing: Select one specific sensor by its ROM address
    (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
  - Resolution-Aware Conversion Wait: The driver waits exactly as long as the
@@ -66,6 +74,8 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
 │   ├── demo2.c             # Example: device search + sequential poll of all
 │   ├── demo3.c             # Example: device search + simultaneous conversion
+│   ├── demo4.c             # Example: device search + command transactions
+│   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
 │   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
@@ -86,18 +96,20 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 ## Examples
 
-Three ready-to-run example applications are provided; select one with `APP`:
+Four ready-to-run example applications are provided; select one with `APP`:
 
 | APP     | File             | Behaviour                                                        |
 |---------|------------------|------------------------------------------------------------------|
 | `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
 | `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
+| `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
 
 ```bash
 make                # build demo  -> build/ds18b20_demo.elf
 make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
 make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
+make APP=demo4      # build demo4 -> build/ds18b20_demo4.elf
 make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 ```
 
@@ -117,6 +129,11 @@ Notes:
   `ds18b20_device_rom()` identify the sensor. Scan mode assumes a uniform
   resolution (the config is written broadcast) and is mutually exclusive with
   `ds18b20_select()`.
+- `demo4` targets the first sensor found by the search (Match ROM) and runs the
+  non-blocking command sequence once at startup: power supply, raw scratchpad,
+  TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
+  the single-device Read ROM. Each command advances by one hardware operation
+  per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
 
@@ -142,6 +159,18 @@ Match ROM — 8 readings per round in device-table order.
 
 <p align="center">
   <img src="docs/screenshots/demo3_uart.png" alt="demo3 on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
+</p>
+
+**demo4 — command transactions** (`src/demo4.c`): after the startup search, the
+first sensor (Match ROM) answers every non-blocking command in turn — external
+power confirmed, raw scratchpad read with CRC ok and the resolution auto-derived
+from the config byte, TH/TL written (0x19/0x0F), copied to the EEPROM, then a
+volatile write (0x05/0x02) and Recall restoring the persisted values, and the
+bare Read ROM reporting a CRC failure as expected with 8 devices on the bus
+(0x33 is single-device only).
+
+<p align="center">
+  <img src="docs/screenshots/demo4_uart.png" alt="demo4 on real hardware: command transactions (power supply, scratchpad, TH/TL, EEPROM, Read ROM)" width="600">
 </p>
 
 ## Hardware Connections
@@ -308,7 +337,7 @@ make test
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the STM32F1
-CMSIS header. 157 tests cover:
+CMSIS header. 198 tests cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -317,6 +346,13 @@ CMSIS header. 157 tests cover:
 -   Non-blocking resolution change (`ds18b20_set_resolution_*`): exact wait
     timings for 9/10/11/12 bit, Skip ROM and Match ROM config writes, CCR1-feed
     bus release, ownership guards, presence-abort and scratchpad auto-derivation
+-   Non-blocking command transactions (`ds18b20_read_rom`,
+    `ds18b20_set_alarm_thresholds`, `ds18b20_read_scratchpad`,
+    `ds18b20_copy_scratchpad`, `ds18b20_recall_eeprom`,
+    `ds18b20_read_power_supply`): command feed builds (Skip/Match ROM),
+    resolution-preserving TH/TL writes, raw scratchpad read + CRC +
+    resolution auto-derivation, 10 ms Copy/Recall hold-offs, power-supply
+    decode, ownership guards, presence-abort and result reporting
 -   CRC-8 (Dallas/Maxim) verification
 -   1-Wire pulse encoding and presence detection
 -   1-Wire layer coverage: reset/presence timing, write-then-read merge,
@@ -676,6 +712,68 @@ ROM (0xCC)** single-sensor behaviour.
 
 The demo measures the single device directly when exactly one is found, and
 cycles through all found devices in turn when several are present.
+
+### Command Transactions
+
+The remaining DS18B20 commands run with the same non-blocking discipline as the
+device search and the resolution change: each transaction owns TIM1/DMA while
+it runs (reset → presence → write → read | timed wait) and hands the timer
+back to `ds18b20_poll()` when it finishes.
+
+```C
+void     ds18b20_read_rom(uint8_t *rom);
+uint8_t  ds18b20_read_rom_poll(void);
+void     ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
+uint8_t  ds18b20_set_alarm_thresholds_poll(void);
+void     ds18b20_read_scratchpad(uint8_t *buf);
+uint8_t  ds18b20_read_scratchpad_poll(void);
+void     ds18b20_copy_scratchpad(void);
+uint8_t  ds18b20_copy_scratchpad_poll(void);
+void     ds18b20_recall_eeprom(void);
+uint8_t  ds18b20_recall_eeprom_poll(void);
+void     ds18b20_read_power_supply(uint8_t *is_parasite);
+uint8_t  ds18b20_read_power_supply_poll(void);
+uint8_t  ds18b20_last_command_ok(void);
+```
+
+- Every command is a `start`/`poll` pair: call the start function, then poll
+  the matching `*_poll()` from the main loop until it returns 1, then resume
+  `ds18b20_poll()`. Commands are ignored mid-cycle, while a device search, an
+  alarm search or a resolution change owns the timer, or while another command
+  transaction is still running. Result buffers must stay valid until the
+  transaction finishes.
+- With a device selected via `ds18b20_select()`, the command is preceded by
+  Match ROM (0x55) + device ROM so only that device responds; without a
+  selection it broadcasts via Skip ROM (0xCC). `ds18b20_read_rom()` is always
+  sent bare (0x33) — valid only when exactly one device is on the bus.
+- `ds18b20_read_scratchpad()` returns the raw 9 scratchpad bytes; verify with
+  `ds18b20_last_command_ok()` or the CRC byte (`buf[8] ==
+  ds18b20_crc8(buf, 8)`). A valid read also updates the auto-derived
+  resolution (`ds18b20_get_resolution()`).
+- `ds18b20_set_alarm_thresholds(th, tl)` writes TH/TL into the volatile
+  scratchpad with Write Scratchpad (0x4E), keeping the current resolution in
+  the config byte. The DS18B20 8-bit sign-extended temperature code is used
+  (e.g. 0x19 = +25°C, 0x0F = +15°C).
+- `ds18b20_copy_scratchpad()` persists TH/TL/CFG to the EEPROM and
+  `ds18b20_recall_eeprom()` loads the EEPROM copy back into the scratchpad.
+  Both wait the datasheet hold-off (10 ms) with the timer before finishing.
+- `ds18b20_read_power_supply()` reports 1 for parasite power and 0 for an
+  externally powered sensor.
+- `ds18b20_last_command_ok()` reports whether the last transaction found a
+  device present (and, for read commands, read its data back).
+
+Example — set TH/TL and persist them to the EEPROM:
+
+```C
+ds18b20_set_alarm_thresholds(0x19, 0x0F);   // +25°C / +15°C
+while (!ds18b20_set_alarm_thresholds_poll()) {
+    /* keep calling from the main loop */
+}
+ds18b20_copy_scratchpad();                  // persist to the EEPROM
+while (!ds18b20_copy_scratchpad_poll()) {
+    /* keep calling from the main loop */
+}
+```
 
 ### Simultaneous Multi-Device Conversion
 

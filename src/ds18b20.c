@@ -54,6 +54,9 @@
 #define DS18B20_RES_SLOTS_MIN (DS18B20_RES_BYTES_MIN * DS18B20_BITS_PER_BYTE)
 /** @brief Slots for the Match ROM resolution config write */
 #define DS18B20_RES_SLOTS_MAX (DS18B20_RES_BYTES_MAX * DS18B20_BITS_PER_BYTE)
+/** @brief Wait for Copy Scratchpad (t_COPY) / Recall EEPROM (t_RECALL)
+ *         completion in microseconds (DS18B20 datasheet: 10ms max). */
+#define DS18B20_EEPROM_WAIT_US 10000
 
 /**
  * @brief Convert byte bit to pulse duration (ONE_PULSE µs for '1', ZERO_PULSE µs for '0')
@@ -113,6 +116,41 @@ typedef struct {
 } DS18B20_ctx_t;
 
 /**
+ * @brief Non-blocking single-command transaction phases
+ */
+typedef enum {
+    DS18B20_TXN_RESET, /**< reset scheduled; check presence */
+    DS18B20_TXN_WRITE, /**< command (prefix + function + payload) write scheduled */
+    DS18B20_TXN_READ, /**< data read scheduled (read_bytes != 0) */
+    DS18B20_TXN_WAIT, /**< timed wait scheduled (wait_us != 0) */
+    DS18B20_TXN_DONE /**< finished; hand the timer back to the measurement */
+} ds18b20_txn_phase_t;
+
+/**
+ * @brief Non-blocking single-command transaction context
+ * @note Drives every infrequent DS18B20 command (Read ROM, Write Scratchpad
+ *       thresholds, Copy/Recall EEPROM, Read Power Supply, raw Read
+ *       Scratchpad) with the same reset -> write -> (read | wait) discipline
+ *       as the resolution state machine. The pulse buffer must stay valid
+ *       across poll calls because the DMA feeds CCR1 from it asynchronously.
+ */
+typedef struct {
+    ds18b20_txn_phase_t phase; /**< Current phase of the transaction */
+    uint8_t command; /**< DS18B20 function command byte (0x33/0x4E/0x48/0xB8/0xB4/0xBE) */
+    uint8_t* out; /**< User result buffer (valid until the command finishes) */
+    uint8_t payload[3]; /**< Write Scratchpad payload (TH, TL, CFG) */
+    uint8_t payload_len; /**< 0..3 (payload bytes written after the command) */
+    uint8_t read_bytes; /**< Bytes to read back (0 = no read phase) */
+    uint16_t wait_us; /**< Timed wait after the command (0 = none) */
+    uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
+    uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
+    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ trailing 0 for hardware bus release) */
+    uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
+    uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
+    uint8_t finished; /**< 1 once the transaction finished (or aborted) */
+} ds18b20_txn_ctx_t;
+
+/**
  * @}
  */
 
@@ -136,6 +174,17 @@ static uint8_t dev_count;
 _Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
                "addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing "
                "bus-release pulse consumed by the 1-Wire layer");
+
+/** @brief Global single-command transaction context instance */
+static ds18b20_txn_ctx_t txn_ctx;
+
+/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
+ * transfer must always be present at the exact slot index used for the write
+ * (see txn_build_pulses); the buffer is sized for the longest (Match ROM)
+ * command write. */
+_Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
+               "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
+               "trailing bus-release pulse consumed by the 1-Wire layer");
 
 /**
  * @}
@@ -350,6 +399,9 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     if (onewire_search_active()) {
         return; // a search is already running - keep its sink and table
     }
+    if (!txn_ctx.finished) {
+        return; // a command transaction is running
+    }
     dev_count = 0;
     search_user_sink = sink;
     onewire_search_start(search_store_sink, max_devices, DS18B20_SEARCH_ROM, DS18B20_FAMILY_CODE);
@@ -368,6 +420,9 @@ void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices)
     }
     if (onewire_search_active()) {
         return; // a search is already running - keep its sink
+    }
+    if (!txn_ctx.finished) {
+        return; // a command transaction is running
     }
     search_user_sink = sink;
     onewire_search_start(search_alarm_sink, max_devices, DS18B20_ALARM_SEARCH, DS18B20_FAMILY_CODE);
@@ -504,6 +559,9 @@ void ds18b20_set_resolution(uint8_t bits) {
     if (!res_ctx.finished) {
         return; // a resolution change is already running
     }
+    if (!txn_ctx.finished) {
+        return; // a command transaction is running
+    }
     if (onewire_search_active()) {
         return; // the device search owns the timer
     }
@@ -619,8 +677,8 @@ void ds18b20_scan_start(void) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
         return; // a measurement cycle is in progress
     }
-    if (onewire_search_active() || !res_ctx.finished) {
-        return; // the search or a resolution change owns the timer
+    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
+        return; // the search, a resolution change or a command owns the timer
     }
     if (dev_count == 0) {
         return; // nothing discovered: there is no device to convert
@@ -657,6 +715,360 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  */
 
 /**
+ * @defgroup DS18B20_Command_Impl DS18B20 Non-Blocking Command Transactions
+ * @brief Shared non-blocking engine for the infrequent DS18B20 commands that
+ *        the measurement state machine does not issue: Read ROM (0x33),
+ *        Write Scratchpad thresholds (0x4E), Copy Scratchpad (0x48), Recall
+ *        EEPROM (0xB8), Read Power Supply (0xB4) and raw Read Scratchpad
+ *        (0xBE). Every command runs reset -> presence -> write -> (read |
+ *        timed wait) -> done, one hardware-timed operation per poll call, so
+ *        the same non-blocking discipline as the measurement, search and
+ *        resolution state machines is preserved. Each command owns TIM1/DMA
+ *        while it runs and hands the timer back to ds18b20_poll() when done.
+ * @{
+ */
+
+/**
+ * @brief Ownership guard shared by every command transaction start
+ * @return 1 when a new transaction may be scheduled
+ */
+__STATIC_FORCEINLINE uint8_t txn_can_start(void) {
+    return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &&
+                     !onewire_search_active() && res_ctx.finished &&
+                     txn_ctx.finished);
+}
+
+/**
+ * @brief Build the command pulse sequence into txn_ctx.pulses
+ * @note Encodes the addressing prefix (Skip ROM 0xCC, or Match ROM 0x55 +
+ *       selected ROM; none for a bare command such as Read ROM), the function
+ *       command byte and the optional payload (Write Scratchpad TH/TL/CFG).
+ *       The trailing zero-pulse that the 1-Wire layer consumes as the final
+ *       DMA transfer (hardware bus release) is written at the slot index of
+ *       the mode actually used, not always at the end of the buffer.
+ */
+__STATIC_FORCEINLINE void txn_build_pulses(void) {
+    // In scan mode the command must reach every sensor, so the Match ROM
+    // address is skipped even if a single-device address is still selected.
+    const uint8_t use_match = ctx.address_mode && !ctx.scan_mode && !txn_ctx.bare;
+    uint8_t* p = txn_ctx.pulses;
+    uint8_t bytes = 0;
+    if (!txn_ctx.bare) {
+        if (use_match) {
+            onewire_encode_byte(p, DS18B20_MATCH_ROM);
+            p += DS18B20_BITS_PER_BYTE;
+            bytes++;
+            for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+                onewire_encode_byte(p, ctx.selected_rom[i]);
+                p += DS18B20_BITS_PER_BYTE;
+                bytes++;
+            }
+        } else {
+            onewire_encode_byte(p, 0xCC); /* Skip ROM */
+            p += DS18B20_BITS_PER_BYTE;
+            bytes++;
+        }
+    }
+    onewire_encode_byte(p, txn_ctx.command);
+    p += DS18B20_BITS_PER_BYTE;
+    bytes++;
+    for (uint8_t i = 0; i < txn_ctx.payload_len; i++) {
+        onewire_encode_byte(p, txn_ctx.payload[i]);
+        p += DS18B20_BITS_PER_BYTE;
+        bytes++;
+    }
+    txn_ctx.slots = (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
+    /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its
+     * final DMA transfer into CCR1, even though the command write only ever
+     * fills slots 0 .. slots - 1 (see build_res_pulses for the same pattern). */
+    txn_ctx.pulses[txn_ctx.slots] = 0;
+}
+
+/**
+ * @brief Decode the captured read pulses into txn_ctx.raw
+ * @note Reads ctx.pulse (written by the read DMA), never aliased with raw:
+ *       the union invariant of decode_scratchpad() does not apply here.
+ */
+__STATIC_FORCEINLINE void txn_decode_read(void) {
+    for (uint8_t byte = 0; byte < txn_ctx.read_bytes; byte++) {
+        const uint8_t base = (uint8_t)(byte * DS18B20_BITS_PER_BYTE);
+        uint8_t value = 0;
+        for (uint8_t bit = 0; bit < DS18B20_BITS_PER_BYTE; bit++) {
+            value |= (ctx.pulse[base + bit] <= SHORT_PULSE_MAX)
+                         ? (uint8_t)(1u << bit)
+                         : 0u;
+        }
+        txn_ctx.raw[byte] = value;
+    }
+}
+
+/**
+ * @brief Copy the decoded read result into the user buffer
+ * @param[in] len Number of bytes to copy (txn_ctx.out must hold at least len)
+ */
+__STATIC_FORCEINLINE void txn_copy_out(uint8_t len) {
+    for (uint8_t i = 0; i < len; i++) {
+        txn_ctx.out[i] = txn_ctx.raw[i];
+    }
+}
+
+/**
+ * @brief Advance the active command transaction by one hardware operation
+ * @return 1 when the transaction finished (successfully or aborted), 0 while
+ *         running
+ */
+static uint8_t txn_poll(void) {
+    if (txn_ctx.finished) {
+        return 1;
+    }
+
+    if (txn_ctx.phase == DS18B20_TXN_DONE) {
+        // The last hardware operation completed (command done or aborted):
+        // hand the timer back to the measurement state machine exactly once.
+        T1.EGR = TIM_EGR(UG);
+        __DSB();
+        txn_ctx.finished = 1;
+        return 1;
+    }
+
+    // Wait for the currently scheduled hardware operation to complete.
+    // This is a non-blocking poll, not a busy-wait.
+    if (!onewire_bus_done()) {
+        return 0;
+    }
+
+    switch (txn_ctx.phase) {
+    case DS18B20_TXN_RESET:
+        // Reset completed: a presence pulse means at least one device is on
+        // the bus, so send the command for this transaction.
+        if (!onewire_present(ctx.edge)) {
+            txn_ctx.phase = DS18B20_TXN_DONE;
+            break;
+        }
+        onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);
+        txn_ctx.phase = DS18B20_TXN_WRITE;
+        break;
+
+    case DS18B20_TXN_WRITE:
+        // Command write completed: read the response back if the command has
+        // one, otherwise wait the required hold-off or finish immediately.
+        if (txn_ctx.read_bytes) {
+            onewire_read_data(ctx.pulse, txn_ctx.read_bytes);
+            txn_ctx.phase = DS18B20_TXN_READ;
+        } else if (txn_ctx.wait_us) {
+            onewire_start_timer(txn_ctx.wait_us, 0);
+            txn_ctx.phase = DS18B20_TXN_WAIT;
+        } else {
+            txn_ctx.ok = 1;
+            txn_ctx.phase = DS18B20_TXN_DONE;
+        }
+        break;
+
+    case DS18B20_TXN_READ:
+        // Data read completed: decode the captured pulse durations.
+        txn_decode_read();
+        txn_ctx.ok = 1;
+        txn_ctx.phase = DS18B20_TXN_DONE;
+        break;
+
+    case DS18B20_TXN_WAIT:
+        // Hold-off completed (Copy Scratchpad / Recall EEPROM).
+        txn_ctx.ok = 1;
+        txn_ctx.phase = DS18B20_TXN_DONE;
+        break;
+
+    case DS18B20_TXN_DONE:
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Schedule a new non-blocking command transaction
+ * @param[in] command DS18B20 function command byte
+ * @param[in] out User result buffer (may be NULL; only written on success)
+ * @param[in] payload Up to 3 payload bytes (Write Scratchpad TH/TL/CFG)
+ * @param[in] payload_len Number of payload bytes (0..3)
+ * @param[in] read_bytes Bytes to read back after the command (0 = none)
+ * @param[in] wait_us Timed hold-off after the command (0 = none)
+ * @param[in] bare 1 to send the command without an addressing prefix
+ * @note Ignored unless the driver is IDLE, the device search and any
+ *       resolution change are finished, and no transaction is already
+ *       running. The result buffer must stay valid until the transaction
+ *       completes (ds18b20_*_poll() reports 1).
+ */
+static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
+                      uint8_t payload_len, uint8_t read_bytes, uint16_t wait_us,
+                      uint8_t bare) {
+    if (!txn_can_start()) {
+        return; // the timer belongs to someone else right now
+    }
+    txn_ctx.command = command;
+    txn_ctx.out = out;
+    txn_ctx.read_bytes = read_bytes;
+    txn_ctx.wait_us = wait_us;
+    txn_ctx.bare = bare;
+    txn_ctx.payload_len = payload_len;
+    for (uint8_t i = 0; i < payload_len && i < sizeof(txn_ctx.payload); i++) {
+        txn_ctx.payload[i] = payload[i];
+    }
+    txn_ctx.ok = 0;
+    txn_ctx.finished = 0;
+    txn_build_pulses(); // Pre-build the command for the current address mode
+    txn_ctx.phase = DS18B20_TXN_RESET;
+    onewire_reset(ctx.edge); // Schedule the first hardware operation
+}
+
+/**
+ * @brief Read the 64-bit ROM of the (only) DS18B20 on the bus
+ * @param[in,out] rom Buffer for the 8-byte ROM (LSB first); written on success
+ * @note Valid only when exactly one device is on the bus (datasheet Read ROM
+ *       0x33). With several devices use the device search (ds18b20_search_*).
+ * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
+ *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
+ */
+void ds18b20_read_rom(uint8_t* rom) {
+    txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);
+}
+
+/**
+ * @brief Advance the non-blocking Read ROM transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_read_rom_poll(void) {
+    if (!txn_poll()) {
+        return 0;
+    }
+    if (txn_ctx.ok && txn_ctx.out) {
+        txn_copy_out(DS18B20_ROM_BYTES);
+    }
+    return 1;
+}
+
+/**
+ * @brief Configure the alarm trigger thresholds TH and TL
+ * @param[in] th High-alarm trigger value (DS18B20 8-bit threshold code)
+ * @param[in] tl Low-alarm trigger value (DS18B20 8-bit threshold code)
+ * @note Uses the DS18B20 8-bit sign-extended temperature code, the same
+ *       encoding the scratchpad TH/TL bytes use; converting to/from Celsius is
+ *       left to the application. The current conversion resolution (byte 4,
+ *       R1/R0) is written unchanged, so the resolution is not disturbed.
+ * @note Takes effect immediately in the scratchpad; run ds18b20_copy_scratchpad()
+ *       afterwards to persist TH/TL/CFG to the EEPROM.
+ */
+void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl) {
+    const uint8_t payload[3] = {th, tl, res_config_byte(ctx.resolution)};
+    txn_start(DS18B20_WRITE_SCRATCHPAD, 0, payload, 3, 0, 0, 0);
+}
+
+/**
+ * @brief Advance the non-blocking alarm threshold write
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_set_alarm_thresholds_poll(void) { return txn_poll(); }
+
+/**
+ * @brief Read the 9-byte scratchpad (raw; includes TH, TL and the CRC)
+ * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,
+ *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
+ * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
+ *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
+ */
+void ds18b20_read_scratchpad(uint8_t* buf) {
+    txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);
+}
+
+/**
+ * @brief Advance the non-blocking raw scratchpad read
+ * @return 1 when finished (successfully or aborted), 0 while running
+ * @note On a valid read (CRC byte matches) the conversion resolution is
+ *       auto-derived from the config byte (byte 4), like the measurement path.
+ */
+uint8_t ds18b20_read_scratchpad_poll(void) {
+    if (!txn_poll()) {
+        return 0;
+    }
+    if (txn_ctx.ok && txn_ctx.out) {
+        txn_copy_out(DS18B20_SCRATCHPAD_LEN);
+        if (txn_ctx.raw[DS18B20_SCRATCHPAD_LEN - 1] ==
+            ds18b20_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {
+            ctx.resolution = DS18B20_RES_MIN + ((txn_ctx.raw[4] >> 5) & 0x3);
+        }
+    }
+    return 1;
+}
+
+/**
+ * @brief Copy the scratchpad into the EEPROM (non-volatile)
+ * @note External-power wiring only (as assumed by the whole driver): the copy
+ *       is powered by the sensor's VDD, no strong pull-up is needed. The
+ *       driver waits the datasheet t_COPY hold-off (10ms) before finishing.
+ */
+void ds18b20_copy_scratchpad(void) {
+    txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
+}
+
+/**
+ * @brief Advance the non-blocking Copy Scratchpad transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }
+
+/**
+ * @brief Recall the EEPROM contents into the scratchpad
+ * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
+ *       The driver waits the datasheet t_RECALL hold-off (10ms) before
+ *       finishing.
+ */
+void ds18b20_recall_eeprom(void) {
+    txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
+}
+
+/**
+ * @brief Advance the non-blocking Recall EEPROM transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_recall_eeprom_poll(void) { return txn_poll(); }
+
+/**
+ * @brief Read the power-supply state of the DS18B20
+ * @param[in,out] is_parasite Receives 1 when the device is parasite-powered,
+ *                            0 when externally powered; written on success
+ */
+void ds18b20_read_power_supply(uint8_t* is_parasite) {
+    txn_start(DS18B20_READ_POWER_SUPPLY, is_parasite, 0, 0, 1, 0, 0);
+}
+
+/**
+ * @brief Advance the non-blocking power-supply read
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_read_power_supply_poll(void) {
+    if (!txn_poll()) {
+        return 0;
+    }
+    if (txn_ctx.ok && txn_ctx.out) {
+        // The sensor drives one bit: 0 = parasite power, 1 = external power.
+        *txn_ctx.out = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
+    }
+    return 1;
+}
+
+/**
+ * @brief Result of the last completed command transaction
+ * @return 1 when the last ds18b20_*_poll() finished a transaction that found
+ *         a device present (and, for read commands, read its data back),
+ *         0 when it aborted (e.g. no device present) or nothing ran yet
+ */
+uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
+
+/**
+ * @}
+ */
+
+/**
  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions
  * @{
  */
@@ -669,10 +1081,11 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  */
 void ds18b20_init(void) {
     onewire_init();
-    // No resolution change running after init; the DS18B20 powers up at 12 bit
-    // (750ms conversion), so wait for exactly that until a scratchpad read or
-    // set_resolution tells us otherwise.
+    // No resolution change or command transaction running after init; the
+    // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that
+    // until a scratchpad read or set_resolution tells us otherwise.
     res_ctx.finished = 1;
+    txn_ctx.finished = 1;
     ctx.resolution = DS18B20_RES_DEFAULT;
     ctx.scan_mode = 0;
     ctx.scan_index = 0;
@@ -697,6 +1110,10 @@ void ds18b20_init(void) {
 void ds18b20_select(const uint8_t* rom) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
         // Mid-cycle call - reject to keep the in-flight transaction intact.
+        return;
+    }
+    if (!txn_ctx.finished) {
+        // A command transaction is running - reject to keep its addressing.
         return;
     }
     // Explicit single-device addressing: leave simultaneous-conversion mode.
@@ -745,10 +1162,10 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
  * @note Uses timer update interrupt flag to determine when operations complete
  */
 void ds18b20_poll(void) {
-    // Ownership guard: while the device search or a resolution change owns the
-    // timer, the measurement state machine must stay out of the way and not
-    // react to their UIFs.
-    if (onewire_search_active() || !res_ctx.finished) {
+    // Ownership guard: while the device search, a resolution change or a
+    // command transaction owns the timer, the measurement state machine must
+    // stay out of the way and not react to their UIFs.
+    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
         return;
     }
 

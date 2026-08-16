@@ -6,6 +6,45 @@ are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-08-17
+
+### Added
+
+- Non-blocking command transactions for the remaining DS18B20 commands, driven
+  with the same poll discipline as the device search and the resolution change:
+  `ds18b20_read_rom()`, `ds18b20_set_alarm_thresholds()`,
+  `ds18b20_read_scratchpad()`, `ds18b20_copy_scratchpad()`,
+  `ds18b20_recall_eeprom()`, `ds18b20_read_power_supply()` (each with a
+  matching `*_poll()`). Every transaction performs reset → presence → write
+  (+ Match ROM when a device is selected) → read or timed wait, owns TIM1/DMA
+  while it runs and hands the timer back to `ds18b20_poll()` when finished.
+  `ds18b20_last_command_ok()` reports whether the last transaction found a
+  device present.
+- `DS18B20_READ_ROM` (0x33), `DS18B20_RECALL_EEPROM` (0xB8) and
+  `DS18B20_READ_POWER_SUPPLY` (0xB4) protocol constants exported by the header.
+- Raw scratchpad read (`ds18b20_read_scratchpad()`): returns all 9 bytes
+  including TH/TL and the CRC; on a valid read the conversion resolution is
+  auto-derived from the config byte (byte 4, R1/R0).
+- Alarm trigger thresholds (`ds18b20_set_alarm_thresholds(th, tl)`): writes
+  TH/TL with Write Scratchpad (0x4E) without disturbing the current
+  resolution; `ds18b20_copy_scratchpad()` and `ds18b20_recall_eeprom()`
+  persist and restore them to/from the EEPROM with a 10 ms timed hold-off.
+- Example application `src/demo4.c` (`make APP=demo4`): device search, then
+  the full command sequence on the first found sensor — power supply, raw
+  scratchpad, TH/TL write with Copy + Recall, Read ROM — followed by
+  steady-state measurement of the selected device.
+
+### Changed
+
+- Ownership guards: every `ds18b20_search_start()`,
+  `ds18b20_alarm_search_start()`, `ds18b20_scan_start()` and
+  `ds18b20_set_resolution()` entry point now rejects starting while a command
+  transaction owns the timer, and `ds18b20_poll()` skips its work until the
+  active transaction finishes.
+- `ds18b20_select()` now also applies to the command transactions: with a
+  device selected, every command (except the bare Read ROM) is addressed via
+  Match ROM, so the transactions target that specific sensor.
+
 ## [1.2.0] - 2026-08-17
 
 ### Added
@@ -175,3 +214,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.0.0
 [1.1.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.1.0
+[1.2.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.2.0
+[1.3.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.3.0

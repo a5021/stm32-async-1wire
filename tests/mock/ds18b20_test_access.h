@@ -69,6 +69,13 @@ uint8_t ds18b20_test_get_res_pulse(uint8_t i); /* pre-built res_ctx.pulses[i] */
 /* Reset the resolution context to "no change running" (finished, DONE phase). */
 void ds18b20_test_reset_resolution(void);
 
+/* Command-transaction accessors (txn engine in src/ds18b20.c). */
+void ds18b20_test_reset_txn(void); /* finished + DONE phase + ok cleared */
+uint8_t ds18b20_test_get_txn_pulse(uint8_t i); /* pre-built txn_ctx.pulses[i] */
+uint8_t ds18b20_test_get_txn_slots(void); /* txn_ctx.slots */
+uint8_t ds18b20_test_get_txn_ok(void); /* txn_ctx.ok */
+uint8_t ds18b20_test_get_txn_finished(void); /* txn_ctx.finished */
+
 /* Register the driver's internal DMA buffers with the hardware model. */
 void ds18b20_test_register_buffers(void);
 

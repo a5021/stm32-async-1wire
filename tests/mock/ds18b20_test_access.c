@@ -19,6 +19,7 @@ void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)((uintptr_t)search_ctx.pulses + 1u)); /* &pulses[1] */
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
     hw_register_buf((const void*)((uintptr_t)res_ctx.pulses + 1u)); /* &res_ctx.pulses[1] */
+    hw_register_buf((const void*)((uintptr_t)txn_ctx.pulses + 1u)); /* &txn_ctx.pulses[1] */
 }
 
 ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
@@ -119,3 +120,21 @@ void ds18b20_test_set_scan_mode(uint8_t m) { ctx.scan_mode = m; }
 uint8_t ds18b20_test_get_scan_index(void) { return ctx.scan_index; }
 
 void ds18b20_test_set_gap_us(uint16_t us) { onewire_test_set_gap_us(us); }
+
+void ds18b20_test_reset_txn(void) {
+    txn_ctx.phase = DS18B20_TXN_DONE;
+    txn_ctx.command = 0;
+    txn_ctx.out = NULL;
+    txn_ctx.payload_len = 0;
+    txn_ctx.read_bytes = 0;
+    txn_ctx.wait_us = 0;
+    txn_ctx.bare = 0;
+    txn_ctx.slots = 0;
+    txn_ctx.ok = 0;
+    txn_ctx.finished = 1;
+}
+
+uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return txn_ctx.pulses[i]; }
+uint8_t ds18b20_test_get_txn_slots(void) { return txn_ctx.slots; }
+uint8_t ds18b20_test_get_txn_ok(void) { return txn_ctx.ok; }
+uint8_t ds18b20_test_get_txn_finished(void) { return txn_ctx.finished; }

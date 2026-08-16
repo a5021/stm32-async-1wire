@@ -100,6 +100,12 @@ typedef enum {
 #define DS18B20_CONVERT_T 0x44
 
 /**
+ * @brief DS18B20 Read ROM command
+ * @note Valid only when exactly one device is on the bus (no addressing).
+ */
+#define DS18B20_READ_ROM 0x33
+
+/**
  * @brief DS18B20 Read Scratchpad command
  */
 #define DS18B20_READ_SCRATCHPAD 0xBE
@@ -112,12 +118,24 @@ typedef enum {
 
 /**
  * @brief DS18B20 Copy Scratchpad command
- * @note Copies the scratchpad into the EEPROM (non-volatile). Not used by
- *       the resolution state machine: the new configuration takes effect
- *       immediately and Copy Scratchpad would require a strong pull-up
- *       (parasitic power) to be safe.
+ * @note Copies the scratchpad (TH/TL/CFG) into the EEPROM (non-volatile).
+ *       Exposed as a non-blocking transaction (ds18b20_copy_scratchpad());
+ *       the resolution state machine does not use it because the config
+ *       write takes effect immediately.
  */
 #define DS18B20_COPY_SCRATCHPAD 0x48
+
+/**
+ * @brief DS18B20 Recall EEPROM command
+ * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
+ */
+#define DS18B20_RECALL_EEPROM 0xB8
+
+/**
+ * @brief DS18B20 Read Power Supply command
+ * @note The device drives one bit: 0 = parasite power, 1 = external power.
+ */
+#define DS18B20_READ_POWER_SUPPLY 0xB4
 
 /**
  * @brief Minimum supported temperature resolution in bits
@@ -268,6 +286,128 @@ uint8_t ds18b20_set_resolution_poll(void);
  *       so it also tracks a resolution changed externally.
  */
 uint8_t ds18b20_get_resolution(void);
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Commands DS18B20 Non-Blocking Command Transactions
+ * @brief Infrequent DS18B20 commands driven with the same non-blocking
+ *        discipline as the device search and the resolution change: every
+ *        command owns TIM1/DMA while it runs (reset -> presence -> write ->
+ *        read | wait) and hands the timer back to ds18b20_poll() when done.
+ *
+ * Each command is a start/poll pair; poll until it returns 1, then resume
+ * calling ds18b20_poll() for measurements. Commands are ignored mid-cycle,
+ * while a device search or a resolution change runs, or while another
+ * command transaction is still running. Result buffers passed to the read
+ * commands must stay valid until the transaction finishes.
+ * @{
+ */
+
+/**
+ * @brief Read the 64-bit ROM of the (only) DS18B20 on the bus
+ * @param[in,out] rom Buffer for the 8-byte ROM (LSB first); written on success
+ * @note Valid only when exactly one device is on the bus (datasheet Read ROM
+ *       0x33). With several devices use the non-blocking device search
+ *       (ds18b20_search_*).
+ * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
+ *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
+ */
+void ds18b20_read_rom(uint8_t* rom);
+
+/**
+ * @brief Advance the non-blocking Read ROM transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_read_rom_poll(void);
+
+/**
+ * @brief Configure the alarm trigger thresholds TH and TL
+ * @param[in] th High-alarm trigger value (DS18B20 8-bit threshold code)
+ * @param[in] tl Low-alarm trigger value (DS18B20 8-bit threshold code)
+ * @note Uses the DS18B20 8-bit sign-extended temperature code, the same
+ *       encoding the scratchpad TH/TL bytes use; converting to/from Celsius is
+ *       left to the application. The current conversion resolution (byte 4,
+ *       R1/R0) is written unchanged, so the resolution is not disturbed.
+ * @note Takes effect immediately in the scratchpad; run
+ *       ds18b20_copy_scratchpad() afterwards to persist TH/TL/CFG to the
+ *       EEPROM.
+ */
+void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
+
+/**
+ * @brief Advance the non-blocking alarm threshold write
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_set_alarm_thresholds_poll(void);
+
+/**
+ * @brief Read the 9-byte scratchpad (raw; includes TH, TL and the CRC)
+ * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,
+ *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
+ * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
+ *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
+ */
+void ds18b20_read_scratchpad(uint8_t* buf);
+
+/**
+ * @brief Advance the non-blocking raw scratchpad read
+ * @return 1 when finished (successfully or aborted), 0 while running
+ * @note On a valid read (CRC byte matches) the conversion resolution is
+ *       auto-derived from the config byte (byte 4), like the measurement path.
+ */
+uint8_t ds18b20_read_scratchpad_poll(void);
+
+/**
+ * @brief Copy the scratchpad into the EEPROM (non-volatile)
+ * @note External-power wiring only (as assumed by the whole driver): the copy
+ *       is powered by the sensor's VDD, no strong pull-up is needed. The
+ *       driver waits the datasheet t_COPY hold-off (10ms) before finishing.
+ */
+void ds18b20_copy_scratchpad(void);
+
+/**
+ * @brief Advance the non-blocking Copy Scratchpad transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_copy_scratchpad_poll(void);
+
+/**
+ * @brief Recall the EEPROM contents into the scratchpad
+ * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
+ *       The driver waits the datasheet t_RECALL hold-off (10ms) before
+ *       finishing.
+ */
+void ds18b20_recall_eeprom(void);
+
+/**
+ * @brief Advance the non-blocking Recall EEPROM transaction
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_recall_eeprom_poll(void);
+
+/**
+ * @brief Read the power-supply state of the DS18B20
+ * @param[in,out] is_parasite Receives 1 when the device is parasite-powered,
+ *                            0 when externally powered; written on success
+ */
+void ds18b20_read_power_supply(uint8_t* is_parasite);
+
+/**
+ * @brief Advance the non-blocking power-supply read
+ * @return 1 when finished (successfully or aborted), 0 while running
+ */
+uint8_t ds18b20_read_power_supply_poll(void);
+
+/**
+ * @brief Result of the last completed command transaction
+ * @return 1 when the last ds18b20_*_poll() finished a transaction that found
+ *         a device present (and, for read commands, read its data back),
+ *         0 when it aborted (e.g. no device present) or nothing ran yet
+ */
+uint8_t ds18b20_last_command_ok(void);
 
 /**
  * @}
