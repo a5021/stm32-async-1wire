@@ -82,16 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pulse encoding, presence detection, scratchpad decode, temperature
   conversion, timing and bus release. The suite runs in CI.
 
-### Removed
-
-- Legacy low-level blocking 1-Wire primitives (`ds18b20_reset()`,
-  `ds18b20_write_bit()`, `ds18b20_read_bit()`, `ds18b20_write_byte()`,
-  `ds18b20_read_byte()`, `ds18b20_restore()`) were removed from the public
-  API. They busy-waited on hardware completion and were the only blocking
-  path in the driver. Device enumeration is now handled exclusively by the
-  non-blocking `ds18b20_search_*` family; `ds18b20_crc8()` is kept as a
-  public utility.
-
 ### Fixed
 
 - The scan mode stalled after the first device read on real hardware: after a
