@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Non-blocking resolution change: `ds18b20_set_resolution()` /
   `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
   between measurement cycles, mirroring the device search state machine (one
-  hardware operation per poll, zero busy-waits). The config is written with
+  hardware operation per poll). The config is written with
   Write Scratchpad (0x4E) to the volatile scratchpad; TH/TL are reset to 0
   (alarms disabled) and the change is not persisted to the EEPROM.
 - `ds18b20_get_resolution()` reports the current resolution, auto-derived from
@@ -53,8 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hardware operation. It filters by `DS18B20_FAMILY_CODE`, validates the ROM
   CRC and forces a timer update event before handing back to `ds18b20_poll()`.
 - UART TX is now fully non-blocking: `uart_tx_enqueue_byte()` drops a byte when
-  the ring buffer is full instead of busy-waiting, and the blocking
-  `uart_tx_flush()` was removed.
+  the ring buffer is full, and `uart_tx_flush()` was removed.
 - The conversion wait is now resolution-aware: `wait_conversion()` waits
   exactly the datasheet time of the configured resolution (93.75ms @ 9-bit,
   187.5ms @ 10-bit, 375ms @ 11-bit, 750ms @ 12-bit) instead of a fixed 750ms,
