@@ -120,6 +120,30 @@ Notes:
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
 
+## Hardware Verified
+
+The following captures were taken on real hardware: STM32F103C8T6 (Blue Pill),
+8 × DS18B20 on one 1-Wire bus (PA8), flashed via ST-Link, USART1 TX at
+115200 8N1 read through a CP2102 USB-UART adapter. The shared 1-Wire layer
+found all 8 sensors, and every measurement round reported all of them — no
+missing devices, no CRC failures.
+
+**demo2 — device search + round-robin + resolution cycling** (`src/demo2.c`):
+the startup Search ROM finds all 8 devices, then each sensor is measured in
+turn while the resolution cycles 9 → 10 → 11 → 12 bit between measurements.
+
+<p align="center">
+  <img src="docs/screenshots/demo2_uart.png" alt="demo2 on real hardware: device search, round-robin measurement, resolution cycling" width="600">
+</p>
+
+**demo3 — simultaneous multi-device conversion** (`src/demo3.c`): one broadcast
+`Convert T` converts all sensors in parallel, then each is read back via
+Match ROM — 8 readings per round in device-table order.
+
+<p align="center">
+  <img src="docs/screenshots/demo3_uart.png" alt="demo3 on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
+</p>
+
 ## Hardware Connections
 
 ### DS18B20 Sensor
