@@ -5,6 +5,20 @@ are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.2.0] - 2026-08-17
+
+### Added
+
+- Non-blocking alarm search: `ds18b20_alarm_search_start()`,
+  `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()`. Implements the
+  Maxim Alarm Search ROM (0xEC) algorithm with the same state machine as the
+  device search: it reports only the DS18B20 devices currently in alarm state
+  (temperature outside the TH/TL thresholds set with Write Scratchpad). The
+  alarm search never repopulates the scan-mode device table, so the addresses
+  found by a previous device search stay valid while the alarm state of the bus
+  is polled.
+
 ## [1.1.0] - 2026-08-16
 
 ### Added

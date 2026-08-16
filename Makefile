@@ -321,6 +321,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_scratchpad.c \
             $(TEST_DIR)/test_bus_release.c \
             $(TEST_DIR)/test_search.c \
+            $(TEST_DIR)/test_alarm_search.c \
             $(TEST_DIR)/test_crc8.c \
             $(TEST_DIR)/test_pulse_encoding.c \
             $(TEST_DIR)/test_presence.c \

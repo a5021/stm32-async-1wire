@@ -82,6 +82,14 @@ typedef enum {
 #define DS18B20_SEARCH_ROM 0xF0
 
 /**
+ * @brief DS18B20 Alarm Search ROM command
+ * @note Returns only the devices currently in alarm state, i.e. whose last
+ *       measured temperature is outside the TH/TL thresholds configured with
+ *       Write Scratchpad (DS18B20_WRITE_SCRATCHPAD).
+ */
+#define DS18B20_ALARM_SEARCH 0xEC
+
+/**
  * @brief DS18B20 Match ROM command
  */
 #define DS18B20_MATCH_ROM 0x55
@@ -174,6 +182,46 @@ uint8_t ds18b20_search_poll(void);
  * @return Count of found devices
  */
 uint8_t ds18b20_search_count(void);
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup DS18B20_Alarm_Search DS18B20 Non-Blocking Alarm Search
+ * @brief Maxim Alarm Search ROM (0xEC) state machine, driven from the main
+ *        loop exactly like the device search. It reports only the DS18B20
+ *        devices currently in alarm state (temperature outside the TH/TL
+ *        thresholds set with Write Scratchpad); the regular Search ROM
+ *        returns every device regardless of alarm state.
+ *
+ * The alarm search reuses the device search engine (same poll/ownership
+ * model, same family filter, same sink protocol) and does not touch the
+ * scan-mode device table: run ds18b20_search_start() to (re)populate it.
+ * When it finishes it hands the timer back to ds18b20_poll().
+ * @{
+ */
+
+/**
+ * @brief Start a non-blocking alarm search
+ * @param[in] sink Callback invoked per DS18B20 currently in alarm (may be NULL)
+ * @param[in] max_devices Maximum number of alarmed devices to report (0 aborts)
+ * @note Only devices in alarm state respond to Alarm Search (0xEC). The
+ *       scan-mode device table is left untouched by the alarm search.
+ */
+void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+
+/**
+ * @brief Advance the non-blocking alarm search by one hardware operation
+ * @return 1 when the search is finished, 0 while still running
+ */
+uint8_t ds18b20_alarm_search_poll(void);
+
+/**
+ * @brief Number of DS18B20 devices found in alarm (valid once finished)
+ * @return Count of alarmed devices
+ */
+uint8_t ds18b20_alarm_search_count(void);
 
 /**
  * @}

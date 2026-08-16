@@ -18,6 +18,11 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
    1-Wire bus primitives and the Search ROM state machine live inside the
    driver, so the public API is a small high-level interface only — zero
    busy-waits, consistent with the non-blocking measurement path.
+ - Non-Blocking Alarm Search: `ds18b20_alarm_search_start()`,
+   `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
+   DS18B20 devices currently in alarm state (temperature outside the TH/TL
+   thresholds set with Write Scratchpad). It uses the same Maxim search engine
+   as the device search and leaves the scan-mode device table untouched.
  - Per-Device Addressing: Select one specific sensor by its ROM address
    (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
  - Resolution-Aware Conversion Wait: The driver waits exactly as long as the
@@ -272,10 +277,12 @@ make test
 The driver is compiled as a single translation unit
 (`tests/mock/ds18b20_test_access.c` includes `src/ds18b20.c`) against a
 behavioural model of the TIM1/DMA hardware (`tests/mock/hw_model.c`) and a
-register mock of the STM32F1 CMSIS header. 145 tests cover:
+register mock of the STM32F1 CMSIS header. 157 tests cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
+-   Non-blocking alarm search (Alarm Search ROM, 0xEC command feed, scan-table
+    isolation)
 -   Non-blocking resolution change (`ds18b20_set_resolution_*`): exact wait
     timings for 9/10/11/12 bit, Skip ROM and Match ROM config writes, CCR1-feed
     bus release, ownership guards, presence-abort and scratchpad auto-derivation
@@ -559,6 +566,23 @@ with its 8-byte ROM address; `max_devices` caps the reported count. Poll
 `ds18b20_poll()` state automatically. `ds18b20_search_count()` returns how many
 devices were found. Only devices with family code `DS18B20_FAMILY_CODE` (0x28)
 are reported. See `demo2.c`.
+
+### Alarm Search
+
+```C
+void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_alarm_search_poll(void);
+uint8_t ds18b20_alarm_search_count(void);
+```
+Non-blocking Maxim Alarm Search ROM (0xEC): reports only the DS18B20 devices
+currently in alarm state, i.e. whose last measured temperature is outside the
+TH/TL thresholds configured with Write Scratchpad (0x4E). It shares the device
+search engine, so the callback, `max_devices` cap, family filter and ownership
+rules are identical; only the command byte and the reported set differ. Unlike
+`ds18b20_search_start()`, the alarm search never repopulates the scan-mode
+device table (`ds18b20_device_count()` / `ds18b20_device_rom()` keep the
+addresses from the last device search). Poll `ds18b20_alarm_search_poll()` from
+the main loop until it returns 1, then read `ds18b20_alarm_search_count()`.
 
 ### Per-Device Addressing
 

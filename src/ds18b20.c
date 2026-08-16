@@ -705,8 +705,8 @@ static void ds18b20_bus_write_then_read(uint8_t bit) {
 
 /** @brief Search state machine phases */
 typedef enum {
-    DS18B20_SEARCH_RESET, /**< reset scheduled; check presence, send 0xF0 */
-    DS18B20_SEARCH_CMD, /**< 0xF0 sent; prepare first bit iteration */
+    DS18B20_SEARCH_RESET, /**< reset scheduled; check presence, send the search command */
+    DS18B20_SEARCH_CMD, /**< search command sent; prepare first bit iteration */
     DS18B20_SEARCH_READ_PAIR, /**< first id/cmp pair read; compute and write direction */
     DS18B20_SEARCH_WRITE_READ, /**< merged direction write + next pair read completed */
     DS18B20_SEARCH_WRITE_DIR, /**< final direction written; advance bit counters */
@@ -720,12 +720,13 @@ typedef enum {
  * @brief Non-blocking search context
  * @note Holds the loop counters of the search algorithm; the persistent pulse
  *       buffer (pulses) must stay valid across poll calls because the DMA
- *       feeds CCR1 from it asynchronously while the 0xF0 command is sent.
+ *       feeds CCR1 from it asynchronously while the search command is sent.
  */
 typedef struct {
     search_phase_t phase; /**< Current phase of the search state machine */
+    uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
     uint8_t rom[DS18B20_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
-    uint8_t pulses[DS18B20_BITS_PER_BYTE + 1]; /**< Pulse buffer for the 0xF0 command (+ trailing 0 for hardware bus release) */
+    uint8_t pulses[DS18B20_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ trailing 0 for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -754,11 +755,16 @@ void ds18b20_test_set_gap_us(uint16_t us) { test_gap_us = us; }
 #endif
 
 /**
- * @brief Start a non-blocking device search
- * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
+ * @brief Shared init for the non-blocking search engine (device or alarm)
+ * @param[in] sink Callback invoked per found device (may be NULL)
  * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @param[in] command Search command byte (0xF0 device search / 0xEC alarm search)
+ * @note Ownership guard: the search and the measurement state machine share
+ *       TIM1/DMA, so a new search may only be started when the timer is free.
+ *       The scan-mode device table is only reset by the device search, so an
+ *       alarm search never destroys the addresses found by a previous scan.
  */
-void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+static void ds18b20_search_init(ds18b20_search_sink_t sink, uint8_t max_devices, uint8_t command) {
     // Ownership guard: the search and the measurement state machine share
     // TIM1/DMA, so a new search may only be started when the timer is free.
     if (!search_ctx.finished) {
@@ -771,20 +777,42 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
         search_ctx.rom[i] = 0;
     }
     // Trailing zero consumed by the CCR1-feed DMA's final transfer: this is the
-    // hardware bus release after the 0xF0 command (see send_command_n).
+    // hardware bus release after the search command (see send_command_n).
     search_ctx.pulses[DS18B20_BITS_PER_BYTE] = 0;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;
     search_ctx.finished = 0;
     search_ctx.last_discrepancy = 0;
-    dev_count = 0;
+    search_ctx.command = command;
     if (max_devices == 0) {
         search_ctx.phase = DS18B20_SEARCH_DONE;
         return;
     }
     search_ctx.phase = DS18B20_SEARCH_RESET;
     ds18b20_bus_reset(); // Schedule the first hardware operation
+}
+
+/**
+ * @brief Start a non-blocking device search
+ * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
+ * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @note The device search (re)populates the scan-mode device table.
+ */
+void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    dev_count = 0;
+    ds18b20_search_init(sink, max_devices, DS18B20_SEARCH_ROM);
+}
+
+/**
+ * @brief Start a non-blocking alarm search
+ * @param[in] sink Callback invoked per DS18B20 currently in alarm (may be NULL)
+ * @param[in] max_devices Maximum number of alarmed devices to report (0 aborts)
+ * @note Only devices in alarm state respond to Alarm Search (0xEC). The
+ *       scan-mode device table is left untouched.
+ */
+void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    ds18b20_search_init(sink, max_devices, DS18B20_ALARM_SEARCH);
 }
 
 /**
@@ -880,18 +908,20 @@ uint8_t ds18b20_search_poll(void) {
     switch (search_ctx.phase) {
     case DS18B20_SEARCH_RESET:
         // Reset completed: a presence pulse means at least one device is on
-        // the bus, so start a new search pass with the Search ROM command.
+        // the bus, so start a new search pass with the search command
+        // (0xF0 Search ROM / 0xEC Alarm Search).
         if (!ds18b20_bus_present()) {
             search_ctx.phase = DS18B20_SEARCH_DONE;
             break;
         }
-        ds18b20_bus_encode_byte(search_ctx.pulses, DS18B20_SEARCH_ROM);
+        ds18b20_bus_encode_byte(search_ctx.pulses, search_ctx.command);
         ds18b20_bus_write_slots(search_ctx.pulses, DS18B20_BITS_PER_BYTE);
         search_ctx.phase = DS18B20_SEARCH_CMD;
         break;
 
     case DS18B20_SEARCH_CMD:
-        // 0xF0 sent: prepare the first bit iteration and read the id/cmp pair.
+        // Search command sent: prepare the first bit iteration and read the
+        // id/cmp pair.
         search_ctx.id_bit_number = 1;
         search_ctx.last_zero = 0;
         ds18b20_bus_read_pair();
@@ -945,8 +975,10 @@ uint8_t ds18b20_search_poll(void) {
             search_ctx.found++;
             // Store the ROM in the driver's device table for scan mode. The
             // table is capped at DS18B20_MAX_DEVICES; extra devices are still
-            // reported to the sink but not addressable in scan mode.
-            if (dev_count < DS18B20_MAX_DEVICES) {
+            // reported to the sink but not addressable in scan mode. Only the
+            // device search (0xF0) populates the table; the alarm search
+            // leaves it untouched so a previous scan keeps its addresses.
+            if (search_ctx.command == DS18B20_SEARCH_ROM && dev_count < DS18B20_MAX_DEVICES) {
                 for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
                     dev_roms[dev_count][i] = search_ctx.rom[i];
                 }
@@ -990,6 +1022,18 @@ uint8_t ds18b20_search_poll(void) {
  * @return Count of found devices
  */
 uint8_t ds18b20_search_count(void) { return search_ctx.found; }
+
+/**
+ * @brief Advance the non-blocking alarm search by one hardware operation
+ * @return 1 when the search is finished, 0 while still running
+ */
+uint8_t ds18b20_alarm_search_poll(void) { return ds18b20_search_poll(); }
+
+/**
+ * @brief Number of DS18B20 devices found in alarm (valid once finished)
+ * @return Count of alarmed devices
+ */
+uint8_t ds18b20_alarm_search_count(void) { return search_ctx.found; }
 
 /**
  * @}

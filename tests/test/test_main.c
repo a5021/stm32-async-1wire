@@ -31,6 +31,7 @@ extern void run_test_scratchpad(void);
 extern void run_test_state_machine(void);
 extern void run_test_bus_release(void);
 extern void run_test_search(void);
+extern void run_test_alarm_search(void);
 extern void run_test_crc8(void);
 extern void run_test_pulse_encoding(void);
 extern void run_test_presence(void);
@@ -45,6 +46,7 @@ int main(void) {
     run_test_state_machine();
     run_test_bus_release();
     run_test_search();
+    run_test_alarm_search();
     run_test_crc8();
     run_test_pulse_encoding();
     run_test_presence();
