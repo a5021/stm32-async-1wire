@@ -575,6 +575,49 @@ ROM (0xCC)** single-sensor behaviour.
 The demo measures the single device directly when exactly one is found, and
 cycles through all found devices in turn when several are present.
 
+### Simultaneous Multi-Device Conversion
+
+```C
+void ds18b20_scan_start(void);
+uint8_t ds18b20_device_count(void);
+const uint8_t* ds18b20_device_rom(uint8_t index);
+uint8_t ds18b20_scan_index(void);
+```
+
+Convert every discovered device in parallel. `ds18b20_scan_start()` schedules one
+broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously, then
+reads each one back via Match ROM in device-table order, reporting every result
+through `ds18b20_complete()`. N devices take one conversion wait plus N reads
+instead of N conversion waits. A missing device reports
+`DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See `demo3.c`.
+
+- The device table must be populated first by the non-blocking device search
+  (`ds18b20_search_*`).
+- Scan mode assumes a single resolution across all sensors (the config is written
+  broadcast) and is mutually exclusive with the single-device
+  `ds18b20_select()` addressing — calling `ds18b20_select()` clears scan mode,
+  call `ds18b20_scan_start()` again to resume.
+- `ds18b20_device_count()` returns how many DS18B20 devices are stored;
+  `ds18b20_device_rom(index)` returns the 8-byte ROM (LSB first) of one of them,
+  or NULL for an out-of-range index (the pointer is valid until the next search).
+- `ds18b20_scan_index()` returns the index of the device whose result
+  `ds18b20_complete()` just reported (valid during scan mode).
+
+Example:
+
+```C
+ds18b20_scan_start();   // begin simultaneous conversion of all sensors
+while (1) {
+    ds18b20_poll();     // scan reports each device via ds18b20_complete()
+}
+
+// inside ds18b20_complete(): identify the sensor
+void ds18b20_complete(int16_t temp) {
+    uint8_t idx = ds18b20_scan_index();
+    printf("Sensor %u: %d.%d C\n", idx, temp / 10, abs(temp % 10));
+}
+```
+
 ### Resolution Change
 
 ```C
