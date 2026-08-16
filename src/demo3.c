@@ -48,31 +48,42 @@ static uint8_t device_found_sink(const uint8_t* rom) {
 void ds18b20_complete(int16_t temp) {
     const uint8_t idx = ds18b20_scan_index();
     const uint8_t* rom = ds18b20_device_rom(idx);
+    int line_len = 0;
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-        uart_write_hex(rom ? rom[i] : 0u);
-        if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
+        line_len += uart_write_hex(rom ? rom[i] : 0u);
+        if (i != DS18B20_ROM_BYTES - 1) line_len += uart_tx_enqueue_byte(' ');
     }
-    uart_write_str(": ");
+    line_len += uart_write_str(": ");
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) { // No sensor detected error
-        uart_write_str("no sensor detected.");
+        line_len += uart_write_str("no sensor detected.");
     } else if (temp == DS18B20_TEMP_ERROR_CRC_FAIL) { // CRC check failed error
-        uart_write_str("CRC check failed.");
+        line_len += uart_write_str("CRC check failed.");
     } else if (temp == DS18B20_TEMP_ERROR_GENERIC) { // Generic error
-        uart_write_str("generic failure.");
+        line_len += uart_write_str("generic failure.");
     } else { // Valid temperature reading - format and display
         int whole = temp / 10; // Get whole degrees (temp is in tenths)
         int frac = temp % 10; // Get fractional part (tenths)
         if (frac < 0) frac = -frac; // Ensure fractional part is positive
         if (whole == 0 && temp < 0) {
-            uart_write_str("-0"); // Handle -0.5C case
+            line_len += uart_write_str("-0"); // Handle -0.5C case
         } else {
-            uart_write_int(whole); // Display whole part
+            line_len += uart_write_int(whole); // Display whole part
         }
-        uart_write_str("."); // Decimal point
-        uart_write_int(frac); // Display fractional part
-        uart_write_str(" C"); // Units
+        line_len += uart_write_str("."); // Decimal point
+        line_len += uart_write_int(frac); // Display fractional part
+        line_len += uart_write_str(" C"); // Units
     }
     uart_write_str("\r\n"); // And newline
+
+    // Close the measurement batch: a separator as wide as the measurement
+    // line marks the end of the round (the last device was just reported and
+    // the scan returns to IDLE before the next broadcast Convert T).
+    if ((uint16_t)idx + 1u >= ds18b20_device_count()) {
+        for (int i = 0; i < line_len; i++) {
+            uart_tx_enqueue_byte('-');
+        }
+        uart_write_str("\r\n");
+    }
 }
 
 /**
