@@ -57,7 +57,7 @@ jobs:
 
       # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stm32-binaries
           path: |

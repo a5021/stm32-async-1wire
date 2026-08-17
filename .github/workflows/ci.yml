@@ -56,7 +56,7 @@ jobs:
       - name: Coverage summary
         run: lcov --summary coverage.filtered.info --rc branch_coverage=1
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage-report
