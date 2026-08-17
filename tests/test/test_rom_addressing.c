@@ -219,28 +219,22 @@ void test_select_rejected_during_resolution_change(void) {
     ds18b20_test_reset_txn();
 }
 
-void test_select_accepted_from_scan_callback(void) {
+void test_select_rejected_from_scan_callback(void) {
     ds18b20_init();
     ds18b20_test_reset_ctx();
     ds18b20_test_reset_txn();
     ds18b20_test_reset_search();
 
     /* Mimic the per-device scan callback context: state is DECODE while a scan
-     * is in progress. A select() there must be accepted and must switch the
-     * driver out of scan mode to address a single device. */
+     * is in progress. A select() there must be rejected and the scan round must
+     * continue (scan mode unchanged). */
     ds18b20_test_set_scan_mode(1);
     ds18b20_test_set_state(DS18B20_ST_DECODE);
 
     uint8_t rom[8] = {0x28, 0x0A, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
     ds18b20_select(rom);
-    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
-
-    uint8_t got[8];
-    ds18b20_test_get_selected_rom(got);
-    for (uint8_t i = 0; i < 8; i++) {
-        TEST_ASSERT_EQUAL_HEX8(rom[i], got[i]);
-    }
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
 }
 
 void run_test_rom_addressing(void) {
@@ -257,5 +251,5 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_select_rejected_while_txn_running);
     TEST_RUN(test_select_rejected_during_search);
     TEST_RUN(test_select_rejected_during_resolution_change);
-    TEST_RUN(test_select_accepted_from_scan_callback);
+    TEST_RUN(test_select_rejected_from_scan_callback);
 }

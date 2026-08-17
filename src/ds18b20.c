@@ -652,11 +652,6 @@ uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
  */
 static void scan_finish_or_next(void) {
     if (!ctx.scan_mode) {
-        /* Single-device mode, or a select() issued from the scan callback that
-         * switched us out of scan mode: return the state machine to IDLE so the
-         * next poll starts a fresh (single-device) cycle instead of re-entering
-         * the DECODE state it was left in. */
-        ctx.current_state = DS18B20_ST_IDLE;
         start_cycle_pause();
         return;
     }
@@ -1111,23 +1106,23 @@ void ds18b20_init(void) {
  *       legacy single-sensor Skip ROM behaviour. The address should come from
  *       the non-blocking device search (ds18b20_search_*).
  * @note The selection is applied only between measurement cycles (driver
- *       IDLE). Calls made while a cycle is running are ignored: applying them
- *       mid-cycle would overwrite ctx.addr_cmd while the DMA is still feeding
- *       it, corrupting the in-flight bus transaction. Re-call once the cycle
- *       finished (e.g., from ds18b20_complete(), which the driver invokes
- *       already in the IDLE state).
+ *       IDLE). Calls made while a cycle is running are ignored, including from
+ *       the per-device scan callback (which the driver invokes at
+ *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the
+ *       scan round continues. Applying a select mid-cycle would overwrite
+ *       ctx.addr_cmd while the DMA is still feeding it, corrupting the
+ *       in-flight bus transaction. Re-call at IDLE (e.g. from
+ *       ds18b20_complete() in single-device mode, or between rounds) to switch
+ *       addressing.
  */
 void ds18b20_select(const uint8_t* rom) {
-    /* Select is safe only when no bus transaction is in flight. In scan mode
-     * the per-device ds18b20_complete() callback runs at DS18B20_ST_DECODE
-     * (after the read, nothing pending), so a select() there is accepted too
-     * and lets the application switch to single-device addressing from inside
-     * the callback. Every other state means a transaction is mid-flight. */
-    const uint8_t selectable =
-        (uint8_t)(ctx.current_state == DS18B20_ST_IDLE ||
-                  (ctx.current_state == DS18B20_ST_DECODE && ctx.scan_mode));
-    if (!selectable) {
-        // Mid-cycle call - reject to keep the in-flight transaction intact.
+    /* Select is accepted only when no bus transaction is in flight, i.e. at
+     * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE
+     * mid-round: a select() there is rejected so it cannot interrupt the
+     * in-progress scan. To leave scan mode, call select() between measurement
+     * rounds (at IDLE) or from the single-device ds18b20_complete() callback
+     * (which runs at IDLE). */
+    if (ctx.current_state != DS18B20_ST_IDLE) {
         return;
     }
     if (!txn_ctx.finished) {
@@ -1267,10 +1262,11 @@ void ds18b20_poll(void) {
         // Turn off LED to indicate measurement complete
         ds18b20_busy(0);
 
-        // Return to IDLE before the callback so a re-selection from inside
-        // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
-        // Scan mode keeps its own per-device addressing, so it stays in DECODE
-        // and reports every device before returning to IDLE at the round end.
+        // In single-device mode the callback runs at IDLE, so a re-selection
+        // from inside ds18b20_complete() is accepted there. Scan mode keeps its
+        // own per-device addressing and stays in DECODE: a select() from the
+        // scan callback is rejected, and it reports every device before
+        // returning to IDLE at the round end.
         if (!ctx.scan_mode) {
             ctx.current_state = DS18B20_ST_IDLE;
         }

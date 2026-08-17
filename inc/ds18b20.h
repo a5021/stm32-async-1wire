@@ -501,11 +501,12 @@ void ds18b20_poll(void);
  *       behaviour. To measure a specific device, pass its ROM address
  *       (e.g., from a bus search) to ds18b20_select().
  * @note The selection is applied only when no bus transaction is in flight
- *       (driver IDLE, or the per-device DS18B20_ST_DECODE state inside a scan
- *       callback); calls made mid-cycle are ignored. It is safe to re-select
- *       from inside the ds18b20_complete() callback: in single-device mode the
- *       driver invokes it at IDLE, and in scan mode at DECODE, where a non-NULL
- *       rom switches the driver out of scan mode to address that single device.
+ *       (driver IDLE). Calls made mid-cycle are ignored, including from the
+ *       per-device scan callback, which the driver invokes at
+ *       DS18B20_ST_DECODE mid-round: a select() there is rejected and the scan
+ *       round continues. To switch out of scan mode, call ds18b20_select()
+ *       from ds18b20_complete() in single-device mode (the callback runs at
+ *       IDLE) or between measurement rounds (at IDLE).
  */
 void ds18b20_select(const uint8_t* rom);
 
