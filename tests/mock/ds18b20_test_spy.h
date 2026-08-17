@@ -17,6 +17,7 @@ extern int16_t test_spy_complete_values[TEST_SPY_MAX_COMPLETES];
 extern uint8_t test_spy_complete_indices[TEST_SPY_MAX_COMPLETES]; /* ds18b20_scan_index() at callback time */
 extern uint8_t test_spy_busy_calls; /* busy() invocations since the last reset */
 extern unsigned test_spy_busy_last_action; /* last busy() argument */
+extern void (*test_spy_on_complete_hook)(void); /* optional per-test hook invoked inside ds18b20_complete */
 
 void test_spy_reset(void);
 

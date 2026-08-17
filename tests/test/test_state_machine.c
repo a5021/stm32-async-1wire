@@ -650,6 +650,123 @@ void test_state_machine_search_select_measure_e2e(void) {
 }
 
 /*-------------------------------------------------------------
+ *  Repeated-cycle / re-select-in-callback helpers
+ * -----------------------------------------------------------*/
+static void ts_inject_scratchpad(const uint8_t* sd) {
+    for (uint8_t i = 0; i < 9; i++) {
+        for (uint8_t b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b,
+                                   ((sd[i] >> b) & 1u) ? E2E_ONE : E2E_ZERO);
+        }
+    }
+}
+
+static int16_t ts_temp(uint16_t raw) {
+    int16_t r = (int16_t)raw;
+    return (int16_t)(((int32_t)r * 10 + (r < 0 ? -8 : 8)) / 16);
+}
+
+static void ts_drive_measurement_raw(uint16_t raw) {
+    uint8_t sd[9];
+    sd[0] = (uint8_t)(raw & 0xFF);
+    sd[1] = (uint8_t)((raw >> 8) & 0xFF);
+    sd[2] = 0x4B;
+    sd[3] = 0x46;
+    sd[4] = 0x7F;
+    sd[5] = 0xFF;
+    sd[6] = 0x08;
+    sd[7] = 0x10;
+    sd[8] = ds18b20_crc8(sd, 8);
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
+
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
+
+    ts_inject_scratchpad(sd);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
+
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_TRUE(test_spy_complete_called);
+    TEST_ASSERT_EQUAL_INT(ts_temp(raw), test_spy_complete_value);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
+}
+
+void test_state_machine_repeated_measurement_cycles(void) {
+    spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    uint8_t before = test_spy_complete_count;
+    ts_drive_measurement_raw(0x0164); /* 223 tenths */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
+    ts_drive_measurement_raw(0x012C); /* 188 tenths */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
+    ts_drive_measurement_raw(0x0164); /* 223 tenths again */
+
+    TEST_ASSERT_EQUAL_UINT8(before + 3, test_spy_complete_count);
+    TEST_ASSERT_EQUAL_INT(ts_temp(0x0164), test_spy_complete_values[0]);
+    TEST_ASSERT_EQUAL_INT(ts_temp(0x012C), test_spy_complete_values[1]);
+    TEST_ASSERT_EQUAL_INT(ts_temp(0x0164), test_spy_complete_values[2]);
+}
+
+static uint8_t g_reselect_called;
+static uint8_t g_reselect_rom[8] = {0x28, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x10};
+static void ts_reselect_hook(void) {
+    g_reselect_called = 1;
+    ds18b20_select(g_reselect_rom);
+}
+
+void test_state_machine_reselect_in_callback(void) {
+    spy_reset();
+    g_reselect_called = 0;
+    test_spy_on_complete_hook = ts_reselect_hook;
+
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    uint8_t before = test_spy_complete_count;
+    ts_drive_measurement_raw(0x0164); /* first cycle; callback re-selects a device */
+
+    TEST_ASSERT_TRUE(g_reselect_called);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
+
+    ts_drive_measurement_raw(0x0164); /* re-armed cycle runs again */
+
+    TEST_ASSERT_EQUAL_UINT8(before + 2, test_spy_complete_count);
+
+    test_spy_on_complete_hook = 0;
+}
+
+/*-------------------------------------------------------------
  *  Test: ds18b20_init() configures clocks, prescaler and GPIO
  * -----------------------------------------------------------*/
 void test_state_machine_init_configures_registers(void) {
@@ -894,4 +1011,6 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_presence_fail_clears_busy);
     TEST_RUN(test_state_machine_crc_fail_mid_cycle);
     TEST_RUN(test_state_machine_full_cycle_skip_rom_value);
+    TEST_RUN(test_state_machine_repeated_measurement_cycles);
+    TEST_RUN(test_state_machine_reselect_in_callback);
 }
