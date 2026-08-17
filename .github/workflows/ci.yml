@@ -42,12 +42,15 @@ jobs:
         run: make clean && make test COVERAGE=1
       - name: Capture and filter coverage
         # Keep only the driver sources (src/ds18b20.c, src/onewire.c and the
-        # inc/ driver headers); drop tests, mocks, CMSIS and system headers so
-        # the metric reflects the driver, not the harness.
+        # inc/ driver headers); drop the test harness, mocks and system headers
+        # so the metric reflects the driver, not the test code. CMSIS is not
+        # compiled into the host test build (the mock lives under tests/mock),
+        # so it is intentionally not excluded here. --ignore-errors unused
+        # keeps the job green if a future exclude pattern matches nothing.
         run: |
           lcov --capture --directory build/test --output-file coverage.info --rc branch_coverage=1
-          lcov --remove coverage.info '*/tests/*' '*/CMSIS/*' '/usr/*' \
-               --output-file coverage.filtered.info --rc branch_coverage=1
+          lcov --remove coverage.info '*/tests/*' '/usr/*' \
+               --output-file coverage.filtered.info --rc branch_coverage=1 --ignore-errors unused
           genhtml coverage.filtered.info --output-directory coverage-report \
                  --branch-coverage --title "DS18B20 driver coverage"
       - name: Coverage summary
