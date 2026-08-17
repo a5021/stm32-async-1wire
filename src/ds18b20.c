@@ -25,8 +25,6 @@
 #define DS18B20_CRC8_BYTES 8
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
-/** @brief Pulse threshold separating short ('1') from long ('0') slots (from the 1-Wire layer) */
-#define SHORT_PULSE_MAX ONEWIRE_SHORT_PULSE_MAX
 /** @brief Total slots for Match ROM + 8-byte ROM + command */
 #define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
 /** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
@@ -238,14 +236,9 @@ __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
  *       then writes once per byte. Relies on union aliasing invariant — see DS18B20_ctx_t.
  */
 __STATIC_FORCEINLINE void decode_scratchpad(void) {
-    for (unsigned byte = 0; byte < DS18B20_SCRATCHPAD_LEN; ++byte) {
-        const unsigned base = byte * DS18B20_BITS_PER_BYTE;
-        unsigned value = 0;
-        for (unsigned bit = 0; bit < DS18B20_BITS_PER_BYTE; ++bit) {
-            value |= (unsigned)(ctx.pulse[base + bit] <= SHORT_PULSE_MAX) << bit;
-        }
-        ctx.scratchpad[byte] = (uint8_t)value;
-    }
+    /* Captured pulse durations (volatile, written by the read DMA) carry one
+     * bit each; onewire_decode_pulses() recovers the scratchpad bytes. */
+    onewire_decode_pulses(ctx.scratchpad, ctx.pulse, DS18B20_SCRATCHPAD_LEN);
 }
 
 /**
@@ -795,16 +788,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
  *       the union invariant of decode_scratchpad() does not apply here.
  */
 __STATIC_FORCEINLINE void txn_decode_read(void) {
-    for (uint8_t byte = 0; byte < txn_ctx.read_bytes; byte++) {
-        const uint8_t base = (uint8_t)(byte * DS18B20_BITS_PER_BYTE);
-        uint8_t value = 0;
-        for (uint8_t bit = 0; bit < DS18B20_BITS_PER_BYTE; bit++) {
-            value |= (ctx.pulse[base + bit] <= SHORT_PULSE_MAX)
-                         ? (uint8_t)(1u << bit)
-                         : 0u;
-        }
-        txn_ctx.raw[byte] = value;
-    }
+    onewire_decode_pulses(txn_ctx.raw, ctx.pulse, txn_ctx.read_bytes);
 }
 
 /**

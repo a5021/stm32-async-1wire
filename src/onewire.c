@@ -283,8 +283,8 @@ void onewire_read_pair(volatile uint16_t* edge_out) {
 }
 
 void onewire_pair_bits(const volatile uint16_t* edge, uint8_t* id_bit, uint8_t* cmp_bit) {
-    *id_bit = (edge[0] <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;
-    *cmp_bit = (edge[1] <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;
+    *id_bit = onewire_bit_from_pulse(edge[0]);
+    *cmp_bit = onewire_bit_from_pulse(edge[1]);
 }
 
 void onewire_write_then_read(uint8_t bit) {
@@ -335,6 +335,16 @@ void onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
     T1.CCR1 = ONEWIRE_ONE_PULSE;
     arm_capture((volatile void*)dst, bits, 8);
+}
+
+void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {
+    for (uint8_t byte = 0; byte < nbytes; byte++) {
+        uint8_t value = 0;
+        for (uint8_t bit = 0; bit < ONEWIRE_BITS_PER_BYTE; bit++) {
+            value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) << bit);
+        }
+        dst[byte] = value;
+    }
 }
 
 void onewire_encode_byte(uint8_t* out, uint8_t byte) {
@@ -516,8 +526,8 @@ uint8_t onewire_search_poll(void) {
         // captured the id/cmp pair of the current bit into search_edge3.
         search_ctx.id_bit_number++;
         onewire_search_advance_bit(
-            (search_edge3[1] <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u,
-            (search_edge3[2] <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u);
+            onewire_bit_from_pulse(search_edge3[1]),
+            onewire_bit_from_pulse(search_edge3[2]));
         break;
 
     case ONEWIRE_SEARCH_WRITE_DIR:

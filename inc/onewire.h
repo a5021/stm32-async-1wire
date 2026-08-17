@@ -130,6 +130,27 @@ void onewire_write_then_read(uint8_t bit);
 void onewire_read_data(volatile uint8_t* dst, uint8_t bytes);
 
 /**
+ * @brief Decode a single captured pulse duration into a 1-Wire bit
+ * @param[in] dur Pulse duration in microseconds
+ * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')
+ * @note A pulse duration `<= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.
+ */
+static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {
+    return (dur <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;
+}
+
+/**
+ * @brief Decode captured pulse durations into data bytes (LSB-first bits)
+ * @param[out] dst Decoded bytes
+ * @param[in] pulse Captured per-bit pulse durations (one entry per bit)
+ * @param[in] nbytes Number of bytes to decode (pulse must hold nbytes × 8 entries)
+ * @note Each bit is recovered with onewire_bit_from_pulse(); bit 0 maps to the
+ *       LSB of its byte. Recovers scratchpad / register bytes from the 1-Wire
+ *       read capture.
+ */
+void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes);
+
+/**
  * @brief Encode a byte into write-pulse durations
  * @param[out] out Output buffer (8 entries)
  * @param[in] byte Byte value to encode
