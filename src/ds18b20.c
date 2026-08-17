@@ -652,6 +652,11 @@ uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
  */
 static void scan_finish_or_next(void) {
     if (!ctx.scan_mode) {
+        /* Single-device mode, or a select() issued from the scan callback that
+         * switched us out of scan mode: return the state machine to IDLE so the
+         * next poll starts a fresh (single-device) cycle instead of re-entering
+         * the DECODE state it was left in. */
+        ctx.current_state = DS18B20_ST_IDLE;
         start_cycle_pause();
         return;
     }
@@ -1113,12 +1118,28 @@ void ds18b20_init(void) {
  *       already in the IDLE state).
  */
 void ds18b20_select(const uint8_t* rom) {
-    if (ctx.current_state != DS18B20_ST_IDLE) {
+    /* Select is safe only when no bus transaction is in flight. In scan mode
+     * the per-device ds18b20_complete() callback runs at DS18B20_ST_DECODE
+     * (after the read, nothing pending), so a select() there is accepted too
+     * and lets the application switch to single-device addressing from inside
+     * the callback. Every other state means a transaction is mid-flight. */
+    const uint8_t selectable =
+        (uint8_t)(ctx.current_state == DS18B20_ST_IDLE ||
+                  (ctx.current_state == DS18B20_ST_DECODE && ctx.scan_mode));
+    if (!selectable) {
         // Mid-cycle call - reject to keep the in-flight transaction intact.
         return;
     }
     if (!txn_ctx.finished) {
         // A command transaction is running - reject to keep its addressing.
+        return;
+    }
+    if (!res_ctx.finished) {
+        // A resolution change is running - reject to keep its addressing.
+        return;
+    }
+    if (onewire_search_active()) {
+        // The device search owns the timer - reject to keep its addressing.
         return;
     }
     // Explicit single-device addressing: leave simultaneous-conversion mode.

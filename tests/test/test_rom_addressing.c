@@ -187,6 +187,62 @@ void test_select_rejected_while_txn_running(void) {
     ds18b20_test_reset_txn();
 }
 
+void test_select_rejected_during_search(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+    ds18b20_test_reset_search();
+
+    /* A search owns the timer: select() must be rejected even at IDLE. */
+    ds18b20_search_start(0, 1);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_search_poll()); /* search still running */
+
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
+    ds18b20_test_reset_search();
+}
+
+void test_select_rejected_during_resolution_change(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+    ds18b20_test_reset_search();
+
+    /* A resolution change owns the timer: select() must be rejected. */
+    ds18b20_set_resolution(9);
+
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
+    ds18b20_test_reset_resolution();
+    ds18b20_test_reset_txn();
+}
+
+void test_select_accepted_from_scan_callback(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+    ds18b20_test_reset_search();
+
+    /* Mimic the per-device scan callback context: state is DECODE while a scan
+     * is in progress. A select() there must be accepted and must switch the
+     * driver out of scan mode to address a single device. */
+    ds18b20_test_set_scan_mode(1);
+    ds18b20_test_set_state(DS18B20_ST_DECODE);
+
+    uint8_t rom[8] = {0x28, 0x0A, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
+
+    uint8_t got[8];
+    ds18b20_test_get_selected_rom(got);
+    for (uint8_t i = 0; i < 8; i++) {
+        TEST_ASSERT_EQUAL_HEX8(rom[i], got[i]);
+    }
+}
+
 void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_NULL_clears_mode);
     TEST_RUN(test_rom_addressing_select_copies_rom);
@@ -199,4 +255,7 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_ignored_mid_cycle);
     TEST_RUN(test_rom_addressing_trailing_bus_release_sentinel);
     TEST_RUN(test_select_rejected_while_txn_running);
+    TEST_RUN(test_select_rejected_during_search);
+    TEST_RUN(test_select_rejected_during_resolution_change);
+    TEST_RUN(test_select_accepted_from_scan_callback);
 }
