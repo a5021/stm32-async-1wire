@@ -9,6 +9,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 - Pure Bare-Metal: Direct register manipulation, no HAL or LL libraries.
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
+- RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
  - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
@@ -577,7 +578,9 @@ Kickstart behavior
 | **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
 | **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
-## RTOS Integration: Bus Idle Behaviour
+## RTOS Integration
+
+### Bus Idle Behaviour
 
 Verified on hardware (this driver, TIM1+DMA one-pulse bus) against the DS18B20
 datasheet. Relevant if `ds18b20_search_poll()` / `ds18b20_poll()` are called
@@ -609,6 +612,78 @@ Practical consequences for RTOS use:
    microsecond window. Any RTOS that resumes the poll within hundreds of µs is
    fine; longer delays only require that the bus idles HIGH, which the hardware
    release guarantees by construction.
+
+### Multithreading and Concurrency
+
+The driver is safe to call from an RTOS task, but it is **not re-entrant and
+not thread-safe by itself**. All driver state is global and shared: the DS18B20
+state machine, the 1-Wire search context (`search_ctx`, in `onewire.c`), and
+the TIM1/DMA1 peripherals. There is no internal lock. The ownership guards
+(`txn_can_start`, the `ds18b20_search_*` checks) only prevent *logical*
+conflicts within a single-threaded model — they are plain flag checks, not
+atomic across tasks.
+
+Rules for correct RTOS use:
+
+1. **Confine every `ds18b20_*` call to a single task, or serialise with a
+   lock.** Either drive the whole driver from one task (the same one that calls
+   `ds18b20_poll()`), or wrap every entry point — each `*_start`, each
+   `*_poll`, `ds18b20_select()`, `ds18b20_scan_start()`,
+   `ds18b20_search_start()` — in a mutex/semaphore taken for the entire
+   sequence (start + poll loop). Two tasks touching the driver at once corrupt
+   the shared state machine and the TIM1/DMA registers. Example (FreeRTOS):
+
+   ```C
+   xSemaphoreTake(ow_mutex, portMAX_DELAY);
+   ds18b20_set_alarm_thresholds(0x19, 0x0F);
+   while (!ds18b20_set_alarm_thresholds_poll()) {
+       osDelay(1);   /* the transaction owns TIM1/DMA; just yield */
+   }
+   xSemaphoreGive(ow_mutex);
+   ```
+
+   While a search, a resolution change or a command transaction is running,
+   `ds18b20_poll()` returns immediately without doing anything, so the operation
+   must be advanced by its own `*_poll()` (as in the loop above) — not by
+   `ds18b20_poll()`.
+
+2. **TIM1 and DMA1 (channels 3 and 4) are owned by the driver.** No other task
+   or peripheral may use them while the driver is initialised.
+
+3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
+   entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
+   polling only increases latency, never causes errors (see *Bus Idle
+   Behaviour*). Two practical patterns:
+   - **Dedicated polling task:** loop `ds18b20_poll(); osDelay(1);` (or
+     `vTaskDelay(1)`). This gives low latency without saturating the CPU; the
+     750 ms conversion wait is a hardware timer, so the task yields during it.
+     If other tasks also use the driver, take the mutex around each
+     `ds18b20_poll()` call (or skip the poll when the mutex is busy).
+   - **Periodic timer / idle hook:** call `ds18b20_poll()` from a
+     high-frequency timer callback or the RTOS idle hook.
+   Avoid a tight `while (!done) poll();` busy loop — it consumes the task's
+   entire timeslice.
+
+4. **Callbacks run in task context, not in an ISR.** `ds18b20_complete()` and
+   `ds18b20_busy()` are invoked synchronously from inside `ds18b20_poll()`,
+   which runs in your task. You may therefore use ordinary RTOS primitives
+   there — e.g. `xSemaphoreGive()` / `xTaskNotifyGive()` from
+   `ds18b20_complete()` to wake a consumer task. No `...FromISR` variant is
+   needed.
+
+5. **No built-in blocking API.** The driver never blocks; there is no
+   `ds18b20_read_temperature_blocking()`. If a task must sleep until a result is
+   ready, start the operation (`ds18b20_scan_start()`, `ds18b20_search_start()`
+   or a command transaction), then either poll in a loop that yields
+   (`osDelay(1)`), or block on a semaphore that `ds18b20_complete()` releases.
+   Do **not** add a TIM1 interrupt just to signal completion — polling is
+   sufficient and preserves the zero-interrupt design.
+
+6. **Preemption mid-byte is safe.** A task may be preempted while a byte is
+   being transmitted: the DMA completes the whole byte in hardware and the bus
+   returns idle-HIGH, so resuming later is harmless (it complements *Bus Idle
+   Behaviour*). Only the *next* operation must be scheduled by a `poll()` call,
+   which any task may do once it holds the lock from rule 1.
 
 ## API Reference
 
