@@ -342,7 +342,8 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
 TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -Wall -Wextra -Wswitch-enum \
-            -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+            -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
+            $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc -I$(TEST_MOCK)
 
 .PHONY: test

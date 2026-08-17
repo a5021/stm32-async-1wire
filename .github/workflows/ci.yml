@@ -27,6 +27,37 @@ jobs:
       - name: Build and run host tests
         run: make test
 
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install host GCC and lcov
+        run: sudo apt-get update && sudo apt-get install -y gcc lcov
+      - name: Download CMSIS dependencies
+        run: make download-deps
+      - name: Build and run host tests with coverage
+        # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
+        # build; the test executable writes .gcda files under build/test when
+        # it exits. `make clean` first guarantees a fresh, instrumented build.
+        run: make clean && make test COVERAGE=1
+      - name: Capture and filter coverage
+        # Keep only the driver sources (src/ds18b20.c, src/onewire.c and the
+        # inc/ driver headers); drop tests, mocks, CMSIS and system headers so
+        # the metric reflects the driver, not the harness.
+        run: |
+          lcov --capture --directory build/test --output-file coverage.info --rc branch_coverage=1
+          lcov --remove coverage.info '*/tests/*' '*/CMSIS/*' '/usr/*' \
+               --output-file coverage.filtered.info --rc branch_coverage=1
+          genhtml coverage.filtered.info --output-directory coverage-report \
+                 --branch-coverage --title "DS18B20 driver coverage"
+      - name: Coverage summary
+        run: lcov --summary coverage.filtered.info --rc branch_coverage=1
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+
   cppcheck:
     runs-on: ubuntu-latest
     steps:

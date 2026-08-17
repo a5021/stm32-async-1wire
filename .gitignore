@@ -71,3 +71,11 @@ CMSIS/
 
 # RTOS-latency experiment build artifacts
 testbin/
+
+# gcov / lcov coverage artifacts
+*.gcno
+*.gcda
+*.gcov
+coverage.info
+coverage.filtered.info
+coverage-report/
