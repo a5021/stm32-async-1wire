@@ -30,7 +30,12 @@ jobs:
         run: |
           sudo mkdir -p /opt/gcc-arm-none-eabi
           wget -qO- https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz | sudo tar -xJv -C /opt/gcc-arm-none-eabi --strip-components=1
-          echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
+
+      # Step 3b: Put the toolchain on PATH unconditionally. The cache-hit
+      # branch skips Step 3 entirely, so the PATH must be set here regardless
+      # of whether the toolchain was just installed or restored from cache.
+      - name: Add Toolchain to PATH
+        run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
 
       # Step 4: Cache project dependencies (CMSIS headers, SVD)
       - name: Cache Project Dependencies
