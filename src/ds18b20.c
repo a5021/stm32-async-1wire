@@ -733,9 +733,14 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  * @return 1 when a new transaction may be scheduled
  */
 __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
+    /* A scan session owns the timer for its whole duration (scan_mode stays 1
+     * until ds18b20_select() clears it): a command transaction started then
+     * would clobber the in-flight measurement/scan cycle, so it must be
+     * rejected. Without this check a command could slip through during the
+     * brief IDLE pause between scan rounds. */
     return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &&
-                     !onewire_search_active() && res_ctx.finished &&
-                     txn_ctx.finished);
+                     !ctx.scan_mode && !onewire_search_active() &&
+                     res_ctx.finished && txn_ctx.finished);
 }
 
 /**
