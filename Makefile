@@ -169,14 +169,25 @@ CMSIS_DEVICE_LICENSE = $(CMSIS_DEVICE_DIR)/LICENSE
 
 LICENSE_FILES = $(CMSIS_CORE_LICENSE) $(CMSIS_DEVICE_LICENSE)
 
-# Download function using wget or curl
+# Download function using wget or curl. Retries on transient network
+# failures (the CMSIS/CDN hosts occasionally drop a connection) so CI does
+# not fail a whole job because of one flaky fetch.
 define download_file
 	@echo "  Downloading $(1)..."
 	@if [ -z "$(DOWNLOAD_TOOL)" ]; then \
 		echo "Error: neither wget nor curl found. Please install one of them."; \
 		exit 1; \
 	fi
-	@$(DOWNLOAD_TOOL) $(DOWNLOAD_FLAGS) "$(2)" "$(1)" && echo "    OK" || (echo "    FAILED"; exit 1)
+	@n=1; ok=0; \
+	while [ $$n -le 5 ]; do \
+		if $(DOWNLOAD_TOOL) $(DOWNLOAD_FLAGS) "$(2)" "$(1)"; then \
+			ok=1; break; \
+		fi; \
+		echo "    attempt $$n failed, retrying..."; \
+		n=$$((n+1)); \
+		sleep 2; \
+	done; \
+	if [ $$ok -eq 1 ]; then echo "    OK"; else echo "    FAILED"; exit 1; fi
 endef
 
 # Create CMSIS directories
