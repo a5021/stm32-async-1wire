@@ -754,6 +754,23 @@ void test_search_start_blocked_mid_measurement(void) {
 /*-------------------------------------------------------------
  *  Run all search tests
  * -----------------------------------------------------------*/
+void test_search_rejected_while_txn_running(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+
+    uint8_t buf[8];
+    ds18b20_read_rom(buf);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_finished());
+
+    g_found_count = 0;
+    ds18b20_search_start(sink, 1);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_poll()); /* no search became active */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_search_count());
+
+    ds18b20_test_reset_txn();
+}
+
 void run_test_search(void) {
     TEST_RUN(test_search_finds_single_device);
     TEST_RUN(test_search_command_feed_release);
@@ -772,4 +789,5 @@ void run_test_search(void) {
     TEST_RUN(test_search_poll_ignored_while_search_running);
     TEST_RUN(test_search_start_reentry_ignored);
     TEST_RUN(test_search_start_blocked_mid_measurement);
+    TEST_RUN(test_search_rejected_while_txn_running);
 }

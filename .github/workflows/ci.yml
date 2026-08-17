@@ -49,8 +49,8 @@ jobs:
         # keeps the job green if a future exclude pattern matches nothing.
         run: |
           lcov --capture --directory build/test --output-file coverage.info --rc branch_coverage=1
-          lcov --remove coverage.info '*/tests/*' '/usr/*' \
-               --output-file coverage.filtered.info --rc branch_coverage=1 --ignore-errors unused
+          lcov --remove coverage.info '*/tests/*' '/usr/*' '*/inc/macro.h' \
+                --output-file coverage.filtered.info --rc branch_coverage=1 --ignore-errors unused
           genhtml coverage.filtered.info --output-directory coverage-report \
                  --branch-coverage --title "DS18B20 driver coverage"
       - name: Coverage summary

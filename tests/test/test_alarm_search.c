@@ -47,6 +47,41 @@ static void run_loop(void) {
 
 /* Infer the running operation from the mock timer and answer its captures:
  * a single ROM that is currently in alarm. */
+static uint8_t g_rom_b[8];
+static uint8_t g_pass;
+
+/* Two alarmed devices on the bus (differ at bit 1 of byte 1), exercising the
+ * ds18b20-layer alarm search with more than one device. */
+static uint16_t two_alarm_capture_src(uint32_t idx) {
+    uint8_t rcr = (uint8_t)mock_tim1.RCR;
+    if (rcr == 0) {
+        if (idx == 0) g_pass++;
+        return idx == 0 ? 510u : 700u;
+    }
+    if (rcr == 1) {
+        g_wr_bit = 2;
+        uint8_t b = (g_rom[0] >> 0) & 1u;
+        return (idx == 0) ? (b ? ONE : ZERO) : (b ? ZERO : ONE);
+    }
+    uint8_t b;
+    if (g_wr_bit == 9) {
+        b = 2u; /* discrepancy: id=0, cmp=0 -> both devices disagree */
+    } else if (g_wr_bit < 9) {
+        uint8_t byte = (g_wr_bit - 1u) / 8u;
+        uint8_t bit = (g_wr_bit - 1u) % 8u;
+        b = (g_rom[byte] >> bit) & 1u;
+    } else {
+        const uint8_t* rom = (g_pass == 1) ? g_rom : g_rom_b;
+        uint8_t byte = (g_wr_bit - 1u) / 8u;
+        uint8_t bit = (g_wr_bit - 1u) % 8u;
+        b = (rom[byte] >> bit) & 1u;
+    }
+    if (idx == 0) return 0u;
+    if (idx == 1) return b == 2u ? ZERO : (b ? ONE : ZERO);
+    g_wr_bit++;
+    return b == 2u ? ZERO : (b ? ZERO : ONE);
+}
+
 static uint16_t alarm_capture_src(uint32_t idx) {
     uint8_t rcr = (uint8_t)mock_tim1.RCR;
     if (rcr == 0) {
@@ -356,6 +391,59 @@ void test_alarm_search_blocked_mid_measurement(void) {
 /*-------------------------------------------------------------
  *  Run all alarm search tests
  * -----------------------------------------------------------*/
+void test_alarm_search_rejected_while_txn_running(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+
+    uint8_t buf[8];
+    ds18b20_read_rom(buf);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_finished());
+
+    g_found_count = 0;
+    ds18b20_alarm_search_start(sink, 1);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_alarm_search_poll());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_alarm_search_count());
+
+    ds18b20_test_reset_txn();
+}
+
+void test_alarm_search_two_devices_found(void) {
+    uint8_t romA[8] = {DS18B20_FAMILY_CODE, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
+    uint8_t romB[8] = {DS18B20_FAMILY_CODE, 0x01, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
+    romA[7] = ds18b20_crc8(romA, 7);
+    romB[7] = ds18b20_crc8(romB, 7);
+    memcpy(g_rom, romA, 8);
+    memcpy(g_rom_b, romB, 8);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    g_pass = 0;
+    hw_set_capture_source(two_alarm_capture_src);
+    ds18b20_alarm_search_start(sink, 2);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_alarm_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(100));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+
+    TEST_ASSERT_EQUAL_UINT8(2, ds18b20_alarm_search_count());
+    TEST_ASSERT_EQUAL_UINT8(2, g_found_count);
+    for (int i = 0; i < 8; i++) {
+        TEST_ASSERT_EQUAL_HEX8(romA[i], g_found_roms[0][i]);
+        TEST_ASSERT_EQUAL_HEX8(romB[i], g_found_roms[1][i]);
+    }
+}
+
 void run_test_alarm_search(void) {
     TEST_RUN(test_alarm_search_finds_device_sends_0xEC);
     TEST_RUN(test_alarm_search_no_presence_finds_nothing);
@@ -369,4 +457,6 @@ void run_test_alarm_search(void) {
     TEST_RUN(test_alarm_search_rejects_bad_crc_rom);
     TEST_RUN(test_alarm_search_reentry_ignored);
     TEST_RUN(test_alarm_search_blocked_mid_measurement);
+    TEST_RUN(test_alarm_search_rejected_while_txn_running);
+    TEST_RUN(test_alarm_search_two_devices_found);
 }

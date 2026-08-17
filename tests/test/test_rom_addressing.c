@@ -167,6 +167,26 @@ void test_rom_addressing_trailing_bus_release_sentinel(void) {
     TEST_ASSERT_TRUE(marker == ONE_P || marker == ZERO_P);
 }
 
+void test_select_rejected_while_txn_running(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+
+    uint8_t rom[8] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    uint8_t buf[8];
+
+    /* Start a command transaction but do not drive it to completion: the bus
+     * now belongs to the read_rom txn while the state machine stays IDLE. */
+    ds18b20_read_rom(buf);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_finished());
+
+    /* A select() while a command txn owns the bus must be rejected. */
+    ds18b20_select(rom);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
+
+    ds18b20_test_reset_txn();
+}
+
 void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_NULL_clears_mode);
     TEST_RUN(test_rom_addressing_select_copies_rom);
@@ -178,4 +198,5 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_different_roms_different_prefixes);
     TEST_RUN(test_rom_addressing_select_ignored_mid_cycle);
     TEST_RUN(test_rom_addressing_trailing_bus_release_sentinel);
+    TEST_RUN(test_select_rejected_while_txn_running);
 }

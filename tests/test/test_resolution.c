@@ -334,6 +334,21 @@ void test_resolution_decode_bad_crc_keeps_resolution(void) {
 /*-------------------------------------------------------------
  *  Run all resolution tests
  * -----------------------------------------------------------*/
+void test_set_resolution_rejected_while_txn_running(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+
+    uint8_t buf[8];
+    ds18b20_read_rom(buf);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_finished());
+
+    ds18b20_set_resolution(9);
+    TEST_ASSERT_EQUAL_UINT8(12, ds18b20_get_resolution());
+
+    ds18b20_test_reset_txn();
+}
+
 void run_test_resolution(void) {
     TEST_RUN(test_resolution_default_12_after_init);
     TEST_RUN(test_resolution_wait_timing_matches_table);
@@ -351,4 +366,5 @@ void run_test_resolution(void) {
     TEST_RUN(test_resolution_next_cycle_waits_short);
     TEST_RUN(test_resolution_decode_derives_from_scratchpad);
     TEST_RUN(test_resolution_decode_bad_crc_keeps_resolution);
+    TEST_RUN(test_set_resolution_rejected_while_txn_running);
 }

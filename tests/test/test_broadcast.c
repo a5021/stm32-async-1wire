@@ -384,6 +384,26 @@ void test_broadcast_public_api(void) {
 /*-------------------------------------------------------------
  *  Run all broadcast tests
  * -----------------------------------------------------------*/
+void test_scan_rejected_while_txn_running(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+
+    /* Make a scan eligible except for the in-flight command transaction. */
+    uint8_t rom[8] = {0x28, 0x01, 0x00, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_test_set_device(0, rom);
+    ds18b20_test_set_device_count(1);
+
+    uint8_t buf[8];
+    ds18b20_read_rom(buf);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_finished());
+
+    ds18b20_scan_start();
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
+
+    ds18b20_test_reset_txn();
+}
+
 void run_test_broadcast(void) {
     TEST_RUN(test_broadcast_start_guards);
     TEST_RUN(test_broadcast_convert_forces_skip_rom);
@@ -393,4 +413,5 @@ void run_test_broadcast(void) {
     TEST_RUN(test_broadcast_single_device_round);
     TEST_RUN(test_broadcast_select_clears_scan_mode);
     TEST_RUN(test_broadcast_public_api);
+    TEST_RUN(test_scan_rejected_while_txn_running);
 }
