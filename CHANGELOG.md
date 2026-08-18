@@ -6,6 +6,33 @@ are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Shared 1-Wire layer decode helpers `onewire_decode_pulses()` and
+  `onewire_bit_from_pulse()`: the short/long pulse decode that was open-coded in
+  four places (scratchpad decode, transaction read decode, search bit pairing
+  and the search WRITE_READ step) is now a single shared path, covered by host
+  unit tests.
+
+### Changed
+
+- `ds18b20_recall_eeprom_poll()` now documents that Recall EEPROM is a
+  write-only command and does **not** update the tracked `ctx.resolution`.
+  Callers that need the resolution to follow a possibly-different EEPROM config
+  should follow the recall with `ds18b20_read_scratchpad()` to resynchronise
+  `ds18b20_get_resolution()` before the next conversion.
+
+### Fixed
+
+- `ds18b20_select()` is only accepted while the measurement state machine is
+  IDLE; calls from a running cycle, a device/alarm search, a resolution change
+  or another command transaction are ignored — including from the per-device
+  scan callback (`ds18b20_complete()` in scan mode), where a select is now
+  explicitly rejected and the scan round continues. The API documentation and
+  header notes were corrected to match this behaviour.
+
 ## [1.3.0] - 2026-08-17
 
 ### Added

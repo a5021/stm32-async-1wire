@@ -338,7 +338,7 @@ make test
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the STM32F1
-CMSIS header. 198 tests cover:
+CMSIS header. 217 tests cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -483,8 +483,9 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
 
 - `onewire_init()`, `onewire_reset()`, `onewire_present()`,
   `onewire_write_slots()`, `onewire_write_bit()`, `onewire_encode_byte()`,
-  `onewire_read_pair()`, `onewire_write_then_read()`, `onewire_pair_bits()`,
-  `onewire_read_data()`, `onewire_start_timer()`, `onewire_bus_done()` — the
+   `onewire_read_pair()`, `onewire_write_then_read()`, `onewire_pair_bits()`,
+   `onewire_read_data()`, `onewire_decode_pulses()`, `onewire_start_timer()`,
+   `onewire_bus_done()` — the
   TIM1/DMA bus primitives.
 - `onewire_search_start()`, `onewire_search_poll()`,
   `onewire_search_count()`, `onewire_search_active()` — the generic Maxim
@@ -718,6 +719,8 @@ void        onewire_write_then_read(uint8_t bit);
 void        onewire_pair_bits(const volatile uint16_t *edge,
                               uint8_t *id_bit, uint8_t *cmp_bit);
 void        onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
+void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
+                                 uint8_t bytes);
 void        onewire_start_timer(uint16_t arr, uint8_t rcr);
 uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
 void        onewire_search_start(onewire_search_sink_t sink,
@@ -785,6 +788,15 @@ before every Convert T / Read Scratchpad operation, so only that device
 responds. Pass `NULL` to clear the selection and return to the legacy **Skip
 ROM (0xCC)** single-sensor behaviour.
 
+`ds18b20_select()` is only accepted while the measurement state machine is
+**IDLE** — calls made while a cycle is running, during a device/alarm search,
+a resolution change or another command transaction are ignored. In particular
+it is **rejected from the per-device scan callback** (`ds18b20_complete()` in
+scan mode): that callback runs at decode time mid-round, so a select there is
+ignored and the scan round continues. To switch out of scan mode, call
+`ds18b20_select()` from the main loop after the scan completes, then
+`ds18b20_scan_start()` to resume simultaneous conversion.
+
 The demo measures the single device directly when exactly one is found, and
 cycles through all found devices in turn when several are present.
 
@@ -830,8 +842,14 @@ uint8_t  ds18b20_last_command_ok(void);
   the config byte. The DS18B20 8-bit sign-extended temperature code is used
   (e.g. 0x19 = +25°C, 0x0F = +15°C).
 - `ds18b20_copy_scratchpad()` persists TH/TL/CFG to the EEPROM and
-  `ds18b20_recall_eeprom()` loads the EEPROM copy back into the scratchpad.
-  Both wait the datasheet hold-off (10 ms) with the timer before finishing.
+   `ds18b20_recall_eeprom()` loads the EEPROM copy back into the scratchpad.
+   Both wait the datasheet hold-off (10 ms) with the timer before finishing.
+   Recall is a write-only command: it does not return the restored config, so
+   the driver's tracked `ctx.resolution` is **not** updated. If the EEPROM
+   resolution may differ from the current one, follow `ds18b20_recall_eeprom()`
+   with `ds18b20_read_scratchpad()` to resynchronise `ds18b20_get_resolution()`
+   before the next conversion (see `demo4.c`, which chains recall → scratchpad
+   read for this reason).
 - `ds18b20_read_power_supply()` reports 1 for parasite power and 0 for an
   externally powered sensor.
 - `ds18b20_last_command_ok()` reports whether the last transaction found a
@@ -961,15 +979,22 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ### Timing Constants
 
-Adjustable in onewire.c:
+The slot-pulse constants live in `inc/onewire.h` (with the `ONEWIRE_` prefix;
+`src/ds18b20.c` re-exports them as `ONE_PULSE` / `ZERO_PULSE` / `GUARD_BAND`).
+The reset-pulse bounds are defined in `src/onewire.c`:
+
 ```C
-#define RESET_PULSE_MIN       480U    // µs
-#define RESET_PULSE_MAX       540U    // µs
-#define ONE_PULSE                5    // µs (short low = write-1)
-#define ZERO_PULSE              60    // µs (long low = write-0)
-#define GUARD_BAND               5    // µs (built into slot formula)
+/* inc/onewire.h */
+#define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
+#define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
+#define ONEWIRE_GUARD_BAND          5    // µs (built into slot formula)
+#define ONEWIRE_SHORT_PULSE_MAX    10    // µs (pulse <= this reads as bit '1')
+
+/* src/onewire.c */
+#define RESET_PULSE_MIN           480U    // µs
+#define RESET_PULSE_MAX           540U    // µs
 ```
-Slot formula: `ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND` = 70µs total.
+Slot formula: `ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND` = 70µs total.
 
 ## Troubleshooting
 
@@ -1005,9 +1030,9 @@ Slot formula: `ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND` = 70µs total.
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
-- Inspect Captured Data: Examine the 1-Wire layer's `ctx.edge[]` after a reset
-  or `ctx.pulse[]` after a read (in `src/onewire.c`) to see the raw timing
-  data.
+- Inspect Captured Data: Examine the driver context's `ctx.edge[]` after a reset
+   or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
+   data.
 
 ## License
 
