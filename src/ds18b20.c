@@ -1010,6 +1010,13 @@ uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }
  * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
  *       The driver waits the datasheet t_RECALL hold-off (10ms) before
  *       finishing.
+ * @note After recall, the scratchpad holds the EEPROM-stored configuration
+ *       (TH/TL/CFG, including the conversion-resolution bits). The driver's
+ *       tracked ctx.resolution is NOT updated by this call: Recall is a
+ *       write-only command with no data returned. If the EEPROM resolution
+ *       may differ from ctx.resolution, follow this with
+ *       ds18b20_read_scratchpad() / ds18b20_read_scratchpad_poll() to
+ *       resynchronise ctx.resolution before the next conversion.
  */
 void ds18b20_recall_eeprom(void) {
     txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
@@ -1018,8 +1025,21 @@ void ds18b20_recall_eeprom(void) {
 /**
  * @brief Advance the non-blocking Recall EEPROM transaction
  * @return 1 when finished (successfully or aborted), 0 while running
+ * @warning ctx.resolution is NOT updated on success. Recall is a write-only
+ *          command; the device does not return the restored config. To keep
+ *          ctx.resolution in sync with a possibly-different EEPROM resolution,
+ *          call ds18b20_read_scratchpad_poll() after this returns 1 and
+ *          ds18b20_last_command_ok() is set.
  */
-uint8_t ds18b20_recall_eeprom_poll(void) { return txn_poll(); }
+uint8_t ds18b20_recall_eeprom_poll(void) {
+    if (!txn_poll()) {
+        return 0;
+    }
+    /* Nothing to decode: Recall returns no data, so there is no scratchpad
+     * frame to parse here. The caller is responsible for resynchronising
+     * ctx.resolution via ds18b20_read_scratchpad_poll() if needed. */
+    return 1;
+}
 
 /**
  * @brief Read the power-supply state of the DS18B20

@@ -226,6 +226,10 @@ void test_eeprom_persistence_e2e(void) {
     ds18b20_recall_eeprom();
     drive_txn(ds18b20_recall_eeprom_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
+    /* NOTE: ds18b20_recall_eeprom_poll does NOT update ctx.resolution.
+     * It is a write-only command. A follow-up scratchpad read (step 4) is
+     * the documented way to resynchronise ctx.resolution if the EEPROM
+     * config differs from the tracked one. */
 
     /* 4. Read the scratchpad back; feed the expected TH/TL/CFG so the driver
      *    decodes a valid frame and we confirm the data path returns them. */
