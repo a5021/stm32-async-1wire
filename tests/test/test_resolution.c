@@ -190,8 +190,8 @@ void test_resolution_match_rom_feed_release(void) {
 void test_resolution_scan_mode_broadcasts_skip_rom(void) {
     ds18b20_init();
     uint8_t rom[DS18B20_ROM_BYTES] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
-    ds18b20_select(rom);            /* address_mode = 1 */
-    ds18b20_test_set_scan_mode(1);  /* scan mode; address_mode stays 1 */
+    ds18b20_select(rom); /* address_mode = 1 */
+    ds18b20_test_set_scan_mode(1); /* scan mode; address_mode stays 1 */
     hw_set_capture_source(res_capture_present);
     drive_res_change(9);
     TEST_ASSERT_EQUAL_UINT8(9, ds18b20_get_resolution());
