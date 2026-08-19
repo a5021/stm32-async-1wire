@@ -771,6 +771,81 @@ void test_search_rejected_while_txn_running(void) {
     ds18b20_test_reset_txn();
 }
 
+/*-------------------------------------------------------------
+ *  ds18b20_search_start() while a resolution change owns the
+ *  timer is ignored: no search is scheduled and the change
+ *  completes undisturbed.
+ * -----------------------------------------------------------*/
+void test_search_start_blocked_during_resolution(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
+    hw_set_capture_source(search_capture_src);
+    ds18b20_set_resolution(9); /* starts a resolution change */
+    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+
+    g_found_count = 0;
+    ds18b20_search_start(sink, 1);
+
+    /* No search became active: nothing was scheduled for the search. */
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_poll());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
+
+    /* The resolution change still runs undisturbed to completion. */
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_set_resolution_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(120));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+    TEST_ASSERT_EQUAL_UINT8(9, ds18b20_get_resolution());
+}
+
+/*-------------------------------------------------------------
+ *  Same ownership guard for ds18b20_alarm_search_start(): an
+ *  alarm search started during a resolution change is ignored.
+ * -----------------------------------------------------------*/
+void test_alarm_search_start_blocked_during_resolution(void) {
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
+    hw_set_capture_source(search_capture_src);
+    ds18b20_set_resolution(10); /* starts a resolution change */
+    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+
+    g_found_count = 0;
+    ds18b20_alarm_search_start(sink, 1);
+
+    /* No alarm search became active. */
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_poll());
+    TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_set_resolution_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(120));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+    TEST_ASSERT_EQUAL_UINT8(10, ds18b20_get_resolution());
+}
+
 void run_test_search(void) {
     TEST_RUN(test_search_finds_single_device);
     TEST_RUN(test_search_command_feed_release);
@@ -790,4 +865,6 @@ void run_test_search(void) {
     TEST_RUN(test_search_start_reentry_ignored);
     TEST_RUN(test_search_start_blocked_mid_measurement);
     TEST_RUN(test_search_rejected_while_txn_running);
+    TEST_RUN(test_search_start_blocked_during_resolution);
+    TEST_RUN(test_alarm_search_start_blocked_during_resolution);
 }

@@ -32,7 +32,6 @@
 /** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
-#define PAUSE_750MS 62500, 11 /**< 750ms delay for temperature conversion (62.5ms × 12) */
 #define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
 #define SCAN_DEVICE_GAP 1000, 0 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 /** @brief TH byte written together with the config register by the resolution
@@ -182,6 +181,48 @@ static ds18b20_txn_ctx_t txn_ctx;
  * command write. */
 _Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
                "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
+               "trailing bus-release pulse consumed by the 1-Wire layer");
+
+/**
+ * @defgroup DS18B20_Resolution_Internal DS18B20 Internal Non-Blocking Resolution Change
+ * @brief Change the temperature conversion resolution (9..12 bit) with the same
+ *        non-blocking discipline as the device search: every state performs
+ *        exactly one hardware-timed operation via the internal bus primitives,
+ *        so a poll call never blocks. The config write is sent with Write
+ *        Scratchpad (0x4E) + TH + TL + CFG; it takes effect immediately and is
+ *        not persisted to the EEPROM (no Copy Scratchpad, which would need a
+ *        strong pull-up under parasitic power).
+ * @{
+ */
+
+/** @brief Resolution state machine phases */
+typedef enum {
+    DS18B20_RES_RESET, /**< reset scheduled; check presence */
+    DS18B20_RES_WRITE, /**< config write scheduled (skip/match + 0x4E + TH + TL + CFG) */
+    DS18B20_RES_DONE /**< operation finished; hand the timer back to the measurement */
+} res_phase_t;
+
+/**
+ * @brief Non-blocking resolution change context
+ * @note The pulse buffer must stay valid across poll calls because the DMA
+ *       feeds CCR1 from it asynchronously while the config write is sent.
+ */
+typedef struct {
+    res_phase_t phase; /**< Current phase of the resolution state machine */
+    uint8_t pending_res; /**< Resolution (bits) to apply */
+    uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
+    uint8_t finished; /**< 1 once the operation has completed (or aborted) */
+    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
+} res_ctx_t;
+
+/** @brief Global resolution context instance */
+static res_ctx_t res_ctx;
+
+/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
+ * transfer must always be present at the exact slot index used for the write
+ * (see build_res_pulses); the buffer is sized for the longest (Match ROM) mode. */
+_Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
+               "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
                "trailing bus-release pulse consumed by the 1-Wire layer");
 
 /**
@@ -381,9 +422,10 @@ static uint8_t search_alarm_sink(const uint8_t* rom) {
  * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
  * @param[in] max_devices Maximum number of devices to report (0 aborts)
  * @note The device search (re)populates the scan-mode device table.
- * @note Ownership guards: the search and the measurement state machine share
- *       TIM1/DMA, so a new search may only be started while the measurement
- *       state machine is IDLE; a running search rejects a new start.
+ * @note Ownership guards: the search, the measurement state machine, command
+ *       transactions and resolution changes all share TIM1/DMA, so a new search
+ *       may only be started while all of them are idle; a running search
+ *       rejects a new start.
  */
 void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
@@ -394,6 +436,9 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     }
     if (!txn_ctx.finished) {
         return; // a command transaction is running
+    }
+    if (!res_ctx.finished) {
+        return; // a resolution change owns the timer
     }
     dev_count = 0;
     search_user_sink = sink;
@@ -416,6 +461,9 @@ void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices)
     }
     if (!txn_ctx.finished) {
         return; // a command transaction is running
+    }
+    if (!res_ctx.finished) {
+        return; // a resolution change owns the timer
     }
     search_user_sink = sink;
     onewire_search_start(search_alarm_sink, max_devices, DS18B20_ALARM_SEARCH, DS18B20_FAMILY_CODE);
@@ -448,48 +496,6 @@ uint8_t ds18b20_alarm_search_count(void) { return onewire_search_count(); }
 /**
  * @}
  */
-
-/**
- * @defgroup DS18B20_Resolution_Internal DS18B20 Internal Non-Blocking Resolution Change
- * @brief Change the temperature conversion resolution (9..12 bit) with the same
- *        non-blocking discipline as the device search: every state performs
- *        exactly one hardware-timed operation via the internal bus primitives,
- *        so a poll call never blocks. The config write is sent with Write
- *        Scratchpad (0x4E) + TH + TL + CFG; it takes effect immediately and is
- *        not persisted to the EEPROM (no Copy Scratchpad, which would need a
- *        strong pull-up under parasitic power).
- * @{
- */
-
-/** @brief Resolution state machine phases */
-typedef enum {
-    DS18B20_RES_RESET, /**< reset scheduled; check presence */
-    DS18B20_RES_WRITE, /**< config write scheduled (skip/match + 0x4E + TH + TL + CFG) */
-    DS18B20_RES_DONE /**< operation finished; hand the timer back to the measurement */
-} res_phase_t;
-
-/**
- * @brief Non-blocking resolution change context
- * @note The pulse buffer must stay valid across poll calls because the DMA
- *       feeds CCR1 from it asynchronously while the config write is sent.
- */
-typedef struct {
-    res_phase_t phase; /**< Current phase of the resolution state machine */
-    uint8_t pending_res; /**< Resolution (bits) to apply */
-    uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
-    uint8_t finished; /**< 1 once the operation has completed (or aborted) */
-    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
-} res_ctx_t;
-
-/** @brief Global resolution context instance */
-static res_ctx_t res_ctx;
-
-/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
- * transfer must always be present at the exact slot index used for the write
- * (see build_res_pulses); the buffer is sized for the longest (Match ROM) mode. */
-_Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
-               "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
-               "trailing bus-release pulse consumed by the 1-Wire layer");
 
 /**
  * @brief Build the DS18B20 configuration register byte for a resolution
