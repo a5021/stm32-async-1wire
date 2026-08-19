@@ -212,6 +212,7 @@ typedef struct {
     uint8_t pending_res; /**< Resolution (bits) to apply */
     uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
     uint8_t finished; /**< 1 once the operation has completed (or aborted) */
+    uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
     uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
 } res_ctx_t;
 
@@ -539,7 +540,8 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     onewire_encode_byte(p, DS18B20_RES_TL);
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, res_config_byte(res));
-    res_ctx.pulses[use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN] = 0;
+    res_ctx.slots = use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN;
+    res_ctx.pulses[res_ctx.slots] = 0;
 }
 
 /**
@@ -613,9 +615,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
             res_ctx.phase = DS18B20_RES_DONE;
             break;
         }
-        onewire_write_slots(res_ctx.pulses,
-                            ctx.address_mode ? DS18B20_RES_SLOTS_MAX
-                                             : DS18B20_RES_SLOTS_MIN);
+        onewire_write_slots(res_ctx.pulses, res_ctx.slots);
         res_ctx.phase = DS18B20_RES_WRITE;
         break;
 

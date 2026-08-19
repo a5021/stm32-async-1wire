@@ -215,6 +215,12 @@ void onewire_reset(volatile uint16_t* edge_out) {
     T1.RCR = 0;
     T1.ARR = RESET_TIMEOUT;
     T1.CCR1 = RESET_PULSE_DURATION;
+    /* Clear the capture buffer: only edge[0] (master release) is always written
+     * by the DMA, so a no-presence reset would otherwise leave a stale edge[1]
+     * from a previous presence reset and onewire_present() would report a false
+     * device. Zeroing makes a single-capture reset report "no device". */
+    edge_out[0] = 0;
+    edge_out[1] = 0;
     arm_capture((volatile void*)edge_out, CAPTURE_BUF_SIZE, 16);
 }
 

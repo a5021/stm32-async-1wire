@@ -79,6 +79,18 @@ void test_presence_reset_max_presence_min(void) {
     assert_presence(RESET_MAX, PRES_MIN, 1);
 }
 
+/* Regression for the stale edge[1] bug: a no-presence reset captures only
+ * edge[0], so a stale presence timestamp left in edge[1] from a previous reset
+ * would make onewire_present() report a false device. onewire_reset() must
+ * clear the capture buffer before arming. */
+void test_presence_reset_clears_stale_edge(void) {
+    ds18b20_test_set_edge(0, 510); /* stale master-release timestamp */
+    ds18b20_test_set_edge(1, 700); /* stale presence timestamp */
+    test_bus_reset();
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_edge(0));
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_edge(1));
+}
+
 void test_capture_16bit_config(void) {
     uint16_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 16);
@@ -116,6 +128,7 @@ void run_test_presence(void) {
     TEST_RUN(test_presence_very_large_values_absent);
     TEST_RUN(test_presence_reset_min_presence_max);
     TEST_RUN(test_presence_reset_max_presence_min);
+    TEST_RUN(test_presence_reset_clears_stale_edge);
     TEST_RUN(test_capture_16bit_config);
     TEST_RUN(test_capture_8bit_config);
 }

@@ -182,6 +182,27 @@ void test_resolution_match_rom_feed_release(void) {
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 
+/* Regression for the build/poll slot-count mismatch: when a resolution change
+ * runs in scan mode while a single device is still selected (address_mode == 1),
+ * the config write must broadcast (Skip ROM) and send exactly 40 slots. The poll
+ * used to send DS18B20_RES_SLOTS_MAX (104) because it only checked
+ * ctx.address_mode, leaking stale buffer contents beyond the built write. */
+void test_resolution_scan_mode_broadcasts_skip_rom(void) {
+    ds18b20_init();
+    uint8_t rom[DS18B20_ROM_BYTES] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ds18b20_select(rom);            /* address_mode = 1 */
+    ds18b20_test_set_scan_mode(1);  /* scan mode; address_mode stays 1 */
+    hw_set_capture_source(res_capture_present);
+    drive_res_change(9);
+    TEST_ASSERT_EQUAL_UINT8(9, ds18b20_get_resolution());
+
+    /* Only the 40-slot Skip ROM broadcast is sent, not the 104-slot Match ROM. */
+    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    TEST_ASSERT_EQUAL_UINT8(40, log->count);
+    TEST_ASSERT_EQUAL_UINT16(0, log->values[39]);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_res_pulse(40)); /* trailing at MIN */
+}
+
 /*-------------------------------------------------------------
  *  4. Guards: range, state, search ownership, re-entry
  * -----------------------------------------------------------*/
@@ -357,6 +378,7 @@ void run_test_resolution(void) {
     TEST_RUN(test_resolution_change_all_four_values);
     TEST_RUN(test_resolution_skip_rom_feed_release);
     TEST_RUN(test_resolution_match_rom_feed_release);
+    TEST_RUN(test_resolution_scan_mode_broadcasts_skip_rom);
     TEST_RUN(test_resolution_invalid_values_ignored);
     TEST_RUN(test_resolution_blocked_mid_measurement);
     TEST_RUN(test_resolution_blocked_during_search);
