@@ -1,6 +1,6 @@
 /**
  * @file ow_port_f1.h
- * @brief STM32F1 backend: TIM1 (advanced) + DMA1 (channels 2/4) + PA10
+ * @brief STM32F1 backend: TIM1 (advanced) + DMA1 (channels 3/4) + PA10
  *
  * Header-only static inline implementation of the ow_port_* interface for the
  * STM32F103. The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain
@@ -12,12 +12,12 @@
  * (CC2DE). TIM1 runs in one-pulse mode (OPM) with the repetition counter
  * (RCR) batching N slots into a single update event (UIF).
  *
- * The channel roles are identical to the STM32F0 backend (see ow_port_f0.h);
- * only the prescaler, the GPIO pin configuration and two DMA channel numbers
- * differ. The fixed DMA request routing of this family (no DMA_CSELR mux,
- * RM0008 table 78) assigns TIM1_CC2 to channel 2 and TIM1_CH4 to channel 4;
- * USART1_TX shares channel 4's request line but the driver's UART output
- * runs without DMA.
+ * The channel roles and DMA channels are identical to the STM32F0 backend
+ * (see ow_port_f0.h); only the prescaler and the GPIO pin configuration
+ * differ. The fixed DMA request routing of this family (no DMA_CSELR mux)
+ * assigns TIM1_CC2 to channel 3 and TIM1_CH4 to channel 4 — both mappings
+ * confirmed empirically on the target; USART1_TX shares channel 4's request
+ * line but the driver's UART output runs without DMA.
  */
 
 #ifndef OW_PORT_F1_H
@@ -48,9 +48,9 @@
 #endif
 
 /* @brief DMA channel assignment (fixed request map, RM0008 table 78):
- *       channel 2 carries the CC2 slot-end marker request and feeds CCR3,
+ *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
  *       channel 4 carries the CC4 capture request and drains CCR4. */
-#define OW_PORT_DMA_FEED D12
+#define OW_PORT_DMA_FEED D13
 #define OW_PORT_DMA_CAPTURE D14
 
 /* @brief DMA channel control bits for 16-bit capture: MINC | PSIZE_0 | EN */

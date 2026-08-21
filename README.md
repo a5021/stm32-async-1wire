@@ -7,7 +7,7 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Two backends ship today:
 
-- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 2/4.
+- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 
 ## Features
@@ -577,13 +577,13 @@ complete `onewire_*` surface.
 - DMA1_Channel2: Memory-to-peripheral transfers to TIM1->CCR3 (PWM duty cycles).
 - GPIO Pin: PA10 configured in alternate function open-drain; CH3 output and CH4 capture are multiplexed onto this single pin.
 
-The STM32F0 backend uses exactly the same channel roles on the same bus pin:
+The STM32F0 backend uses exactly the same scheme on the same bus pin:
 CH3 (PWM output) + CH4 (indirect capture on TI3, the same pin) drive
-**PA10**; the slot-end marker sits on a plain CH2 compare. Only the two DMA
-channel numbers differ, forced by each family's fixed request map (no CSELR
-mux): the marker request rides **DMA1_Channel2** on STM32F1 vs
-**DMA1_Channel3** on STM32F0, while captures drain through **DMA1_Channel4**
-on both.
+**PA10**, the slot-end marker sits on a plain CH2 compare, its request rides
+**DMA1_Channel3** and captures drain through **DMA1_Channel4** — verified
+empirically on both families (each has a fixed request map with no CSELR
+mux). Only the timer prescaler and the GPIO pin configuration differ between
+the two backends.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
 
