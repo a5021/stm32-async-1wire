@@ -70,7 +70,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo2.c src/demo3.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D OW_PORT_TARGET_F1 -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo2.c src/demo3.c
 
   build:
     runs-on: ubuntu-latest

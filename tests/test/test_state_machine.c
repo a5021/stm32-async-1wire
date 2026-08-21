@@ -13,7 +13,7 @@
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
-#include "stm32f1xx.h"
+#include "mock_target.h"
 #include "unity.h"
 #include <string.h>
 
@@ -773,11 +773,24 @@ void test_state_machine_init_configures_registers(void) {
     hw_reset_all();
     ds18b20_init();
 
+#if defined(OW_PORT_TARGET_F0)
+    TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
+    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_GPIOAEN | RCC_AHBENR_DMAEN, mock_rcc.AHBENR);
+    TEST_ASSERT_EQUAL_UINT32(47, mock_tim1.PSC); /* 48MHz/48 = 1MHz -> 1us */
+    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
+    /* Bus pin: AF mode (MODERx_1), open-drain, AF2 in AFRH */
+    TEST_ASSERT_BITS_HIGH(MOCK_BUS_MODER_1, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_LOW(MOCK_BUS_MODER_0, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_HIGH(MOCK_BUS_OT, mock_gpioa.OTYPER);
+    TEST_ASSERT_EQUAL_UINT32(2u << MOCK_BUS_AFSEL_POS,
+                             mock_gpioa.AFR[1] & MOCK_BUS_AFSEL);
+#else
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_IOPAEN | RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
     TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF8_0 | GPIO_CRH_CNF8_1 | GPIO_CRH_MODE8_1, mock_gpioa.CRH);
+#endif
 }
 
 /*-------------------------------------------------------------

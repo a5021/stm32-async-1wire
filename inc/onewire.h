@@ -23,8 +23,18 @@
 #define ONEWIRE_ROM_BITS (ONEWIRE_ROM_BYTES * 8)
 /** @brief Bits per byte */
 #define ONEWIRE_BITS_PER_BYTE 8
-/** @brief Duration of a '1' bit write pulse in microseconds */
+/** @brief Duration of a '1' bit write/read pulse in microseconds.
+ *  At full speed 5µs keeps captures well inside the '1' window. On the
+ *  8MHz HSI builds the whole capture chain slows down (measured on HW:
+ *  RC rise + input filter + timer output/capture sync ≈ 6.5µs vs ≈3µs),
+ *  so a 5µs pulse lands at 11-12µs — past ONEWIRE_SHORT_PULSE_MAX. A 2µs
+ *  pulse brings captures back to ~8-9µs. DS18B20 requires only ≥1µs and
+ *  samples the slot at ≥15µs after its start, so this stays spec-safe. */
+#if defined(HSI_8MHZ)
+#define ONEWIRE_ONE_PULSE 2
+#else
 #define ONEWIRE_ONE_PULSE 5
+#endif
 /** @brief Duration of a '0' bit write pulse in microseconds */
 #define ONEWIRE_ZERO_PULSE 60
 /** @brief Guard band between slots in microseconds (bus rise time + DMA latency) */

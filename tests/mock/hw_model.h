@@ -5,14 +5,15 @@
 /* Zero all mock registers and model state. */
 void hw_reset_all(void);
 
-/* Effective CCR1 value: honours OC1PE preload semantics (shadow register). */
+/* Effective output-compare value (CCR1 on F1, CCR3 on F0): honours the
+ * output preload semantics (shadow register). */
 uint16_t hw_effective_ccr1(void);
 
 /* Simulate the timer until UIF is set (one operation) or max_slots slots have
  * elapsed. Returns 1 if UIF became set (operation complete), 0 otherwise. */
 uint8_t hw_run_until_uif(uint32_t max_slots);
 
-/* Capture source hook: called for every channel-2 capture slot (0-based index)
+/* Capture source hook: called for every capture slot (0-based index)
  * of the current operation. May be NULL (captures 0). */
 typedef uint16_t (*hw_capture_fn)(uint32_t slot_index);
 void hw_set_capture_source(hw_capture_fn fn);
@@ -23,7 +24,7 @@ void hw_set_capture_source(hw_capture_fn fn);
  * when the driver feeds from cmd[1]). */
 void hw_register_buf(const void* ptr);
 
-/* Log of CCR1 values written by the channel-4 DMA feed (per operation).
+/* Log of output-compare values written by the feed DMA (per operation).
  * Sized for the longest DMA-fed write (the Match ROM resolution config
  * write: 104 slots). */
 typedef struct {
@@ -32,7 +33,7 @@ typedef struct {
 } hw_ccr1_feed_log_t;
 const hw_ccr1_feed_log_t* hw_ccr1_feed_log(void);
 
-/* Number of captures (D13 transfers) performed during the last operation. */
+/* Number of captures (capture DMA transfers) performed during the last operation. */
 uint32_t hw_capture_count(void);
 
 #endif /* HW_MODEL_H */

@@ -4,7 +4,11 @@
  */
 
 #include "app.h"
+#if defined(OW_PORT_TARGET_F0)
+#include "stm32f0xx.h"
+#else
 #include "stm32f1xx.h"
+#endif
 
 // ======== USART1 TX ring buffer ========
 static uint8_t uart_tx_head = 0; // write index - points to next free slot
@@ -16,6 +20,17 @@ static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transm
  * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
+#if defined(OW_PORT_TARGET_F0)
+    // F0 unified USART naming: TXE lives in ISR, data goes to TDR
+    if ((USART1->ISR & USART_ISR_TXE) && (uart_tx_tail != uart_tx_head)) {
+        // Get byte from buffer at tail position
+        uint8_t b = uart_tx_buf[uart_tx_tail];
+        // Advance tail pointer with wrap-around
+        uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
+        // Write byte to UART data register for transmission
+        USART1->TDR = b;
+    }
+#else
     // Check if UART is ready to transmit (TXE flag set) and buffer not empty
     if ((USART1->SR & USART_SR_TXE) && (uart_tx_tail != uart_tx_head)) {
         // Get byte from buffer at tail position
@@ -25,6 +40,7 @@ void uart_poll_tx(void) {
         // Write byte to UART data register for transmission
         USART1->DR = b;
     }
+#endif
 }
 
 /**
@@ -120,9 +136,28 @@ int uart_write_hex(uint8_t b) {
 }
 
 /**
- * @brief Configure system clock (72MHz via HSE+PLL, or skip for HSI 8MHz)
+ * @brief Configure system clock
+ * @note F1: 72MHz via HSE+PLL (or skip for HSI 8MHz). F0: 48MHz via
+ *       HSI/2+PLL x12 (F030x6 has no HSE), or skip for HSI 8MHz.
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
+#if defined(OW_PORT_TARGET_F0)
+#ifndef HSI_8MHZ
+    // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier
+    // before enabling the PLL so it locks on a valid clock (per RM0360).
+    RCC->CFGR = RCC_CFGR_PLLMUL12;
+    RCC->CR |= RCC_CR_PLLON;
+    while (!(RCC->CR & RCC_CR_PLLRDY))
+        ;
+    // Flash latency for 48MHz operation (1 wait state)
+    FLASH->ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY;
+    // Switch system clock to PLL
+    RCC->CFGR |= RCC_CFGR_SW_PLL;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
+        ;
+#endif
+        // HSI_8MHZ: MCU already runs on HSI 8MHz after reset — nothing to configure
+#else
 #ifndef HSI_8MHZ
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
@@ -149,13 +184,35 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
     RCC->CR &= ~RCC_CR_HSION;
 #endif
     // HSI_8MHZ: MCU already runs on HSI 8MHz after reset — nothing to configure
+#endif
 }
 
 /**
  * @brief Initialize microcontroller peripherals for UART communication and LED control
+ * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART
+ *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6).
  */
 __STATIC_FORCEINLINE void hardware_init(void) {
+#if defined(OW_PORT_TARGET_F0)
+    // Enable clock for GPIOA (AHB) and USART1 (APB2)
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 
+    // Configure PA9 as alternate function push-pull output (AF1 = USART1_TX)
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (1u << GPIO_AFRH_AFSEL9_Pos);
+
+    // Configure PA4 as general purpose output for LED control
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;
+
+    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+#ifdef HSI_8MHZ
+    USART1->BRR = USART_BRR_CALC(8000000, 115200); // PCLK=8MHz
+#else
+    USART1->BRR = USART_BRR_CALC(48000000, 115200); // PCLK=48MHz
+#endif
+    USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#else
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
     RCC->APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);
 
@@ -176,6 +233,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     USART1->BRR = USART_BRR_CALC(72000000, 115200); // PCLK2=72MHz
 #endif
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#endif
 }
 
 /**
@@ -191,8 +249,18 @@ void app_init(void) {
  * @param[in] action 0 = idle, non-zero = busy
  * @note Non-blocking LED control using atomic BSRR register operations.
  *       Strong definition overrides the weak one in the DS18B20 driver.
+ *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
  */
 void ds18b20_busy(unsigned action) {
+#if defined(OW_PORT_TARGET_F0)
+    if (action) {
+        // Turn LED on (PA4 low)
+        GPIOA->BSRR = GPIO_BSRR_BR_4;
+    } else {
+        // Turn LED off (PA4 high)
+        GPIOA->BSRR = GPIO_BSRR_BS_4;
+    }
+#else
     if (action) {
         // Turn LED on (PC13 low due to pull-up LED configuration)
         // BSRR BR register: atomic bit reset operation
@@ -202,4 +270,5 @@ void ds18b20_busy(unsigned action) {
         // BSRR BS register: atomic bit set operation
         GPIOC->BSRR = GPIO_BSRR_BS13;
     }
+#endif
 }

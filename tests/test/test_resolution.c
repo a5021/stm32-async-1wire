@@ -15,7 +15,7 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
-#include "stm32f1xx.h"
+#include "mock_target.h"
 #include "unity.h"
 #include <string.h>
 

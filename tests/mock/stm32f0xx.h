@@ -1,6 +1,6 @@
-#ifndef STM32F1XX_MOCK_H
-#define STM32F1XX_MOCK_H
-/* Host-build stand-in for the STM32F1 CMSIS device header.
+#ifndef STM32F0XX_MOCK_H
+#define STM32F0XX_MOCK_H
+/* Host-build stand-in for the STM32F0 CMSIS device header.
  * Provides just enough register types, instance symbols and bit-field
  * constants for the DS18B20 driver, plus the compiler helpers it expects. */
 #include <stdint.h>
@@ -37,13 +37,15 @@ typedef struct {
 } DMA1_Channel_TypeDef;
 
 typedef struct {
-    volatile uint32_t CRL;
-    volatile uint32_t CRH;
+    volatile uint32_t MODER;
+    volatile uint32_t OTYPER;
+    volatile uint32_t OSPEEDR;
+    volatile uint32_t PUPDR;
     volatile uint32_t IDR;
     volatile uint32_t ODR;
     volatile uint32_t BSRR;
-    volatile uint32_t BRR;
     volatile uint32_t LCKR;
+    volatile uint32_t AFR[2];
 } GPIO_TypeDef;
 
 typedef struct {
@@ -59,45 +61,48 @@ typedef struct {
     volatile uint32_t CSR;
 } RCC_TypeDef;
 
-/* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work. */
+/* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work.
+ * STM32F030 fixed request map: feed rides TIM1_CC2 -> channel 3, capture
+ * rides TIM1_CC4 -> channel 4. The storage objects keep their legacy names
+ * so tests and hw_model stay target-agnostic. */
 extern TIM1_TypeDef mock_tim1;
 extern DMA1_Channel_TypeDef mock_dma1_ch3;
-extern DMA1_Channel_TypeDef mock_dma1_ch6;
+extern DMA1_Channel_TypeDef mock_feed_ch;
 extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 #define TIM1 (&mock_tim1)
-#define DMA1_Channel3 (&mock_dma1_ch3)
-#define DMA1_Channel6 (&mock_dma1_ch6)
+#define DMA1_Channel3 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
+#define DMA1_Channel4 (&mock_dma1_ch3) /* CC4 capture -> drains CCR4 */
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
 
-/* The CCR1 reload feed channel: DMA1 channel 6 on F1 (TIM1_CH3 request). */
-#define mock_feed_ch mock_dma1_ch6
-
 /* --- Bit-field constants used by the driver --- */
-#define RCC_APB2ENR_IOPAEN 0x00000004u
 #define RCC_APB2ENR_TIM1EN 0x00000800u
-#define RCC_AHBENR_DMA1EN 0x00000001u
-#define GPIO_CRH_CNF8_0 0x00000800u
-#define GPIO_CRH_CNF8_1 0x00001000u
-#define GPIO_CRH_MODE8_1 0x00000200u
+#define RCC_AHBENR_GPIOAEN 0x00020000u
+#define RCC_AHBENR_DMAEN 0x00000001u
+#define GPIO_MODER_MODER10 0x00C00000u
+#define GPIO_MODER_MODER10_0 0x00400000u
+#define GPIO_MODER_MODER10_1 0x00800000u
+#define GPIO_OTYPER_OT_10 0x00000400u
+#define GPIO_AFRH_AFSEL10 0x00000F00u
+#define GPIO_AFRH_AFSEL10_Pos 8U
 #define TIM_BDTR_MOE 0x00008000u
 #define TIM_EGR_UG 0x00000001u
 #define TIM_SR_UIF 0x00000001u
 #define TIM_CR1_CEN 0x00000001u
 #define TIM_CR1_OPM 0x00000008u
-#define TIM_CCMR1_OC1M_0 0x00000010u
-#define TIM_CCMR1_OC1M_1 0x00000020u
-#define TIM_CCMR1_OC1M_2 0x00000040u
-#define TIM_CCMR1_OC1PE 0x00000080u
-#define TIM_CCMR1_CC2S_1 0x00000200u
-#define TIM_CCMR1_IC2F_0 0x00001000u
-#define TIM_CCMR1_IC2F_1 0x00002000u
-#define TIM_CCMR1_IC2F_2 0x00004000u
-#define TIM_CCER_CC1E 0x00000001u
-#define TIM_CCER_CC2E 0x00000010u
+#define TIM_CCMR2_OC3M_0 0x00000010u
+#define TIM_CCMR2_OC3M_1 0x00000020u
+#define TIM_CCMR2_OC3M_2 0x00000040u
+#define TIM_CCMR2_OC3PE 0x00000008u
+#define TIM_CCMR2_CC4S_1 0x00000200u
+#define TIM_CCMR2_IC4F_0 0x00001000u
+#define TIM_CCMR2_IC4F_1 0x00002000u
+#define TIM_CCMR2_IC4F_2 0x00004000u
+#define TIM_CCER_CC3E 0x00000100u
+#define TIM_CCER_CC4E 0x00001000u
 #define TIM_DIER_CC2DE 0x00000400u
-#define TIM_DIER_CC3DE 0x00000800u
+#define TIM_DIER_CC4DE 0x00004000u
 #define DMA_CCR_EN 0x00000001u
 #define DMA_CCR_DIR 0x00000010u
 #define DMA_CCR_MINC 0x00000080u
@@ -117,4 +122,4 @@ extern RCC_TypeDef mock_rcc;
 #endif
 #define __DSB() ((void)0)
 
-#endif /* STM32F1XX_MOCK_H */
+#endif /* STM32F0XX_MOCK_H */

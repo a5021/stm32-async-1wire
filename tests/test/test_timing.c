@@ -2,14 +2,14 @@
  *  test_timing.c - Timing Register Regression Tests
  *
  *  Verifies the actual register values each bus operation programs
- *  into TIM1 (ARR/RCR/CCR1/CCR4) against the DS18B20 timing spec.
+ *  into TIM1 (ARR/RCR/CCR1/CCR3) against the DS18B20 timing spec.
  *  Unlike a constant re-check, this locks the real driver output.
  * ============================================================ */
 
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
-#include "stm32f1xx.h"
+#include "mock_target.h"
 #include "unity.h"
 
 void test_timing_reset_programs_timeout_and_pulse(void) {
@@ -19,9 +19,9 @@ void test_timing_reset_programs_timeout_and_pulse(void) {
     TEST_ASSERT_EQUAL_UINT16(960, (uint16_t)mock_tim1.ARR);
     /* one slot: RCR = 0 */
     TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.RCR);
-    /* capture ops preload CCR1 with 0 via OC1PE (hardware bus release) */
-    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
-    TEST_ASSERT_EQUAL_UINT16(0, (uint16_t)mock_tim1.CCR1);
+    /* capture ops preload the output CCR with 0 via OCxPE (hardware bus release) */
+    TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
+    TEST_ASSERT_EQUAL_UINT16(0, (uint16_t)MOCK_TIM_OUT_CCR);
 }
 
 void test_timing_command_programs_slot_period(void) {
@@ -36,8 +36,8 @@ void test_timing_command_programs_slot_period(void) {
     TEST_ASSERT_EQUAL_UINT16(70, (uint16_t)mock_tim1.ARR);
     /* RCR = slots - 1 */
     TEST_ASSERT_EQUAL_UINT32(15, mock_tim1.RCR);
-    /* CCR4 triggers the DMA reload at ONE_PULSE + ZERO_PULSE = 65µs */
-    TEST_ASSERT_EQUAL_UINT32(65, mock_tim1.CCR4);
+    /* the slot-end marker compare triggers the DMA reload at ONE_PULSE + ZERO_PULSE = 65µs */
+    TEST_ASSERT_EQUAL_UINT32(65, MOCK_TIM_MARKER_CCR);
 }
 
 void test_timing_read_programs_72_slots(void) {
@@ -46,9 +46,9 @@ void test_timing_read_programs_72_slots(void) {
     /* 72 data slots: RCR = 71 */
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT16(70, (uint16_t)mock_tim1.ARR);
-    /* capture ops preload CCR1 with 0 via OC1PE (hardware bus release) */
-    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
-    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.CCR1);
+    /* capture ops preload the output CCR with 0 via OCxPE (hardware bus release) */
+    TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
+    TEST_ASSERT_EQUAL_UINT32(0, MOCK_TIM_OUT_CCR);
 }
 
 void test_timing_wait_conversion_750ms(void) {

@@ -62,7 +62,7 @@ uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc();
 void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
 void ds18b20_test_build_addr_prefix(void) { build_addr_prefix(); }
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte) { build_addr_cmd(cmd_byte); }
-void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width) { arm_capture(dst, count, width); }
+void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width) { ow_port_capture(dst, count, width); }
 void ds18b20_test_get_selected_rom(uint8_t* rom_out) {
     for (int i = 0; i < DS18B20_ROM_BYTES; i++) {
         rom_out[i] = ctx.selected_rom[i];

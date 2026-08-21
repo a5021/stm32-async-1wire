@@ -12,7 +12,7 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
-#include "stm32f1xx.h"
+#include "mock_target.h"
 #include "unity.h"
 #include <string.h>
 
@@ -238,7 +238,7 @@ void test_search_no_device_no_presence(void) {
 
 /*-------------------------------------------------------------
  *  write_then_read arms the merged op: 3-slot timer pass, PWM
- *  WITHOUT OC1PE (so the CCR4 DMA reload is immediate), capture
+ *  WITHOUT OC1PE (so the CC3 DMA reload is immediate), capture
  *  DMA for 3 edges and reload DMA feeding {ONE,ONE,0}.
  * -----------------------------------------------------------*/
 void test_write_then_read_configures_registers(void) {
@@ -246,18 +246,18 @@ void test_write_then_read_configures_registers(void) {
     test_bus_write_then_read(0);
 
     TEST_ASSERT_EQUAL_UINT32(2, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT32(ZERO, mock_tim1.CCR1); /* write bit = 0 */
-    TEST_ASSERT_EQUAL_UINT32(ONE + ZERO, mock_tim1.CCR4);
+    TEST_ASSERT_EQUAL_UINT32(ZERO, MOCK_TIM_OUT_CCR); /* write bit = 0 */
+    TEST_ASSERT_EQUAL_UINT32(ONE + ZERO, MOCK_TIM_MARKER_CCR);
 
-    TEST_ASSERT_BITS_LOW(TIM_CCMR1_OC1PE, mock_tim1.CCMR1);
-    TEST_ASSERT_BITS_HIGH(TIM_DIER_CC2DE | TIM_DIER_CC4DE, mock_tim1.DIER);
-    TEST_ASSERT_BITS_HIGH(TIM_CCER_CC1E | TIM_CCER_CC2E, mock_tim1.CCER);
+    TEST_ASSERT_BITS_LOW(MOCK_TIM_OUT_PE, MOCK_TIM_OUT_CCMR);
+    TEST_ASSERT_BITS_HIGH(MOCK_TIM_FEED_DE | MOCK_TIM_CAP_DE, mock_tim1.DIER);
+    TEST_ASSERT_BITS_HIGH(MOCK_TIM_OUT_CCE | MOCK_TIM_CAP_CCE, mock_tim1.CCER);
     TEST_ASSERT_BITS_HIGH(TIM_CR1_OPM | TIM_CR1_CEN, mock_tim1.CR1);
 
     TEST_ASSERT_EQUAL_UINT32(3, mock_dma1_ch3.CNDTR);
-    TEST_ASSERT_EQUAL_UINT32(3, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(3, mock_feed_ch.CNDTR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch3.CCR);
-    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_dma1_ch4.CCR);
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 }
 
 /*-------------------------------------------------------------

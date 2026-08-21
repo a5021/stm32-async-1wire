@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- STM32F0 backend (`port/stm32f0/ow_port_f0.h`): register-level `ow_port_*`
+  implementation for the STM32F030x6 family (validated on an STM32F030F4P6,
+  TSSOP20). The 1-Wire bus runs on **PA10** via TIM1 CH3 (PWM output,
+  open-drain AF2) with indirect capture on CH4 (IC4 ← TI3, same pin) —
+  PA8 is not bonded out in small F030 packages. The slot-end marker moved
+  from the CH3 compare to a plain CH2 compare whose DMA request feeds CCR3;
+  captures drain CCR4 through DMA1 channel 4 and the feed rides DMA1
+  channel 3 (fixed request map — the F0 DMA has no CSELR mux).
+- Build-time target selection: `make OW_TARGET=f0` switches the whole build
+  (device headers, startup file, linker script `STM32F030X6_FLASH.ld`,
+  backend include) to the STM32F030x6; the default remains STM32F103.
+- Host test suite for the F0 backend: `make test-f0` runs the same 221-test
+  suite against the F0 backend mock. The shared behavioural model
+  (`tests/mock/hw_model.c`) and tests use backend-adaptive aliases
+  (`MOCK_TIM_*` / `MOCK_BUS_*`), so both wirings are covered by one suite.
+- HSI 8MHz clock option for both backends: `make HSI_8MHZ=1` selects a
+  per-clock timer prescaler **and input-capture filter** so decode margins
+  stay µs-equivalent at any system clock.
 - Shared 1-Wire layer decode helpers `onewire_decode_pulses()` and
   `onewire_bit_from_pulse()`: the short/long pulse decode that was open-coded in
   four places (scratchpad decode, transaction read decode, search bit pairing
@@ -26,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- 8MHz HSI builds decoded '0' bits as '1' on both backends: the fixed
+  ~5µs write pulse and the clock-scaled input-capture filter pushed read
+  captures outside the decode window. The one-pulse width is now
+  clock-dependent (2µs at 8MHz HSI vs 5µs otherwise) and the capture filter
+  is selected per clock, so the decode threshold itself stays untouched.
 - `ds18b20_select()` is only accepted while the measurement state machine is
   IDLE; calls from a running cycle, a device/alarm search, a resolution change
   or another command transaction are ignored — including from the per-device

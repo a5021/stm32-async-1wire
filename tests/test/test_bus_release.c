@@ -21,7 +21,7 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
-#include "stm32f1xx.h"
+#include "mock_target.h"
 #include "unity.h"
 
 #define ONE 5u
@@ -86,8 +86,8 @@ void test_write_command_trailing_zero_release(void) {
 void test_single_slot_write_preload_zero(void) {
     hw_set_capture_source(NULL);
     test_bus_write_bit(1);
-    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
-    TEST_ASSERT_EQUAL_UINT16(0, mock_tim1.CCR1); /* preload 0 */
+    TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
+    TEST_ASSERT_EQUAL_UINT16(0, MOCK_TIM_OUT_CCR); /* preload 0 */
     complete_op(4);
     assert_bus_released();
 }
@@ -100,7 +100,7 @@ void test_reset_releases_and_presence_detect(void) {
     test_bus_reset();
     complete_op(4);
     assert_bus_released();
-    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
+    TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
     TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());
     TEST_ASSERT_TRUE(test_bus_present());
 
@@ -203,8 +203,8 @@ void test_sequence_stays_released_between_ops(void) {
 void test_read_pair_standalone_release(void) {
     hw_set_capture_source(src_pair_id_one);
     test_bus_read_pair();
-    TEST_ASSERT_TRUE(mock_tim1.CCMR1 & TIM_CCMR1_OC1PE);
-    TEST_ASSERT_EQUAL_UINT16(0, mock_tim1.CCR1); /* preload 0 */
+    TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
+    TEST_ASSERT_EQUAL_UINT16(0, MOCK_TIM_OUT_CCR); /* preload 0 */
     complete_op(4);
     assert_bus_released();
     TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());

@@ -23,6 +23,20 @@ CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
 # The diag app is a standalone bit-bang tool and does not link the driver.
+# OW_TARGET selects the MCU family: f1 (STM32F103xB, default) or f0 (STM32F030x6)
+#   make                -> F1 firmware
+#   make OW_TARGET=f0   -> F0 firmware
+ifeq ($(OW_TARGET),f0)
+ifneq ($(filter $(APP),diag),)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/app.c
+else
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
+endif
+ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
+LDS = STM32F030X6_FLASH.ld
+MCU = -mcpu=cortex-m0 -mthumb
+DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
+else
 ifneq ($(filter $(APP),diag),)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/app.c
 else
@@ -31,8 +45,9 @@ endif
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
-DEF = -DSTM32F103xB
-INC = -I. -Iinc -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
+endif
+INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
@@ -146,9 +161,21 @@ RAW_URL = https://raw.githubusercontent.com
 ST_URL = $(RAW_URL)/STMicroelectronics/
 CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/master/CMSIS/Core/Include
 F1_URL = $(ST_URL)cmsis_device_f1/master
+F0_URL = $(ST_URL)cmsis_device_f0/master
 SVD_URL = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 
 # Required external files (needed for build but not in repo)
+ifeq ($(OW_TARGET),f0)
+EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0.h \
+                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
+                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
+                $(CMSIS_CORE_DIR)/cmsis_version.h \
+                $(CMSIS_DEVICE_DIR)/stm32f0xx.h \
+                $(CMSIS_DEVICE_DIR)/stm32f030x6.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32f0xx.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c \
+                $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
+else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
                 $(CMSIS_CORE_DIR)/cmsis_gcc.h \
@@ -159,6 +186,7 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c \
                 $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s \
                 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd
+endif
 
 # License files
 CMSIS_CORE_LICENSE_URL = https://raw.githubusercontent.com/ARM-software/CMSIS_5/master/LICENSE.txt
@@ -201,6 +229,9 @@ $(CMSIS_DEVICE_DIR):
 $(CMSIS_CORE_DIR)/core_cm3.h: | $(CMSIS_CORE_DIR)
 	$(call download_file,$(CMSIS_CORE_URL)/core_cm3.h,$@)
 
+$(CMSIS_CORE_DIR)/core_cm0.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/core_cm0.h,$@)
+
 $(CMSIS_CORE_DIR)/cmsis_compiler.h: | $(CMSIS_CORE_DIR)
 	$(call download_file,$(CMSIS_CORE_URL)/cmsis_compiler.h,$@)
 
@@ -226,6 +257,22 @@ $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c: | $(CMSIS_DEVICE_DIR)
 
 $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s,$@)
+
+# cmsis_device_f0 headers and sources (Apache 2.0)
+$(CMSIS_DEVICE_DIR)/stm32f0xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F0_URL)/Include/stm32f0xx.h,$@)
+
+$(CMSIS_DEVICE_DIR)/stm32f030x6.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F0_URL)/Include/stm32f030x6.h,$@)
+
+$(CMSIS_DEVICE_DIR)/system_stm32f0xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F0_URL)/Include/system_stm32f0xx.h,$@)
+
+$(CMSIS_DEVICE_DIR)/system_stm32f0xx.c: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F0_URL)/Source/Templates/system_stm32f0xx.c,$@)
+
+$(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F0_URL)/Source/Templates/gcc/startup_stm32f030x6.s,$@)
 
 # SVD file
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
@@ -352,16 +399,29 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_MOCK)/ds18b20_test_access.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -Wall -Wextra -Wswitch-enum \
+# OW_TARGET=f0 runs the same suite against the STM32F0 backend mock.
+ifeq ($(OW_TARGET),f0)
+TEST_PORT_FLAG = -DOW_PORT_TARGET_F0
+TEST_PORT_INC = -Iport/stm32f0
+TEST_EXE = $(TEST_OUT)/ds18b20_test_f0.exe
+else
+TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
+TEST_PORT_INC = -Iport/stm32f1
+TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
+endif
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -I$(TEST_MOCK)
+TEST_INC  = -Iinc $(TEST_PORT_INC) -I$(TEST_MOCK)
 
-.PHONY: test
-test: $(TEST_OUT)/ds18b20_test.exe
-	$(TEST_OUT)/ds18b20_test.exe
+.PHONY: test test-f0
+test: $(TEST_EXE)
+	$(TEST_EXE)
 
-$(TEST_OUT)/ds18b20_test.exe: $(TEST_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
+test-f0:
+	$(MAKE) OW_TARGET=f0 test
+
+$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) -o $@
 
 $(TEST_OUT):
@@ -379,10 +439,15 @@ help:
 	@echo "  clean-deps      - Remove downloaded dependencies and CMSIS/ directories"
 	@echo "  clean           - Remove build artifacts"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
+	@echo "  test-f0         - Build and run host tests against the STM32F0 backend"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
+	@echo "Variables:"
+	@echo "  APP=demo|demo2|demo3|demo4|diag  - example application to build"
+	@echo "  OW_TARGET=f1|f0                  - MCU family (firmware build)"
+	@echo "  HSI_8MHZ=1                       - run on internal 8MHz RC instead of PLL"
 
 # *** EOF ***
