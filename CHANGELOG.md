@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-22
+
 ### Added
 
 - STM32F0 backend (`port/stm32f0/ow_port_f0.h`): register-level `ow_port_*`
