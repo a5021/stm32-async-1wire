@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-22
+
+### Changed
+
+- Release pipeline now ships the full firmware matrix: all four example apps
+  (demo…demo4) for both backends (STM32F103 @72MHz/8MHz HSI, STM32F030
+  @48MHz/8MHz HSI) — 16 variants with per-file SHA256 checksums.
+
+
 ## [1.4.0] - 2026-08-22
 
 ### Added
