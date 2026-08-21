@@ -82,13 +82,11 @@ jobs:
             [ "$target" != "-" ] && flags="$flags OW_TARGET=$target"
             [ "$hsi" != "-" ] && flags="$flags HSI_8MHZ=1"
             echo "::group::build $out (APP=$app OW_TARGET=$target HSI_8MHZ=$hsi)"
-            make clean >/dev/null
-            make APP=$app $flags >/dev/null
+            make clean
+            make APP=$app $flags
             for ext in elf hex bin; do
               cp "build/ds18b20_$app.$ext" "dist/$out.$ext"
             done
-            echo "::endgroup::"
-          done
             echo "::endgroup::"
           done
 
