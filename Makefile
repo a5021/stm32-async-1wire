@@ -2,15 +2,14 @@
 # demo2 (device search + sequential polling of every sensor on the bus),
 # demo3 (device search + simultaneous broadcast conversion of every sensor),
 # demo4 (device search + command transactions: ROM, power supply, TH/TL,
-#        Copy/Recall EEPROM) or diag (standalone bit-bang 1-Wire diagnostics)
+#        Copy/Recall EEPROM)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
 #   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
 #   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
-#   make APP=diag      -> builds diag   (ds18b20_diag.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2 demo3 demo4 diag),)
-$(error APP must be 'demo', 'demo2', 'demo3', 'demo4' or 'diag')
+ifeq ($(filter $(APP),demo demo2 demo3 demo4),)
+$(error APP must be 'demo', 'demo2', 'demo3' or 'demo4')
 endif
 
 # Define the name of the project target and the build directory
@@ -22,26 +21,17 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-# The diag app is a standalone bit-bang tool and does not link the driver.
 # OW_TARGET selects the MCU family: f1 (STM32F103xB, default) or f0 (STM32F030x6)
 #   make                -> F1 firmware
 #   make OW_TARGET=f0   -> F0 firmware
 ifeq ($(OW_TARGET),f0)
-ifneq ($(filter $(APP),diag),)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/app.c
-else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
-endif
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
 LDS = STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
 else
-ifneq ($(filter $(APP),diag),)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/app.c
-else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
-endif
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
@@ -54,7 +44,6 @@ UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
-UART_TX_SIZE_diag  = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Define additional preprocessor definitions based on conditional variables
@@ -446,7 +435,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=demo|demo2|demo3|demo4|diag  - example application to build"
+	@echo "  APP=demo|demo2|demo3|demo4  - example application to build"
 	@echo "  OW_TARGET=f1|f0                  - MCU family (firmware build)"
 	@echo "  HSI_8MHZ=1                       - run on internal 8MHz RC instead of PLL"
 
