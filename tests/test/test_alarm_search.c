@@ -112,7 +112,7 @@ static void setup_single_device(void) {
 
 /*-------------------------------------------------------------
  *  The alarm search finds the single alarmed device and puts the
- *  0xEC command byte on the wire. The CCR1 feed is pulses[1..7]
+ *  0xEC command byte on the wire. The CCR3 feed is pulses[1..7]
  *  of the LSB-first 0xEC encoding plus the trailing bus-release
  *  zero: 0xEC = 1110 1100 -> LSB-first bits 0,0,1,1,0,1,1,1
  *  -> pulses ZERO,ZERO,ONE,ONE,ZERO,ONE,ONE,ONE -> feed

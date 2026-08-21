@@ -8,9 +8,9 @@
  *  how long software takes to poll:
  *
  *    - DMA-fed writes (send_command_n, write_then_read) append
- *      a trailing 0 to the CCR1 feed -> last DMA value is 0.
+ *      a trailing 0 to the CCR3 feed -> last DMA value is 0.
  *    - direct-write/capture ops (reset, read, single slot) use
- *      an OC1PE preload of 0 -> shadow CCR1 is 0 at the
+ *      an OC3PE preload of 0 -> shadow CCR3 is 0 at the
  *      terminal update event (OPM stop).
  *
  *  The model asserts the resulting invariant directly:
@@ -65,7 +65,7 @@ void test_write_command_trailing_zero_release(void) {
     }
     cmd[16] = 0; /* trailing bus-release zero at index `slots` */
 
-    hw_register_buf(&cmd[1]); /* the driver feeds CCR1 from &cmd[1] */
+    hw_register_buf(&cmd[1]); /* the driver feeds CCR3 from &cmd[1] */
     hw_set_capture_source(NULL);
     test_bus_send_command_n(cmd, 16);
     complete_op(20);
@@ -80,7 +80,7 @@ void test_write_command_trailing_zero_release(void) {
 }
 
 /*-------------------------------------------------------------
- *  Single-slot write (no DMA): OC1PE preload 0 armed before
+ *  Single-slot write (no DMA): OC3PE preload 0 armed before
  *  the timer starts; bus released when the timer stops.
  * -----------------------------------------------------------*/
 void test_single_slot_write_preload_zero(void) {
@@ -197,7 +197,7 @@ void test_sequence_stays_released_between_ops(void) {
 }
 
 /*-------------------------------------------------------------
- *  Standalone read_pair (rcr=1, 2 captures): OC1PE preload 0,
+ *  Standalone read_pair (rcr=1, 2 captures): OC3PE preload 0,
  *  id/cmp decoded from ctx.edge, bus released on completion.
  * -----------------------------------------------------------*/
 void test_read_pair_standalone_release(void) {
@@ -221,7 +221,7 @@ void test_read_pair_standalone_release(void) {
 
 /*-------------------------------------------------------------
  *  Long pure-timer waits (wait_conversion = 750ms, RCR=11;
- *  start_cycle_pause = 5s, RCR=79). They never touch CCR1,
+ *  start_cycle_pause = 5s, RCR=79). They never touch CCR3,
  *  so the line stays idle HIGH for the whole wait and the bus
  *  is still released when the timer stops.
  * -----------------------------------------------------------*/

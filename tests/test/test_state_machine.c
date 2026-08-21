@@ -778,18 +778,18 @@ void test_state_machine_init_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_GPIOAEN | RCC_AHBENR_DMAEN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(47, mock_tim1.PSC); /* 48MHz/48 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    /* Bus pin: AF mode (MODERx_1), open-drain, AF2 in AFRH */
-    TEST_ASSERT_BITS_HIGH(MOCK_BUS_MODER_1, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_LOW(MOCK_BUS_MODER_0, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_HIGH(MOCK_BUS_OT, mock_gpioa.OTYPER);
-    TEST_ASSERT_EQUAL_UINT32(2u << MOCK_BUS_AFSEL_POS,
-                             mock_gpioa.AFR[1] & MOCK_BUS_AFSEL);
+    /* Bus pin PA10: AF mode (MODER10_1), open-drain, AF2 in AFRH */
+    TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODER10_1, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_LOW(GPIO_MODER_MODER10_0, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT_10, mock_gpioa.OTYPER);
+    TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
+                             mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
 #else
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_IOPAEN | RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF8_0 | GPIO_CRH_CNF8_1 | GPIO_CRH_MODE8_1, mock_gpioa.CRH);
+    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1 | GPIO_CRH_MODE10_1, mock_gpioa.CRH);
 #endif
 }
 

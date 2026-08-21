@@ -89,7 +89,7 @@ void test_search_finds_single_device(void) {
 
 /*-------------------------------------------------------------
  *  The 0xF0 Search ROM command is DMA-fed (8 slot pulses) and
- *  must end with a trailing 0 in the CCR1 feed so the bus is
+ *  must end with a trailing 0 in the CCR3 feed so the bus is
  *  released HIGH even before the next read_pair is scheduled.
  *  After the whole search completes (DONE phase, EGR=UG hand-
  *  over) the bus must still be idle HIGH.
@@ -238,7 +238,7 @@ void test_search_no_device_no_presence(void) {
 
 /*-------------------------------------------------------------
  *  write_then_read arms the merged op: 3-slot timer pass, PWM
- *  WITHOUT OC1PE (so the CC3 DMA reload is immediate), capture
+ *  WITHOUT OC3PE (so the CC2 DMA reload is immediate), capture
  *  DMA for 3 edges and reload DMA feeding {ONE,ONE,0}.
  * -----------------------------------------------------------*/
 void test_write_then_read_configures_registers(void) {

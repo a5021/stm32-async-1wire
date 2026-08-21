@@ -8,7 +8,7 @@
  *     ROM modes, with TH/TL in the user payload and the current
  *     resolution preserved in the CFG byte
  *   - a full non-blocking threshold write over the TIM1/DMA model
- *     with the trailing bus-release zero in the CCR1 feed
+ *     with the trailing bus-release zero in the CCR3 feed
  *   - raw 9-byte scratchpad read-back including TH/TL and the CRC
  *   - resolution auto-derivation from a valid config byte only
  *   - presence-abort and re-entry guards

@@ -7,13 +7,13 @@ A bare-metal, register-level driver for the DS18B20 temperature sensor. This dri
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Two backends ship today:
 
-- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA8, TIM1 CH1 output / CH2 capture, DMA1 channels 3/6.
+- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 2/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 
 ## Features
 
 - Pure Bare-Metal: Direct register manipulation, no HAL or LL libraries.
-- Dual-MCU Backend: One MCU-independent core over a `ow_port_*` port interface; header-only backends for STM32F1 (PA8) and STM32F0 (PA10). Select at build time with `make OW_TARGET=f0`.
+- Dual-MCU Backend: One MCU-independent core over a `ow_port_*` port interface; header-only backends for STM32F1 and STM32F0, both on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0`.
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
@@ -78,7 +78,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
 │   └── macro.h             # STM32 register access macros (F1 backend)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
-│   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA8 (header-only static inline)
+│   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   └── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
 │   └── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
 │       └── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
@@ -159,7 +159,7 @@ Notes:
 ### STM32F103C8T6 (Blue Pill)
 
 The following captures were taken on real hardware: STM32F103C8T6 (Blue Pill),
-8 × DS18B20 on one 1-Wire bus (PA8), flashed via ST-Link, USART1 TX at
+8 × DS18B20 on one 1-Wire bus (PA10), flashed via ST-Link, USART1 TX at
 115200 8N1 read through a CP2102 USB-UART adapter. The shared 1-Wire layer
 found all 8 sensors, and every measurement round reported all of them — no
 missing devices, no CRC failures.
@@ -215,11 +215,11 @@ again carried 8 × DS18B20; all rounds complete with valid CRCs and no errors:
 
 | STM32F103 Pin | Function     | DS18B20 Pin |
 |---------------|--------------|-------------|
-| PA8           | 1-Wire Data  | DQ (Data)   |
+| PA10          | 1-Wire Data  | DQ (Data)   |
 | 3.3V          | Power        | VDD         |
 | GND           | Ground       | GND         |
 
-Note: A 4.7kΩ pull-up resistor is required between the PA8 and 3.3V lines.
+Note: A 4.7kΩ pull-up resistor is required between the PA10 and 3.3V lines.
 
 #### Debug UART (optional)
 
@@ -393,7 +393,7 @@ channel/DMA wiring. 221 tests per backend cover:
 -   Non-blocking alarm search (Alarm Search ROM, 0xEC command feed, scan-table
     isolation)
 -   Non-blocking resolution change (`ds18b20_set_resolution_*`): exact wait
-    timings for 9/10/11/12 bit, Skip ROM and Match ROM config writes, CCR1-feed
+    timings for 9/10/11/12 bit, Skip ROM and Match ROM config writes, CCR3-feed
     bus release, ownership guards, presence-abort and scratchpad auto-derivation
 -   Non-blocking command transactions (`ds18b20_read_rom`,
     `ds18b20_set_alarm_thresholds`, `ds18b20_read_scratchpad`,
@@ -426,8 +426,8 @@ channel/DMA wiring. 221 tests per backend cover:
     (Cortex-M0) with `OW_TARGET=f0`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
-    (bus on PA10, 48MHz default clock, `STM32F030X6_FLASH.ld`). The default
-    target is STM32F103 (bus on PA8).
+    (48MHz default clock, `STM32F030X6_FLASH.ld`). The default
+    target is STM32F103 (bus on PA10 for both).
 
 -   **HSI 8MHz Build:** By default the firmware runs on HSE 8MHz + PLL
     ×9 = 72MHz. Pass `HSI_8MHZ=1` to use the internal RC oscillator
@@ -492,8 +492,8 @@ protocol on embedded systems:
 ### Trade-offs
 
 **Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA1
-channels (CH3 for input capture, CH4 for the CCR1 feed) — that cannot be used
-for other purposes. The 1-Wire data line itself occupies one GPIO (PA8 / PA10), but any approach
+channels (CH4 for input capture, CH2 for the CCR3 feed) — that cannot be used
+for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
 needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
 portable across MCUs with limited peripherals.
@@ -513,7 +513,7 @@ This driver uses an advanced technique that combines multiple hardware features:
 
 1. Timer-Driven Sequences: TIM1 is configured in One-Pulse Mode (OPM). Each state machine step configures the timer for a specific operation (reset, write byte, read byte, wait) and starts it.
 2. DMA for Data Transfer: DMA is used in two key ways:
-   - Transmit (DMA1_Channel6): Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR1 to automatically generate the precise waveform for writing commands or bits.
+   - Transmit (DMA1_Channel2): Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits.
    - Capture (DMA1_Channel3): Automatically stores values from the TIM1->CCR2 capture register into memory to record pulse timings during read operations or presence detection.
 3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750ms) is finished.
 4. True Zero-ISR Overhead: The ds18b20_poll() function checks this flag. When set, it clears the flag and advances the state machine to the next step. This makes the entire driver event-driven by hardware completion signals without using interrupts.
@@ -558,8 +558,8 @@ complete `onewire_*` surface.
 
 ### Hardware Resources Used
 
-- TIM1 & Channels 1, 2, 3: The core timer resources.
-  - CH1 (PWM Mode 2, Output Compare): Configured in PWM Mode 2, driving PA8 as the 1-Wire output on an active-low bus.
+- TIM1 & Channels 2, 3, 4: The core timer resources.
+  - CH3 (PWM Mode 2, Output Compare): Configured in PWM Mode 2, driving PA10 as the 1-Wire output on an active-low bus.
      - Each 1-Wire bit time slot is implemented as a single PWM period
        with a low (active) portion encoding the bit:
        - Short low (~5µs) → logical '1'
@@ -568,21 +568,22 @@ complete `onewire_*` surface.
        The +5µs guard band prevents overlap between consecutive slots
        due to bus rise time and DMA latency.
     - Reset (~480µs) is generated as an extended low period (active-low) within a ~960µs slot.
-  - CH2 (Input Capture, Indirect mode): Shares the same PA8 pin internally. Used to capture presence pulses and read-slot timings after CH1 releases the bus to idle-high; DMA transfers CCR2 capture values to memory.
-  - CH3: Used as a DMA trigger, feeding CCR1 duty cycles (for CH1 output) and facilitating capture operations.
+  - CH4 (Input Capture, Indirect mode): Shares the same PA10 pin internally. Used to capture presence pulses and read-slot timings after CH3 releases the bus to idle-high; DMA transfers CCR4 capture values to memory.
+  - CH2: End-of-slot marker (a plain compare at ONE+ZERO µs); its DMA request feeds CCR3 duty cycles for the CH3 output.
 - RCR (Repetition Counter Register): Key to the state machine operation. Instead of generating an Update Event on every period, RCR controls how many timer repetitions occur before UIF is set.
   - Example: RCR=15 → the timer generates 16 PWM slots (bits) via DMA, then asserts UIF once at the end, signaling software to proceed.
   - This allows grouping a full command (two bytes), the entire 72-bit read, or long delays into single hardware-driven transactions, freeing the CPU until completion.
-- DMA1_Channel3: Peripheral-to-memory transfers from TIM1->CCR2 (captured timings).
-- DMA1_Channel6: Memory-to-peripheral transfers to TIM1->CCR1 (PWM duty cycles).
-- GPIO Pin: PA8 configured in alternate function open-drain; CH1 output and CH2 capture are multiplexed onto this single pin.
+- DMA1_Channel4: Peripheral-to-memory transfers from TIM1->CCR4 (captured timings).
+- DMA1_Channel2: Memory-to-peripheral transfers to TIM1->CCR3 (PWM duty cycles).
+- GPIO Pin: PA10 configured in alternate function open-drain; CH3 output and CH4 capture are multiplexed onto this single pin.
 
-On the STM32F0 backend the same roles map to different channels (PA8 is not
-bonded out on small F030 packages): CH3 (PWM output) + CH4 (indirect capture
-on TI3, the same pin) drive **PA10**; the slot-end marker moves to a plain
-CH2 compare whose DMA request feeds CCR3 through **DMA1_Channel3**, while
-captures drain CCR4 through **DMA1_Channel4** (fixed request map — the F0
-DMA has no CSELR mux).
+The STM32F0 backend uses exactly the same channel roles on the same bus pin:
+CH3 (PWM output) + CH4 (indirect capture on TI3, the same pin) drive
+**PA10**; the slot-end marker sits on a plain CH2 compare. Only the two DMA
+channel numbers differ, forced by each family's fixed request map (no CSELR
+mux): the marker request rides **DMA1_Channel2** on STM32F1 vs
+**DMA1_Channel3** on STM32F0, while captures drain through **DMA1_Channel4**
+on both.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
 
@@ -595,13 +596,13 @@ Kickstart behavior
 
 - START (state 1)
   - LED on. Run reset_bus():
-    - CH1 issues active-low reset pulse (~480µs within ~960µs slot).
-    - CH2 (indirect input) captures presence timing into ctx.edge[0..1] via DMA from CCR2.
+    - CH3 issues active-low reset pulse (~480µs within ~960µs slot).
+    - CH4 (indirect input) captures presence timing into ctx.edge[0..1] via DMA from CCR4.
   - Set state=2.
 
 - CONVERT (state 2)
   - On UIF, check_presence() with ctx.edge[].
-    - If present: send convert command via CH1+DMA. With no selected device,
+    - If present: send convert command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
       device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
       + Convert T 0x44" (80 slots, RCR=79). Set state=3.
@@ -617,14 +618,14 @@ Kickstart behavior
 
 - REQUEST (state 5)
   - On UIF, check_presence().
-    - If present: send read command via CH1+DMA. With no selected device,
+    - If present: send read command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
       selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
       (80 slots). Set state=6.
     - Else: report NO_SENSOR; start 5s pause; set state=0.
 
 - READ (state 6)
-  - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH1 emits ~5µs active-low kick at each slot start and then releases; CH2 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
+  - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH3 emits ~5µs active-low kick at each slot start and then releases; CH4 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
 
 - DECODE (state 7)
   - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; start 5s pause; set state=0.
@@ -666,10 +667,10 @@ Practical consequences for RTOS use:
 
 1. A delayed poll is safe **because the line is released to HIGH in hardware**,
    not by software. Every bus operation now ends with the line idle-HIGH
-   automatically: the CCR1-fed writes (`send_command_n`, the merged search op)
+   automatically: the CCR3-fed writes (`send_command_n`, the merged search op)
    append a trailing 0 to the DMA feed, and the direct-write/capture operations
    (reset, read, single-slot write) use an OC1PE preload of 0 — both applied at
-   the instant the one-pulse timer stops. There is no software `T1.CCR1 = 0`
+   the instant the one-pulse timer stops. There is no software `T1.CCR3 = 0`
    anywhere; the bus cannot be left LOW by a stale compare value, no matter how
    long the RTOS delays the next poll.
 2. The usable scheduling latency budget is ~480 µs of LOW, not a tight
@@ -1068,7 +1069,7 @@ Slot formula: `ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND
    - Fix:
      - Check all wiring connections.
      - Ensure a 4.7kΩ pull-up resistor is between the 1-Wire data line
-       (PA8 on STM32F103 / PA10 on STM32F030) and 3.3V.
+       (PA10 on both supported targets) and 3.3V.
      - Verify stable power is supplied to the DS18B20 sensor.
      - Keep data lines short to minimize noise and capacitance.
 
@@ -1088,7 +1089,7 @@ Slot formula: `ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND
 - Check the Update Flag: Read `TIM1->SR`. If the driver seems idle,
   a set UIF bit indicates a completed operation waiting to be processed
   by `ds18b20_poll()`.
-- Inspect the GPIO: Use an oscilloscope on the data pin (PA8 / PA10) to verify the 1-Wire
+- Inspect the GPIO: Use an oscilloscope on the data pin (PA10) to verify the 1-Wire
   waveforms. Look for:
   - A clean ~480µs reset pulse (MCU pulls low, then releases).
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).

@@ -3,7 +3,7 @@
  *
  *  Covers the non-blocking ds18b20_read_rom()/poll() pair:
  *   - the bare command (no addressing prefix) pulse build and the
- *     trailing bus-release zero in the CCR1 feed
+ *     trailing bus-release zero in the CCR3 feed
  *   - a full read-back of the 8-byte ROM over the TIM1/DMA model
  *   - presence-abort leaves the result buffer untouched
  *   - ownership guards (mid-measurement, search, resolution, re-entry)

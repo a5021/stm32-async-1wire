@@ -6,7 +6,7 @@
  *  machine against the TIM1/DMA hardware model:
  *   - wait timing table for 9/10/11/12 bit (exact minimum waits)
  *   - the config write sequence (Skip ROM and Match ROM) with the
- *     trailing bus-release zero in the CCR1 feed
+ *     trailing bus-release zero in the CCR3 feed
  *   - ownership guards (mid-measurement, search, re-entry, range)
  *   - presence-abort without adopting the new resolution
  *   - auto-derivation of the resolution from a valid scratchpad
@@ -257,7 +257,7 @@ void test_resolution_no_presence_aborts(void) {
     drive_res_change(9);
     /* No config write happened: the resolution must NOT be adopted. */
     TEST_ASSERT_EQUAL_UINT8(12, ds18b20_get_resolution());
-    /* The last simulated operation was only the presence reset: no CCR1 feed
+    /* The last simulated operation was only the presence reset: no CCR3 feed
      * (i.e. no config write) was ever sent to the bus. */
     TEST_ASSERT_EQUAL_UINT8(0, hw_ccr1_feed_log()->count);
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_set_resolution_poll()); /* finished */

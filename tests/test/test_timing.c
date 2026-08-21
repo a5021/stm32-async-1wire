@@ -2,7 +2,7 @@
  *  test_timing.c - Timing Register Regression Tests
  *
  *  Verifies the actual register values each bus operation programs
- *  into TIM1 (ARR/RCR/CCR1/CCR3) against the DS18B20 timing spec.
+ *  into TIM1 (ARR/RCR/CCR2/CCR3) against the DS18B20 timing spec.
  *  Unlike a constant re-check, this locks the real driver output.
  * ============================================================ */
 

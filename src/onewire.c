@@ -105,7 +105,7 @@ void onewire_init(void) {
     // No search running after init: lets the slave driver own the timer until
     // the application starts a search.
     search_ctx.finished = 1;
-    // Enable clocks, configure the timer prescaler, PA8 AF open-drain.
+    // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
 }
 

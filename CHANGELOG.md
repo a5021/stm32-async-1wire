@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** STM32F1 backend moved to the same TIM1 channel scheme as
+  STM32F0: the 1-Wire bus now runs on **PA10** (previously PA8) as TIM1_CH3
+  PWM output with CH4 indirect capture (IC4 <- TI3); the slot-end marker sits
+  on a plain CC2 compare feeding CCR3 through DMA1 channel 2, while captures
+  drain CCR4 through DMA1 channel 4. Re-wire DQ from PA8 to PA10 when
+  upgrading. Register-level timer logic is now identical across both
+  backends; only the prescaler, GPIO pin configuration and two fixed DMA
+  request channels differ.
+
 ## [1.4.1] - 2026-08-22
 
 ### Changed
