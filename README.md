@@ -1,9 +1,9 @@
 [![STM32 Build CI](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml)
 [![Code Quality](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-# Non-Blocking DS18B20 Driver for STM32F103 / STM32F030
+# stm32-async-1wire
 
-A bare-metal, register-level driver for the DS18B20 temperature sensor. This driver uses a sophisticated hybrid architecture with a hardware timer (TIM1) and DMA to achieve precise 1-Wire protocol timing. All timing is handled by hardware — the CPU never waits, never spins, and never enters an interrupt.
+Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot; the CPU never waits, never spins, and never enters an interrupt. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Two backends ship today:
 
@@ -13,6 +13,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ## Features
 
 - Pure Bare-Metal: Direct register manipulation, no HAL or LL libraries.
+- Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
+  non-blocking 1-Wire master. The bus primitives (reset, presence, write/read
+  slots, multi-byte read) and the generic Maxim Search ROM engine are
+  scheduled on TIM1/DMA and complete asynchronously. `src/ds18b20.c` is built
+  on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
+  as-is.
 - Dual-MCU Backend: One MCU-independent core over a `ow_port_*` port interface; header-only backends for STM32F1 and STM32F0, both on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0`.
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
@@ -24,12 +30,6 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
    `ds18b20_search_count()` find every DS18B20 on the bus. The engine is the
    generic Search ROM state machine of the shared 1-Wire layer; the driver
    stays a small high-level interface on top of it.
- - Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
-   non-blocking 1-Wire master. The bus primitives (reset, presence, write/read
-   slots, multi-byte read) and the generic Maxim Search ROM engine are
-   scheduled on TIM1/DMA and complete asynchronously. `src/ds18b20.c` is built
-   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
-   as-is.
  - Non-Blocking Alarm Search: `ds18b20_alarm_search_start()`,
     `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
     DS18B20 devices currently in alarm state (temperature outside the TH/TL

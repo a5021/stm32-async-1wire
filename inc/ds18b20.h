@@ -1,6 +1,6 @@
 /**
  * @file ds18b20.h
- * @brief Non-blocking DS18B20 temperature sensor driver for STM32F103
+ * @brief Non-blocking DS18B20 temperature sensor driver for STM32
  * 
  * This driver implements a strictly non-blocking interface for the DS18B20 
  * temperature sensor using hardware timers and DMA on STM32F103 microcontrollers.

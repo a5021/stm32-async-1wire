@@ -1,6 +1,6 @@
 /**
  * @file onewire.h
- * @brief Universal non-blocking 1-Wire bus layer for STM32F103
+ * @brief Universal non-blocking 1-Wire bus layer for STM32
  * @details The driver (ds18b20.c) and any other 1-Wire slave driver (DS2413,
  *          DS2431, ...) are built on top of this layer. Every operation is
  *          scheduled on TIM1/DMA and completes asynchronously: callers poll
