@@ -8,12 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Debug assets for the STM32F0 backend, previously F1-only: Ozone project
+  (`port/stm32f0/project.jdebug`), J-Flash project
+  (`port/stm32f0/stm32f030f4.jflash`) and VSCode cortex-debug launch
+  configurations ("Debug F0 (J-Link)" / "Debug F0 (ST-Link)") with a
+  matching `Build F0 (debug)` task. The `STM32F030.svd` peripheral view is
+  now downloaded together with the other build dependencies.
+
 ### Changed
 
 - Project renamed to `stm32-async-1wire`: the documentation now frames the
   library as a generic non-blocking 1-Wire layer for STM32 with the DS18B20
   driver as its first client. Repository URLs updated throughout (README,
   issue templates, release notes); public API and artifact names unchanged.
+- Linker scripts and debug projects moved out of the repository root into
+  their family port directories (`port/stm32f1/`, `port/stm32f0/`) — one
+  self-contained folder per backend. The Makefile references them through
+  new per-family variables (`LDS`, `JFLASH`), so `make OW_TARGET=f0
+  jprogram` now uses the F0 J-Flash project instead of the F1 one. The
+  Ozone projects resolve SVD/ELF paths relative to their own location.
 
 ## [1.5.0] - 2026-08-22
 
