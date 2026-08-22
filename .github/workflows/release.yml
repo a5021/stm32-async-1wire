@@ -142,7 +142,7 @@ jobs:
 
             ## Getting started
 
-            See the [README](https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6#readme):
+            See the [README](https://github.com/a5021/stm32-async-1wire#readme):
             include `ds18b20.h`, call `ds18b20_init()` once, then `ds18b20_poll()` in your main loop.
 
             ---

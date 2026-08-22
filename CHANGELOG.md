@@ -285,7 +285,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README restructured: hardware connections, architecture, API reference,
   troubleshooting, build and flash instructions.
 
-[1.0.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.0.0
-[1.1.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.1.0
-[1.2.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.2.0
-[1.3.0]: https://github.com/a5021/non-blocking-ds18B20-driver-for-stm32f103c8t6/releases/tag/v1.3.0
+[1.0.0]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.0.0
+[1.1.0]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.1.0
+[1.2.0]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.2.0
+[1.3.0]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.3.0
