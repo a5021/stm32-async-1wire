@@ -103,9 +103,10 @@ jobs:
           files: dist/*
           generate_release_notes: true
           body: |
-            # Non-Blocking DS18B20 Driver for STM32F103 / STM32F030
+            # stm32-async-1wire
 
-            Bare-metal, register-level DS18B20 temperature sensor driver.
+            Non-blocking 1-Wire master for STM32 with a DS18B20 temperature driver
+            built on top — bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA — no interrupts,
             no software delays, minimal CPU usage. One MCU-independent core,
             two header-only backends selected at build time with

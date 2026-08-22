@@ -1,10 +1,19 @@
 # Changelog
 
-All notable changes to the Non-Blocking DS18B20 Driver for STM32F103C8T6
-are documented in this file.
+All notable changes to stm32-async-1wire — a non-blocking 1-Wire layer for
+STM32 and the DS18B20 driver built on top of it — are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- Project renamed to `stm32-async-1wire`: the documentation now frames the
+  library as a generic non-blocking 1-Wire layer for STM32 with the DS18B20
+  driver as its first client. Repository URLs updated throughout (README,
+  issue templates, release notes); public API and artifact names unchanged.
 
 ## [1.5.0] - 2026-08-22
 
