@@ -27,15 +27,17 @@ CMSIS_DEVICE_DIR = CMSIS/device
 ifeq ($(OW_TARGET),f0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
-LDS = STM32F030X6_FLASH.ld
+LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
+JFLASH = port/stm32f0/stm32f030f4.jflash
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
-LDS = STM32F103XB_FLASH.ld
+LDS = port/stm32f1/STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
+JFLASH = port/stm32f1/stm32f103cb.jflash
 endif
 INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
@@ -83,7 +85,7 @@ BIN = $(CP) -O binary -S
 # Set additional compiler flags for dependencies and object file generation
 FLAG = $(MCU) $(DEF) $(INC) -Wall -Werror -Wextra -Wpedantic -Wswitch-enum -fdata-sections -ffunction-sections
 
-JLINK_FLAGS = -openprj./stm32f103cb.jflash -open$(BUILD_DIR)/$(TARGET).hex -hide -auto -exit -jflashlog./jflash.log
+JLINK_FLAGS = -openprj$(JFLASH) -open$(BUILD_DIR)/$(TARGET).hex -hide -auto -exit -jflashlog./jflash.log
 
 ifeq ($(OS), Windows_NT)
 
@@ -151,7 +153,8 @@ ST_URL = $(RAW_URL)/STMicroelectronics/
 CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/master/CMSIS/Core/Include
 F1_URL = $(ST_URL)cmsis_device_f1/master
 F0_URL = $(ST_URL)cmsis_device_f0/master
-SVD_URL = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
+SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
+SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 
 # Required external files (needed for build but not in repo)
 ifeq ($(OW_TARGET),f0)
@@ -163,7 +166,8 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0.h \
                 $(CMSIS_DEVICE_DIR)/stm32f030x6.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f0xx.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
+                $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s \
+                $(CMSIS_DEVICE_DIR)/STM32F030.svd
 else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
@@ -263,9 +267,12 @@ $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F0_URL)/Source/Templates/gcc/startup_stm32f030x6.s,$@)
 
-# SVD file
+# SVD files (debug register views for Ozone / VSCode cortex-debug)
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL),$@)
+	$(call download_file,$(SVD_URL_F1),$@)
+
+$(CMSIS_DEVICE_DIR)/STM32F030.svd: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(SVD_URL_F0),$@)
 
 # License download targets
 $(CMSIS_CORE_LICENSE): | $(CMSIS_CORE_DIR)

@@ -5,8 +5,8 @@ void OnProjectLoad (void) {
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M3.svd");
-  Project.AddSvdFile ("CMSIS/device/STM32F103xx.svd");
-  File.Open ("build/ds18b20_demo.elf");
+  Project.AddSvdFile ("$(ProjectDir)/../../CMSIS/device/STM32F103xx.svd");
+  File.Open ("$(ProjectDir)/../../build/ds18b20_demo.elf");
 }
 
 void AfterTargetReset (void) {

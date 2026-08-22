@@ -79,9 +79,15 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── macro.h             # STM32 register access macros (F1 backend)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   └── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
+│   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
+│   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
+│   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
+│   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
 │   └── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
-│       └── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
+│       ├── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
+│       ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
+│       ├── stm32f030f4.jflash    # J-Flash project file
+│       └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
 ├── src/                    # Project source files
 │   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
@@ -102,10 +108,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── extensions.json     # Recommended extensions
 │   └── settings.json       # Editor settings
 ├── build/                  # Build artifacts (generated)
-├── STM32F103XB_FLASH.ld    # Linker script, STM32F103xB (with .noinit section)
-├── STM32F030X6_FLASH.ld    # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 ├── Makefile
-└── stm32f103cb.jflash      # J-Flash project file
+└── README.md
 ```
 
 ## Examples
@@ -426,7 +430,7 @@ channel/DMA wiring. 221 tests per backend cover:
     (Cortex-M0) with `OW_TARGET=f0`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
-    (48MHz default clock, `STM32F030X6_FLASH.ld`). The default
+    (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`). The default
     target is STM32F103 (bus on PA10 for both).
 
 -   **HSI 8MHz Build:** By default the firmware runs on HSE 8MHz + PLL
@@ -456,6 +460,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 - `Build (release)` — `make` (default)
 - `Build (debug)` — `make debug`
+- `Build F0 (debug)` — `make OW_TARGET=f0 debug` (debug build for the STM32F030 target)
 - `Clean` — `make clean`
 - `Program (J-Link)` / `Program (ST-Link)` — flash the device
 - `Download dependencies` — `make download-deps`
@@ -463,13 +468,19 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 ### Debugging
 
 1. In the **Run and Debug** panel (`Ctrl+Shift+D`), select the debug
-   configuration: **"Debug (J-Link)"** or **"Debug (ST-Link)"**.
+   configuration: **"Debug F1 (J-Link)"** / **"Debug F1 (ST-Link)"** for
+   the STM32F103 target, or **"Debug F0 (J-Link)"** /
+   **"Debug F0 (ST-Link)"** for the STM32F030 target. The F0
+   configurations build with `OW_TARGET=f0` automatically.
 2. Open `src/demo.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
 
-The SVD file is loaded automatically for peripheral register views in
-the debug sidebar.
+The SVD file for the selected family is downloaded by `make download-deps`
+and loaded automatically for peripheral register views in the debug
+sidebar. Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
+from either backend directory; the project resolves its SVD and ELF paths
+relative to its own location.
 
 **J-Link:** Connect a SEGGER J-Link debugger via SWD.  
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
