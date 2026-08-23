@@ -362,9 +362,11 @@ uint8_t ds18b20_read_scratchpad_poll(void);
 
 /**
  * @brief Copy the scratchpad into the EEPROM (non-volatile)
- * @note External-power wiring only (as assumed by the whole driver): the copy
- *       is powered by the sensor's VDD, no strong pull-up is needed. The
- *       driver waits the datasheet t_COPY hold-off (10ms) before finishing.
+ * @note The copy draws its supply from VDD on externally powered devices;
+ *       parasite-powered devices are supplied by the strong pull-up, which
+ *       the driver engages for the t_COPY hold-off window when
+ *       ds18b20_set_parasite(1) is set. The driver waits the datasheet
+ *       hold-off (10ms) before finishing.
  */
 void ds18b20_copy_scratchpad(void);
 
@@ -394,6 +396,20 @@ uint8_t ds18b20_recall_eeprom_poll(void);
  *                            0 when externally powered; written on success
  */
 void ds18b20_read_power_supply(uint8_t* is_parasite);
+
+/**
+ * @brief Declare the bus as parasite-powered
+ * @param[in] parasite 1 = devices are powered over the data line, 0 =
+ *                     external VDD supply (default)
+ * @note In parasite mode the driver engages the strong pull-up (bus pin
+ *       switched to push-pull HIGH) for every temperature conversion window
+ *       (t_CONV, up to 750ms) and EEPROM programming hold-off (t_COPY /
+ *       t_RECALL), then releases the line back to the passive pull-up before
+ *       any further bus activity. Call once after ds18b20_init() or between
+ *       measurement cycles; applies to all subsequent operations. Use
+ *       ds18b20_read_power_supply() to detect the wiring first.
+ */
+void ds18b20_set_parasite(uint8_t parasite);
 
 /**
  * @brief Advance the non-blocking power-supply read

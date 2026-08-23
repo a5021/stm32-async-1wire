@@ -130,6 +130,10 @@ void onewire_start_timer(uint16_t arr, uint8_t rcr) {
     ow_port_start_timer(arr, rcr);
 }
 
+void onewire_strong_pullup(uint8_t on) {
+    ow_port_strong_pullup(on);
+}
+
 void onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
     ow_port_write_slots(pulses, slots);
 }

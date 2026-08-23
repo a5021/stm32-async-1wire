@@ -296,4 +296,28 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
     ow_port_capture((volatile void*)dst, bits, 8);
 }
 
+/**
+ * @brief Engage or release the parasite-power strong pull-up on the bus
+ * @param[in] on 1 drives the bus line HIGH actively, 0 releases it again
+ * @note Engaged: PA10 leaves the timer-driven alternate-function mode and
+ *       becomes a general purpose push-pull output driving HIGH, sourcing the
+ *       current parasite devices need during temperature conversion and
+ *       EEPROM programming windows. Released: alternate function open-drain
+ *       is restored, handing the pin back to TIM1_CH3 (which idles with the
+ *       output released, so the external pull-up takes over). The BSRR write
+ *       happens before the mode switch so the push-pull stage never actively
+ *       drives LOW - engaging can only pull the line up; releasing restores
+ *       open-drain before leaving output mode for the same reason.
+ */
+__STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
+    if (on) {
+        PA.BSRR = GPIO_BSRR(BS10); /* Output data HIGH before switching mode */
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_0; /* AF -> output */
+        PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* Open-drain -> push-pull */
+    } else {
+        PA.OTYPER |= GPIO_OTYPER_OT_10; /* Push-pull -> open-drain (line released) */
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1; /* Output -> AF */
+    }
+}
+
 #endif /* OW_PORT_F0_H */

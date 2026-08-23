@@ -176,6 +176,20 @@ void onewire_encode_byte(uint8_t* out, uint8_t byte);
  */
 void onewire_start_timer(uint16_t arr, uint8_t rcr);
 
+/**
+ * @brief Engage or release the parasite-power strong pull-up on the bus
+ * @param[in] on 1 drives the bus line HIGH actively (pin leaves the timer-
+ *                driven open-drain mode for a push-pull HIGH), 0 releases the
+ *                line back to the passive external pull-up
+ * @note Parasite-powered devices source their supply from the bus line and
+ *       need this active pull-up during energy-intensive phases: the whole
+ *       temperature conversion (tCONV, up to 750 ms) after Convert T and the
+ *       EEPROM programming window (tPROG) after Copy Scratchpad / Recall E².
+ *       Must only be called between hardware operations (bus idle), never
+ *       while a timed transaction is running.
+ */
+void onewire_strong_pullup(uint8_t on);
+
 /** @} */
 
 /**

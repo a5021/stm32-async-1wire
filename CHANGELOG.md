@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Parasite-power support: `ds18b20_set_parasite(1)` makes the driver engage
+  the strong pull-up (bus pin switched to push-pull HIGH) for every
+  temperature-conversion window and EEPROM hold-off, releasing the line back
+  to the external pull-up before any further bus activity. Backed by a new
+  `ow_port_strong_pullup()` port hook in both the STM32F1 and STM32F0
+  backends; seven host tests cover engagement windows, register state,
+  mid-window flag clears and the default-off regression.
 - Public CI coverage: the host-test workflow now runs both backend suites
   (F1 and F0) as a test matrix, captures per-backend lcov traces and merges
   them into a single metric over the MCU-independent core (port plumbing is
