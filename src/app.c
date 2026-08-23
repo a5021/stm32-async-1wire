@@ -215,7 +215,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
-    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ)*1000000u, 115200); // PCLK = SYSCLK
+    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #else
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
@@ -232,7 +232,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOC->CRH |= GPIO_CRH_MODE13_1;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
-    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ)*1000000u, 115200); // PCLK2 = SYSCLK
+    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #endif
 }
