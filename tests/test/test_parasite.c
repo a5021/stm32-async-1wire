@@ -354,6 +354,95 @@ void test_parasite_setter_normalises_and_init_resets(void) {
 }
 
 /*-------------------------------------------------------------
+ *  5. Auto-detect (Read Power Supply -> ctx.parasite)
+ * -----------------------------------------------------------*/
+
+/* Capture helpers mirroring test_eeprom.c: a fixed "present" reset
+ * signature plus a programmable read-bit table served slot-by-slot. */
+
+static uint16_t det_capture_present(uint32_t idx) {
+    return idx == 0 ? 510u : 700u;
+}
+
+static uint16_t det_capture_absent(uint32_t idx) {
+    (void)idx;
+    return 100u;
+}
+
+static uint8_t det_read_bits[8];
+static uint16_t det_capture_read(uint32_t idx) {
+    return det_read_bits[idx] ? (uint16_t)ONE : (uint16_t)ZERO;
+}
+
+static void det_drive(uint8_t (*poll)(void)) {
+    uint16_t guard = 0;
+    for (;;) {
+        if (poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            /* Serve the data-read slots from the bit table once the command
+             * write has been consumed (same discipline as test_eeprom.c). */
+            if ((mock_dma1_ch3.CCR & DMA_CCR_EN) && mock_dma1_ch3.CNDTR > 2) {
+                hw_set_capture_source(det_capture_read);
+            }
+            TEST_ASSERT_TRUE(hw_run_until_uif(256));
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+}
+
+void test_detect_parasite_sets_flag(void) {
+    ds18b20_init();
+    memset(det_read_bits, 1, sizeof(det_read_bits));
+    det_read_bits[0] = 0; /* slot 0 driven short: parasite-powered */
+    hw_set_capture_source(det_capture_present);
+
+    ds18b20_detect_parasite();
+    det_drive(ds18b20_detect_parasite_poll);
+
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_parasite_mode());
+}
+
+void test_detect_external_clears_flag(void) {
+    ds18b20_init();
+    ds18b20_set_parasite(1); /* stale flag from a previous wiring */
+    memset(det_read_bits, 1, sizeof(det_read_bits)); /* all long: external */
+    hw_set_capture_source(det_capture_present);
+
+    ds18b20_detect_parasite();
+    det_drive(ds18b20_detect_parasite_poll);
+
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_parasite_mode());
+}
+
+void test_detect_no_presence_leaves_flag(void) {
+    ds18b20_init();
+    ds18b20_set_parasite(1);
+    hw_set_capture_source(det_capture_absent);
+
+    ds18b20_detect_parasite();
+    det_drive(ds18b20_detect_parasite_poll);
+
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_last_command_ok());
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_parasite_mode()); /* untouched */
+}
+
+void test_getter_matches_setter(void) {
+    ds18b20_init();
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_parasite_mode());
+    ds18b20_set_parasite(1);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_parasite_mode());
+    ds18b20_set_parasite(0);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_parasite_mode());
+}
+
+/*-------------------------------------------------------------
  *  Run all parasite-power tests
  * -----------------------------------------------------------*/
 void run_test_parasite(void) {
@@ -364,4 +453,8 @@ void run_test_parasite(void) {
     TEST_RUN(test_parasite_copy_scratchpad_window);
     TEST_RUN(test_parasite_recall_eeprom_window);
     TEST_RUN(test_parasite_setter_normalises_and_init_resets);
+    TEST_RUN(test_detect_parasite_sets_flag);
+    TEST_RUN(test_detect_external_clears_flag);
+    TEST_RUN(test_detect_no_presence_leaves_flag);
+    TEST_RUN(test_getter_matches_setter);
 }

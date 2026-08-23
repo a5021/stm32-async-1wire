@@ -418,6 +418,34 @@ void ds18b20_set_parasite(uint8_t parasite);
 uint8_t ds18b20_read_power_supply_poll(void);
 
 /**
+ * @brief Detect the bus wiring and configure parasite mode automatically
+ * @note Runs a Read Power Supply transaction (current addressing) and, on
+ *       success, stores the decoded answer into the driver state as if
+ *       ds18b20_set_parasite() had been called with it. On abort (no device
+ *       present) the flag is left untouched. Call once after ds18b20_init()
+ *       before the first conversion. On a mixed bus (externally powered
+ *       devices alongside parasite-powered ones) the open-drain answer is a
+ *       wired-AND: any externally powered device masks the parasite report,
+ *       so run the detection per-device in MATCH-ROM addressing mode for
+ *       heterogeneous wiring.
+ */
+void ds18b20_detect_parasite(void);
+
+/**
+ * @brief Advance the non-blocking parasite-mode detection
+ * @return 1 when finished (successfully or aborted), 0 while running;
+ *         check ds18b20_last_command_ok() and ds18b20_parasite_mode() after
+ */
+uint8_t ds18b20_detect_parasite_poll(void);
+
+/**
+ * @brief Current parasite-power configuration of the driver
+ * @return 1 when the strong pull-up will be engaged during conversion and
+ *         EEPROM programming windows, 0 for external VDD supply
+ */
+uint8_t ds18b20_parasite_mode(void);
+
+/**
  * @brief Result of the last completed command transaction
  * @return 1 when the last ds18b20_*_poll() finished a transaction that found
  *         a device present (and, for read commands, read its data back),
