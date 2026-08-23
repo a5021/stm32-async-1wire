@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 10:49:16</td>
+            <td class="headerValue">2026-08-23 19:40:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -231,8 +231,8 @@
 <span id="L160"><span class="lineNum">     160</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
 <span id="L161"><span class="lineNum">     161</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
 <span id="L162"><span class="lineNum">     162</span>                 :             :  */</span>
-<span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaGNC tlaBgGNC">       14004 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
-<span id="L164"><span class="lineNum">     164</span>         [<span class="tlaGBC" title="Branch 0 was taken 6440 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7564 times"> + </span>]:<span class="tlaGNC">       14004 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
+<span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaGNC tlaBgGNC">       14036 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
+<span id="L164"><span class="lineNum">     164</span>         [<span class="tlaGBC" title="Branch 0 was taken 6470 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7566 times"> + </span>]:<span class="tlaGNC">       14036 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
 <span id="L165"><span class="lineNum">     165</span>                 :             : }</span>
 <span id="L166"><span class="lineNum">     166</span>                 :             : </span>
 <span id="L167"><span class="lineNum">     167</span>                 :             : /**</span>
