@@ -60,6 +60,36 @@
                 "interface/stlink.cfg",
                 "target/stm32f0x.cfg"
             ]
+        },
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/ds18b20_demo.elf",
+            "name": "Debug G0 (J-Link)",
+            "device": "STM32G031F6",
+            "interface": "swd",
+            "svdFile": "${workspaceRoot}/CMSIS/device/STM32G031.svd",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "Build G0 (debug)"
+        },
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/ds18b20_demo.elf",
+            "name": "Debug G0 (ST-Link)",
+            "device": "STM32G031F6",
+            "interface": "swd",
+            "svdFile": "${workspaceRoot}/CMSIS/device/STM32G031.svd",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "Build G0 (debug)",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32g0x.cfg"
+            ]
         }
     ]
 }

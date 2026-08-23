@@ -21,9 +21,11 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-# OW_TARGET selects the MCU family: f1 (STM32F103xB, default) or f0 (STM32F030x6)
+# OW_TARGET selects the MCU family: f1 (STM32F103xB, default), f0 (STM32F030x6)
+# or g0 (STM32G031xx)
 #   make                -> F1 firmware
 #   make OW_TARGET=f0   -> F0 firmware
+#   make OW_TARGET=g0   -> G0 firmware
 ifeq ($(OW_TARGET),f0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
@@ -31,6 +33,13 @@ LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
 JFLASH = port/stm32f0/stm32f030f4.jflash
+else ifeq ($(OW_TARGET),g0)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
+ASM = $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s
+LDS = port/stm32g0/STM32G031X6_FLASH.ld
+MCU = -mcpu=cortex-m0plus -mthumb
+DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
+JFLASH = port/stm32g0/stm32g031f6.jflash
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
@@ -39,7 +48,7 @@ MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
 JFLASH = port/stm32f1/stm32f103cb.jflash
 endif
-INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
@@ -49,9 +58,10 @@ UART_TX_SIZE_demo4 = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
-# make SYSCLK_MHZ=8  →  -DOWN_PORT_SYSCLK_MHZ=8
-# (run on the raw internal 8MHz RC instead of the family default:
-#  STM32F103 = 72MHz HSE+PLL x9, STM32F030 = 48MHz HSI/2+PLL x12)
+# make SYSCLK_MHZ=16  →  -DOWN_PORT_SYSCLK_MHZ=16
+# (run on the raw internal RC instead of the family default:
+#  STM32F103 = 72MHz HSE+PLL x9, STM32F030 = 48MHz HSI/2+PLL x12,
+#  STM32G031 = 64MHz HSI16+PLL; e.g. SYSCLK_MHZ=16 for the raw 16MHz HSI16)
 ifdef SYSCLK_MHZ
 DEF += -DOWN_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
@@ -156,8 +166,10 @@ ST_URL = $(RAW_URL)/STMicroelectronics/
 CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/master/CMSIS/Core/Include
 F1_URL = $(ST_URL)cmsis_device_f1/master
 F0_URL = $(ST_URL)cmsis_device_f0/master
+G0_URL = $(ST_URL)cmsis_device_g0/master
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
+SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
 
 # Required external files (needed for build but not in repo)
 ifeq ($(OW_TARGET),f0)
@@ -171,6 +183,18 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c \
                 $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s \
                 $(CMSIS_DEVICE_DIR)/STM32F030.svd
+else ifeq ($(OW_TARGET),g0)
+EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0plus.h \
+                $(CMSIS_CORE_DIR)/mpu_armv7.h \
+                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
+                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
+                $(CMSIS_CORE_DIR)/cmsis_version.h \
+                $(CMSIS_DEVICE_DIR)/stm32g0xx.h \
+                $(CMSIS_DEVICE_DIR)/stm32g031xx.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32g0xx.h \
+                $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c \
+                $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s \
+                $(CMSIS_DEVICE_DIR)/STM32G031.svd
 else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
@@ -228,6 +252,12 @@ $(CMSIS_CORE_DIR)/core_cm3.h: | $(CMSIS_CORE_DIR)
 $(CMSIS_CORE_DIR)/core_cm0.h: | $(CMSIS_CORE_DIR)
 	$(call download_file,$(CMSIS_CORE_URL)/core_cm0.h,$@)
 
+$(CMSIS_CORE_DIR)/core_cm0plus.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/core_cm0plus.h,$@)
+
+$(CMSIS_CORE_DIR)/mpu_armv7.h: | $(CMSIS_CORE_DIR)
+	$(call download_file,$(CMSIS_CORE_URL)/mpu_armv7.h,$@)
+
 $(CMSIS_CORE_DIR)/cmsis_compiler.h: | $(CMSIS_CORE_DIR)
 	$(call download_file,$(CMSIS_CORE_URL)/cmsis_compiler.h,$@)
 
@@ -270,12 +300,31 @@ $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F0_URL)/Source/Templates/gcc/startup_stm32f030x6.s,$@)
 
+# cmsis_device_g0 headers and sources (Apache 2.0)
+$(CMSIS_DEVICE_DIR)/stm32g0xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(G0_URL)/Include/stm32g0xx.h,$@)
+
+$(CMSIS_DEVICE_DIR)/stm32g031xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(G0_URL)/Include/stm32g031xx.h,$@)
+
+$(CMSIS_DEVICE_DIR)/system_stm32g0xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(G0_URL)/Include/system_stm32g0xx.h,$@)
+
+$(CMSIS_DEVICE_DIR)/system_stm32g0xx.c: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(G0_URL)/Source/Templates/system_stm32g0xx.c,$@)
+
+$(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(G0_URL)/Source/Templates/gcc/startup_stm32g031xx.s,$@)
+
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(SVD_URL_F1),$@)
 
 $(CMSIS_DEVICE_DIR)/STM32F030.svd: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(SVD_URL_F0),$@)
+
+$(CMSIS_DEVICE_DIR)/STM32G031.svd: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(SVD_URL_G0),$@)
 
 # License download targets
 $(CMSIS_CORE_LICENSE): | $(CMSIS_CORE_DIR)
@@ -394,16 +443,22 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_alarm_thresholds.c \
             $(TEST_DIR)/test_eeprom.c \
             $(TEST_DIR)/test_parasite.c \
+            $(TEST_DIR)/test_dmamux.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
             $(TEST_MOCK)/ds18b20_test_access.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
-# OW_TARGET=f0 runs the same suite against the STM32F0 backend mock.
+# OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
+# OW_TARGET=g0 against the STM32G0 backend mock.
 ifeq ($(OW_TARGET),f0)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F0
 TEST_PORT_INC = -Iport/stm32f0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f0.exe
+else ifeq ($(OW_TARGET),g0)
+TEST_PORT_FLAG = -DOW_PORT_TARGET_G0
+TEST_PORT_INC = -Iport/stm32g0
+TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
 else
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
@@ -414,12 +469,15 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS $(TEST_PORT_FLAG) -Wall -Wextra 
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc $(TEST_PORT_INC) -I$(TEST_MOCK)
 
-.PHONY: test test-f0
+.PHONY: test test-f0 test-g0
 test: $(TEST_EXE)
 	$(TEST_EXE)
 
 test-f0:
 	$(MAKE) OW_TARGET=f0 test
+
+test-g0:
+	$(MAKE) OW_TARGET=g0 test
 
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) -o $@
@@ -440,6 +498,7 @@ help:
 	@echo "  clean           - Remove build artifacts"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - Build and run host tests against the STM32F0 backend"
+	@echo "  test-g0         - Build and run host tests against the STM32G0 backend"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
@@ -447,7 +506,7 @@ help:
 	@echo "  help            - Show this help"
 	@echo "Variables:"
 	@echo "  APP=demo|demo2|demo3|demo4  - example application to build"
-	@echo "  OW_TARGET=f1|f0                  - MCU family (firmware build)"
-	@echo "  SYSCLK_MHZ=8                     - run on raw internal 8MHz RC instead of family default"
+	@echo "  OW_TARGET=f1|f0|g0               - MCU family (firmware build)"
+	@echo "  SYSCLK_MHZ=N                     - run on the raw internal RC (8MHz F1/F0, 16MHz G0) instead of family default"
 
 # *** EOF ***

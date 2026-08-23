@@ -773,7 +773,22 @@ void test_state_machine_init_configures_registers(void) {
     hw_reset_all();
     ds18b20_init();
 
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0)
+    TEST_ASSERT_BITS_HIGH(RCC_APBENR2_TIM1EN | RCC_APBENR2_SYSCFGEN, mock_rcc.APBENR2);
+    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
+    TEST_ASSERT_BITS_HIGH(RCC_IOPENR_GPIOAEN, mock_rcc.IOPENR);
+    /* PA10 lives on the PA12 pad via SYSCFG remap on this package */
+    TEST_ASSERT_BITS_HIGH(SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP,
+                          mock_syscfg.CFGR1);
+    TEST_ASSERT_EQUAL_UINT32(63, mock_tim1.PSC); /* 64MHz/64 = 1MHz -> 1us */
+    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
+    /* Bus pin logical PA10: AF mode (MODE10_1), open-drain, AF2 in AFRH */
+    TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODE10_1, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_LOW(GPIO_MODER_MODE10_0, mock_gpioa.MODER);
+    TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT10, mock_gpioa.OTYPER);
+    TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
+                             mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
+#elif defined(OW_PORT_TARGET_F0)
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_GPIOAEN | RCC_AHBENR_DMAEN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(47, mock_tim1.PSC); /* 48MHz/48 = 1MHz -> 1us */

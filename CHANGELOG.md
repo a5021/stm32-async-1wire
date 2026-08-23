@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- STM32G0 backend (`port/stm32g0/ow_port_g0.h`) for the STM32G031x6, e.g. the
+  TSSOP20 STM32G031F6P6: same TIM1 CH3-output / CH4-indirect-capture scheme
+  as F1/F0, with two family adaptations " + d + " the bus sits on logical PA10,
+  which lives on the physical PA12 pad via the SYSCFG `PA12_RMP` remap (the
+  package does not bond PA9/PA10 out), and DMA requests are routed through
+  DMAMUX (TIM1_CC2 = request 21 feeds CCR3 via channel 3, TIM1_CH4 = request
+  23 drains CCR4 via channel 4). Clocks ride the shared `OW_PORT_SYSCLK_MHZ`
+  knob: default 64MHz (HSI16+PLL), `SYSCLK_MHZ=16` selects the raw HSI16.
+  Select with `make OW_TARGET=g0`; host suite gains DMAMUX-routing tests and
+  runs green on all three backends. Note: while the driver is initialised,
+  pads PA11/PA12 must not be used as standalone GPIOs - reconfiguring them
+  clears the remap bits and disconnects the bus.
+
 ### Changed
 
 - **Breaking:** the `HSI_8MHZ` build flag is replaced by the portable

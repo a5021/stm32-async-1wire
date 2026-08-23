@@ -6,10 +6,11 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot; the CPU never waits, never spins, and never enters an interrupt. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Two backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Three backends ship today:
 
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
 
 ## Features
 
@@ -20,7 +21,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   scheduled on TIM1/DMA and complete asynchronously. `src/ds18b20.c` is built
   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
   as-is.
-- Dual-MCU Backend: One MCU-independent core over a `ow_port_*` port interface; header-only backends for STM32F1 and STM32F0, both on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0`.
+- Dual-MCU Backend: One MCU-independent core over a `ow_port_*` port interface; header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` / `make OW_TARGET=g0`.
 - Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
@@ -67,7 +68,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: STM32F103C8T6 (Blue Pill) or STM32F030x6 (e.g. STM32F030F4P6)
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; the portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031— 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). the portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
 
 ## File Structure
 
@@ -89,6 +90,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │       ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 │       ├── stm32f030f4.jflash    # J-Flash project file
 │       └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
+│   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
+│   │   ├── ow_port_g0.h    # Register-level ow_port_* implementation for STM32G0
+│   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
+│   │   ├── stm32g031f6.jflash    # J-Flash project file
+│   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 ├── src/                    # Project source files
 │   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
@@ -251,6 +257,21 @@ in main loop) — fully non-blocking, no interrupts.
 
 Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V.
 
+### STM32G031F6P6 (TSSOP20)
+
+The STM32G0 backend was validated by host tests and cross-compilation; hardware bring-up is pending. Pin notes for the TSSOP20 package:
+
+| Pin | Function | Notes |
+|-----|----------|-------|
+| PA12 | 1-Wire Data (logical PA10) | TIM1_CH3 AF2 after the SYSCFG `PA12_RMP` remap; open-drain AF |
+| PA11 | USART1 TX (logical PA9) | AF1 after the `PA11_RMP` remap |
+| PA4 | Busy LED (optional) | Active-low |
+| PA13/PA14 | SWDIO/SWCLK | ST-Link SWD programming |
+
+Important: while the driver is initialised, pads PA11/PA12 must not be used as standalone GPIOs - configuring them as PA11/PA12 clears the SYSCFG remap bits and silently disconnects the bus.
+
+Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
+
 ## Quick Start
 
 ### 1. Include the Driver
@@ -390,6 +411,7 @@ hardware required:
 ```bash
 make test        # host tests against the STM32F1 backend mock
 make test-f0     # same suite against the STM32F0 backend mock
+make test-g0     # same suite against the STM32G0 backend mock
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
@@ -479,8 +501,10 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 1. In the **Run and Debug** panel (`Ctrl+Shift+D`), select the debug
    configuration: **"Debug F1 (J-Link)"** / **"Debug F1 (ST-Link)"** for
    the STM32F103 target, or **"Debug F0 (J-Link)"** /
-   **"Debug F0 (ST-Link)"** for the STM32F030 target. The F0
-   configurations build with `OW_TARGET=f0` automatically.
+   **"Debug F0 (ST-Link)"** for the STM32F030 target, or **"Debug G0
+   (J-Link)"** / **"Debug G0 (ST-Link)"** for the STM32G031 target. The F0
+   configurations build with `OW_TARGET=f0` automatically, the G0 ones with
+   `OW_TARGET=g0`.
 2. Open `src/demo.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
