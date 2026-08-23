@@ -20,31 +20,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0]
+        backend: [f1, f0, g0]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install host GCC
         run: sudo apt-get update && sudo apt-get install -y gcc
       - name: Download CMSIS dependencies
-        # Both families up front: the host suites compile against mocks, but
+        # All families up front: the host suites compile against mocks, but
         # keeping every backend's dependency set present lets any matrix cell
         # configure either target without re-downloading.
         run: |
           make download-deps
           make OW_TARGET=f0 download-deps
+          make OW_TARGET=g0 download-deps
       - name: Build and run host tests (F1)
         if: matrix.backend == 'f1'
         run: make test
       - name: Build and run host tests (F0)
         if: matrix.backend == 'f0'
         run: make test-f0
+      - name: Build and run host tests (G0)
+        if: matrix.backend == 'g0'
+        run: make test-g0
 
   coverage:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0]
+        backend: [f1, f0, g0]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -54,6 +58,7 @@ jobs:
         run: |
           make download-deps
           make OW_TARGET=f0 download-deps
+          make OW_TARGET=g0 download-deps
       - name: Build and run host tests with coverage
         # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
         # build. The test executables run from the repository root, so the
@@ -65,6 +70,8 @@ jobs:
           make clean
           if [ "${{ matrix.backend }}" = "f0" ]; then
             make test-f0 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "g0" ]; then
+            make test-g0 COVERAGE=1
           else
             make test COVERAGE=1
           fi
@@ -210,6 +217,10 @@ jobs:
         run: make clean && make OW_TARGET=f0
       - name: Build release (F0 backend, 8MHz RC)
         run: make clean && make OW_TARGET=f0 SYSCLK_MHZ=8
+      - name: Build release (G0 backend)
+        run: make clean && make OW_TARGET=g0
+      - name: Build release (G0 backend, 16MHz RC)
+        run: make clean && make OW_TARGET=g0 SYSCLK_MHZ=16
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true

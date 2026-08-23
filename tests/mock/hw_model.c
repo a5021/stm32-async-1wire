@@ -7,6 +7,11 @@ DMA1_Channel_TypeDef mock_dma1_ch3;
 DMA1_Channel_TypeDef mock_feed_ch;
 GPIO_TypeDef mock_gpioa;
 RCC_TypeDef mock_rcc;
+#if defined(OW_PORT_TARGET_G0)
+SYSCFG_TypeDef mock_syscfg;             /* G0 backend only */
+DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0 backend only */
+DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
+#endif
 
 static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;

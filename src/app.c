@@ -6,6 +6,8 @@
 #include "app.h"
 #if defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
+#elif defined(OW_PORT_TARGET_G0)
+#include "stm32g0xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -20,7 +22,14 @@ static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transm
  * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0)
+    // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
+    if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
+        uint8_t b = uart_tx_buf[uart_tx_tail];
+        uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
+        USART1->TDR = b;
+    }
+#elif defined(OW_PORT_TARGET_F0)
     // F0 unified USART naming: TXE lives in ISR, data goes to TDR
     if ((USART1->ISR & USART_ISR_TXE) && (uart_tx_tail != uart_tx_head)) {
         // Get byte from buffer at tail position
@@ -139,10 +148,31 @@ int uart_write_hex(uint8_t b) {
  * @brief Configure system clock
  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).
  *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:
- *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz.
+ *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz. G031x6 has no HSE:
+ *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0)
+#if (OW_PORT_SYSCLK_MHZ) == 64
+    // HSI16 is on and stable right after reset. PLL: HSI16 /M(=1) xN(=8)
+    // /R(=2) = 64MHz; PLLREN enables the PLLR output the SYSCLK mux uses.
+    RCC->PLLCFGR = RCC_PLLCFGR_PLLN_3 | RCC_PLLCFGR_PLLR_0 | RCC_PLLCFGR_PLLREN;
+    RCC->CR |= RCC_CR_PLLON;
+    while (!(RCC->CR & RCC_CR_PLLRDY))
+        ;
+    // Flash latency: 2 wait states above 48MHz (RM0444)
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1 | FLASH_ACR_LATENCY_0;
+    // Switch system clock to PLLRCLK
+    RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLLRCLK;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLLRCLK)
+        ;
+#elif (OW_PORT_SYSCLK_MHZ) == 16
+    // Raw HSI16: the MCU already runs on the internal 16MHz RC after reset —
+    // nothing to configure
+#else
+#error "Unsupported OW_PORT_SYSCLK_MHZ for G0: use 64 (HSI16+PLL) or 16 (raw HSI16)"
+#endif
+#elif defined(OW_PORT_TARGET_F0)
 #if (OW_PORT_SYSCLK_MHZ) == 48
     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier
     // before enabling the PLL so it locks on a valid clock (per RM0360).
@@ -199,20 +229,36 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
 /**
  * @brief Initialize microcontroller peripherals for UART communication and LED control
  * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART
- *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6).
+ *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6). G0: UART TX on
+ *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),
+ *       LED on PA4 (no PC13 bonded out on TSSOP20).
  */
 __STATIC_FORCEINLINE void hardware_init(void) {
-#if defined(OW_PORT_TARGET_F0)
-    // Enable clock for GPIOA (AHB) and USART1 (APB2)
+#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
+    // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)
+#if defined(OW_PORT_TARGET_G0)
+    RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
+    RCC->APBENR2 |= RCC_APBENR2_USART1EN;
+#else
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+#endif
 
-    // Configure PA9 as alternate function push-pull output (AF1 = USART1_TX)
+    // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1
+    // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)
+#if defined(OW_PORT_TARGET_G0)
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;
+#else
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
+#endif
     GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (1u << GPIO_AFRH_AFSEL9_Pos);
 
     // Configure PA4 as general purpose output for LED control
+#if defined(OW_PORT_TARGET_G0)
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;
+#else
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;
+#endif
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK
@@ -253,13 +299,21 @@ void app_init(void) {
  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
  */
 void ds18b20_busy(unsigned action) {
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
     if (action) {
         // Turn LED on (PA4 low)
+#if defined(OW_PORT_TARGET_G0)
+        GPIOA->BSRR = GPIO_BSRR_BR4;
+#else
         GPIOA->BSRR = GPIO_BSRR_BR_4;
+#endif
     } else {
         // Turn LED off (PA4 high)
+#if defined(OW_PORT_TARGET_G0)
+        GPIOA->BSRR = GPIO_BSRR_BS4;
+#else
         GPIOA->BSRR = GPIO_BSRR_BS_4;
+#endif
     }
 #else
     if (action) {
