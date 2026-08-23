@@ -273,33 +273,30 @@ void test_command_ignored_during_scan(void) {
 void test_power_supply_external(void) {
     uint8_t bits[8] = {1, 1, 1, 1, 1, 1, 1, 1}; /* slot 0 short = external */
     set_read_bits(bits, 8);
-    uint8_t is_parasite = 0x55;
     hw_set_capture_source(ep_capture_present);
 
-    ds18b20_read_power_supply(&is_parasite);
-    drive_txn(ds18b20_read_power_supply_poll);
+    ds18b20_detect_parasite();
+    drive_txn(ds18b20_detect_parasite_poll);
 
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
-    TEST_ASSERT_EQUAL_UINT8(0, is_parasite);
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_parasite_mode());
 }
 
 void test_power_supply_parasite(void) {
     uint8_t bits[8] = {0, 1, 1, 1, 1, 1, 1, 1}; /* slot 0 long = parasite */
     set_read_bits(bits, 8);
-    uint8_t is_parasite = 0x55;
     hw_set_capture_source(ep_capture_present);
 
-    ds18b20_read_power_supply(&is_parasite);
-    drive_txn(ds18b20_read_power_supply_poll);
+    ds18b20_detect_parasite();
+    drive_txn(ds18b20_detect_parasite_poll);
 
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
-    TEST_ASSERT_EQUAL_UINT8(1, is_parasite);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_parasite_mode());
 }
 
 void test_power_supply_command_built(void) {
     ds18b20_test_set_address_mode(0); /* Skip ROM */
-    uint8_t is_parasite;
-    ds18b20_read_power_supply(&is_parasite);
+    ds18b20_detect_parasite();
     /* 0xCC + 0xB4, single read byte */
     static const uint8_t k_bytes[] = {0xCC, 0xB4};
     for (uint8_t i = 0; i < sizeof(k_bytes); i++) {
@@ -313,11 +310,11 @@ void test_power_supply_command_built(void) {
 
 void test_power_supply_no_presence_aborts(void) {
     hw_set_capture_source(ep_capture_absent);
-    uint8_t is_parasite = 0x55;
-    ds18b20_read_power_supply(&is_parasite);
-    drive_txn(ds18b20_read_power_supply_poll);
+    ds18b20_set_parasite(1); /* stale flag that must survive an aborted detect */
+    ds18b20_detect_parasite();
+    drive_txn(ds18b20_detect_parasite_poll);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_last_command_ok());
-    TEST_ASSERT_EQUAL_HEX8(0x55, is_parasite); /* untouched */
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_parasite_mode()); /* untouched */
 }
 
 /*-------------------------------------------------------------

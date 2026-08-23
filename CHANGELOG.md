@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   STM32G031@64MHz with 6 × DS18B20 in parasite power mode — all sensors
   detected, 0 errors, pulse widths 5–32 µs.
 
+### Removed
+
+- **Breaking:** `ds18b20_read_power_supply()` / `ds18b20_read_power_supply_poll()`
+  removed. Detect the bus wiring with `ds18b20_detect_parasite()` and read the
+  result via `ds18b20_parasite_mode()` (the driver consumes it to engage the
+  strong pull-up). This collapses the two overlapping query APIs that the 1.6.0
+  parasite-power work introduced into one.
+
+### Changed
+
+- `demo4` reports the power-supply wiring through `ds18b20_detect_parasite()` /
+  `ds18b20_parasite_mode()` instead of the removed `ds18b20_read_power_supply()`.
+
 ## [1.6.1]
 
 ### Fixed
@@ -57,9 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   STM32G031@64MHz/@16MHz validated the same way on a WeAct STM32G031F6P6
   board — every supported clock combination is now hardware-confirmed.
 
-- The CH4 input-capture digital filter is standardized across all backends:
-  a single documented rule in `inc/ow_port.h` picks the IC4F configuration
-  whose filter time N × T_sample lands nearest ~500ns for the configured
+ - The CH4 input-capture digital filter is standardized across all backends:
+   a single documented rule in `inc/ow_port.h` picks the IC4F configuration
+   whose filter time N × T_sample lands nearest ~500ns for the configured
   clock (`≤8MHz`: fCK_INT N=4; `≤16MHz`: fCK_INT N=8; above: fDTS/4 N=8),
   replacing the three hand-mirrored per-port conditionals. Firmware impact
   is limited to STM32G031@16MHz (N=4 → N=8, i.e. a 250ns → 500ns filter

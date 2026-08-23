@@ -49,7 +49,7 @@ typedef enum {
 static step_t step = STEP_MEASURE;
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
 static uint8_t cmd_running = 0; // 1 while a command transaction is in flight
-static uint8_t is_parasite = 0; // Power Supply result buffer (valid until done)
+
 static uint8_t scratchpad[SCRATCHPAD_BYTES]; // Scratchpad result buffer
 static uint8_t rom[DS18B20_ROM_BYTES]; // Read ROM result buffer
 
@@ -97,7 +97,7 @@ static void start_step(step_t s) {
     switch (s) {
     case STEP_POWER:
         uart_write_str("Read Power Supply (0xB4):\r\n");
-        ds18b20_read_power_supply(&is_parasite);
+        ds18b20_detect_parasite();
         break;
     case STEP_SCRATCH_BASELINE:
         uart_write_str("Read Scratchpad (0xBE) - baseline:\r\n");
@@ -156,7 +156,7 @@ static void start_step(step_t s) {
 static uint8_t poll_step(step_t s) {
     switch (s) {
     case STEP_POWER:
-        return ds18b20_read_power_supply_poll();
+        return ds18b20_detect_parasite_poll();
     case STEP_SCRATCH_BASELINE:
     case STEP_SCRATCH_AFTER_SET:
     case STEP_SCRATCH_AFTER_SECOND:
@@ -189,7 +189,7 @@ static void finish_step(step_t s) {
     switch (s) {
     case STEP_POWER:
         uart_write_str("  power supply: ");
-        uart_write_str(is_parasite ? "parasite" : "external (VDD)");
+        uart_write_str(ds18b20_parasite_mode() ? "parasite" : "external (VDD)");
         uart_write_str("\r\n");
         break;
     case STEP_SCRATCH_BASELINE:

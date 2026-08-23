@@ -46,7 +46,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
  - Non-Blocking Command Transactions: `ds18b20_read_rom()`,
     `ds18b20_set_alarm_thresholds()`, `ds18b20_read_scratchpad()`,
     `ds18b20_copy_scratchpad()`, `ds18b20_recall_eeprom()` and
-    `ds18b20_read_power_supply()` drive the DS18B20 commands
+    `ds18b20_detect_parasite()` drive the DS18B20 commands
     (0x33 / 0x4E / 0xBE / 0x48 / 0xB8 / 0xB4) with the same poll discipline as
     the device search — each `*_poll()` advances one hardware operation and
     hands the timer back to `ds18b20_poll()` when the transaction finishes.
@@ -470,7 +470,7 @@ channel/DMA wiring. 221 tests per backend cover:
 -   Non-blocking command transactions (`ds18b20_read_rom`,
     `ds18b20_set_alarm_thresholds`, `ds18b20_read_scratchpad`,
     `ds18b20_copy_scratchpad`, `ds18b20_recall_eeprom`,
-    `ds18b20_read_power_supply`): command feed builds (Skip/Match ROM),
+    `ds18b20_detect_parasite`): command feed builds (Skip/Match ROM),
     resolution-preserving TH/TL writes, raw scratchpad read + CRC +
     resolution auto-derivation, 10 ms Copy/Recall hold-offs, power-supply
     decode, ownership guards, presence-abort and result reporting
@@ -966,8 +966,6 @@ void     ds18b20_copy_scratchpad(void);
 uint8_t  ds18b20_copy_scratchpad_poll(void);
 void     ds18b20_recall_eeprom(void);
 uint8_t  ds18b20_recall_eeprom_poll(void);
-void     ds18b20_read_power_supply(uint8_t *is_parasite);
-uint8_t  ds18b20_read_power_supply_poll(void);
 void     ds18b20_set_parasite(uint8_t parasite);
 void     ds18b20_detect_parasite(void);
 uint8_t  ds18b20_detect_parasite_poll(void);
@@ -1002,9 +1000,8 @@ uint8_t  ds18b20_last_command_ok(void);
    with `ds18b20_read_scratchpad()` to resynchronise `ds18b20_get_resolution()`
    before the next conversion (see `demo4.c`, which chains recall → scratchpad
    read for this reason).
-- `ds18b20_read_power_supply()` reports 1 for parasite power and 0 for an
-  externally powered sensor. `ds18b20_detect_parasite()` runs the same query
-  and stores the answer straight into the driver state — after
+- `ds18b20_detect_parasite()` runs a Read Power Supply query and stores the
+   answer straight into the driver state — after
   `ds18b20_detect_parasite_poll()` returns 1 (check `ds18b20_last_command_ok()`)
   the wiring is configured and `ds18b20_parasite_mode()` reports it. On a mixed
   bus the open-drain answer is a wired-AND: any externally powered device masks

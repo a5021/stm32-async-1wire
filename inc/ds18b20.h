@@ -391,13 +391,6 @@ void ds18b20_recall_eeprom(void);
 uint8_t ds18b20_recall_eeprom_poll(void);
 
 /**
- * @brief Read the power-supply state of the DS18B20
- * @param[in,out] is_parasite Receives 1 when the device is parasite-powered,
- *                            0 when externally powered; written on success
- */
-void ds18b20_read_power_supply(uint8_t* is_parasite);
-
-/**
  * @brief Declare the bus as parasite-powered
  * @param[in] parasite 1 = devices are powered over the data line, 0 =
  *                     external VDD supply (default)
@@ -407,15 +400,9 @@ void ds18b20_read_power_supply(uint8_t* is_parasite);
  *       t_RECALL), then releases the line back to the passive pull-up before
  *       any further bus activity. Call once after ds18b20_init() or between
  *       measurement cycles; applies to all subsequent operations. Use
- *       ds18b20_read_power_supply() to detect the wiring first.
+ *       ds18b20_detect_parasite() to detect the wiring first.
  */
 void ds18b20_set_parasite(uint8_t parasite);
-
-/**
- * @brief Advance the non-blocking power-supply read
- * @return 1 when finished (successfully or aborted), 0 while running
- */
-uint8_t ds18b20_read_power_supply_poll(void);
 
 /**
  * @brief Detect the bus wiring and configure parasite mode automatically
