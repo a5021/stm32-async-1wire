@@ -133,6 +133,17 @@ jobs:
               f'<text x="89.5" y="15">{pct}%</text></g></svg>'
           )
           open("publish/coverage-badge.svg", "w").write(svg)
+          # The report itself lives under coverage/; give the Pages root a
+          # redirecting landing page so the bare URL works.
+          open("publish/index.html", "w").write(
+              '<!doctype html>\n<html lang="en">\n<head>\n'
+              '<meta charset="utf-8">\n'
+              '<title>stm32-async-1wire coverage</title>\n'
+              '<meta http-equiv="refresh" content="0; url=coverage/">\n'
+              '<link rel="canonical" href="coverage/">\n</head>\n<body>\n'
+              '<p>Redirecting to the <a href="coverage/">coverage report'
+              '&hellip;</a></p>\n</body>\n</html>\n'
+          )
           print("badge:", pct, "%")
           PY
       - name: Publish to gh-pages
