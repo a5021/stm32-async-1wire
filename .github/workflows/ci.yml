@@ -83,6 +83,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # genhtml annotates the merged report with source lines, so the
+      # checkout must be present (the trace stores runner workspace paths,
+      # which match $GITHUB_WORKSPACE exactly).
+      - uses: actions/checkout@v5
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install -y lcov
       - name: Download coverage traces
