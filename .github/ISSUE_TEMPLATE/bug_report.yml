@@ -35,7 +35,7 @@ body:
       label: Clock configuration
       options:
         - HSE 8MHz + PLL x9 = 72MHz (default)
-        - HSI 8MHz (make HSI_8MHZ=1)
+        - Raw 8MHz internal RC (make SYSCLK_MHZ=8)
       default: 0
     validations:
       required: true

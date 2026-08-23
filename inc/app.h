@@ -17,6 +17,7 @@
 #define APP_H
 
 #include "ds18b20.h"
+#include "onewire.h"
 #include <stdint.h>
 
 #ifndef UART_TX_BUF_SIZE

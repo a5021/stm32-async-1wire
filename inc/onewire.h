@@ -23,14 +23,29 @@
 #define ONEWIRE_ROM_BITS (ONEWIRE_ROM_BYTES * 8)
 /** @brief Bits per byte */
 #define ONEWIRE_BITS_PER_BYTE 8
+/** @brief System clock frequency in MHz after application clock setup.
+ *  Single source of truth for every clock-dependent setting: the timer
+ *  prescaler (1µs ticks), the input-capture filter selection and the
+ *  '1'-slot pulse width below all derive from it. Family defaults are
+ *  provided here; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the
+ *  clock sources available per family). */
+#if !defined(OW_PORT_SYSCLK_MHZ)
+#if defined(OW_PORT_TARGET_F0)
+#define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
+#else
+#define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
+#endif
+#endif
 /** @brief Duration of a '1' bit write/read pulse in microseconds.
- *  At full speed 5µs keeps captures well inside the '1' window. On the
- *  8MHz HSI builds the whole capture chain slows down (measured on HW:
+ *  At full speed 5µs keeps captures well inside the '1' window. On slow
+ *  clocks (≤16MHz) the whole capture chain slows down (measured at 8MHz:
  *  RC rise + input filter + timer output/capture sync ≈ 6.5µs vs ≈3µs),
  *  so a 5µs pulse lands at 11-12µs — past ONEWIRE_SHORT_PULSE_MAX. A 2µs
  *  pulse brings captures back to ~8-9µs. DS18B20 requires only ≥1µs and
- *  samples the slot at ≥15µs after its start, so this stays spec-safe. */
-#if defined(HSI_8MHZ)
+ *  samples the slot at ≥15µs after its start, so this stays spec-safe.
+ *  @note The ≤16MHz threshold is hardware-validated at 8MHz only; values
+ *        in between are a conservative extrapolation. */
+#if (OW_PORT_SYSCLK_MHZ) <= 16
 #define ONEWIRE_ONE_PULSE 2
 #else
 #define ONEWIRE_ONE_PULSE 5

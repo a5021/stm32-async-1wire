@@ -24,7 +24,7 @@
 ## Verification
 
 - [ ] `make` builds cleanly (release, `-Werror`)
-- [ ] `make HSI_8MHZ=1` builds cleanly
+- [ ] `make SYSCLK_MHZ=8` builds cleanly
 - [ ] `clang-format --dry-run --Werror` passes on changed files
 - [ ] `cppcheck` passes
 - [ ] README and CHANGELOG updated if behavior/usage changed

@@ -45,7 +45,7 @@ static uint8_t pu_engaged(void) {
     return (mock_gpioa.MODER & GPIO_MODER_MODER10_0) &&
            !(mock_gpioa.MODER & GPIO_MODER_MODER10_1) &&
            !(mock_gpioa.OTYPER & GPIO_OTYPER_OT_10) &&
-           (mock_gpioa.BSRR & GPIO_BSRR_BS10);
+           (mock_gpioa.BSRR & GPIO_BSRR_BS_10);
 }
 
 #else /* OW_PORT_TARGET_F1 */

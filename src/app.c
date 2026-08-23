@@ -137,12 +137,13 @@ int uart_write_hex(uint8_t b) {
 
 /**
  * @brief Configure system clock
- * @note F1: 72MHz via HSE+PLL (or skip for HSI 8MHz). F0: 48MHz via
- *       HSI/2+PLL x12 (F030x6 has no HSE), or skip for HSI 8MHz.
+ * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).
+ *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:
+ *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz.
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
 #if defined(OW_PORT_TARGET_F0)
-#ifndef HSI_8MHZ
+#if (OW_PORT_SYSCLK_MHZ) == 48
     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier
     // before enabling the PLL so it locks on a valid clock (per RM0360).
     RCC->CFGR = RCC_CFGR_PLLMUL12;
@@ -155,10 +156,14 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
         ;
-#endif
-        // HSI_8MHZ: MCU already runs on HSI 8MHz after reset — nothing to configure
+#elif (OW_PORT_SYSCLK_MHZ) == 8
+    // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —
+    // nothing to configure
 #else
-#ifndef HSI_8MHZ
+#error "Unsupported OW_PORT_SYSCLK_MHZ for F0: use 48 (HSI+PLL) or 8 (raw HSI)"
+#endif
+#else /* F1 */
+#if (OW_PORT_SYSCLK_MHZ) == 72
     // Enable HSI and HSE oscillators
     RCC->CR = RCC_CR_HSION | RCC_CR_HSEON;
     // Wait for HSE to stabilize - HSERDY is the hardware stabilization
@@ -182,8 +187,12 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
         ;
     // Disable HSI oscillator
     RCC->CR &= ~RCC_CR_HSION;
+#elif (OW_PORT_SYSCLK_MHZ) == 8
+    // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —
+    // nothing to configure
+#else
+#error "Unsupported OW_PORT_SYSCLK_MHZ for F1: use 72 (HSE+PLL) or 8 (raw HSI)"
 #endif
-    // HSI_8MHZ: MCU already runs on HSI 8MHz after reset — nothing to configure
 #endif
 }
 
@@ -206,11 +215,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
-#ifdef HSI_8MHZ
-    USART1->BRR = USART_BRR_CALC(8000000, 115200); // PCLK=8MHz
-#else
-    USART1->BRR = USART_BRR_CALC(48000000, 115200); // PCLK=48MHz
-#endif
+    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ)*1000000u, 115200); // PCLK = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #else
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
@@ -227,11 +232,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOC->CRH |= GPIO_CRH_MODE13_1;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
-#ifdef HSI_8MHZ
-    USART1->BRR = USART_BRR_CALC(8000000, 115200); // PCLK2=8MHz
-#else
-    USART1->BRR = USART_BRR_CALC(72000000, 115200); // PCLK2=72MHz
-#endif
+    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ)*1000000u, 115200); // PCLK2 = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #endif
 }
