@@ -202,6 +202,14 @@ jobs:
         run: make APP=demo2
       - name: Build release (demo3)
         run: make APP=demo3
+      # Backend-specific register plumbing (e.g. the F0 GPIO BSRR bit naming)
+      # only compiles into real firmware here — host suites run against mocks.
+      # Smoke-build both backends and both clock branches of app.c so a
+      # family-only breakage cannot reach a tag.
+      - name: Build release (F0 backend)
+        run: make clean && make OW_TARGET=f0
+      - name: Build release (F0 backend, 8MHz RC)
+        run: make clean && make OW_TARGET=f0 SYSCLK_MHZ=8
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true

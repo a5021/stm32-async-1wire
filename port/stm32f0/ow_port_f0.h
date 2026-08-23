@@ -30,21 +30,19 @@
 #include "macro.h"
 #include "stm32f0xx.h"
 
-/* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1) */
-#if defined(HSI_8MHZ)
-#define OW_PORT_TIM_PRESCALER 7u /* 8MHz / 8 = 1MHz -> 1µs/tick */
-#else
-#define OW_PORT_TIM_PRESCALER 47u /* 48MHz / 48 = 1MHz -> 1µs/tick */
-#endif
+/* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
+ *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h. */
+#define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 
 /* @brief CH4 input capture filter (IC4F), chosen to keep the filter latency
  *       clock-independent in µs. At 48MHz fDTS/4 with N=8 samples adds
- *       ~0.67µs; the same setting at 8MHz HSI would sample at 2MHz and add
- *       ~4µs, pushing '1' slot captures past ONEWIRE_SHORT_PULSE_MAX. On the
- *       slow clock use fCK_INT with N=4 (~0.5µs latency) so captures stay in
- *       the '1' window. Mirrors ow_port_f1.h. */
-#if defined(HSI_8MHZ)
-#define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 -> ~0.5µs @8MHz */
+ *       ~0.67µs; the same setting on a slow clock (≤16MHz) would sample at
+ *       ~2MHz and add ~4µs, pushing '1' slot captures past
+ *       ONEWIRE_SHORT_PULSE_MAX. On slow clocks use fCK_INT with N=4
+ *       (~0.5µs latency) so captures stay in the '1' window. Mirrors
+ *       ow_port_f1.h. */
+#if (OW_PORT_SYSCLK_MHZ) <= 16
+#define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 -> ~0.5µs on slow clocks */
 #else
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 -> ~0.67µs @48MHz */
 #endif
@@ -311,7 +309,7 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
     if (on) {
-        PA.BSRR = GPIO_BSRR(BS10); /* Output data HIGH before switching mode */
+        PA.BSRR = GPIO_BSRR(BS_10); /* Output data HIGH before switching mode */
         PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_0; /* AF -> output */
         PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* Open-drain -> push-pull */
     } else {

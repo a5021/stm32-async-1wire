@@ -67,7 +67,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: STM32F103C8T6 (Blue Pill) or STM32F030x6 (e.g. STM32F030F4P6)
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via HSI; STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via HSI. Both targets take `make HSI_8MHZ=1`.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; the portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
 
 ## File Structure
 
@@ -439,20 +439,23 @@ channel/DMA wiring. 221 tests per backend cover:
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`). The default
     target is STM32F103 (bus on PA10 for both).
 
--   **HSI 8MHz Build:** By default the firmware runs on HSE 8MHz + PLL
-    ×9 = 72MHz. Pass `HSI_8MHZ=1` to use the internal RC oscillator
+-   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
+    ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
     (HSI) at 8MHz without an external crystal or PLL:
 
     ``` bash
-    make HSI_8MHZ=1
-    make debug HSI_8MHZ=1
+    make SYSCLK_MHZ=8
+    make debug SYSCLK_MHZ=8
     ```
 
     On the STM32F030 target the default clock is already HSI+PLL (48MHz);
-    there `HSI_8MHZ=1` selects the raw 8MHz HSI instead.
+    there `SYSCLK_MHZ=8` selects the raw 8MHz HSI instead.
 
-    The timer prescaler and USART baud rate are adjusted automatically.
-    Useful for testing on bare minimum hardware (no HSE crystal).
+    The knob maps to the portable `OW_PORT_SYSCLK_MHZ` define — a single
+    value in MHz that every clock-dependent setting derives from: the
+    timer prescaler, the input-capture filter and the USART baud rate
+    adjust automatically. Useful for testing on bare minimum hardware
+    (no HSE crystal).
 
 ## VSCode Integration
 

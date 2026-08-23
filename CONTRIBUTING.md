@@ -21,7 +21,7 @@ section of the README — most hardware issues are wiring-related.
 When creating an issue, use the **Bug Report** template and include:
 
 - Your hardware setup (board, sensor, wiring, pull-up resistor)
-- Clock configuration (HSE+PLL 72 MHz or `HSI_8MHZ=1`)
+- Clock configuration (HSE+PLL 72 MHz or `SYSCLK_MHZ=8`)
 - Build output and any UART diagnostics you see
 - What you expected to happen vs. what actually happened
 
@@ -41,7 +41,7 @@ interrupt-free, minimal CPU usage).
    - Keep the driver non-blocking and interrupt-free
    - Register-level access only — no HAL/LL
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
-   and `make HSI_8MHZ=1` for the HSI variant.
+   and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
 4. Run the code quality checks used in CI:
    - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/demo.c`
    - `cppcheck --enable=warning,style,performance,portability ...`
@@ -61,7 +61,7 @@ interrupt-free, minimal CPU usage).
 
 ```bash
 make            # release build (must succeed with -Werror)
-make HSI_8MHZ=1 # HSI variant
+make SYSCLK_MHZ=8 # 8MHz internal-RC variant
 make debug      # optional, for debugging
 ```
 

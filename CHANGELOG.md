@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the `HSI_8MHZ` build flag is replaced by the portable
+  `OW_PORT_SYSCLK_MHZ` knob — a single integer carrying the system clock
+  frequency in MHz. The old name tied a *source* choice to one family's
+  frequency and could not scale (the raw HSI on an STM32G031 runs at
+  16MHz, not 8). Every clock-dependent setting now derives from the new
+  value: timer prescaler (`PSC = SYSCLK - 1`), input-capture filter
+  selection and the '1'-slot pulse width switch on a shared ≤16MHz
+  threshold, `app.c` derives its clock source per family (F1: 72 = HSE+PLL,
+  8 = raw HSI; F0: 48 = HSI+PLL, 8 = raw HSI; anything else fails the
+  build with a clear message) and the USART baud rate computes from it.
+  Build via `make SYSCLK_MHZ=8`; defaults are unchanged.
+
 ### Fixed
 
 - README architecture sections described the pre-unification register map

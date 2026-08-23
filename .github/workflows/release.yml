@@ -51,7 +51,7 @@ jobs:
         run: make download-deps
 
       # Step 6: Build the full firmware matrix.
-      # One row per published variant: APP | OW_TARGET | HSI_8MHZ | output stem.
+      # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem.
       # A "-" target means the default (F1); F1 keeps its historical artifact
       # names without the target infix, F0 artifacts carry "_f0_".
       - name: Build Firmware Matrix
@@ -63,25 +63,25 @@ jobs:
             "demo2|-|-|ds18b20_demo2_72mhz"
             "demo3|-|-|ds18b20_demo3_72mhz"
             "demo4|-|-|ds18b20_demo4_72mhz"
-            "demo|-|1|ds18b20_demo_8mhz"
-            "demo2|-|1|ds18b20_demo2_8mhz"
-            "demo3|-|1|ds18b20_demo3_8mhz"
-            "demo4|-|1|ds18b20_demo4_8mhz"
+            "demo|-|8|ds18b20_demo_8mhz"
+            "demo2|-|8|ds18b20_demo2_8mhz"
+            "demo3|-|8|ds18b20_demo3_8mhz"
+            "demo4|-|8|ds18b20_demo4_8mhz"
             "demo|f0|-|ds18b20_demo_f0_48mhz"
             "demo2|f0|-|ds18b20_demo2_f0_48mhz"
             "demo3|f0|-|ds18b20_demo3_f0_48mhz"
             "demo4|f0|-|ds18b20_demo4_f0_48mhz"
-            "demo|f0|1|ds18b20_demo_f0_8mhz"
-            "demo2|f0|1|ds18b20_demo2_f0_8mhz"
-            "demo3|f0|1|ds18b20_demo3_f0_8mhz"
-            "demo4|f0|1|ds18b20_demo4_f0_8mhz"
+            "demo|f0|8|ds18b20_demo_f0_8mhz"
+            "demo2|f0|8|ds18b20_demo2_f0_8mhz"
+            "demo3|f0|8|ds18b20_demo3_f0_8mhz"
+            "demo4|f0|8|ds18b20_demo4_f0_8mhz"
           )
           for row in "${matrix[@]}"; do
-            IFS='|' read -r app target hsi out <<< "$row"
+            IFS='|' read -r app target sysclk out <<< "$row"
             flags=""
             [ "$target" != "-" ] && flags="$flags OW_TARGET=$target"
-            [ "$hsi" != "-" ] && flags="$flags HSI_8MHZ=1"
-            echo "::group::build $out (APP=$app OW_TARGET=$target HSI_8MHZ=$hsi)"
+            [ "$sysclk" != "-" ] && flags="$flags SYSCLK_MHZ=$sysclk"
+            echo "::group::build $out (APP=$app OW_TARGET=$target SYSCLK_MHZ=$sysclk)"
             make clean
             make APP=$app $flags
             for ext in elf hex bin; do

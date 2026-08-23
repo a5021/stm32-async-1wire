@@ -48,10 +48,13 @@ UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
-# Define additional preprocessor definitions based on conditional variables
-# make HSI_8MHZ=1  →  -DHSI_8MHZ=1  (run on HSI 8MHz instead of HSE+PLL 72MHz)
-USE := HSI_8MHZ
-DEF += $(strip $(foreach def, $(USE), $(if $($(def)), -D$(def)=$($(def)))))
+# Optional system clock override:
+# make SYSCLK_MHZ=8  →  -DOWN_PORT_SYSCLK_MHZ=8
+# (run on the raw internal 8MHz RC instead of the family default:
+#  STM32F103 = 72MHz HSE+PLL x9, STM32F030 = 48MHz HSI/2+PLL x12)
+ifdef SYSCLK_MHZ
+DEF += -DOWN_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
+endif
 
 # Optimization flags for the compiler:
 # -Os         : Optimize for code size. This driver is polled on a millisecond
@@ -445,6 +448,6 @@ help:
 	@echo "Variables:"
 	@echo "  APP=demo|demo2|demo3|demo4  - example application to build"
 	@echo "  OW_TARGET=f1|f0                  - MCU family (firmware build)"
-	@echo "  HSI_8MHZ=1                       - run on internal 8MHz RC instead of PLL"
+	@echo "  SYSCLK_MHZ=8                     - run on raw internal 8MHz RC instead of family default"
 
 # *** EOF ***
