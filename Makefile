@@ -390,6 +390,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_read_rom.c \
             $(TEST_DIR)/test_alarm_thresholds.c \
             $(TEST_DIR)/test_eeprom.c \
+            $(TEST_DIR)/test_parasite.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
             $(TEST_MOCK)/ds18b20_test_access.c

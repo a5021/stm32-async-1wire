@@ -901,6 +901,7 @@ void     ds18b20_recall_eeprom(void);
 uint8_t  ds18b20_recall_eeprom_poll(void);
 void     ds18b20_read_power_supply(uint8_t *is_parasite);
 uint8_t  ds18b20_read_power_supply_poll(void);
+void     ds18b20_set_parasite(uint8_t parasite);
 uint8_t  ds18b20_last_command_ok(void);
 ```
 
@@ -933,6 +934,12 @@ uint8_t  ds18b20_last_command_ok(void);
    read for this reason).
 - `ds18b20_read_power_supply()` reports 1 for parasite power and 0 for an
   externally powered sensor.
+- `ds18b20_set_parasite(1)` enables parasite-power support: the driver then
+  engages the strong pull-up (bus pin switched to push-pull HIGH) for every
+  conversion window (t_CONV) and EEPROM hold-off (t_COPY / t_RECALL), and
+  releases the line before any further bus activity. Default is 0 — external
+  VDD wiring, no pin mode changes. Applying the strong pull-up is harmless
+  for externally powered devices, so a mixed bus works with the flag set.
 - `ds18b20_last_command_ok()` reports whether the last transaction found a
   device present (and, for read commands, read its data back).
 

@@ -109,6 +109,7 @@ typedef struct {
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
+    uint8_t parasite; /**< 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
 } DS18B20_ctx_t;
 
 /**
@@ -848,6 +849,12 @@ static uint8_t txn_poll(void) {
             onewire_read_data(ctx.pulse, txn_ctx.read_bytes);
             txn_ctx.phase = DS18B20_TXN_READ;
         } else if (txn_ctx.wait_us) {
+            // Parasite power: Copy Scratchpad / Recall E² draw their supply
+            // from the bus while the EEPROM programs - drive HIGH actively
+            // for the hold-off window.
+            if (ctx.parasite) {
+                onewire_strong_pullup(1);
+            }
             onewire_start_timer(txn_ctx.wait_us, 0);
             txn_ctx.phase = DS18B20_TXN_WAIT;
         } else {
@@ -864,7 +871,10 @@ static uint8_t txn_poll(void) {
         break;
 
     case DS18B20_TXN_WAIT:
-        // Hold-off completed (Copy Scratchpad / Recall EEPROM).
+        // Hold-off completed (Copy Scratchpad / Recall EEPROM): release the
+        // strong pull-up unconditionally (idempotent) so a parasite flag
+        // cleared mid-window cannot leave the bus actively driven.
+        onewire_strong_pullup(0);
         txn_ctx.ok = 1;
         txn_ctx.phase = DS18B20_TXN_DONE;
         break;
@@ -994,9 +1004,11 @@ uint8_t ds18b20_read_scratchpad_poll(void) {
 
 /**
  * @brief Copy the scratchpad into the EEPROM (non-volatile)
- * @note External-power wiring only (as assumed by the whole driver): the copy
- *       is powered by the sensor's VDD, no strong pull-up is needed. The
- *       driver waits the datasheet t_COPY hold-off (10ms) before finishing.
+ * @note The copy draws its supply from VDD on externally powered devices;
+ *       parasite-powered devices are supplied by the strong pull-up, which
+ *       the driver engages for the t_COPY hold-off window when
+ *       ds18b20_set_parasite(1) is set. The driver waits the datasheet
+ *       t_COPY hold-off (10ms) before finishing.
  */
 void ds18b20_copy_scratchpad(void) {
     txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
@@ -1077,6 +1089,21 @@ uint8_t ds18b20_read_power_supply_poll(void) {
 uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
 
 /**
+ * @brief Declare the bus as parasite-powered
+ * @param[in] parasite 1 = devices are powered over the data line, 0 =
+ *                     external VDD supply (default)
+ * @note In parasite mode the driver engages the strong pull-up (bus pin
+ *       switched to push-pull HIGH) during every temperature conversion wait
+ *       and EEPROM programming hold-off, then releases the line again. The
+ *       flag is read at the start of each window, so call this once after
+ *       ds18b20_init() - or between measurement cycles - and it applies to
+ *       all subsequent operations. The detection helper
+ *       ds18b20_read_power_supply() reports per-device wiring; this setter
+ *       tells the driver how to behave.
+ */
+void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; }
+
+/**
  * @}
  */
 
@@ -1101,6 +1128,9 @@ void ds18b20_init(void) {
     ctx.resolution = DS18B20_RES_DEFAULT;
     ctx.scan_mode = 0;
     ctx.scan_index = 0;
+    // External power is the default wiring assumption; parasite-powered
+    // setups opt in explicitly via ds18b20_set_parasite().
+    ctx.parasite = 0;
 }
 
 /**
@@ -1231,12 +1261,23 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_WAIT:
+        // Parasite power: the sensors draw their supply from the bus line
+        // during the whole conversion, so drive the line HIGH actively before
+        // the wait starts (engaging here and starting the timer in the same
+        // transition keeps wait and supply aligned regardless of poll latency).
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
         // Start timer for conversion wait period (750ms typical)
         wait_conversion();
         ctx.current_state = DS18B20_ST_CONTINUE;
         break;
 
     case DS18B20_ST_CONTINUE:
+        // Release the strong pull-up BEFORE the reset pulse pulls the line
+        // low: the conversion is complete, the devices no longer need the
+        // parasite supply and the bus must be free again.
+        onewire_strong_pullup(0);
         // Initiate second 1-Wire bus reset sequence
         onewire_reset(ctx.edge);
         ctx.current_state = DS18B20_ST_REQUEST;
