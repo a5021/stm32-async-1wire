@@ -8,7 +8,7 @@ DMA1_Channel_TypeDef mock_feed_ch;
 GPIO_TypeDef mock_gpioa;
 RCC_TypeDef mock_rcc;
 #if defined(OW_PORT_TARGET_G0)
-SYSCFG_TypeDef mock_syscfg;             /* G0 backend only */
+SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
 DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0 backend only */
 DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
 #endif
@@ -47,6 +47,11 @@ void hw_reset_all(void) {
     mock_feed_ch = (DMA1_Channel_TypeDef){0};
     mock_gpioa = (GPIO_TypeDef){0};
     mock_rcc = (RCC_TypeDef){0};
+#if defined(OW_PORT_TARGET_G0)
+    mock_syscfg = (SYSCFG_TypeDef){0};
+    mock_dmamux_ch2 = (DMAMUX_Channel_TypeDef){0};
+    mock_dmamux_ch3 = (DMAMUX_Channel_TypeDef){0};
+#endif
     tim_shadow_out = 0;
     capture_source = NULL;
     feed_log.count = 0;
