@@ -1,8 +1,9 @@
-# Contributing to Non-Blocking DS18B20 Driver
+# Contributing to stm32-async-1wire
 
 First off, thank you for taking the time to contribute! This is a
-small, focused bare-metal driver, and every issue and pull request
-makes it better.
+small, focused bare-metal 1-Wire library for STM32 — a generic
+non-blocking bus layer with the DS18B20 driver as its first client —
+and every issue and pull request makes it better.
 
 ## Code of Conduct
 

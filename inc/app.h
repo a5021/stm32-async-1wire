@@ -1,6 +1,6 @@
 /**
  * @file app.h
- * @brief Shared application layer for the DS18B20 example projects
+ * @brief Shared application layer for the example projects
  * 
  * Bundles everything an example application needs: the DS18B20 driver API
  * plus a small platform layer (system clock, USART1 TX ring buffer, busy

@@ -258,6 +258,11 @@ Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V.
 #include "ds18b20.h"
 ```
 
+> Working with a non-DS18B20 1-Wire slave (DS2413, DS2431, ...)? Include
+> `"onewire.h"` instead and build directly on the shared bus primitives
+> (`onewire_reset()`, `onewire_write_then_read()`, the Search ROM engine) —
+> no DS18B20 code is pulled in.
+
 ### 2. Initialize the Driver
 
 ```C
@@ -503,8 +508,8 @@ protocol on embedded systems:
 ### Trade-offs
 
 **Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA1
-channels (CH4 for input capture, CH2 for the CCR3 feed) — that cannot be used
-for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
+channels (the capture drain from CCR4 and the marker feed into CCR3) — that
+cannot be used for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
 needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
 portable across MCUs with limited peripherals.
@@ -520,12 +525,12 @@ implementation.
 
 ### Hybrid Hardware Automation
 
-This driver uses an advanced technique that combines multiple hardware features:
+The 1-Wire layer uses a hybrid of several hardware features:
 
 1. Timer-Driven Sequences: TIM1 is configured in One-Pulse Mode (OPM). Each state machine step configures the timer for a specific operation (reset, write byte, read byte, wait) and starts it.
 2. DMA for Data Transfer: DMA is used in two key ways:
-   - Transmit (DMA1_Channel2): Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits.
-   - Capture (DMA1_Channel3): Automatically stores values from the TIM1->CCR2 capture register into memory to record pulse timings during read operations or presence detection.
+   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3.
+   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4.
 3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750ms) is finished.
 4. True Zero-ISR Overhead: The ds18b20_poll() function checks this flag. When set, it clears the flag and advances the state machine to the next step. This makes the entire driver event-driven by hardware completion signals without using interrupts.
 
@@ -585,7 +590,7 @@ complete `onewire_*` surface.
   - Example: RCR=15 → the timer generates 16 PWM slots (bits) via DMA, then asserts UIF once at the end, signaling software to proceed.
   - This allows grouping a full command (two bytes), the entire 72-bit read, or long delays into single hardware-driven transactions, freeing the CPU until completion.
 - DMA1_Channel4: Peripheral-to-memory transfers from TIM1->CCR4 (captured timings).
-- DMA1_Channel2: Memory-to-peripheral transfers to TIM1->CCR3 (PWM duty cycles).
+- DMA1_Channel3: Memory-to-peripheral transfers to TIM1->CCR3 (PWM duty cycles), driven by the CH2 slot-end marker request.
 - GPIO Pin: PA10 configured in alternate function open-drain; CH3 output and CH4 capture are multiplexed onto this single pin.
 
 The STM32F0 backend uses exactly the same scheme on the same bus pin:

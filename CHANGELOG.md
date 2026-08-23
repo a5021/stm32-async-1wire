@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- README architecture sections described the pre-unification register map
+  (feed through `DMA1_Channel2`, captures into `CCR2` via `DMA1_Channel3`);
+  they now document the scheme actually shipped: the CH2 marker request
+  feeds `CCR3` through DMA1 channel 3, captures drain `CCR4` through
+  DMA1 channel 4.
+
 ### Added
 
 - Debug assets for the STM32F0 backend, previously F1-only: Ozone project
@@ -19,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sources and documentation aligned with the generic 1-Wire library
+  concept: family-specific wording removed from `inc/ds18b20.h`,
+  `CONTRIBUTING.md`, `SECURITY.md` and the Quick Start section; Quick Start
+  now mentions raw `onewire.h` usage for non-DS18B20 slaves; VSCode
+  IntelliSense gained an STM32F030 configuration matching
+  `make OW_TARGET=f0`.
 - Project renamed to `stm32-async-1wire`: the documentation now frames the
   library as a generic non-blocking 1-Wire layer for STM32 with the DS18B20
   driver as its first client. Repository URLs updated throughout (README,
