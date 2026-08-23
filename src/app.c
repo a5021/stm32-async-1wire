@@ -154,9 +154,12 @@ int uart_write_hex(uint8_t b) {
 __STATIC_FORCEINLINE void configure_system_clock(void) {
 #if defined(OW_PORT_TARGET_G0)
 #if (OW_PORT_SYSCLK_MHZ) == 64
-    // HSI16 is on and stable right after reset. PLL: HSI16 /M(=1) xN(=8)
-    // /R(=2) = 64MHz; PLLREN enables the PLLR output the SYSCLK mux uses.
-    RCC->PLLCFGR = RCC_PLLCFGR_PLLN_3 | RCC_PLLCFGR_PLLR_0 | RCC_PLLCFGR_PLLREN;
+    // HSI16 is on and stable right after reset. PLL source must be selected
+    // explicitly: on this family PLLSRC=00 means "no clock sent to the PLL",
+    // HSI16 encodes as 10 (RCC_PLLCFGR_PLLSRC_HSI). M(=1) xN(=8) R(=2) then
+    // gives 64MHz; PLLREN enables the PLLR output the SYSCLK mux uses.
+    RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSI | RCC_PLLCFGR_PLLN_3 |
+                   RCC_PLLCFGR_PLLR_0 | RCC_PLLCFGR_PLLREN;
     RCC->CR |= RCC_CR_PLLON;
     while (!(RCC->CR & RCC_CR_PLLRDY))
         ;
