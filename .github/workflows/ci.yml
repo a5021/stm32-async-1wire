@@ -17,49 +17,143 @@ jobs:
         run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/app.h src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo2.c src/demo3.c tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [f1, f0]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install host GCC
         run: sudo apt-get update && sudo apt-get install -y gcc
       - name: Download CMSIS dependencies
-        run: make download-deps
-      - name: Build and run host tests
+        # Both families up front: the host suites compile against mocks, but
+        # keeping every backend's dependency set present lets any matrix cell
+        # configure either target without re-downloading.
+        run: |
+          make download-deps
+          make OW_TARGET=f0 download-deps
+      - name: Build and run host tests (F1)
+        if: matrix.backend == 'f1'
         run: make test
+      - name: Build and run host tests (F0)
+        if: matrix.backend == 'f0'
+        run: make test-f0
 
   coverage:
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [f1, f0]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Install host GCC and lcov
         run: sudo apt-get update && sudo apt-get install -y gcc lcov
       - name: Download CMSIS dependencies
-        run: make download-deps
+        run: |
+          make download-deps
+          make OW_TARGET=f0 download-deps
       - name: Build and run host tests with coverage
         # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
-        # build; the test executable writes .gcda files under build/test when
-        # it exits. `make clean` first guarantees a fresh, instrumented build.
-        run: make clean && make test COVERAGE=1
-      - name: Capture and filter coverage
-        # Keep only the driver sources (src/ds18b20.c, src/onewire.c and the
-        # inc/ driver headers); drop the test harness, mocks and system headers
-        # so the metric reflects the driver, not the test code. CMSIS is not
-        # compiled into the host test build (the mock lives under tests/mock),
-        # so it is intentionally not excluded here. --ignore-errors unused
-        # keeps the job green if a future exclude pattern matches nothing.
+        # build. The test executables run from the repository root, so the
+        # .gcno/.gcda files land there as well — capture scans the whole
+        # checkout and the merge step filters out everything that is not the
+        # driver core. `make clean` first guarantees a fresh instrumented
+        # build.
         run: |
-          lcov --capture --directory build/test --output-file coverage.info --rc branch_coverage=1
-          lcov --remove coverage.info '*/tests/*' '/usr/*' '*/inc/macro.h' \
-                --output-file coverage.filtered.info --rc branch_coverage=1 --ignore-errors unused
-          genhtml coverage.filtered.info --output-directory coverage-report \
-                 --branch-coverage --title "DS18B20 driver coverage"
-      - name: Coverage summary
-        run: lcov --summary coverage.filtered.info --rc branch_coverage=1
-      - name: Upload coverage report
+          make clean
+          if [ "${{ matrix.backend }}" = "f0" ]; then
+            make test-f0 COVERAGE=1
+          else
+            make test COVERAGE=1
+          fi
+      - name: Capture coverage trace
+        run: lcov --capture --directory . --output-file coverage-${{ matrix.backend }}.info --rc branch_coverage=1
+      - name: Upload coverage trace
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-report
-          path: coverage-report
+          name: coverage-traces-${{ matrix.backend }}
+          path: coverage-${{ matrix.backend }}.info
+
+  coverage-badge:
+    needs: coverage
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+      - name: Download coverage traces
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-traces-*
+          path: traces
+      - name: Merge and filter traces
+        # Union of every backend's trace measures the MCU-independent core;
+        # port headers (register plumbing per family) stay out of the metric
+        # so adding new MCU ports never dilutes the number.
+        run: |
+          ARGS=""
+          for f in traces/*/coverage-*.info; do
+            ARGS="$ARGS -a $f"
+          done
+          lcov $ARGS --output-file union.info --rc branch_coverage=1
+          lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/macro.h' '*/port/*' \
+                --output-file core.info --rc branch_coverage=1 --ignore-errors unused
+          lcov --summary core.info --rc branch_coverage=1 > summary.txt || true
+          cat summary.txt
+      - name: Generate HTML report and badge SVG
+        run: |
+          mkdir -p publish/coverage
+          genhtml core.info --output-directory publish/coverage \
+                 --branch-coverage --title "stm32-async-1wire core coverage"
+          python3 - <<'PY'
+          import re
+          text = open("summary.txt").read()
+          m = re.search(r"lines\.+: ([\d.]+)%", text)
+          pct = int(round(float(m.group(1))))
+          color = "#4c1" if pct >= 90 else "#dfb317" if pct >= 75 else "#cb2431"
+          svg = (
+              '<svg xmlns="http://www.w3.org/2000/svg" width="112" height="20" role="img">'
+              '<linearGradient id="g" x2="0" y2="100%">'
+              '<stop offset="0" stop-color="#bbb" stop-opacity=".1"/>'
+              '<stop offset="1" stop-opacity=".1"/></linearGradient>'
+              '<clipPath id="r"><rect width="112" height="20" rx="3" fill="#fff"/></clipPath>'
+              f'<g clip-path="url(#r)"><rect width="69" height="20" fill="#555"/>'
+              f'<rect x="69" width="43" height="20" fill="{color}"/>'
+              '<rect width="112" height="20" fill="url(#g)"/></g>'
+              '<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">'
+              '<text x="34.5" y="15">coverage</text>'
+              f'<text x="89.5" y="15">{pct}%</text></g></svg>'
+          )
+          open("publish/coverage-badge.svg", "w").write(svg)
+          print("badge:", pct, "%")
+          PY
+      - name: Publish to gh-pages
+        env:
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          set -e
+          DIR=/tmp/gh-pages
+          rm -rf "$DIR"
+          if git clone --depth 1 --branch gh-pages "$REPO_URL" "$DIR" 2>/dev/null; then
+            cd "$DIR"
+            git rm -rq .
+          else
+            git init -q -b gh-pages "$DIR"
+            cd "$DIR"
+            git remote add origin "$REPO_URL"
+            echo "stm32-async-1wire coverage pages" > .placeholder.md
+          fi
+          cp -r "$GITHUB_WORKSPACE"/publish/* .
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "docs(coverage): refresh report and badge (${GITHUB_SHA::7})" \
+              || echo "nothing to commit"
+          git push -q origin gh-pages
 
   cppcheck:
     runs-on: ubuntu-latest

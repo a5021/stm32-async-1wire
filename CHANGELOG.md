@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Public CI coverage: the host-test workflow now runs both backend suites
+  (F1 and F0) as a test matrix, captures per-backend lcov traces and merges
+  them into a single metric over the MCU-independent core (port plumbing is
+  excluded, so adding new MCU families never dilutes the number). Every push
+  to `main` republishes an HTML report and a self-hosted badge to the
+  `gh-pages` branch; the badge links to
+  [a5021.github.io/stm32-async-1wire](https://a5021.github.io/stm32-async-1wire/).
+  This also fixes silent breakage of the previous coverage job: it captured
+  from `build/test`, where no instrumented data ever landed.
 - Debug assets for the STM32F0 backend, previously F1-only: Ozone project
   (`port/stm32f0/project.jdebug`), J-Flash project
   (`port/stm32f0/stm32f030f4.jflash`) and VSCode cortex-debug launch
