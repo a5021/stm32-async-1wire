@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ow_port_strong_pullup()` port hook in both the STM32F1 and STM32F0
   backends; seven host tests cover engagement windows, register state,
   mid-window flag clears and the default-off regression.
+- Automatic parasite-mode detection: `ds18b20_detect_parasite()` /
+  `ds18b20_detect_parasite_poll()` run a Read Power Supply query and store
+  the decoded answer in the driver state, so parasite wiring is picked up at
+  startup without a hard-coded flag; `ds18b20_parasite_mode()` reports the
+  current configuration. Four host tests cover the detect path (parasite
+  answer, external answer, no-presence abort leaves the flag untouched,
+  getter/setter agreement). The example applications accept a
+  `-DPARASITE_POWER=1` build flag to enable the mode out of the box, and the
+  README gains a Parasite Power section with supply-current guidance.
 - Public CI coverage: the host-test workflow now runs both backend suites
   (F1 and F0) as a test matrix, captures per-backend lcov traces and merges
   them into a single metric over the MCU-independent core (port plumbing is

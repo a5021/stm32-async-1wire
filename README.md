@@ -905,6 +905,9 @@ uint8_t  ds18b20_recall_eeprom_poll(void);
 void     ds18b20_read_power_supply(uint8_t *is_parasite);
 uint8_t  ds18b20_read_power_supply_poll(void);
 void     ds18b20_set_parasite(uint8_t parasite);
+void     ds18b20_detect_parasite(void);
+uint8_t  ds18b20_detect_parasite_poll(void);
+uint8_t  ds18b20_parasite_mode(void);
 uint8_t  ds18b20_last_command_ok(void);
 ```
 
@@ -936,7 +939,13 @@ uint8_t  ds18b20_last_command_ok(void);
    before the next conversion (see `demo4.c`, which chains recall → scratchpad
    read for this reason).
 - `ds18b20_read_power_supply()` reports 1 for parasite power and 0 for an
-  externally powered sensor.
+  externally powered sensor. `ds18b20_detect_parasite()` runs the same query
+  and stores the answer straight into the driver state — after
+  `ds18b20_detect_parasite_poll()` returns 1 (check `ds18b20_last_command_ok()`)
+  the wiring is configured and `ds18b20_parasite_mode()` reports it. On a mixed
+  bus the open-drain answer is a wired-AND: any externally powered device masks
+  the parasite report, so detect per-device in Match ROM addressing mode for
+  heterogeneous wiring.
 - `ds18b20_set_parasite(1)` enables parasite-power support: the driver then
   engages the strong pull-up (bus pin switched to push-pull HIGH) for every
   conversion window (t_CONV) and EEPROM hold-off (t_COPY / t_RECALL), and
@@ -1000,6 +1009,43 @@ void ds18b20_complete(int16_t temp) {
     uint8_t idx = ds18b20_scan_index();
     printf("Sensor %u: %d.%d C\n", idx, temp / 10, abs(temp % 10));
 }
+```
+
+### Parasite Power
+
+With VDD tied to GND the DS18B20 draws its operating current from the data
+line. The bus pull-up then has to deliver the conversion current — about
+**1.5mA per converting sensor** — for the whole conversion window (up to
+750ms at 12-bit), which a passive resistor cannot do. The driver solves this
+by switching the bus pin to push-pull HIGH for every conversion and EEPROM
+hold-off window (`ds18b20_set_parasite(1)`), releasing it back to the passive
+pull-up before any further bus activity.
+
+```C
+ds18b20_init();
+ds18b20_detect_parasite();          // query the wiring (0xCC + Read Power Supply)
+while (!ds18b20_detect_parasite_poll()) {
+    ds18b20_poll();                 // keep advancing the state machine
+}
+/* ds18b20_parasite_mode() now reflects the detected wiring */
+```
+
+Wiring guidance, from bench validation on an STM32F103 with a 2.2k pull-up:
+
+- A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
+  alone: a six-device broadcast cycle completed without a single CRC error.
+- Budget ~1.5mA per simultaneously converting sensor against the pin's drive
+  capability (~25mA source on F1/F0/G0) and the VOH droop across your pull-up
+  arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
+- For longer buses or larger fleets add an external P-MOSFET (or a dedicated
+  strong pull-up IC) as the high-side switch and treat the MCU pin as its gate
+  driver — the software interface stays exactly the same.
+
+The example applications accept a compile-time flag to run over parasite
+wiring out of the box:
+
+```sh
+make APP=demo EXT=-DPARASITE_POWER=1        # or demo2 / demo3 / demo4
 ```
 
 ### Resolution Change

@@ -175,6 +175,9 @@ _Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
 
+/** @brief Receive buffer for the parasite-mode detection answer byte */
+static uint8_t detect_buf;
+
 /* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
  * transfer must always be present at the exact slot index used for the write
  * (see txn_build_pulses); the buffer is sized for the longest (Match ROM)
@@ -1102,6 +1105,31 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  *       tells the driver how to behave.
  */
 void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; }
+
+/**
+ * @brief Current parasite-power configuration of the driver
+ * @return 1 when the strong pull-up will be engaged during conversion and
+ *         EEPROM programming windows, 0 for external VDD supply
+ */
+uint8_t ds18b20_parasite_mode(void) { return ctx.parasite; }
+
+/**
+ * @brief Detect the bus wiring and configure parasite mode automatically
+ * @note Issues a Read Power Supply command and stores the decoded answer in
+ *       ctx.parasite on success (see ds18b20_detect_parasite_poll()).
+ */
+void ds18b20_detect_parasite(void) { txn_start(DS18B20_READ_POWER_SUPPLY, &detect_buf, 0, 0, 1, 0, 0); }
+
+uint8_t ds18b20_detect_parasite_poll(void) {
+    if (!txn_poll()) {
+        return 0;
+    }
+    if (txn_ctx.ok) {
+        // The sensor drives one bit: 0 = parasite power, 1 = external power.
+        ctx.parasite = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
+    }
+    return 1;
+}
 
 /**
  * @}
