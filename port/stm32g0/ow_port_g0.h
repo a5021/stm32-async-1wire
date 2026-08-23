@@ -41,8 +41,8 @@
 #ifndef OW_PORT_G0_H
 #define OW_PORT_G0_H
 
-#include "onewire.h"
 #include "macro.h"
+#include "onewire.h"
 #include "stm32g0xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
@@ -65,8 +65,8 @@
  *       request (feeds CCR3), channel 4 carries the CC4 capture request
  *       (drains CCR4). DMAMUX channel x is hard-wired to DMA1 channel x+1,
  *       so the feed rides DMAMUX channel 2 and captures ride channel 3. */
-#define OW_PORT_DMA_FEED D13              /* DMA1_Channel3 */
-#define OW_PORT_DMA_CAPTURE D14           /* DMA1_Channel4 */
+#define OW_PORT_DMA_FEED D13 /* DMA1_Channel3 */
+#define OW_PORT_DMA_CAPTURE D14 /* DMA1_Channel4 */
 
 /* @brief DMAMUX request numbers for this backend (RM0444 table 51):
  *       TIM1_CC2 = 21 (slot-end marker feeding CCR3),
@@ -109,6 +109,8 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     RC.AHBENR |= RCC_AHBENR_DMA1EN;
     RC.IOPENR |= RCC_IOPENR_GPIOAEN;
     RC.APBENR2 |= RCC_APBENR2_SYSCFGEN | RCC_APBENR2_TIM1EN;
+    (void)RC.APBENR2; /* dummy read: settle the freshly-gated APB clock before
+                         the first SYSCFG register access below */
     SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP;
     T1.PSC = OW_PORT_TIM_PRESCALER;
     ow_port_kick(); /* kickstart: first poll advances immediately */
