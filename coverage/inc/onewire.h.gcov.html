@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-23 01:35:40</td>
+            <td class="headerValue">2026-08-23 02:28:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -216,8 +216,8 @@
 <span id="L145"><span class="lineNum">     145</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :  */</span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC tlaBgGNC">       13572 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
-<span id="L149"><span class="lineNum">     149</span>         [<span class="tlaGBC" title="Branch 0 was taken 6248 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7324 times"> + </span>]:<span class="tlaGNC">       13572 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC tlaBgGNC">       14004 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
+<span id="L149"><span class="lineNum">     149</span>         [<span class="tlaGBC" title="Branch 0 was taken 6440 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7564 times"> + </span>]:<span class="tlaGNC">       14004 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
 <span id="L150"><span class="lineNum">     150</span>                 :             : }</span>
 <span id="L151"><span class="lineNum">     151</span>                 :             : </span>
 <span id="L152"><span class="lineNum">     152</span>                 :             : /**</span>
@@ -247,83 +247,97 @@
 <span id="L176"><span class="lineNum">     176</span>                 :             :  */</span>
 <span id="L177"><span class="lineNum">     177</span>                 :             : void onewire_start_timer(uint16_t arr, uint8_t rcr);</span>
 <span id="L178"><span class="lineNum">     178</span>                 :             : </span>
-<span id="L179"><span class="lineNum">     179</span>                 :             : /** @} */</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             : </span>
-<span id="L181"><span class="lineNum">     181</span>                 :             : /**</span>
-<span id="L182"><span class="lineNum">     182</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
-<span id="L183"><span class="lineNum">     183</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
-<span id="L184"><span class="lineNum">     184</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
-<span id="L185"><span class="lineNum">     185</span>                 :             :  *        position i determines which devices keep participating at position</span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
-<span id="L188"><span class="lineNum">     188</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
-<span id="L189"><span class="lineNum">     189</span>                 :             :  *        so a poll call never blocks.</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             :  * @{</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :  */</span>
+<span id="L179"><span class="lineNum">     179</span>                 :             : /**</span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :  * @brief Engage or release the parasite-power strong pull-up on the bus</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             :  * @param[in] on 1 drives the bus line HIGH actively (pin leaves the timer-</span>
+<span id="L182"><span class="lineNum">     182</span>                 :             :  *                driven open-drain mode for a push-pull HIGH), 0 releases the</span>
+<span id="L183"><span class="lineNum">     183</span>                 :             :  *                line back to the passive external pull-up</span>
+<span id="L184"><span class="lineNum">     184</span>                 :             :  * @note Parasite-powered devices source their supply from the bus line and</span>
+<span id="L185"><span class="lineNum">     185</span>                 :             :  *       need this active pull-up during energy-intensive phases: the whole</span>
+<span id="L186"><span class="lineNum">     186</span>                 :             :  *       temperature conversion (tCONV, up to 750 ms) after Convert T and the</span>
+<span id="L187"><span class="lineNum">     187</span>                 :             :  *       EEPROM programming window (tPROG) after Copy Scratchpad / Recall E².</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             :  *       Must only be called between hardware operations (bus idle), never</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             :  *       while a timed transaction is running.</span>
+<span id="L190"><span class="lineNum">     190</span>                 :             :  */</span>
+<span id="L191"><span class="lineNum">     191</span>                 :             : void onewire_strong_pullup(uint8_t on);</span>
 <span id="L192"><span class="lineNum">     192</span>                 :             : </span>
-<span id="L193"><span class="lineNum">     193</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
-<span id="L194"><span class="lineNum">     194</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
-<span id="L195"><span class="lineNum">     195</span>                 :             : </span>
-<span id="L196"><span class="lineNum">     196</span>                 :             : /**</span>
-<span id="L197"><span class="lineNum">     197</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
-<span id="L198"><span class="lineNum">     198</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
-<span id="L199"><span class="lineNum">     199</span>                 :             :  *                 return value stops the search early.</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :  *                   reach the sink.</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :  * @note Ignores the call while a search is already running or while another</span>
-<span id="L206"><span class="lineNum">     206</span>                 :             :  *       operation owns the timer.</span>
-<span id="L207"><span class="lineNum">     207</span>                 :             :  */</span>
-<span id="L208"><span class="lineNum">     208</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             :                           uint8_t command, uint8_t family);</span>
-<span id="L210"><span class="lineNum">     210</span>                 :             : </span>
-<span id="L211"><span class="lineNum">     211</span>                 :             : /**</span>
-<span id="L212"><span class="lineNum">     212</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
-<span id="L213"><span class="lineNum">     213</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
-<span id="L214"><span class="lineNum">     214</span>                 :             :  */</span>
-<span id="L215"><span class="lineNum">     215</span>                 :             : uint8_t onewire_search_poll(void);</span>
-<span id="L216"><span class="lineNum">     216</span>                 :             : </span>
-<span id="L217"><span class="lineNum">     217</span>                 :             : /**</span>
-<span id="L218"><span class="lineNum">     218</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
-<span id="L219"><span class="lineNum">     219</span>                 :             :  * @return Count of found devices</span>
-<span id="L220"><span class="lineNum">     220</span>                 :             :  */</span>
-<span id="L221"><span class="lineNum">     221</span>                 :             : uint8_t onewire_search_count(void);</span>
-<span id="L222"><span class="lineNum">     222</span>                 :             : </span>
-<span id="L223"><span class="lineNum">     223</span>                 :             : /**</span>
-<span id="L224"><span class="lineNum">     224</span>                 :             :  * @brief Check whether a search is currently running</span>
-<span id="L225"><span class="lineNum">     225</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
-<span id="L226"><span class="lineNum">     226</span>                 :             :  */</span>
-<span id="L227"><span class="lineNum">     227</span>                 :             : uint8_t onewire_search_active(void);</span>
-<span id="L228"><span class="lineNum">     228</span>                 :             : </span>
-<span id="L229"><span class="lineNum">     229</span>                 :             : /** @} */</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             : /** @} */</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             : </span>
+<span id="L195"><span class="lineNum">     195</span>                 :             : /**</span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
+<span id="L199"><span class="lineNum">     199</span>                 :             :  *        position i determines which devices keep participating at position</span>
+<span id="L200"><span class="lineNum">     200</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
+<span id="L201"><span class="lineNum">     201</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
+<span id="L203"><span class="lineNum">     203</span>                 :             :  *        so a poll call never blocks.</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             :  * @{</span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :  */</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             : </span>
+<span id="L207"><span class="lineNum">     207</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
+<span id="L208"><span class="lineNum">     208</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
+<span id="L209"><span class="lineNum">     209</span>                 :             : </span>
+<span id="L210"><span class="lineNum">     210</span>                 :             : /**</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :  *                 return value stops the search early.</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
+<span id="L215"><span class="lineNum">     215</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
+<span id="L216"><span class="lineNum">     216</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
+<span id="L217"><span class="lineNum">     217</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
+<span id="L218"><span class="lineNum">     218</span>                 :             :  *                   reach the sink.</span>
+<span id="L219"><span class="lineNum">     219</span>                 :             :  * @note Ignores the call while a search is already running or while another</span>
+<span id="L220"><span class="lineNum">     220</span>                 :             :  *       operation owns the timer.</span>
+<span id="L221"><span class="lineNum">     221</span>                 :             :  */</span>
+<span id="L222"><span class="lineNum">     222</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
+<span id="L223"><span class="lineNum">     223</span>                 :             :                           uint8_t command, uint8_t family);</span>
+<span id="L224"><span class="lineNum">     224</span>                 :             : </span>
+<span id="L225"><span class="lineNum">     225</span>                 :             : /**</span>
+<span id="L226"><span class="lineNum">     226</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
+<span id="L227"><span class="lineNum">     227</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
+<span id="L228"><span class="lineNum">     228</span>                 :             :  */</span>
+<span id="L229"><span class="lineNum">     229</span>                 :             : uint8_t onewire_search_poll(void);</span>
 <span id="L230"><span class="lineNum">     230</span>                 :             : </span>
 <span id="L231"><span class="lineNum">     231</span>                 :             : /**</span>
-<span id="L232"><span class="lineNum">     232</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
-<span id="L233"><span class="lineNum">     233</span>                 :             :  * @{</span>
+<span id="L232"><span class="lineNum">     232</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
+<span id="L233"><span class="lineNum">     233</span>                 :             :  * @return Count of found devices</span>
 <span id="L234"><span class="lineNum">     234</span>                 :             :  */</span>
-<span id="L235"><span class="lineNum">     235</span>                 :             : </span>
-<span id="L236"><span class="lineNum">     236</span>                 :             : /**</span>
-<span id="L237"><span class="lineNum">     237</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :  * @param[in] data Input buffer</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :  * @param[in] len Number of bytes to process</span>
-<span id="L240"><span class="lineNum">     240</span>                 :             :  * @return CRC-8 checksum value</span>
-<span id="L241"><span class="lineNum">     241</span>                 :             :  */</span>
-<span id="L242"><span class="lineNum">     242</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
-<span id="L243"><span class="lineNum">     243</span>                 :             : </span>
-<span id="L244"><span class="lineNum">     244</span>                 :             : /** @} */</span>
-<span id="L245"><span class="lineNum">     245</span>                 :             : </span>
-<span id="L246"><span class="lineNum">     246</span>                 :             : #ifdef DS18B20_TEST_HARNESS</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             : /**</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :  * @brief [TEST] Set the idle-HIGH gap injected between search slots</span>
-<span id="L249"><span class="lineNum">     249</span>                 :             :  * @param[in] us Gap duration in microseconds (0 disables the injection)</span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :  * @note Temporary test hook for the RTOS-latency experiment only.</span>
-<span id="L251"><span class="lineNum">     251</span>                 :             :  */</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             : void onewire_test_set_gap_us(uint16_t us);</span>
-<span id="L253"><span class="lineNum">     253</span>                 :             : #endif</span>
-<span id="L254"><span class="lineNum">     254</span>                 :             : </span>
-<span id="L255"><span class="lineNum">     255</span>                 :             : #endif /* ONEWIRE_H */</span>
+<span id="L235"><span class="lineNum">     235</span>                 :             : uint8_t onewire_search_count(void);</span>
+<span id="L236"><span class="lineNum">     236</span>                 :             : </span>
+<span id="L237"><span class="lineNum">     237</span>                 :             : /**</span>
+<span id="L238"><span class="lineNum">     238</span>                 :             :  * @brief Check whether a search is currently running</span>
+<span id="L239"><span class="lineNum">     239</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
+<span id="L240"><span class="lineNum">     240</span>                 :             :  */</span>
+<span id="L241"><span class="lineNum">     241</span>                 :             : uint8_t onewire_search_active(void);</span>
+<span id="L242"><span class="lineNum">     242</span>                 :             : </span>
+<span id="L243"><span class="lineNum">     243</span>                 :             : /** @} */</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             : </span>
+<span id="L245"><span class="lineNum">     245</span>                 :             : /**</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :  * @{</span>
+<span id="L248"><span class="lineNum">     248</span>                 :             :  */</span>
+<span id="L249"><span class="lineNum">     249</span>                 :             : </span>
+<span id="L250"><span class="lineNum">     250</span>                 :             : /**</span>
+<span id="L251"><span class="lineNum">     251</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :  * @param[in] data Input buffer</span>
+<span id="L253"><span class="lineNum">     253</span>                 :             :  * @param[in] len Number of bytes to process</span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :  * @return CRC-8 checksum value</span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :  */</span>
+<span id="L256"><span class="lineNum">     256</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
+<span id="L257"><span class="lineNum">     257</span>                 :             : </span>
+<span id="L258"><span class="lineNum">     258</span>                 :             : /** @} */</span>
+<span id="L259"><span class="lineNum">     259</span>                 :             : </span>
+<span id="L260"><span class="lineNum">     260</span>                 :             : #ifdef DS18B20_TEST_HARNESS</span>
+<span id="L261"><span class="lineNum">     261</span>                 :             : /**</span>
+<span id="L262"><span class="lineNum">     262</span>                 :             :  * @brief [TEST] Set the idle-HIGH gap injected between search slots</span>
+<span id="L263"><span class="lineNum">     263</span>                 :             :  * @param[in] us Gap duration in microseconds (0 disables the injection)</span>
+<span id="L264"><span class="lineNum">     264</span>                 :             :  * @note Temporary test hook for the RTOS-latency experiment only.</span>
+<span id="L265"><span class="lineNum">     265</span>                 :             :  */</span>
+<span id="L266"><span class="lineNum">     266</span>                 :             : void onewire_test_set_gap_us(uint16_t us);</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             : #endif</span>
+<span id="L268"><span class="lineNum">     268</span>                 :             : </span>
+<span id="L269"><span class="lineNum">     269</span>                 :             : #endif /* ONEWIRE_H */</span>
         </pre>
               </td>
             </tr>
