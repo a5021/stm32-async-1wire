@@ -11,8 +11,8 @@ Only the latest release is actively supported with security fixes.
 
 ## Reporting a Vulnerability
 
-This project is a bare-metal firmware demo/driver for the STM32F103C8T6
-and does not process untrusted input in a typical networked sense.
+This project is a bare-metal 1-Wire library for STM32 (DS18B20 driver
+included) and does not process untrusted input in a typical networked sense.
 However, if you find a security issue — for example in the 1-Wire
 protocol handling, buffer handling in `src/ds18b20.c` or
 `src/demo.c`, or in the build tooling — please do **not** open a

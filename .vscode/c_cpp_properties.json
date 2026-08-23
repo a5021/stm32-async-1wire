@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "STM32F103",
+            "name": "STM32F103 (default)",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/inc",
@@ -10,6 +10,21 @@
             ],
             "defines": [
                 "STM32F103xB",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32F030 (make OW_TARGET=f0)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F030x6",
                 "__GNUC__"
             ],
             "cStandard": "c11",
