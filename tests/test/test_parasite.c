@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
  *  test_parasite.c - Parasite-Power Strong Pull-Up Tests
  *
  *  Covers ds18b20_set_parasite() and the strong pull-up windows:
@@ -24,6 +24,8 @@
 #include "unity.h"
 #include <string.h>
 
+void spy_reset(void); /* defined in test_state_machine.c */
+
 #define ONE 5u
 #define ZERO 60u
 
@@ -31,7 +33,24 @@
  *  Register-state helpers (per family)
  * -----------------------------------------------------------*/
 
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0)
+
+/* PA10 in timer-driven AF open-drain mode (post-init baseline). */
+static uint8_t pu_idle_af_od(void) {
+    return (mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
+           !(mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
+           (mock_gpioa.OTYPER & GPIO_OTYPER_OT10);
+}
+
+/* PA10 as generic push-pull output driven HIGH. */
+static uint8_t pu_engaged(void) {
+    return (mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
+           !(mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
+           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT10) &&
+           (mock_gpioa.BSRR & GPIO_BSRR_BS10);
+}
+
+#elif defined(OW_PORT_TARGET_F0)
 
 /* PA10 in timer-driven AF open-drain mode (post-init baseline). */
 static uint8_t pu_idle_af_od(void) {
@@ -66,7 +85,24 @@ static uint8_t pu_engaged(void) {
 /* Snapshot / compare of every bus-pin configuration register the
  * strong pull-up touches; used for the "flag off -> registers stay
  * bit-identical" regressions. */
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0)
+
+typedef struct {
+    uint32_t moder;
+    uint32_t otyper;
+} pu_regs_t;
+
+static pu_regs_t pu_snapshot(void) {
+    pu_regs_t r = {mock_gpioa.MODER, mock_gpioa.OTYPER};
+    return r;
+}
+
+static void pu_assert_unchanged(pu_regs_t before) {
+    TEST_ASSERT_EQUAL_UINT32(before.moder, mock_gpioa.MODER);
+    TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
+}
+
+#elif defined(OW_PORT_TARGET_F0)
 
 typedef struct {
     uint32_t moder;

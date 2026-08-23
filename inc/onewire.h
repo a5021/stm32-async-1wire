@@ -32,6 +32,8 @@
 #if !defined(OW_PORT_SYSCLK_MHZ)
 #if defined(OW_PORT_TARGET_F0)
 #define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
+#elif defined(OW_PORT_TARGET_G0)
+#define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #else
 #define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
 #endif

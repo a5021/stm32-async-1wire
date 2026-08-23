@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
  *  test_main.c - Host test runner
  *
  *  Build:  make test            (host toolchain, runs on the PC)
@@ -45,6 +45,7 @@ extern void run_test_read_rom(void);
 extern void run_test_alarm_thresholds(void);
 extern void run_test_eeprom(void);
 extern void run_test_parasite(void);
+extern void run_test_dmamux(void);
 
 int main(void) {
     run_test_scratchpad();
@@ -64,6 +65,7 @@ int main(void) {
     run_test_alarm_thresholds();
     run_test_eeprom();
     run_test_parasite();
+    run_test_dmamux();
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
     return unity_failures ? 1 : 0;
 }

@@ -41,6 +41,8 @@
 #include "ow_port_f1.h"
 #elif defined(OW_PORT_TARGET_F0)
 #include "ow_port_f0.h"
+#elif defined(OW_PORT_TARGET_G0)
+#include "ow_port_g0.h"
 #else
 #error "ow_port: no backend selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, ...)"
 #endif
