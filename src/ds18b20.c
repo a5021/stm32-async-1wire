@@ -1080,30 +1080,6 @@ uint8_t ds18b20_recall_eeprom_poll(void) {
 }
 
 /**
- * @brief Read the power-supply state of the DS18B20
- * @param[in,out] is_parasite Receives 1 when the device is parasite-powered,
- *                            0 when externally powered; written on success
- */
-void ds18b20_read_power_supply(uint8_t* is_parasite) {
-    txn_start(DS18B20_READ_POWER_SUPPLY, is_parasite, 0, 0, 1, 0, 0);
-}
-
-/**
- * @brief Advance the non-blocking power-supply read
- * @return 1 when finished (successfully or aborted), 0 while running
- */
-uint8_t ds18b20_read_power_supply_poll(void) {
-    if (!txn_poll()) {
-        return 0;
-    }
-    if (txn_ctx.ok && txn_ctx.out) {
-        // The sensor drives one bit: 0 = parasite power, 1 = external power.
-        *txn_ctx.out = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
-    }
-    return 1;
-}
-
-/**
  * @brief Result of the last completed command transaction
  * @return 1 when the last ds18b20_*_poll() finished a transaction that found
  *         a device present (and, for read commands, read its data back),
@@ -1121,8 +1097,8 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  *       flag is read at the start of each window, so call this once after
  *       ds18b20_init() - or between measurement cycles - and it applies to
  *       all subsequent operations. The detection helper
- *       ds18b20_read_power_supply() reports per-device wiring; this setter
- *       tells the driver how to behave.
+ *       ds18b20_detect_parasite() reports the wiring and stores it back into
+ *       this flag on success; this setter tells the driver how to behave.
  */
 void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; }
 
