@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
  *  test_parasite.c - Parasite-Power Strong Pull-Up Tests
  *
  *  Covers ds18b20_set_parasite() and the strong pull-up windows:
