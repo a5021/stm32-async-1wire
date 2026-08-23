@@ -1,0 +1,1 @@
+genhtml core.info --output-directory publish/coverage --branch-coverage --title 'stm32-async-1wire core coverage'
