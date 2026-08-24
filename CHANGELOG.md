@@ -6,6 +6,42 @@ STM32 and the DS18B20 driver built on top of it — are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1]
+
+### Fixed
+
+- The `SYSCLK_MHZ` build knob was dead: the Makefile passed
+  `-DOWN_PORT_SYSCLK_MHZ` instead of `-DOW_PORT_SYSCLK_MHZ`, so every
+  non-default clock build silently used the family default frequency.
+  This also means the v1.6.0 assets named `*_f0_8mhz` and `*_g0_16mhz`
+  actually contained 48MHz / 64MHz firmware. The macro name is now spelled
+  correctly (`Makefile`, verified by disassembly across clock variants).
+
+### Changed
+
+- `ONEWIRE_ONE_PULSE` is a single universal value (5µs) again: the ≤16MHz
+  compensation that shortened it to 2µs is removed. Bench hardware on
+  STM32F030F4P6 @8MHz showed that a 2µs master pulse breaks DS18B20 read-slot
+  decoding outright (every capture stretches past the '0'/'1' threshold
+  regardless of the sensor answer), while a plain 5µs pulse measures ~9µs
+  there with every input-capture filter variant swept (fCK_INT N=2/4/8,
+  fDTS/4 N=8) — so the capture chain, not the pulse, carries the slow-clock
+  margin. Validated on hardware at STM32F030@48MHz/@8MHz and
+  STM32F103@72MHz/@8MHz (6 devices, parasite power, hundreds of CRC-clean
+  conversion cycles per variant; the F103@8MHz run also retires v1.6.0's
+  11-12µs capture estimate, which came from different bench wiring).
+  STM32G031@16MHz builds and awaits native bench validation like any new
+  clock variant.
+
+- The CH4 input-capture digital filter is standardized across all backends:
+  a single documented rule in `inc/ow_port.h` picks the IC4F configuration
+  whose filter time N × T_sample lands nearest ~500ns for the configured
+  clock (`≤8MHz`: fCK_INT N=4; `≤16MHz`: fCK_INT N=8; above: fDTS/4 N=8),
+  replacing the three hand-mirrored per-port conditionals. Firmware impact
+  is limited to STM32G031@16MHz (N=4 → N=8, i.e. a 250ns → 500ns filter
+  time); every other supported clock keeps byte-identical firmware, verified
+  by md5 against the bench-validated binaries.
+
 ## [1.6.0] - 2026-08-23
 
 ### Added
