@@ -30,8 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   STM32F103@72MHz/@8MHz (6 devices, parasite power, hundreds of CRC-clean
   conversion cycles per variant; the F103@8MHz run also retires v1.6.0's
   11-12µs capture estimate, which came from different bench wiring).
-  STM32G031@16MHz builds and awaits native bench validation like any new
-  clock variant.
+  STM32G031@64MHz/@16MHz validated the same way on a WeAct STM32G031F6P6
+  board — every supported clock combination is now hardware-confirmed.
 
 - The CH4 input-capture digital filter is standardized across all backends:
   a single documented rule in `inc/ow_port.h` picks the IC4F configuration

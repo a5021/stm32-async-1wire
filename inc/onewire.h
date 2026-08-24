@@ -50,9 +50,8 @@
  *  swept (fCK_INT N=2/4/8 and fDTS/4 N=8). The short-pulse path was tuned on
  *  F103@8MHz bench wiring whose slower rise is not reproduced by other
  *  boards; re-validate per board before reintroducing anything similar.
- *  @note Hardware-validated at 5µs on STM32F030@48MHz/@8MHz and
- *        STM32F103@72MHz/@8MHz; the remaining ≤16MHz combinations (e.g.
- *        STM32G031@16MHz) stay extrapolated until benched. */
+ *  @note Hardware-validated at 5µs on every supported clock:
+ *        STM32F030@48/8MHz, STM32F103@72/8MHz and STM32G031@64/16MHz. */
 #define ONEWIRE_ONE_PULSE 5
 /** @brief Duration of a '0' bit write pulse in microseconds */
 #define ONEWIRE_ZERO_PULSE 60
