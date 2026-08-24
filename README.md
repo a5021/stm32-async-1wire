@@ -218,6 +218,19 @@ again carried 8 × DS18B20; all rounds complete with valid CRCs and no errors:
 | `demo3` — same | HSI 8MHz | all 8 devices found, 56 readings, 0 errors |
 | `demo4` — command transactions validator | both clocks | all checks pass (power supply, TH/TL write, Copy/Recall EEPROM round-trip, expected multi-device Read ROM CRC failure) |
 
+### STM32G031F6P6 (WeAct TSSOP20 board)
+
+Validated on a WeAct STM32G031F6P6 minimum board: 6 × DS18B20 in parasite
+power mode on one 1-Wire bus (logical PA10 on the physical PA12 pad), USART1
+TX on logical PA9 (physical PA11), flashed via ST-Link SWD. `demo3`
+(simultaneous conversion scan) runs with every device reported each round,
+valid CRCs and zero errors at both supported clocks — the default 64MHz
+(HSI16+PLL) and the raw-HSI16 `SYSCLK_MHZ=16` build, which exercises the
+slow-clock timing path natively. The bus pads are reachable only through the
+SYSCFG remap described in Hardware Connections below; the USB-C connector of
+this board is wired to PA11/PA12 and must stay unplugged while the driver
+owns the bus.
+
 ## Hardware Connections
 
 ### STM32F103 (Blue Pill)
@@ -259,7 +272,8 @@ Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V.
 
 ### STM32G031F6P6 (TSSOP20)
 
-The STM32G0 backend was validated by host tests and cross-compilation; hardware bring-up is pending. Pin notes for the TSSOP20 package:
+The STM32G0 backend is hardware-validated (see Hardware Verified above); the
+notes below cover the TSSOP20 package wiring:
 
 | Pin | Function | Notes |
 |-----|----------|-------|
