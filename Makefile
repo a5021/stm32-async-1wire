@@ -58,12 +58,12 @@ UART_TX_SIZE_demo4 = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
-# make SYSCLK_MHZ=16  →  -DOWN_PORT_SYSCLK_MHZ=16
+# make SYSCLK_MHZ=16  →  -DOW_PORT_SYSCLK_MHZ=16
 # (run on the raw internal RC instead of the family default:
 #  STM32F103 = 72MHz HSE+PLL x9, STM32F030 = 48MHz HSI/2+PLL x12,
 #  STM32G031 = 64MHz HSI16+PLL; e.g. SYSCLK_MHZ=16 for the raw 16MHz HSI16)
 ifdef SYSCLK_MHZ
-DEF += -DOWN_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
+DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
 
 # Optimization flags for the compiler:
