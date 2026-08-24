@@ -39,19 +39,21 @@
 #endif
 #endif
 /** @brief Duration of a '1' bit write/read pulse in microseconds.
- *  At full speed 5µs keeps captures well inside the '1' window. On slow
- *  clocks (≤16MHz) the whole capture chain slows down (measured at 8MHz:
- *  RC rise + input filter + timer output/capture sync ≈ 6.5µs vs ≈3µs),
- *  so a 5µs pulse lands at 11-12µs — past ONEWIRE_SHORT_PULSE_MAX. A 2µs
- *  pulse brings captures back to ~8-9µs. DS18B20 requires only ≥1µs and
- *  samples the slot at ≥15µs after its start, so this stays spec-safe.
- *  @note The ≤16MHz threshold is hardware-validated at 8MHz only; values
- *        in between are a conservative extrapolation. */
-#if (OW_PORT_SYSCLK_MHZ) <= 16
-#define ONEWIRE_ONE_PULSE 2
-#else
+ *  A single universal value for every clock: DS18B20 requires only ≥1µs and
+ *  samples the slot at ≥15µs after its start, and the read-slot capture
+ *  latency (bus RC rise + input filter + timer sync) stays far below the
+ *  ONEWIRE_SHORT_PULSE_MAX window on all supported clocks. Releases v1.6.0's
+ *  ≤16MHz compensation (2µs pulse): hardware on STM32F030@8MHz showed that a
+ *  2µs master pulse breaks the sensor's slot decoding outright — every
+ *  capture stretches past the threshold regardless of the answer — while a
+ *  plain 5µs pulse measures ~9µs there with every input-filter variant
+ *  swept (fCK_INT N=2/4/8 and fDTS/4 N=8). The short-pulse path was tuned on
+ *  F103@8MHz bench wiring whose slower rise is not reproduced by other
+ *  boards; re-validate per board before reintroducing anything similar.
+ *  @note Hardware-validated at 5µs on STM32F030@48MHz/@8MHz and
+ *        STM32F103@72MHz/@8MHz; the remaining ≤16MHz combinations (e.g.
+ *        STM32G031@16MHz) stay extrapolated until benched. */
 #define ONEWIRE_ONE_PULSE 5
-#endif
 /** @brief Duration of a '0' bit write pulse in microseconds */
 #define ONEWIRE_ZERO_PULSE 60
 /** @brief Guard band between slots in microseconds (bus rise time + DMA latency) */
