@@ -36,6 +36,30 @@
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
+/* onewire.h supplies the clock-derived timing constants referenced below
+ * (OW_PORT_SYSCLK_MHZ and the bit-slot durations); including it here keeps
+ * this header self-contained regardless of TU include order. */
+#include "onewire.h"
+
+/* --- CH4 input-capture digital filter (IC4F), one standard for every clock.
+ *     Keep the filter time T_f = N × T_sample as close to ~500ns as the
+ *     discrete IC4F table allows for the configured clock: that rejects
+ *     sub-µs bus glitches while adding well under 1µs to read-slot captures
+ *     — negligible against the ONEWIRE_SHORT_PULSE_MAX decode window (an
+ *     IC4F sweep on STM32F030@8MHz decoded cleanly from fCK_INT N=2 all the
+ *     way to fDTS/4 N=8):
+ *       ≤ 8MHz   fCK_INT, N=4    T_f ≈ 500ns @ 8MHz
+ *       ≤16MHz   fCK_INT, N=8    T_f ≈ 500ns @ 16MHz
+ *       >16MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz
+ *     Backends feed the macro into TIM_CCMR2(...) unchanged. --- */
+#if (OW_PORT_SYSCLK_MHZ) <= 8
+#define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 16
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* fCK_INT, N=8 */
+#else
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 */
+#endif
+
 /* --- Backend selection --- */
 #if defined(OW_PORT_TARGET_F1)
 #include "ow_port_f1.h"

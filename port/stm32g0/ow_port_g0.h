@@ -49,18 +49,6 @@
  *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h. */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 
-/* @brief CH4 input capture filter (IC4F), chosen to keep the filter latency
- *       clock-independent in µs. At 64MHz fDTS/4 with N=8 samples adds
- *       ~0.5µs; on a slow clock (≤16MHz) fDTS would sample at ~2MHz and add
- *       ~4µs, pushing '1' slot captures past ONEWIRE_SHORT_PULSE_MAX. On
- *       slow clocks use fCK_INT with N=4 (~0.5µs latency) so captures stay
- *       in the '1' window. Mirrors ow_port_f0.h. */
-#if (OW_PORT_SYSCLK_MHZ) <= 16
-#define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 -> ~0.5µs on slow clocks */
-#else
-#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 -> ~0.5µs @64MHz */
-#endif
-
 /* @brief DMA channel assignment: channel 3 carries the CC2 slot-end marker
  *       request (feeds CCR3), channel 4 carries the CC4 capture request
  *       (drains CCR4). DMAMUX channel x is hard-wired to DMA1 channel x+1,
