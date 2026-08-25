@@ -23,8 +23,8 @@
 #ifndef OW_PORT_F1_H
 #define OW_PORT_F1_H
 
-#include "onewire.h"
 #include "macro.h"
+#include "onewire.h"
 #include "stm32f1xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
@@ -279,21 +279,21 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
 /**
  * @brief Engage or release the parasite-power strong pull-up on the bus
  * @param[in] on 1 drives the bus line HIGH actively, 0 releases it again
- * @note Engaged: PA10 leaves the timer-driven open-drain configuration and
- *       becomes a general purpose push-pull output driving HIGH, sourcing the
- *       current parasite devices need during temperature conversion and
- *       EEPROM programming windows. Released: alternate-function open-drain
- *       is restored, handing the pin back to TIM1_CH3 (which idles with the
- *       output released, so the external pull-up takes over). The BSRR write
- *       happens before the mode switch so the push-pull stage never actively
- *       drives LOW - engaging can only pull the line up.
+ * @note The pin stays in alternate-function mode (TIM1_CH3) at all times.
+ *       Engaged: CNF10 toggles from 11 (AF open-drain) to 10 (AF push-pull)
+ *       so the AF output stage drives the line HIGH actively, sourcing the
+ *       current parasite devices need during temperature conversion and EEPROM
+ *       programming windows.  Released: CNF10 restores 11, the AF output
+ *       goes inactive (PWM mode 2, counter zero, CCR3 = ONE_PULSE) so the
+ *       pin floats HIGH via the external pull-up.  No BSRR or MODE10 writes
+ *       needed: the timer is stopped (OPM) during the window, the output is
+ *       inactive, and ODR is irrelevant in AF mode.
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
     if (on) {
-        PA.BSRR = GPIO_BSRR(BS10); /* Output data HIGH before switching mode */
-        PA.CRH &= ~GPIO_CRH(CNF10_0, CNF10_1); /* CNF10=00: general purpose PP */
+        PA.CRH &= ~GPIO_CRH(CNF10_0); /* CNF=11->10: AF OD -> AF PP */
     } else {
-        PA.CRH |= GPIO_CRH(CNF10_0, CNF10_1); /* CNF10=11: AF open-drain */
+        PA.CRH |= GPIO_CRH(CNF10_0); /* CNF=10->11: AF PP -> AF OD */
     }
 }
 
