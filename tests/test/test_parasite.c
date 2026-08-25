@@ -42,12 +42,16 @@ static uint8_t pu_idle_af_od(void) {
            (mock_gpioa.OTYPER & GPIO_OTYPER_OT10);
 }
 
-/* PA10 as generic push-pull output driven HIGH. */
+/* PA10 in AF mode with push-pull output type (strong pull-up engaged). */
 static uint8_t pu_engaged(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
-           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT10) &&
-           (mock_gpioa.BSRR & GPIO_BSRR_BS10);
+    return (mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
+           !(mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
+           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT10);
+}
+
+static void pu_assert_af_mode(void) {
+    TEST_ASSERT_TRUE(mock_gpioa.MODER & GPIO_MODER_MODE10_1);
+    TEST_ASSERT_FALSE(mock_gpioa.MODER & GPIO_MODER_MODE10_0);
 }
 
 #elif defined(OW_PORT_TARGET_F0)
@@ -59,12 +63,16 @@ static uint8_t pu_idle_af_od(void) {
            (mock_gpioa.OTYPER & GPIO_OTYPER_OT_10);
 }
 
-/* PA10 as generic push-pull output driven HIGH. */
+/* PA10 in AF mode with push-pull output type (strong pull-up engaged). */
 static uint8_t pu_engaged(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODER10_0) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODER10_1) &&
-           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT_10) &&
-           (mock_gpioa.BSRR & GPIO_BSRR_BS_10);
+    return (mock_gpioa.MODER & GPIO_MODER_MODER10_1) &&
+           !(mock_gpioa.MODER & GPIO_MODER_MODER10_0) &&
+           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT_10);
+}
+
+static void pu_assert_af_mode(void) {
+    TEST_ASSERT_TRUE(mock_gpioa.MODER & GPIO_MODER_MODER10_1);
+    TEST_ASSERT_FALSE(mock_gpioa.MODER & GPIO_MODER_MODER10_0);
 }
 
 #else /* OW_PORT_TARGET_F1 */
@@ -74,48 +82,50 @@ static uint8_t pu_idle_af_od(void) {
            (GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1);
 }
 
+/* PA10 in AF push-pull mode (CNF=10: AF PP, strong pull-up engaged). */
 static uint8_t pu_engaged(void) {
-    return !(mock_gpioa.CRH & (GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1)) &&
-           (mock_gpioa.CRH & GPIO_CRH_MODE10_1) &&
-           (mock_gpioa.BSRR & GPIO_BSRR_BS10);
+    return !(mock_gpioa.CRH & GPIO_CRH_CNF10_0) &&
+           (mock_gpioa.CRH & GPIO_CRH_CNF10_1) &&
+           (mock_gpioa.CRH & GPIO_CRH_MODE10_1);
+}
+
+static void pu_assert_af_mode(void) {
+    TEST_ASSERT_TRUE(mock_gpioa.CRH & GPIO_CRH_MODE10_1);
 }
 
 #endif
 
 /* Snapshot / compare of every bus-pin configuration register the
  * strong pull-up touches; used for the "flag off -> registers stay
- * bit-identical" regressions. */
+ * bit-identical" regressions.  MODER is not included for F0/G0 because
+ * the OTYPER-only approach never touches it. */
 #if defined(OW_PORT_TARGET_G0)
 
 typedef struct {
-    uint32_t moder;
     uint32_t otyper;
 } pu_regs_t;
 
 static pu_regs_t pu_snapshot(void) {
-    pu_regs_t r = {mock_gpioa.MODER, mock_gpioa.OTYPER};
+    pu_regs_t r = {mock_gpioa.OTYPER};
     return r;
 }
 
 static void pu_assert_unchanged(pu_regs_t before) {
-    TEST_ASSERT_EQUAL_UINT32(before.moder, mock_gpioa.MODER);
     TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
 }
 
 #elif defined(OW_PORT_TARGET_F0)
 
 typedef struct {
-    uint32_t moder;
     uint32_t otyper;
 } pu_regs_t;
 
 static pu_regs_t pu_snapshot(void) {
-    pu_regs_t r = {mock_gpioa.MODER, mock_gpioa.OTYPER};
+    pu_regs_t r = {mock_gpioa.OTYPER};
     return r;
 }
 
 static void pu_assert_unchanged(pu_regs_t before) {
-    TEST_ASSERT_EQUAL_UINT32(before.moder, mock_gpioa.MODER);
     TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
 }
 
@@ -259,6 +269,7 @@ void test_parasite_default_off_cycle_leaves_gpio_alone(void) {
     /* Values must be bit-identical after the whole cycle (the
      * unconditional release writes are idempotent ORs/restores). */
     pu_assert_unchanged(regs);
+    pu_assert_af_mode();
 
     /* Measurement itself is unaffected by the feature being off */
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -280,6 +291,7 @@ void test_parasite_default_off_txn_leaves_gpio_alone(void) {
     TEST_ASSERT_TRUE(finished);
     TEST_ASSERT_FALSE(pu_engaged());
     pu_assert_unchanged(regs);
+    pu_assert_af_mode();
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_ok());
 }
 

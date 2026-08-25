@@ -320,25 +320,22 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
 /**
  * @brief Engage or release the parasite-power strong pull-up on the bus
  * @param[in] on 1 drives the bus line HIGH actively, 0 releases it again
- * @note Engaged: logical PA10 leaves the timer-driven alternate-function mode
- *       and becomes a general purpose push-pull output driving HIGH,
- *       sourcing the current parasite devices need during temperature
- *       conversion and EEPROM programming windows. Released: alternate
- *       function open-drain is restored, handing the pin back to TIM1_CH3
- *       (which idles with the output released, so the external pull-up takes
- *       over). The BSRR write happens before the mode switch so the push-pull
- *       stage never actively drives LOW - engaging can only pull the line up;
- *       releasing restores open-drain before leaving output mode for the same
- *       reason. Register names follow the G0 CMSIS spelling (MODE10/OT10).
+ * @note The pin stays in alternate-function mode (TIM1_CH3) at all times.
+ *       Engaged: OTYPER switches to push-pull so the AF output stage drives
+ *       the line HIGH actively, sourcing the current parasite devices need
+ *       during temperature conversion and EEPROM programming windows.
+ *       Released: OTYPER restores open-drain, the AF output goes inactive
+ *       (PWM mode 2, counter zero, CCR3 = ONE_PULSE) so the pin floats
+ *       HIGH via the external pull-up.  No BSRR or MODER writes needed:
+ *       the timer is stopped (OPM) during the window, the output is
+ *       inactive, and ODR is irrelevant in AF mode.  Register names follow
+ *       the G0 CMSIS spelling (MODE10/OT10).
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
     if (on) {
-        PA.BSRR = GPIO_BSRR_BS10; /* Output data HIGH before switching mode */
-        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_0; /* AF -> output */
-        PA.OTYPER &= ~GPIO_OTYPER_OT10; /* Open-drain -> push-pull */
+        PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */
     } else {
-        PA.OTYPER |= GPIO_OTYPER_OT10; /* Push-pull -> open-drain (line released) */
-        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1; /* Output -> AF */
+        PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */
     }
 }
 
