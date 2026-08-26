@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-25 16:58:00</td>
+            <td class="headerValue">2026-08-26 04:45:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.2&nbsp;%</td>
@@ -1221,20 +1221,20 @@
 <span id="L1146"><span class="lineNum">    1146</span>                 :             :  *       driver idle so the measurement state machine owns the timer until the</span>
 <span id="L1147"><span class="lineNum">    1147</span>                 :             :  *       application starts a device search.</span>
 <span id="L1148"><span class="lineNum">    1148</span>                 :             :  */</span>
-<span id="L1149"><span class="lineNum">    1149</span>                 :<span class="tlaGNC">         185 : void ds18b20_init(void) {</span></span>
-<span id="L1150"><span class="lineNum">    1150</span>                 :<span class="tlaGNC">         185 :     onewire_init();</span></span>
+<span id="L1149"><span class="lineNum">    1149</span>                 :<span class="tlaGNC">         188 : void ds18b20_init(void) {</span></span>
+<span id="L1150"><span class="lineNum">    1150</span>                 :<span class="tlaGNC">         188 :     onewire_init();</span></span>
 <span id="L1151"><span class="lineNum">    1151</span>                 :             :     // No resolution change or command transaction running after init; the</span>
 <span id="L1152"><span class="lineNum">    1152</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
 <span id="L1153"><span class="lineNum">    1153</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
-<span id="L1154"><span class="lineNum">    1154</span>                 :<span class="tlaGNC">         185 :     res_ctx.finished = 1;</span></span>
-<span id="L1155"><span class="lineNum">    1155</span>                 :<span class="tlaGNC">         185 :     txn_ctx.finished = 1;</span></span>
-<span id="L1156"><span class="lineNum">    1156</span>                 :<span class="tlaGNC">         185 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
-<span id="L1157"><span class="lineNum">    1157</span>                 :<span class="tlaGNC">         185 :     ctx.scan_mode = 0;</span></span>
-<span id="L1158"><span class="lineNum">    1158</span>                 :<span class="tlaGNC">         185 :     ctx.scan_index = 0;</span></span>
+<span id="L1154"><span class="lineNum">    1154</span>                 :<span class="tlaGNC">         188 :     res_ctx.finished = 1;</span></span>
+<span id="L1155"><span class="lineNum">    1155</span>                 :<span class="tlaGNC">         188 :     txn_ctx.finished = 1;</span></span>
+<span id="L1156"><span class="lineNum">    1156</span>                 :<span class="tlaGNC">         188 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
+<span id="L1157"><span class="lineNum">    1157</span>                 :<span class="tlaGNC">         188 :     ctx.scan_mode = 0;</span></span>
+<span id="L1158"><span class="lineNum">    1158</span>                 :<span class="tlaGNC">         188 :     ctx.scan_index = 0;</span></span>
 <span id="L1159"><span class="lineNum">    1159</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
 <span id="L1160"><span class="lineNum">    1160</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite().</span>
-<span id="L1161"><span class="lineNum">    1161</span>                 :<span class="tlaGNC">         185 :     ctx.parasite = 0;</span></span>
-<span id="L1162"><span class="lineNum">    1162</span>                 :<span class="tlaGNC">         185 : }</span></span>
+<span id="L1161"><span class="lineNum">    1161</span>                 :<span class="tlaGNC">         188 :     ctx.parasite = 0;</span></span>
+<span id="L1162"><span class="lineNum">    1162</span>                 :<span class="tlaGNC">         188 : }</span></span>
 <span id="L1163"><span class="lineNum">    1163</span>                 :             : </span>
 <span id="L1164"><span class="lineNum">    1164</span>                 :             : /**</span>
 <span id="L1165"><span class="lineNum">    1165</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
