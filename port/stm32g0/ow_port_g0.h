@@ -46,8 +46,19 @@
 #include "stm32g0xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
- *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h. */
+ *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
+ *
+ *  INVARIANT: TIM1 clock must equal SYSCLK — the APB prescaler feeding
+ *  TIM1 must be /1.  STM32 rule: if APB prescaler != 1, TIM clock
+ *  doubles to 2 × PCLK, breaking every µs-based timing constant.
+ *
+ *  G0: single APB bus.  configure_system_clock() does NOT set PPRE
+ *  (resets to /1), so TIM1 clock = APB = SYSCLK = 64MHz.  ✓
+ *
+ *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
+_Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
+    "TIM prescaler exceeds 16-bit PSC register width");
 
 /* @brief DMA channel assignment: channel 3 carries the CC2 slot-end marker
  *       request (feeds CCR3), channel 4 carries the CC4 capture request
