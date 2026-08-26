@@ -78,6 +78,7 @@ extern RCC_TypeDef mock_rcc;
 #define RCC_APB2ENR_IOPAEN 0x00000004u
 #define RCC_APB2ENR_TIM1EN 0x00000800u
 #define RCC_AHBENR_DMA1EN 0x00000001u
+#define RCC_CFGR_PPRE2_Msk (0x7UL << 11) /* APB2 prescaler field [13:11] */
 #define GPIO_CRH_CNF10_0 0x00000400u
 #define GPIO_CRH_CNF10_1 0x00000800u
 #define GPIO_CRH_MODE10_1 0x00000200u

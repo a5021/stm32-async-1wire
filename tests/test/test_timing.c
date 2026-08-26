@@ -10,6 +10,7 @@
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
 #include "mock_target.h"
+#include "onewire.h"
 #include "unity.h"
 
 void test_timing_reset_programs_timeout_and_pulse(void) {
@@ -74,6 +75,38 @@ void test_timing_temperature_formula(void) {
     TEST_ASSERT_EQUAL_INT(0, (int)(((int32_t)0x0000 * 10 + 8) / 16));
 }
 
+/*-------------------------------------------------------------
+ *  Test: APB prescaler for TIM1 bus must be /1.
+ *
+ *  STM32 rule: if APB prescaler != 1, TIM clock = 2 × PCLK.
+ *  This doubles the tick rate and breaks every µs-based timing
+ *  constant (slots, reset pulse, conversion wait).
+ *
+ *  configure_system_clock() must NOT divide the APB bus feeding
+ *  TIM1.  This test catches the mistake at the register level.
+ *
+ *  F0: TIM1 on APB2, PPRE defaults /1.  ✓
+ *  F1: TIM1 on APB2, PPRE2 stays /1 (PPRE1=/2 is OK — different bus).  ✓
+ *  G0: single APB bus, PPRE defaults /1.  ✓
+ * -----------------------------------------------------------*/
+void test_apb_prescaler_div1_for_tim1(void) {
+    hw_reset_all();
+    ds18b20_init();
+    /* PSC must equal SYSCLK_MHZ - 1 (1µs tick at full SYSCLK) */
+    TEST_ASSERT_EQUAL_UINT16(OW_PORT_SYSCLK_MHZ - 1, (uint16_t)mock_tim1.PSC);
+
+#if defined(OW_PORT_TARGET_F1)
+    /* F1: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+#elif defined(OW_PORT_TARGET_F0)
+    /* F0: single APB bus — PPRE must be /1 (field = 0) */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
+#elif defined(OW_PORT_TARGET_G0)
+    /* G0: single APB bus — PPRE must be /1 (field = 0) */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
+#endif
+}
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -81,4 +114,5 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_wait_conversion_750ms);
     TEST_RUN(test_timing_start_cycle_pause_5s);
     TEST_RUN(test_timing_temperature_formula);
+    TEST_RUN(test_apb_prescaler_div1_for_tim1);
 }
