@@ -5,6 +5,7 @@
  */
 
 #include "ow_stats.h"
+#include "ds18b20.h"
 
 #ifdef OW_STATS_ENABLE
 
@@ -134,10 +135,19 @@ void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,
 }
 
 void ow_stats_count_error(int16_t error, const uint8_t* rom) {
-    (void)error;
     uint8_t si = sensor_find_or_alloc(rom);
     if (si < OW_STATS_MAX_SENSORS) {
-        st.sensors[si].generic_err++;
+        switch (error) {
+        case DS18B20_TEMP_ERROR_CRC_FAIL:
+            st.sensors[si].crc_err++;
+            break;
+        case DS18B20_TEMP_ERROR_NO_SENSOR:
+            st.sensors[si].no_presence++;
+            break;
+        default:
+            st.sensors[si].generic_err++;
+            break;
+        }
     }
     st.total_errors++;
 }

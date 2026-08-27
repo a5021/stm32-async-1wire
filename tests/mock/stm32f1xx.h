@@ -59,6 +59,15 @@ typedef struct {
     volatile uint32_t CSR;
 } RCC_TypeDef;
 
+typedef struct {
+    volatile uint32_t SR;
+    volatile uint32_t DR;
+    volatile uint32_t BRR;
+    volatile uint32_t CR1;
+    volatile uint32_t CR2;
+    volatile uint32_t CR3;
+} USART_TypeDef;
+
 /* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work.
  * STM32F103 fixed request map (verified on target): feed rides TIM1_CC2 ->
  * channel 3, capture rides TIM1_CH4 -> channel 4. The storage objects keep
@@ -68,11 +77,13 @@ extern DMA1_Channel_TypeDef mock_dma1_ch3;
 extern DMA1_Channel_TypeDef mock_feed_ch;
 extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
+extern USART_TypeDef mock_usart1;
 #define TIM1 (&mock_tim1)
 #define DMA1_Channel3 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
 #define DMA1_Channel4 (&mock_dma1_ch3) /* CC4 capture -> drains CCR4 */
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
+#define USART1 (&mock_usart1)
 
 /* --- Bit-field constants used by the driver --- */
 #define RCC_APB2ENR_IOPAEN 0x00000004u
@@ -106,6 +117,7 @@ extern RCC_TypeDef mock_rcc;
 #define DMA_CCR_PSIZE_0 0x00000100u
 #define DMA_CCR_MSIZE_0 0x00000400u
 #define DMA_CCR_MSIZE_1 0x00000800u
+#define USART_SR_TXE 0x00000080u
 
 /* --- Compiler helpers the driver expects from CMSIS --- */
 #ifndef __STATIC_FORCEINLINE
