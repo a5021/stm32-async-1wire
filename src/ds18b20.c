@@ -664,6 +664,11 @@ uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
  */
 static void scan_finish_or_next(void) {
     if (!ctx.scan_mode) {
+        // Parasite power: hold the strong pull-up during the inter-round pause
+        // so the device capacitors stay charged for the next measurement cycle.
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
         start_cycle_pause();
         return;
     }
@@ -677,6 +682,10 @@ static void scan_finish_or_next(void) {
         onewire_start_timer(SCAN_DEVICE_GAP);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
+        // Parasite power: keep the strong pull-up engaged across the pause.
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
         start_cycle_pause();
     }
 }
@@ -1241,6 +1250,10 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
         // exit skips the DECODE state where busy(0) is normally cleared.
         ds18b20_busy(0);
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+        // Parasite power: hold the strong pull-up during the retry pause.
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
         start_cycle_pause();
         return;
     }
@@ -1283,6 +1296,11 @@ void ds18b20_poll(void) {
     case DS18B20_ST_START:
         // Turn on LED to indicate measurement in progress
         ds18b20_busy(1);
+        // Parasite power: release the strong pull-up so the reset pulse can
+        // drive the line LOW; it is re-engaged for the conversion window.
+        if (ctx.parasite) {
+            onewire_strong_pullup(0);
+        }
         // Initiate 1-Wire bus reset sequence
         onewire_reset(ctx.edge);
         // Transition to CONVERT state
@@ -1295,6 +1313,13 @@ void ds18b20_poll(void) {
             // converting in parallel; a single conversion wait covers them all.
             ctx.scan_index = 0; // new round: read back starting from device 0
             ctx.address_mode = 0;
+        }
+        // Parasite power: the Convert T command is master-only (the slave does
+        // not pull the line LOW during it), so keep the strong pull-up engaged
+        // while the command is transmitted. This feeds the slave through the
+        // command phase; the conversion window below re-asserts it anyway.
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
         }
         issue_command(DS18B20_CONVERT_T, conv_cmd, DS18B20_ST_WAIT);
         break;
