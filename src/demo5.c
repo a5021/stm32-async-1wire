@@ -136,6 +136,6 @@ int main(void) {
         } else {
             ds18b20_poll();
         }
-        if (!dump_busy) uart_poll_tx();
+        uart_poll_tx();
     }
 }

@@ -13,8 +13,8 @@
 #endif
 
 // ======== USART1 TX ring buffer ========
-static uint8_t uart_tx_head = 0; // write index - points to next free slot
-static uint8_t uart_tx_tail = 0; // read index - points to oldest data
+static uint32_t uart_tx_head = 0; // write index - points to next free slot
+static uint32_t uart_tx_tail = 0; // read index - points to oldest data
 static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transmission
 
 /**
@@ -26,7 +26,7 @@ void uart_poll_tx(void) {
     // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
-        uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
+        uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
         USART1->TDR = b;
     }
 #elif defined(OW_PORT_TARGET_F0)
@@ -35,7 +35,7 @@ void uart_poll_tx(void) {
         // Get byte from buffer at tail position
         uint8_t b = uart_tx_buf[uart_tx_tail];
         // Advance tail pointer with wrap-around
-        uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
+        uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
         // Write byte to UART data register for transmission
         USART1->TDR = b;
     }
@@ -45,7 +45,7 @@ void uart_poll_tx(void) {
         // Get byte from buffer at tail position
         uint8_t b = uart_tx_buf[uart_tx_tail];
         // Advance tail pointer with wrap-around
-        uart_tx_tail = (uint8_t)((uart_tx_tail + 1u) & UART_TX_IDX_MASK);
+        uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
         // Write byte to UART data register for transmission
         USART1->DR = b;
     }
@@ -70,12 +70,12 @@ void uart_flush(void) {
  * @note Never blocks: when the buffer is full the byte is dropped so the
  *       caller's code path stays non-blocking.
  */
-uint8_t uart_tx_enqueue_byte(uint8_t b) {
-    uint8_t head = uart_tx_head;
+int uart_tx_enqueue_byte(int b) {
+    uint32_t head = uart_tx_head;
     // Calculate next head position with wrap-around using power-of-two mask
-    uint8_t next = (uint8_t)((head + 1u) & UART_TX_IDX_MASK);
+    uint32_t next = (head + 1u) & UART_TX_IDX_MASK;
     if (next != uart_tx_tail) { // Room is available
-        uart_tx_buf[head] = b; // Store byte at current head position
+        uart_tx_buf[head] = (uint8_t)b; // Store byte at current head position
         uart_tx_head = next; // Update head pointer
         return 1;
     }
@@ -90,7 +90,7 @@ uint8_t uart_tx_enqueue_byte(uint8_t b) {
 int uart_write_str(const char* s) {
     const char* start = s;
     while (*s) {
-        if (uart_tx_enqueue_byte((uint8_t)*s)) {
+        if (uart_tx_enqueue_byte(*s)) {
             s++;
         } else {
             break; // Buffer full - stop to stay non-blocking
@@ -140,9 +140,16 @@ int uart_write_int(int value) {
  */
 int uart_write_hex(uint8_t b) {
     static const char hex[] = "0123456789ABCDEF";
-    return (int)uart_tx_enqueue_byte((uint8_t)hex[(b >> 4) & 0x0F]) +
-           (int)uart_tx_enqueue_byte((uint8_t)hex[b & 0x0F]);
+    int n = 0;
+    n += uart_tx_enqueue_byte(hex[(b >> 4) & 0x0F]);
+    n += uart_tx_enqueue_byte(hex[b & 0x0F]);
+    return n;
 }
+
+#if !defined(DS18B20_TEST_HARNESS)
+/* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register
+ *-level access.  Excluded from the host test build, which only exercises the
+ * non-blocking UART ring buffer above. */
 
 /**
  * @brief Configure system clock
@@ -330,3 +337,4 @@ void ds18b20_busy(unsigned action) {
     }
 #endif
 }
+#endif /* !DS18B20_TEST_HARNESS */

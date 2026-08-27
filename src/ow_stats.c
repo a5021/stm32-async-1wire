@@ -25,56 +25,8 @@
 static ow_stats_t st;
 
 /** Non-blocking dump state. */
-static uint8_t dump_phase; /**< 0 = idle, 1+ = active */
-static uint8_t dump_sensor; /**< current sensor index */
-static uint8_t dump_subpos; /**< sub-position within current section */
-
-/* ---- UART helpers (blocking, paced to baud rate) ---- */
-
-static void ow_tx_char(char c) {
-#if defined(OW_PORT_TARGET_G0)
-    while (!(USART1->ISR & USART_ISR_TXE_TXFNF)) {
-    }
-    USART1->TDR = (uint8_t)c;
-#elif defined(OW_PORT_TARGET_F0)
-    while (!(USART1->ISR & USART_ISR_TXE)) {
-    }
-    USART1->TDR = (uint8_t)c;
-#else
-    while (!(USART1->SR & USART_SR_TXE)) {
-    }
-    USART1->DR = (uint8_t)c;
-#endif
-}
-
-static void ow_tx_str(const char* s) {
-    while (*s)
-        ow_tx_char(*s++);
-}
-
-static void ow_tx_hex(uint8_t b) {
-    static const char hex[] = "0123456789ABCDEF";
-    ow_tx_char(hex[(b >> 4) & 0x0F]);
-    ow_tx_char(hex[b & 0x0F]);
-}
-
-static void ow_tx_int(int value) {
-    char buf[12];
-    char* p = buf + sizeof(buf) - 1;
-    *p = '\0';
-    if (value == 0) {
-        *(--p) = '0';
-    } else {
-        unsigned int uv = (value < 0) ? (unsigned int)(-(value + 1)) + 1
-                                      : (unsigned int)value;
-        do {
-            *(--p) = '0' + (uv % 10);
-            uv /= 10;
-        } while (uv);
-        if (value < 0) *(--p) = '-';
-    }
-    ow_tx_str(p);
-}
+static uint32_t dump_phase; /**< 0 = idle, 1+ = active */
+static uint32_t dump_sensor; /**< current sensor index */
 
 /* ---- histogram helpers ---- */
 
@@ -155,20 +107,21 @@ void ow_stats_count_error(int16_t error, const uint8_t* rom) {
 void ow_stats_dump_start(void) {
     dump_phase = 1;
     dump_sensor = 0;
-    dump_subpos = 0;
 }
 
 uint8_t ow_stats_dump_poll(void) {
     if (dump_phase == 0) return 1;
 
-    /* Each poll call outputs one section.  The ow_tx_* helpers block on TXE,
-     * so the output is paced to the UART baud rate (~87 µs/byte at 115200).
-     * For 6 sensors the whole dump takes ~30 ms — acceptable. */
+    /* Each poll call enqueues one section into the non-blocking UART TX ring
+     * buffer.  The main loop drains the buffer via uart_poll_tx(), so nothing
+     * here blocks on the USART.  UART_TX_BUF_SIZE is sized to hold a whole
+     * dump (~440 bytes worst case vs a 1024-byte ring), so the enqueue never
+     * overflows and no bytes are dropped. */
     switch (dump_phase) {
     case 1:
-        ow_tx_str("--- stats [");
-        ow_tx_int(st.total_cycles);
-        ow_tx_str(" c] ---\r\n");
+        uart_write_str("--- stats [");
+        uart_write_int(st.total_cycles);
+        uart_write_str(" c] ---\r\n");
         dump_phase = 2;
         dump_sensor = 0;
         break;
@@ -176,21 +129,21 @@ uint8_t ow_stats_dump_poll(void) {
     case 2:
         if (dump_sensor < st.sensor_count) {
             const ow_stats_sensor_t* s = &st.sensors[dump_sensor];
-            for (uint8_t j = 0; j < 8; j++) {
-                ow_tx_hex(s->rom[j]);
-                if (j != 7) ow_tx_char(' ');
+            for (uint32_t j = 0; j < 8; j++) {
+                uart_write_hex(s->rom[j]);
+                if (j != 7) uart_tx_enqueue_byte(' ');
             }
-            ow_tx_char(':');
-            ow_tx_int(s->min_pulse);
-            ow_tx_char('-');
-            ow_tx_int(s->max_pulse);
-            ow_tx_char(' ');
-            ow_tx_char('n');
-            ow_tx_int(s->count);
-            ow_tx_char(' ');
-            ow_tx_char('e');
-            ow_tx_int(s->crc_err + s->no_presence + s->generic_err);
-            ow_tx_str("\r\n");
+            uart_tx_enqueue_byte(':');
+            uart_write_int(s->min_pulse);
+            uart_tx_enqueue_byte('-');
+            uart_write_int(s->max_pulse);
+            uart_tx_enqueue_byte(' ');
+            uart_tx_enqueue_byte('n');
+            uart_write_int(s->count);
+            uart_tx_enqueue_byte(' ');
+            uart_tx_enqueue_byte('e');
+            uart_write_int(s->crc_err + s->no_presence + s->generic_err);
+            uart_write_str("\r\n");
             dump_sensor++;
         } else {
             dump_phase = 3;
@@ -198,25 +151,25 @@ uint8_t ow_stats_dump_poll(void) {
         break;
 
     case 3:
-        ow_tx_str("h:");
-        for (uint8_t i = 0; i < OW_STATS_HIST_BUCKETS; i++) {
+        uart_write_str("h:");
+        for (uint32_t i = 0; i < OW_STATS_HIST_BUCKETS; i++) {
             if (st.histogram[i]) {
-                ow_tx_int(i);
-                ow_tx_char('=');
-                ow_tx_int(st.histogram[i]);
-                ow_tx_char(' ');
+                uart_write_int(i);
+                uart_tx_enqueue_byte('=');
+                uart_write_int(st.histogram[i]);
+                uart_tx_enqueue_byte(' ');
             }
         }
-        ow_tx_str("\r\n");
+        uart_write_str("\r\n");
         dump_phase = 4;
         break;
 
     case 4:
-        ow_tx_str("t=");
-        ow_tx_int(st.total_cycles);
-        ow_tx_str("c ");
-        ow_tx_int(st.total_errors);
-        ow_tx_str("e\r\n");
+        uart_write_str("t=");
+        uart_write_int(st.total_cycles);
+        uart_write_str("c ");
+        uart_write_int(st.total_errors);
+        uart_write_str("e\r\n");
         dump_phase = 0;
         break;
     }
@@ -225,13 +178,13 @@ uint8_t ow_stats_dump_poll(void) {
 }
 
 void ow_stats_reset(void) {
-    uint8_t n = st.sensor_count;
+    uint32_t n = st.sensor_count;
     uint8_t roms[OW_STATS_MAX_SENSORS][8];
-    for (uint8_t i = 0; i < n; i++) {
+    for (uint32_t i = 0; i < n; i++) {
         memcpy(roms[i], st.sensors[i].rom, 8);
     }
     memset(&st, 0, sizeof(st));
-    for (uint8_t i = 0; i < n; i++) {
+    for (uint32_t i = 0; i < n; i++) {
         memcpy(st.sensors[i].rom, roms[i], 8);
         st.sensors[i].min_pulse = 0xFF;
     }

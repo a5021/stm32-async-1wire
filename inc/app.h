@@ -25,13 +25,7 @@
 #endif
 
 #if (UART_TX_BUF_SIZE & (UART_TX_BUF_SIZE - 1u)) != 0
-#error "UART_TX_BUF_SIZE must be a power of two (e.g., 32, 64, 128, 256)."
-#endif
-
-/* Ring indices are uint8_t (see app.c), so the buffer cannot exceed 256 bytes:
- * above that, (index + 1) & mask would overflow the 8-bit head/tail. */
-#if (UART_TX_BUF_SIZE > 256u)
-#error "UART_TX_BUF_SIZE must not exceed 256 (ring buffer indices are uint8_t)."
+#error "UART_TX_BUF_SIZE must be a power of two (e.g., 128, 256, 512, 1024)."
 #endif
 
 /** Mask for ring buffer index wrapping (power of two optimization) */
@@ -64,7 +58,7 @@ void uart_flush(void);
  * @note Never blocks: when the buffer is full the byte is dropped so the
  *       caller's code path stays non-blocking.
  */
-uint8_t uart_tx_enqueue_byte(uint8_t b);
+int uart_tx_enqueue_byte(int b);
 
 /**
  * @brief Enqueue a null-terminated string (non-blocking)

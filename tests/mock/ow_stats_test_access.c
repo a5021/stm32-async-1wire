@@ -26,4 +26,3 @@ uint16_t ow_stats_test_get_total_cycles(void) { return st.total_cycles; }
 uint16_t ow_stats_test_get_total_errors(void) { return st.total_errors; }
 uint8_t ow_stats_test_get_dump_phase(void) { return dump_phase; }
 uint8_t ow_stats_test_get_dump_sensor(void) { return dump_sensor; }
-uint8_t ow_stats_test_get_dump_subpos(void) { return dump_subpos; }

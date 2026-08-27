@@ -57,7 +57,7 @@ UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
-UART_TX_SIZE_demo5 = 256
+UART_TX_SIZE_demo5 = 1024
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
@@ -484,8 +484,8 @@ test-f0:
 test-g0:
 	$(MAKE) OW_TARGET=g0 test
 
-$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) -o $@
+$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) src/app.c -o $@
 
 $(TEST_OUT):
 	mkdir -p $@
