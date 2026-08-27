@@ -27,12 +27,12 @@
 
 /* ======== Device table ======== */
 static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8];
-static uint8_t found_count  = 0;
+static uint8_t found_count = 0;
 static uint8_t select_index = 0;
 static uint8_t search_running = 1;
 
 /* ======== Non-blocking stats dump state ======== */
-static uint8_t dump_busy = 0;  /**< 1 while ow_stats_dump_poll() is running */
+static uint8_t dump_busy = 0; /**< 1 while ow_stats_dump_poll() is running */
 
 /* ======== Search callback ======== */
 static uint8_t device_found_sink(const uint8_t* rom) {
@@ -78,7 +78,7 @@ void ds18b20_complete(int16_t temp) {
         uart_write_str("error");
     } else {
         int whole = temp / 10;
-        int frac  = temp % 10;
+        int frac = temp % 10;
         if (frac < 0) frac = -frac;
         if (whole == 0 && temp < 0) {
             uart_write_str("-0");

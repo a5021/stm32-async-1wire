@@ -1335,8 +1335,7 @@ void ds18b20_poll(void) {
         /* Snapshot pulse widths before decode_scratchpad() overwrites them
          * via the union alias (scratchpad[n] == pulse[n]). */
         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,
-                               ctx.address_mode ? ctx.selected_rom :
-                               (const uint8_t *)0);
+                               ctx.address_mode ? ctx.selected_rom : (const uint8_t*)0);
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete
@@ -1412,7 +1411,7 @@ void ds18b20_poll(void) {
         ctx.current_state = DS18B20_ST_IDLE;
         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,
-                             (const uint8_t *)0);
+                             (const uint8_t*)0);
         break;
     }
 }
