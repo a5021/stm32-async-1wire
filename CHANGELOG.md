@@ -6,6 +6,30 @@ STM32 and the DS18B20 driver built on top of it — are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Optional signal statistics module (`inc/ow_stats.h`, `src/ow_stats.c`):
+  compile-in with `-DOW_STATS_ENABLE` to collect per-sensor pulse-width
+  min/max, a global 13-bucket logarithmic histogram (0–60+ µs) and error
+  counters (CRC, presence, other) across measurement cycles.  The module
+  hooks into `src/ds18b20.c` automatically when enabled: pulse data is
+  captured before `decode_scratchpad()` overwrites the buffer, and errors
+  are counted at the four error-reporting paths.  The dump is fully
+  non-blocking: `ow_stats_dump_start()` initiates it and
+  `ow_stats_dump_poll()` streams one line per call, blocked only on the
+  UART TX register (~87 µs/byte at 115200), so a 6-sensor report completes
+  in ~30 ms without overflowing the 256-byte ring buffer.  RAM cost: ~96
+  bytes.  Zero overhead when `OW_STATS_ENABLE` is not defined (all stubs
+  inline to nothing).
+- Example application `src/demo5.c` (`make APP=demo5`): startup device
+  search + sequential measurement with the `ow_stats` module.  Accumulates
+  statistics over `STATS_DUMP_INTERVAL` cycles (default 100), then streams
+  the full report over UART and resets for the next window.  Validated on
+  STM32G031@64MHz with 6 × DS18B20 in parasite power mode — all sensors
+  detected, 0 errors, pulse widths 5–32 µs.
+
 ## [1.6.1]
 
 ### Fixed

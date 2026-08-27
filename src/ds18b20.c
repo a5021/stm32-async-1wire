@@ -1,6 +1,7 @@
 #include "ds18b20.h"
 #include "onewire.h"
 #include "ow_port.h"
+#include "ow_stats.h"
 
 /**
  * @defgroup DS18B20_Private_Types DS18B20 Private Types
@@ -1331,6 +1332,11 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_DECODE: // Process received data and report temperature
+        /* Snapshot pulse widths before decode_scratchpad() overwrites them
+         * via the union alias (scratchpad[n] == pulse[n]). */
+        ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,
+                               ctx.address_mode ? ctx.selected_rom :
+                               (const uint8_t *)0);
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete
@@ -1358,6 +1364,8 @@ void ds18b20_poll(void) {
             }
             if (all_ones) {
                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+                ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,
+                                     ctx.selected_rom);
                 scan_finish_or_next();
                 break;
             }
@@ -1368,6 +1376,8 @@ void ds18b20_poll(void) {
         // This catches all-zero, all-0xFF, and bus fault conditions.
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
+                                 ctx.selected_rom);
             scan_finish_or_next();
             break;
         }
@@ -1387,6 +1397,8 @@ void ds18b20_poll(void) {
         } else {
             // CRC invalid - report error (resolution kept unchanged)
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
+                                 ctx.selected_rom);
         }
 
         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the
@@ -1399,6 +1411,8 @@ void ds18b20_poll(void) {
         // Unexpected state - report generic error
         ctx.current_state = DS18B20_ST_IDLE;
         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
+        ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,
+                             (const uint8_t *)0);
         break;
     }
 }
