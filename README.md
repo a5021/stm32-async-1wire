@@ -28,6 +28,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
  - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
  - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
+ - Optional Signal Statistics Module (`ow_stats`): compile-in
+   (`-DOW_STATS_ENABLE`) to collect per-sensor pulse-width min/max, a global
+   histogram and error counters across measurement cycles.  The dump is
+   non-blocking: `ow_stats_dump_start()` + `ow_stats_dump_poll()` streams the
+   report over UART at baud-rate pace without overflowing the ring buffer.
+   Zero overhead in production builds (all stubs inline to nothing).
  - Non-Blocking Device Search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
    `ds18b20_search_count()` find every DS18B20 on the bus. The engine is the
    generic Search ROM state machine of the shared 1-Wire layer; the driver
@@ -76,6 +82,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── inc/                    # Project header files
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
+│   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── app.h               # Shared application layer (UART, clock, init)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
 │   └── macro.h             # STM32 register access macros (F1 backend)
@@ -102,6 +109,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── demo3.c             # Example: device search + simultaneous conversion
 │   ├── demo4.c             # Example: device search + command transactions
 │   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
+│   ├── demo5.c             # Example: device search + stats dump every N cycles
+│   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
 │   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
@@ -121,7 +130,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Examples
 
-Four ready-to-run example applications are provided; select one with `APP`:
+Five ready-to-run example applications are provided; select one with `APP`:
 
 | APP     | File             | Behaviour                                                        |
 |---------|------------------|------------------------------------------------------------------|
@@ -129,12 +138,14 @@ Four ready-to-run example applications are provided; select one with `APP`:
 | `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
 | `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
+| `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (default 100, configurable via `STATS_DUMP_INTERVAL`), then streams the full report over UART as a non-blocking dump. Requires `-DOW_STATS_ENABLE`. |
 
 ```bash
 make                # build demo  -> build/ds18b20_demo.elf
 make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
 make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
 make APP=demo4      # build demo4 -> build/ds18b20_demo4.elf
+make APP=demo5 EXT=-DOW_STATS_ENABLE   # build demo5 -> build/ds18b20_demo5.elf
 make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -230,6 +241,21 @@ slow-clock timing path natively. The bus pads are reachable only through the
 SYSCFG remap described in Hardware Connections below; the USB-C connector of
 this board is wired to PA11/PA12 and must stay unplugged while the driver
 owns the bus.
+
+**demo5 — signal statistics** (`src/demo5.c`): startup device search +
+sequential measurement with the optional `ow_stats` module. Over 100
+measurement cycles (configurable via `STATS_DUMP_INTERVAL`), the module
+accumulates per-sensor pulse-width min/max, a 13-bucket logarithmic histogram
+(0–60+ µs) and error counters (CRC, presence, other), then streams the full
+report over UART. Validated on STM32G031@64MHz with 6 × DS18B20 in parasite
+power mode — all six sensors detected, 0 errors, pulse widths 5–32 µs,
+histogram buckets populated across the normal decode range.
+
+Build and run:
+
+```sh
+make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
+```
 
 ## Hardware Connections
 
@@ -1083,8 +1109,109 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=demo EXT=-DPARASITE_POWER=1        # or demo2 / demo3 / demo4
+make APP=demo EXT=-DPARASITE_POWER=1        # or demo2 / demo3 / demo4 / demo5
 ```
+
+### Signal Statistics Module (`ow_stats`)
+
+An optional compile-in module that collects per-sensor pulse-width statistics
+and a global histogram across measurement cycles.  Enabled by defining
+`OW_STATS_ENABLE` at build time.  When the macro is not defined, every inline
+body compiles away to nothing — zero overhead in production builds.
+
+```C
+#include "ow_stats.h"
+
+void ow_stats_init(void);
+void ow_stats_capture_pulse(const volatile uint8_t *pulse, uint8_t n,
+                            const uint8_t *rom);
+void ow_stats_count_error(int16_t error, const uint8_t *rom);
+void ow_stats_dump_start(void);
+uint8_t ow_stats_dump_poll(void);
+void ow_stats_reset(void);
+uint16_t ow_stats_tick(void);
+```
+
+- `ow_stats_init()` — zero-initialise the statistics context.  Call once at
+  startup.
+- `ow_stats_capture_pulse()` — snapshot raw pulse widths before
+  `decode_scratchpad()` overwrites the capture buffer via the union alias.
+  Updates the 13-bucket logarithmic histogram (0–60+ µs, buckets covering
+  0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29, 30–39,
+  40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
+  automatically from `ds18b20.c` when `OW_STATS_ENABLE` is defined.
+- `ow_stats_count_error()` — record a CRC mismatch, missing presence pulse
+  or other error event.  Called automatically from `ds18b20.c`.
+- `ow_stats_dump_start()` — begin a non-blocking UART dump.  Call from the
+  main loop after the desired number of cycles (tracked via `ow_stats_tick()`).
+- `ow_stats_dump_poll()` — advance the dump by one line (header, sensor line,
+  histogram or total).  Each call blocks only for the UART TX register to
+  accept one byte (~87 µs at 115200 baud), writing directly to TDR and
+  bypassing the ring buffer entirely.  A 6-sensor report completes in ~22 ms.
+  Returns 1 when the dump is complete.
+- `ow_stats_reset()` — zero all counters and the histogram, keep the sensor
+  ROM table.  Call after `ow_stats_dump_poll()` returns 1.
+- `ow_stats_tick()` — increment the cycle counter; returns the new value.
+
+RAM cost: ~180 bytes (8 sensors × 18 + 16 histogram buckets × 2 + 5).
+
+Example — dump every 100 cycles:
+
+```C
+#include "ow_stats.h"
+
+static uint8_t dump_busy = 0;
+
+void ds18b20_complete(int16_t temp) {
+    // ... handle temperature reading ...
+    uint16_t cycles = ow_stats_tick();
+    if (cycles >= 100 && !dump_busy) {
+        ow_stats_dump_start();
+        dump_busy = 1;
+    }
+}
+
+int main(void) {
+    ow_stats_init();
+    // ... ds18b20_init(), device search ...
+    for (;;) {
+        if (dump_busy) {
+            if (ow_stats_dump_poll()) {
+                dump_busy = 0;
+                ow_stats_reset();
+            }
+        } else {
+            ds18b20_poll();
+        }
+    }
+}
+```
+
+Build with the statistics module:
+
+```sh
+make APP=demo5 EXT="-DOW_STATS_ENABLE"                # external power
+make APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"  # parasite power
+```
+
+UART output format (compact, one sensor per line):
+
+```
+--- stats [100 c] ---
+28 20 78 92 07 00 00 67:5-29 n17 e0
+28 78 B8 AC 0B 00 00 2C:5-31 n17 e0
+28 64 69 AB 0B 00 00 1F:5-29 n17 e0
+28 FC AE AA 0B 00 00 F3:5-30 n17 e0
+28 7E 63 AD 0B 00 00 3F:5-30 n16 e0
+28 F1 39 AD 0B 00 00 D9:5-30 n16 e0
+h:2=3304 8=2023 9=1873
+t=100c 0e
+```
+
+Fields per sensor line: `ROM:min-max n=count e=errors` (errors = CRC + no
+presence + other combined).  Histogram shows only non-empty buckets;
+`h:B=count` where B is the bucket index.  Total line: `t=Nc Ee` where N =
+cycle count, E = total error count.
 
 ### Resolution Change
 

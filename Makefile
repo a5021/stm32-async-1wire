@@ -3,13 +3,15 @@
 # demo3 (device search + simultaneous broadcast conversion of every sensor),
 # demo4 (device search + command transactions: ROM, power supply, TH/TL,
 #        Copy/Recall EEPROM)
+# demo5 (device search + sequential polling with signal statistics)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
 #   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
 #   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
+#   make APP=demo5     -> builds demo5  (ds18b20_demo5.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2 demo3 demo4),)
-$(error APP must be 'demo', 'demo2', 'demo3' or 'demo4')
+ifeq ($(filter $(APP),demo demo2 demo3 demo4 demo5),)
+$(error APP must be 'demo', 'demo2', 'demo3', 'demo4' or 'demo5')
 endif
 
 # Define the name of the project target and the build directory
@@ -27,21 +29,21 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=g0   -> G0 firmware
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
 LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
 JFLASH = port/stm32f0/stm32f030f4.jflash
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s
 LDS = port/stm32g0/STM32G031X6_FLASH.ld
 MCU = -mcpu=cortex-m0plus -mthumb
 DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
 JFLASH = port/stm32g0/stm32g031f6.jflash
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = port/stm32f1/STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
@@ -55,6 +57,7 @@ UART_TX_SIZE_demo  = 128
 UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
+UART_TX_SIZE_demo5 = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
