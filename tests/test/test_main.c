@@ -9,6 +9,7 @@
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
+#include "ow_stats.h"
 #include "unity.h"
 
 int unity_failures = 0;
@@ -22,6 +23,7 @@ void setUp(void) {
     ds18b20_test_reset_txn();
     test_spy_reset();
     ds18b20_test_set_gap_us(0);
+    ow_stats_init();
 }
 
 void tearDown(void) {
@@ -46,6 +48,7 @@ extern void run_test_alarm_thresholds(void);
 extern void run_test_eeprom(void);
 extern void run_test_parasite(void);
 extern void run_test_dmamux(void);
+extern void run_test_ow_stats(void);
 
 int main(void) {
     run_test_scratchpad();
@@ -66,6 +69,7 @@ int main(void) {
     run_test_eeprom();
     run_test_parasite();
     run_test_dmamux();
+    run_test_ow_stats();
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
     return unity_failures ? 1 : 0;
 }

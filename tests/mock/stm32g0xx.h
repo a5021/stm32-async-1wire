@@ -78,6 +78,20 @@ typedef struct {
     volatile uint32_t CFGR1;
 } SYSCFG_TypeDef;
 
+typedef struct {
+    volatile uint32_t CR1;
+    volatile uint32_t CR2;
+    volatile uint32_t CR3;
+    volatile uint32_t BRR;
+    volatile uint32_t GTPR;
+    volatile uint32_t RTOR;
+    volatile uint32_t RQR;
+    volatile uint32_t ISR;
+    volatile uint32_t ICR;
+    volatile uint32_t RDR;
+    volatile uint32_t TDR;
+} USART_TypeDef;
+
 /* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work.
  * STM32G031 routes peripheral DMA requests through DMAMUX (no fixed map):
  * feed rides DMAMUX channel 2 paired with DMA1_Channel3 (TIM1_CC2), capture
@@ -91,6 +105,7 @@ extern RCC_TypeDef mock_rcc;
 extern SYSCFG_TypeDef mock_syscfg;
 extern DMAMUX_Channel_TypeDef mock_dmamux_ch2;
 extern DMAMUX_Channel_TypeDef mock_dmamux_ch3;
+extern USART_TypeDef mock_usart1;
 #define TIM1 (&mock_tim1)
 #define DMA1_Channel3 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
 #define DMA1_Channel4 (&mock_dma1_ch3) /* CC4 capture -> drains CCR4 */
@@ -99,6 +114,7 @@ extern DMAMUX_Channel_TypeDef mock_dmamux_ch3;
 #define SYSCFG (&mock_syscfg)
 #define DMAMUX1_Channel2 (&mock_dmamux_ch2)
 #define DMAMUX1_Channel3 (&mock_dmamux_ch3)
+#define USART1 (&mock_usart1)
 
 /* --- Bit-field constants used by the driver (G0 spellings) --- */
 #define RCC_AHBENR_DMA1EN 0x00000001u
@@ -146,6 +162,7 @@ extern DMAMUX_Channel_TypeDef mock_dmamux_ch3;
 #define DMA_CCR_PSIZE_0 0x00000100u
 #define DMA_CCR_MSIZE_0 0x00000400u
 #define DMA_CCR_MSIZE_1 0x00000800u
+#define USART_ISR_TXE_TXFNF 0x00000080u
 
 /* --- Compiler helpers the driver expects from CMSIS --- */
 #ifndef __STATIC_FORCEINLINE

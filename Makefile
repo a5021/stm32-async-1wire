@@ -447,9 +447,11 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_eeprom.c \
             $(TEST_DIR)/test_parasite.c \
             $(TEST_DIR)/test_dmamux.c \
+            $(TEST_DIR)/test_ow_stats.c \
             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
-            $(TEST_MOCK)/ds18b20_test_access.c
+            $(TEST_MOCK)/ds18b20_test_access.c \
+            $(TEST_MOCK)/ow_stats_test_access.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
 # OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
@@ -467,7 +469,7 @@ TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc $(TEST_PORT_INC) -I$(TEST_MOCK)
