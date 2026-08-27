@@ -12,6 +12,5 @@ uint16_t ow_stats_test_get_total_cycles(void);
 uint16_t ow_stats_test_get_total_errors(void);
 uint8_t ow_stats_test_get_dump_phase(void);
 uint8_t ow_stats_test_get_dump_sensor(void);
-uint8_t ow_stats_test_get_dump_subpos(void);
 
 #endif /* OW_STATS_TEST_ACCESS_H */
