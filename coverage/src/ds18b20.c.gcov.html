@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-27 04:12:23</td>
+            <td class="headerValue">2026-08-27 04:14:53</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.2&nbsp;%</td>
@@ -1413,91 +1413,90 @@
 <span id="L1335"><span class="lineNum">    1335</span>                 :             :         /* Snapshot pulse widths before decode_scratchpad() overwrites them</span>
 <span id="L1336"><span class="lineNum">    1336</span>                 :             :          * via the union alias (scratchpad[n] == pulse[n]). */</span>
 <span id="L1337"><span class="lineNum">    1337</span>                 :<span class="tlaGNC">          87 :         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,</span></span>
-<span id="L1338"><span class="lineNum">    1338</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          87 :                                ctx.address_mode ? ctx.selected_rom :</span></span>
-<span id="L1339"><span class="lineNum">    1339</span>                 :             :                                (const uint8_t *)0);</span>
-<span id="L1340"><span class="lineNum">    1340</span>                 :             :         // Decode captured pulse durations into scratchpad bytes</span>
-<span id="L1341"><span class="lineNum">    1341</span>                 :             :         decode_scratchpad();</span>
-<span id="L1342"><span class="lineNum">    1342</span>                 :             :         // Turn off LED to indicate measurement complete</span>
-<span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaGNC">          87 :         ds18b20_busy(0);</span></span>
-<span id="L1344"><span class="lineNum">    1344</span>                 :             : </span>
-<span id="L1345"><span class="lineNum">    1345</span>                 :             :         // In single-device mode the callback runs at IDLE, so a re-selection</span>
-<span id="L1346"><span class="lineNum">    1346</span>                 :             :         // from inside ds18b20_complete() is accepted there. Scan mode keeps its</span>
-<span id="L1347"><span class="lineNum">    1347</span>                 :             :         // own per-device addressing and stays in DECODE: a select() from the</span>
-<span id="L1348"><span class="lineNum">    1348</span>                 :             :         // scan callback is rejected, and it reports every device before</span>
-<span id="L1349"><span class="lineNum">    1349</span>                 :             :         // returning to IDLE at the round end.</span>
-<span id="L1350"><span class="lineNum">    1350</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          87 :         if (!ctx.scan_mode) {</span></span>
-<span id="L1351"><span class="lineNum">    1351</span>                 :<span class="tlaGNC">          66 :             ctx.current_state = DS18B20_ST_IDLE;</span></span>
-<span id="L1352"><span class="lineNum">    1352</span>                 :             :         }</span>
-<span id="L1353"><span class="lineNum">    1353</span>                 :             : </span>
-<span id="L1354"><span class="lineNum">    1354</span>                 :             :         // Match ROM mode: if the addressed device is absent, nobody drives</span>
-<span id="L1355"><span class="lineNum">    1355</span>                 :             :         // the bus after the address, so the whole scratchpad reads back as</span>
-<span id="L1356"><span class="lineNum">    1356</span>                 :             :         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.</span>
-<span id="L1357"><span class="lineNum">    1357</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          87 :         if (ctx.address_mode) {</span></span>
-<span id="L1358"><span class="lineNum">    1358</span>                 :<span class="tlaGNC">          33 :             uint8_t all_ones = 1;</span></span>
-<span id="L1359"><span class="lineNum">    1359</span>         [<span class="tlaGBC" title="Branch 0 was taken 81 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          87 :             for (uint8_t i = 0; i &lt; DS18B20_SCRATCHPAD_LEN; i++) {</span></span>
-<span id="L1360"><span class="lineNum">    1360</span>         [<span class="tlaGBC" title="Branch 0 was taken 27 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          81 :                 if (ctx.scratchpad[i] != 0xFF) {</span></span>
-<span id="L1361"><span class="lineNum">    1361</span>                 :<span class="tlaGNC">          27 :                     all_ones = 0;</span></span>
-<span id="L1362"><span class="lineNum">    1362</span>                 :<span class="tlaGNC">          27 :                     break;</span></span>
-<span id="L1363"><span class="lineNum">    1363</span>                 :             :                 }</span>
-<span id="L1364"><span class="lineNum">    1364</span>                 :             :             }</span>
-<span id="L1365"><span class="lineNum">    1365</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27 times"> + </span>]:<span class="tlaGNC">          33 :             if (all_ones) {</span></span>
-<span id="L1366"><span class="lineNum">    1366</span>                 :<span class="tlaGNC">           6 :                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);</span></span>
-<span id="L1367"><span class="lineNum">    1367</span>                 :<span class="tlaGNC">           6 :                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,</span></span>
-<span id="L1368"><span class="lineNum">    1368</span>                 :             :                                      ctx.selected_rom);</span>
-<span id="L1369"><span class="lineNum">    1369</span>                 :<span class="tlaGNC">           6 :                 scan_finish_or_next();</span></span>
-<span id="L1370"><span class="lineNum">    1370</span>                 :<span class="tlaGNC">           6 :                 break;</span></span>
-<span id="L1371"><span class="lineNum">    1371</span>                 :             :             }</span>
-<span id="L1372"><span class="lineNum">    1372</span>                 :             :         }</span>
-<span id="L1373"><span class="lineNum">    1373</span>                 :             : </span>
-<span id="L1374"><span class="lineNum">    1374</span>                 :             :         // Validate reserved bytes per DS18B20 specification:</span>
-<span id="L1375"><span class="lineNum">    1375</span>                 :             :         // Byte 5 must be 0xFF, Byte 7 must be 0x10.</span>
-<span id="L1376"><span class="lineNum">    1376</span>                 :             :         // This catches all-zero, all-0xFF, and bus fault conditions.</span>
-<span id="L1377"><span class="lineNum">    1377</span>   [<span class="tlaGBC" title="Branch 0 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 75 times"> + </span>]:<span class="tlaGNC">          81 :         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {</span></span>
-<span id="L1378"><span class="lineNum">    1378</span>                 :<span class="tlaGNC">           6 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
-<span id="L1379"><span class="lineNum">    1379</span>                 :<span class="tlaGNC">           6 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
-<span id="L1380"><span class="lineNum">    1380</span>                 :             :                                  ctx.selected_rom);</span>
-<span id="L1381"><span class="lineNum">    1381</span>                 :<span class="tlaGNC">           6 :             scan_finish_or_next();</span></span>
-<span id="L1382"><span class="lineNum">    1382</span>                 :<span class="tlaGNC">           6 :             break;</span></span>
-<span id="L1383"><span class="lineNum">    1383</span>                 :             :         }</span>
-<span id="L1384"><span class="lineNum">    1384</span>                 :             : </span>
-<span id="L1385"><span class="lineNum">    1385</span>                 :             :         // Validate CRC and report temperature or error</span>
-<span id="L1386"><span class="lineNum">    1386</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">         150 :         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {</span></span>
-<span id="L1387"><span class="lineNum">    1387</span>                 :             :             // CRC valid - decode and report temperature. The scratchpad is</span>
-<span id="L1388"><span class="lineNum">    1388</span>                 :             :             // trustworthy, so also trust the config byte (byte 4, R1/R0 bits</span>
-<span id="L1389"><span class="lineNum">    1389</span>                 :             :             // 6:5) and adapt the conversion wait for the next cycle: this keeps</span>
-<span id="L1390"><span class="lineNum">    1390</span>                 :             :             // the wait in sync with a resolution changed via</span>
-<span id="L1391"><span class="lineNum">    1391</span>                 :             :             // ds18b20_set_resolution() or externally. (R1/R0 are 0..3, so the</span>
-<span id="L1392"><span class="lineNum">    1392</span>                 :             :             // derived value is always within DS18B20_RES_MIN..DS18B20_RES_MAX.)</span>
-<span id="L1393"><span class="lineNum">    1393</span>                 :             :             // It is derived only on a valid CRC so a corrupted config byte can</span>
-<span id="L1394"><span class="lineNum">    1394</span>                 :             :             // never shorten the next conversion wait prematurely.</span>
-<span id="L1395"><span class="lineNum">    1395</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          54 :             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] &gt;&gt; 5) &amp; 0x3);</span></span>
-<span id="L1396"><span class="lineNum">    1396</span>                 :<span class="tlaGNC">          54 :             ds18b20_complete(decode_temperature());</span></span>
-<span id="L1397"><span class="lineNum">    1397</span>                 :             :         } else {</span>
-<span id="L1398"><span class="lineNum">    1398</span>                 :             :             // CRC invalid - report error (resolution kept unchanged)</span>
-<span id="L1399"><span class="lineNum">    1399</span>                 :<span class="tlaGNC">          21 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
-<span id="L1400"><span class="lineNum">    1400</span>                 :<span class="tlaGNC">          21 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
-<span id="L1401"><span class="lineNum">    1401</span>                 :             :                                  ctx.selected_rom);</span>
-<span id="L1402"><span class="lineNum">    1402</span>                 :             :         }</span>
-<span id="L1403"><span class="lineNum">    1403</span>                 :             : </span>
-<span id="L1404"><span class="lineNum">    1404</span>                 :             :         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the</span>
-<span id="L1405"><span class="lineNum">    1405</span>                 :             :         // last device, back to IDLE plus the inter-measurement pause. In</span>
-<span id="L1406"><span class="lineNum">    1406</span>                 :             :         // single-device mode this only starts the pause.</span>
-<span id="L1407"><span class="lineNum">    1407</span>                 :<span class="tlaGNC">          75 :         scan_finish_or_next();</span></span>
-<span id="L1408"><span class="lineNum">    1408</span>                 :<span class="tlaGNC">          75 :         break;</span></span>
-<span id="L1409"><span class="lineNum">    1409</span>                 :             : </span>
-<span id="L1410"><span class="lineNum">    1410</span>                 :<span class="tlaGNC">           3 :     default:</span></span>
-<span id="L1411"><span class="lineNum">    1411</span>                 :             :         // Unexpected state - report generic error</span>
-<span id="L1412"><span class="lineNum">    1412</span>                 :<span class="tlaGNC">           3 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
-<span id="L1413"><span class="lineNum">    1413</span>                 :<span class="tlaGNC">           3 :         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);</span></span>
-<span id="L1414"><span class="lineNum">    1414</span>                 :<span class="tlaGNC">           3 :         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,</span></span>
-<span id="L1415"><span class="lineNum">    1415</span>                 :             :                              (const uint8_t *)0);</span>
-<span id="L1416"><span class="lineNum">    1416</span>                 :<span class="tlaGNC">           3 :         break;</span></span>
-<span id="L1417"><span class="lineNum">    1417</span>                 :             :     }</span>
-<span id="L1418"><span class="lineNum">    1418</span>                 :             : }</span>
-<span id="L1419"><span class="lineNum">    1419</span>                 :             : </span>
-<span id="L1420"><span class="lineNum">    1420</span>                 :             : /**</span>
-<span id="L1421"><span class="lineNum">    1421</span>                 :             :  * @}</span>
-<span id="L1422"><span class="lineNum">    1422</span>                 :             :  */</span>
+<span id="L1338"><span class="lineNum">    1338</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          87 :                                ctx.address_mode ? ctx.selected_rom : (const uint8_t*)0);</span></span>
+<span id="L1339"><span class="lineNum">    1339</span>                 :             :         // Decode captured pulse durations into scratchpad bytes</span>
+<span id="L1340"><span class="lineNum">    1340</span>                 :             :         decode_scratchpad();</span>
+<span id="L1341"><span class="lineNum">    1341</span>                 :             :         // Turn off LED to indicate measurement complete</span>
+<span id="L1342"><span class="lineNum">    1342</span>                 :<span class="tlaGNC">          87 :         ds18b20_busy(0);</span></span>
+<span id="L1343"><span class="lineNum">    1343</span>                 :             : </span>
+<span id="L1344"><span class="lineNum">    1344</span>                 :             :         // In single-device mode the callback runs at IDLE, so a re-selection</span>
+<span id="L1345"><span class="lineNum">    1345</span>                 :             :         // from inside ds18b20_complete() is accepted there. Scan mode keeps its</span>
+<span id="L1346"><span class="lineNum">    1346</span>                 :             :         // own per-device addressing and stays in DECODE: a select() from the</span>
+<span id="L1347"><span class="lineNum">    1347</span>                 :             :         // scan callback is rejected, and it reports every device before</span>
+<span id="L1348"><span class="lineNum">    1348</span>                 :             :         // returning to IDLE at the round end.</span>
+<span id="L1349"><span class="lineNum">    1349</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          87 :         if (!ctx.scan_mode) {</span></span>
+<span id="L1350"><span class="lineNum">    1350</span>                 :<span class="tlaGNC">          66 :             ctx.current_state = DS18B20_ST_IDLE;</span></span>
+<span id="L1351"><span class="lineNum">    1351</span>                 :             :         }</span>
+<span id="L1352"><span class="lineNum">    1352</span>                 :             : </span>
+<span id="L1353"><span class="lineNum">    1353</span>                 :             :         // Match ROM mode: if the addressed device is absent, nobody drives</span>
+<span id="L1354"><span class="lineNum">    1354</span>                 :             :         // the bus after the address, so the whole scratchpad reads back as</span>
+<span id="L1355"><span class="lineNum">    1355</span>                 :             :         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.</span>
+<span id="L1356"><span class="lineNum">    1356</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          87 :         if (ctx.address_mode) {</span></span>
+<span id="L1357"><span class="lineNum">    1357</span>                 :<span class="tlaGNC">          33 :             uint8_t all_ones = 1;</span></span>
+<span id="L1358"><span class="lineNum">    1358</span>         [<span class="tlaGBC" title="Branch 0 was taken 81 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">          87 :             for (uint8_t i = 0; i &lt; DS18B20_SCRATCHPAD_LEN; i++) {</span></span>
+<span id="L1359"><span class="lineNum">    1359</span>         [<span class="tlaGBC" title="Branch 0 was taken 27 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          81 :                 if (ctx.scratchpad[i] != 0xFF) {</span></span>
+<span id="L1360"><span class="lineNum">    1360</span>                 :<span class="tlaGNC">          27 :                     all_ones = 0;</span></span>
+<span id="L1361"><span class="lineNum">    1361</span>                 :<span class="tlaGNC">          27 :                     break;</span></span>
+<span id="L1362"><span class="lineNum">    1362</span>                 :             :                 }</span>
+<span id="L1363"><span class="lineNum">    1363</span>                 :             :             }</span>
+<span id="L1364"><span class="lineNum">    1364</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27 times"> + </span>]:<span class="tlaGNC">          33 :             if (all_ones) {</span></span>
+<span id="L1365"><span class="lineNum">    1365</span>                 :<span class="tlaGNC">           6 :                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);</span></span>
+<span id="L1366"><span class="lineNum">    1366</span>                 :<span class="tlaGNC">           6 :                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,</span></span>
+<span id="L1367"><span class="lineNum">    1367</span>                 :             :                                      ctx.selected_rom);</span>
+<span id="L1368"><span class="lineNum">    1368</span>                 :<span class="tlaGNC">           6 :                 scan_finish_or_next();</span></span>
+<span id="L1369"><span class="lineNum">    1369</span>                 :<span class="tlaGNC">           6 :                 break;</span></span>
+<span id="L1370"><span class="lineNum">    1370</span>                 :             :             }</span>
+<span id="L1371"><span class="lineNum">    1371</span>                 :             :         }</span>
+<span id="L1372"><span class="lineNum">    1372</span>                 :             : </span>
+<span id="L1373"><span class="lineNum">    1373</span>                 :             :         // Validate reserved bytes per DS18B20 specification:</span>
+<span id="L1374"><span class="lineNum">    1374</span>                 :             :         // Byte 5 must be 0xFF, Byte 7 must be 0x10.</span>
+<span id="L1375"><span class="lineNum">    1375</span>                 :             :         // This catches all-zero, all-0xFF, and bus fault conditions.</span>
+<span id="L1376"><span class="lineNum">    1376</span>   [<span class="tlaGBC" title="Branch 0 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 75 times"> + </span>]:<span class="tlaGNC">          81 :         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {</span></span>
+<span id="L1377"><span class="lineNum">    1377</span>                 :<span class="tlaGNC">           6 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
+<span id="L1378"><span class="lineNum">    1378</span>                 :<span class="tlaGNC">           6 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
+<span id="L1379"><span class="lineNum">    1379</span>                 :             :                                  ctx.selected_rom);</span>
+<span id="L1380"><span class="lineNum">    1380</span>                 :<span class="tlaGNC">           6 :             scan_finish_or_next();</span></span>
+<span id="L1381"><span class="lineNum">    1381</span>                 :<span class="tlaGNC">           6 :             break;</span></span>
+<span id="L1382"><span class="lineNum">    1382</span>                 :             :         }</span>
+<span id="L1383"><span class="lineNum">    1383</span>                 :             : </span>
+<span id="L1384"><span class="lineNum">    1384</span>                 :             :         // Validate CRC and report temperature or error</span>
+<span id="L1385"><span class="lineNum">    1385</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">         150 :         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {</span></span>
+<span id="L1386"><span class="lineNum">    1386</span>                 :             :             // CRC valid - decode and report temperature. The scratchpad is</span>
+<span id="L1387"><span class="lineNum">    1387</span>                 :             :             // trustworthy, so also trust the config byte (byte 4, R1/R0 bits</span>
+<span id="L1388"><span class="lineNum">    1388</span>                 :             :             // 6:5) and adapt the conversion wait for the next cycle: this keeps</span>
+<span id="L1389"><span class="lineNum">    1389</span>                 :             :             // the wait in sync with a resolution changed via</span>
+<span id="L1390"><span class="lineNum">    1390</span>                 :             :             // ds18b20_set_resolution() or externally. (R1/R0 are 0..3, so the</span>
+<span id="L1391"><span class="lineNum">    1391</span>                 :             :             // derived value is always within DS18B20_RES_MIN..DS18B20_RES_MAX.)</span>
+<span id="L1392"><span class="lineNum">    1392</span>                 :             :             // It is derived only on a valid CRC so a corrupted config byte can</span>
+<span id="L1393"><span class="lineNum">    1393</span>                 :             :             // never shorten the next conversion wait prematurely.</span>
+<span id="L1394"><span class="lineNum">    1394</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">          54 :             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] &gt;&gt; 5) &amp; 0x3);</span></span>
+<span id="L1395"><span class="lineNum">    1395</span>                 :<span class="tlaGNC">          54 :             ds18b20_complete(decode_temperature());</span></span>
+<span id="L1396"><span class="lineNum">    1396</span>                 :             :         } else {</span>
+<span id="L1397"><span class="lineNum">    1397</span>                 :             :             // CRC invalid - report error (resolution kept unchanged)</span>
+<span id="L1398"><span class="lineNum">    1398</span>                 :<span class="tlaGNC">          21 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
+<span id="L1399"><span class="lineNum">    1399</span>                 :<span class="tlaGNC">          21 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
+<span id="L1400"><span class="lineNum">    1400</span>                 :             :                                  ctx.selected_rom);</span>
+<span id="L1401"><span class="lineNum">    1401</span>                 :             :         }</span>
+<span id="L1402"><span class="lineNum">    1402</span>                 :             : </span>
+<span id="L1403"><span class="lineNum">    1403</span>                 :             :         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the</span>
+<span id="L1404"><span class="lineNum">    1404</span>                 :             :         // last device, back to IDLE plus the inter-measurement pause. In</span>
+<span id="L1405"><span class="lineNum">    1405</span>                 :             :         // single-device mode this only starts the pause.</span>
+<span id="L1406"><span class="lineNum">    1406</span>                 :<span class="tlaGNC">          75 :         scan_finish_or_next();</span></span>
+<span id="L1407"><span class="lineNum">    1407</span>                 :<span class="tlaGNC">          75 :         break;</span></span>
+<span id="L1408"><span class="lineNum">    1408</span>                 :             : </span>
+<span id="L1409"><span class="lineNum">    1409</span>                 :<span class="tlaGNC">           3 :     default:</span></span>
+<span id="L1410"><span class="lineNum">    1410</span>                 :             :         // Unexpected state - report generic error</span>
+<span id="L1411"><span class="lineNum">    1411</span>                 :<span class="tlaGNC">           3 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
+<span id="L1412"><span class="lineNum">    1412</span>                 :<span class="tlaGNC">           3 :         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);</span></span>
+<span id="L1413"><span class="lineNum">    1413</span>                 :<span class="tlaGNC">           3 :         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,</span></span>
+<span id="L1414"><span class="lineNum">    1414</span>                 :             :                              (const uint8_t*)0);</span>
+<span id="L1415"><span class="lineNum">    1415</span>                 :<span class="tlaGNC">           3 :         break;</span></span>
+<span id="L1416"><span class="lineNum">    1416</span>                 :             :     }</span>
+<span id="L1417"><span class="lineNum">    1417</span>                 :             : }</span>
+<span id="L1418"><span class="lineNum">    1418</span>                 :             : </span>
+<span id="L1419"><span class="lineNum">    1419</span>                 :             : /**</span>
+<span id="L1420"><span class="lineNum">    1420</span>                 :             :  * @}</span>
+<span id="L1421"><span class="lineNum">    1421</span>                 :             :  */</span>
         </pre>
               </td>
             </tr>
