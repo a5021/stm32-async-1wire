@@ -14,7 +14,7 @@ const ow_stats_sensor_t* ow_stats_test_get_sensor(uint8_t index) {
     return &st.sensors[index];
 }
 
-uint16_t ow_stats_test_get_histogram(uint8_t bucket) {
+uint32_t ow_stats_test_get_histogram(uint8_t bucket) {
     if (bucket >= OW_STATS_HIST_BUCKETS) {
         return 0;
     }
@@ -22,7 +22,7 @@ uint16_t ow_stats_test_get_histogram(uint8_t bucket) {
 }
 
 uint8_t ow_stats_test_get_sensor_count(void) { return st.sensor_count; }
-uint16_t ow_stats_test_get_total_cycles(void) { return st.total_cycles; }
-uint16_t ow_stats_test_get_total_errors(void) { return st.total_errors; }
+uint32_t ow_stats_test_get_total_cycles(void) { return st.total_cycles; }
+uint32_t ow_stats_test_get_total_errors(void) { return st.total_errors; }
 uint8_t ow_stats_test_get_dump_phase(void) { return dump_phase; }
 uint8_t ow_stats_test_get_dump_sensor(void) { return dump_sensor; }

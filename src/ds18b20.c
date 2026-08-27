@@ -32,7 +32,17 @@
 /** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
-#define PAUSE_5S 62500, 79 /**< 5s pause between measurement cycles (62.5ms × 80) */
+#ifndef DS18B20_CYCLE_PAUSE_US
+#define DS18B20_CYCLE_PAUSE_US 5000000 /**< default inter-cycle pause: 5s */
+#endif
+#define _OW_PAUSE_US (DS18B20_CYCLE_PAUSE_US > 0 ? DS18B20_CYCLE_PAUSE_US : 1)
+#if _OW_PAUSE_US <= 62500
+#define PAUSE_ARR (_OW_PAUSE_US)
+#define PAUSE_RCR 0
+#else
+#define PAUSE_ARR 62500
+#define PAUSE_RCR ((_OW_PAUSE_US / 62500) - 1)
+#endif
 #define SCAN_DEVICE_GAP 1000, 0 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 /** @brief TH byte written together with the config register by the resolution
  *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
@@ -350,7 +360,7 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
  * @brief Start inter-measurement pause period (5s)
  * @note Non-blocking - starts timer for inter-measurement delay
  */
-__STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_5S); }
+__STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_ARR, PAUSE_RCR); }
 
 /**
  * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)

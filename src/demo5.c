@@ -10,6 +10,8 @@
  *
  * Requires OW_STATS_ENABLE to be defined at build time:
  *   make clean && make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE"
+ *   On a parasite-powered bus add -DPARASITE_POWER=1 so the driver engages
+ *   the strong pull-up during the conversion window.
  */
 
 #include "app.h"
@@ -101,7 +103,7 @@ void ds18b20_complete(int16_t temp) {
     }
 
     /* Stats: tick and dump after STATS_DUMP_INTERVAL full rounds */
-    uint16_t cycles = ow_stats_tick();
+    uint32_t cycles = ow_stats_tick();
     if (cycles >= STATS_DUMP_INTERVAL && !dump_busy) {
         ow_stats_dump_start();
         dump_busy = 1;

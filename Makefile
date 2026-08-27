@@ -14,6 +14,15 @@ ifeq ($(filter $(APP),demo demo2 demo3 demo4 demo5),)
 $(error APP must be 'demo', 'demo2', 'demo3', 'demo4' or 'demo5')
 endif
 
+# demo5 is the signal-statistics example: enable the optional stats module by
+# default, shorten the inter-measurement pause to ~1ms, and widen the stats
+# window to 5000 measurement rounds.  Parasite power is deliberately NOT set
+# here (it is bus-hardware dependent) — pass EXT="-DPARASITE_POWER=1" when the
+# 1-Wire bus is parasite-powered.
+ifeq ($(APP),demo5)
+override EXT += -DOW_STATS_ENABLE -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=1000
+endif
+
 # Define the name of the project target and the build directory
 TARGET = ds18b20_$(APP)
 BUILD_DIR = build
