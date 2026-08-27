@@ -20,7 +20,7 @@ endif
 # here (it is bus-hardware dependent) — pass EXT="-DPARASITE_POWER=1" when the
 # 1-Wire bus is parasite-powered.
 ifeq ($(APP),demo5)
-override EXT += -DOW_STATS_ENABLE -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=1000
+override EXT += -DOW_STATS_ENABLE -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000
 endif
 
 # Define the name of the project target and the build directory
