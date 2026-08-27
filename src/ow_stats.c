@@ -191,7 +191,7 @@ void ow_stats_reset(void) {
     st.sensor_count = n;
 }
 
-uint16_t ow_stats_tick(void) {
+uint32_t ow_stats_tick(void) {
     return ++st.total_cycles;
 }
 

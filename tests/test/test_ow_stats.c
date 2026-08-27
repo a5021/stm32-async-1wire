@@ -14,19 +14,36 @@ void test_ow_stats_init_zeroes_all(void) {
     ow_stats_init();
 
     TEST_ASSERT_EQUAL_UINT8(0, ow_stats_test_get_sensor_count());
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_total_cycles());
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_total_errors());
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_total_cycles());
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_total_errors());
     for (uint8_t i = 0; i < OW_STATS_HIST_BUCKETS; i++) {
-        TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_histogram(i));
+        TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_histogram(i));
     }
 }
 
 /* ---- tick ---- */
 void test_ow_stats_tick_increments(void) {
     ow_stats_init();
-    TEST_ASSERT_EQUAL_UINT16(1, ow_stats_tick());
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_tick());
-    TEST_ASSERT_EQUAL_UINT16(3, ow_stats_tick());
+    TEST_ASSERT_EQUAL_UINT32(1, ow_stats_tick());
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_tick());
+    TEST_ASSERT_EQUAL_UINT32(3, ow_stats_tick());
+}
+
+/* ---- counters must not overflow past UINT16 (long stats window) ---- */
+void test_ow_stats_counters_no_overflow(void) {
+    ow_stats_init();
+    static const uint8_t rom[] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    static volatile uint8_t p[] = {10, 10, 10, 10, 10, 10, 10, 10};
+
+    for (int i = 0; i < 70000; i++) {
+        ow_stats_tick();
+        ow_stats_capture_pulse(p, 8, rom);
+    }
+
+    TEST_ASSERT_EQUAL_UINT32(70000u, ow_stats_test_get_total_cycles());
+    const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
+    TEST_ASSERT_TRUE(s != NULL);
+    TEST_ASSERT_EQUAL_UINT32(70000u, s->count);
 }
 
 /* ---- histogram buckets ---- */
@@ -34,15 +51,15 @@ void test_ow_stats_capture_pulse_bucket_0_2(void) {
     ow_stats_init();
     static volatile uint8_t pulse[] = {2, 1, 0};
     ow_stats_capture_pulse(pulse, 3, NULL);
-    TEST_ASSERT_EQUAL_UINT16(3, ow_stats_test_get_histogram(0));
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_histogram(1));
+    TEST_ASSERT_EQUAL_UINT32(3, ow_stats_test_get_histogram(0));
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_histogram(1));
 }
 
 void test_ow_stats_capture_pulse_bucket_3_4(void) {
     ow_stats_init();
     static volatile uint8_t pulse[] = {3, 4};
     ow_stats_capture_pulse(pulse, 2, NULL);
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(1));
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(1));
 }
 
 void test_ow_stats_capture_pulse_boundary_values(void) {
@@ -56,27 +73,27 @@ void test_ow_stats_capture_pulse_boundary_values(void) {
                                        40, 49, 50, 59, 60, 100};
     ow_stats_capture_pulse(pulse, 25, NULL);
 
-    TEST_ASSERT_EQUAL_UINT16(1, ow_stats_test_get_histogram(0)); /* 2 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(1)); /* 3,4 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(2)); /* 5,6 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(3)); /* 7,9 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(4)); /* 10,12 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(5)); /* 13,14 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(6)); /* 15,19 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(7)); /* 20,24 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(8)); /* 25,29 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(9)); /* 30,39 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(10)); /* 40,49 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(11)); /* 50,59 */
-    TEST_ASSERT_EQUAL_UINT16(2, ow_stats_test_get_histogram(12)); /* 60,100 */
+    TEST_ASSERT_EQUAL_UINT32(1, ow_stats_test_get_histogram(0)); /* 2 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(1)); /* 3,4 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(2)); /* 5,6 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(3)); /* 7,9 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(4)); /* 10,12 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(5)); /* 13,14 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(6)); /* 15,19 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(7)); /* 20,24 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(8)); /* 25,29 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(9)); /* 30,39 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(10)); /* 40,49 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(11)); /* 50,59 */
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_histogram(12)); /* 60,100 */
 }
 
 void test_ow_stats_capture_pulse_above_60(void) {
     ow_stats_init();
     static volatile uint8_t pulse[] = {80, 120, 200};
     ow_stats_capture_pulse(pulse, 3, NULL);
-    TEST_ASSERT_EQUAL_UINT16(3, ow_stats_test_get_histogram(12));
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_histogram(0));
+    TEST_ASSERT_EQUAL_UINT32(3, ow_stats_test_get_histogram(12));
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_histogram(0));
 }
 
 /* ---- per-sensor min/max/count ---- */
@@ -95,7 +112,7 @@ void test_ow_stats_capture_pulse_tracks_min_max(void) {
     TEST_ASSERT_TRUE(s != NULL);
     TEST_ASSERT_EQUAL_UINT8(10, s->min_pulse);
     TEST_ASSERT_EQUAL_UINT8(20, s->max_pulse);
-    TEST_ASSERT_EQUAL_UINT16(3, s->count);
+    TEST_ASSERT_EQUAL_UINT32(3, s->count);
 }
 
 /* ---- rom = NULL → only histogram, no sensor allocation ---- */
@@ -104,7 +121,7 @@ void test_ow_stats_capture_pulse_rom_null(void) {
     static volatile uint8_t pulse[] = {10, 10, 10};
     ow_stats_capture_pulse(pulse, 3, NULL);
     TEST_ASSERT_EQUAL_UINT8(0, ow_stats_test_get_sensor_count());
-    TEST_ASSERT_EQUAL_UINT16(3, ow_stats_test_get_histogram(4));
+    TEST_ASSERT_EQUAL_UINT32(3, ow_stats_test_get_histogram(4));
 }
 
 /* ---- duplicate ROM → same sensor, count incremented ---- */
@@ -119,7 +136,7 @@ void test_ow_stats_capture_pulse_duplicate_rom(void) {
 
     TEST_ASSERT_EQUAL_UINT8(1, ow_stats_test_get_sensor_count());
     const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
-    TEST_ASSERT_EQUAL_UINT16(2, s->count);
+    TEST_ASSERT_EQUAL_UINT32(2, s->count);
     TEST_ASSERT_EQUAL_UINT8(5, s->min_pulse);
     TEST_ASSERT_EQUAL_UINT8(10, s->max_pulse);
 }
@@ -142,10 +159,10 @@ void test_ow_stats_count_error_crc(void) {
     ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL, rom);
 
     const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
-    TEST_ASSERT_EQUAL_UINT16(1, s->crc_err);
-    TEST_ASSERT_EQUAL_UINT16(0, s->no_presence);
-    TEST_ASSERT_EQUAL_UINT16(0, s->generic_err);
-    TEST_ASSERT_EQUAL_UINT16(1, ow_stats_test_get_total_errors());
+    TEST_ASSERT_EQUAL_UINT32(1, s->crc_err);
+    TEST_ASSERT_EQUAL_UINT32(0, s->no_presence);
+    TEST_ASSERT_EQUAL_UINT32(0, s->generic_err);
+    TEST_ASSERT_EQUAL_UINT32(1, ow_stats_test_get_total_errors());
 }
 
 /* ---- count_error: no sensor ---- */
@@ -155,9 +172,9 @@ void test_ow_stats_count_error_no_sensor(void) {
     ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR, rom);
 
     const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
-    TEST_ASSERT_EQUAL_UINT16(0, s->crc_err);
-    TEST_ASSERT_EQUAL_UINT16(1, s->no_presence);
-    TEST_ASSERT_EQUAL_UINT16(0, s->generic_err);
+    TEST_ASSERT_EQUAL_UINT32(0, s->crc_err);
+    TEST_ASSERT_EQUAL_UINT32(1, s->no_presence);
+    TEST_ASSERT_EQUAL_UINT32(0, s->generic_err);
 }
 
 /* ---- count_error: generic ---- */
@@ -167,9 +184,9 @@ void test_ow_stats_count_error_generic(void) {
     ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC, rom);
 
     const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
-    TEST_ASSERT_EQUAL_UINT16(0, s->crc_err);
-    TEST_ASSERT_EQUAL_UINT16(0, s->no_presence);
-    TEST_ASSERT_EQUAL_UINT16(1, s->generic_err);
+    TEST_ASSERT_EQUAL_UINT32(0, s->crc_err);
+    TEST_ASSERT_EQUAL_UINT32(0, s->no_presence);
+    TEST_ASSERT_EQUAL_UINT32(1, s->generic_err);
 }
 
 /* ---- reset: zeros counters, preserves ROM table ---- */
@@ -183,13 +200,13 @@ void test_ow_stats_reset_preserves_rom(void) {
 
     ow_stats_reset();
 
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_total_cycles());
-    TEST_ASSERT_EQUAL_UINT16(0, ow_stats_test_get_total_errors());
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_total_cycles());
+    TEST_ASSERT_EQUAL_UINT32(0, ow_stats_test_get_total_errors());
     const ow_stats_sensor_t* s = ow_stats_test_get_sensor(0);
-    TEST_ASSERT_EQUAL_UINT16(0, s->count);
+    TEST_ASSERT_EQUAL_UINT32(0, s->count);
     TEST_ASSERT_EQUAL_UINT8(0xFF, s->min_pulse);
     TEST_ASSERT_EQUAL_UINT8(0, s->max_pulse);
-    TEST_ASSERT_EQUAL_UINT16(0, s->crc_err);
+    TEST_ASSERT_EQUAL_UINT32(0, s->crc_err);
     /* ROM preserved */
     for (uint8_t i = 0; i < 8; i++) {
         TEST_ASSERT_EQUAL_UINT8(rom[i], s->rom[i]);
@@ -230,6 +247,7 @@ void test_ow_stats_dump_poll_completes(void) {
 void run_test_ow_stats(void) {
     TEST_RUN(test_ow_stats_init_zeroes_all);
     TEST_RUN(test_ow_stats_tick_increments);
+    TEST_RUN(test_ow_stats_counters_no_overflow);
     TEST_RUN(test_ow_stats_capture_pulse_bucket_0_2);
     TEST_RUN(test_ow_stats_capture_pulse_bucket_3_4);
     TEST_RUN(test_ow_stats_capture_pulse_boundary_values);
