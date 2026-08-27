@@ -31,13 +31,13 @@
  * @brief Per-sensor statistics record.
  */
 typedef struct {
-    uint8_t  rom[8];        /**< 64-bit ROM address (LSB first) */
-    uint8_t  min_pulse;     /**< Shortest observed pulse width (us) */
-    uint8_t  max_pulse;     /**< Longest  observed pulse width (us) */
-    uint16_t count;         /**< Successful scratchpad reads */
-    uint16_t crc_err;       /**< CRC-8 mismatches */
-    uint16_t no_presence;   /**< No presence pulse detected */
-    uint16_t generic_err;   /**< Unexpected / reserved-byte errors */
+    uint8_t rom[8]; /**< 64-bit ROM address (LSB first) */
+    uint8_t min_pulse; /**< Shortest observed pulse width (us) */
+    uint8_t max_pulse; /**< Longest  observed pulse width (us) */
+    uint16_t count; /**< Successful scratchpad reads */
+    uint16_t crc_err; /**< CRC-8 mismatches */
+    uint16_t no_presence; /**< No presence pulse detected */
+    uint16_t generic_err; /**< Unexpected / reserved-byte errors */
 } ow_stats_sensor_t;
 
 /**
@@ -45,10 +45,10 @@ typedef struct {
  */
 typedef struct {
     ow_stats_sensor_t sensors[OW_STATS_MAX_SENSORS];
-    uint8_t  sensor_count;              /**< Number of known sensors */
+    uint8_t sensor_count; /**< Number of known sensors */
     uint16_t histogram[OW_STATS_HIST_BUCKETS]; /**< Pulse-width distribution */
-    uint16_t total_cycles;              /**< Full measurement cycles completed */
-    uint16_t total_errors;              /**< Sum of all error counters */
+    uint16_t total_cycles; /**< Full measurement cycles completed */
+    uint16_t total_errors; /**< Sum of all error counters */
 } ow_stats_t;
 
 /**
@@ -66,15 +66,15 @@ void ow_stats_init(void);
  * min/max counters.  Must be called BEFORE decode_scratchpad() overwrites
  * the buffer via the union alias.
  */
-void ow_stats_capture_pulse(const volatile uint8_t *pulse, uint8_t n,
-                            const uint8_t *rom);
+void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,
+                            const uint8_t* rom);
 
 /**
  * @brief Record an error event.
  * @param[in] error The ds18b20 error code (DS18B20_TEMP_ERROR_*).
  * @param[in] rom   8-byte ROM of the current sensor, or NULL for Skip ROM.
  */
-void ow_stats_count_error(int16_t error, const uint8_t *rom);
+void ow_stats_count_error(int16_t error, const uint8_t* rom);
 
 /**
  * @brief Begin a non-blocking stats dump via UART.
@@ -108,12 +108,15 @@ uint16_t ow_stats_tick(void);
 #else /* OW_STATS_ENABLE not defined — zero-overhead stubs */
 
 static inline void ow_stats_init(void) {}
-static inline void ow_stats_capture_pulse(const volatile uint8_t *pulse,
-                                          uint8_t n, const uint8_t *rom) {
-    (void)pulse; (void)n; (void)rom;
+static inline void ow_stats_capture_pulse(const volatile uint8_t* pulse,
+                                          uint8_t n, const uint8_t* rom) {
+    (void)pulse;
+    (void)n;
+    (void)rom;
 }
-static inline void ow_stats_count_error(int16_t error, const uint8_t *rom) {
-    (void)error; (void)rom;
+static inline void ow_stats_count_error(int16_t error, const uint8_t* rom) {
+    (void)error;
+    (void)rom;
 }
 static inline void ow_stats_dump_start(void) {}
 static inline uint8_t ow_stats_dump_poll(void) { return 1; }
