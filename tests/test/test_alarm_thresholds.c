@@ -21,8 +21,9 @@
 #include "unity.h"
 #include <string.h>
 
-#define ONE 5u
-#define ZERO 60u
+#include "onewire.h"
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 /*-------------------------------------------------------------
  *  Shared helpers
