@@ -691,23 +691,21 @@ the two backends.
   master **releasing** the pin to Hi-Z and letting the external pull-up return
   the line HIGH. The master therefore never actively drives the line HIGH during
   a normal slot — `write-1` is a *release*, not a push-pull HIGH.
-- **Parasite strong-pull-up (the only push-pull usage).** `onewire_strong_pullup()`
+- **Parasite strong-pull-up (the only unconditional push-pull usage in the default build).** `onewire_strong_pullup()`
   (`ow_port_strong_pullup()`) is the *only* place the pin is switched to
-  push-pull; it actively sources current by driving the line HIGH during the
-  temperature-conversion / EEPROM-programming window — a phase where the
-  DS18B20 is silent and cannot respond on the bus. It is restored to open-drain
-   afterwards. The published default remains purely open-drain, but an opt-in
-   active-drive write path (`-DOW_DRIVE_ACTIVE`) additionally drives both bus
-   levels during pure-write transactions — see below.
+  push-pull in the default build; it actively sources current by driving the line
+  HIGH during the temperature-conversion / EEPROM-programming window — a phase
+  where the DS18B20 is silent and cannot respond on the bus. It is restored to
+  open-drain afterwards.
 
-- **Active-drive write path (compile-time, opt-in, default off).**
-  When built with `-DOW_DRIVE_ACTIVE`, pure-write transactions additionally
-  switch PA10 to push-pull so the master actively drives *both* bus levels
-  during `write-0`/`write-1` (faster, stronger write-1 than the external
-  pull-up RC rise). Every read/reset/slave-response phase and the merged
-  write+read op stay open-drain, so the slave's wired-AND is preserved and
-  there is no window where the master drives HIGH while a slave could pull LOW.
-   The published default remains open-drain; enable with `-DOW_DRIVE_ACTIVE`.
+- **Active-drive write mode (optional).** During master-only write slots the bus
+  pin may be placed in alternate-function push-pull, actively driving both HIGH
+  and LOW levels instead of relying on the pull-up for HIGH. The driver
+  automatically retains open-drain operation for reset, presence, read slots and
+  write/read transactions where the slave may drive the bus. This is what makes
+  push-pull acceptable on a 1-Wire bus at all: it is confined to phases where no
+  slave can answer. Enabled with `-DOW_DRIVE_ACTIVE`; the published default
+  remains open-drain.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
 

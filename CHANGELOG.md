@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release, not a push-pull level; the parasite strong-pull-up is the only
   push-pull usage, confined to the slave-silent conversion window). Clarifies
   the hardware contract referenced by the published repository page.
+- Stated the optional **active-drive write mode** and its open-drain invariant in
+  the Bus Electrical Model: push-pull is confined to master-only write slots, with
+  reset/presence/read/write-read phases staying open-drain.
 
 ### Added
 
