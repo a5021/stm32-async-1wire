@@ -28,10 +28,10 @@
 /** @} */
 
 static const onewire_timing_t timing_profiles[ONEWIRE_TIMING_COUNT] = {
-    [ONEWIRE_TIMING_FAST]     = { 5,  60,  3,  50,  10 },
-    [ONEWIRE_TIMING_STANDARD] = { 5,  60,  5, 100, 10 },
-    [ONEWIRE_TIMING_SLOW]     = { 8,  90, 20, 200, 15 },
-    [ONEWIRE_TIMING_ROBUST]   = { 10, 110, 30, 250, 18 },
+    [ONEWIRE_TIMING_FAST] = {5, 60, 3, 50, 10},
+    [ONEWIRE_TIMING_STANDARD] = {5, 60, 5, 100, 10},
+    [ONEWIRE_TIMING_SLOW] = {8, 90, 20, 200, 15},
+    [ONEWIRE_TIMING_ROBUST] = {10, 110, 30, 250, 18},
 };
 
 static onewire_timing_profile_t ow_profile = ONEWIRE_TIMING_PROFILE_DEFAULT;
@@ -45,7 +45,7 @@ static uint8_t search_read_pulse[3];
 void ow_set_parasite_guard(uint8_t parasite) {
     ow_parasite_flag = parasite ? 1u : 0u;
     ow_guard_band_us = ow_parasite_flag ? timing_profiles[ow_profile].parasite_guard_band
-                                       : timing_profiles[ow_profile].guard_band;
+                                        : timing_profiles[ow_profile].guard_band;
 }
 
 void onewire_set_timing_profile(onewire_timing_profile_t profile) {
@@ -82,7 +82,6 @@ static volatile uint16_t search_edge3[3];
  *        event and kicks read slots 2-3, entry 1 re-arms the slot-3 kick, and
  *        the trailing 0 is written during slot 3 so the one-pulse timer stops
  *        with the line released to idle HIGH (hardware bus release). */
-
 
 /** @brief Edge capture buffer used by the search engine for bus resets and
  *         plain id/cmp pair reads (the merged write+read uses search_edge3). */
