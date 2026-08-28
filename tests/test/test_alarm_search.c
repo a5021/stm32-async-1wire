@@ -15,8 +15,9 @@
 #include "unity.h"
 #include <string.h>
 
-#define ONE 5u
-#define ZERO 60u
+#include "onewire.h"
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 static uint8_t g_rom[8];
 static uint8_t g_found_roms[4][8];
@@ -135,7 +136,9 @@ void test_alarm_search_finds_device_sends_0xEC(void) {
                 const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
                 if (log->count == 8) { /* the 0xEC command feed */
                     ec_feed_checked = 1;
-                    static const uint16_t expected[8] = {ZERO, ONE, ONE, ZERO, ONE, ONE, ONE, 0};
+                    uint16_t expected[8];
+                    expected[0] = ZERO; expected[1] = ONE; expected[2] = ONE; expected[3] = ZERO;
+                    expected[4] = ONE; expected[5] = ONE; expected[6] = ONE; expected[7] = 0;
                     for (uint8_t i = 0; i < 8; i++) {
                         TEST_ASSERT_EQUAL_UINT16(expected[i], log->values[i]);
                     }
