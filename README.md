@@ -699,6 +699,15 @@ the two backends.
   afterwards. There is no per-bit hybrid push-pull/open-drain mode in the
   published driver.
 
+- **Experimental active-drive write path (compile-time, off by default).**
+  When built with `-DOW_DRIVE_ACTIVE`, pure-write transactions additionally
+  switch PA10 to push-pull so the master actively drives *both* bus levels
+  during `write-0`/`write-1` (faster, stronger write-1 than the external
+  pull-up RC rise). Every read/reset/slave-response phase and the merged
+  write+read op stay open-drain, so the slave's wired-AND is preserved and
+  there is no window where the master drives HIGH while a slave could pull LOW.
+  This is an experiment; the published default remains open-drain.
+
 ### State Machine Flow (hardware-timed; polled on UIF)
 
 Kickstart behavior
