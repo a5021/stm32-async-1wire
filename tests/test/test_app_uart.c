@@ -20,17 +20,17 @@
 #include "unity.h"
 
 #if defined(OW_PORT_TARGET_G0)
-  #define TXE_BIT  USART_ISR_TXE_TXFNF
-  #define TX_SR    ISR
-  #define TX_DR    TDR
+#define TXE_BIT USART_ISR_TXE_TXFNF
+#define TX_SR ISR
+#define TX_DR TDR
 #elif defined(OW_PORT_TARGET_F0)
-  #define TXE_BIT  USART_ISR_TXE
-  #define TX_SR    ISR
-  #define TX_DR    TDR
+#define TXE_BIT USART_ISR_TXE
+#define TX_SR ISR
+#define TX_DR TDR
 #else /* F1 */
-  #define TXE_BIT  USART_SR_TXE
-  #define TX_SR    SR
-  #define TX_DR    DR
+#define TXE_BIT USART_SR_TXE
+#define TX_SR SR
+#define TX_DR DR
 #endif
 
 /* Drain any bytes left in the static ring buffer from earlier tests. */
