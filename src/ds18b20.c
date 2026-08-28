@@ -13,12 +13,7 @@
  * @{
  */
 
-/** @brief Duration of '1' bit pulse in microseconds (from the 1-Wire layer) */
-#define ONE_PULSE ONEWIRE_ONE_PULSE
-/** @brief Duration of '0' bit pulse in microseconds (from the 1-Wire layer) */
-#define ZERO_PULSE ONEWIRE_ZERO_PULSE
-/** @brief Guard band between slots to prevent overlap due to bus rise time and DMA latency */
-#define GUARD_BAND ONEWIRE_GUARD_BAND
+
 /** @brief Total length of DS18B20 scratchpad in bytes */
 #define DS18B20_SCRATCHPAD_LEN 9
 /** @brief Number of bytes to include in the scratchpad CRC calculation */
@@ -64,28 +59,6 @@
 /** @brief Wait for Copy Scratchpad (t_COPY) / Recall EEPROM (t_RECALL)
  *         completion in microseconds (DS18B20 datasheet: 10ms max). */
 #define DS18B20_EEPROM_WAIT_US 10000
-
-/**
- * @brief Convert byte bit to pulse duration (ONE_PULSE µs for '1', ZERO_PULSE µs for '0')
- * @param B Byte value
- * @param N Bit position (0-7)
- * @return Pulse duration in microseconds
- */
-#define B2P(B, N) (((B) & (1 << (N))) ? ONE_PULSE : ZERO_PULSE)
-
-/**
- * @brief Convert entire byte to sequence of pulse durations for transmission
- * @param B Byte value to convert
- */
-#define BYTE_TO_PULSES(B)                       \
-    B2P(B, 0), B2P(B, 1), B2P(B, 2), B2P(B, 3), \
-        B2P(B, 4), B2P(B, 5), B2P(B, 6), B2P(B, 7)
-
-/** @brief DS18B20 Convert T command sequence in pulse duration format */
-static const uint8_t conv_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0x44), 0};
-
-/** @brief DS18B20 Read Scratchpad command sequence in pulse duration format */
-static const uint8_t read_cmd[] = {BYTE_TO_PULSES(0xCC), BYTE_TO_PULSES(0xBE), 0};
 
 /**
  * @}
@@ -861,6 +834,9 @@ static uint8_t txn_poll(void) {
             txn_ctx.phase = DS18B20_TXN_DONE;
             break;
         }
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
         onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);
         txn_ctx.phase = DS18B20_TXN_WRITE;
         break;
@@ -869,6 +845,9 @@ static uint8_t txn_poll(void) {
         // Command write completed: read the response back if the command has
         // one, otherwise wait the required hold-off or finish immediately.
         if (txn_ctx.read_bytes) {
+            if (ctx.parasite) {
+                onewire_strong_pullup(0);
+            }
             onewire_read_data(ctx.pulse, txn_ctx.read_bytes);
             txn_ctx.phase = DS18B20_TXN_READ;
         } else if (txn_ctx.wait_us) {
@@ -881,6 +860,9 @@ static uint8_t txn_poll(void) {
             onewire_start_timer(txn_ctx.wait_us, 0);
             txn_ctx.phase = DS18B20_TXN_WAIT;
         } else {
+            if (ctx.parasite) {
+                onewire_strong_pullup(0);
+            }
             txn_ctx.ok = 1;
             txn_ctx.phase = DS18B20_TXN_DONE;
         }
@@ -942,6 +924,7 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
     txn_ctx.ok = 0;
     txn_ctx.finished = 0;
     txn_build_pulses(); // Pre-build the command for the current address mode
+    onewire_strong_pullup(0);
     txn_ctx.phase = DS18B20_TXN_RESET;
     onewire_reset(ctx.edge); // Schedule the first hardware operation
 }
@@ -1100,7 +1083,7 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  *       ds18b20_detect_parasite() reports the wiring and stores it back into
  *       this flag on success; this setter tells the driver how to behave.
  */
-void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; }
+void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; ow_set_parasite_guard(ctx.parasite); }
 
 /**
  * @brief Current parasite-power configuration of the driver
@@ -1123,6 +1106,7 @@ uint8_t ds18b20_detect_parasite_poll(void) {
     if (txn_ctx.ok) {
         // The sensor drives one bit: 0 = parasite power, 1 = external power.
         ctx.parasite = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
+        ow_set_parasite_guard(ctx.parasite);
     }
     return 1;
 }
@@ -1217,7 +1201,16 @@ void ds18b20_select(const uint8_t* rom) {
  * @param[in] skip_tbl Skip-ROM command table (for broadcast mode)
  * @param[in] next_state State to transition to on success
  */
-static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_state_t next_state) {
+static uint8_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
+static uint8_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
+
+static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
+    onewire_encode_byte(dst, 0xCC);
+    onewire_encode_byte(dst + 8, cmd_byte);
+    dst[DS18B20_DMA_TRANSFERS] = 0;
+}
+
+static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
     if (!onewire_present(ctx.edge)) {
         // Return to IDLE before the callback so a re-selection from inside
         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
@@ -1237,6 +1230,8 @@ static void issue_command(uint8_t cmd_byte, const uint8_t* skip_tbl, ds18b20_sta
         build_addr_cmd(cmd_byte);
         onewire_write_slots(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
     } else {
+        uint8_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
+        build_skip_cmd(skip_tbl, cmd_byte);
         onewire_write_slots(skip_tbl, DS18B20_DMA_TRANSFERS);
     }
     ctx.current_state = next_state;
@@ -1297,7 +1292,7 @@ void ds18b20_poll(void) {
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        issue_command(DS18B20_CONVERT_T, conv_cmd, DS18B20_ST_WAIT);
+        issue_command(DS18B20_CONVERT_T, DS18B20_ST_WAIT);
         break;
 
     case DS18B20_ST_WAIT:
@@ -1332,13 +1327,17 @@ void ds18b20_poll(void) {
             build_addr_prefix();
             ctx.address_mode = 1;
         }
-        issue_command(DS18B20_READ_SCRATCHPAD, read_cmd, DS18B20_ST_READ);
+        if (ctx.parasite) {
+            onewire_strong_pullup(1);
+        }
+        issue_command(DS18B20_READ_SCRATCHPAD, DS18B20_ST_READ);
         break;
 
     case DS18B20_ST_READ:
-        // Initiate scratchpad data read using timer capture and DMA
+        if (ctx.parasite) {
+            onewire_strong_pullup(0);
+        }
         onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN);
-        // Transition to DECODE state
         ctx.current_state = DS18B20_ST_DECODE;
         break;
 
