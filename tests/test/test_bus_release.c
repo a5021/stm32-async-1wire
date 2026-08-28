@@ -24,8 +24,9 @@
 #include "mock_target.h"
 #include "unity.h"
 
-#define ONE 5u
-#define ZERO 60u
+#include "onewire.h"
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 static void complete_op(uint32_t max_slots) {
     uint8_t ok = hw_run_until_uif(max_slots);
