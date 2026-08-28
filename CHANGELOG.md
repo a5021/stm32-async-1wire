@@ -6,6 +6,16 @@ STM32 and the DS18B20 driver built on top of it — are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- Documented the 1-Wire **bus electrical model** (open-drain signaling; the
+  master never drives the line HIGH during a normal slot — `write-1` is a
+  release, not a push-pull level; the parasite strong-pull-up is the only
+  push-pull usage, confined to the slave-silent conversion window). Clarifies
+  the hardware contract referenced by the published repository page.
+
 ## [1.7.0] - 2026-08-28
 
 ### Added
