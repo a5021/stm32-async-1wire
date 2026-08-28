@@ -11,9 +11,9 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
+#include "hw_model.h"
 #include "ow_stats.h"
 #include "ow_stats_test_access.h"
-#include "hw_model.h"
 #include "unity.h"
 
 void test_harness_accessor_smoke(void) {

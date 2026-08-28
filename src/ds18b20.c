@@ -13,7 +13,6 @@
  * @{
  */
 
-
 /** @brief Total length of DS18B20 scratchpad in bytes */
 #define DS18B20_SCRATCHPAD_LEN 9
 /** @brief Number of bytes to include in the scratchpad CRC calculation */
@@ -1083,7 +1082,10 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  *       ds18b20_detect_parasite() reports the wiring and stores it back into
  *       this flag on success; this setter tells the driver how to behave.
  */
-void ds18b20_set_parasite(uint8_t parasite) { ctx.parasite = parasite ? 1u : 0u; ow_set_parasite_guard(ctx.parasite); }
+void ds18b20_set_parasite(uint8_t parasite) {
+    ctx.parasite = parasite ? 1u : 0u;
+    ow_set_parasite_guard(ctx.parasite);
+}
 
 /**
  * @brief Current parasite-power configuration of the driver

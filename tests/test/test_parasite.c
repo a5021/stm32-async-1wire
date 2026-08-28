@@ -17,11 +17,11 @@
  * ============================================================ */
 
 #include "ds18b20.h"
-#include "onewire.h"
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
 #include "mock_target.h"
+#include "onewire.h"
 #include "unity.h"
 #include <string.h>
 
