@@ -17,6 +17,7 @@
  * ============================================================ */
 
 #include "ds18b20.h"
+#include "onewire.h"
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
@@ -26,8 +27,8 @@
 
 void spy_reset(void); /* defined in test_state_machine.c */
 
-#define ONE 5u
-#define ZERO 60u
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 /*-------------------------------------------------------------
  *  Register-state helpers (per family)
@@ -401,6 +402,28 @@ void test_parasite_setter_normalises_and_init_resets(void) {
     TEST_ASSERT_TRUE(pu_idle_af_od());
 }
 
+void test_parasite_guard_band_tracks_mode(void) {
+    ow_set_parasite_guard(0);
+    ds18b20_set_parasite(0);
+    uint8_t ext = ow_guard_band_us;
+
+    /* bus in parasite mode selects the wider guard band */
+    ds18b20_set_parasite(1);
+    uint8_t para = ow_guard_band_us;
+    TEST_ASSERT_TRUE(para > ext); /* parasite guard is wider than external */
+    TEST_ASSERT_EQUAL_UINT8(para, ow_guard_band_us);
+
+    /* returning to external power restores the tighter guard */
+    ds18b20_set_parasite(0);
+    TEST_ASSERT_EQUAL_UINT8(ext, ow_guard_band_us);
+
+    /* manual override also engages the wider guard */
+    ow_set_parasite_guard(1);
+    TEST_ASSERT_EQUAL_UINT8(para, ow_guard_band_us);
+    ow_set_parasite_guard(0);
+    TEST_ASSERT_EQUAL_UINT8(ext, ow_guard_band_us);
+}
+
 /*-------------------------------------------------------------
  *  5. Auto-detect (Read Power Supply -> ctx.parasite)
  * -----------------------------------------------------------*/
@@ -493,6 +516,123 @@ void test_getter_matches_setter(void) {
 /*-------------------------------------------------------------
  *  Run all parasite-power tests
  * -----------------------------------------------------------*/
+/*-------------------------------------------------------------
+ *  Test: in parasite mode a simultaneous-conversion (scan) round
+ *  keeps the strong pull-up engaged across the inter-round pause
+ *  (scan_finish_or_next, last-device branch).
+ *----------------------------------------------------------*/
+void test_parasite_scan_engages_pullup_across_pause(void) {
+    test_spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
+    ds18b20_set_parasite(1);
+
+    uint8_t rom[DS18B20_ROM_BYTES] = {0x28, 0, 0, 0, 0, 0, 0, 0};
+    ds18b20_test_set_device(0, rom);
+    ds18b20_test_set_device_count(1);
+    ds18b20_scan_start();
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
+
+    /* IDLE -> CONVERT */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
+    /* CONVERT -> WAIT (broadcast Skip ROM) */
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
+    /* WAIT -> CONTINUE */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
+    /* CONTINUE -> REQUEST */
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_REQUEST, ds18b20_test_get_state());
+    /* REQUEST -> READ */
+    ds18b20_test_set_edge(0, 510);
+    ds18b20_test_set_edge(1, 700);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
+    /* READ -> DECODE */
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_DECODE, ds18b20_test_get_state());
+
+    /* Feed a valid scratchpad and finish the last (only) device read: the
+     * scan ends at IDLE and keeps the strong pull-up engaged across the pause. */
+    uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
+    sd[8] = ds18b20_crc8(sd, 8);
+    for (int i = 0; i < 9; i++) {
+        for (int b = 0; b < 8; b++) {
+            ds18b20_test_set_pulse(i * 8 + b, ((sd[i] >> b) & 1u) ? ONE : ZERO);
+        }
+    }
+    uint8_t before = test_spy_complete_count;
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_TRUE(pu_engaged());
+    TEST_ASSERT_TRUE(test_spy_complete_count > before);
+    ds18b20_set_parasite(0);
+}
+
+/*-------------------------------------------------------------
+ *  Test: a parasite-powered Write Scratchpad (no read, no wait)
+ *  finishes immediately and releases the strong pull-up (the
+ *  txn immediate-finish branch).
+ *----------------------------------------------------------*/
+void test_parasite_alarm_thresholds_release_pullup(void) {
+    test_spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_set_parasite(1);
+
+    ds18b20_set_alarm_thresholds(0x1E, 0x00);
+    uint8_t done = 0;
+    for (int i = 0; i < 8 && !done; i++) {
+        ds18b20_test_set_edge(0, 510);
+        ds18b20_test_set_edge(1, 700);
+        mock_tim1.SR |= TIM_SR_UIF;
+        done = ds18b20_set_alarm_thresholds_poll();
+    }
+    TEST_ASSERT_TRUE(done);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_ok());
+    TEST_ASSERT_FALSE(pu_engaged()); /* pull-up released after immediate finish */
+    ds18b20_set_parasite(0);
+}
+
+/*-------------------------------------------------------------
+ *  Test: a parasite-powered Convert T with no device answering
+ *  presence still engages the strong pull-up before the retry
+ *  pause (issue_command no-presence branch).
+ *----------------------------------------------------------*/
+void test_parasite_convert_no_presence_engages_pullup(void) {
+    test_spy_reset();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_set_parasite(1);
+    ds18b20_test_set_state(DS18B20_ST_CONVERT);
+
+    /* No device answers the presence pulse. */
+    ds18b20_test_set_edge(0, 100);
+    ds18b20_test_set_edge(1, 100);
+    mock_tim1.SR |= TIM_SR_UIF;
+    ds18b20_poll();
+
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_TRUE(pu_engaged());
+    TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_values[0]);
+    ds18b20_set_parasite(0);
+}
+
 void run_test_parasite(void) {
     TEST_RUN(test_parasite_default_off_cycle_leaves_gpio_alone);
     TEST_RUN(test_parasite_default_off_txn_leaves_gpio_alone);
@@ -501,6 +641,10 @@ void run_test_parasite(void) {
     TEST_RUN(test_parasite_copy_scratchpad_window);
     TEST_RUN(test_parasite_recall_eeprom_window);
     TEST_RUN(test_parasite_setter_normalises_and_init_resets);
+    TEST_RUN(test_parasite_guard_band_tracks_mode);
+    TEST_RUN(test_parasite_scan_engages_pullup_across_pause);
+    TEST_RUN(test_parasite_alarm_thresholds_release_pullup);
+    TEST_RUN(test_parasite_convert_no_presence_engages_pullup);
     TEST_RUN(test_detect_parasite_sets_flag);
     TEST_RUN(test_detect_external_clears_flag);
     TEST_RUN(test_detect_no_presence_leaves_flag);

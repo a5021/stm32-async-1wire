@@ -29,6 +29,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the full report over UART and resets for the next window.  Validated on
   STM32G031@64MHz with 6 × DS18B20 in parasite power mode — all sensors
   detected, 0 errors, pulse widths 5–32 µs.
+- Example application `src/demo1.c` (`make APP=demo1`): startup device
+  search + per-device polling.  Each discovered sensor is converted and read
+  back individually via Match ROM (one `Convert T` per device, no broadcast
+  conversion) — the minimal multi-sensor counterpart to `demo3`'s
+  simultaneous scan.  Parasite power is engaged with `EXT="-DPARASITE_POWER=1"`;
+  note that per-device MATCH-ROM conversion is the marginal topology on a
+  parasite bus, so a broadcast convert (demo3) is preferred there.
+- Timing profiles (`inc/onewire.h`, `src/onewire.c`): four selectable slot
+  timings spanning fastest-to-slowest, all inside the DS18B20 1-Wire
+  specification — `ONEWIRE_TIMING_FAST` (5/60/3µs, 50µs parasite guard),
+  `ONEWIRE_TIMING_STANDARD` (5/60/5µs, 100µs; equals the historical defaults),
+  `ONEWIRE_TIMING_SLOW` (8/90/20µs, 200µs) and `ONEWIRE_TIMING_ROBUST`
+  (10/110/30µs, 250µs).  Select at runtime with
+  `onewire_set_timing_profile()` (or pin a compile-time default via
+  `ONEWIRE_TIMING_PROFILE_DEFAULT`); `onewire_get_timing_profile()` reports the
+  active one.  The `one_pulse`/`zero_pulse`/`guard_band`/`parasite_guard_band`/
+  `short_pulse_max` fields drive the timer ARR, the write low-time and the
+  read-decode threshold, so each profile adapts to different wire lengths and
+  sensor tolerances without touching the per-port timer code.  `onewire_init()`
+  applies the default profile; `ow_set_parasite_guard()` keeps the per-profile
+  external/parasite guard-band split.
 
 ### Removed
 

@@ -10,8 +10,8 @@
 #include "onewire.h"
 #include "unity.h"
 
-#define ONE_P 5u
-#define ZERO_P 60u
+#define ONE_P ow_one_pulse_us
+#define ZERO_P ow_zero_pulse_us
 
 void test_pulse_encoding_zero_byte_all_zero_pulse(void) {
     uint8_t out[8];
@@ -94,12 +94,12 @@ void test_pulse_encoding_single_bit_positions(void) {
 
 void test_onewire_bit_from_pulse_short_is_one(void) {
     TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(0));
-    TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(ONEWIRE_SHORT_PULSE_MAX));
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(ow_short_pulse_max_us));
     TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(5));
 }
 
 void test_onewire_bit_from_pulse_long_is_zero(void) {
-    TEST_ASSERT_EQUAL_UINT8(0, onewire_bit_from_pulse(ONEWIRE_SHORT_PULSE_MAX + 1));
+    TEST_ASSERT_EQUAL_UINT8(0, onewire_bit_from_pulse(ow_short_pulse_max_us + 1));
     TEST_ASSERT_EQUAL_UINT8(0, onewire_bit_from_pulse(60));
     TEST_ASSERT_EQUAL_UINT8(0, onewire_bit_from_pulse(0xFFFF));
 }
@@ -107,7 +107,7 @@ void test_onewire_bit_from_pulse_long_is_zero(void) {
 void test_onewire_decode_pulses_all_short_is_0xFF(void) {
     uint8_t pulse[8];
     for (int i = 0; i < 8; i++)
-        pulse[i] = (uint8_t)ONEWIRE_SHORT_PULSE_MAX;
+        pulse[i] = (uint8_t)ow_short_pulse_max_us;
     uint8_t dst[1];
     onewire_decode_pulses(dst, pulse, 1);
     TEST_ASSERT_EQUAL_UINT8(0xFF, dst[0]);
@@ -125,7 +125,7 @@ void test_onewire_decode_pulses_all_long_is_0x00(void) {
 void test_onewire_decode_pulses_pattern(void) {
     uint8_t pulse[8];
     for (int i = 0; i < 8; i++) {
-        pulse[i] = (uint8_t)(((0x55u >> i) & 1u) ? ONEWIRE_SHORT_PULSE_MAX : 60u);
+        pulse[i] = (uint8_t)(((0x55u >> i) & 1u) ? ow_short_pulse_max_us : 60u);
     }
     uint8_t dst[1];
     onewire_decode_pulses(dst, pulse, 1);
@@ -136,7 +136,7 @@ void test_onewire_decode_pulses_two_bytes(void) {
     uint8_t pulse[16];
     for (int i = 0; i < 16; i++) {
         uint8_t byte = (i < 8) ? 0x55u : 0xAAu;
-        pulse[i] = (uint8_t)(((byte >> (i % 8)) & 1u) ? ONEWIRE_SHORT_PULSE_MAX : 60u);
+        pulse[i] = (uint8_t)(((byte >> (i % 8)) & 1u) ? ow_short_pulse_max_us : 60u);
     }
     uint8_t dst[2];
     onewire_decode_pulses(dst, pulse, 2);

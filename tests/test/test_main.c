@@ -49,6 +49,8 @@ extern void run_test_eeprom(void);
 extern void run_test_parasite(void);
 extern void run_test_dmamux(void);
 extern void run_test_ow_stats(void);
+extern void run_test_harness_api(void);
+extern void run_test_app_uart(void);
 
 int main(void) {
     run_test_scratchpad();
@@ -70,6 +72,8 @@ int main(void) {
     run_test_parasite();
     run_test_dmamux();
     run_test_ow_stats();
+    run_test_harness_api();
+    run_test_app_uart();
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
     return unity_failures ? 1 : 0;
 }

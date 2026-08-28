@@ -21,8 +21,9 @@
 #include "mock_target.h"
 #include "unity.h"
 
-#define ONE 5u
-#define ZERO 60u
+#include "onewire.h"
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 /* Three fake device ROMs (LSB first; the driver does not re-validate them). */
 static const uint8_t k_roms[3][DS18B20_ROM_BYTES] = {
