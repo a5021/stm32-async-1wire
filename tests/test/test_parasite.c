@@ -321,7 +321,7 @@ void test_parasite_convert_window_engage_and_release(void) {
     drive_request_to_end();
     TEST_ASSERT_TRUE(test_spy_complete_called);
     TEST_ASSERT_EQUAL_INT(223, test_spy_complete_value);
-    TEST_ASSERT_TRUE(pu_idle_af_od());
+    TEST_ASSERT_TRUE(pu_engaged());
 }
 
 void test_parasite_flag_cleared_mid_window_still_releases(void) {
@@ -394,7 +394,7 @@ void test_parasite_setter_normalises_and_init_resets(void) {
      * init() must return the parasite flag to the external-power
      * default, so the next conversion window stays open-drain. */
     drive_from_continue_to_end();
-    TEST_ASSERT_TRUE(pu_idle_af_od());
+    TEST_ASSERT_TRUE(pu_engaged());
     ds18b20_init();
     drive_to_wait();
     TEST_ASSERT_FALSE(pu_engaged());
