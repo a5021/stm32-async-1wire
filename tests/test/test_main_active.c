@@ -11,8 +11,8 @@
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
-#include "ow_stats.h"
 #include "onewire.h"
+#include "ow_stats.h"
 #include "unity.h"
 
 int unity_failures = 0;
