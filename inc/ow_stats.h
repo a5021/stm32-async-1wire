@@ -11,7 +11,9 @@
  * The dump is non-blocking: ow_stats_dump_start() initiates it,
  * ow_stats_dump_poll() outputs a few bytes per main-loop call.
  *
- * @note RAM cost: ~180 bytes (8 sensors × 18 + 16 histogram buckets × 2 + 5).
+ * @note RAM cost: ~290 bytes (8 sensors × 26 B + 16-entry uint32_t histogram
+ *       [64 B] + cycle/error counters; 13 of the 16 histogram buckets, indices
+ *       0–12, are populated).
  */
 
 #ifndef OW_STATS_H
