@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-28 16:22:26</td>
+            <td class="headerValue">2026-08-28 20:32:08</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -101,61 +101,61 @@
 <span id="L30"><span class="lineNum">      30</span>                 :             : </span>
 <span id="L31"><span class="lineNum">      31</span>                 :             : /* ---- histogram helpers ---- */</span>
 <span id="L32"><span class="lineNum">      32</span>                 :             : </span>
-<span id="L33"><span class="lineNum">      33</span>                 :<span class="tlaGNC tlaBgGNC">     1686780 : static uint8_t hist_bucket(uint8_t pulse) {</span></span>
-<span id="L34"><span class="lineNum">      34</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1686726 times"> + </span>]:<span class="tlaGNC">     1686780 :     if (pulse &lt;= 2) return 0;</span></span>
-<span id="L35"><span class="lineNum">      35</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1686714 times"> + </span>]:<span class="tlaGNC">     1686726 :     if (pulse &lt;= 4) return 1;</span></span>
-<span id="L36"><span class="lineNum">      36</span>         [<span class="tlaGBC" title="Branch 0 was taken 2865 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1683849 times"> + </span>]:<span class="tlaGNC">     1686714 :     if (pulse &lt;= 6) return 2;</span></span>
-<span id="L37"><span class="lineNum">      37</span>         [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1683831 times"> + </span>]:<span class="tlaGNC">     1683849 :     if (pulse &lt;= 9) return 3;</span></span>
-<span id="L38"><span class="lineNum">      38</span>         [<span class="tlaGBC" title="Branch 0 was taken 1680351 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3480 times"> + </span>]:<span class="tlaGNC">     1683831 :     if (pulse &lt;= 12) return 4;</span></span>
-<span id="L39"><span class="lineNum">      39</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3474 times"> + </span>]:<span class="tlaGNC">        3480 :     if (pulse &lt;= 14) return 5;</span></span>
-<span id="L40"><span class="lineNum">      40</span>         [<span class="tlaGBC" title="Branch 0 was taken 45 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3429 times"> + </span>]:<span class="tlaGNC">        3474 :     if (pulse &lt;= 19) return 6;</span></span>
-<span id="L41"><span class="lineNum">      41</span>         [<span class="tlaGBC" title="Branch 0 was taken 30 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3399 times"> + </span>]:<span class="tlaGNC">        3429 :     if (pulse &lt;= 24) return 7;</span></span>
-<span id="L42"><span class="lineNum">      42</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3393 times"> + </span>]:<span class="tlaGNC">        3399 :     if (pulse &lt;= 29) return 8;</span></span>
-<span id="L43"><span class="lineNum">      43</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3387 times"> + </span>]:<span class="tlaGNC">        3393 :     if (pulse &lt;= 39) return 9;</span></span>
-<span id="L44"><span class="lineNum">      44</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3381 times"> + </span>]:<span class="tlaGNC">        3387 :     if (pulse &lt;= 49) return 10;</span></span>
-<span id="L45"><span class="lineNum">      45</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3369 times"> + </span>]:<span class="tlaGNC">        3381 :     if (pulse &lt;= 59) return 11;</span></span>
-<span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">        3369 :     return 12;</span></span>
+<span id="L33"><span class="lineNum">      33</span>                 :<span class="tlaGNC tlaBgGNC">     1686996 : static uint8_t hist_bucket(uint8_t pulse) {</span></span>
+<span id="L34"><span class="lineNum">      34</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1686942 times"> + </span>]:<span class="tlaGNC">     1686996 :     if (pulse &lt;= 2) return 0;</span></span>
+<span id="L35"><span class="lineNum">      35</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1686930 times"> + </span>]:<span class="tlaGNC">     1686942 :     if (pulse &lt;= 4) return 1;</span></span>
+<span id="L36"><span class="lineNum">      36</span>         [<span class="tlaGBC" title="Branch 0 was taken 2961 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1683969 times"> + </span>]:<span class="tlaGNC">     1686930 :     if (pulse &lt;= 6) return 2;</span></span>
+<span id="L37"><span class="lineNum">      37</span>         [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1683951 times"> + </span>]:<span class="tlaGNC">     1683969 :     if (pulse &lt;= 9) return 3;</span></span>
+<span id="L38"><span class="lineNum">      38</span>         [<span class="tlaGBC" title="Branch 0 was taken 1680351 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3600 times"> + </span>]:<span class="tlaGNC">     1683951 :     if (pulse &lt;= 12) return 4;</span></span>
+<span id="L39"><span class="lineNum">      39</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3594 times"> + </span>]:<span class="tlaGNC">        3600 :     if (pulse &lt;= 14) return 5;</span></span>
+<span id="L40"><span class="lineNum">      40</span>         [<span class="tlaGBC" title="Branch 0 was taken 45 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3549 times"> + </span>]:<span class="tlaGNC">        3594 :     if (pulse &lt;= 19) return 6;</span></span>
+<span id="L41"><span class="lineNum">      41</span>         [<span class="tlaGBC" title="Branch 0 was taken 30 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3519 times"> + </span>]:<span class="tlaGNC">        3549 :     if (pulse &lt;= 24) return 7;</span></span>
+<span id="L42"><span class="lineNum">      42</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3513 times"> + </span>]:<span class="tlaGNC">        3519 :     if (pulse &lt;= 29) return 8;</span></span>
+<span id="L43"><span class="lineNum">      43</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3507 times"> + </span>]:<span class="tlaGNC">        3513 :     if (pulse &lt;= 39) return 9;</span></span>
+<span id="L44"><span class="lineNum">      44</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3501 times"> + </span>]:<span class="tlaGNC">        3507 :     if (pulse &lt;= 49) return 10;</span></span>
+<span id="L45"><span class="lineNum">      45</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3489 times"> + </span>]:<span class="tlaGNC">        3501 :     if (pulse &lt;= 59) return 11;</span></span>
+<span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">        3489 :     return 12;</span></span>
 <span id="L47"><span class="lineNum">      47</span>                 :             : }</span>
 <span id="L48"><span class="lineNum">      48</span>                 :             : </span>
 <span id="L49"><span class="lineNum">      49</span>                 :             : /* ---- sensor lookup ---- */</span>
 <span id="L50"><span class="lineNum">      50</span>                 :             : </span>
-<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">      210207 : static uint8_t sensor_find_or_alloc(const uint8_t* rom) {</span></span>
-<span id="L52"><span class="lineNum">      52</span>         [<span class="tlaGBC" title="Branch 0 was taken 72 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 210135 times"> + </span>]:<span class="tlaGNC">      210207 :     if (!rom) return OW_STATS_MAX_SENSORS;</span></span>
-<span id="L53"><span class="lineNum">      53</span>         [<span class="tlaGBC" title="Branch 0 was taken 210153 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 111 times"> + </span>]:<span class="tlaGNC">      210264 :     for (uint8_t i = 0; i &lt; st.sensor_count; i++) {</span></span>
+<span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">      210210 : static uint8_t sensor_find_or_alloc(const uint8_t* rom) {</span></span>
+<span id="L52"><span class="lineNum">      52</span>         [<span class="tlaGBC" title="Branch 0 was taken 72 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 210138 times"> + </span>]:<span class="tlaGNC">      210210 :     if (!rom) return OW_STATS_MAX_SENSORS;</span></span>
+<span id="L53"><span class="lineNum">      53</span>         [<span class="tlaGBC" title="Branch 0 was taken 210153 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 114 times"> + </span>]:<span class="tlaGNC">      210267 :     for (uint8_t i = 0; i &lt; st.sensor_count; i++) {</span></span>
 <span id="L54"><span class="lineNum">      54</span>         [<span class="tlaGBC" title="Branch 0 was taken 210024 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 129 times"> + </span>]:<span class="tlaGNC">      210153 :         if (memcmp(st.sensors[i].rom, rom, 8) == 0) return i;</span></span>
 <span id="L55"><span class="lineNum">      55</span>                 :             :     }</span>
-<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaGBC" title="Branch 0 was taken 108 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         111 :     if (st.sensor_count &lt; OW_STATS_MAX_SENSORS) {</span></span>
-<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">         108 :         uint8_t idx = st.sensor_count++;</span></span>
-<span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         108 :         memcpy(st.sensors[idx].rom, rom, 8);</span></span>
-<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         108 :         st.sensors[idx].min_pulse = 0xFF;</span></span>
-<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         108 :         st.sensors[idx].max_pulse = 0;</span></span>
-<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         108 :         return idx;</span></span>
+<span id="L56"><span class="lineNum">      56</span>         [<span class="tlaGBC" title="Branch 0 was taken 111 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         114 :     if (st.sensor_count &lt; OW_STATS_MAX_SENSORS) {</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">         111 :         uint8_t idx = st.sensor_count++;</span></span>
+<span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         111 :         memcpy(st.sensors[idx].rom, rom, 8);</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         111 :         st.sensors[idx].min_pulse = 0xFF;</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         111 :         st.sensors[idx].max_pulse = 0;</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         111 :         return idx;</span></span>
 <span id="L62"><span class="lineNum">      62</span>                 :             :     }</span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">           3 :     return OW_STATS_MAX_SENSORS;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             : }</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : </span>
 <span id="L66"><span class="lineNum">      66</span>                 :             : /* ---- public API ---- */</span>
 <span id="L67"><span class="lineNum">      67</span>                 :             : </span>
-<span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         803 : void ow_stats_init(void) {</span></span>
-<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">         803 :     memset(&amp;st, 0, sizeof(st));</span></span>
-<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">         803 :     dump_phase = 0;</span></span>
-<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">         803 : }</span></span>
+<span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         848 : void ow_stats_init(void) {</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :<span class="tlaGNC">         848 :     memset(&amp;st, 0, sizeof(st));</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">         848 :     dump_phase = 0;</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">         848 : }</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :             : </span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">      210153 : void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">      210156 : void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,</span></span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :                             const uint8_t* rom) {</span>
-<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">      210153 :     uint8_t si = sensor_find_or_alloc(rom);</span></span>
-<span id="L76"><span class="lineNum">      76</span>         [<span class="tlaGBC" title="Branch 0 was taken 1686780 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 210153 times"> + </span>]:<span class="tlaGNC">     1896933 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
-<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">     1686780 :         uint8_t p = pulse[i];</span></span>
-<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">     1686780 :         st.histogram[hist_bucket(p)]++;</span></span>
-<span id="L79"><span class="lineNum">      79</span>         [<span class="tlaGBC" title="Branch 0 was taken 1682760 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4020 times"> + </span>]:<span class="tlaGNC">     1686780 :         if (si &lt; OW_STATS_MAX_SENSORS) {</span></span>
-<span id="L80"><span class="lineNum">      80</span>         [<span class="tlaGBC" title="Branch 0 was taken 102 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1682658 times"> + </span>]:<span class="tlaGNC">     1682760 :             if (p &lt; st.sensors[si].min_pulse) st.sensors[si].min_pulse = p;</span></span>
-<span id="L81"><span class="lineNum">      81</span>         [<span class="tlaGBC" title="Branch 0 was taken 81 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1682679 times"> + </span>]:<span class="tlaGNC">     1682760 :             if (p &gt; st.sensors[si].max_pulse) st.sensors[si].max_pulse = p;</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">      210156 :     uint8_t si = sensor_find_or_alloc(rom);</span></span>
+<span id="L76"><span class="lineNum">      76</span>         [<span class="tlaGBC" title="Branch 0 was taken 1686996 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 210156 times"> + </span>]:<span class="tlaGNC">     1897152 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
+<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">     1686996 :         uint8_t p = pulse[i];</span></span>
+<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">     1686996 :         st.histogram[hist_bucket(p)]++;</span></span>
+<span id="L79"><span class="lineNum">      79</span>         [<span class="tlaGBC" title="Branch 0 was taken 1682976 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4020 times"> + </span>]:<span class="tlaGNC">     1686996 :         if (si &lt; OW_STATS_MAX_SENSORS) {</span></span>
+<span id="L80"><span class="lineNum">      80</span>         [<span class="tlaGBC" title="Branch 0 was taken 108 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1682868 times"> + </span>]:<span class="tlaGNC">     1682976 :             if (p &lt; st.sensors[si].min_pulse) st.sensors[si].min_pulse = p;</span></span>
+<span id="L81"><span class="lineNum">      81</span>         [<span class="tlaGBC" title="Branch 0 was taken 84 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1682892 times"> + </span>]:<span class="tlaGNC">     1682976 :             if (p &gt; st.sensors[si].max_pulse) st.sensors[si].max_pulse = p;</span></span>
 <span id="L82"><span class="lineNum">      82</span>                 :             :         }</span>
 <span id="L83"><span class="lineNum">      83</span>                 :             :     }</span>
-<span id="L84"><span class="lineNum">      84</span>         [<span class="tlaGBC" title="Branch 0 was taken 210081 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 72 times"> + </span>]:<span class="tlaGNC">      210153 :     if (si &lt; OW_STATS_MAX_SENSORS) {</span></span>
-<span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">      210081 :         st.sensors[si].count++;</span></span>
+<span id="L84"><span class="lineNum">      84</span>         [<span class="tlaGBC" title="Branch 0 was taken 210084 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 72 times"> + </span>]:<span class="tlaGNC">      210156 :     if (si &lt; OW_STATS_MAX_SENSORS) {</span></span>
+<span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">      210084 :         st.sensors[si].count++;</span></span>
 <span id="L86"><span class="lineNum">      86</span>                 :             :     }</span>
-<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">      210153 : }</span></span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">      210156 : }</span></span>
 <span id="L88"><span class="lineNum">      88</span>                 :             : </span>
 <span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">          54 : void ow_stats_count_error(int16_t error, const uint8_t* rom) {</span></span>
 <span id="L90"><span class="lineNum">      90</span>                 :<span class="tlaGNC">          54 :     uint8_t si = sensor_find_or_alloc(rom);</span></span>
