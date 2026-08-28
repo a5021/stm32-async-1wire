@@ -297,7 +297,7 @@ in main loop) — fully non-blocking, no interrupts.
 
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
-| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF2           |
+| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF2 (default topology) |
 | PA9  | USART1 TX (115200)  | RX line of the USB-UART adapter    |
 | PA4  | Busy LED (optional) | Active-high                        |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
@@ -311,7 +311,7 @@ notes below cover the TSSOP20 package wiring:
 
 | Pin | Function | Notes |
 |-----|----------|-------|
-| PA12 | 1-Wire Data (logical PA10) | TIM1_CH3 AF2 after the SYSCFG `PA12_RMP` remap; open-drain AF |
+| PA12 | 1-Wire Data (logical PA10) | TIM1_CH3 AF2 after the SYSCFG `PA12_RMP` remap; open-drain AF (default topology) |
 | PA11 | USART1 TX (logical PA9) | AF1 after the `PA11_RMP` remap |
 | PA4 | Busy LED (optional) | Active-low |
 | PA13/PA14 | SWDIO/SWCLK | ST-Link SWD programming |
@@ -319,6 +319,12 @@ notes below cover the TSSOP20 package wiring:
 Important: while the driver is initialised, pads PA11/PA12 must not be used as standalone GPIOs - configuring them as PA11/PA12 clears the SYSCFG remap bits and silently disconnects the bus.
 
 Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
+
+Note: "open-drain" above describes the **default/idle** bus topology, not a
+static pin configuration. With the optional active-drive write mode
+(`-DOW_DRIVE_ACTIVE`) the pin is temporarily switched to push-pull during
+master-only write slots and restored to open-drain afterwards — see
+[Bus Electrical Model](#bus-electrical-model).
 
 ## Quick Start
 
