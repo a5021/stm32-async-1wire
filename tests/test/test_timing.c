@@ -29,16 +29,17 @@ void test_timing_command_programs_slot_period(void) {
     hw_reset_all();
     uint8_t cmd[17];
     for (int i = 0; i < 16; i++) {
-        cmd[i] = (i & 1) ? (uint8_t)5 : (uint8_t)60;
+        cmd[i] = (i & 1) ? ow_one_pulse_us : ow_zero_pulse_us;
     }
     cmd[16] = 0;
     test_bus_send_command_n(cmd, 16);
-    /* ARR = ONE_PULSE + ZERO_PULSE + GUARD_BAND = 5+60+5 = 70µs */
-    TEST_ASSERT_EQUAL_UINT16(70, (uint16_t)mock_tim1.ARR);
+    /* ARR = one_pulse + zero_pulse + guard_band (active timing profile) */
+    TEST_ASSERT_EQUAL_UINT16((uint16_t)(ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us),
+                             (uint16_t)mock_tim1.ARR);
     /* RCR = slots - 1 */
     TEST_ASSERT_EQUAL_UINT32(15, mock_tim1.RCR);
-    /* the slot-end marker compare triggers the DMA reload at ONE_PULSE + ZERO_PULSE = 65µs */
-    TEST_ASSERT_EQUAL_UINT32(65, MOCK_TIM_MARKER_CCR);
+    /* the slot-end marker compare triggers the DMA reload at one_pulse + zero_pulse */
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(ow_one_pulse_us + ow_zero_pulse_us), MOCK_TIM_MARKER_CCR);
 }
 
 void test_timing_read_programs_72_slots(void) {
@@ -46,7 +47,8 @@ void test_timing_read_programs_72_slots(void) {
     test_bus_read_data();
     /* 72 data slots: RCR = 71 */
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT16(70, (uint16_t)mock_tim1.ARR);
+    TEST_ASSERT_EQUAL_UINT16((uint16_t)(ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us),
+                             (uint16_t)mock_tim1.ARR);
     /* capture ops preload the output CCR with 0 via OCxPE (hardware bus release) */
     TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);
     TEST_ASSERT_EQUAL_UINT32(0, MOCK_TIM_OUT_CCR);
@@ -107,6 +109,55 @@ void test_apb_prescaler_div1_for_tim1(void) {
 #endif
 }
 
+/*-------------------------------------------------------------
+ *  Test: onewire timing-profile API
+ *  - invalid profile argument is ignored (no profile switch)
+ *  - set/get round-trips the selected profile's pulse/guard values
+ *----------------------------------------------------------*/
+void test_timing_profile_invalid_arg_ignored(void) {
+    onewire_timing_profile_t saved = onewire_get_timing_profile();
+
+    onewire_set_timing_profile(ONEWIRE_TIMING_COUNT); /* out of range */
+    TEST_ASSERT_EQUAL_INT(saved, onewire_get_timing_profile());
+    onewire_set_timing_profile((onewire_timing_profile_t)0xFF);
+    TEST_ASSERT_EQUAL_INT(saved, onewire_get_timing_profile());
+
+    onewire_set_timing_profile(saved);
+}
+
+void test_timing_profile_set_and_get_roundtrip(void) {
+    onewire_timing_profile_t saved = onewire_get_timing_profile();
+
+    onewire_set_timing_profile(ONEWIRE_TIMING_SLOW);
+    TEST_ASSERT_EQUAL_INT(ONEWIRE_TIMING_SLOW, onewire_get_timing_profile());
+    TEST_ASSERT_EQUAL_UINT8(8, ow_one_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(90, ow_zero_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(20, ow_guard_band_us);
+
+    onewire_set_timing_profile(ONEWIRE_TIMING_ROBUST);
+    TEST_ASSERT_EQUAL_UINT8(10, ow_one_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(110, ow_zero_pulse_us);
+
+    onewire_set_timing_profile(ONEWIRE_TIMING_FAST);
+    TEST_ASSERT_EQUAL_UINT8(5, ow_one_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(60, ow_zero_pulse_us);
+
+    onewire_set_timing_profile(saved);
+}
+
+/*-------------------------------------------------------------
+ *  Test: a search already owning the timer ignores a re-entrant
+ *  onewire_search_start() (onewire.c early-return guard).
+ *----------------------------------------------------------*/
+void test_search_start_ignored_while_running(void) {
+    onewire_search_start(NULL, 1, DS18B20_SEARCH_ROM, 0);
+    TEST_ASSERT_TRUE(onewire_search_active());
+    /* Second start while the search owns the timer must be ignored. */
+    onewire_search_start(NULL, 1, DS18B20_SEARCH_ROM, 0);
+    TEST_ASSERT_TRUE(onewire_search_active());
+    ds18b20_test_reset_search();
+}
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -115,4 +166,7 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_start_cycle_pause_5s);
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
+    TEST_RUN(test_timing_profile_invalid_arg_ignored);
+    TEST_RUN(test_timing_profile_set_and_get_roundtrip);
+    TEST_RUN(test_search_start_ignored_while_running);
 }
