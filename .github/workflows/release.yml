@@ -83,6 +83,18 @@ jobs:
             "demo2|g0|16|ds18b20_demo2_g0_16mhz"
             "demo3|g0|16|ds18b20_demo3_g0_16mhz"
             "demo4|g0|16|ds18b20_demo4_g0_16mhz"
+            "demo1|-|-|ds18b20_demo1_72mhz"
+            "demo5|-|-|ds18b20_demo5_72mhz"
+            "demo1|-|8|ds18b20_demo1_8mhz"
+            "demo5|-|8|ds18b20_demo5_8mhz"
+            "demo1|f0|-|ds18b20_demo1_f0_48mhz"
+            "demo5|f0|-|ds18b20_demo5_f0_48mhz"
+            "demo1|f0|8|ds18b20_demo1_f0_8mhz"
+            "demo5|f0|8|ds18b20_demo5_f0_8mhz"
+            "demo1|g0|-|ds18b20_demo1_g0_64mhz"
+            "demo5|g0|-|ds18b20_demo5_g0_64mhz"
+            "demo1|g0|16|ds18b20_demo1_g0_16mhz"
+            "demo5|g0|16|ds18b20_demo5_g0_16mhz"
           )
           for row in "${matrix[@]}"; do
             IFS='|' read -r app target sysclk out <<< "$row"
@@ -134,11 +146,13 @@ jobs:
             | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_demo_g0_64mhz`, …`demo2_g0_64mhz`, …`demo3_g0_64mhz`, …`demo4_g0_64mhz` |
             | STM32G031x6 | 16MHz HSI16 (bus on PA12 pad via remap) | `ds18b20_demo_g0_16mhz`, …`demo2_g0_16mhz`, …`demo3_g0_16mhz`, …`demo4_g0_16mhz` |
 
-            Examples: `demo` — single sensor via Skip ROM; `demo2` — device
-            search + round-robin polling of every sensor; `demo3` — device
-            search + simultaneous multi-device conversion; `demo4` — device
-            search + command transactions (power supply, scratchpad, TH/TL,
-            Copy/Recall EEPROM, Read ROM).
+            Examples: `demo` — single sensor via Skip ROM; `demo1` — device
+            search + per-device polling (one Convert T per sensor); `demo2` —
+            device search + round-robin polling of every sensor; `demo3` —
+            device search + simultaneous multi-device conversion; `demo4` —
+            device search + command transactions (power supply, scratchpad,
+            TH/TL, Copy/Recall EEPROM, Read ROM); `demo5` — device search +
+            signal-statistics dump over UART (`-DOW_STATS_ENABLE`).
 
             ## Highlights
 
