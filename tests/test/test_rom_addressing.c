@@ -8,10 +8,11 @@
 
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
+#include "onewire.h"
 #include "unity.h"
 
-#define ONE_P 5u
-#define ZERO_P 60u
+#define ONE_P ow_one_pulse_us
+#define ZERO_P ow_zero_pulse_us
 
 /* Mirror of the driver-internal DS18B20_MATCH_SLOTS so bounds tests use the
  * real slot count (= (DS18B20_ROM_BYTES + 2) * 8 = 80) rather than a literal. */
@@ -53,9 +54,9 @@ void test_rom_addressing_prefix_includes_rom(void) {
     ds18b20_select(rom);
 
     /* ROM byte 0 (0x28 = 00101000, LSB first: 0,0,0,1,0,1,0,0) at slots 8-15 */
-    uint8_t exp[8] = {ZERO_P, ZERO_P, ZERO_P, ONE_P, ZERO_P, ONE_P, ZERO_P, ZERO_P};
     for (int i = 0; i < 8; i++) {
-        TEST_ASSERT_EQUAL_UINT8(exp[i], ds18b20_test_get_addr_cmd((uint8_t)(8 + i)));
+        uint8_t expected = ((0x28u >> i) & 1u) ? (uint8_t)ONE_P : (uint8_t)ZERO_P;
+        TEST_ASSERT_EQUAL_UINT8(expected, ds18b20_test_get_addr_cmd((uint8_t)(8 + i)));
     }
 }
 
@@ -65,9 +66,9 @@ void test_rom_addressing_cmd_overwrites_last_8_slots(void) {
     ds18b20_test_build_addr_cmd(DS18B20_CONVERT_T); /* 0x44 */
 
     /* 0x44 = 01000100, LSB first: 0,0,1,0,0,0,1,0 at slots 72-79 */
-    uint8_t exp[8] = {ZERO_P, ZERO_P, ONE_P, ZERO_P, ZERO_P, ZERO_P, ONE_P, ZERO_P};
     for (int i = 0; i < 8; i++) {
-        TEST_ASSERT_EQUAL_UINT8(exp[i], ds18b20_test_get_addr_cmd((uint8_t)(72 + i)));
+        uint8_t expected = ((0x44u >> i) & 1u) ? (uint8_t)ONE_P : (uint8_t)ZERO_P;
+        TEST_ASSERT_EQUAL_UINT8(expected, ds18b20_test_get_addr_cmd((uint8_t)(72 + i)));
     }
 }
 
@@ -93,9 +94,9 @@ void test_rom_addressing_read_scratchpad_encoding(void) {
     ds18b20_test_build_addr_cmd(DS18B20_READ_SCRATCHPAD); /* 0xBE */
 
     /* 0xBE = 10111110, LSB first: 0,1,1,1,1,1,0,1 at slots 72-79 */
-    uint8_t exp[8] = {ZERO_P, ONE_P, ONE_P, ONE_P, ONE_P, ONE_P, ZERO_P, ONE_P};
     for (int i = 0; i < 8; i++) {
-        TEST_ASSERT_EQUAL_UINT8(exp[i], ds18b20_test_get_addr_cmd((uint8_t)(72 + i)));
+        uint8_t expected = ((0xBEu >> i) & 1u) ? (uint8_t)ONE_P : (uint8_t)ZERO_P;
+        TEST_ASSERT_EQUAL_UINT8(expected, ds18b20_test_get_addr_cmd((uint8_t)(72 + i)));
     }
 }
 
