@@ -680,6 +680,25 @@ empirically on both families (each has a fixed request map with no CSELR
 mux). Only the timer prescaler and the GPIO pin configuration differ between
 the two backends.
 
+#### Bus Electrical Model
+
+- **Open-drain bus.** PA10 is configured as an alternate-function **open-drain**
+  pin and idles HIGH; a single external pull-up resistor on the bus is required.
+  Both the master and every slave are open-drain, so the bus is a **wired-AND**:
+  if any device drives the line LOW the bus is LOW, otherwise it is pulled HIGH.
+- **Normal slot signaling (master never drives HIGH).** A `write-0` or bus reset
+  is the master actively pulling the line LOW; a `write-1` or read slot is the
+  master **releasing** the pin to Hi-Z and letting the external pull-up return
+  the line HIGH. The master therefore never actively drives the line HIGH during
+  a normal slot — `write-1` is a *release*, not a push-pull HIGH.
+- **Parasite strong-pull-up (the only push-pull usage).** `onewire_strong_pullup()`
+  (`ow_port_strong_pullup()`) is the *only* place the pin is switched to
+  push-pull; it actively sources current by driving the line HIGH during the
+  temperature-conversion / EEPROM-programming window — a phase where the
+  DS18B20 is silent and cannot respond on the bus. It is restored to open-drain
+  afterwards. There is no per-bit hybrid push-pull/open-drain mode in the
+  published driver.
+
 ### State Machine Flow (hardware-timed; polled on UIF)
 
 Kickstart behavior
