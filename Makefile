@@ -88,6 +88,17 @@ endif
 
 OPT = -Os -flto -g0
 
+# Cortex-M0 / Cortex-M0+ (F0 / G0) trip a GCC 14 LTO link failure
+# ("invalid constant after fixup" in the thin-LTO partitioner) when the code
+# shape shifts; drop LTO there. Correctness is unaffected, binaries are just
+# slightly larger. Cortex-M3 (F1) keeps LTO.
+ifeq ($(OW_TARGET),f0)
+OPT := $(filter-out -flto,$(OPT))
+endif
+ifeq ($(OW_TARGET),g0)
+OPT := $(filter-out -flto,$(OPT))
+endif
+
 # Define the toolchain prefix
 TOOLCHAIN := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
 
