@@ -82,6 +82,15 @@ ifdef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
 
+# Optional experimental active-drive write path:
+# make OW_DRIVE_ACTIVE=1  →  -DOW_DRIVE_ACTIVE
+# Pure-write transactions switch PA10 to push-pull so the master actively
+# drives BOTH bus levels (faster, stronger write-1); read/reset phases stay
+# open-drain. Experimental; kept off by default. See bus electrical-model doc.
+ifeq ($(OW_DRIVE_ACTIVE),1)
+DEF += -DOW_DRIVE_ACTIVE
+endif
+
 # Optimization flags for the compiler:
 # -Os         : Optimize for code size. This driver is polled on a millisecond
 #               cadence, so compact code matters more than raw speed. Saves
@@ -515,6 +524,33 @@ $(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c Makefile | $(TEST
 
 $(TEST_OUT):
 	mkdir -p $@
+
+# --- Active-drive (push-pull write) test build (experimental, -DOW_DRIVE_ACTIVE) ---
+# Runs only the active-drive test set (the full suite's pin-regression assertions
+# assume the pin is never toggled outside the parasite strong-pull-up path).
+TEST_ACTIVE_SRC = \
+    $(TEST_DIR)/test_main_active.c \
+    $(TEST_DIR)/test_active_drive.c \
+    $(TEST_MOCK)/hw_model.c \
+    $(TEST_MOCK)/ds18b20_test_spy.c \
+    $(TEST_MOCK)/ds18b20_test_access.c \
+    $(TEST_MOCK)/ow_stats_test_access.c \
+    src/app.c
+TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE
+TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+
+.PHONY: test-active test-active-f0 test-active-g0
+test-active: $(TEST_ACTIVE_EXE)
+	$(TEST_ACTIVE_EXE)
+
+test-active-f0:
+	$(MAKE) OW_TARGET=f0 test-active
+
+test-active-g0:
+	$(MAKE) OW_TARGET=g0 test-active
+
+$(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_ACTIVE_SRC) -o $@
 
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
