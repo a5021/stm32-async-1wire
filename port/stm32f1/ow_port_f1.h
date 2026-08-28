@@ -105,12 +105,32 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
 }
 
 /**
+ * @brief Set the bus pin drive mode (open-drain vs push-pull)
+ * @param[in] push_pull 1 selects alternate-function push-pull (master actively
+ *        drives both bus levels), 0 selects alternate-function open-drain
+ *        (master drives LOW only, releasing HIGH to the external pull-up).
+ * @note Used by the parasite strong-pull-up and, when OW_DRIVE_ACTIVE is
+ *       defined, by the active-drive write path. The pin never leaves
+ *       alternate-function (TIM1_CH3); only the output-stage topology changes.
+ */
+__STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
+    if (push_pull) {
+        PA.CRH &= ~GPIO_CRH_CNF10_0; /* CNF=11->10: AF OD -> AF PP */
+    } else {
+        PA.CRH |= GPIO_CRH_CNF10_0;  /* CNF=10->11: AF PP -> AF OD */
+    }
+}
+
+/**
  * @brief Configure timer and DMA for a capture operation
  * @param[out] dst Destination buffer for captured data
  * @param[in] count Number of transfers
  * @param[in] width DMA transfer width: 8 for 8-bit, 16 for 16-bit
  */
 __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, uint16_t width) {
+#ifdef OW_DRIVE_ACTIVE
+    ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
+#endif
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
     T1.DIER = TIM_DIER(CC4DE);
@@ -187,6 +207,9 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* edge_out) {
  * @param[in] slots Number of bit slots to transmit
  */
 __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t slots) {
+#ifdef OW_DRIVE_ACTIVE
+    ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
+#endif
     if (slots == 1) {
         /* Single slot: no DMA needed, avoids a zero-length DMA transaction */
         T1.RCR = 0; /* Single slot, no repetition */
@@ -234,6 +257,9 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* edge3,
                                                   const uint8_t* read_pulse) {
+#ifdef OW_DRIVE_ACTIVE
+    ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
+#endif
     const uint8_t write_pulse = bit ? ow_one_pulse_us : ow_zero_pulse_us;
     T1.RCR = 2; /* Three slots, then a single update event */
     T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us; /* Total bit slot time */
@@ -302,11 +328,7 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
  *       inactive, and ODR is irrelevant in AF mode.
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
-    if (on) {
-        PA.CRH &= ~GPIO_CRH(CNF10_0); /* CNF=11->10: AF OD -> AF PP */
-    } else {
-        PA.CRH |= GPIO_CRH(CNF10_0); /* CNF=10->11: AF PP -> AF OD */
-    }
+    ow_port_set_pin_mode(on);
 }
 
 #endif /* OW_PORT_F1_H */
