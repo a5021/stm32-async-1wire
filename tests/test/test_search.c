@@ -16,8 +16,9 @@
 #include "unity.h"
 #include <string.h>
 
-#define ONE 5u
-#define ZERO 60u
+#include "onewire.h"
+#define ONE ow_one_pulse_us
+#define ZERO ow_zero_pulse_us
 
 static uint8_t g_rom[8];
 static uint8_t g_rom_b[8];

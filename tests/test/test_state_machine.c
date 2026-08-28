@@ -13,6 +13,7 @@
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
+#include "onewire.h"
 #include "mock_target.h"
 #include "unity.h"
 #include <string.h>
@@ -536,8 +537,8 @@ void test_state_machine_decode_wrong_byte5_reports_error(void) {
  *  E2E: bus search finds one device, select it (Match ROM),
  *  then run the full measurement cycle and get a temperature.
  * -----------------------------------------------------------*/
-#define E2E_ONE 5u
-#define E2E_ZERO 60u
+#define E2E_ONE ow_one_pulse_us
+#define E2E_ZERO ow_zero_pulse_us
 
 static uint8_t g_e2e_rom[8];
 static uint8_t g_e2e_wr_bit;

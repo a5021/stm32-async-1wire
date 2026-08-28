@@ -172,9 +172,9 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  */
 __STATIC_FORCEINLINE void ow_port_feed(const uint8_t* cmd, uint16_t slots) {
     T1.RCR = slots - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
+    T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us;
     T1.CCR3 = cmd[0];
-    T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;
+    T1.CCR2 = ow_one_pulse_us + ow_zero_pulse_us;
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
     T1.CCER = TIM_CCER(CC3E);
     T1.DIER = TIM_DIER(CC2DE);
@@ -227,7 +227,7 @@ __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t sl
     if (slots == 1) {
         /* Single slot: no DMA needed, avoids a zero-length DMA transaction */
         T1.RCR = 0; /* Single slot, no repetition */
-        T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+        T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us; /* Total bit slot time */
         T1.CCR3 = pulses[0]; /* Pulse duration encodes the bit */
         /* OC3PE plus a preload zero release the bus at the terminal update
          * event, exactly when the one-pulse timer stops (hardware bus release). */
@@ -248,8 +248,8 @@ __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t sl
  */
 __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
     T1.RCR = 1; /* Two read slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-    T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
+    T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us; /* Total bit slot time */
+    T1.CCR3 = ow_one_pulse_us; /* Read pulse duration */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
     T1.DIER = TIM_DIER(CC4DE);
@@ -272,9 +272,9 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* edge3,
                                                   const uint8_t* read_pulse) {
-    const uint8_t write_pulse = bit ? (uint8_t)ONEWIRE_ONE_PULSE : (uint8_t)ONEWIRE_ZERO_PULSE;
+    const uint8_t write_pulse = bit ? ow_one_pulse_us : ow_zero_pulse_us;
     T1.RCR = 2; /* Three slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+    T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us; /* Total bit slot time */
     /* Arm the direction pulse first. The bus was released idle-high by
      * ow_port_bus_done(), so this write produces the single clean falling edge
      * the devices re-sync their slot timer to. Holding it from the top instead
@@ -282,7 +282,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * bus is low, so the open-drain RC rise can never be mistaken for a slot
      * edge. */
     T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
-    T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
+    T1.CCR2 = ow_one_pulse_us + ow_zero_pulse_us; /* End-of-slot reload trigger */
     /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E); /* Enable both channels */
@@ -323,8 +323,8 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {
     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
     T1.RCR = bits - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
-    T1.CCR3 = ONEWIRE_ONE_PULSE;
+    T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us;
+    T1.CCR3 = ow_one_pulse_us;
     ow_port_capture((volatile void*)dst, bits, 8);
 }
 

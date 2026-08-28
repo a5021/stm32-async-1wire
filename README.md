@@ -105,6 +105,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── src/                    # Project source files
 │   ├── app.c               # app_init(), UART TX ring buffer, busy LED
 │   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
+│   ├── demo1.c             # Example: device search + per-device poll (no broadcast convert)
 │   ├── demo2.c             # Example: device search + sequential poll of all
 │   ├── demo3.c             # Example: device search + simultaneous conversion
 │   ├── demo4.c             # Example: device search + command transactions
@@ -114,6 +115,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
 │   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
+├── tests/                  # Host test suite (no hardware required)
+│   ├── mock/               # Behavioural TIM1/DMA model + register mocks
+│   └── test/               # Unity-based test cases
+├── docs/                   # Documentation assets
+│   └── screenshots/        # UART capture screenshots
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32F1 device headers and startup
@@ -130,22 +136,24 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Examples
 
-Five ready-to-run example applications are provided; select one with `APP`:
+Six ready-to-run example applications are provided; select one with `APP`:
 
 | APP     | File             | Behaviour                                                        |
 |---------|------------------|------------------------------------------------------------------|
 | `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
+| `demo1` | `src/demo1.c`    | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
 | `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
 | `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
-| `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (default 100, configurable via `STATS_DUMP_INTERVAL`), then streams the full report over UART as a non-blocking dump. Requires `-DOW_STATS_ENABLE`. |
+| `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. The `demo5` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
 
 ```bash
 make                # build demo  -> build/ds18b20_demo.elf
+make APP=demo1      # build demo1 -> build/ds18b20_demo1.elf
 make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
 make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
 make APP=demo4      # build demo4 -> build/ds18b20_demo4.elf
-make APP=demo5 EXT=-DOW_STATS_ENABLE   # build demo5 -> build/ds18b20_demo5.elf
+make APP=demo5                   # build demo5 -> build/ds18b20_demo5.elf (OW_STATS_ENABLE auto-added)
 make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -436,6 +444,9 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make clean-deps` | Remove downloaded dependencies |
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |
+| `make test-f0` | Build and run host tests against the STM32F0 backend mock |
+| `make test-g0` | Build and run host tests against the STM32G0 backend mock |
+| `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
 | `make help` | Show all targets |
 
 ### Flash
@@ -648,12 +659,12 @@ complete `onewire_*` surface.
        with a low (active) portion encoding the bit:
        - Short low (~5µs) → logical '1'
        - Long low (~60µs) → logical '0'
-     - Total slot = `ONE_PULSE + ZERO_PULSE + guard` = 5 + 60 + 5 = 70µs.
+      - Total slot = `ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND` = 5 + 60 + 5 = 70µs (the STANDARD timing profile default; see Configuration → Timing Profiles).
        The +5µs guard band prevents overlap between consecutive slots
        due to bus rise time and DMA latency.
     - Reset (~480µs) is generated as an extended low period (active-low) within a ~960µs slot.
   - CH4 (Input Capture, Indirect mode): Shares the same PA10 pin internally. Used to capture presence pulses and read-slot timings after CH3 releases the bus to idle-high; DMA transfers CCR4 capture values to memory.
-  - CH2: End-of-slot marker (a plain compare at ONE+ZERO µs); its DMA request feeds CCR3 duty cycles for the CH3 output.
+   - CH2: End-of-slot marker (a plain compare at `ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE` µs); its DMA request feeds CCR3 duty cycles for the CH3 output.
 - RCR (Repetition Counter Register): Key to the state machine operation. Instead of generating an Update Event on every period, RCR controls how many timer repetitions occur before UIF is set.
   - Example: RCR=15 → the timer generates 16 PWM slots (bits) via DMA, then asserts UIF once at the end, signaling software to proceed.
   - This allows grouping a full command (two bytes), the entire 72-bit read, or long delays into single hardware-driven transactions, freeing the CPU until completion.
@@ -868,7 +879,7 @@ void        onewire_pair_bits(const volatile uint16_t *edge,
                               uint8_t *id_bit, uint8_t *cmp_bit);
 void        onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
 void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
-                                 uint8_t bytes);
+                                 uint8_t nbytes);
 void        onewire_start_timer(uint16_t arr, uint8_t rcr);
 uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
 void        onewire_search_start(onewire_search_sink_t sink,
@@ -878,6 +889,37 @@ uint8_t     onewire_search_poll(void);
 uint8_t     onewire_search_count(void);
 uint8_t     onewire_search_active(void);
 ```
+
+#### Timing Profiles
+
+The slot timing is selected at **runtime** from four built-in profiles
+(`inc/onewire.h`); `ONEWIRE_TIMING_PROFILE_DEFAULT` chooses the compile-time
+default (`ONEWIRE_TIMING_STANDARD`). Switching profiles is non-blocking and
+applies immediately to every subsequent bus operation, including the Search ROM
+engine. See [Configuration → Timing Profiles](#timing-profiles) for the full
+per-profile value table.
+
+```C
+typedef enum {
+    ONEWIRE_TIMING_FAST = 0,
+    ONEWIRE_TIMING_STANDARD,
+    ONEWIRE_TIMING_SLOW,
+    ONEWIRE_TIMING_ROBUST,
+    ONEWIRE_TIMING_COUNT
+} onewire_timing_profile_t;
+
+void onewire_set_timing_profile(onewire_timing_profile_t profile);
+onewire_timing_profile_t onewire_get_timing_profile(void);
+void ow_set_parasite_guard(uint8_t parasite);   /* 0 = standard guard, !=0 = parasite guard */
+void onewire_strong_pullup(uint8_t on);          /* parasite power: drive bus HIGH */
+```
+
+The macro `ONEWIRE_TIMING_PROFILE_DEFAULT` chooses the compile-time default;
+override it on the command line (e.g.
+`-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW`) to ship a different
+default without touching the call site. The live values are also exposed as the
+runtime globals `ow_one_pulse_us`, `ow_zero_pulse_us`, `ow_guard_band_us` and
+`ow_short_pulse_max_us`.
 
 Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
 `onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
@@ -1126,14 +1168,15 @@ void ow_stats_count_error(int16_t error, const uint8_t *rom);
 void ow_stats_dump_start(void);
 uint8_t ow_stats_dump_poll(void);
 void ow_stats_reset(void);
-uint16_t ow_stats_tick(void);
+uint32_t ow_stats_tick(void);
 ```
 
 - `ow_stats_init()` — zero-initialise the statistics context.  Call once at
   startup.
 - `ow_stats_capture_pulse()` — snapshot raw pulse widths before
   `decode_scratchpad()` overwrites the capture buffer via the union alias.
-  Updates the 13-bucket logarithmic histogram (0–60+ µs, buckets covering
+  Updates the 13-bucket logarithmic histogram (0–60+ µs; 13 of the 16
+  `OW_STATS_HIST_BUCKETS` array slots are populated, indices 0–12) covering
   0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29, 30–39,
   40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
   automatically from `ds18b20.c` when `OW_STATS_ENABLE` is defined.
@@ -1150,7 +1193,9 @@ uint16_t ow_stats_tick(void);
   ROM table.  Call after `ow_stats_dump_poll()` returns 1.
 - `ow_stats_tick()` — increment the cycle counter; returns the new value.
 
-RAM cost: ~180 bytes (8 sensors × 18 + 16 histogram buckets × 2 + 5).
+RAM cost: ~290 bytes (8 sensors × 26 B + 16-entry `uint32_t` histogram [64 B] +
+cycle/error counters; 13 of the 16 histogram buckets, indices 0–12, are
+populated).
 
 Example — dump every 100 cycles:
 
@@ -1161,7 +1206,7 @@ static uint8_t dump_busy = 0;
 
 void ds18b20_complete(int16_t temp) {
     // ... handle temperature reading ...
-    uint16_t cycles = ow_stats_tick();
+    uint32_t cycles = ow_stats_tick();
     if (cycles >= 100 && !dump_busy) {
         ow_stats_dump_start();
         dump_busy = 1;
@@ -1187,9 +1232,14 @@ int main(void) {
 Build with the statistics module:
 
 ```sh
-make APP=demo5 EXT="-DOW_STATS_ENABLE"                # external power
-make APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"  # parasite power
+make APP=demo5                                  # external power (OW_STATS_ENABLE auto-added)
+make APP=demo5 EXT="-DPARASITE_POWER=1"            # parasite power
 ```
+
+> Note: the `demo5` target already injects `-DOW_STATS_ENABLE` plus
+> `-DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000`, so the shipped
+> demo5 dumps every 5000 cycles with a 10 s inter-cycle pause. Override either
+> macro via `EXT=` if you want the module defaults instead.
 
 UART output format (compact, one sensor per line):
 
@@ -1269,31 +1319,56 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - Time to result (one measurement): 93.75ms @ 9-bit … ~0.76 s @ 12-bit
   (conversion + protocol overhead; the conversion wait follows the configured
   resolution, see `ds18b20_set_resolution()`)
-- Inter-measurement pause: 5 s (configurable)
+- Inter-measurement pause: 5 s, configurable via `DS18B20_CYCLE_PAUSE_US` (default 5000000 µs; the demo5 build overrides it to 10000 µs)
 - Precision: 0.1°C resolution at 12-bit (coarser steps at lower resolutions)
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
 ## Configuration
 
-### Timing Constants
+### Timing Profiles
 
-The slot-pulse constants live in `inc/onewire.h` (with the `ONEWIRE_` prefix;
-`src/ds18b20.c` re-exports them as `ONE_PULSE` / `ZERO_PULSE` / `GUARD_BAND`).
-The reset-pulse bounds are defined in `src/onewire.c`:
+The 1-Wire slot timing is selected at runtime from four built-in profiles
+(see also the [API Reference → Timing Profiles](#timing-profiles)). The default
+profile is `ONEWIRE_TIMING_PROFILE_DEFAULT` (`ONEWIRE_TIMING_STANDARD`); override
+it at compile time with
+`-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW` if you want a different
+out-of-reset timing without changing the call site.
+
+The fixed `ONEWIRE_*` macros in `inc/onewire.h` are the **STANDARD** profile
+values (and the initial runtime defaults); the reset-pulse bounds are defined in
+`src/onewire.c`:
 
 ```C
-/* inc/onewire.h */
+/* inc/onewire.h — STANDARD profile defaults */
 #define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
 #define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
-#define ONEWIRE_GUARD_BAND          5    // µs (built into slot formula)
+#define ONEWIRE_GUARD_BAND          5     // µs (built into slot formula)
 #define ONEWIRE_SHORT_PULSE_MAX    10    // µs (pulse <= this reads as bit '1')
 
 /* src/onewire.c */
 #define RESET_PULSE_MIN           480U    // µs
 #define RESET_PULSE_MAX           540U    // µs
 ```
-Slot formula: `ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND` = 70µs total.
+
+Slot formula (uniform across all profiles):
+
+```
+ARR = one_pulse + zero_pulse + guard_band
+```
+
+| Profile    | `one` | `zero` | `guard` | `parasite guard` | `short≤` | Slot  |
+|------------|------:|-------:|--------:|-----------------:|---------:|------:|
+| FAST       | 5µs  | 60µs  | 3µs    | 50µs            | 10µs    | 68µs |
+| STANDARD   | 5µs  | 60µs  | 5µs    | 100µs           | 10µs    | 70µs |
+| SLOW       | 8µs  | 90µs  | 20µs   | 200µs           | 15µs    | 118µs|
+| ROBUST     | 10µs | 110µs | 30µs   | 250µs           | 18µs    | 150µs|
+
+`parasite guard` is used in place of `guard` when parasite power is engaged
+(via `ow_set_parasite_guard()`); it widens the window so the strong-pullup
+release margin does not clip the sample. SLOW / ROBUST trade conversion
+throughput for timing margin and are intended for long wiring, parasite buses
+or electrically noisy setups.
 
 ## Troubleshooting
 
