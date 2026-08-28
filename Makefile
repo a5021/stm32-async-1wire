@@ -1,17 +1,20 @@
 # Select the example application: demo (single sensor, Skip ROM),
+# demo1 (device search + sequential polling of every sensor, one Convert T
+#        per device - no broadcast conversion),
 # demo2 (device search + sequential polling of every sensor on the bus),
 # demo3 (device search + simultaneous broadcast conversion of every sensor),
 # demo4 (device search + command transactions: ROM, power supply, TH/TL,
 #        Copy/Recall EEPROM)
 # demo5 (device search + sequential polling with signal statistics)
 #   make               -> builds demo   (ds18b20_demo.elf)
+#   make APP=demo1     -> builds demo1  (ds18b20_demo1.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
 #   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
 #   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
 #   make APP=demo5     -> builds demo5  (ds18b20_demo5.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo2 demo3 demo4 demo5),)
-$(error APP must be 'demo', 'demo2', 'demo3', 'demo4' or 'demo5')
+ifeq ($(filter $(APP),demo demo1 demo2 demo3 demo4 demo5),)
+$(error APP must be 'demo', 'demo1', 'demo2', 'demo3', 'demo4' or 'demo5')
 endif
 
 # demo5 is the signal-statistics example: enable the optional stats module by
@@ -63,6 +66,7 @@ INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -I$(CMSIS_CORE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_demo  = 128
+UART_TX_SIZE_demo1 = 256
 UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
@@ -468,10 +472,12 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_parasite.c \
             $(TEST_DIR)/test_dmamux.c \
             $(TEST_DIR)/test_ow_stats.c \
-            $(TEST_MOCK)/hw_model.c \
+             $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
             $(TEST_MOCK)/ds18b20_test_access.c \
-            $(TEST_MOCK)/ow_stats_test_access.c
+            $(TEST_MOCK)/ow_stats_test_access.c \
+            $(TEST_DIR)/test_harness_api.c \
+            $(TEST_DIR)/test_app_uart.c
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
 # OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
@@ -530,7 +536,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=demo|demo2|demo3|demo4  - example application to build"
+	@echo "  APP=demo|demo1|demo2|demo3|demo4|demo5  - example application to build"
 	@echo "  OW_TARGET=f1|f0|g0               - MCU family (firmware build)"
 	@echo "  SYSCLK_MHZ=N                     - run on the raw internal RC (8MHz F1/F0, 16MHz G0) instead of family default"
 
