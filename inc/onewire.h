@@ -53,12 +53,35 @@
  *  @note Hardware-validated at 5µs on every supported clock:
  *        STM32F030@48/8MHz, STM32F103@72/8MHz and STM32G031@64/16MHz. */
 #define ONEWIRE_ONE_PULSE 5
-/** @brief Duration of a '0' bit write pulse in microseconds */
 #define ONEWIRE_ZERO_PULSE 60
-/** @brief Guard band between slots in microseconds (bus rise time + DMA latency) */
 #define ONEWIRE_GUARD_BAND 5
-/** @brief Pulse threshold separating short ('1') from long ('0') slots in microseconds */
 #define ONEWIRE_SHORT_PULSE_MAX 10
+
+typedef enum {
+    ONEWIRE_TIMING_FAST = 0,
+    ONEWIRE_TIMING_STANDARD,
+    ONEWIRE_TIMING_SLOW,
+    ONEWIRE_TIMING_ROBUST,
+    ONEWIRE_TIMING_COUNT
+} onewire_timing_profile_t;
+
+typedef struct {
+    uint8_t one_pulse;
+    uint8_t zero_pulse;
+    uint8_t guard_band;
+    uint8_t parasite_guard_band;
+    uint8_t short_pulse_max;
+} onewire_timing_t;
+
+#define ONEWIRE_TIMING_PROFILE_DEFAULT ONEWIRE_TIMING_STANDARD
+
+extern uint8_t ow_one_pulse_us;
+extern uint8_t ow_zero_pulse_us;
+extern uint8_t ow_guard_band_us;
+extern uint8_t ow_short_pulse_max_us;
+void ow_set_parasite_guard(uint8_t parasite);
+void onewire_set_timing_profile(onewire_timing_profile_t profile);
+onewire_timing_profile_t onewire_get_timing_profile(void);
 
 /** @} */
 
@@ -164,7 +187,7 @@ void onewire_read_data(volatile uint8_t* dst, uint8_t bytes);
  * @note A pulse duration `<= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.
  */
 static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {
-    return (dur <= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;
+    return (dur <= ow_short_pulse_max_us) ? 1u : 0u;
 }
 
 /**
