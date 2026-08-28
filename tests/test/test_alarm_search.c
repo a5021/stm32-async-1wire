@@ -137,8 +137,14 @@ void test_alarm_search_finds_device_sends_0xEC(void) {
                 if (log->count == 8) { /* the 0xEC command feed */
                     ec_feed_checked = 1;
                     uint16_t expected[8];
-                    expected[0] = ZERO; expected[1] = ONE; expected[2] = ONE; expected[3] = ZERO;
-                    expected[4] = ONE; expected[5] = ONE; expected[6] = ONE; expected[7] = 0;
+                    expected[0] = ZERO;
+                    expected[1] = ONE;
+                    expected[2] = ONE;
+                    expected[3] = ZERO;
+                    expected[4] = ONE;
+                    expected[5] = ONE;
+                    expected[6] = ONE;
+                    expected[7] = 0;
                     for (uint8_t i = 0; i < 8; i++) {
                         TEST_ASSERT_EQUAL_UINT16(expected[i], log->values[i]);
                     }
