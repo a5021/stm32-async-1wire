@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   push-pull usage, confined to the slave-silent conversion window). Clarifies
   the hardware contract referenced by the published repository page.
 
+### Added
+
+- **Active-drive write path (opt-in, `-DOW_DRIVE_ACTIVE`, default off).** During
+  pure-write transactions PA10 switches to push-pull so the master actively
+  drives *both* bus levels (`write-0`/`write-1`), giving a stronger/faster
+  write-1 than the external pull-up RC rise. Every read/reset/slave-response
+  phase and the merged write+read op stay open-drain, so the slave's wired-AND
+  is preserved and there is no window where the master drives HIGH while a
+  slave could pull LOW. Hardware-validated on STM32F1; build/host-tested on
+  F0/G0. The published default remains open-drain.
+- **Selectable default timing profile** via `-DONEWIRE_TIMING_PROFILE_DEFAULT`
+  (e.g. `ONEWIRE_TIMING_ROBUST` / `ONEWIRE_TIMING_SLOW`) for hardware margin
+  testing, without changing the standard default.
+- `test-active`, `test-active-f0`, `test-active-g0` Makefile targets exercising
+  the active-drive pin-mode switching.
+
 ## [1.7.0] - 2026-08-28
 
 ### Added

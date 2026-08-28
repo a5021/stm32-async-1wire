@@ -696,17 +696,18 @@ the two backends.
   push-pull; it actively sources current by driving the line HIGH during the
   temperature-conversion / EEPROM-programming window — a phase where the
   DS18B20 is silent and cannot respond on the bus. It is restored to open-drain
-  afterwards. There is no per-bit hybrid push-pull/open-drain mode in the
-  published driver.
+   afterwards. The published default remains purely open-drain, but an opt-in
+   active-drive write path (`-DOW_DRIVE_ACTIVE`) additionally drives both bus
+   levels during pure-write transactions — see below.
 
-- **Experimental active-drive write path (compile-time, off by default).**
+- **Active-drive write path (compile-time, opt-in, default off).**
   When built with `-DOW_DRIVE_ACTIVE`, pure-write transactions additionally
   switch PA10 to push-pull so the master actively drives *both* bus levels
   during `write-0`/`write-1` (faster, stronger write-1 than the external
   pull-up RC rise). Every read/reset/slave-response phase and the merged
   write+read op stay open-drain, so the slave's wired-AND is preserved and
   there is no window where the master drives HIGH while a slave could pull LOW.
-  This is an experiment; the published default remains open-drain.
+   The published default remains open-drain; enable with `-DOW_DRIVE_ACTIVE`.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
 
