@@ -15,10 +15,10 @@
  */
 
 static const onewire_timing_t profiles[ONEWIRE_TIMING_COUNT] = {
-    [ONEWIRE_TIMING_FAST]     = {5, 60, 3, 50, 10},
+    [ONEWIRE_TIMING_FAST] = {5, 60, 3, 50, 10},
     [ONEWIRE_TIMING_STANDARD] = {5, 60, 5, 100, 10},
-    [ONEWIRE_TIMING_SLOW]     = {8, 90, 20, 200, 15},
-    [ONEWIRE_TIMING_ROBUST]   = {10, 110, 30, 250, 18},
+    [ONEWIRE_TIMING_SLOW] = {8, 90, 20, 200, 15},
+    [ONEWIRE_TIMING_ROBUST] = {10, 110, 30, 250, 18},
 };
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

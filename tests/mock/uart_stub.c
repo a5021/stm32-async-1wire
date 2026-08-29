@@ -18,18 +18,33 @@ int uart_tx_enqueue_byte(int b) {
 
 int uart_write_str(const char* s) {
     int n = 0;
-    while (*s && uart_tx_enqueue_byte(*s)) { s++; n++; }
+    while (*s && uart_tx_enqueue_byte(*s)) {
+        s++;
+        n++;
+    }
     return n;
 }
 
 int uart_write_int(int value) {
     char buf[12];
     int i = 0;
-    if (value < 0) { uart_tx_enqueue_byte('-'); value = -value; }
-    if (value == 0) { uart_tx_enqueue_byte('0'); return 1; }
-    while (value > 0) { buf[i++] = '0' + (value % 10); value /= 10; }
+    if (value < 0) {
+        uart_tx_enqueue_byte('-');
+        value = -value;
+    }
+    if (value == 0) {
+        uart_tx_enqueue_byte('0');
+        return 1;
+    }
+    while (value > 0) {
+        buf[i++] = '0' + (value % 10);
+        value /= 10;
+    }
     int n = 0;
-    while (i > 0) { uart_tx_enqueue_byte(buf[--i]); n++; }
+    while (i > 0) {
+        uart_tx_enqueue_byte(buf[--i]);
+        n++;
+    }
     return n + (value < 0 ? 1 : 0);
 }
 

@@ -12,10 +12,10 @@
  * 3. Matches manual range-check against timing constants
  */
 
-#define RESET_PULSE_MIN  480U
-#define RESET_PULSE_MAX  540U
-#define PRESENCE_PULSE_MIN 555U  /* 480+15+60 */
-#define PRESENCE_PULSE_MAX 840U  /* 540+60+240 */
+#define RESET_PULSE_MIN 480U
+#define RESET_PULSE_MAX 540U
+#define PRESENCE_PULSE_MIN 555U /* 480+15+60 */
+#define PRESENCE_PULSE_MAX 840U /* 540+60+240 */
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 4) return 0;
@@ -36,9 +36,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     uint16_t reset = edge[0];
     uint16_t presence = edge[1];
     uint8_t expected = (reset >= RESET_PULSE_MIN) &&
-                       (reset <= RESET_PULSE_MAX) &&
-                       (presence >= PRESENCE_PULSE_MIN) &&
-                       (presence <= PRESENCE_PULSE_MAX) ? 1u : 0u;
+                               (reset <= RESET_PULSE_MAX) &&
+                               (presence >= PRESENCE_PULSE_MIN) &&
+                               (presence <= PRESENCE_PULSE_MAX)
+                           ? 1u
+                           : 0u;
     if (result != expected) abort();
 
     return 0;

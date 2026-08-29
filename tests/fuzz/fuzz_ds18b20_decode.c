@@ -16,8 +16,8 @@
 #include <string.h>
 
 /* Access ds18b20 internals via test accessor */
-#include "../mock/ds18b20_test_access.h"
 #include "../mock/ds18b20_test_access.c"
+#include "../mock/ds18b20_test_access.h"
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 4) return 0;
