@@ -565,6 +565,82 @@ $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
 
+# =============================================================================
+# FUZZ TARGETS (requires Clang with libFuzzer / SanitizerCoverage,
+#              or GCC with AddressSanitizer + UndefinedBehaviorSanitizer)
+# =============================================================================
+
+FUZZ_CC      ?= clang
+FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
+               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Itests/mock \
+               -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
+FUZZ_OUT     = build/fuzz
+FUZZ_TIME    ?= 120
+FUZZ_HW_MOCK = tests/mock/hw_model.c
+
+.PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
+        fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
+        fuzz-stats fuzz-ds18b20-decode fuzz-all
+
+$(FUZZ_OUT):
+	mkdir -p $@
+
+# Tier 1-2: standalone onewire.c
+fuzz-crc8: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_crc8.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_crc8
+	$(FUZZ_OUT)/fuzz_crc8 -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-decode-pulses: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_decode_pulses.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_decode_pulses
+	$(FUZZ_OUT)/fuzz_decode_pulses -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-present: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_present.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_present
+	$(FUZZ_OUT)/fuzz_present -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-pair-bits: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_pair_bits.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_pair_bits
+	$(FUZZ_OUT)/fuzz_pair_bits -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-encode-byte: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_encode_byte.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_encode_byte
+	$(FUZZ_OUT)/fuzz_encode_byte -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-bit-from-pulse: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_bit_from_pulse.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_bit_from_pulse
+	$(FUZZ_OUT)/fuzz_bit_from_pulse -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-timing: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_timing.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_timing
+	$(FUZZ_OUT)/fuzz_timing -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+# Tier 3: ow_stats (single-TU, #include)
+fuzz-stats: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE \
+	    tests/fuzz/fuzz_stats.c $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_stats
+	$(FUZZ_OUT)/fuzz_stats -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+# Tier 4: ds18b20 decode (single-TU via test_access)
+fuzz-ds18b20-decode: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	    tests/fuzz/fuzz_ds18b20_decode.c src/ow_stats.c \
+	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds18b20_decode
+	$(FUZZ_OUT)/fuzz_ds18b20_decode -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
+          fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
+          fuzz-stats fuzz-ds18b20-decode
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -577,6 +653,8 @@ help:
 	@echo "  test-f0         - Build and run host tests against the STM32F0 backend"
 	@echo "  test-g0         - Build and run host tests against the STM32G0 backend"
 	@echo "  debug           - Build with debug symbols"
+	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
+	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
 	@echo "  gccversion      - Show compiler version"
