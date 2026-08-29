@@ -430,7 +430,9 @@ void ds18b20_complete(int16_t temp) {
 ### Prerequisites
 
 -   **Toolchain:** `arm-none-eabi-gcc` (GCC 12+ recommended) and related
-    utilities (`objcopy`, `size`).
+    utilities (`objcopy`, `size`). Clang is **not** a supported firmware
+    toolchain — Clang references in this project refer to optional
+    host-side tooling only (fuzz testing, `clang-format`, static analysis).
 -   **wget:** Required for downloading CMSIS build dependencies.
 -   **Programmer tools:**
     -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
@@ -485,7 +487,7 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
-| `make fuzz-all` | Build and run all fuzz harnesses (requires Clang; `FUZZ_TIME=N` for duration) |
+| `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make help` | Show all targets |
 
