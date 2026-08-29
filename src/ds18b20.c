@@ -1206,6 +1206,16 @@ void ds18b20_select(const uint8_t* rom) {
 static uint8_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
 static uint8_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
 
+/* B1 guard: same trailing bus-release invariant as addr_cmd/txn_ctx/res_ctx —
+ * the 1-Wire layer's CCR1-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
+ * final zero-pulse. Keep both Skip-ROM buffers at +1 for uniformity. */
+_Static_assert(sizeof(conv_cmd) >= DS18B20_DMA_TRANSFERS + 1,
+               "conv_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
+               "read_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
+
 static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
     onewire_encode_byte(dst, 0xCC);
     onewire_encode_byte(dst + 8, cmd_byte);
