@@ -167,6 +167,12 @@ Notes:
 - `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
   With several sensors connected, all of them respond to the read command and
   the bus data collides (CRC failures are expected).
+- `demo1` performs a startup Search ROM, then measures each discovered sensor
+  **individually** via Match ROM (one `Convert T` per device, no broadcast
+  conversion) in round-robin order. A separator `--------------------------------`
+  is printed between full rounds. With one sensor it behaves like `demo` but
+  with ROM addressing; with N sensors a round costs `N × conversion`. Supports
+  `-DPARASITE_POWER=1` (strong pull-up handled per conversion).
 - `demo2` measures the devices found at startup one at a time, in round-robin
   order. With exactly one sensor it behaves like `demo`.
 - `demo3` (scan mode) converts every discovered sensor in parallel: a single
@@ -181,6 +187,14 @@ Notes:
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
   the single-device Read ROM. Each command advances by one hardware operation
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
+- `demo5` extends the `demo2` sequential loop with signal statistics
+  (`-DOW_STATS_ENABLE`, auto-enabled by `make APP=demo5`). After
+  `STATS_DUMP_INTERVAL` full rounds (source default 100, shipped `demo5` build
+  5000 via `Makefile`) the accumulated per-sensor pulse-width min/max,
+  13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
+  `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
+  loop is paused during the dump and resumed afterwards via `ow_stats_reset()`.
+  Supports `-DPARASITE_POWER=1`.
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
 
