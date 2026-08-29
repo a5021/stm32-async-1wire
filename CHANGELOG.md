@@ -527,4 +527,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.6.0]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.6.0
 [1.6.1]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.6.1
 [1.7.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.6.1...v1.7.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.0...HEAD
+[1.7.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.0...v1.7.1
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...HEAD
