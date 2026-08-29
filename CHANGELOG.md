@@ -55,7 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fuzz_bit_from_pulse`); Tier 2 — timing profile API (`fuzz_timing`);
   Tier 3 — `ow_stats` internals (`fuzz_stats`); Tier 4 — DS18B20 decode
   functions (`fuzz_ds18b20_decode`). All harnesses compile and pass standalone
-  tests with ASAN+UBSAN. CI `fuzz` job runs all targets with Clang/libFuzzer.
+  tests with ASAN+UBSAN. CI `fuzz` job runs all targets with host-side
+  Clang/libFuzzer.
 
 ## [1.7.0] - 2026-08-28
 
