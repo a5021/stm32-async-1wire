@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-29 20:44:17</td>
+            <td class="headerValue">2026-08-29 20:56:17</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
@@ -564,7 +564,7 @@
 <span id="L491"><span class="lineNum">     491</span>                 :             :  * @note 9 bit -&gt; 0x1F, 10 bit -&gt; 0x3F, 11 bit -&gt; 0x5F, 12 bit -&gt; 0x7F.</span>
 <span id="L492"><span class="lineNum">     492</span>                 :             :  */</span>
 <span id="L493"><span class="lineNum">     493</span>                 :             : __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {</span>
-<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaGNC">          93 :     return (uint8_t)(0x1Fu | ((res - DS18B20_RES_MIN) &lt;&lt; 5));</span></span>
+<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaGNC">          93 :     return (uint8_t)(0x1Fu | ((uint8_t)(res - DS18B20_RES_MIN) &lt;&lt; 5));</span></span>
 <span id="L495"><span class="lineNum">     495</span>                 :             : }</span>
 <span id="L496"><span class="lineNum">     496</span>                 :             : </span>
 <span id="L497"><span class="lineNum">     497</span>                 :             : /**</span>
