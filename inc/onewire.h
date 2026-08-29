@@ -73,8 +73,11 @@ typedef struct {
     uint8_t short_pulse_max;
 } onewire_timing_t;
 
+#ifndef OW_TIMING_DEFAULT
+#define OW_TIMING_DEFAULT ONEWIRE_TIMING_STANDARD
+#endif
 #ifndef ONEWIRE_TIMING_PROFILE_DEFAULT
-#define ONEWIRE_TIMING_PROFILE_DEFAULT ONEWIRE_TIMING_STANDARD
+#define ONEWIRE_TIMING_PROFILE_DEFAULT OW_TIMING_DEFAULT
 #endif
 
 extern uint8_t ow_one_pulse_us;

@@ -477,7 +477,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | Flag | Effect |
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
-| `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW"` | Override the compile-time default timing profile (default `ONEWIRE_TIMING_STANDARD`). See [Configuration → Timing Profiles](#timing-profiles). |
+| `TIMING=SLOW` | Override the compile-time default timing profile (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`). Low-level: `EXT="-DOW_TIMING_DEFAULT=ONEWIRE_TIMING_SLOW"` or `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=..."`. See [Configuration → Timing Profiles](#timing-profiles). |
 | `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see demo5). |
 
 ### Flash
@@ -972,12 +972,12 @@ void ow_set_parasite_guard(uint8_t parasite);   /* 0 = standard guard, !=0 = par
 void onewire_strong_pullup(uint8_t on);          /* parasite power: drive bus HIGH */
 ```
 
-The macro `ONEWIRE_TIMING_PROFILE_DEFAULT` chooses the compile-time default;
-override it on the command line (e.g.
-`-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW`) to ship a different
-default without touching the call site. The live values are also exposed as the
-runtime globals `ow_one_pulse_us`, `ow_zero_pulse_us`, `ow_guard_band_us` and
-`ow_short_pulse_max_us`.
+The macro `ONEWIRE_TIMING_PROFILE_DEFAULT` (short alias `OW_TIMING_DEFAULT`) chooses
+the compile-time default; the Makefile sugar `TIMING=SLOW` (or `FAST`/`STANDARD`/`ROBUST`)
+is the short form — e.g. `make TIMING=SLOW` instead of the railway-station
+`EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW"`. The live values are
+also exposed as the runtime globals `ow_one_pulse_us`, `ow_zero_pulse_us`,
+`ow_guard_band_us` and `ow_short_pulse_max_us`.
 
 Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
 `onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
@@ -1388,10 +1388,10 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 The 1-Wire slot timing is selected at runtime from four built-in profiles
 (see also the [API Reference → Timing Profiles](#timing-profiles)). The default
-profile is `ONEWIRE_TIMING_PROFILE_DEFAULT` (`ONEWIRE_TIMING_STANDARD`); override
-it at compile time with
-`-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW` if you want a different
-out-of-reset timing without changing the call site.
+profile is `ONEWIRE_TIMING_PROFILE_DEFAULT` (short alias `OW_TIMING_DEFAULT`,
+`ONEWIRE_TIMING_STANDARD`); in the Makefile use `TIMING=SLOW` (`FAST`/`STANDARD`/
+`SLOW`/`ROBUST`) instead of the long `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=..."`.
+The raw `-D` still works for direct compiler invocations.
 
 The fixed `ONEWIRE_*` macros in `inc/onewire.h` are the **STANDARD** profile
 values (and the initial runtime defaults); the reset-pulse bounds are defined in
