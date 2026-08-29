@@ -49,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-detection of MCU family in `ow_port.h` via PlatformIO / STM32CubeMX
   defines (`STM32F1`, `STM32F0`, `STM32G0`) alongside the explicit
   `OW_PORT_TARGET_*` knob.
+- **Fuzz testing infrastructure** (9 harnesses, 4 tiers) covering the full
+  codebase: Tier 1 — `onewire.c` pure functions (`fuzz_crc8`,
+  `fuzz_decode_pulses`, `fuzz_present`, `fuzz_pair_bits`, `fuzz_encode_byte`,
+  `fuzz_bit_from_pulse`); Tier 2 — timing profile API (`fuzz_timing`);
+  Tier 3 — `ow_stats` internals (`fuzz_stats`); Tier 4 — DS18B20 decode
+  functions (`fuzz_ds18b20_decode`). All harnesses compile and pass standalone
+  tests with ASAN+UBSAN. CI `fuzz` job runs all targets with Clang/libFuzzer.
 
 ## [1.7.0] - 2026-08-28
 

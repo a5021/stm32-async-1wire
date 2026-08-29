@@ -117,6 +117,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
+│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 4 tiers)
 │   └── test/               # Unity-based test cases
 ├── cmake/                  # CMake toolchain
 │   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
@@ -484,6 +485,8 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
+| `make fuzz-all` | Build and run all fuzz harnesses (requires Clang; `FUZZ_TIME=N` for duration) |
+| `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make help` | Show all targets |
 
 Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
