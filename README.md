@@ -453,7 +453,18 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
+| `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE`) |
+| `make test-active-f0` | Same as above against the STM32F0 backend mock |
+| `make test-active-g0` | Same as above against the STM32G0 backend mock |
 | `make help` | Show all targets |
+
+Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
+
+| Flag | Effect |
+|------|--------|
+| `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
+| `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW"` | Override the compile-time default timing profile (default `ONEWIRE_TIMING_STANDARD`). See [Configuration → Timing Profiles](#timing-profiles). |
+| `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see demo5). |
 
 ### Flash
 
