@@ -91,6 +91,16 @@ ifeq ($(OW_DRIVE_ACTIVE),1)
 DEF += -DOW_DRIVE_ACTIVE
 endif
 
+# Optional default timing profile:
+# make TIMING=SLOW|FAST|STANDARD|ROBUST  →  -DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW etc.
+# Short alias for the railway-station EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=...".
+ifdef TIMING
+  ifeq ($(filter $(TIMING),FAST STANDARD SLOW ROBUST),)
+    $(error TIMING must be FAST, STANDARD, SLOW or ROBUST)
+  endif
+  DEF += -DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_$(TIMING)
+endif
+
 # Optimization flags for the compiler:
 # -Os         : Optimize for code size. This driver is polled on a millisecond
 #               cadence, so compact code matters more than raw speed. Saves

@@ -29,9 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is preserved and there is no window where the master drives HIGH while a
   slave could pull LOW. Hardware-validated on STM32F1; build/host-tested on
   F0/G0. The published default remains open-drain.
-- **Selectable default timing profile** via `-DONEWIRE_TIMING_PROFILE_DEFAULT`
-  (e.g. `ONEWIRE_TIMING_ROBUST` / `ONEWIRE_TIMING_SLOW`) for hardware margin
-  testing, without changing the standard default.
+- **Selectable default timing profile** via `TIMING=SLOW` (Makefile sugar for
+  `-DOW_TIMING_DEFAULT` / `-DONEWIRE_TIMING_PROFILE_DEFAULT`, e.g.
+  `ONEWIRE_TIMING_ROBUST` / `ONEWIRE_TIMING_SLOW`) for hardware margin testing,
+  without changing the standard default.
 - `test-active`, `test-active-f0`, `test-active-g0` Makefile targets exercising
   the active-drive pin-mode switching.
 
