@@ -6,7 +6,7 @@ STM32 and the DS18B20 driver built on top of it — are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.1] - 2026-08-29
 
 ### Documentation
 
@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stated the optional **active-drive write mode** and its open-drain invariant in
   the Bus Electrical Model: push-pull is confined to master-only write slots, with
   reset/presence/read/write-read phases staying open-drain.
+- Documented the lifetime invariant for shared `conv_cmd`/`read_cmd` Skip-ROM
+  buffers in `ds18b20.c`: safe to rewrite between DMA bursts because
+  `issue_command()` is called exclusively from CONVERT/REQUEST after
+  `onewire_bus_done()` confirms idle.
+- Added PlatformIO, CMake (FetchContent) and STM32CubeIDE (Makefile import)
+  integration sections to the README.
 
 ### Added
 
@@ -35,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without changing the standard default.
 - `test-active`, `test-active-f0`, `test-active-g0` Makefile targets exercising
   the active-drive pin-mode switching.
+- **PlatformIO library metadata** (`library.json`, `library.properties`) for
+  discovery via PlatformIO Library Manager and Arduino Library Manager.
+- **Root `CMakeLists.txt`** with FetchContent-managed CMSIS dependencies and a
+  bare-metal toolchain file (`cmake/arm-none-eabi-gcc.cmake`) for CMake-based
+  projects.
+- Auto-detection of MCU family in `ow_port.h` via PlatformIO / STM32CubeMX
+  defines (`STM32F1`, `STM32F0`, `STM32G0`) alongside the explicit
+  `OW_PORT_TARGET_*` knob.
 
 ## [1.7.0] - 2026-08-28
 
