@@ -61,10 +61,16 @@ dkms.conf
 
 # Build output
 build/
+cmake-build*/
 
 # Build artifacts
 inline_report.txt
 jflash.log
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
 
 # CMSIS build dependencies (downloaded at build time)
 CMSIS/
