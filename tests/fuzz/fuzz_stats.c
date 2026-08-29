@@ -56,9 +56,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     }
     case 2: {
         /* Fuzz ow_stats_capture_pulse */
+        if (size < 3) return 0;
         ow_stats_init();
         uint8_t n = data[1];
         if (n > 32) n = 32;
+        if ((size_t)n > size - 2) n = (uint8_t)(size - 2);
         const uint8_t* rom = (size >= 12) ? data + 2 : NULL;
         ow_stats_capture_pulse(data + 2, n, rom);
 

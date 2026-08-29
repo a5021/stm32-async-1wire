@@ -572,6 +572,7 @@ $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(
 
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
+               -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
                -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Itests/mock \
                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
