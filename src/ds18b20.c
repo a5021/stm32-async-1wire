@@ -491,7 +491,7 @@ uint8_t ds18b20_alarm_search_count(void) { return onewire_search_count(); }
  * @note 9 bit -> 0x1F, 10 bit -> 0x3F, 11 bit -> 0x5F, 12 bit -> 0x7F.
  */
 __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
-    return (uint8_t)(0x1Fu | ((res - DS18B20_RES_MIN) << 5));
+    return (uint8_t)(0x1Fu | ((uint8_t)(res - DS18B20_RES_MIN) << 5));
 }
 
 /**
