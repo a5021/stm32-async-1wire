@@ -71,10 +71,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Requirements
 
-- Microcontroller: any STM32 with an advanced-control timer that meets the
-  [Required Timer Capabilities](#required-timer-capabilities) (currently
-  supported: STM32F103C8T6, STM32F030x6, STM32G031x6; see port backends in
-  `port/`).
+- Microcontroller: any STM32 with a single advanced-control timer instance
+  that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
+  and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
+  STM32G031x6; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
@@ -771,6 +771,24 @@ is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
 
 ### Required Timer Capabilities
+
+The contract describes the functional peripheral topology required by the
+driver.  A new backend is valid only if the target MCU can realise the
+complete topology simultaneously on **one timer instance** and its DMA
+routing; having the individual features somewhere in the MCU is not
+sufficient.  The topology is:
+
+```
+                ONE TIMER
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+      CH2         CH3         CH4
+        │           │           │
+      DMA         GPIO        IC
+                    │           │
+                    └── TI3 ◄───┘
+```
 
 The driver does not care which timer is used — it cares about what the timer
 can do.  The following capabilities are hard requirements; a timer that lacks
