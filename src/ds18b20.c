@@ -1216,6 +1216,16 @@ _Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
                "read_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
                "bus-release pulse consumed by the 1-Wire layer");
 
+/* Lifetime note: conv_cmd/read_cmd are shared static buffers reused on every
+ * build_skip_cmd() call. This is safe only because issue_command() is invoked
+ * exclusively from the CONVERT/REQUEST states after onewire_bus_done() has
+ * confirmed that the timer/DMA of the previous 1-Wire operation is idle, and
+ * the ownership guards (ds18b20_select/search/resolution reject while busy)
+ * prevent any concurrent re-entry that could interleave a second build while
+ * the CCR1-feed DMA is still reading the table. In other words the rewrite
+ * happens strictly between DMA bursts, never during one — the invariant is
+ * implicit in the call site, hence documented here at the same level of
+ * detail as the B1 guards for the other pulse buffers. */
 static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
     onewire_encode_byte(dst, 0xCC);
     onewire_encode_byte(dst + 8, cmd_byte);
