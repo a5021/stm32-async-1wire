@@ -98,7 +98,7 @@ onewire_timing_profile_t onewire_get_timing_profile(void);
 /**
  * @brief Initialize the shared 1-Wire timer/DMA/GPIO resources
  * @note Enables GPIOA/TIM1/DMA1 clocks, sets the timer prescaler for 1µs
- *       resolution, configures PA8 as alternate-function open-drain and marks
+ *       resolution, configures PA10 as alternate-function open-drain and marks
  *       the search engine idle. Called once at startup, e.g. by the slave
  *       driver's own init.
  */

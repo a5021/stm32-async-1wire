@@ -118,8 +118,14 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   └── test/               # Unity-based test cases
+├── cmake/                  # CMake toolchain
+│   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 ├── docs/                   # Documentation assets
 │   └── screenshots/        # UART capture screenshots
+├── .github/                # GitHub configuration
+│   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
+│   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates
+│   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32F1 device headers and startup
@@ -130,8 +136,16 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── extensions.json     # Recommended extensions
 │   └── settings.json       # Editor settings
 ├── build/                  # Build artifacts (generated)
+├── CMakeLists.txt          # CMake build (FetchContent for CMSIS)
+├── library.json            # PlatformIO library metadata
+├── library.properties      # Arduino Library Manager metadata
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── LICENSE                 # MIT
 ├── Makefile
-└── README.md
+├── README.md
+└── SECURITY.md
 ```
 
 ## Examples
@@ -142,7 +156,7 @@ Six ready-to-run example applications are provided; select one with `APP`:
 |---------|------------------|------------------------------------------------------------------|
 | `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `demo1` | `src/demo1.c`    | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
-| `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_SEARCH_MAX_DEVICES`). |
+| `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
 | `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
 | `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. The `demo5` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
