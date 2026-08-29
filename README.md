@@ -71,7 +71,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Requirements
 
-- Microcontroller: STM32F103C8T6 (Blue Pill) or STM32F030x6 (e.g. STM32F030F4P6)
+- Microcontroller: any STM32 with an advanced-control timer that meets the
+  [Required Timer Capabilities](#required-timer-capabilities) (currently
+  supported: STM32F103C8T6, STM32F030x6, STM32G031x6; see port backends in
+  `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
@@ -767,34 +770,76 @@ edge buffers, keeps the line released to idle HIGH after every transaction, and
 is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
 
-### Hardware Resources Used
+### Required Timer Capabilities
 
-- TIM1 & Channels 2, 3, 4: The core timer resources.
-  - CH3 (PWM Mode 2, Output Compare): Configured in PWM Mode 2, driving PA10 as the 1-Wire output on an active-low bus.
-     - Each 1-Wire bit time slot is implemented as a single PWM period
-       with a low (active) portion encoding the bit:
-       - Short low (~5µs) → logical '1'
-       - Long low (~60µs) → logical '0'
-      - Total slot = `ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND` = 5 + 60 + 5 = 70µs (the STANDARD timing profile default; see Configuration → Timing Profiles).
-       The +5µs guard band prevents overlap between consecutive slots
-       due to bus rise time and DMA latency.
-    - Reset (~480µs) is generated as an extended low period (active-low) within a ~960µs slot.
-  - CH4 (Input Capture, Indirect mode): Shares the same PA10 pin internally. Used to capture presence pulses and read-slot timings after CH3 releases the bus to idle-high; DMA transfers CCR4 capture values to memory.
-   - CH2: End-of-slot marker (a plain compare at `ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE` µs); its DMA request feeds CCR3 duty cycles for the CH3 output.
-- RCR (Repetition Counter Register): Key to the state machine operation. Instead of generating an Update Event on every period, RCR controls how many timer repetitions occur before UIF is set.
-  - Example: RCR=15 → the timer generates 16 PWM slots (bits) via DMA, then asserts UIF once at the end, signaling software to proceed.
-  - This allows grouping a full command (two bytes), the entire 72-bit read, or long delays into single hardware-driven transactions, freeing the CPU until completion.
-- DMA1_Channel4: Peripheral-to-memory transfers from TIM1->CCR4 (captured timings).
-- DMA1_Channel3: Memory-to-peripheral transfers to TIM1->CCR3 (PWM duty cycles), driven by the CH2 slot-end marker request.
-- GPIO Pin: PA10 configured in alternate function open-drain; CH3 output and CH4 capture are multiplexed onto this single pin.
+The driver does not care which timer is used — it cares about what the timer
+can do.  The following capabilities are hard requirements; a timer that lacks
+any one of them cannot run this driver, which is why the port layer
+(`port/stm32f*/ow_port_*.h`) pins each backend to one specific timer rather
+than letting the user choose.
 
-The STM32F0 backend uses exactly the same scheme on the same bus pin:
-CH3 (PWM output) + CH4 (indirect capture on TI3, the same pin) drive
-**PA10**, the slot-end marker sits on a plain CH2 compare, its request rides
-**DMA1_Channel3** and captures drain through **DMA1_Channel4** — verified
-empirically on both families (each has a fixed request map with no CSELR
-mux). Only the timer prescaler and the GPIO pin configuration differ between
-the two backends.
+#### 1. Advanced-control timer (not general-purpose)
+
+| Capability | Why it is required |
+|---|---|
+| **RCR (Repetition Counter)** | Batches *N* PWM periods into a single Update Event.  Without RCR, every bit slot generates its own update — a 16-bit command would need 16 interrupt handlers or 16 poll rounds instead of one.  RCR=15 lets the timer autonomously generate 16 slots, then assert UIF once so the state machine advances in a single step.  *Only advanced-control timers (TIM1/TIM8 on STM32) have RCR.* |
+| **BDTR + MOE (Main Output Enable)** | Gates the entire output stage.  The driver sets MOE once at init and never touches it again; when the timer stops (OPM) the output goes high-impedance and the external pull-up takes over.  General-purpose timers lack BDTR — their output is always driven. |
+| **One-Pulse Mode (OPM)** | The timer auto-stops after the scheduled operation completes (one reset pulse, one byte write, one long conversion wait).  Each bus transaction is a self-contained hardware run; OPM guarantees the timer does not free-run and re-enter a spurious slot. |
+
+#### 2. Channel topology
+
+The driver requires three channels on the same timer, with a specific
+capture-routing relationship:
+
+| Channel | Role | Requirement |
+|---|---|---|
+| **CH3** | PWM output (active-low) | PWM Mode 2, pin drives the 1-Wire bus.  Each bit slot is one PWM period: short low (~5 µs) = '1', long low (~60 µs) = '0'.  Reset is an extended low within a ~960 µs slot. |
+| **CH4** | Input capture (indirect) | **Must be routable to TI3** (the CH3 pin) via `CC4S=01`.  This is the constraint that eliminates many timer/pin combinations: only one input capture channel on each STM32 timer can watch a given output channel's pin, and on every supported family that channel is IC4→TI3.  CH4 captures presence pulses and read-slot timings after CH3 releases the bus to idle-HIGH. |
+| **CH2** | Compare (end-of-slot marker) | A plain compare at `ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE` µs whose DMA request feeds the next CCR3 value from a precomputed pulse buffer.  CH2's pin is unused — only its compare event and DMA request matter. |
+
+The indirect-capture constraint (IC4 must see TI3) is why the driver cannot
+be moved to an arbitrary pin: the chosen GPIO must be the CH3/CH4 pair's
+output/capture pin on the selected timer.  On STM32F1 this is PA10
+(default AFIO map); on STM32F0, PA10 (AF2); on STM32G0, PA12 pad remapped
+to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`.
+
+#### 3. DMA
+
+Two DMA channels are required, each carrying a specific peripheral request:
+
+| Channel | Direction | Request | Purpose |
+|---|---|---|---|
+| DMA channel A | Memory → Peripheral | TIM1_CH3 (CC2 event) | Feeds CCR3 with the next pulse width on each slot boundary (the "feed" path). |
+| DMA channel B | Peripheral → Memory | TIM1_CH4 (capture) | Drains CCR4 capture values into a memory buffer (the "capture" path). |
+
+F0/F1 have a fixed request map (no `DMA_CSELR` mux) — channel 3 = CC2,
+channel 4 = CC4, confirmed empirically.  G0 uses a DMAMUX: TIM1_CC2 = request
+21, TIM1_CH4 = request 23.  A new backend must verify the DMA request
+numbers for its target; the channel roles are identical across all families.
+
+#### 4. Clocking invariant
+
+The APB prescaler feeding the timer **must be /1**.  STM32 timers double
+their clock when the APB prescaler is >1 (`timer clock = 2 × PCLK`), which
+would break every µs-based timing constant in the driver.  All three
+supported families satisfy this by construction: F1 keeps PPRE2=/1 (TIM1 is
+on APB2), F0 and G0 have a single APB bus at /1.
+
+#### 5. GPIO
+
+The bus pin must support alternate-function open-drain (for normal bus
+operation) and runtime switching to alternate-function push-pull (for
+parasite-power strong pull-up and the optional active-drive write path).
+The pin never leaves alternate function — only the output-stage topology
+changes.
+
+#### Supported families (same scheme, different prescaler and pin config)
+
+| Family | Timer | Bus pin | DMA routing | Notes |
+|---|---|---|---|---|
+| STM32F1 | TIM1 | PA10 (default AFIO) | Fixed: CH3→DMA1 ch3, CH4→DMA1 ch4 | APB2=/1 by default |
+| STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
+| STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
 
 #### Bus Electrical Model
 
