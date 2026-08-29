@@ -67,6 +67,14 @@
 #include "ow_port_f0.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "ow_port_g0.h"
+/* PlatformIO / STM32CubeMX define the family macro (e.g. STM32F1) but not the
+ * OW_PORT_TARGET_* alias; fall back to those when the explicit knob is absent. */
+#elif defined(STM32F1)
+#include "ow_port_f1.h"
+#elif defined(STM32F0)
+#include "ow_port_f0.h"
+#elif defined(STM32G0)
+#include "ow_port_g0.h"
 #else
 #error "ow_port: no backend selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, ...)"
 #endif

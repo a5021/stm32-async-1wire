@@ -1,0 +1,37 @@
+{
+    "name": "stm32-async-1wire",
+    "version": "1.7.1",
+    "description": "Non-blocking 1-Wire master for STM32 with DS18B20 temperature driver. Uses TIM1+DMA for hardware-automated bus timing — the CPU never waits.",
+    "keywords": "1wire, ds18b20, onewire, stm32, temperature, non-blocking, dma, bare-metal",
+    "authors": [
+        {
+            "name": "a5021",
+            "url": "https://github.com/a5021"
+        }
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/a5021/stm32-async-1wire.git"
+    },
+    "frameworks": "stm32cube",
+    "platform": "ststm32",
+    "headers": ["onewire.h", "ds18b20.h", "ow_port.h", "ow_stats.h"],
+    "build": {
+        "srcDir": "src",
+        "srcFilter": [
+            "+<onewire.c>",
+            "+<ds18b20.c>",
+            "+<ow_stats.c>",
+            "-<demo*>",
+            "-<app.c>"
+        ],
+        "includeDir": "inc",
+        "flags": [
+            "-Iport",
+            "-Iport/stm32f1",
+            "-Iport/stm32f0",
+            "-Iport/stm32g0"
+        ]
+    }
+}

@@ -525,6 +525,72 @@ channel/DMA wiring. 221 tests per backend cover:
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
 
+### PlatformIO
+
+The repository ships with `library.json` and `library.properties` so
+PlatformIO can discover the library automatically.
+
+```bash
+# One-time: fetch CMSIS headers (the ststm32 platform provides its own
+# copy, but the driver's ow_port_* headers expect the standard layout
+# under CMSIS/core/ and CMSIS/device/).
+make download-deps
+```
+
+Minimal `platformio.ini`:
+
+```ini
+[env:bluepill]
+platform  = ststm32
+board     = bluepill_f103c8
+framework = stm32cube
+lib_deps  = a5021/stm32-async-1wire
+```
+
+Or point to a local checkout:
+
+```ini
+lib_deps = symlink:///path/to/stm32-async-1wire
+```
+
+The library is also compatible with the Arduino Library Manager (see
+`library.properties`).
+
+### CMake (FetchContent)
+
+The root `CMakeLists.txt` provides a `stm32_async_1wire` static library
+target with FetchContent-managed CMSIS dependencies — no pre-downloaded
+headers needed. A bare-metal toolchain file is included.
+
+```bash
+# ARM GCC must be on PATH
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_TARGET=f1 -B build .
+cmake --build build
+```
+
+Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, or `g0`.
+
+In a downstream project:
+
+```cmake
+FetchContent_Declare(stm32_1wire
+    GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
+    GIT_TAG        v1.7.1
+)
+FetchContent_MakeAvailable(stm32_1wire)
+target_link_libraries(your_app PRIVATE stm32_async_1wire)
+```
+
+### STM32CubeIDE
+
+1.  Run `make download-deps` once to fetch CMSIS headers.
+2.  In STM32CubeIDE: **File → New → STM32 Project from an Existing Makefile**.
+3.  Point to the repository root directory.
+4.  The IDE auto-generates the CDT project; select your MCU target
+    (e.g. STM32F103C8).
+5.  Build and flash as usual.
+
 ### **Configuration Notes**
 
 -   **Target Name:** The firmware target name is `ds18b20_demo`.
