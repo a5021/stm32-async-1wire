@@ -300,7 +300,12 @@ make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
 ```
 
 **demo6 — low power** (`src/demo6.c`): the same search + sequential loop as
-`demo1`, but built with `-DOW_PORT_LOW_POWER`. The one-wire driver then
+`demo1`, but built with `-DOW_PORT_LOW_POWER`.
+
+> **What low-power mode does not change.** Low-power mode does not change
+> 1-Wire execution. TIM+DMA continue to control all bus timing; `WFE` allows
+> the CPU to sleep during sufficiently long hardware-controlled transaction
+> stages. The one-wire driver then
 enables the TIM1 update interrupt (UIE) and the `SEVONPEND` system-control bit,
 so the application main loop can block in `__WFE()` while a *long* 1-Wire
 stage is running and be woken by the timer's update event — no ISR is ever
