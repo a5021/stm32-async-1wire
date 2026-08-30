@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Opt-in low-power path (`-DOWN_PORT_LOW_POWER`, default off).** Enables the
+- **Opt-in low-power path (`-DOW_PORT_LOW_POWER`, default off).** Enables the
   TIM1 update interrupt (UIE) and the `SEVONPEND` system-control bit so an
   application can block in `__WFE()` while a *long* 1-Wire stage (> 1 ms) is
   running and be woken by the timer's update event, instead of busy-polling.
@@ -26,12 +26,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New `demo6` example** (`src/demo6.c`): the `demo1` search + sequential
   loop with WFE sleep on long stages, exposing the two helpers in its main
   loop. Power is not yet measured — the demo only establishes the mechanism.
-  Build with `make OW_TARGET=g0 APP=demo6 EXT="-DOWN_PORT_LOW_POWER"`.
+  Build with `make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER"`.
 
 ### Changed
 
 - Host-test mock headers now define `TIM_DIER_UIE` so the low-power code path
   also compiles on the host (harmless; not used by the default build).
+
+### Fixed
+
+- **Low-power path (`OW_PORT_LOW_POWER`).** `ow_long_pending` was `static` in
+  each port header, producing one independent copy per translation unit, so
+  `demo6`'s `low_power_poll()` always read its own all-zero instance and never
+  slept. It is now a single `extern` symbol defined in `src/onewire.c`.
+  `ow_port_start_timer()` did not enable TIM1 `UIE` for long stages, so no NVIC
+  pending bit was generated and `__WFE()` could never be woken; it now sets
+  `T1.DIER |= TIM_DIER(UIE)` behind the macro. Finally, `ow_port_sleep_until_done()`
+  used a single `__WFE()`; a leftover/stale event made it either spin (busy-loop
+  degradation) or sleep forever. It now clears the NVIC pending bit first, re-arms
+  the event structure with `__SEV()` + a draining `__WFE()`, polls `T1.SR`/`UIF`
+  and clears the pending bit again after waking.
+- **Wrong build flag documented.** The README, the demo6 header comment and the
+  changelog referenced `-DOWN_PORT_LOW_POWER` (an extra `N`), which defines the
+  macro `OWN_PORT_LOW_POWER` while the code checks `OW_PORT_LOW_POWER` — so the
+  documented command line silently disabled the very feature it described. All
+  occurrences are corrected to `-DOW_PORT_LOW_POWER`.
 
 ## [1.7.1] - 2026-08-29
 

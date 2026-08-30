@@ -92,7 +92,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
 
 #ifdef OW_PORT_LOW_POWER
 /** @brief Set while a hardware stage longer than 1 ms is running. */
-static uint8_t ow_long_pending = 0;
+extern uint8_t ow_long_pending; /* defined in onewire.c, shared across TUs */
 #endif
 
 /**
@@ -142,9 +142,13 @@ __STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
  *       ow_port_bus_done().
  */
 __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
+    NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
+    __SEV();
+    __WFE();
     while (!(T1.SR & TIM_SR(UIF))) {
         __WFE();
     }
+    NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
 }
 #endif
 

@@ -9,14 +9,14 @@
  * (reset, command writes, search reads) stay non-blocking and are polled.
  *
  * Build requirements:
- *   -DOWN_PORT_LOW_POWER            (this demo's whole point - enables UIE +
+ *   -DOW_PORT_LOW_POWER             (this demo's whole point - enables UIE +
  *                                   SEVONPEND + the sleep helpers)
  *   When the macro is omitted the demo still builds and simply busy-polls
  *   (ow_port_sleep_until_done() and ow_port_long_wait_pending() are not
  *   defined without it, so the sleep path degrades to a plain poll).
  *
  * Build:
- *   make OW_TARGET=g0 APP=demo6 EXT="-DOWN_PORT_LOW_POWER"
+ *   make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER"
  *   On a parasite-powered bus add -DPARASITE_POWER=1.
  */
 
