@@ -443,7 +443,7 @@ void ds18b20_complete(int16_t temp) {
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32F1/F0 device files are not stored in the
+ARM CMSIS core headers and STM32 device files (F1/F0/G0) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -625,11 +625,14 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
     -   **Debug:** `-Og -g3 -gdwarf`.
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
-    (Cortex-M0) with `OW_TARGET=f0`.
+    (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
+    `OW_TARGET=g0`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
-    (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`). The default
-    target is STM32F103 (bus on PA10 for both).
+    (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
+    `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
+    `port/stm32g0/STM32G031X6_FLASH.ld`). The default target is STM32F103
+    (bus on PA10 for F1/F0, logical PA10 via PA12 remap for G0).
 
 -   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
     ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
@@ -1584,8 +1587,8 @@ or electrically noisy setups.
    - Cause: The most common cause is electrical. The presence pulse captured by the DMA/timer did not meet the timing criteria, or noise corrupted the data during the 72-bit read.
    - Fix:
      - Check all wiring connections.
-     - Ensure a 4.7kΩ pull-up resistor is between the 1-Wire data line
-       (PA10 on both supported targets) and 3.3V.
+      - Ensure a 4.7kΩ pull-up resistor is between the 1-Wire data line
+        (PA10; logical PA10 via PA12 remap on G0) and 3.3V.
      - Verify stable power is supplied to the DS18B20 sensor.
      - Keep data lines short to minimize noise and capacitance.
 
