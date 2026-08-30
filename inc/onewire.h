@@ -38,6 +38,22 @@
 #define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
 #endif
 #endif
+/** @brief Opt-in low-power WFE sleep: when defined, every hardware operation
+ *  enables the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
+ *  update event wakes the core from WFE without an ISR. Long stages
+ *  (> 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause)
+ *  can then sleep with ow_port_sleep_until_done(). Disabled by default so
+ *  non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.
+ *  @note No ISR is ever installed and NVIC_EnableIRQ is never called; the
+ *        pending bit is cleared explicitly in ow_port_bus_done() so WFE does
+ *        not degrade into a busy-loop. */
+#ifdef OW_PORT_LOW_POWER
+#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
+#define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
+#else
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
+#endif
+#endif
 /** @brief Duration of a '1' bit write/read pulse in microseconds.
  *  A single universal value for every clock: DS18B20 requires only ≥1µs and
  *  samples the slot at ≥15µs after its start, and the read-slot capture

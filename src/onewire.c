@@ -146,6 +146,13 @@ void onewire_init(void) {
     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
     onewire_set_timing_profile(ONEWIRE_TIMING_PROFILE_DEFAULT);
+#ifdef OW_PORT_LOW_POWER
+    // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
+    // event even though no ISR is enabled. Done once here; the corresponding
+    // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never
+    // called — the project has no ISR vector for TIM1 at all.
+    SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
+#endif
 }
 
 uint8_t onewire_bus_done(void) {

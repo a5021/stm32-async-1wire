@@ -164,6 +164,7 @@ Six ready-to-run example applications are provided; select one with `APP`:
 | `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
 | `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. The `demo5` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
+| `demo6` | `src/demo6.c`    | Low-power example (same search + sequential loop as `demo1`): with `-DOWN_PORT_LOW_POWER` the main loop blocks in `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running, instead of busy-polling. Without the define it compiles to a plain busy-poll loop. |
 
 ```bash
 make                # build demo  -> build/ds18b20_demo.elf
@@ -172,6 +173,7 @@ make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
 make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
 make APP=demo4      # build demo4 -> build/ds18b20_demo4.elf
 make APP=demo5                   # build demo5 -> build/ds18b20_demo5.elf (OW_STATS_ENABLE auto-added)
+make APP=demo6 EXT="-DOWN_PORT_LOW_POWER"   # build demo6 -> build/ds18b20_demo6.elf (WFE low-power)
 make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -295,6 +297,25 @@ Build and run:
 
 ```sh
 make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
+```
+
+**demo6 — low power** (`src/demo6.c`): the same search + sequential loop as
+`demo1`, but built with `-DOWN_PORT_LOW_POWER`. The one-wire driver then
+enables the TIM1 update interrupt (UIE) and the `SEVONPEND` system-control bit,
+so the application main loop can block in `__WFE()` while a *long* 1-Wire
+stage is running and be woken by the timer's update event — no ISR is ever
+installed, no `NVIC_EnableIRQ` call is made, and the driver itself stays fully
+non-blocking. Stages treated as "long" (strictly > 1 ms) are the temperature
+conversion (up to 750 ms), the scratchpad read (~5 ms), an EEPROM hold-off
+(10 ms) and the inter-measurement pause; short stages (reset, commands, search
+reads) are still busy-poled. Power is **not measured** yet — this demo's goal
+is only to establish the mechanism and measure the CPU-time saving.
+
+Build and run:
+
+```sh
+make OW_TARGET=g0 APP=demo6 EXT="-DOWN_PORT_LOW_POWER"   # (append -DPARASITE_POWER=1 on a parasite bus)
+make OW_TARGET=g0 APP=demo6                              # same example, but busy-poll (define omitted)
 ```
 
 ## Hardware Connections
@@ -501,6 +522,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Override the compile-time default timing profile (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`). Low-level: `EXT="-DOW_TIMING_DEFAULT=ONEWIRE_TIMING_SLOW"` or `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=..."`. See [Configuration → Timing Profiles](#timing-profiles). |
 | `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see demo5). |
+| `EXT="-DOWN_PORT_LOW_POWER"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) instead of busy-polling (see demo6). The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
 ### Flash
 

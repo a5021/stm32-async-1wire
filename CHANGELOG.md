@@ -6,6 +6,33 @@ STM32 and the DS18B20 driver built on top of it — are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Opt-in low-power path (`-DOWN_PORT_LOW_POWER`, default off).** Enables the
+  TIM1 update interrupt (UIE) and the `SEVONPEND` system-control bit so an
+  application can block in `__WFE()` while a *long* 1-Wire stage (> 1 ms) is
+  running and be woken by the timer's update event, instead of busy-polling.
+  Long stages include the temperature conversion (up to 750 ms), the
+  scratchpad read (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement
+  pause. The driver itself stays fully non-blocking; no ISR is ever installed
+  and `NVIC_EnableIRQ` is never called (the `SEVONPEND` mechanism wakes the
+  core from a pending interrupt event without one). The NVIC pending bit is
+  cleared in `ow_port_bus_done()` on every completion; the scan gap (1 ms) and
+  all short stages stay outside the sleeping path. Implemented behind a single
+  header macro in all three backends (F0/F1/G0) plus the two header helpers
+  `ow_port_long_wait_pending()` / `ow_port_sleep_until_done()`.
+- **New `demo6` example** (`src/demo6.c`): the `demo1` search + sequential
+  loop with WFE sleep on long stages, exposing the two helpers in its main
+  loop. Power is not yet measured — the demo only establishes the mechanism.
+  Build with `make OW_TARGET=g0 APP=demo6 EXT="-DOWN_PORT_LOW_POWER"`.
+
+### Changed
+
+- Host-test mock headers now define `TIM_DIER_UIE` so the low-power code path
+  also compiles on the host (harmless; not used by the default build).
+
 ## [1.7.1] - 2026-08-29
 
 ### Documentation
