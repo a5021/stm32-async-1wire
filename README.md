@@ -114,6 +114,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── demo4.c             # Example: device search + command transactions
 │   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
 │   ├── demo5.c             # Example: device search + stats dump every N cycles
+│   ├── demo6.c             # Example: device search + WFE low-power sleep on long stages
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
@@ -154,7 +155,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Examples
 
-Six ready-to-run example applications are provided; select one with `APP`:
+Seven ready-to-run example applications are provided; select one with `APP`:
 
 | APP     | File             | Behaviour                                                        |
 |---------|------------------|------------------------------------------------------------------|
