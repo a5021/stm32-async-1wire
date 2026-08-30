@@ -1,6 +1,12 @@
 #include "onewire.h"
 #include "ow_port.h"
 
+#ifdef OW_PORT_LOW_POWER
+/** @brief Set by the driver while a long stage (>1ms) is running, read by the
+ *         low-power application. Shared across translation units. */
+uint8_t ow_long_pending = 0;
+#endif
+
 /**
  * @defgroup ONEWIRE_Private_Constants ONEWIRE Private Constants
  * @{
