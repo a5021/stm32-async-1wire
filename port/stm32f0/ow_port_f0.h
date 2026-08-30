@@ -90,6 +90,11 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos);
 }
 
+#ifdef OW_PORT_LOW_POWER
+/** @brief Set while a hardware stage longer than 1 ms is running. */
+static uint8_t ow_long_pending = 0;
+#endif
+
 /**
  * @brief Non-blocking completion check for the scheduled operation
  * @return 1 if finished (update flag set and cleared), 0 while still running
@@ -102,11 +107,46 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
          * the direct-write/capture operations (reset, read, single slot) use
          * an OC3PE preload of 0 — both applied exactly when the one-pulse
          * timer stops. */
+#ifdef OW_PORT_LOW_POWER
+        /* The update event both interrupts the low-power WFE sleep and, via
+         * SEVONPEND, raises an NVIC pending bit. UIE also latches a pending
+         * bit at every ow_port_update_event() re-arm (EGR=UG). Clear the
+         * pending flag here so the next __WFE() truly sleeps; otherwise the
+         * pending bit would make __WFE() return immediately forever (silent
+         * degradation back to a busy-loop). */
+        NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
+        ow_long_pending = 0;
+#endif
         T1.SR = 0;
         return 1u;
     }
     return 0u;
 }
+
+#ifdef OW_PORT_LOW_POWER
+/**
+ * @brief Whether the currently scheduled operation is a "long" stage (> 1 ms)
+ * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
+ *         inter-cycle pause) is in flight, 0 otherwise
+ * @note A low-power application checks this, then calls
+ *       ow_port_sleep_until_done() when it is set, instead of busy-polling.
+ */
+__STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
+    return ow_long_pending;
+}
+
+/**
+ * @brief Block in WFE until the scheduled long stage completes
+ * @note Only the update event wakes the core (SEVONPEND, no ISR). Valid only
+ *       while a long stage (> 1 ms) is running; the pending bit is cleared in
+ *       ow_port_bus_done().
+ */
+__STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
+    while (!(T1.SR & TIM_SR(UIF))) {
+        __WFE();
+    }
+}
+#endif
 
 /**
  * @brief Set the bus pin drive mode (open-drain vs push-pull)
@@ -137,7 +177,14 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #endif
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
+#ifdef OW_PORT_LOW_POWER
+    T1.DIER = TIM_DIER(CC4DE, UIE);
+    if ((uint32_t)count * (ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us) > 1000u) {
+        ow_long_pending = 1; /* e.g. a 72-slot scratchpad read (~5 ms) */
+    }
+#else
     T1.DIER = TIM_DIER(CC4DE);
+#endif
     ow_port_update_event();
     T1.CCR3 = 0;
     OW_PORT_DMA_CAPTURE.CCR = 0;
@@ -165,7 +212,11 @@ __STATIC_FORCEINLINE void ow_port_feed(const uint8_t* cmd, uint16_t slots) {
     T1.CCR2 = ow_one_pulse_us + ow_zero_pulse_us;
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
     T1.CCER = TIM_CCER(CC3E);
+#ifdef OW_PORT_LOW_POWER
+    T1.DIER = TIM_DIER(CC2DE, UIE);
+#else
     T1.DIER = TIM_DIER(CC2DE);
+#endif
     ow_port_update_event();
     OW_PORT_DMA_FEED.CCR = 0;
     OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
@@ -183,6 +234,11 @@ __STATIC_FORCEINLINE void ow_port_feed(const uint8_t* cmd, uint16_t slots) {
 __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     T1.ARR = arr;
     T1.RCR = rcr;
+#ifdef OW_PORT_LOW_POWER
+    if ((uint32_t)(rcr + 1u) * arr > 1000u) {
+        ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
+    }
+#endif
     ow_port_update_event();
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
@@ -223,7 +279,11 @@ __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t sl
          * event, exactly when the one-pulse timer stops (hardware bus release). */
         T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE);
         T1.CCER = TIM_CCER(CC3E);
+#ifdef OW_PORT_LOW_POWER
+        T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
+#else
         T1.DIER = 0; /* No DMA for a single bit slot */
+#endif
         ow_port_update_event();
         T1.CCR3 = 0; /* Preload 0 -> line idles HIGH when the timer stops */
         T1.CR1 = TIM_CR1(OPM, CEN);
@@ -242,7 +302,11 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
     T1.CCR3 = ow_one_pulse_us; /* Read pulse duration */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
+#ifdef OW_PORT_LOW_POWER
+    T1.DIER = TIM_DIER(CC4DE, UIE);
+#else
     T1.DIER = TIM_DIER(CC4DE);
+#endif
     ow_port_update_event();
     T1.CCR3 = 0; /* Clear output compare value */
     OW_PORT_DMA_CAPTURE.CCR = 0;
@@ -283,7 +347,11 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * (The end-of-slot CC2 compare event of the previous merged operation can
      * leave a pending request that fires the reload DMA immediately on re-arm,
      * overwriting the freshly written direction pulse in CCR3.) */
+#ifdef OW_PORT_LOW_POWER
+    T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
+#else
     T1.DIER = 0;
+#endif
     ow_port_update_event();
     /* Capture DMA: all three slot edges into the merged-edge buffer */
     OW_PORT_DMA_CAPTURE.CCR = 0;
@@ -300,7 +368,11 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_FEED.CNDTR = 3;
     OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
     T1.SR = 0; /* Clear any pending capture/compare flags before enabling DMA requests */
+#ifdef OW_PORT_LOW_POWER
+    T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
+#else
     T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */
+#endif
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     T1.CR1 = TIM_CR1(OPM, CEN);
 }

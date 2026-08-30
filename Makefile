@@ -6,15 +6,17 @@
 # demo4 (device search + command transactions: ROM, power supply, TH/TL,
 #        Copy/Recall EEPROM)
 # demo5 (device search + sequential polling with signal statistics)
+# demo6 (device search + sequential polling, WFE sleep on long stages)
 #   make               -> builds demo   (ds18b20_demo.elf)
 #   make APP=demo1     -> builds demo1  (ds18b20_demo1.elf)
 #   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
 #   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
 #   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
 #   make APP=demo5     -> builds demo5  (ds18b20_demo5.elf)
+#   make APP=demo6     -> builds demo6  (ds18b20_demo6.elf)
 APP ?= demo
-ifeq ($(filter $(APP),demo demo1 demo2 demo3 demo4 demo5),)
-$(error APP must be 'demo', 'demo1', 'demo2', 'demo3', 'demo4' or 'demo5')
+ifeq ($(filter $(APP),demo demo1 demo2 demo3 demo4 demo5 demo6),)
+$(error APP must be 'demo', 'demo1', 'demo2', 'demo3', 'demo4', 'demo5' or 'demo6')
 endif
 
 # demo5 is the signal-statistics example: enable the optional stats module by
@@ -71,6 +73,7 @@ UART_TX_SIZE_demo2 = 256
 UART_TX_SIZE_demo3 = 256
 UART_TX_SIZE_demo4 = 256
 UART_TX_SIZE_demo5 = 1024
+UART_TX_SIZE_demo6 = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
@@ -661,7 +664,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=demo|demo1|demo2|demo3|demo4|demo5  - example application to build"
+	@echo "  APP=demo|demo1|demo2|demo3|demo4|demo5|demo6  - example application to build"
 	@echo "  OW_TARGET=f1|f0|g0               - MCU family (firmware build)"
 	@echo "  SYSCLK_MHZ=N                     - run on the raw internal RC (8MHz F1/F0, 16MHz G0) instead of family default"
 
