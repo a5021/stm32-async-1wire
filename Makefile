@@ -522,6 +522,10 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE $(TEST_PORT_FL
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc $(TEST_PORT_INC) -I$(TEST_MOCK)
 
+# Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER.
+TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER
+TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+
 .PHONY: test test-f0 test-g0
 test: $(TEST_EXE)
 	$(TEST_EXE)
@@ -532,8 +536,25 @@ test-f0:
 test-g0:
 	$(MAKE) OW_TARGET=g0 test
 
+# --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER) ---
+# Compiles the SAME suite with the low-power path enabled so the
+# __WFE()-related code (SEVONPEND, ow_long_pending, UIE) is exercised
+# on the host. See tests/test/test_lowpower.c.
+.PHONY: test-lowpower test-lowpower-f0 test-lowpower-g0
+test-lowpower: $(TEST_LP_EXE)
+	$(TEST_LP_EXE)
+
+test-lowpower-f0:
+	$(MAKE) OW_TARGET=f0 test-lowpower
+
+test-lowpower-g0:
+	$(MAKE) OW_TARGET=g0 test-lowpower
+
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) src/app.c -o $@
+
+$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_SRC) tests/test/test_lowpower.c src/app.c -o $@
 
 $(TEST_OUT):
 	mkdir -p $@

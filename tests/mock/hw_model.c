@@ -8,6 +8,9 @@ DMA1_Channel_TypeDef mock_feed_ch;
 GPIO_TypeDef mock_gpioa;
 RCC_TypeDef mock_rcc;
 USART_TypeDef mock_usart1;
+#ifdef OW_PORT_LOW_POWER
+SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
+#endif
 #if defined(OW_PORT_TARGET_G0)
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
 DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0 backend only */
@@ -49,6 +52,9 @@ void hw_reset_all(void) {
     mock_gpioa = (GPIO_TypeDef){0};
     mock_rcc = (RCC_TypeDef){0};
     mock_usart1 = (USART_TypeDef){0};
+#ifdef OW_PORT_LOW_POWER
+    mock_scb = (SCB_Type){0};
+#endif
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
