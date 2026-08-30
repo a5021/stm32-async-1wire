@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Host-test mock headers now define `TIM_DIER_UIE` so the low-power code path
   also compiles on the host (harmless; not used by the default build).
+- **New `make test-lowpower` host tests** (`tests/test/test_lowpower.c`, plus
+  `test-lowpower`, `test-lowpower-f0` and `test-lowpower-g0` Makefile targets).
+  They compile and run the opt-in `-DOW_PORT_LOW_POWER` path against the mock
+  target for F1/F0/G0, asserting the observable low-power state: `SEVONPEND`
+  armed by `onewire_init()`, `ow_long_pending` set on long stages (conversion
+  wait, cycle pause) and cleared on completion, and `UIE` enabled in `T1.DIER`.
+  Short slots stay outside the sleeping path (`ow_long_pending` keeps clear).
 
 ### Fixed
 

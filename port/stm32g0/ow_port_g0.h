@@ -274,6 +274,9 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
 #ifdef OW_PORT_LOW_POWER
     if ((uint32_t)(rcr + 1u) * arr > 1000u) {
         ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
+        /* Enable the update interrupt so the pending bit wakes __WFE() via
+         * SEVONPEND; without UIE the low-power sleep would never be woken. */
+        T1.DIER |= TIM_DIER(UIE);
     }
 #endif
     ow_port_update_event();

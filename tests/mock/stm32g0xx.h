@@ -177,4 +177,21 @@ extern USART_TypeDef mock_usart1;
 #endif
 #define __DSB() ((void)0)
 
+/* --- Core primitives for the opt-in low-power WFE path (OW_PORT_LOW_POWER).
+ *     Host stubs mirroring the real CMSIS defines; compiled only into the
+ *     low-power test build so the default busy-poll build stays byte-identical.
+ *     G0 maps OW_PORT_TIM1_UPD_IRQn to TIM1_BRK_UP_TRG_COM_IRQn. --- */
+#ifdef OW_PORT_LOW_POWER
+#define TIM1_BRK_UP_TRG_COM_IRQn 0
+#define SCB_SCR_SEVONPEND_Msk 0x00000010u
+typedef struct {
+    volatile uint32_t SCR;
+} SCB_Type;
+extern SCB_Type mock_scb;
+#define SCB (&mock_scb)
+#define __SEV() ((void)0)
+#define __WFE() ((void)0)
+#define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
+#endif /* OW_PORT_LOW_POWER */
+
 #endif /* STM32G0XX_MOCK_H */
