@@ -22,7 +22,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
   as-is.
 - Multi-MCU Backend: One MCU-independent core over a `ow_port_*` interface; header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` / `make OW_TARGET=g0` (F1 is the default).
-- Zero Interrupts: Does not use any NVIC interrupts. Fully polled operation.
+- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER` mode uses a timer update event (UIE) with `SEVONPEND` solely as a `WFE()` wake-up mechanism — no NVIC interrupt is enabled and no ISR is installed.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
