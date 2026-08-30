@@ -830,7 +830,7 @@ Two DMA channels are required, each carrying a specific peripheral request:
 
 | Channel | Direction | Request | Purpose |
 |---|---|---|---|
-| DMA channel A | Memory → Peripheral | TIM1_CH3 (CC2 event) | Feeds CCR3 with the next pulse width on each slot boundary (the "feed" path). |
+| DMA channel A | Memory → Peripheral | TIM1_CC2 (CH2 compare) | Feeds CCR3 with the next pulse width on each slot boundary (the "feed" path). |
 | DMA channel B | Peripheral → Memory | TIM1_CH4 (capture) | Drains CCR4 capture values into a memory buffer (the "capture" path). |
 
 F0/F1 have a fixed request map (no `DMA_CSELR` mux) — channel 3 = CC2,
