@@ -88,19 +88,19 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── app.h               # Shared application layer (UART, clock, init)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
-│   └── macro.h             # STM32 register access macros (F1 backend)
+│   └── macro.h             # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
 │   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
-│   └── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
-│       ├── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
-│       ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
-│       ├── stm32f030f4.jflash    # J-Flash project file
-│       └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
-│   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
+│   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
+│   │   ├── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
+│   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
+│   │   ├── stm32f030f4.jflash    # J-Flash project file
+│   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
+│   └── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
 │   │   ├── ow_port_g0.h    # Register-level ow_port_* implementation for STM32G0
 │   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
@@ -132,7 +132,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32F1 device headers and startup
+│   └── device/             # STM32 device headers and startup (F1/F0/G0) + SVD
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
 │   ├── launch.json         # Debug configuration (F5, J-Link / ST-Link)
