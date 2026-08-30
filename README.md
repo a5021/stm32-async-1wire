@@ -970,7 +970,7 @@ Practical consequences for RTOS use:
    not by software. Every bus operation now ends with the line idle-HIGH
    automatically: the CCR3-fed writes (`send_command_n`, the merged search op)
    append a trailing 0 to the DMA feed, and the direct-write/capture operations
-   (reset, read, single-slot write) use an OC1PE preload of 0 — both applied at
+   (reset, read, single-slot write) use an OC3PE preload of 0 — both applied at
    the instant the one-pulse timer stops. There is no software `T1.CCR3 = 0`
    anywhere; the bus cannot be left LOW by a stale compare value, no matter how
    long the RTOS delays the next poll.
