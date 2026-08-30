@@ -522,7 +522,7 @@ Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header — each suite runs the full driver against its own backend's
-channel/DMA wiring. 221 tests per backend cover:
+channel/DMA wiring. 267 tests per backend cover:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -665,6 +665,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 - `Build (release)` — `make` (default)
 - `Build (debug)` — `make debug`
 - `Build F0 (debug)` — `make OW_TARGET=f0 debug` (debug build for the STM32F030 target)
+- `Build G0 (debug)` — `make OW_TARGET=g0 debug` (debug build for the STM32G031 target)
 - `Clean` — `make clean`
 - `Program (J-Link)` / `Program (ST-Link)` — flash the device
 - `Download dependencies` — `make download-deps`
