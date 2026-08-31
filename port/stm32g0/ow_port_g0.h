@@ -58,7 +58,7 @@
  *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
-    "TIM prescaler exceeds 16-bit PSC register width");
+               "TIM prescaler exceeds 16-bit PSC register width");
 
 /* @brief DMA channel assignment: channel 3 carries the CC2 slot-end marker
  *       request (feeds CCR3), channel 4 carries the CC4 capture request
@@ -196,7 +196,7 @@ __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
     if (push_pull) {
         PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */
     } else {
-        PA.OTYPER |= GPIO_OTYPER_OT10;  /* PP -> OD (release) */
+        PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */
     }
 }
 

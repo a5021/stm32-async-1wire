@@ -14,7 +14,7 @@ jobs:
       - name: Install clang-format (pinned)
         run: pip install clang-format==18.1.8
       - name: Check code formatting
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/app.h src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo2.c src/demo3.c tests/mock/*.h tests/mock/*.c tests/test/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/app.h src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo1.c src/demo2.c src/demo3.c src/demo4.c src/demo5.c src/demo6.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
     strategy:

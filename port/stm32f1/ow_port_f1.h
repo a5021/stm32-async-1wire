@@ -41,7 +41,7 @@
  *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
-    "TIM prescaler exceeds 16-bit PSC register width");
+               "TIM prescaler exceeds 16-bit PSC register width");
 
 /* @brief DMA channel assignment (fixed request map, RM0008 table 78):
  *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
@@ -149,7 +149,7 @@ __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
     __SEV();
     __WFE();
     while (!(T1.SR & TIM_SR(UIF))) {
-        __WFE();  /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */
+        __WFE(); /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */
     }
     /* Consume the wake-up event so the next sleep starts from a clean state. */
     NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
@@ -169,7 +169,7 @@ __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
     if (push_pull) {
         PA.CRH &= ~GPIO_CRH_CNF10_0; /* CNF=11->10: AF OD -> AF PP */
     } else {
-        PA.CRH |= GPIO_CRH_CNF10_0;  /* CNF=10->11: AF PP -> AF OD */
+        PA.CRH |= GPIO_CRH_CNF10_0; /* CNF=10->11: AF PP -> AF OD */
     }
 }
 
