@@ -313,7 +313,7 @@ The one-wire driver then enables the TIM1 update interrupt (UIE) and the
 `__WFE()` while a *long* 1-Wire stage is running and be woken by the timer's
 update event — no ISR is ever installed, no `NVIC_EnableIRQ` call is made, and
 the driver itself stays fully non-blocking. Stages treated as "long" (strictly
-> 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
+more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
 (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement pause; short
 stages (reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this demo's goal is only to establish the
@@ -321,13 +321,13 @@ mechanism and measure the CPU-time saving.
 
 > **Verified on hardware (STM32F103C8 Blue Pill).** With
 > `-DOW_PORT_LOW_POWER -DPARASITE_POWER=1` and six DS18B20 sensors powered
-> parasitically, demo6 found all six devices, read them in turn (*24.0 °C /
+> in parasite mode, demo6 found all six devices, read them in turn (*24.0 °C /
 > 85.0 °C / 23.8 °C ...*) and the core demonstrably entered `__WFE()`: a
 > temporary instrumented run printed `[WFE iters=1]` before every measurement,
 > i.e. the first `__WFE()` after arming the long stage blocked and woke exactly
 > once on the timer's update event. The sleep path keeps the driver fully
-> functional (no ISR, no `NVIC_EnableIRQ`), only the CPU stops spinning while a
-> >1 ms stage runs.
+> functional (no ISR, no `NVIC_EnableIRQ`), only the CPU stops sleeping while a
+> stage longer than 1 ms runs.
 
 Build and run:
 
@@ -467,6 +467,7 @@ void ds18b20_complete(int16_t temp) {
     }
 }
 ```
+
 ## Building
 
 ### Prerequisites
@@ -653,7 +654,7 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
     (e.g. STM32F103C8).
 5.  Build and flash as usual.
 
-### **Configuration Notes**
+### Configuration Notes
 
 -   **Target Name:** The firmware target name is `ds18b20_demo`.
 
@@ -678,7 +679,7 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
     ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
     (HSI) at 8MHz without an external crystal or PLL:
 
-    ``` bash
+    ```bash
     make SYSCLK_MHZ=8
     make debug SYSCLK_MHZ=8
     ```
@@ -781,7 +782,7 @@ The 1-Wire layer uses a hybrid of several hardware features:
 1. No Software Delays: No `delay_us()` or similar functions.
 2. No Interrupts: Does not configure or use the NVIC. Fully deterministic.
 3. Hardware Completion Events: The state machine advances only when the hardware timer signals that its current automated task is complete.
- 4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
+4. Minimal CPU During Operations: The CPU is only actively involved to set up a hardware operation and to process the result once it completes.
 
 > The driver ships with a built-in non-blocking device search
 > (`ds18b20_search_*`) for multi-sensor buses. The Maxim Search ROM (0xF0)
@@ -1560,9 +1561,9 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ### Error Codes
 
-- DS18B20_TEMP_ERROR_NO_SENSOR: No sensor detected on the bus.
-- DS18B20_TEMP_ERROR_CRC_FAIL: Data corruption detected via CRC mismatch.
-- DS18B20_TEMP_ERROR_GENERIC: Unspecified communication error.
+- `DS18B20_TEMP_ERROR_NO_SENSOR`: No sensor detected on the bus.
+- `DS18B20_TEMP_ERROR_CRC_FAIL`: Data corruption detected via CRC mismatch.
+- `DS18B20_TEMP_ERROR_GENERIC`: Unspecified communication error.
 
 ## Performance
 
@@ -1628,8 +1629,8 @@ or electrically noisy setups.
    - Cause: The most common cause is electrical. The presence pulse captured by the DMA/timer did not meet the timing criteria, or noise corrupted the data during the 72-bit read.
    - Fix:
      - Check all wiring connections.
-      - Ensure a 4.7kΩ pull-up resistor is between the 1-Wire data line
-        (PA10; logical PA10 via PA12 remap on G0) and 3.3V.
+     - Ensure a 4.7kΩ pull-up resistor is between the 1-Wire data line
+       (PA10; logical PA10 via PA12 remap on G0) and 3.3V.
      - Verify stable power is supplied to the DS18B20 sensor.
      - Keep data lines short to minimize noise and capacitance.
 
@@ -1656,8 +1657,8 @@ or electrically noisy setups.
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
 - Inspect Captured Data: Examine the driver context's `ctx.edge[]` after a reset
-   or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
-   data.
+  or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
+  data.
 
 ## License
 
@@ -1683,5 +1684,11 @@ For issues and questions, please open an issue on GitHub.
 - STM32F103 Reference Manual  
   https://www.st.com/resource/en/reference_manual/cd00171190-stm32f101xx-stm32f102xx-stm32f103xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf
 
+- STM32F030 Reference Manual  
+  https://www.st.com/resource/en/reference_manual/rm0091-stm32f0x1stm32f0x2stm32f0x8-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
+
+- STM32G031 Reference Manual  
+  https://www.st.com/resource/en/reference_manual/rm0444-stm32g0x1stm32g0x2-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
+
 - 1-Wire Protocol Specification  
-  https://www.maximintegrated.com/en/design/technical-documents/tutorials/1/1796.html
+  https://www.analog.com/en/resources/technical-articles/1wire-communication.html

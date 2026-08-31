@@ -142,12 +142,20 @@ __STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
  *       ow_port_bus_done().
  */
 __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
+    /* Prepare for sleep: clear any stale NVIC pending bit so a leftover
+     * event cannot wake the very first WFE (silent busy-loop degradation).
+     * A fresh pending bit will be latched by the timer's update when the
+     * long stage completes. */
     NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
+    /* Re-arm the event: SEV sets the event register, the first WFE returns
+     * immediately and clears it, so the second WFE in the loop truly sleeps
+     * until a new event arrives. */
     __SEV();
     __WFE();
     while (!(T1.SR & TIM_SR(UIF))) {
-        __WFE();
+        __WFE(); /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */
     }
+    /* Consume the wake-up event so the next sleep starts from a clean state. */
     NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
 }
 #endif
@@ -242,7 +250,8 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     if ((uint32_t)(rcr + 1u) * arr > 1000u) {
         ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
         /* Enable the update interrupt so the pending bit wakes __WFE() via
-         * SEVONPEND; without UIE the low-power sleep would never be woken. */
+         * SEVONPEND. ow_port_capture() already sets UIE for the long scratchpad
+         * read stage, but start_timer() must too, else WFE sleeps forever. */
         T1.DIER |= TIM_DIER(UIE);
     }
 #endif

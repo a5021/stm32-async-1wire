@@ -80,14 +80,14 @@ typedef struct {
  * rides TIM1_CC4 -> channel 4. The storage objects keep their legacy names
  * so tests and hw_model stay target-agnostic. */
 extern TIM1_TypeDef mock_tim1;
-extern DMA1_Channel_TypeDef mock_dma1_ch3;
+extern DMA1_Channel_TypeDef mock_dma1_ch4;
 extern DMA1_Channel_TypeDef mock_feed_ch;
 extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 extern USART_TypeDef mock_usart1;
 #define TIM1 (&mock_tim1)
 #define DMA1_Channel3 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
-#define DMA1_Channel4 (&mock_dma1_ch3) /* CC4 capture -> drains CCR4 */
+#define DMA1_Channel4 (&mock_dma1_ch4) /* CC4 capture -> drains CCR4 */
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
 #define USART1 (&mock_usart1)
