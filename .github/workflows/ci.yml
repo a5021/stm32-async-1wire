@@ -43,6 +43,17 @@ jobs:
       - name: Build and run host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-g0
+      # The same suite re-built with -DOW_PORT_LOW_POWER exercises the
+      # opt-in WFE path (SEVONPEND, ow_long_pending, UIE) on the host.
+      - name: Build and run low-power host tests (F1)
+        if: matrix.backend == 'f1'
+        run: make test-lowpower
+      - name: Build and run low-power host tests (F0)
+        if: matrix.backend == 'f0'
+        run: make test-lowpower-f0
+      - name: Build and run low-power host tests (G0)
+        if: matrix.backend == 'g0'
+        run: make test-lowpower-g0
 
   coverage:
     strategy:
