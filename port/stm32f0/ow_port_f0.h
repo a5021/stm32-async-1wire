@@ -43,7 +43,7 @@
  *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
-    "TIM prescaler exceeds 16-bit PSC register width");
+               "TIM prescaler exceeds 16-bit PSC register width");
 
 /* @brief DMA channel assignment (fixed request map, verified at bring-up):
  *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
@@ -165,7 +165,7 @@ __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
     if (push_pull) {
         PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */
     } else {
-        PA.OTYPER |= GPIO_OTYPER_OT_10;  /* PP -> OD (release) */
+        PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */
     }
 }
 
@@ -331,7 +331,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
  * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing 0)
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* edge3,
-                                                   const uint8_t* read_pulse) {
+                                                  const uint8_t* read_pulse) {
 #ifdef OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif
