@@ -94,25 +94,25 @@ void test_presence_reset_clears_stale_edge(void) {
 void test_capture_16bit_config(void) {
     uint16_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 16);
-    uint32_t ccr = mock_dma1_ch3.CCR;
+    uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MINC) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_0) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_1) == 0);
-    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch3.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch4.CNDTR);
 }
 
 void test_capture_8bit_config(void) {
     uint8_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 8);
-    uint32_t ccr = mock_dma1_ch3.CCR;
+    uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MINC) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_0) == 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_1) == 0);
-    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch3.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch4.CNDTR);
 }
 
 void run_test_presence(void) {

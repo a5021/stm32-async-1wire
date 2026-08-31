@@ -454,7 +454,7 @@ static void det_drive(uint8_t (*poll)(void)) {
         if (mock_tim1.CR1 & TIM_CR1_CEN) {
             /* Serve the data-read slots from the bit table once the command
              * write has been consumed (same discipline as test_eeprom.c). */
-            if ((mock_dma1_ch3.CCR & DMA_CCR_EN) && mock_dma1_ch3.CNDTR > 2) {
+            if ((mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > 2) {
                 hw_set_capture_source(det_capture_read);
             }
             TEST_ASSERT_TRUE(hw_run_until_uif(256));

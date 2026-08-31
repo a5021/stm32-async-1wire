@@ -25,7 +25,7 @@ void test_dmamux_capture_request_routed_on_reset(void) {
 
     onewire_reset(edges); /* schedules the CC4 capture drain */
     TEST_ASSERT_EQUAL_UINT32(23u, mock_dmamux_ch3.CCR);
-    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch3.CCR);
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
 }
 
 void test_dmamux_feed_request_routed_on_write(void) {
