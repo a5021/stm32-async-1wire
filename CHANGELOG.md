@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   low-power WFE path was tested at 16 MHz SYSCLK across four configurations
   (STANDARD / ROBUST / FAST × open-drain / active-drive) and completed full
   measurement cycles with correct temperatures in every case.
+- **Hardware-validated on STM32F030** (parasite-powered bus, 7 × DS18B20): the
+  low-power WFE path was tested at 48 MHz SYSCLK across four configurations
+  (STANDARD / ROBUST / FAST × open-drain / active-drive) and completed full
+  measurement cycles with correct temperatures in every case.
 
 ### Fixed
 
