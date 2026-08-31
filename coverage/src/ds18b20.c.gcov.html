@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 16:31:12</td>
+            <td class="headerValue">2026-08-31 16:51:30</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
@@ -365,7 +365,7 @@
 <span id="L294"><span class="lineNum">     294</span>                 :             :  *       (RCR + 1) × ARR = wait in µs.</span>
 <span id="L295"><span class="lineNum">     295</span>                 :             :  */</span>
 <span id="L296"><span class="lineNum">     296</span>                 :             : __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {</span>
-<span id="L297"><span class="lineNum">     297</span>                 :<span class="tlaGNC">         168 :     switch (res) {</span></span>
+<span id="L297"><span class="lineNum">     297</span>                 :<span class="tlaGNC">         171 :     switch (res) {</span></span>
 <span id="L298"><span class="lineNum">     298</span>                 :<span class="tlaGNC">          12 :     case 9:</span></span>
 <span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">          12 :         *arr = 9375;</span></span>
 <span id="L300"><span class="lineNum">     300</span>                 :<span class="tlaGNC">          12 :         *rcr = 9;</span></span>
@@ -378,13 +378,13 @@
 <span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">           6 :         *arr = 18750;</span></span>
 <span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">           6 :         *rcr = 19;</span></span>
 <span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">           6 :         break; /* 20 × 18.75ms = 375ms */</span></span>
-<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">         144 :     case 12:</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">         147 :     case 12:</span></span>
 <span id="L311"><span class="lineNum">     311</span>                 :             :     default:</span>
-<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         144 :         *arr = 62500;</span></span>
-<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">         144 :         *rcr = 11;</span></span>
-<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">         144 :         break; /* 12 × 62.5ms = 750ms */</span></span>
+<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">         147 :         *arr = 62500;</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">         147 :         *rcr = 11;</span></span>
+<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">         147 :         break; /* 12 × 62.5ms = 750ms */</span></span>
 <span id="L315"><span class="lineNum">     315</span>                 :             :     }</span>
-<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         168 : }</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         171 : }</span></span>
 <span id="L317"><span class="lineNum">     317</span>                 :             : </span>
 <span id="L318"><span class="lineNum">     318</span>                 :             : /**</span>
 <span id="L319"><span class="lineNum">     319</span>                 :             :  * @brief Wait for temperature conversion to complete</span>
@@ -395,10 +395,10 @@
 <span id="L324"><span class="lineNum">     324</span>                 :             : __STATIC_FORCEINLINE void wait_conversion(void) {</span>
 <span id="L325"><span class="lineNum">     325</span>                 :             :     uint16_t arr;</span>
 <span id="L326"><span class="lineNum">     326</span>                 :             :     uint8_t rcr;</span>
-<span id="L327"><span class="lineNum">     327</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 24 times"> + </span> :<span class="tlaGNC">         168 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
+<span id="L327"><span class="lineNum">     327</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 27 times"> + </span> :<span class="tlaGNC">         171 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 120 times"> + </span>]
-<span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">         168 :     onewire_start_timer(arr, rcr);</span></span>
-<span id="L329"><span class="lineNum">     329</span>                 :<span class="tlaGNC">         168 : }</span></span>
+<span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">         171 :     onewire_start_timer(arr, rcr);</span></span>
+<span id="L329"><span class="lineNum">     329</span>                 :<span class="tlaGNC">         171 : }</span></span>
 <span id="L330"><span class="lineNum">     330</span>                 :             : </span>
 <span id="L331"><span class="lineNum">     331</span>                 :             : /**</span>
 <span id="L332"><span class="lineNum">     332</span>                 :             :  * @brief Start inter-measurement pause period (5s)</span>
