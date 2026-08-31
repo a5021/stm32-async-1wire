@@ -86,6 +86,15 @@ jobs:
           else
             make test COVERAGE=1
           fi
+      - name: Build and run low-power tests with coverage
+        run: |
+          if [ "${{ matrix.backend }}" = "f0" ]; then
+            make test-lowpower-f0 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "g0" ]; then
+            make test-lowpower-g0 COVERAGE=1
+          else
+            make test-lowpower COVERAGE=1
+          fi
       - name: Capture coverage trace
         run: lcov --capture --directory . --output-file coverage-${{ matrix.backend }}.info --rc branch_coverage=1
       - name: Upload coverage trace
@@ -196,8 +205,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cppcheck
       - name: Download CMSIS dependencies
         run: make download-deps
-      - name: Run static analysis
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -D OW_PORT_TARGET_F1 -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo2.c src/demo3.c
+      - name: Run static analysis (F1)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F103xB -DOW_PORT_TARGET_F1 -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo1.c src/demo2.c src/demo3.c src/demo4.c src/demo5.c src/demo6.c src/ow_stats.c
+      - name: Run static analysis (F0)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32F030x6 -DOW_PORT_TARGET_F0 -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo1.c src/demo2.c src/demo3.c src/demo4.c src/demo5.c src/demo6.c src/ow_stats.c
+      - name: Run static analysis (G0)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers -I. -Iinc -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_PORT_TARGET_G0 -D__GNUC__ src/ds18b20.c src/onewire.c src/app.c src/demo.c src/demo1.c src/demo2.c src/demo3.c src/demo4.c src/demo5.c src/demo6.c src/ow_stats.c
 
   build:
     runs-on: ubuntu-latest
