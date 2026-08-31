@@ -315,7 +315,7 @@ update event — no ISR is ever installed, no `NVIC_EnableIRQ` call is made, and
 the driver itself stays fully non-blocking. Stages treated as "long" (strictly
 > 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
 (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement pause; short
-stages (reset, commands, search reads) are still handled by ordinary polling.
+stages (reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this demo's goal is only to establish the
 mechanism and measure the CPU-time saving.
 
@@ -581,8 +581,8 @@ channel/DMA wiring. 267 tests per backend cover:
 -   CRC-8 (Dallas/Maxim) verification
 -   1-Wire pulse encoding and presence detection
 -   1-Wire layer coverage: reset/presence timing, write-then-read merge,
--    multi-slot writes, multi-byte reads, search engine (device + alarm),
--    ownership guards and the search edge buffers
+      multi-slot writes, multi-byte reads, search engine (device + alarm),
+      ownership guards and the search edge buffers
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
