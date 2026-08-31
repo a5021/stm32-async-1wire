@@ -44,6 +44,12 @@ void test_bus_start_cycle_pause(void);
 uint8_t test_ds18b20_bus_done(void);
 uint8_t test_bus_present(void);
 
+/* Direct port-layer wrappers for low-power tests. */
+#ifdef OW_PORT_LOW_POWER
+void test_bus_arm_capture_n(uint16_t count);
+void test_bus_sleep_until_done(void);
+#endif
+
 /* Merged-search capture buffer access (search_edge3). */
 uint16_t test_search_edge(uint8_t i);
 void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v);

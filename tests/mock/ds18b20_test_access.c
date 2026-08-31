@@ -86,6 +86,12 @@ void test_bus_wait_conversion(void) { wait_conversion(); }
 void test_bus_start_cycle_pause(void) { start_cycle_pause(); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.edge); }
+#ifdef OW_PORT_LOW_POWER
+void test_bus_arm_capture_n(uint16_t count) {
+    ow_port_capture((volatile void*)ctx.edge, count, 16);
+}
+void test_bus_sleep_until_done(void) { ow_port_sleep_until_done(); }
+#endif
 uint16_t test_search_edge(uint8_t i) { return search_edge3[i]; }
 void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v) { search_edge3[i] = v; }
 
