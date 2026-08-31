@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   armed by `onewire_init()`, `ow_long_pending` set on long stages (conversion
   wait, cycle pause) and cleared on completion, and `UIE` enabled in `T1.DIER`.
   Short slots stay outside the sleeping path (`ow_long_pending` keeps clear).
+- **Hardware-validated on STM32G031** (parasite-powered bus, 6 × DS18B20): the
+  low-power WFE path was tested at 16 MHz SYSCLK across four configurations
+  (STANDARD / ROBUST / FAST × open-drain / active-drive) and completed full
+  measurement cycles with correct temperatures in every case.
 
 ### Fixed
 
