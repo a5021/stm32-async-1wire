@@ -8,12 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-01
+
 ### Added
 
 - **Opt-in low-power path (`-DOW_PORT_LOW_POWER`, default off).** Enables the
   TIM1 update interrupt (UIE) and the `SEVONPEND` system-control bit so an
   application can block in `__WFE()` while a *long* 1-Wire stage (> 1 ms) is
-  running and be woken by the timer's update event, instead of busy-polling.
+  running and be woken by the timer's update event while the hardware
+  completes the transaction.
   Long stages include the temperature conversion (up to 750 ms), the
   scratchpad read (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement
   pause. The driver itself stays fully non-blocking; no ISR is ever installed
@@ -601,4 +604,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.6.1]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.6.1
 [1.7.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.6.1...v1.7.0
 [1.7.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.0...v1.7.1
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...HEAD
+[1.8.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...v1.8.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...HEAD

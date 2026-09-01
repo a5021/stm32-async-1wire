@@ -51,61 +51,66 @@ jobs:
         run: make download-deps
 
       # Step 6: Build the full firmware matrix.
-      # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem.
+      # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem | EXT.
       # A "-" target means the default (F1); F1 keeps its historical artifact
-      # names without the target infix, F0 artifacts carry "_f0_".
+      # names without the target infix, F0 artifacts carry "_f0_". An empty EXT
+      # builds the default configuration; "lowpower" adds -DOW_PORT_LOW_POWER.
       - name: Build Firmware Matrix
         run: |
           set -euo pipefail
           mkdir -p dist
           matrix=(
-            "demo|-|-|ds18b20_demo_72mhz"
-            "demo2|-|-|ds18b20_demo2_72mhz"
-            "demo3|-|-|ds18b20_demo3_72mhz"
-            "demo4|-|-|ds18b20_demo4_72mhz"
-            "demo|-|8|ds18b20_demo_8mhz"
-            "demo2|-|8|ds18b20_demo2_8mhz"
-            "demo3|-|8|ds18b20_demo3_8mhz"
-            "demo4|-|8|ds18b20_demo4_8mhz"
-            "demo|f0|-|ds18b20_demo_f0_48mhz"
-            "demo2|f0|-|ds18b20_demo2_f0_48mhz"
-            "demo3|f0|-|ds18b20_demo3_f0_48mhz"
-            "demo4|f0|-|ds18b20_demo4_f0_48mhz"
-            "demo|f0|8|ds18b20_demo_f0_8mhz"
-            "demo2|f0|8|ds18b20_demo2_f0_8mhz"
-            "demo3|f0|8|ds18b20_demo3_f0_8mhz"
-            "demo4|f0|8|ds18b20_demo4_f0_8mhz"
-            "demo|g0|-|ds18b20_demo_g0_64mhz"
-            "demo2|g0|-|ds18b20_demo2_g0_64mhz"
-            "demo3|g0|-|ds18b20_demo3_g0_64mhz"
-            "demo4|g0|-|ds18b20_demo4_g0_64mhz"
-            "demo|g0|16|ds18b20_demo_g0_16mhz"
-            "demo2|g0|16|ds18b20_demo2_g0_16mhz"
-            "demo3|g0|16|ds18b20_demo3_g0_16mhz"
-            "demo4|g0|16|ds18b20_demo4_g0_16mhz"
-            "demo1|-|-|ds18b20_demo1_72mhz"
-            "demo5|-|-|ds18b20_demo5_72mhz"
-            "demo1|-|8|ds18b20_demo1_8mhz"
-            "demo5|-|8|ds18b20_demo5_8mhz"
-            "demo1|f0|-|ds18b20_demo1_f0_48mhz"
-            "demo5|f0|-|ds18b20_demo5_f0_48mhz"
-            "demo1|f0|8|ds18b20_demo1_f0_8mhz"
-            "demo5|f0|8|ds18b20_demo5_f0_8mhz"
-            "demo1|g0|-|ds18b20_demo1_g0_64mhz"
-            "demo5|g0|-|ds18b20_demo5_g0_64mhz"
-            "demo1|g0|16|ds18b20_demo1_g0_16mhz"
-            "demo5|g0|16|ds18b20_demo5_g0_16mhz"
+            "demo|-|-|ds18b20_demo_72mhz|"
+            "demo2|-|-|ds18b20_demo2_72mhz|"
+            "demo3|-|-|ds18b20_demo3_72mhz|"
+            "demo4|-|-|ds18b20_demo4_72mhz|"
+            "demo|-|8|ds18b20_demo_8mhz|"
+            "demo2|-|8|ds18b20_demo2_8mhz|"
+            "demo3|-|8|ds18b20_demo3_8mhz|"
+            "demo4|-|8|ds18b20_demo4_8mhz|"
+            "demo|f0|-|ds18b20_demo_f0_48mhz|"
+            "demo2|f0|-|ds18b20_demo2_f0_48mhz|"
+            "demo3|f0|-|ds18b20_demo3_f0_48mhz|"
+            "demo4|f0|-|ds18b20_demo4_f0_48mhz|"
+            "demo|f0|8|ds18b20_demo_f0_8mhz|"
+            "demo2|f0|8|ds18b20_demo2_f0_8mhz|"
+            "demo3|f0|8|ds18b20_demo3_f0_8mhz|"
+            "demo4|f0|8|ds18b20_demo4_f0_8mhz|"
+            "demo|g0|-|ds18b20_demo_g0_64mhz|"
+            "demo2|g0|-|ds18b20_demo2_g0_64mhz|"
+            "demo3|g0|-|ds18b20_demo3_g0_64mhz|"
+            "demo4|g0|-|ds18b20_demo4_g0_64mhz|"
+            "demo|g0|16|ds18b20_demo_g0_16mhz|"
+            "demo2|g0|16|ds18b20_demo2_g0_16mhz|"
+            "demo3|g0|16|ds18b20_demo3_g0_16mhz|"
+            "demo4|g0|16|ds18b20_demo4_g0_16mhz|"
+            "demo1|-|-|ds18b20_demo1_72mhz|"
+            "demo5|-|-|ds18b20_demo5_72mhz|"
+            "demo6|-|-|ds18b20_demo6_lp_72mhz|lowpower"
+            "demo6|f0|-|ds18b20_demo6_lp_f0_48mhz|lowpower"
+            "demo6|g0|-|ds18b20_demo6_lp_g0_64mhz|lowpower"
+            "demo1|-|8|ds18b20_demo1_8mhz|"
+            "demo5|-|8|ds18b20_demo5_8mhz|"
+            "demo1|f0|-|ds18b20_demo1_f0_48mhz|"
+            "demo5|f0|-|ds18b20_demo5_f0_48mhz|"
+            "demo1|f0|8|ds18b20_demo1_f0_8mhz|"
+            "demo5|f0|8|ds18b20_demo5_f0_8mhz|"
+            "demo1|g0|-|ds18b20_demo1_g0_64mhz|"
+            "demo5|g0|-|ds18b20_demo5_g0_64mhz|"
+            "demo1|g0|16|ds18b20_demo1_g0_16mhz|"
+            "demo5|g0|16|ds18b20_demo5_g0_16mhz|"
           )
           for row in "${matrix[@]}"; do
-            IFS='|' read -r app target sysclk out <<< "$row"
+            IFS='|' read -r app target sysclk out ext <<< "$row"
             flags=""
             [ "$target" != "-" ] && flags="$flags OW_TARGET=$target"
             [ "$sysclk" != "-" ] && flags="$flags SYSCLK_MHZ=$sysclk"
-            echo "::group::build $out (APP=$app OW_TARGET=$target SYSCLK_MHZ=$sysclk)"
+            [ "$ext" = "lowpower" ] && flags="$flags EXT=-DOW_PORT_LOW_POWER"
+            echo "::group::build $out (APP=$app OW_TARGET=$target SYSCLK_MHZ=$sysclk EXT=$ext)"
             make clean
             make APP=$app $flags
-            for ext in elf hex bin; do
-              cp "build/ds18b20_$app.$ext" "dist/$out.$ext"
+            for e in elf hex bin; do
+              cp "build/ds18b20_$app.$e" "dist/$out.$e"
             done
             echo "::endgroup::"
           done
@@ -128,9 +133,24 @@ jobs:
             Non-blocking 1-Wire master for STM32 with a DS18B20 temperature driver
             built on top — bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA — no interrupts,
-            no software delays, minimal CPU usage. One MCU-independent core,
-            two header-only backends selected at build time with
-            `make OW_TARGET=f0`.
+            no software delays, minimal CPU usage. One MCU-independent core and
+            three header-only backends (F0/F1/G0) selected at build time with
+            `make OW_TARGET=f0` / `make OW_TARGET=g0`.
+
+            ## What's new in 1.8.0
+
+            - **Opt-in low-power path** (`-DOW_PORT_LOW_POWER`, default off):
+              enables TIM1 UIE + `SEVONPEND` so an application can block in
+              `__WFE()` during long 1-Wire stages (up to 750 ms conversion) and
+              be woken by the timer update event instead of busy-polling. The
+              driver stays fully non-blocking; no ISR is installed and
+              `NVIC_EnableIRQ` is never called.
+            - **New `demo6`** — the `demo1` search + sequential loop with WFE
+              sleep on long stages. Speeds are shipped in low-power form
+              (`ds18b20_demo6_lp_*`).
+            - Hardware-validated low-power path on STM32F103 / F030 / G031 across
+              four configurations (STANDARD / ROBUST / FAST × open-drain /
+              active-drive) with correct temperatures in every case.
 
             ## Download
 
@@ -139,12 +159,12 @@ jobs:
 
             | Target | Clock | Artifact stems |
             |--------|-------|----------------|
-            | STM32F103C8T6 | 72MHz (HSE+PLL, default) | `ds18b20_demo_72mhz`, `ds18b20_demo2_72mhz`, `ds18b20_demo3_72mhz`, `ds18b20_demo4_72mhz` |
-            | STM32F103C8T6 | 8MHz HSI (no crystal) | `ds18b20_demo_8mhz`, …`demo2_8mhz`, …`demo3_8mhz`, …`demo4_8mhz` |
-            | STM32F030x6 | 48MHz (HSI+PLL, default) | `ds18b20_demo_f0_48mhz`, …`demo2_f0_48mhz`, …`demo3_f0_48mhz`, …`demo4_f0_48mhz` |
-            | STM32F030x6 | 8MHz HSI | `ds18b20_demo_f0_8mhz`, …`demo2_f0_8mhz`, …`demo3_f0_8mhz`, …`demo4_f0_8mhz` |
-            | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_demo_g0_64mhz`, …`demo2_g0_64mhz`, …`demo3_g0_64mhz`, …`demo4_g0_64mhz` |
-            | STM32G031x6 | 16MHz HSI16 (bus on PA12 pad via remap) | `ds18b20_demo_g0_16mhz`, …`demo2_g0_16mhz`, …`demo3_g0_16mhz`, …`demo4_g0_16mhz` |
+            | STM32F103C8T6 | 72MHz (HSE+PLL, default) | `ds18b20_demo_72mhz`, …`demo2_72mhz`, …`demo3_72mhz`, …`demo4_72mhz`, `ds18b20_demo1_72mhz`, `ds18b20_demo5_72mhz`, `ds18b20_demo6_lp_72mhz` |
+            | STM32F103C8T6 | 8MHz HSI (no crystal) | `ds18b20_demo_8mhz`, …`demo2_8mhz`, …`demo3_8mhz`, …`demo4_8mhz`, `ds18b20_demo1_8mhz`, `ds18b20_demo5_8mhz` |
+            | STM32F030x6 | 48MHz (HSI+PLL, default) | `ds18b20_demo_f0_48mhz`, …`demo2_f0_48mhz`, …`demo3_f0_48mhz`, …`demo4_f0_48mhz`, `ds18b20_demo1_f0_48mhz`, `ds18b20_demo5_f0_48mhz`, `ds18b20_demo6_lp_f0_48mhz` |
+            | STM32F030x6 | 8MHz HSI | `ds18b20_demo_f0_8mhz`, …`demo2_f0_8mhz`, …`demo3_f0_8mhz`, …`demo4_f0_8mhz`, `ds18b20_demo1_f0_8mhz`, `ds18b20_demo5_f0_8mhz` |
+            | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_demo_g0_64mhz`, …`demo2_g0_64mhz`, …`demo3_g0_64mhz`, …`demo4_g0_64mhz`, `ds18b20_demo1_g0_64mhz`, `ds18b20_demo5_g0_64mhz`, `ds18b20_demo6_lp_g0_64mhz` |
+            | STM32G031x6 | 16MHz HSI16 (bus on PA12 pad via remap) | `ds18b20_demo_g0_16mhz`, …`demo2_g0_16mhz`, …`demo3_g0_16mhz`, …`demo4_g0_16mhz`, `ds18b20_demo1_g0_16mhz`, `ds18b20_demo5_g0_16mhz` |
 
             Examples: `demo` — single sensor via Skip ROM; `demo1` — device
             search + per-device polling (one Convert T per sensor); `demo2` —
@@ -152,18 +172,19 @@ jobs:
             device search + simultaneous multi-device conversion; `demo4` —
             device search + command transactions (power supply, scratchpad,
             TH/TL, Copy/Recall EEPROM, Read ROM); `demo5` — device search +
-            signal-statistics dump over UART (`-DOW_STATS_ENABLE`).
+            signal-statistics dump over UART (`-DOW_STATS_ENABLE`); `demo6` —
+            low-power example (`-DOW_PORT_LOW_POWER`) that sleeps in `__WFE()`.
 
             ## Highlights
 
             - **True non-blocking 1-Wire**: TIM1 Output Compare + Input Capture with DMA — a hardware state machine does the timing, the CPU just polls a flag
             - **Zero interrupts**: no NVIC IRQs at all
             - **Pure bare-metal C**: register-level, no HAL/LL, arm-none-eabi-gcc
-            - **Two MCU backends**: STM32F1 (bus on PA8) and STM32F0 (bus on PA10), one shared core
+            - **Three MCU backends**: STM32F1 (bus on PA10), STM32F0 (bus on PA10) and STM32G0 (bus on PA12 via remap), one shared core
             - **Accuracy**: 0.1 °C resolution, ±0.5 °C typical, one reading every ~0.76 s
             - **CRC-8 validation** on every 9-byte scratchpad read
             - **Weak callbacks** `ds18b20_busy()` / `ds18b20_complete()`
-            - **Tooling**: CI (clang-format, cppcheck, GCC -fanalyzer), host test suite for both backends (`make test`, `make test-f0`), VSCode J-Link/ST-Link debug configs
+            - **Tooling**: CI (clang-format, cppcheck, GCC -fanalyzer), host test suite for all backends (`make test`, `make test-f0`, `make test-g0`) plus a low-power suite (`make test-lowpower`), VSCode J-Link/ST-Link debug configs
 
             ## Getting started
 

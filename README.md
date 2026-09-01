@@ -639,7 +639,7 @@ In a downstream project:
 ```cmake
 FetchContent_Declare(stm32_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v1.7.1
+    GIT_TAG        v1.8.0
 )
 FetchContent_MakeAvailable(stm32_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
