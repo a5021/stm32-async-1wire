@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New `ONEWIRE_TIMING_CUSTOM` timing profile** (selectable via
+  `onewire_set_timing_profile()` or the Makefile `TIMING=CUSTOM`). It uses the
+  minimum slot timing allowed by the 1-Wire standard — `one` 1µs, `zero` 60µs,
+  `guard` 1µs, `parasite guard` 1µs, `short≤` 15µs → 62µs slot. It is
+  experimental: a 1µs read/write pulse is below the values validated on
+  hardware (a 2µs pulse already broke slot decoding on an F030 at 8MHz) and is
+  intended for electrically ideal setups only.
+
 ## [1.8.0] - 2026-09-01
 
 ### Added

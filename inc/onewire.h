@@ -78,6 +78,7 @@ typedef enum {
     ONEWIRE_TIMING_STANDARD,
     ONEWIRE_TIMING_SLOW,
     ONEWIRE_TIMING_ROBUST,
+    ONEWIRE_TIMING_CUSTOM,
     ONEWIRE_TIMING_COUNT
 } onewire_timing_profile_t;
 
