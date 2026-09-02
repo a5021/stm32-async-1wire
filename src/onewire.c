@@ -38,6 +38,7 @@ static const onewire_timing_t timing_profiles[ONEWIRE_TIMING_COUNT] = {
     [ONEWIRE_TIMING_STANDARD] = {5, 60, 5, 100, 10},
     [ONEWIRE_TIMING_SLOW] = {8, 90, 20, 200, 15},
     [ONEWIRE_TIMING_ROBUST] = {10, 110, 30, 250, 18},
+    [ONEWIRE_TIMING_CUSTOM] = {1, 60, 1, 1, 15},
 };
 
 static onewire_timing_profile_t ow_profile = ONEWIRE_TIMING_PROFILE_DEFAULT;
