@@ -12,6 +12,18 @@
 
 #include <stdint.h>
 
+/* --- Compiler helpers the driver expects (portable stand-ins; real CMSIS
+ *     headers define them too, so the #ifndef guards keep both paths
+ *     identical). Kept here (not only in ow_port.h) so upper layers
+ *     (ds18b20.c, app code) get them via this header without including
+ *     the port layer directly. --- */
+#ifndef __STATIC_FORCEINLINE
+#define __STATIC_FORCEINLINE static __attribute__((always_inline)) inline
+#endif
+#ifndef __WEAK
+#define __WEAK __attribute__((weak))
+#endif
+
 /**
  * @defgroup ONEWIRE_Protocol 1-Wire Protocol Constants
  * @{
@@ -42,10 +54,10 @@
  *  enables the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
  *  update event wakes the core from WFE without an ISR. Long stages
  *  (> 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause)
- *  can then sleep with ow_port_sleep_until_done(). Disabled by default so
+ *  can then sleep with onewire_sleep_until_done(). Disabled by default so
  *  non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.
  *  @note No ISR is ever installed and NVIC_EnableIRQ is never called; the
- *        pending bit is cleared explicitly in ow_port_bus_done() so WFE does
+ *        pending bit is cleared explicitly in onewire_bus_done() so WFE does
  *        not degrade into a busy-loop. */
 #ifdef OW_PORT_LOW_POWER
 #if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
@@ -136,6 +148,34 @@ void onewire_init(void);
  * @return 1 if finished (update flag cleared), 0 while still running
  */
 uint8_t onewire_bus_done(void);
+
+/**
+ * @brief Hand the timer back to the measurement loop (ownership handover)
+ * @note Sets UIF without clearing it, so the next onewire_bus_done() poll
+ *       advances immediately. Called exactly once when a sub-machine (search,
+ *       resolution change, command transaction) finishes and returns timer
+ *       ownership to ds18b20_poll(). Thin wrapper over ow_port_bus_handover();
+ *       same zero-overhead inline cost under LTO as the former ow_port_kick().
+ */
+void onewire_bus_handover(void);
+
+#ifdef OW_PORT_LOW_POWER
+/**
+ * @brief Whether the current operation is a long stage (> 1 ms)
+ * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
+ *         inter-cycle pause) is in flight, 0 otherwise
+ * @note Layer wrapper over ow_port_long_wait_pending() so application code
+ *       (e.g. demo6) does not depend on the port layer directly.
+ */
+uint8_t onewire_long_wait_pending(void);
+
+/**
+ * @brief Block in WFE until the scheduled long stage completes
+ * @note Layer wrapper over ow_port_sleep_until_done(). Valid only while a
+ *       long stage is running; the pending bit is cleared in onewire_bus_done().
+ */
+void onewire_sleep_until_done(void);
+#endif
 
 /**
  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)

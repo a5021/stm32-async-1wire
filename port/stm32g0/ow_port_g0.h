@@ -77,13 +77,20 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 #define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 
 /**
- * @brief Force a timer update event, leaving UIF set
- * @note Kickstart / timer hand-over: EGR=UG with no SR clear, so the owner
+ * @brief Hand the timer back to its owner, leaving UIF set
+ * @note Timer ownership handover: EGR=UG with no SR clear, so the owner
  *       (measurement state machine) sees UIF set and advances immediately.
+ *       Used as kickstart at init and when a sub-machine (search, resolution,
+ *       command transaction) finishes and returns the timer to the measurement loop.
  */
-__STATIC_FORCEINLINE void ow_port_kick(void) {
+__STATIC_FORCEINLINE void ow_port_bus_handover(void) {
     T1.EGR = TIM_EGR(UG);
     __DSB();
+}
+
+/** @brief Deprecated alias for ow_port_bus_handover() (kept for compatibility). */
+__STATIC_FORCEINLINE void ow_port_kick(void) {
+    ow_port_bus_handover();
 }
 
 /**
@@ -112,7 +119,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
                          the first SYSCFG register access below */
     SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP;
     T1.PSC = OW_PORT_TIM_PRESCALER;
-    ow_port_kick(); /* kickstart: first poll advances immediately */
+    ow_port_bus_handover(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
     /* Logical PA10 (physical PA12 pad after remap): alternate function mode,
      * open-drain, AF2 (TIM1_CH3). */
