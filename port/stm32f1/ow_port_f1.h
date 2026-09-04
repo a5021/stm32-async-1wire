@@ -24,7 +24,7 @@
 #define OW_PORT_F1_H
 
 #include "macro.h"
-#include "onewire.h"
+#include "ow_config.h"
 #include "stm32f1xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
@@ -53,11 +53,13 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 #define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 
 /**
- * @brief Force a timer update event, leaving UIF set
- * @note Kickstart / timer hand-over: EGR=UG with no SR clear, so the owner
+ * @brief Hand the timer back to its owner, leaving UIF set
+ * @note Timer ownership handover: EGR=UG with no SR clear, so the owner
  *       (measurement state machine) sees UIF set and advances immediately.
+ *       Used as kickstart at init and when a sub-machine (search, resolution,
+ *       command transaction) finishes and returns the timer to the measurement loop.
  */
-__STATIC_FORCEINLINE void ow_port_kick(void) {
+__STATIC_FORCEINLINE void ow_port_bus_handover(void) {
     T1.EGR = TIM_EGR(UG);
     __DSB();
 }
@@ -80,7 +82,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
     RC.AHBENR |= RCC_AHBENR(DMA1EN);
     T1.PSC = OW_PORT_TIM_PRESCALER;
-    ow_port_kick(); /* kickstart: first poll advances immediately */
+    ow_port_bus_handover(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
     /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map) */
     PA.CRH |= GPIO_CRH(CNF10_0, CNF10_1, MODE10_1);

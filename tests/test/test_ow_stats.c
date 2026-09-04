@@ -2,6 +2,64 @@
 #include "ow_stats_test_access.h"
 #include "unity.h"
 
+/* ---- capture sink: routes dump output into dump_buf for assertions ---- */
+static char dump_buf[512];
+static uint32_t dump_len;
+
+static int dump_sink_str(const char* s) {
+    int n = 0;
+    while (*s && dump_len < sizeof(dump_buf)) {
+        dump_buf[dump_len++] = *s++;
+        n++;
+    }
+    return n;
+}
+
+static int dump_sink_int(int v) {
+    char tmp[12];
+    int i = 0;
+    int n = 0;
+    int j;
+    unsigned int u = (v < 0) ? (unsigned int)-(v + 1) + 1u : (unsigned int)v;
+    if (v == 0) return dump_sink_str("0");
+    while (u > 0) {
+        tmp[i++] = (char)('0' + (u % 10));
+        u /= 10;
+    }
+    if (v < 0) tmp[i++] = '-';
+    for (j = i - 1; j >= 0; j--) {
+        if (dump_len < sizeof(dump_buf)) {
+            dump_buf[dump_len++] = tmp[j];
+            n++;
+        }
+    }
+    return n;
+}
+
+static int dump_sink_hex(uint8_t b) {
+    static const char hex[] = "0123456789ABCDEF";
+    int n = 0;
+    if (dump_len < sizeof(dump_buf)) {
+        dump_buf[dump_len++] = hex[(b >> 4) & 0x0F];
+        n++;
+    }
+    if (dump_len < sizeof(dump_buf)) {
+        dump_buf[dump_len++] = hex[b & 0x0F];
+        n++;
+    }
+    return n;
+}
+
+static int dump_sink_byte(int b) {
+    if (dump_len < sizeof(dump_buf)) dump_buf[dump_len++] = (char)b;
+    return 1;
+}
+
+static void dump_sink_poll(void) {}
+
+static const ow_stats_sink_t dump_sink = {
+    dump_sink_str, dump_sink_int, dump_sink_hex, dump_sink_byte, dump_sink_poll};
+
 /* ---- init ---- */
 void test_ow_stats_init_zeroes_all(void) {
     /* Populate some state first */
@@ -217,6 +275,8 @@ void test_ow_stats_reset_preserves_rom(void) {
 /* ---- dump_start sets phase ---- */
 void test_ow_stats_dump_start_sets_phase(void) {
     ow_stats_init();
+    ow_stats_set_sink(&dump_sink);
+    dump_len = 0;
     ow_stats_dump_start();
     TEST_ASSERT_EQUAL_UINT8(1, ow_stats_test_get_dump_phase());
 }
@@ -224,6 +284,8 @@ void test_ow_stats_dump_start_sets_phase(void) {
 /* ---- dump_poll completes ---- */
 void test_ow_stats_dump_poll_completes(void) {
     ow_stats_init();
+    ow_stats_set_sink(&dump_sink);
+    dump_len = 0;
     /* Add some data */
     static const uint8_t rom[] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
     static volatile uint8_t p[] = {10, 10, 10, 10, 10, 10, 10, 10};
@@ -242,6 +304,8 @@ void test_ow_stats_dump_poll_completes(void) {
     }
     TEST_ASSERT_EQUAL_UINT8(1, done);
     TEST_ASSERT_EQUAL_UINT8(0, ow_stats_test_get_dump_phase());
+    /* The dump must actually write through the sink. */
+    TEST_ASSERT_TRUE(dump_len > 0);
 }
 
 void run_test_ow_stats(void) {

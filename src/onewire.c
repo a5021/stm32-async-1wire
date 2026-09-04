@@ -166,6 +166,20 @@ uint8_t onewire_bus_done(void) {
     return ow_port_bus_done();
 }
 
+void onewire_bus_handover(void) {
+    ow_port_bus_handover();
+}
+
+#ifdef OW_PORT_LOW_POWER
+uint8_t onewire_long_wait_pending(void) {
+    return ow_port_long_wait_pending();
+}
+
+void onewire_sleep_until_done(void) {
+    ow_port_sleep_until_done();
+}
+#endif
+
 void onewire_reset(volatile uint16_t* edge_out) {
     ow_port_reset(edge_out);
 }
@@ -338,7 +352,7 @@ uint8_t onewire_search_poll(void) {
     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {
         // No hardware operation is pending at the end of the search: hand the
         // timer back to the owner exactly once.
-        ow_port_kick();
+        ow_port_bus_handover();
         search_ctx.finished = 1;
         return 1;
     }

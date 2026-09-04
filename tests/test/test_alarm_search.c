@@ -105,7 +105,7 @@ static uint16_t alarm_capture_src(uint32_t idx) {
 static void setup_single_device(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
     g_found_count = 0;
     g_wr_bit = 2;
     hw_set_capture_source(alarm_capture_src);
@@ -209,7 +209,7 @@ void test_alarm_search_max_zero_aborts(void) {
 void test_alarm_search_filters_non_ds18b20_family(void) {
     uint8_t serial[7] = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -229,7 +229,7 @@ void test_alarm_search_filters_non_ds18b20_family(void) {
 void test_alarm_search_leaves_device_table_untouched(void) {
     uint8_t roms[2][8] = {{0x28, 0xAA, 0, 0, 0, 0, 0, 0}, {0x28, 0xBB, 0, 0, 0, 0, 0, 0}};
     for (int d = 0; d < 2; d++) {
-        roms[d][7] = ds18b20_crc8(roms[d], 7);
+        roms[d][7] = onewire_crc8(roms[d], 7);
         ds18b20_test_set_device(d, roms[d]);
     }
     ds18b20_test_set_device_count(2);
@@ -344,7 +344,7 @@ void test_alarm_search_null_sink_completes(void) {
 void test_alarm_search_rejects_bad_crc_rom(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = (uint8_t)(ds18b20_crc8(g_rom, 7) ^ 0xFF); /* corrupt CRC */
+    g_rom[7] = (uint8_t)(onewire_crc8(g_rom, 7) ^ 0xFF); /* corrupt CRC */
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -420,8 +420,8 @@ void test_alarm_search_rejected_while_txn_running(void) {
 void test_alarm_search_two_devices_found(void) {
     uint8_t romA[8] = {DS18B20_FAMILY_CODE, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
     uint8_t romB[8] = {DS18B20_FAMILY_CODE, 0x01, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
-    romA[7] = ds18b20_crc8(romA, 7);
-    romB[7] = ds18b20_crc8(romB, 7);
+    romA[7] = onewire_crc8(romA, 7);
+    romB[7] = onewire_crc8(romB, 7);
     memcpy(g_rom, romA, 8);
     memcpy(g_rom_b, romB, 8);
 

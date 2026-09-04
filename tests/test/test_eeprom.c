@@ -64,7 +64,7 @@ static void make_scratchpad(uint8_t* sd, uint8_t th, uint8_t tl, uint8_t cfg) {
     sd[5] = 0xFF;
     sd[6] = 0x08;
     sd[7] = 0x10;
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
 }
 
 static void run_current_op(void) {

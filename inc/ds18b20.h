@@ -26,6 +26,7 @@
 #ifndef DS18B20_H
 #define DS18B20_H
 
+#include "onewire.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -313,7 +314,7 @@ uint8_t ds18b20_get_resolution(void);
  *       0x33). With several devices use the non-blocking device search
  *       (ds18b20_search_*).
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
- *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
+ *       7 leading bytes (onewire_crc8(rom, 7) == rom[7]).
  */
 void ds18b20_read_rom(uint8_t* rom);
 
@@ -348,7 +349,7 @@ uint8_t ds18b20_set_alarm_thresholds_poll(void);
  * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,
  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
- *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
+ *       8 leading bytes (buf[8] == onewire_crc8(buf, 8)).
  */
 void ds18b20_read_scratchpad(uint8_t* buf);
 
@@ -496,16 +497,10 @@ uint8_t ds18b20_scan_index(void);
 
 /**
  * @defgroup DS18B20_Exported_Functions DS18B20 Exported Functions
+ * @note CRC-8 is provided by the shared 1-Wire layer as onewire_crc8()
+ *       (same Dallas/Maxim algorithm); no per-driver duplicate is kept.
  * @{
  */
-
-/**
- * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
- * @param[in] data Input buffer
- * @param[in] len Number of bytes to process
- * @return CRC-8 checksum value
- */
-uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
 
 /**
  * @brief Initialize DS18B20 driver hardware and peripherals

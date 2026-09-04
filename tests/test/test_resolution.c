@@ -331,7 +331,7 @@ static void set_scratchpad_via_pulses(const uint8_t* sd) {
 
 void test_resolution_decode_derives_from_scratchpad(void) {
     uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x3F, 0xFF, 0x08, 0x10, 0};
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
     set_scratchpad_via_pulses(sd);
     ds18b20_test_set_state(DS18B20_ST_DECODE);
     mock_tim1.SR |= TIM_SR_UIF;
@@ -343,7 +343,7 @@ void test_resolution_decode_derives_from_scratchpad(void) {
 
 void test_resolution_decode_bad_crc_keeps_resolution(void) {
     uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x3F, 0xFF, 0x08, 0x10, 0};
-    sd[8] = (uint8_t)(ds18b20_crc8(sd, 8) ^ 0xFF);
+    sd[8] = (uint8_t)(onewire_crc8(sd, 8) ^ 0xFF);
     set_scratchpad_via_pulses(sd);
     ds18b20_test_set_state(DS18B20_ST_DECODE);
     mock_tim1.SR |= TIM_SR_UIF;

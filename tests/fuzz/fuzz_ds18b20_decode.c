@@ -6,7 +6,7 @@
  * - res_config_byte: known mapping 9→0x1F, 10→0x3F, 11→0x5F, 12→0x7F
  * - resolution_to_wait: (RCR+1)*ARR = expected conversion time in µs
  * - decode_temperature: correct conversion from raw int16 to tenths-C
- * - check_scratchpad_crc: == ds18b20_crc8(scratchpad, 8)
+ * - check_scratchpad_crc: == onewire_crc8(scratchpad, 8)
  */
 
 #include "ds18b20.h"
@@ -89,7 +89,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         for (uint8_t i = 0; i < len; i++) {
             scratchpad[i] = data[1 + i];
         }
-        uint8_t expected_crc = ds18b20_crc8(scratchpad, 8);
+        uint8_t expected_crc = onewire_crc8(scratchpad, 8);
         if (crc != expected_crc) abort();
         break;
     }

@@ -267,7 +267,7 @@ void test_scratchpad_crc_matches_direct_crc8(void) {
     for (int i = 0; i < 9; i++) {
         ds18b20_test_set_scratchpad(i, data[i]);
     }
-    TEST_ASSERT_EQUAL_HEX8(ds18b20_crc8(data, 8), ds18b20_test_check_scratchpad_crc());
+    TEST_ASSERT_EQUAL_HEX8(onewire_crc8(data, 8), ds18b20_test_check_scratchpad_crc());
 }
 
 /*-------------------------------------------------------------
@@ -278,7 +278,7 @@ void test_scratchpad_crc_zeroed_data(void) {
     for (int i = 0; i < 8; i++) {
         ds18b20_test_set_scratchpad(i, zeros[i]);
     }
-    TEST_ASSERT_EQUAL_HEX8(ds18b20_crc8(zeros, 8), ds18b20_test_check_scratchpad_crc());
+    TEST_ASSERT_EQUAL_HEX8(onewire_crc8(zeros, 8), ds18b20_test_check_scratchpad_crc());
 }
 
 /*-------------------------------------------------------------

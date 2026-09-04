@@ -1,6 +1,5 @@
 #include "ds18b20.h"
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_stats.h"
 
 /**
@@ -240,22 +239,11 @@ __WEAK void ds18b20_complete(int16_t temp_tenths) {
 }
 
 /**
- * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer
- * @param[in] data Input buffer
- * @param[in] len Number of bytes to process
- * @return CRC-8 checksum value
- * @note Delegates to the shared 1-Wire layer (same Dallas/Maxim algorithm).
- */
-uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {
-    return onewire_crc8(data, len);
-}
-
-/**
  * @brief Calculate CRC8 checksum for DS18B20 scratchpad data validation
  * @return CRC8 checksum value
  */
 __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {
-    return ds18b20_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);
+    return onewire_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);
 }
 
 /**
@@ -578,7 +566,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
     if (res_ctx.phase == DS18B20_RES_DONE) {
         // The last hardware operation completed (config written or aborted):
         // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        onewire_bus_handover();
         if (res_ctx.applied) {
             ctx.resolution = res_ctx.pending_res;
         }
@@ -814,7 +802,7 @@ static uint8_t txn_poll(void) {
     if (txn_ctx.phase == DS18B20_TXN_DONE) {
         // The last hardware operation completed (command done or aborted):
         // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        onewire_bus_handover();
         txn_ctx.finished = 1;
         return 1;
     }
@@ -934,7 +922,7 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
  * @note Valid only when exactly one device is on the bus (datasheet Read ROM
  *       0x33). With several devices use the device search (ds18b20_search_*).
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
- *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
+ *       7 leading bytes (onewire_crc8(rom, 7) == rom[7]).
  */
 void ds18b20_read_rom(uint8_t* rom) {
     txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);
@@ -981,7 +969,7 @@ uint8_t ds18b20_set_alarm_thresholds_poll(void) { return txn_poll(); }
  * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,
  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
- *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
+ *       8 leading bytes (buf[8] == onewire_crc8(buf, 8)).
  */
 void ds18b20_read_scratchpad(uint8_t* buf) {
     txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);
@@ -1000,7 +988,7 @@ uint8_t ds18b20_read_scratchpad_poll(void) {
     if (txn_ctx.ok && txn_ctx.out) {
         txn_copy_out(DS18B20_SCRATCHPAD_LEN);
         if (txn_ctx.raw[DS18B20_SCRATCHPAD_LEN - 1] ==
-            ds18b20_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {
+            onewire_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {
             ctx.resolution = DS18B20_RES_MIN + ((txn_ctx.raw[4] >> 5) & 0x3);
         }
     }
@@ -1274,7 +1262,7 @@ void ds18b20_poll(void) {
 
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish
-    if (!ow_port_bus_done()) return;
+    if (!onewire_bus_done()) return;
 
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {

@@ -58,8 +58,8 @@ static uint16_t search_capture_src(uint32_t idx) {
 void test_search_finds_single_device(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_crc8(g_rom, 8)); /* self-check construction */
+    g_rom[7] = onewire_crc8(g_rom, 7);
+    TEST_ASSERT_EQUAL_UINT8(0, onewire_crc8(g_rom, 8)); /* self-check construction */
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -98,7 +98,7 @@ void test_search_finds_single_device(void) {
 void test_search_command_feed_release(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -140,7 +140,7 @@ void test_search_command_feed_release(void) {
 void test_search_finds_different_serial(void) {
     uint8_t serial[7] = {0x28, 0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -176,7 +176,7 @@ void test_search_finds_different_serial(void) {
 void test_search_filters_non_ds18b20_family(void) {
     uint8_t serial[7] = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -304,8 +304,8 @@ static uint16_t two_dev_capture_src(uint32_t idx) {
 void test_search_two_devices_found(void) {
     uint8_t romA[8] = {DS18B20_FAMILY_CODE, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
     uint8_t romB[8] = {DS18B20_FAMILY_CODE, 0x01, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00};
-    romA[7] = ds18b20_crc8(romA, 7);
-    romB[7] = ds18b20_crc8(romB, 7);
+    romA[7] = onewire_crc8(romA, 7);
+    romB[7] = onewire_crc8(romB, 7);
 
     memcpy(g_rom, romA, 8); /* single-rom lookup shared by both passes */
     memcpy(g_rom_b, romB, 8);
@@ -372,7 +372,7 @@ static uint8_t early_stop_sink(const uint8_t* rom) {
 void test_search_sink_early_stop(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -454,7 +454,7 @@ void test_search_pair_11_terminates(void) {
 void test_search_null_sink_completes(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -489,7 +489,7 @@ void test_search_null_sink_completes(void) {
 void test_search_rejects_bad_crc_rom(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = (uint8_t)(ds18b20_crc8(g_rom, 7) ^ 0xFF); /* corrupt CRC */
+    g_rom[7] = (uint8_t)(onewire_crc8(g_rom, 7) ^ 0xFF); /* corrupt CRC */
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -569,8 +569,8 @@ void test_search_four_devices_found(void) {
     };
     for (int d = 0; d < 4; d++) {
         memcpy(g_roms4[d], ser[d], 7);
-        g_roms4[d][7] = ds18b20_crc8(g_roms4[d], 7);
-        TEST_ASSERT_EQUAL_UINT8(0, ds18b20_crc8(g_roms4[d], 8));
+        g_roms4[d][7] = onewire_crc8(g_roms4[d], 7);
+        TEST_ASSERT_EQUAL_UINT8(0, onewire_crc8(g_roms4[d], 8));
     }
 
     g_found_count = 0;
@@ -611,7 +611,7 @@ void test_search_four_devices_found(void) {
 void test_search_gap_between_slots(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -650,7 +650,7 @@ void test_search_gap_between_slots(void) {
 void test_search_poll_ignored_while_search_running(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
@@ -702,7 +702,7 @@ static uint8_t reentry_sink_b(const uint8_t* rom) {
 void test_search_start_reentry_ignored(void) {
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
+    g_rom[7] = onewire_crc8(g_rom, 7);
 
     g_found_count = 0;
     g_wr_bit = 2;
