@@ -58,8 +58,7 @@ static int dump_sink_byte(int b) {
 static void dump_sink_poll(void) {}
 
 static const ow_stats_sink_t dump_sink = {
-    dump_sink_str, dump_sink_int, dump_sink_hex, dump_sink_byte, dump_sink_poll
-};
+    dump_sink_str, dump_sink_int, dump_sink_hex, dump_sink_byte, dump_sink_poll};
 
 /* ---- init ---- */
 void test_ow_stats_init_zeroes_all(void) {
