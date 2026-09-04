@@ -152,7 +152,7 @@ void test_merged_write_read_decodes_zeros(void) {
  * -----------------------------------------------------------*/
 void test_read_data_hardware_path_decode(void) {
     uint8_t sp[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    sp[8] = ds18b20_crc8(sp, 8);
+    sp[8] = onewire_crc8(sp, 8);
     g_scratch = sp;
 
     hw_set_capture_source(src_read_scratchpad);
@@ -189,7 +189,7 @@ void test_sequence_stays_released_between_ops(void) {
     assert_bus_released();
 
     uint8_t sp[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    sp[8] = ds18b20_crc8(sp, 8);
+    sp[8] = onewire_crc8(sp, 8);
     g_scratch = sp;
     hw_set_capture_source(src_read_scratchpad);
     test_bus_read_data();

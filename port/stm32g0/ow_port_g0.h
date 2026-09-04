@@ -88,11 +88,6 @@ __STATIC_FORCEINLINE void ow_port_bus_handover(void) {
     __DSB();
 }
 
-/** @brief Deprecated alias for ow_port_bus_handover() (kept for compatibility). */
-__STATIC_FORCEINLINE void ow_port_kick(void) {
-    ow_port_bus_handover();
-}
-
 /**
  * @brief Force a timer update event and clear the update flag
  * @note Re-arm: reloads ARR/RCR/CCR preloads and clears UIF so the freshly

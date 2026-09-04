@@ -79,7 +79,7 @@ static void drive_txn(uint8_t (*poll)(void)) {
 /* A plausible 8-byte ROM with a valid trailing CRC. */
 static void make_rom(uint8_t* rom) {
     uint8_t r[DS18B20_ROM_BYTES] = {0x28, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x00};
-    r[DS18B20_ROM_BYTES - 1] = ds18b20_crc8(r, DS18B20_ROM_BYTES - 1);
+    r[DS18B20_ROM_BYTES - 1] = onewire_crc8(r, DS18B20_ROM_BYTES - 1);
     memcpy(rom, r, DS18B20_ROM_BYTES);
 }
 
@@ -133,7 +133,7 @@ void test_read_rom_crc_valid(void) {
 
     /* The driver hands back the raw ROM; the CRC must check out so the
      * application can trust the address. */
-    TEST_ASSERT_EQUAL_HEX8(ds18b20_crc8(got, DS18B20_ROM_BYTES - 1),
+    TEST_ASSERT_EQUAL_HEX8(onewire_crc8(got, DS18B20_ROM_BYTES - 1),
                            got[DS18B20_ROM_BYTES - 1]);
 }
 

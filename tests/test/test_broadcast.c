@@ -45,7 +45,7 @@ static void set_presence_ok(void) {
  * read_data() + decode_scratchpad() would reconstruct it. */
 static void set_scratchpad_ok(void) {
     uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b, ((sd[i] >> b) & 1u) ? ONE : ZERO);

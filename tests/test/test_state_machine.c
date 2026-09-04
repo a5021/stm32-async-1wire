@@ -227,7 +227,7 @@ void test_state_machine_decode_with_valid_crc(void) {
     /* Set up scratchpad with valid CRC */
     /* Temperature: 22.25°C -> raw = 0x0164 */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8); /* Compute valid CRC */
+    temp_data[8] = onewire_crc8(temp_data, 8); /* Compute valid CRC */
 
     for (int i = 0; i < 9; i++) {
         ds18b20_test_set_scratchpad(i, temp_data[i]);
@@ -335,7 +335,7 @@ void test_state_machine_full_cycle_skip_rom(void) {
     /* Step 6: READ -> DECODE (with valid CRC) */
     /* Set up valid scratchpad */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    temp_data[8] = onewire_crc8(temp_data, 8);
     for (int i = 0; i < 9; i++) {
         ds18b20_test_set_scratchpad(i, temp_data[i]);
     }
@@ -575,7 +575,7 @@ void test_state_machine_search_select_measure_e2e(void) {
     /* Phase 1: bus search finds exactly one device */
     uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     memcpy(g_e2e_rom, serial, 7);
-    g_e2e_rom[7] = ds18b20_crc8(g_e2e_rom, 7);
+    g_e2e_rom[7] = onewire_crc8(g_e2e_rom, 7);
 
     g_e2e_wr_bit = 2;
     hw_set_capture_source(e2e_capture_src);
@@ -630,7 +630,7 @@ void test_state_machine_search_select_measure_e2e(void) {
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    temp_data[8] = onewire_crc8(temp_data, 8);
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b,
@@ -677,7 +677,7 @@ static void ts_drive_measurement_raw(uint16_t raw) {
     sd[5] = 0xFF;
     sd[6] = 0x08;
     sd[7] = 0x10;
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
 
     ds18b20_test_set_edge(0, 510);
     ds18b20_test_set_edge(1, 700);
@@ -827,7 +827,7 @@ void test_state_machine_busy_spy(void) {
 
     /* Decode with valid CRC: busy(0) at DECODE */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    temp_data[8] = onewire_crc8(temp_data, 8);
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b,
@@ -933,7 +933,7 @@ void test_state_machine_crc_fail_mid_cycle(void) {
 
     /* Corrupt the data so the CRC fails */
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = (uint8_t)(ds18b20_crc8(temp_data, 8) ^ 0xFF); /* bad CRC */
+    temp_data[8] = (uint8_t)(onewire_crc8(temp_data, 8) ^ 0xFF); /* bad CRC */
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b,
@@ -990,7 +990,7 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
     uint8_t temp_data[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    temp_data[8] = ds18b20_crc8(temp_data, 8);
+    temp_data[8] = onewire_crc8(temp_data, 8);
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b,
