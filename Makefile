@@ -650,7 +650,7 @@ fuzz-timing: | $(FUZZ_OUT)
 # Tier 3: ow_stats (single-TU, #include)
 fuzz-stats: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE \
-	    tests/fuzz/fuzz_stats.c $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    tests/fuzz/fuzz_stats.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_stats
 	$(FUZZ_OUT)/fuzz_stats -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 
@@ -658,7 +658,7 @@ fuzz-stats: | $(FUZZ_OUT)
 fuzz-ds18b20-decode: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
 	    tests/fuzz/fuzz_ds18b20_decode.c src/ow_stats.c \
-	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds18b20_decode
 	$(FUZZ_OUT)/fuzz_ds18b20_decode -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 

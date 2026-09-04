@@ -8,8 +8,9 @@
  * body compiles away to nothing so there is zero overhead in production
  * builds.
  *
- * The dump is non-blocking: ow_stats_dump_start() initiates it,
- * ow_stats_dump_poll() outputs a few bytes per main-loop call.
+ * The dump is non-blocking and platform-independent: output goes through
+ * an injectable sink (ow_stats_set_sink), ow_stats_dump_start() initiates
+ * it, ow_stats_dump_poll() emits a few bytes per main-loop call.
  *
  * @note RAM cost: ~290 bytes (8 sensors × 26 B + 16-entry uint32_t histogram
  *       [64 B] + cycle/error counters; 13 of the 16 histogram buckets, indices
@@ -21,6 +22,21 @@
 
 #include <stdint.h>
 
+/**
+ * @brief Output sink: non-blocking UART-like callback table.
+ *
+ * The dump routine delegates all output through this table, keeping the
+ * library free of platform dependencies.  Register before the first call
+ * to ow_stats_dump_poll(); when unset the default no-op sink is used.
+ */
+typedef struct {
+    int  (*write_str)(const char* s);
+    int  (*write_int)(int value);
+    int  (*write_hex)(uint8_t b);
+    int  (*enqueue_byte)(int b);
+    void (*poll_tx)(void);
+} ow_stats_sink_t;
+
 #ifdef OW_STATS_ENABLE
 
 /** Maximum number of sensors tracked simultaneously. */
@@ -28,6 +44,12 @@
 
 /** Number of histogram buckets (logarithmic, 0–60+ us). */
 #define OW_STATS_HIST_BUCKETS 16
+
+/**
+ * @brief Set the output sink for the stats dump.
+ * @param[in] sink Pointer to a static sink table, or NULL for no-op output.
+ */
+void ow_stats_set_sink(const ow_stats_sink_t* sink);
 
 /**
  * @brief Per-sensor statistics record.
@@ -79,7 +101,7 @@ void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,
 void ow_stats_count_error(int16_t error, const uint8_t* rom);
 
 /**
- * @brief Begin a non-blocking stats dump via UART.
+ * @brief Begin a non-blocking stats dump via the configured sink.
  *
  * Initiates the dump; call ow_stats_dump_poll() from the main loop to
  * advance it by a few bytes per iteration.  Returns immediately.
@@ -91,8 +113,8 @@ void ow_stats_dump_start(void);
  * @return 1 when the dump is complete, 0 if more output remains.
  *
  * Outputs one sensor line (or the header/histogram/total) per call,
- * then calls uart_poll_tx() to drain the ring buffer.  Call repeatedly
- * from the main loop until it returns 1.
+ * then calls the sink's poll_tx.  Call repeatedly from the main loop
+ * until it returns 1.
  */
 uint8_t ow_stats_dump_poll(void);
 
@@ -110,6 +132,9 @@ uint32_t ow_stats_tick(void);
 #else /* OW_STATS_ENABLE not defined — zero-overhead stubs */
 
 static inline void ow_stats_init(void) {}
+static inline void ow_stats_set_sink(const ow_stats_sink_t* sink) {
+    (void)sink;
+}
 static inline void ow_stats_capture_pulse(const volatile uint8_t* pulse,
                                           uint8_t n, const uint8_t* rom) {
     (void)pulse;
