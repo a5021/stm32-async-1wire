@@ -39,12 +39,12 @@
 #define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
 #endif
 #endif
-/** @brief Opt-in low-power WFE sleep: when defined, every hardware operation
- *  enables the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
- *  update event wakes the core from WFE without an ISR. Long stages
+/** @brief Opt-in low-power WFE sleep: when defined, long hardware stages
  *  (> 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause)
- *  can then sleep with ow_port_sleep_until_done(). Disabled by default so
- *  non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.
+ *  enable the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
+ *  update event wakes the core from WFE without an ISR; short stages stay fully
+ *  polled. Long stages can sleep with ow_port_sleep_until_done(). Disabled by
+ *  default so non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.
  *  @note No ISR is ever installed and NVIC_EnableIRQ is never called; the
  *        pending bit is cleared explicitly in ow_port_bus_done() so WFE does
  *        not degrade into a busy-loop. */
@@ -282,8 +282,9 @@ typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);
  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.
  *                   Only accepted devices increment the found counter and
  *                   reach the sink.
- * @note Ignores the call while a search is already running or while another
- *       operation owns the timer.
+ * @note Ignores the call while a search pass is already running. Arbitration
+ *       of the shared bus/timer against other 1-Wire operations lives in the
+ *       ds18b20_* layer, not here.
  */
 void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
                           uint8_t command, uint8_t family);

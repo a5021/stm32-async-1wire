@@ -410,7 +410,7 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
  *       so the AF output stage drives the line HIGH actively, sourcing the
  *       current parasite devices need during temperature conversion and EEPROM
  *       programming windows.  Released: CNF10 restores 11, the AF output
- *       goes inactive (PWM mode 2, counter zero, CCR3 = ONE_PULSE) so the
+ *       goes inactive (PWM mode 2 with the counter stopped at zero) so the
  *       pin floats HIGH via the external pull-up.  No BSRR or MODE10 writes
  *       needed: the timer is stopped (OPM) during the window, the output is
  *       inactive, and ODR is irrelevant in AF mode.

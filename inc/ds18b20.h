@@ -39,7 +39,7 @@ typedef enum {
     DS18B20_ST_IDLE = 0, /**< Initial state, falls through to START */
     DS18B20_ST_START, /**< Begin measurement, reset bus */
     DS18B20_ST_CONVERT, /**< Check presence, send Convert T command */
-    DS18B20_ST_WAIT, /**< Wait for conversion to complete (750ms) */
+    DS18B20_ST_WAIT, /**< Wait for conversion to complete (93.75ms @ 9-bit .. 750ms @ 12-bit) */
     DS18B20_ST_CONTINUE, /**< Second bus reset before read */
     DS18B20_ST_REQUEST, /**< Check presence, send Read Scratchpad command */
     DS18B20_ST_READ, /**< Read 72 bits of scratchpad data */
