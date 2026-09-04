@@ -30,16 +30,16 @@
 #endif
 
 /* --- 1-Wire reset timeslot geometry (microseconds), shared by all backends.
- *     The '1'/'0' bit-slot durations live in onewire.h (ONEWIRE_ONE_PULSE,
+ *     The '1'/'0' bit-slot durations live in ow_config.h (ONEWIRE_ONE_PULSE,
  *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). --- */
 #define OW_PORT_RESET_PULSE_DURATION 480u
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
-/* onewire.h supplies the clock-derived timing constants referenced below
+/* ow_config.h supplies the clock-derived timing constants referenced below
  * (OW_PORT_SYSCLK_MHZ and the bit-slot durations); including it here keeps
  * this header self-contained regardless of TU include order. */
-#include "onewire.h"
+#include "ow_config.h"
 
 /* --- CH4 input-capture digital filter (IC4F), one standard for every clock.
  *     Keep the filter time T_f = N × T_sample as close to ~500ns as the

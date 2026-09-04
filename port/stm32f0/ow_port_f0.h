@@ -27,7 +27,7 @@
 #define OW_PORT_F0_H
 
 #include "macro.h"
-#include "onewire.h"
+#include "ow_config.h"
 #include "stm32f0xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
