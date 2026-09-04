@@ -1,6 +1,5 @@
 #include "ds18b20.h"
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_stats.h"
 
 /**
@@ -578,7 +577,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
     if (res_ctx.phase == DS18B20_RES_DONE) {
         // The last hardware operation completed (config written or aborted):
         // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        onewire_bus_handover();
         if (res_ctx.applied) {
             ctx.resolution = res_ctx.pending_res;
         }
@@ -814,7 +813,7 @@ static uint8_t txn_poll(void) {
     if (txn_ctx.phase == DS18B20_TXN_DONE) {
         // The last hardware operation completed (command done or aborted):
         // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        onewire_bus_handover();
         txn_ctx.finished = 1;
         return 1;
     }
@@ -1274,7 +1273,7 @@ void ds18b20_poll(void) {
 
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish
-    if (!ow_port_bus_done()) return;
+    if (!onewire_bus_done()) return;
 
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {

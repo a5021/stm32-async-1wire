@@ -12,7 +12,7 @@
  *   -DOW_PORT_LOW_POWER             (this demo's whole point - enables UIE +
  *                                   SEVONPEND + the sleep helpers)
  *   When the macro is omitted the demo still builds and simply busy-polls
- *   (ow_port_sleep_until_done() and ow_port_long_wait_pending() are not
+ *   (onewire_sleep_until_done() and onewire_long_wait_pending() are not
  *   defined without it, so the sleep path degrades to a plain poll).
  *
  * Build:
@@ -22,7 +22,7 @@
 
 #include "app.h"
 #include "ds18b20.h"
-#include "ow_port.h"
+#include "onewire.h"
 
 #ifndef DS18B20_SEARCH_MAX_DEVICES
 #define DS18B20_SEARCH_MAX_DEVICES 8u
@@ -105,8 +105,8 @@ void ds18b20_complete(int16_t temp) {
  */
 static void low_power_poll(void) {
 #ifdef OW_PORT_LOW_POWER
-    if (ow_port_long_wait_pending() && !ow_port_bus_done()) {
-        ow_port_sleep_until_done();
+    if (onewire_long_wait_pending() && !onewire_bus_done()) {
+        onewire_sleep_until_done();
     }
 #else
     (void)0;
