@@ -9,16 +9,21 @@
 
 #ifdef OW_STATS_ENABLE
 
-#include "app.h"
 #include <string.h>
 
-#if defined(OW_PORT_TARGET_G0)
-#include "stm32g0xx.h"
-#elif defined(OW_PORT_TARGET_F0)
-#include "stm32f0xx.h"
-#else
-#include "stm32f1xx.h"
-#endif
+/* ---- default no-op sink ---- */
+
+static int sink_str(const char* s) { (void)s; return 0; }
+static int sink_int(int v) { (void)v; return 0; }
+static int sink_hex(uint8_t b) { (void)b; return 0; }
+static int sink_byte(int b) { (void)b; return 0; }
+static void sink_poll(void) {}
+
+static const ow_stats_sink_t default_sink = {
+    sink_str, sink_int, sink_hex, sink_byte, sink_poll
+};
+
+static const ow_stats_sink_t* sink = &default_sink;
 
 /* ---- private state ---- */
 
@@ -64,6 +69,10 @@ static uint8_t sensor_find_or_alloc(const uint8_t* rom) {
 }
 
 /* ---- public API ---- */
+
+void ow_stats_set_sink(const ow_stats_sink_t* s) {
+    if (s) sink = s;
+}
 
 void ow_stats_init(void) {
     memset(&st, 0, sizeof(st));
@@ -112,16 +121,14 @@ void ow_stats_dump_start(void) {
 uint8_t ow_stats_dump_poll(void) {
     if (dump_phase == 0) return 1;
 
-    /* Each poll call enqueues one section into the non-blocking UART TX ring
-     * buffer.  The main loop drains the buffer via uart_poll_tx(), so nothing
-     * here blocks on the USART.  UART_TX_BUF_SIZE is sized to hold a whole
-     * dump (~440 bytes worst case vs a 1024-byte ring), so the enqueue never
-     * overflows and no bytes are dropped. */
+    /* Each poll call enqueues one section into the sink's non-blocking TX
+     * buffer (typically the UART ring).  The caller drains it via the
+     * sink's poll_tx, so nothing here blocks. */
     switch (dump_phase) {
     case 1:
-        uart_write_str("--- stats [");
-        uart_write_int(st.total_cycles);
-        uart_write_str(" c] ---\r\n");
+        sink->write_str("--- stats [");
+        sink->write_int((int)st.total_cycles);
+        sink->write_str(" c] ---\r\n");
         dump_phase = 2;
         dump_sensor = 0;
         break;
@@ -130,20 +137,20 @@ uint8_t ow_stats_dump_poll(void) {
         if (dump_sensor < st.sensor_count) {
             const ow_stats_sensor_t* s = &st.sensors[dump_sensor];
             for (uint32_t j = 0; j < 8; j++) {
-                uart_write_hex(s->rom[j]);
-                if (j != 7) uart_tx_enqueue_byte(' ');
+                sink->write_hex(s->rom[j]);
+                if (j != 7) sink->enqueue_byte(' ');
             }
-            uart_tx_enqueue_byte(':');
-            uart_write_int(s->min_pulse);
-            uart_tx_enqueue_byte('-');
-            uart_write_int(s->max_pulse);
-            uart_tx_enqueue_byte(' ');
-            uart_tx_enqueue_byte('n');
-            uart_write_int(s->count);
-            uart_tx_enqueue_byte(' ');
-            uart_tx_enqueue_byte('e');
-            uart_write_int(s->crc_err + s->no_presence + s->generic_err);
-            uart_write_str("\r\n");
+            sink->enqueue_byte(':');
+            sink->write_int((int)s->min_pulse);
+            sink->enqueue_byte('-');
+            sink->write_int((int)s->max_pulse);
+            sink->enqueue_byte(' ');
+            sink->enqueue_byte('n');
+            sink->write_int((int)s->count);
+            sink->enqueue_byte(' ');
+            sink->enqueue_byte('e');
+            sink->write_int((int)(s->crc_err + s->no_presence + s->generic_err));
+            sink->write_str("\r\n");
             dump_sensor++;
         } else {
             dump_phase = 3;
@@ -151,25 +158,25 @@ uint8_t ow_stats_dump_poll(void) {
         break;
 
     case 3:
-        uart_write_str("h:");
+        sink->write_str("h:");
         for (uint32_t i = 0; i < OW_STATS_HIST_BUCKETS; i++) {
             if (st.histogram[i]) {
-                uart_write_int(i);
-                uart_tx_enqueue_byte('=');
-                uart_write_int(st.histogram[i]);
-                uart_tx_enqueue_byte(' ');
+                sink->write_int((int)i);
+                sink->enqueue_byte('=');
+                sink->write_int((int)st.histogram[i]);
+                sink->enqueue_byte(' ');
             }
         }
-        uart_write_str("\r\n");
+        sink->write_str("\r\n");
         dump_phase = 4;
         break;
 
     case 4:
-        uart_write_str("t=");
-        uart_write_int(st.total_cycles);
-        uart_write_str("c ");
-        uart_write_int(st.total_errors);
-        uart_write_str("e\r\n");
+        sink->write_str("t=");
+        sink->write_int((int)st.total_cycles);
+        sink->write_str("c ");
+        sink->write_int((int)st.total_errors);
+        sink->write_str("e\r\n");
         dump_phase = 0;
         break;
     }
