@@ -79,16 +79,17 @@ onewire_timing_profile_t onewire_get_timing_profile(void) {
  */
 
 /** @brief Edge capture buffer for the merged search write+read operation
- * @note Holds [write-slot edge, id_bit, cmp_bit]. Channel 2 capture runs for
- *       the whole timer pass, so the direction-write rising edge is captured
- *       into entry 0 as well; id/cmp must be decoded from entries 1 and 2. */
+ * @note Holds [write-slot edge, id_bit, cmp_bit]. The CH4 input capture runs
+ *       for the whole timer pass, so the direction-write rising edge is
+ *       captured into entry 0 as well; id/cmp are decoded from entries 1 and 2. */
 static volatile uint16_t search_edge3[3];
 
 /** @brief Read pulse durations reloaded by DMA for the merged search operation
- *        (channel 3 feeds CCR1 from this). Entry 0 is loaded at slot 1's CC3
- *        event and kicks read slots 2-3, entry 1 re-arms the slot-3 kick, and
- *        the trailing 0 is written during slot 3 so the one-pulse timer stops
- *        with the line released to idle HIGH (hardware bus release). */
+ *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
+ *        end-of-slot compare at the end of slot 1 and sets the read slot 2
+ *        length, entry 1 sets slot 3, and the trailing 0 is written during
+ *        slot 3 so the one-pulse timer stops with the line released to idle
+ *        HIGH (hardware bus release). */
 
 /** @brief Edge capture buffer used by the search engine for bus resets and
  *         plain id/cmp pair reads (the merged write+read uses search_edge3). */
@@ -111,7 +112,7 @@ typedef enum {
  * @brief Non-blocking search context
  * @note Holds the loop counters of the search algorithm; the persistent pulse
  *       buffer (pulses) must stay valid across poll calls because the DMA
- *       feeds CCR1 from it asynchronously while the search command is sent.
+ *       feeds CCR3 from it asynchronously while the search command is sent.
  */
 typedef struct {
     onewire_search_phase_t phase; /**< Current phase of the search state machine */
@@ -312,8 +313,8 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     for (uint8_t i = 0; i < ONEWIRE_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
-    // Trailing zero consumed by the CCR1-feed DMA's final transfer: this is the
-    // hardware bus release after the search command (see send_command_n).
+    // Trailing zero consumed by the CCR3-feed DMA's final transfer: this is the
+    // hardware bus release after the search command.
     search_ctx.pulses[ONEWIRE_BITS_PER_BYTE] = 0;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;

@@ -36,9 +36,9 @@
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
-/* onewire.h supplies the clock-derived timing constants referenced below
- * (OW_PORT_SYSCLK_MHZ and the bit-slot durations); including it here keeps
- * this header self-contained regardless of TU include order. */
+/* onewire.h supplies OW_PORT_SYSCLK_MHZ (used for the timer prescaler and
+ * the IC4F selection below) plus the fixed bit-slot durations; including it
+ * here keeps this header self-contained regardless of TU include order. */
 #include "onewire.h"
 
 /* --- CH4 input-capture digital filter (IC4F), one standard for every clock.
