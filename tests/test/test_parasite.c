@@ -160,7 +160,7 @@ static void inject_presence(void) {
 
 static void inject_scratchpad(void) {
     uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
     for (uint8_t i = 0; i < 9; i++) {
         for (uint8_t b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b, ((sd[i] >> b) & 1u) ? ONE : ZERO);
@@ -569,7 +569,7 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
     /* Feed a valid scratchpad and finish the last (only) device read: the
      * scan ends at IDLE and keeps the strong pull-up engaged across the pause. */
     uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0};
-    sd[8] = ds18b20_crc8(sd, 8);
+    sd[8] = onewire_crc8(sd, 8);
     for (int i = 0; i < 9; i++) {
         for (int b = 0; b < 8; b++) {
             ds18b20_test_set_pulse(i * 8 + b, ((sd[i] >> b) & 1u) ? ONE : ZERO);

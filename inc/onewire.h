@@ -154,8 +154,7 @@ uint8_t onewire_bus_done(void);
  * @note Sets UIF without clearing it, so the next onewire_bus_done() poll
  *       advances immediately. Called exactly once when a sub-machine (search,
  *       resolution change, command transaction) finishes and returns timer
- *       ownership to ds18b20_poll(). Thin wrapper over ow_port_bus_handover();
- *       same zero-overhead inline cost under LTO as the former ow_port_kick().
+ *       ownership to ds18b20_poll(). Thin wrapper over ow_port_bus_handover().
  */
 void onewire_bus_handover(void);
 

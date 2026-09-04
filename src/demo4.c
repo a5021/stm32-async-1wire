@@ -78,7 +78,7 @@ static void print_scratchpad(const char* label) {
         uart_write_hex(scratchpad[i]);
         if (i != SCRATCHPAD_BYTES - 1) uart_tx_enqueue_byte(' ');
     }
-    uart_write_str(scratchpad[8] == ds18b20_crc8(scratchpad, 8) ? "  CRC ok"
+    uart_write_str(scratchpad[8] == onewire_crc8(scratchpad, 8) ? "  CRC ok"
                                                                 : "  CRC fail");
     uart_write_str("  TH=0x");
     uart_write_hex(scratchpad[2]);
@@ -214,7 +214,7 @@ static void finish_step(step_t s) {
             uart_write_hex(rom[i]);
             if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
         }
-        uart_write_str(rom[7] == ds18b20_crc8(rom, 7)
+        uart_write_str(rom[7] == onewire_crc8(rom, 7)
                            ? "  CRC ok"
                            : "  CRC fail (valid only with one device on the bus)");
         uart_write_str("\r\n");
