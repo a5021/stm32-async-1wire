@@ -112,7 +112,7 @@ typedef enum {
  *       thresholds, Copy/Recall EEPROM, Read Power Supply, raw Read
  *       Scratchpad) with the same reset -> write -> (read | wait) discipline
  *       as the resolution state machine. The pulse buffer must stay valid
- *       across poll calls because the DMA feeds CCR1 from it asynchronously.
+ *       across poll calls because the DMA feeds CCR3 from it asynchronously.
  */
 typedef struct {
     ds18b20_txn_phase_t phase; /**< Current phase of the transaction */
@@ -148,7 +148,7 @@ static uint8_t dev_roms[DS18B20_MAX_DEVICES][DS18B20_ROM_BYTES];
 static uint8_t dev_count;
 
 /* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing zero-pulse that
- * the final DMA transfer feeds into CCR1 to release the 1-Wire bus. The
+ * the final DMA transfer feeds into CCR3 to release the 1-Wire bus. The
  * addr_cmd buffer must therefore hold DS18B20_MATCH_SLOTS + 1 entries, not
  * DS18B20_MATCH_SLOTS, or that last slot reads one byte past the buffer. */
 _Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
@@ -161,7 +161,7 @@ static ds18b20_txn_ctx_t txn_ctx;
 /** @brief Receive buffer for the parasite-mode detection answer byte */
 static uint8_t detect_buf;
 
-/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
+/* B1 guard: the trailing zero-pulse consumed by the CCR3-feed DMA's final
  * transfer must always be present at the exact slot index used for the write
  * (see txn_build_pulses); the buffer is sized for the longest (Match ROM)
  * command write. */
@@ -191,7 +191,7 @@ typedef enum {
 /**
  * @brief Non-blocking resolution change context
  * @note The pulse buffer must stay valid across poll calls because the DMA
- *       feeds CCR1 from it asynchronously while the config write is sent.
+ *       feeds CCR3 from it asynchronously while the config write is sent.
  */
 typedef struct {
     res_phase_t phase; /**< Current phase of the resolution state machine */
@@ -205,7 +205,7 @@ typedef struct {
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
 
-/* B1 guard: the trailing zero-pulse consumed by the CCR1-feed DMA's final
+/* B1 guard: the trailing zero-pulse consumed by the CCR3-feed DMA's final
  * transfer must always be present at the exact slot index used for the write
  * (see build_res_pulses); the buffer is sized for the longest (Match ROM) mode. */
 _Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
@@ -349,7 +349,7 @@ __STATIC_FORCEINLINE void build_addr_prefix(void) {
         p += DS18B20_BITS_PER_BYTE;
     }
     /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its
-     * final DMA transfer into CCR1 is present, even though build_addr_cmd()
+     * final DMA transfer into CCR3 is present, even though build_addr_cmd()
      * only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1. Without this, the
      * bus-release pulse would depend on whatever happened to sit at
      * addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not guaranteed). */
@@ -777,7 +777,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
     }
     txn_ctx.slots = (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
     /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its
-     * final DMA transfer into CCR1, even though the command write only ever
+     * final DMA transfer into CCR3, even though the command write only ever
      * fills slots 0 .. slots - 1 (see build_res_pulses for the same pattern). */
     txn_ctx.pulses[txn_ctx.slots] = 0;
 }
@@ -1197,17 +1197,11 @@ void ds18b20_select(const uint8_t* rom) {
     ctx.address_mode = 1;
 }
 
-/**
- * @brief Check presence and issue command (shared by CONVERT and REQUEST states)
- * @param[in] cmd_byte Command byte to send
- * @param[in] skip_tbl Skip-ROM command table (for broadcast mode)
- * @param[in] next_state State to transition to on success
- */
 static uint8_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
 static uint8_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
 
 /* B1 guard: same trailing bus-release invariant as addr_cmd/txn_ctx/res_ctx —
- * the 1-Wire layer's CCR1-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
+ * the 1-Wire layer's CCR3-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
  * final zero-pulse. Keep both Skip-ROM buffers at +1 for uniformity. */
 _Static_assert(sizeof(conv_cmd) >= DS18B20_DMA_TRANSFERS + 1,
                "conv_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
@@ -1222,7 +1216,7 @@ _Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
  * confirmed that the timer/DMA of the previous 1-Wire operation is idle, and
  * the ownership guards (ds18b20_select/search/resolution reject while busy)
  * prevent any concurrent re-entry that could interleave a second build while
- * the CCR1-feed DMA is still reading the table. In other words the rewrite
+ * the CCR3-feed DMA is still reading the table. In other words the rewrite
  * happens strictly between DMA bursts, never during one — the invariant is
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
@@ -1232,6 +1226,14 @@ static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
     dst[DS18B20_DMA_TRANSFERS] = 0;
 }
 
+/**
+ * @brief Check presence and issue a DS18B20 command (shared by CONVERT and
+ *        REQUEST states)
+ * @param[in] cmd_byte Command byte to send (after the recycled Match ROM
+ *                     prefix in address mode, or via the Skip-ROM table in
+ *                     broadcast mode)
+ * @param[in] next_state State to transition to on success
+ */
 static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
     if (!onewire_present(ctx.edge)) {
         // Return to IDLE before the callback so a re-selection from inside

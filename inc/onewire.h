@@ -24,11 +24,12 @@
 /** @brief Bits per byte */
 #define ONEWIRE_BITS_PER_BYTE 8
 /** @brief System clock frequency in MHz after application clock setup.
- *  Single source of truth for every clock-dependent setting: the timer
- *  prescaler (1µs ticks), the input-capture filter selection and the
- *  '1'-slot pulse width below all derive from it. Family defaults are
- *  provided here; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the
- *  clock sources available per family). */
+ *  Single source of truth for the clock-dependent settings: the timer
+ *  prescaler (1µs ticks) and the input-capture filter selection below
+ *  derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends)
+ *  are fixed constants validated on every supported clock. Family defaults
+ *  are provided here; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for
+ *  the clock sources available per family). */
 #if !defined(OW_PORT_SYSCLK_MHZ)
 #if defined(OW_PORT_TARGET_F0)
 #define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
@@ -156,7 +157,7 @@ uint8_t onewire_present(const volatile uint16_t* edge);
  * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
  *                   entry at index `slots` must be 0 (hardware bus release)
  * @param[in] slots Number of bit slots to transmit
- * @note Non-blocking: the DMA feeds CCR1 from the buffer asynchronously, so
+ * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
  *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
 void onewire_write_slots(const uint8_t* pulses, uint16_t slots);
