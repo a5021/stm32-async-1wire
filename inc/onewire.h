@@ -11,6 +11,7 @@
 #define ONEWIRE_H
 
 #include <stdint.h>
+#include "ow_config.h"
 
 /* --- Compiler helpers the driver expects (portable stand-ins; real CMSIS
  *     headers define them too, so the #ifndef guards keep both paths
@@ -33,23 +34,7 @@
 #define ONEWIRE_ROM_BYTES 8
 /** @brief Bits in a device ROM address */
 #define ONEWIRE_ROM_BITS (ONEWIRE_ROM_BYTES * 8)
-/** @brief Bits per byte */
-#define ONEWIRE_BITS_PER_BYTE 8
-/** @brief System clock frequency in MHz after application clock setup.
- *  Single source of truth for every clock-dependent setting: the timer
- *  prescaler (1µs ticks), the input-capture filter selection and the
- *  '1'-slot pulse width below all derive from it. Family defaults are
- *  provided here; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the
- *  clock sources available per family). */
-#if !defined(OW_PORT_SYSCLK_MHZ)
-#if defined(OW_PORT_TARGET_F0)
-#define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
-#elif defined(OW_PORT_TARGET_G0)
-#define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
-#else
-#define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
-#endif
-#endif
+/** @brief Clock, pulse and bits-per-byte definitions live in ow_config.h. */
 /** @brief Opt-in low-power WFE sleep: when defined, every hardware operation
  *  enables the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
  *  update event wakes the core from WFE without an ISR. Long stages
@@ -59,31 +44,6 @@
  *  @note No ISR is ever installed and NVIC_EnableIRQ is never called; the
  *        pending bit is cleared explicitly in onewire_bus_done() so WFE does
  *        not degrade into a busy-loop. */
-#ifdef OW_PORT_LOW_POWER
-#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
-#define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
-#else
-#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
-#endif
-#endif
-/** @brief Duration of a '1' bit write/read pulse in microseconds.
- *  A single universal value for every clock: DS18B20 requires only ≥1µs and
- *  samples the slot at ≥15µs after its start, and the read-slot capture
- *  latency (bus RC rise + input filter + timer sync) stays far below the
- *  ONEWIRE_SHORT_PULSE_MAX window on all supported clocks. Releases v1.6.0's
- *  ≤16MHz compensation (2µs pulse): hardware on STM32F030@8MHz showed that a
- *  2µs master pulse breaks the sensor's slot decoding outright — every
- *  capture stretches past the threshold regardless of the answer — while a
- *  plain 5µs pulse measures ~9µs there with every input-filter variant
- *  swept (fCK_INT N=2/4/8 and fDTS/4 N=8). The short-pulse path was tuned on
- *  F103@8MHz bench wiring whose slower rise is not reproduced by other
- *  boards; re-validate per board before reintroducing anything similar.
- *  @note Hardware-validated at 5µs on every supported clock:
- *        STM32F030@48/8MHz, STM32F103@72/8MHz and STM32G031@64/16MHz. */
-#define ONEWIRE_ONE_PULSE 5
-#define ONEWIRE_ZERO_PULSE 60
-#define ONEWIRE_GUARD_BAND 5
-#define ONEWIRE_SHORT_PULSE_MAX 10
 
 typedef enum {
     ONEWIRE_TIMING_FAST = 0,
@@ -109,10 +69,7 @@ typedef struct {
 #define ONEWIRE_TIMING_PROFILE_DEFAULT OW_TIMING_DEFAULT
 #endif
 
-extern uint8_t ow_one_pulse_us;
-extern uint8_t ow_zero_pulse_us;
-extern uint8_t ow_guard_band_us;
-extern uint8_t ow_short_pulse_max_us;
+/* The runtime timing externs (ow_one_pulse_us, ...) live in ow_config.h. */
 void ow_set_parasite_guard(uint8_t parasite);
 void onewire_set_timing_profile(onewire_timing_profile_t profile);
 onewire_timing_profile_t onewire_get_timing_profile(void);
