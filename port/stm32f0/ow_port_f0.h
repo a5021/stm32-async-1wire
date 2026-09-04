@@ -414,7 +414,7 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
  *       the line HIGH actively, sourcing the current parasite devices need
  *       during temperature conversion and EEPROM programming windows.
  *       Released: OTYPER restores open-drain, the AF output goes inactive
- *       (PWM mode 2, counter zero, CCR3 = ONE_PULSE) so the pin floats
+ *       (PWM mode 2 with the counter stopped at zero) so the pin floats
  *       HIGH via the external pull-up.  No BSRR or MODER writes needed:
  *       the timer is stopped (OPM) during the window, the output is
  *       inactive, and ODR is irrelevant in AF mode.

@@ -1327,7 +1327,7 @@ void ds18b20_poll(void) {
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        // Start timer for conversion wait period (750ms typical)
+        // Start timer for the conversion wait (93.75ms @ 9-bit .. 750ms @ 12-bit)
         wait_conversion();
         ctx.current_state = DS18B20_ST_CONTINUE;
         break;
