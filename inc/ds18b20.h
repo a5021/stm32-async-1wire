@@ -26,8 +26,8 @@
 #ifndef DS18B20_H
 #define DS18B20_H
 
-#include <stdint.h>
 #include "onewire.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

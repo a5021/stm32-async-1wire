@@ -115,8 +115,7 @@ void ds18b20_complete(int16_t temp) {
 /* Route the stats dump through the app-layer UART ring (non-blocking). */
 static const ow_stats_sink_t uart_sink = {
     uart_write_str, uart_write_int, uart_write_hex, uart_tx_enqueue_byte,
-    uart_poll_tx
-};
+    uart_poll_tx};
 
 int main(void) {
     app_init();

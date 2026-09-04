@@ -10,8 +10,8 @@
 #ifndef ONEWIRE_H
 #define ONEWIRE_H
 
-#include <stdint.h>
 #include "ow_config.h"
+#include <stdint.h>
 
 /* --- Compiler helpers the driver expects (portable stand-ins; real CMSIS
  *     headers define them too, so the #ifndef guards keep both paths
