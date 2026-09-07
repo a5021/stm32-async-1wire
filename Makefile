@@ -607,7 +607,7 @@ FUZZ_HW_MOCK = tests/mock/hw_model.c
 
 .PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
         fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
-        fuzz-stats fuzz-ds18b20-decode fuzz-all
+        fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution fuzz-all
 
 $(FUZZ_OUT):
 	mkdir -p $@
@@ -663,9 +663,28 @@ fuzz-ds18b20-decode: | $(FUZZ_OUT)
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds18b20_decode
 	$(FUZZ_OUT)/fuzz_ds18b20_decode -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 
+# Tier 5: Search ROM / Alarm Search state machine (single-TU via test_access).
+# The fuzz input drives the capture source; every property is checked with
+# abort() so libFuzzer reports the failing input.
+fuzz-search: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	    tests/fuzz/fuzz_search.c src/ow_stats.c \
+	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_search
+	$(FUZZ_OUT)/fuzz_search -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
+# Tier 6: resolution change state machine (single-TU via test_access); fuzz
+# input drives the presence reset and the address mode (Skip vs Match ROM).
+fuzz-resolution: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	    tests/fuzz/fuzz_resolution.c src/ow_stats.c \
+	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_resolution
+	$(FUZZ_OUT)/fuzz_resolution -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+
 fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
           fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
-          fuzz-stats fuzz-ds18b20-decode
+          fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution
 
 # Help target
 help:
