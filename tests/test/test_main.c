@@ -48,6 +48,7 @@ extern void run_test_alarm_thresholds(void);
 extern void run_test_eeprom(void);
 extern void run_test_parasite(void);
 extern void run_test_dmamux(void);
+extern void run_test_dma(void);
 extern void run_test_ow_stats(void);
 extern void run_test_harness_api(void);
 extern void run_test_app_uart(void);
@@ -74,6 +75,7 @@ int main(void) {
     run_test_eeprom();
     run_test_parasite();
     run_test_dmamux();
+    run_test_dma();
     run_test_ow_stats();
     run_test_harness_api();
     run_test_app_uart();
