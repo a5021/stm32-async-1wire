@@ -11,6 +11,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `port/stm32f4/ow_port_f4.h` — STM32F401CCU6 (Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 streams 6/2 (no DMAMUX). 84 MHz via HSE+PLL (default) or 16 MHz HSI.
 
 ## Features
 
@@ -563,7 +564,8 @@ Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header — each suite runs the full driver against its own backend's
-channel/DMA wiring. 263 tests per backend cover:
+channel/DMA wiring. 283 tests run per backend (285 on G0, which adds two
+DMAMUX request-routing tests). The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -584,9 +586,18 @@ channel/DMA wiring. 263 tests per backend cover:
 -   1-Wire layer coverage: reset/presence timing, write-then-read merge,
       multi-slot writes, multi-byte reads, search engine (device + alarm),
       ownership guards and the search edge buffers
+-   DMA buffer/transfer contracts (`test_dma`), DMAMUX request routing on G0
+    (`test_dmamux`)
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
+-   Channel broadcast (`test_broadcast`), UART app driver (`test_app_uart`) and
+    test-scaffold accessors/harness edge branches (`test_harness_api`)
+-   `ow_stats` capture and error counters plus the non-blocking dump protocol
+    (`test_ow_stats`)
+
+Separate opt-in builds extend the suite: `make test-active` (active-drive,
+8 tests) and `make test-lowpower` (low-power WFE path, 12 tests).
 
 ### PlatformIO
 
