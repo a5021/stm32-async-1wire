@@ -146,7 +146,23 @@ void test_timing_profile_set_and_get_roundtrip(void) {
 }
 
 /*-------------------------------------------------------------
- *  Test: a search already owning the timer ignores a re-entrant
+ *  Test: the ONEWIRE_TIMING_CUSTOM profile is selectable at run
+ *  time like any other profile (not just via make TIMING=CUSTOM
+ *  at compile time - the derived pulse/guard fields must reload).
+ *----------------------------------------------------------*/
+void test_timing_profile_custom_selected_at_runtime(void) {
+    onewire_timing_profile_t saved = onewire_get_timing_profile();
+
+    onewire_set_timing_profile(ONEWIRE_TIMING_CUSTOM);
+    TEST_ASSERT_EQUAL_INT(ONEWIRE_TIMING_CUSTOM, onewire_get_timing_profile());
+    TEST_ASSERT_EQUAL_UINT8(1, ow_one_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(60, ow_zero_pulse_us);
+    TEST_ASSERT_EQUAL_UINT8(1, ow_guard_band_us);
+
+    onewire_set_timing_profile(saved);
+}
+
+/*-------------------------------------------------------------
  *  onewire_search_start() (onewire.c early-return guard).
  *----------------------------------------------------------*/
 void test_search_start_ignored_while_running(void) {
@@ -168,5 +184,6 @@ void run_test_timing(void) {
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
     TEST_RUN(test_timing_profile_invalid_arg_ignored);
     TEST_RUN(test_timing_profile_set_and_get_roundtrip);
+    TEST_RUN(test_timing_profile_custom_selected_at_runtime);
     TEST_RUN(test_search_start_ignored_while_running);
 }

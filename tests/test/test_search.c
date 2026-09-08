@@ -202,6 +202,46 @@ void test_search_filters_non_ds18b20_family(void) {
     TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
 }
 
+/*-------------------------------------------------------------
+ *  family=0 means "accept every family": the same non-0x28 ROM
+ *  that test_search_filters_non_ds18b20_family rejects (0x10)
+ *  must now be reported.  This exercises the search_ctx.family
+ *  == 0u|| short-circuit in onewire.c, which the ds18b20 layer
+ *  can never reach (it always passes DS18B20_FAMILY_CODE).
+ * -----------------------------------------------------------*/
+void test_search_family_zero_accepts_any_rom(void) {
+    uint8_t serial[7] = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    memcpy(g_rom, serial, 7);
+    g_rom[7] = ds18b20_crc8(g_rom, 7);
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    hw_set_capture_source(search_capture_src);
+    onewire_search_start(sink, 1, DS18B20_SEARCH_ROM, 0);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (onewire_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            uint8_t ok = hw_run_until_uif(100);
+            TEST_ASSERT_TRUE(ok);
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_search_count());
+    TEST_ASSERT_EQUAL_UINT8(1, g_found_count);
+    for (int i = 0; i < 8; i++) {
+        TEST_ASSERT_EQUAL_HEX8(g_rom[i], g_found_roms[0][i]);
+    }
+    ds18b20_test_reset_search();
+}
+
 static uint16_t no_presence_src(uint32_t i) {
     (void)i;
     return 100u;
@@ -959,6 +999,7 @@ void run_test_search(void) {
     TEST_RUN(test_search_command_feed_release);
     TEST_RUN(test_search_finds_different_serial);
     TEST_RUN(test_search_filters_non_ds18b20_family);
+    TEST_RUN(test_search_family_zero_accepts_any_rom);
     TEST_RUN(test_search_no_device_no_presence);
     TEST_RUN(test_write_then_read_configures_registers);
     TEST_RUN(test_search_two_devices_found);
