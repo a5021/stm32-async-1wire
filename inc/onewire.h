@@ -170,18 +170,18 @@ void onewire_write_bit(uint8_t bit);
 
 /**
  * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair
- * @param[out] edge_out Buffer for the captured edge timestamps (2 × 16-bit)
+ * @param[out] pair_pulses Buffer for the captured pulse durations (2 × 16-bit)
  * @note On completion, decode the pair with onewire_pair_bits().
  */
-void onewire_read_pair(volatile uint16_t* edge_out);
+void onewire_read_pair(volatile uint16_t* pair_pulses);
 
 /**
  * @brief Decode the id/cmp bits of a two-slot read pair
- * @param[in] edge Edge timestamps captured by onewire_read_pair()
+ * @param[in] pair_pulses Pulses captured by onewire_read_pair()
  * @param[out] id_bit Id bit (0 or 1)
  * @param[out] cmp_bit Complement bit (0 or 1)
  */
-void onewire_pair_bits(const volatile uint16_t* edge, uint8_t* id_bit, uint8_t* cmp_bit);
+void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, uint8_t* cmp_bit);
 
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair

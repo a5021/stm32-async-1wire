@@ -18,8 +18,8 @@
 #define PRES_MAX 840u
 
 static unsigned check_presence_with_edges(uint16_t edge0, uint16_t edge1) {
-    ds18b20_test_set_edge(0, edge0);
-    ds18b20_test_set_edge(1, edge1);
+    ds18b20_test_set_capture_pulse(0, edge0);
+    ds18b20_test_set_capture_pulse(1, edge1);
     return ds18b20_test_check_presence();
 }
 
@@ -84,11 +84,11 @@ void test_presence_reset_max_presence_min(void) {
  * would make onewire_present() report a false device. onewire_reset() must
  * clear the capture buffer before arming. */
 void test_presence_reset_clears_stale_edge(void) {
-    ds18b20_test_set_edge(0, 510); /* stale master-release timestamp */
-    ds18b20_test_set_edge(1, 700); /* stale presence timestamp */
+    ds18b20_test_set_capture_pulse(0, 510); /* stale master-release timestamp */
+    ds18b20_test_set_capture_pulse(1, 700); /* stale presence timestamp */
     test_bus_reset();
-    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_edge(0));
-    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_edge(1));
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(0));
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
 }
 
 void test_capture_16bit_config(void) {

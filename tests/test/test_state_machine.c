@@ -83,8 +83,8 @@ void test_state_machine_convert_with_presence_pass(void) {
     ds18b20_test_set_state(2);
 
     /* Set presence edges to valid values */
-    ds18b20_test_set_edge(0, 510); /* Reset pulse within range */
-    ds18b20_test_set_edge(1, 700); /* Presence pulse within range */
+    ds18b20_test_set_capture_pulse(0, 510); /* Reset pulse within range */
+    ds18b20_test_set_capture_pulse(1, 700); /* Presence pulse within range */
 
     /* Simulate UIF set */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -107,8 +107,8 @@ void test_state_machine_convert_with_presence_fail(void) {
     ds18b20_test_set_state(2);
 
     /* Set presence edges to invalid values (device not present) */
-    ds18b20_test_set_edge(0, 100); /* Too short */
-    ds18b20_test_set_edge(1, 100); /* Too short */
+    ds18b20_test_set_capture_pulse(0, 100); /* Too short */
+    ds18b20_test_set_capture_pulse(1, 100); /* Too short */
 
     /* Simulate UIF set */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -159,8 +159,8 @@ void test_state_machine_continue_transitions_to_request(void) {
 
     /* With default edges (0), presence check fails -> goes to IDLE */
     /* To test successful path, we need valid edges */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
 
     /* Reset state to CONTINUE and try again */
     ds18b20_test_set_state(4);
@@ -182,8 +182,8 @@ void test_state_machine_request_with_presence_pass(void) {
     ds18b20_test_set_state(5);
 
     /* Set valid presence edges */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
 
     /* Simulate UIF set */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -307,8 +307,8 @@ void test_state_machine_full_cycle_skip_rom(void) {
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     /* Step 2: CONVERT -> WAIT (with valid presence) */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
@@ -319,15 +319,15 @@ void test_state_machine_full_cycle_skip_rom(void) {
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     /* Step 4: CONTINUE -> REQUEST (with valid presence) */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     /* Step 5: REQUEST -> READ (with valid presence) */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
@@ -370,8 +370,8 @@ void test_state_machine_match_rom_mode(void) {
 
     /* Go through CONVERT state in Match ROM mode */
     ds18b20_test_set_state(2);
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
 
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
@@ -607,8 +607,8 @@ void test_state_machine_search_select_measure_e2e(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
@@ -617,14 +617,14 @@ void test_state_machine_search_select_measure_e2e(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
@@ -679,14 +679,14 @@ static void ts_drive_measurement_raw(uint16_t raw) {
     sd[7] = 0x10;
     sd[8] = ds18b20_crc8(sd, 8);
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
@@ -695,14 +695,14 @@ static void ts_drive_measurement_raw(uint16_t raw) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
@@ -851,8 +851,8 @@ void test_state_machine_request_presence_fail(void) {
     ds18b20_test_reset_ctx();
 
     ds18b20_test_set_state(5);
-    ds18b20_test_set_edge(0, 100); /* bad reset */
-    ds18b20_test_set_edge(1, 100); /* bad presence */
+    ds18b20_test_set_capture_pulse(0, 100); /* bad reset */
+    ds18b20_test_set_capture_pulse(1, 100); /* bad presence */
 
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
@@ -884,8 +884,8 @@ void test_state_machine_presence_fail_clears_busy(void) {
 
     /* Now in CONVERT with no device present: issue_command must fail and
      * turn busy OFF before reporting NO_SENSOR. */
-    ds18b20_test_set_edge(0, 100); /* bad reset */
-    ds18b20_test_set_edge(1, 100); /* bad presence */
+    ds18b20_test_set_capture_pulse(0, 100); /* bad reset */
+    ds18b20_test_set_capture_pulse(1, 100); /* bad presence */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
@@ -909,8 +909,8 @@ void test_state_machine_crc_fail_mid_cycle(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
@@ -919,14 +919,14 @@ void test_state_machine_crc_fail_mid_cycle(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
@@ -967,8 +967,8 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
@@ -977,14 +977,14 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());

@@ -10,8 +10,8 @@
 ds18b20_state_t ds18b20_test_get_state(void);
 void ds18b20_test_set_state(ds18b20_state_t s);
 void ds18b20_test_reset_ctx(void);
-void ds18b20_test_set_edge(uint8_t i, uint16_t v);
-uint16_t ds18b20_test_get_edge(uint8_t i);
+void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v);
+uint16_t ds18b20_test_get_capture_pulse(uint8_t i);
 void ds18b20_test_set_pulse(uint8_t i, uint8_t v);
 uint8_t ds18b20_test_get_scratchpad(uint8_t i);
 void ds18b20_test_set_scratchpad(uint8_t i, uint8_t v);

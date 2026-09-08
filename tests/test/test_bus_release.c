@@ -209,15 +209,15 @@ void test_read_pair_standalone_release(void) {
     complete_op(4);
     assert_bus_released();
     TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());
-    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_edge(0));
-    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_edge(1));
+    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_capture_pulse(0));
+    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_capture_pulse(1));
 
     hw_set_capture_source(src_pair_id_zero);
     test_bus_read_pair();
     complete_op(4);
     assert_bus_released();
-    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_edge(0));
-    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_edge(1));
+    TEST_ASSERT_EQUAL_UINT16(ZERO, ds18b20_test_get_capture_pulse(0));
+    TEST_ASSERT_EQUAL_UINT16(ONE, ds18b20_test_get_capture_pulse(1));
 }
 
 /*-------------------------------------------------------------
