@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-08 17:44:29</td>
+            <td class="headerValue">2026-09-08 17:58:12</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
@@ -151,7 +151,7 @@
 <span id="L80"><span class="lineNum">      80</span>                 :             :      *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.</span>
 <span id="L81"><span class="lineNum">      81</span>                 :             :      */</span>
 <span id="L82"><span class="lineNum">      82</span>                 :             :     union {</span>
-<span id="L83"><span class="lineNum">      83</span>                 :             :         volatile uint16_t edge[DS18B20_SCRATCHPAD_BITS / 2]; /**&lt; Captured pulse durations (reset/presence, pair reads) */</span>
+<span id="L83"><span class="lineNum">      83</span>                 :             :         volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**&lt; Captured pulse durations (reset/presence, pair reads) */</span>
 <span id="L84"><span class="lineNum">      84</span>                 :             :         volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**&lt; Pulse durations for data decoding */</span>
 <span id="L85"><span class="lineNum">      85</span>                 :             :         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**&lt; Sensor scratchpad data */</span>
 <span id="L86"><span class="lineNum">      86</span>                 :             :         uint64_t fill_union; /**&lt; Utility field for filling the union */</span>
@@ -633,7 +633,7 @@
 <span id="L560"><span class="lineNum">     560</span>                 :<span class="tlaGNC">         114 :     res_ctx.finished = 0;</span></span>
 <span id="L561"><span class="lineNum">     561</span>         [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 90 times"> + </span>]:<span class="tlaGNC">         114 :     build_res_pulses(bits); // Pre-build the config write for the current address mode</span></span>
 <span id="L562"><span class="lineNum">     562</span>                 :<span class="tlaGNC">         114 :     res_ctx.phase = DS18B20_RES_RESET;</span></span>
-<span id="L563"><span class="lineNum">     563</span>                 :<span class="tlaGNC">         114 :     onewire_reset(ctx.edge); // Schedule the first hardware operation</span></span>
+<span id="L563"><span class="lineNum">     563</span>                 :<span class="tlaGNC">         114 :     onewire_reset(ctx.capture); // Schedule the first hardware operation</span></span>
 <span id="L564"><span class="lineNum">     564</span>                 :             : }</span>
 <span id="L565"><span class="lineNum">     565</span>                 :             : </span>
 <span id="L566"><span class="lineNum">     566</span>                 :             : /**</span>
@@ -669,7 +669,7 @@
 <span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">          90 :     case DS18B20_RES_RESET:</span></span>
 <span id="L597"><span class="lineNum">     597</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L598"><span class="lineNum">     598</span>                 :             :         // the bus, so send the config write for the requested resolution.</span>
-<span id="L599"><span class="lineNum">     599</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 84 times"> + </span>]:<span class="tlaGNC">          90 :         if (!onewire_present(ctx.edge)) {</span></span>
+<span id="L599"><span class="lineNum">     599</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 84 times"> + </span>]:<span class="tlaGNC">          90 :         if (!onewire_present(ctx.capture)) {</span></span>
 <span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaGNC">           6 :             res_ctx.phase = DS18B20_RES_DONE;</span></span>
 <span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaGNC">           6 :             break;</span></span>
 <span id="L602"><span class="lineNum">     602</span>                 :             :         }</span>
@@ -904,7 +904,7 @@
 <span id="L829"><span class="lineNum">     829</span>                 :<span class="tlaGNC">         198 :     case DS18B20_TXN_RESET:</span></span>
 <span id="L830"><span class="lineNum">     830</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L831"><span class="lineNum">     831</span>                 :             :         // the bus, so send the command for this transaction.</span>
-<span id="L832"><span class="lineNum">     832</span>         [<span class="tlaGBC" title="Branch 0 was taken 42 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 156 times"> + </span>]:<span class="tlaGNC">         198 :         if (!onewire_present(ctx.edge)) {</span></span>
+<span id="L832"><span class="lineNum">     832</span>         [<span class="tlaGBC" title="Branch 0 was taken 42 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 156 times"> + </span>]:<span class="tlaGNC">         198 :         if (!onewire_present(ctx.capture)) {</span></span>
 <span id="L833"><span class="lineNum">     833</span>                 :<span class="tlaGNC">          42 :             txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
 <span id="L834"><span class="lineNum">     834</span>                 :<span class="tlaGNC">          42 :             break;</span></span>
 <span id="L835"><span class="lineNum">     835</span>                 :             :         }</span>
@@ -1000,7 +1000,7 @@
 <span id="L925"><span class="lineNum">     925</span>                 :             :     txn_build_pulses(); // Pre-build the command for the current address mode</span>
 <span id="L926"><span class="lineNum">     926</span>                 :<span class="tlaGNC">         282 :     onewire_strong_pullup(0);</span></span>
 <span id="L927"><span class="lineNum">     927</span>                 :<span class="tlaGNC">         282 :     txn_ctx.phase = DS18B20_TXN_RESET;</span></span>
-<span id="L928"><span class="lineNum">     928</span>                 :<span class="tlaGNC">         282 :     onewire_reset(ctx.edge); // Schedule the first hardware operation</span></span>
+<span id="L928"><span class="lineNum">     928</span>                 :<span class="tlaGNC">         282 :     onewire_reset(ctx.capture); // Schedule the first hardware operation</span></span>
 <span id="L929"><span class="lineNum">     929</span>                 :             : }</span>
 <span id="L930"><span class="lineNum">     930</span>                 :             : </span>
 <span id="L931"><span class="lineNum">     931</span>                 :             : /**</span>
@@ -1310,7 +1310,7 @@
 <span id="L1235"><span class="lineNum">    1235</span>                 :             :  * @param[in] next_state State to transition to on success</span>
 <span id="L1236"><span class="lineNum">    1236</span>                 :             :  */</span>
 <span id="L1237"><span class="lineNum">    1237</span>                 :<span class="tlaGNC">         300 : static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {</span></span>
-<span id="L1238"><span class="lineNum">    1238</span>         [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 276 times"> + </span>]:<span class="tlaGNC">         300 :     if (!onewire_present(ctx.edge)) {</span></span>
+<span id="L1238"><span class="lineNum">    1238</span>         [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 276 times"> + </span>]:<span class="tlaGNC">         300 :     if (!onewire_present(ctx.capture)) {</span></span>
 <span id="L1239"><span class="lineNum">    1239</span>                 :             :         // Return to IDLE before the callback so a re-selection from inside</span>
 <span id="L1240"><span class="lineNum">    1240</span>                 :             :         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).</span>
 <span id="L1241"><span class="lineNum">    1241</span>                 :<span class="tlaGNC">          24 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
@@ -1375,7 +1375,7 @@
 <span id="L1297"><span class="lineNum">    1297</span>                 :<span class="tlaGNC">          24 :             onewire_strong_pullup(0);</span></span>
 <span id="L1298"><span class="lineNum">    1298</span>                 :             :         }</span>
 <span id="L1299"><span class="lineNum">    1299</span>                 :             :         // Initiate 1-Wire bus reset sequence</span>
-<span id="L1300"><span class="lineNum">    1300</span>                 :<span class="tlaGNC">         150 :         onewire_reset(ctx.edge);</span></span>
+<span id="L1300"><span class="lineNum">    1300</span>                 :<span class="tlaGNC">         150 :         onewire_reset(ctx.capture);</span></span>
 <span id="L1301"><span class="lineNum">    1301</span>                 :             :         // Transition to CONVERT state</span>
 <span id="L1302"><span class="lineNum">    1302</span>                 :<span class="tlaGNC">         150 :         ctx.current_state = DS18B20_ST_CONVERT;</span></span>
 <span id="L1303"><span class="lineNum">    1303</span>                 :<span class="tlaGNC">         150 :         break;</span></span>
@@ -1416,7 +1416,7 @@
 <span id="L1338"><span class="lineNum">    1338</span>                 :             :         // parasite supply and the bus must be free again.</span>
 <span id="L1339"><span class="lineNum">    1339</span>                 :<span class="tlaGNC">         144 :         onewire_strong_pullup(0);</span></span>
 <span id="L1340"><span class="lineNum">    1340</span>                 :             :         // Initiate second 1-Wire bus reset sequence</span>
-<span id="L1341"><span class="lineNum">    1341</span>                 :<span class="tlaGNC">         144 :         onewire_reset(ctx.edge);</span></span>
+<span id="L1341"><span class="lineNum">    1341</span>                 :<span class="tlaGNC">         144 :         onewire_reset(ctx.capture);</span></span>
 <span id="L1342"><span class="lineNum">    1342</span>                 :<span class="tlaGNC">         144 :         ctx.current_state = DS18B20_ST_REQUEST;</span></span>
 <span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaGNC">         144 :         break;</span></span>
 <span id="L1344"><span class="lineNum">    1344</span>                 :             : </span>

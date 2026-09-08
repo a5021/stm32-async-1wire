@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-08 17:44:29</td>
+            <td class="headerValue">2026-09-08 17:58:12</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -211,200 +211,201 @@
 <span id="L140"><span class="lineNum">     140</span>                 :             : </span>
 <span id="L141"><span class="lineNum">     141</span>                 :             : /**</span>
 <span id="L142"><span class="lineNum">     142</span>                 :             :  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)</span>
-<span id="L143"><span class="lineNum">     143</span>                 :             :  * @param[out] edge_out Buffer for the captured edge timestamps (2 × 16-bit)</span>
-<span id="L144"><span class="lineNum">     144</span>                 :             :  * @note On completion, decode the presence pulse with onewire_present().</span>
-<span id="L145"><span class="lineNum">     145</span>                 :             :  */</span>
-<span id="L146"><span class="lineNum">     146</span>                 :             : void onewire_reset(volatile uint16_t* edge_out);</span>
-<span id="L147"><span class="lineNum">     147</span>                 :             : </span>
-<span id="L148"><span class="lineNum">     148</span>                 :             : /**</span>
-<span id="L149"><span class="lineNum">     149</span>                 :             :  * @brief Decode the presence pulse captured by onewire_reset()</span>
-<span id="L150"><span class="lineNum">     150</span>                 :             :  * @param[in] edge Edge timestamps captured by onewire_reset()</span>
-<span id="L151"><span class="lineNum">     151</span>                 :             :  * @return 1 if at least one device answered, 0 otherwise</span>
-<span id="L152"><span class="lineNum">     152</span>                 :             :  */</span>
-<span id="L153"><span class="lineNum">     153</span>                 :             : uint8_t onewire_present(const volatile uint16_t* edge);</span>
-<span id="L154"><span class="lineNum">     154</span>                 :             : </span>
-<span id="L155"><span class="lineNum">     155</span>                 :             : /**</span>
-<span id="L156"><span class="lineNum">     156</span>                 :             :  * @brief Schedule a write of `slots` bit slots</span>
-<span id="L157"><span class="lineNum">     157</span>                 :             :  * @param[in] pulses Pulse buffer (one entry per slot); for `slots &gt; 1` the</span>
-<span id="L158"><span class="lineNum">     158</span>                 :             :  *                   entry at index `slots` must be 0 (hardware bus release)</span>
-<span id="L159"><span class="lineNum">     159</span>                 :             :  * @param[in] slots Number of bit slots to transmit</span>
-<span id="L160"><span class="lineNum">     160</span>                 :             :  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so</span>
-<span id="L161"><span class="lineNum">     161</span>                 :             :  *       the buffer must stay valid until onewire_bus_done() reports completion.</span>
-<span id="L162"><span class="lineNum">     162</span>                 :             :  */</span>
-<span id="L163"><span class="lineNum">     163</span>                 :             : void onewire_write_slots(const uint8_t* pulses, uint16_t slots);</span>
-<span id="L164"><span class="lineNum">     164</span>                 :             : </span>
-<span id="L165"><span class="lineNum">     165</span>                 :             : /**</span>
-<span id="L166"><span class="lineNum">     166</span>                 :             :  * @brief Schedule a single-slot write of one raw bit</span>
-<span id="L167"><span class="lineNum">     167</span>                 :             :  * @param[in] bit Bit value to write (0 or 1)</span>
-<span id="L168"><span class="lineNum">     168</span>                 :             :  */</span>
-<span id="L169"><span class="lineNum">     169</span>                 :             : void onewire_write_bit(uint8_t bit);</span>
-<span id="L170"><span class="lineNum">     170</span>                 :             : </span>
-<span id="L171"><span class="lineNum">     171</span>                 :             : /**</span>
-<span id="L172"><span class="lineNum">     172</span>                 :             :  * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair</span>
-<span id="L173"><span class="lineNum">     173</span>                 :             :  * @param[out] pair_pulses Buffer for the captured pulse durations (2 × 16-bit)</span>
-<span id="L174"><span class="lineNum">     174</span>                 :             :  * @note On completion, decode the pair with onewire_pair_bits().</span>
-<span id="L175"><span class="lineNum">     175</span>                 :             :  */</span>
-<span id="L176"><span class="lineNum">     176</span>                 :             : void onewire_read_pair(volatile uint16_t* pair_pulses);</span>
-<span id="L177"><span class="lineNum">     177</span>                 :             : </span>
-<span id="L178"><span class="lineNum">     178</span>                 :             : /**</span>
-<span id="L179"><span class="lineNum">     179</span>                 :             :  * @brief Decode the id/cmp bits of a two-slot read pair</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             :  * @param[in] pair_pulses Pulses captured by onewire_read_pair()</span>
-<span id="L181"><span class="lineNum">     181</span>                 :             :  * @param[out] id_bit Id bit (0 or 1)</span>
-<span id="L182"><span class="lineNum">     182</span>                 :             :  * @param[out] cmp_bit Complement bit (0 or 1)</span>
-<span id="L183"><span class="lineNum">     183</span>                 :             :  */</span>
-<span id="L184"><span class="lineNum">     184</span>                 :             : void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, uint8_t* cmp_bit);</span>
-<span id="L185"><span class="lineNum">     185</span>                 :             : </span>
-<span id="L186"><span class="lineNum">     186</span>                 :             : /**</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :  * @brief Schedule a merged single-slot write followed by a two-slot read pair</span>
-<span id="L188"><span class="lineNum">     188</span>                 :             :  * @param[in] bit Direction bit to write in slot 1 (0 or 1)</span>
-<span id="L189"><span class="lineNum">     189</span>                 :             :  * @note One timer pass runs three slots: a write of `bit`, then a read of the</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             :  *       next id/cmp pair. Halves the timer passes per search bit compared to a</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :  *       plain write plus a separate read pair. On completion, the internal</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             :  *       merged-edge buffer holds [write-slot edge, id_bit, cmp_bit]: decode the</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :  *       pair from entries 1 and 2 with onewire_bit_from_pulse(). Do not pass</span>
-<span id="L194"><span class="lineNum">     194</span>                 :             :  *       this buffer to onewire_pair_bits(), which instead decodes entries 0 and</span>
-<span id="L195"><span class="lineNum">     195</span>                 :             :  *       1 as produced by onewire_read_pair().</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             :  */</span>
-<span id="L197"><span class="lineNum">     197</span>                 :             : void onewire_write_then_read(uint8_t bit);</span>
-<span id="L198"><span class="lineNum">     198</span>                 :             : </span>
-<span id="L199"><span class="lineNum">     199</span>                 :             : /**</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             :  * @brief Schedule a read of `bytes` bytes from the bus</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :  * @param[out] dst Buffer for the captured pulse durations (bytes × 8 × 8-bit)</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[in] bytes Number of bytes to read</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :  * @note On completion, the caller decodes the 8-bit pulse durations (pulse</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :  *       `&lt;= ONEWIRE_SHORT_PULSE_MAX` reads as bit 1) into data bytes.</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :  */</span>
-<span id="L206"><span class="lineNum">     206</span>                 :             : void onewire_read_data(volatile uint8_t* dst, uint8_t bytes);</span>
-<span id="L207"><span class="lineNum">     207</span>                 :             : </span>
-<span id="L208"><span class="lineNum">     208</span>                 :             : /**</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             :  * @brief Decode a single captured pulse duration into a 1-Wire bit</span>
-<span id="L210"><span class="lineNum">     210</span>                 :             :  * @param[in] dur Pulse duration in microseconds</span>
-<span id="L211"><span class="lineNum">     211</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
-<span id="L212"><span class="lineNum">     212</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
-<span id="L213"><span class="lineNum">     213</span>                 :             :  */</span>
-<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC tlaBgGNC">       50988 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
-<span id="L215"><span class="lineNum">     215</span>         [<span class="tlaGBC" title="Branch 0 was taken 23610 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27378 times"> + </span>]:<span class="tlaGNC">       50988 :     return (dur &lt;= ow_short_pulse_max_us) ? 1u : 0u;</span></span>
-<span id="L216"><span class="lineNum">     216</span>                 :             : }</span>
-<span id="L217"><span class="lineNum">     217</span>                 :             : </span>
-<span id="L218"><span class="lineNum">     218</span>                 :             : /**</span>
-<span id="L219"><span class="lineNum">     219</span>                 :             :  * @brief Decode captured pulse durations into data bytes (LSB-first bits)</span>
-<span id="L220"><span class="lineNum">     220</span>                 :             :  * @param[out] dst Decoded bytes</span>
-<span id="L221"><span class="lineNum">     221</span>                 :             :  * @param[in] pulse Captured per-bit pulse durations (one entry per bit)</span>
-<span id="L222"><span class="lineNum">     222</span>                 :             :  * @param[in] nbytes Number of bytes to decode (pulse must hold nbytes × 8 entries)</span>
-<span id="L223"><span class="lineNum">     223</span>                 :             :  * @note Each bit is recovered with onewire_bit_from_pulse(); bit 0 maps to the</span>
-<span id="L224"><span class="lineNum">     224</span>                 :             :  *       LSB of its byte. Recovers scratchpad / register bytes from the 1-Wire</span>
-<span id="L225"><span class="lineNum">     225</span>                 :             :  *       read capture.</span>
-<span id="L226"><span class="lineNum">     226</span>                 :             :  */</span>
-<span id="L227"><span class="lineNum">     227</span>                 :             : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes);</span>
-<span id="L228"><span class="lineNum">     228</span>                 :             : </span>
-<span id="L229"><span class="lineNum">     229</span>                 :             : /**</span>
-<span id="L230"><span class="lineNum">     230</span>                 :             :  * @brief Encode a byte into write-pulse durations</span>
-<span id="L231"><span class="lineNum">     231</span>                 :             :  * @param[out] out Output buffer (8 entries)</span>
-<span id="L232"><span class="lineNum">     232</span>                 :             :  * @param[in] byte Byte value to encode</span>
-<span id="L233"><span class="lineNum">     233</span>                 :             :  */</span>
-<span id="L234"><span class="lineNum">     234</span>                 :             : void onewire_encode_byte(uint8_t* out, uint8_t byte);</span>
-<span id="L235"><span class="lineNum">     235</span>                 :             : </span>
-<span id="L236"><span class="lineNum">     236</span>                 :             : /**</span>
-<span id="L237"><span class="lineNum">     237</span>                 :             :  * @brief Start a hardware-timed wait with the shared one-pulse timer</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :  * @param[in] arr Auto-reload value (one timer period in µs)</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :  * @param[in] rcr Repetition counter (number of periods - 1)</span>
-<span id="L240"><span class="lineNum">     240</span>                 :             :  * @note The timer update event fires after (RCR + 1) × ARR microseconds; used</span>
-<span id="L241"><span class="lineNum">     241</span>                 :             :  *       for DS18B20 conversion waits and inter-measurement pauses.</span>
-<span id="L242"><span class="lineNum">     242</span>                 :             :  */</span>
-<span id="L243"><span class="lineNum">     243</span>                 :             : void onewire_start_timer(uint16_t arr, uint8_t rcr);</span>
-<span id="L244"><span class="lineNum">     244</span>                 :             : </span>
-<span id="L245"><span class="lineNum">     245</span>                 :             : /**</span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :  * @brief Engage or release the parasite-power strong pull-up on the bus</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :  * @param[in] on 1 drives the bus line HIGH actively (pin leaves the timer-</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :  *                driven open-drain mode for a push-pull HIGH), 0 releases the</span>
-<span id="L249"><span class="lineNum">     249</span>                 :             :  *                line back to the passive external pull-up</span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :  * @note Parasite-powered devices source their supply from the bus line and</span>
-<span id="L251"><span class="lineNum">     251</span>                 :             :  *       need this active pull-up during energy-intensive phases: the whole</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             :  *       temperature conversion (tCONV, up to 750 ms) after Convert T and the</span>
-<span id="L253"><span class="lineNum">     253</span>                 :             :  *       EEPROM programming window (tPROG) after Copy Scratchpad / Recall E².</span>
-<span id="L254"><span class="lineNum">     254</span>                 :             :  *       Must only be called between hardware operations (bus idle), never</span>
-<span id="L255"><span class="lineNum">     255</span>                 :             :  *       while a timed transaction is running.</span>
-<span id="L256"><span class="lineNum">     256</span>                 :             :  */</span>
-<span id="L257"><span class="lineNum">     257</span>                 :             : void onewire_strong_pullup(uint8_t on);</span>
-<span id="L258"><span class="lineNum">     258</span>                 :             : </span>
-<span id="L259"><span class="lineNum">     259</span>                 :             : /** @} */</span>
-<span id="L260"><span class="lineNum">     260</span>                 :             : </span>
-<span id="L261"><span class="lineNum">     261</span>                 :             : /**</span>
-<span id="L262"><span class="lineNum">     262</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
-<span id="L263"><span class="lineNum">     263</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
-<span id="L264"><span class="lineNum">     264</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
-<span id="L265"><span class="lineNum">     265</span>                 :             :  *        position i determines which devices keep participating at position</span>
-<span id="L266"><span class="lineNum">     266</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
-<span id="L267"><span class="lineNum">     267</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
-<span id="L268"><span class="lineNum">     268</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
-<span id="L269"><span class="lineNum">     269</span>                 :             :  *        so a poll call never blocks.</span>
-<span id="L270"><span class="lineNum">     270</span>                 :             :  * @{</span>
-<span id="L271"><span class="lineNum">     271</span>                 :             :  */</span>
-<span id="L272"><span class="lineNum">     272</span>                 :             : </span>
-<span id="L273"><span class="lineNum">     273</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
-<span id="L274"><span class="lineNum">     274</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
-<span id="L275"><span class="lineNum">     275</span>                 :             : </span>
-<span id="L276"><span class="lineNum">     276</span>                 :             : /**</span>
-<span id="L277"><span class="lineNum">     277</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
-<span id="L278"><span class="lineNum">     278</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
-<span id="L279"><span class="lineNum">     279</span>                 :             :  *                 return value stops the search early.</span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
-<span id="L281"><span class="lineNum">     281</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
-<span id="L282"><span class="lineNum">     282</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
-<span id="L283"><span class="lineNum">     283</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
-<span id="L284"><span class="lineNum">     284</span>                 :             :  *                   reach the sink.</span>
-<span id="L285"><span class="lineNum">     285</span>                 :             :  * @note Ignores the call while a search pass is already running. Arbitration</span>
-<span id="L286"><span class="lineNum">     286</span>                 :             :  *       of the shared bus/timer against other 1-Wire operations lives in the</span>
-<span id="L287"><span class="lineNum">     287</span>                 :             :  *       ds18b20_* layer, not here.</span>
-<span id="L288"><span class="lineNum">     288</span>                 :             :  */</span>
-<span id="L289"><span class="lineNum">     289</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :                           uint8_t command, uint8_t family);</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             : </span>
-<span id="L292"><span class="lineNum">     292</span>                 :             : /**</span>
-<span id="L293"><span class="lineNum">     293</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
-<span id="L294"><span class="lineNum">     294</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
-<span id="L295"><span class="lineNum">     295</span>                 :             :  */</span>
-<span id="L296"><span class="lineNum">     296</span>                 :             : uint8_t onewire_search_poll(void);</span>
-<span id="L297"><span class="lineNum">     297</span>                 :             : </span>
-<span id="L298"><span class="lineNum">     298</span>                 :             : /**</span>
-<span id="L299"><span class="lineNum">     299</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
-<span id="L300"><span class="lineNum">     300</span>                 :             :  * @return Count of found devices</span>
-<span id="L301"><span class="lineNum">     301</span>                 :             :  */</span>
-<span id="L302"><span class="lineNum">     302</span>                 :             : uint8_t onewire_search_count(void);</span>
-<span id="L303"><span class="lineNum">     303</span>                 :             : </span>
-<span id="L304"><span class="lineNum">     304</span>                 :             : /**</span>
-<span id="L305"><span class="lineNum">     305</span>                 :             :  * @brief Check whether a search is currently running</span>
-<span id="L306"><span class="lineNum">     306</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
-<span id="L307"><span class="lineNum">     307</span>                 :             :  */</span>
-<span id="L308"><span class="lineNum">     308</span>                 :             : uint8_t onewire_search_active(void);</span>
-<span id="L309"><span class="lineNum">     309</span>                 :             : </span>
-<span id="L310"><span class="lineNum">     310</span>                 :             : /** @} */</span>
-<span id="L311"><span class="lineNum">     311</span>                 :             : </span>
-<span id="L312"><span class="lineNum">     312</span>                 :             : /**</span>
-<span id="L313"><span class="lineNum">     313</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
-<span id="L314"><span class="lineNum">     314</span>                 :             :  * @{</span>
-<span id="L315"><span class="lineNum">     315</span>                 :             :  */</span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : </span>
-<span id="L317"><span class="lineNum">     317</span>                 :             : /**</span>
-<span id="L318"><span class="lineNum">     318</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :  * @param[in] data Input buffer</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :  * @param[in] len Number of bytes to process</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             :  * @return CRC-8 checksum value</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             :  */</span>
-<span id="L323"><span class="lineNum">     323</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
-<span id="L324"><span class="lineNum">     324</span>                 :             : </span>
-<span id="L325"><span class="lineNum">     325</span>                 :             : /** @} */</span>
-<span id="L326"><span class="lineNum">     326</span>                 :             : </span>
-<span id="L327"><span class="lineNum">     327</span>                 :             : #ifdef DS18B20_TEST_HARNESS</span>
-<span id="L328"><span class="lineNum">     328</span>                 :             : /**</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             :  * @brief [TEST] Set the idle-HIGH gap injected between search slots</span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :  * @param[in] us Gap duration in microseconds (0 disables the injection)</span>
-<span id="L331"><span class="lineNum">     331</span>                 :             :  * @note Temporary test hook for the RTOS-latency experiment only.</span>
-<span id="L332"><span class="lineNum">     332</span>                 :             :  */</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             : void onewire_test_set_gap_us(uint16_t us);</span>
-<span id="L334"><span class="lineNum">     334</span>                 :             : #endif</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             : </span>
-<span id="L336"><span class="lineNum">     336</span>                 :             : #endif /* ONEWIRE_H */</span>
+<span id="L143"><span class="lineNum">     143</span>                 :             :  * @param[out] reset_pulses Buffer for the captured reset + presence pulse</span>
+<span id="L144"><span class="lineNum">     144</span>                 :             :  *                          durations (2 x 16-bit)</span>
+<span id="L145"><span class="lineNum">     145</span>                 :             :  * @note On completion, decode the presence pulse with onewire_present().</span>
+<span id="L146"><span class="lineNum">     146</span>                 :             :  */</span>
+<span id="L147"><span class="lineNum">     147</span>                 :             : void onewire_reset(volatile uint16_t* reset_pulses);</span>
+<span id="L148"><span class="lineNum">     148</span>                 :             : </span>
+<span id="L149"><span class="lineNum">     149</span>                 :             : /**</span>
+<span id="L150"><span class="lineNum">     150</span>                 :             :  * @brief Decode the presence pulse captured by onewire_reset()</span>
+<span id="L151"><span class="lineNum">     151</span>                 :             :  * @param[in] pulses Reset + presence pulse durations captured by onewire_reset()</span>
+<span id="L152"><span class="lineNum">     152</span>                 :             :  * @return 1 if at least one device answered, 0 otherwise</span>
+<span id="L153"><span class="lineNum">     153</span>                 :             :  */</span>
+<span id="L154"><span class="lineNum">     154</span>                 :             : uint8_t onewire_present(const volatile uint16_t* pulses);</span>
+<span id="L155"><span class="lineNum">     155</span>                 :             : </span>
+<span id="L156"><span class="lineNum">     156</span>                 :             : /**</span>
+<span id="L157"><span class="lineNum">     157</span>                 :             :  * @brief Schedule a write of `slots` bit slots</span>
+<span id="L158"><span class="lineNum">     158</span>                 :             :  * @param[in] pulses Pulse buffer (one entry per slot); for `slots &gt; 1` the</span>
+<span id="L159"><span class="lineNum">     159</span>                 :             :  *                   entry at index `slots` must be 0 (hardware bus release)</span>
+<span id="L160"><span class="lineNum">     160</span>                 :             :  * @param[in] slots Number of bit slots to transmit</span>
+<span id="L161"><span class="lineNum">     161</span>                 :             :  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so</span>
+<span id="L162"><span class="lineNum">     162</span>                 :             :  *       the buffer must stay valid until onewire_bus_done() reports completion.</span>
+<span id="L163"><span class="lineNum">     163</span>                 :             :  */</span>
+<span id="L164"><span class="lineNum">     164</span>                 :             : void onewire_write_slots(const uint8_t* pulses, uint16_t slots);</span>
+<span id="L165"><span class="lineNum">     165</span>                 :             : </span>
+<span id="L166"><span class="lineNum">     166</span>                 :             : /**</span>
+<span id="L167"><span class="lineNum">     167</span>                 :             :  * @brief Schedule a single-slot write of one raw bit</span>
+<span id="L168"><span class="lineNum">     168</span>                 :             :  * @param[in] bit Bit value to write (0 or 1)</span>
+<span id="L169"><span class="lineNum">     169</span>                 :             :  */</span>
+<span id="L170"><span class="lineNum">     170</span>                 :             : void onewire_write_bit(uint8_t bit);</span>
+<span id="L171"><span class="lineNum">     171</span>                 :             : </span>
+<span id="L172"><span class="lineNum">     172</span>                 :             : /**</span>
+<span id="L173"><span class="lineNum">     173</span>                 :             :  * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair</span>
+<span id="L174"><span class="lineNum">     174</span>                 :             :  * @param[out] pair_pulses Buffer for the captured pulse durations (2 × 16-bit)</span>
+<span id="L175"><span class="lineNum">     175</span>                 :             :  * @note On completion, decode the pair with onewire_pair_bits().</span>
+<span id="L176"><span class="lineNum">     176</span>                 :             :  */</span>
+<span id="L177"><span class="lineNum">     177</span>                 :             : void onewire_read_pair(volatile uint16_t* pair_pulses);</span>
+<span id="L178"><span class="lineNum">     178</span>                 :             : </span>
+<span id="L179"><span class="lineNum">     179</span>                 :             : /**</span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :  * @brief Decode the id/cmp bits of a two-slot read pair</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             :  * @param[in] pair_pulses Pulses captured by onewire_read_pair()</span>
+<span id="L182"><span class="lineNum">     182</span>                 :             :  * @param[out] id_bit Id bit (0 or 1)</span>
+<span id="L183"><span class="lineNum">     183</span>                 :             :  * @param[out] cmp_bit Complement bit (0 or 1)</span>
+<span id="L184"><span class="lineNum">     184</span>                 :             :  */</span>
+<span id="L185"><span class="lineNum">     185</span>                 :             : void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, uint8_t* cmp_bit);</span>
+<span id="L186"><span class="lineNum">     186</span>                 :             : </span>
+<span id="L187"><span class="lineNum">     187</span>                 :             : /**</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             :  * @brief Schedule a merged single-slot write followed by a two-slot read pair</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             :  * @param[in] bit Direction bit to write in slot 1 (0 or 1)</span>
+<span id="L190"><span class="lineNum">     190</span>                 :             :  * @note One timer pass runs three slots: a write of `bit`, then a read of the</span>
+<span id="L191"><span class="lineNum">     191</span>                 :             :  *       next id/cmp pair. Halves the timer passes per search bit compared to a</span>
+<span id="L192"><span class="lineNum">     192</span>                 :             :  *       plain write plus a separate read pair. On completion, the internal</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             :  *       merged buffer holds [write-slot edge count, id pulse, cmp pulse]: decode the</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             :  *       pair from entries 1 and 2 with onewire_bit_from_pulse(). Do not pass</span>
+<span id="L195"><span class="lineNum">     195</span>                 :             :  *       this buffer to onewire_pair_bits(), which instead decodes entries 0 and</span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :  *       1 as produced by onewire_read_pair().</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :  */</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             : void onewire_write_then_read(uint8_t bit);</span>
+<span id="L199"><span class="lineNum">     199</span>                 :             : </span>
+<span id="L200"><span class="lineNum">     200</span>                 :             : /**</span>
+<span id="L201"><span class="lineNum">     201</span>                 :             :  * @brief Schedule a read of `bytes` bytes from the bus</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[out] dst Buffer for the captured pulse durations (bytes × 8 × 8-bit)</span>
+<span id="L203"><span class="lineNum">     203</span>                 :             :  * @param[in] bytes Number of bytes to read</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             :  * @note On completion, the caller decodes the 8-bit pulse durations (pulse</span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :  *       `&lt;= ONEWIRE_SHORT_PULSE_MAX` reads as bit 1) into data bytes.</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             :  */</span>
+<span id="L207"><span class="lineNum">     207</span>                 :             : void onewire_read_data(volatile uint8_t* dst, uint8_t bytes);</span>
+<span id="L208"><span class="lineNum">     208</span>                 :             : </span>
+<span id="L209"><span class="lineNum">     209</span>                 :             : /**</span>
+<span id="L210"><span class="lineNum">     210</span>                 :             :  * @brief Decode a single captured pulse duration into a 1-Wire bit</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             :  * @param[in] dur Pulse duration in microseconds</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             :  */</span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC tlaBgGNC">       50988 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
+<span id="L216"><span class="lineNum">     216</span>         [<span class="tlaGBC" title="Branch 0 was taken 23610 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27378 times"> + </span>]:<span class="tlaGNC">       50988 :     return (dur &lt;= ow_short_pulse_max_us) ? 1u : 0u;</span></span>
+<span id="L217"><span class="lineNum">     217</span>                 :             : }</span>
+<span id="L218"><span class="lineNum">     218</span>                 :             : </span>
+<span id="L219"><span class="lineNum">     219</span>                 :             : /**</span>
+<span id="L220"><span class="lineNum">     220</span>                 :             :  * @brief Decode captured pulse durations into data bytes (LSB-first bits)</span>
+<span id="L221"><span class="lineNum">     221</span>                 :             :  * @param[out] dst Decoded bytes</span>
+<span id="L222"><span class="lineNum">     222</span>                 :             :  * @param[in] pulse Captured per-bit pulse durations (one entry per bit)</span>
+<span id="L223"><span class="lineNum">     223</span>                 :             :  * @param[in] nbytes Number of bytes to decode (pulse must hold nbytes × 8 entries)</span>
+<span id="L224"><span class="lineNum">     224</span>                 :             :  * @note Each bit is recovered with onewire_bit_from_pulse(); bit 0 maps to the</span>
+<span id="L225"><span class="lineNum">     225</span>                 :             :  *       LSB of its byte. Recovers scratchpad / register bytes from the 1-Wire</span>
+<span id="L226"><span class="lineNum">     226</span>                 :             :  *       read capture.</span>
+<span id="L227"><span class="lineNum">     227</span>                 :             :  */</span>
+<span id="L228"><span class="lineNum">     228</span>                 :             : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes);</span>
+<span id="L229"><span class="lineNum">     229</span>                 :             : </span>
+<span id="L230"><span class="lineNum">     230</span>                 :             : /**</span>
+<span id="L231"><span class="lineNum">     231</span>                 :             :  * @brief Encode a byte into write-pulse durations</span>
+<span id="L232"><span class="lineNum">     232</span>                 :             :  * @param[out] out Output buffer (8 entries)</span>
+<span id="L233"><span class="lineNum">     233</span>                 :             :  * @param[in] byte Byte value to encode</span>
+<span id="L234"><span class="lineNum">     234</span>                 :             :  */</span>
+<span id="L235"><span class="lineNum">     235</span>                 :             : void onewire_encode_byte(uint8_t* out, uint8_t byte);</span>
+<span id="L236"><span class="lineNum">     236</span>                 :             : </span>
+<span id="L237"><span class="lineNum">     237</span>                 :             : /**</span>
+<span id="L238"><span class="lineNum">     238</span>                 :             :  * @brief Start a hardware-timed wait with the shared one-pulse timer</span>
+<span id="L239"><span class="lineNum">     239</span>                 :             :  * @param[in] arr Auto-reload value (one timer period in µs)</span>
+<span id="L240"><span class="lineNum">     240</span>                 :             :  * @param[in] rcr Repetition counter (number of periods - 1)</span>
+<span id="L241"><span class="lineNum">     241</span>                 :             :  * @note The timer update event fires after (RCR + 1) × ARR microseconds; used</span>
+<span id="L242"><span class="lineNum">     242</span>                 :             :  *       for DS18B20 conversion waits and inter-measurement pauses.</span>
+<span id="L243"><span class="lineNum">     243</span>                 :             :  */</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             : void onewire_start_timer(uint16_t arr, uint8_t rcr);</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             : </span>
+<span id="L246"><span class="lineNum">     246</span>                 :             : /**</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :  * @brief Engage or release the parasite-power strong pull-up on the bus</span>
+<span id="L248"><span class="lineNum">     248</span>                 :             :  * @param[in] on 1 drives the bus line HIGH actively (pin leaves the timer-</span>
+<span id="L249"><span class="lineNum">     249</span>                 :             :  *                driven open-drain mode for a push-pull HIGH), 0 releases the</span>
+<span id="L250"><span class="lineNum">     250</span>                 :             :  *                line back to the passive external pull-up</span>
+<span id="L251"><span class="lineNum">     251</span>                 :             :  * @note Parasite-powered devices source their supply from the bus line and</span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :  *       need this active pull-up during energy-intensive phases: the whole</span>
+<span id="L253"><span class="lineNum">     253</span>                 :             :  *       temperature conversion (tCONV, up to 750 ms) after Convert T and the</span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :  *       EEPROM programming window (tPROG) after Copy Scratchpad / Recall E².</span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :  *       Must only be called between hardware operations (bus idle), never</span>
+<span id="L256"><span class="lineNum">     256</span>                 :             :  *       while a timed transaction is running.</span>
+<span id="L257"><span class="lineNum">     257</span>                 :             :  */</span>
+<span id="L258"><span class="lineNum">     258</span>                 :             : void onewire_strong_pullup(uint8_t on);</span>
+<span id="L259"><span class="lineNum">     259</span>                 :             : </span>
+<span id="L260"><span class="lineNum">     260</span>                 :             : /** @} */</span>
+<span id="L261"><span class="lineNum">     261</span>                 :             : </span>
+<span id="L262"><span class="lineNum">     262</span>                 :             : /**</span>
+<span id="L263"><span class="lineNum">     263</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
+<span id="L264"><span class="lineNum">     264</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
+<span id="L265"><span class="lineNum">     265</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
+<span id="L266"><span class="lineNum">     266</span>                 :             :  *        position i determines which devices keep participating at position</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
+<span id="L268"><span class="lineNum">     268</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
+<span id="L269"><span class="lineNum">     269</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
+<span id="L270"><span class="lineNum">     270</span>                 :             :  *        so a poll call never blocks.</span>
+<span id="L271"><span class="lineNum">     271</span>                 :             :  * @{</span>
+<span id="L272"><span class="lineNum">     272</span>                 :             :  */</span>
+<span id="L273"><span class="lineNum">     273</span>                 :             : </span>
+<span id="L274"><span class="lineNum">     274</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
+<span id="L275"><span class="lineNum">     275</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
+<span id="L276"><span class="lineNum">     276</span>                 :             : </span>
+<span id="L277"><span class="lineNum">     277</span>                 :             : /**</span>
+<span id="L278"><span class="lineNum">     278</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
+<span id="L279"><span class="lineNum">     279</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
+<span id="L280"><span class="lineNum">     280</span>                 :             :  *                 return value stops the search early.</span>
+<span id="L281"><span class="lineNum">     281</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
+<span id="L282"><span class="lineNum">     282</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
+<span id="L283"><span class="lineNum">     283</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
+<span id="L284"><span class="lineNum">     284</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
+<span id="L285"><span class="lineNum">     285</span>                 :             :  *                   reach the sink.</span>
+<span id="L286"><span class="lineNum">     286</span>                 :             :  * @note Ignores the call while a search pass is already running. Arbitration</span>
+<span id="L287"><span class="lineNum">     287</span>                 :             :  *       of the shared bus/timer against other 1-Wire operations lives in the</span>
+<span id="L288"><span class="lineNum">     288</span>                 :             :  *       ds18b20_* layer, not here.</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :  */</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :                           uint8_t command, uint8_t family);</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             : </span>
+<span id="L293"><span class="lineNum">     293</span>                 :             : /**</span>
+<span id="L294"><span class="lineNum">     294</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
+<span id="L295"><span class="lineNum">     295</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :  */</span>
+<span id="L297"><span class="lineNum">     297</span>                 :             : uint8_t onewire_search_poll(void);</span>
+<span id="L298"><span class="lineNum">     298</span>                 :             : </span>
+<span id="L299"><span class="lineNum">     299</span>                 :             : /**</span>
+<span id="L300"><span class="lineNum">     300</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             :  * @return Count of found devices</span>
+<span id="L302"><span class="lineNum">     302</span>                 :             :  */</span>
+<span id="L303"><span class="lineNum">     303</span>                 :             : uint8_t onewire_search_count(void);</span>
+<span id="L304"><span class="lineNum">     304</span>                 :             : </span>
+<span id="L305"><span class="lineNum">     305</span>                 :             : /**</span>
+<span id="L306"><span class="lineNum">     306</span>                 :             :  * @brief Check whether a search is currently running</span>
+<span id="L307"><span class="lineNum">     307</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :  */</span>
+<span id="L309"><span class="lineNum">     309</span>                 :             : uint8_t onewire_search_active(void);</span>
+<span id="L310"><span class="lineNum">     310</span>                 :             : </span>
+<span id="L311"><span class="lineNum">     311</span>                 :             : /** @} */</span>
+<span id="L312"><span class="lineNum">     312</span>                 :             : </span>
+<span id="L313"><span class="lineNum">     313</span>                 :             : /**</span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
+<span id="L315"><span class="lineNum">     315</span>                 :             :  * @{</span>
+<span id="L316"><span class="lineNum">     316</span>                 :             :  */</span>
+<span id="L317"><span class="lineNum">     317</span>                 :             : </span>
+<span id="L318"><span class="lineNum">     318</span>                 :             : /**</span>
+<span id="L319"><span class="lineNum">     319</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
+<span id="L320"><span class="lineNum">     320</span>                 :             :  * @param[in] data Input buffer</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :  * @param[in] len Number of bytes to process</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             :  * @return CRC-8 checksum value</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :  */</span>
+<span id="L324"><span class="lineNum">     324</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
+<span id="L325"><span class="lineNum">     325</span>                 :             : </span>
+<span id="L326"><span class="lineNum">     326</span>                 :             : /** @} */</span>
+<span id="L327"><span class="lineNum">     327</span>                 :             : </span>
+<span id="L328"><span class="lineNum">     328</span>                 :             : #ifdef DS18B20_TEST_HARNESS</span>
+<span id="L329"><span class="lineNum">     329</span>                 :             : /**</span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :  * @brief [TEST] Set the idle-HIGH gap injected between search slots</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             :  * @param[in] us Gap duration in microseconds (0 disables the injection)</span>
+<span id="L332"><span class="lineNum">     332</span>                 :             :  * @note Temporary test hook for the RTOS-latency experiment only.</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             :  */</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             : void onewire_test_set_gap_us(uint16_t us);</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             : #endif</span>
+<span id="L336"><span class="lineNum">     336</span>                 :             : </span>
+<span id="L337"><span class="lineNum">     337</span>                 :             : #endif /* ONEWIRE_H */</span>
         </pre>
               </td>
             </tr>
