@@ -42,7 +42,7 @@ static uint16_t search_capture_src(uint32_t idx) {
         uint8_t b = (g_rom[0] >> 0) & 1u;
         return (idx == 0) ? (b ? ONE : ZERO) : (b ? ZERO : ONE);
     }
-    /* merged write+read capturing bit g_wr_bit (idx0 = write edge, ignored) */
+    /* merged write+read capturing bit g_wr_bit (idx0 = write edge count, ignored) */
     uint8_t byte = (g_wr_bit - 1u) / 8u;
     uint8_t bit = (g_wr_bit - 1u) % 8u;
     uint8_t b = (g_rom[byte] >> bit) & 1u;
@@ -280,7 +280,7 @@ void test_search_no_device_no_presence(void) {
 /*-------------------------------------------------------------
  *  write_then_read arms the merged op: 3-slot timer pass, PWM
  *  WITHOUT OC3PE (so the CC2 DMA reload is immediate), capture
- *  DMA for 3 edges and reload DMA feeding {ONE,ONE,0}.
+ *  DMA for 3 captures and reload DMA feeding {ONE,ONE,0}.
  * -----------------------------------------------------------*/
 void test_write_then_read_configures_registers(void) {
     hw_reset_all();
@@ -319,7 +319,7 @@ static uint16_t two_dev_capture_src(uint32_t idx) {
         uint8_t b = (g_rom[0] >> 0) & 1u;
         return (idx == 0) ? (b ? ONE : ZERO) : (b ? ZERO : ONE);
     }
-    /* merged write+read capturing bit g_wr_bit (idx0 = write edge, ignored) */
+    /* merged write+read capturing bit g_wr_bit (idx0 = write edge count, ignored) */
     uint8_t b;
     if (g_wr_bit == 9) {
         b = 2u; /* discrepancy: id=0, cmp=0 -> both ZERO */

@@ -34,7 +34,7 @@ static uint16_t res_capture_present(uint32_t idx) {
     return idx == 0 ? 510u : 700u;
 }
 
-/* Presence-absent capture source: both edges out of spec. */
+/* Presence-absent capture source: both pulses out of spec. */
 static uint16_t res_capture_absent(uint32_t idx) {
     (void)idx;
     return 100u;

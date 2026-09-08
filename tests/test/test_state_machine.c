@@ -82,7 +82,7 @@ void test_state_machine_convert_with_presence_pass(void) {
     /* Set state to CONVERT */
     ds18b20_test_set_state(2);
 
-    /* Set presence edges to valid values */
+    /* Set presence pulses to valid values */
     ds18b20_test_set_capture_pulse(0, 510); /* Reset pulse within range */
     ds18b20_test_set_capture_pulse(1, 700); /* Presence pulse within range */
 
@@ -106,7 +106,7 @@ void test_state_machine_convert_with_presence_fail(void) {
     /* Set state to CONVERT */
     ds18b20_test_set_state(2);
 
-    /* Set presence edges to invalid values (device not present) */
+    /* Set presence pulses to invalid values (device not present) */
     ds18b20_test_set_capture_pulse(0, 100); /* Too short */
     ds18b20_test_set_capture_pulse(1, 100); /* Too short */
 
@@ -157,8 +157,8 @@ void test_state_machine_continue_transitions_to_request(void) {
     /* Poll should check presence and transition to REQUEST */
     ds18b20_poll();
 
-    /* With default edges (0), presence check fails -> goes to IDLE */
-    /* To test successful path, we need valid edges */
+    /* With default pulses (0), presence check fails -> goes to IDLE */
+    /* To test successful path, we need valid pulses */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
 
@@ -181,7 +181,7 @@ void test_state_machine_request_with_presence_pass(void) {
     /* Set state to REQUEST */
     ds18b20_test_set_state(5);
 
-    /* Set valid presence edges */
+    /* Set valid presence pulses */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
 

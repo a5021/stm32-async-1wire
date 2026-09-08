@@ -140,17 +140,18 @@ uint8_t onewire_bus_done(void);
 
 /**
  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)
- * @param[out] edge_out Buffer for the captured edge timestamps (2 × 16-bit)
+ * @param[out] reset_pulses Buffer for the captured reset + presence pulse
+ *                          durations (2 x 16-bit)
  * @note On completion, decode the presence pulse with onewire_present().
  */
-void onewire_reset(volatile uint16_t* edge_out);
+void onewire_reset(volatile uint16_t* reset_pulses);
 
 /**
  * @brief Decode the presence pulse captured by onewire_reset()
- * @param[in] edge Edge timestamps captured by onewire_reset()
+ * @param[in] pulses Reset + presence pulse durations captured by onewire_reset()
  * @return 1 if at least one device answered, 0 otherwise
  */
-uint8_t onewire_present(const volatile uint16_t* edge);
+uint8_t onewire_present(const volatile uint16_t* pulses);
 
 /**
  * @brief Schedule a write of `slots` bit slots
@@ -189,7 +190,7 @@ void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, ui
  * @note One timer pass runs three slots: a write of `bit`, then a read of the
  *       next id/cmp pair. Halves the timer passes per search bit compared to a
  *       plain write plus a separate read pair. On completion, the internal
- *       merged-edge buffer holds [write-slot edge, id_bit, cmp_bit]: decode the
+ *       merged buffer holds [write-slot edge count, id pulse, cmp pulse]: decode the
  *       pair from entries 1 and 2 with onewire_bit_from_pulse(). Do not pass
  *       this buffer to onewire_pair_bits(), which instead decodes entries 0 and
  *       1 as produced by onewire_read_pair().

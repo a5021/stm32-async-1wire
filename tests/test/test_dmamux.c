@@ -19,17 +19,17 @@
 #if defined(OW_PORT_TARGET_G0)
 
 static uint16_t rx_src(uint32_t idx) {
-    return idx == 0 ? 510u : 700u; /* reset edges: presence pulse */
+    return idx == 0 ? 510u : 700u; /* reset presence pulse durations */
 }
 
 void test_dmamux_capture_request_routed_on_reset(void) {
-    static uint16_t edges[2];
+    static uint16_t capture[2];
     hw_reset_all();
     ds18b20_init();
-    hw_register_buf(edges);
+    hw_register_buf(capture);
     hw_set_capture_source(rx_src);
 
-    onewire_reset(edges); /* schedules the CC4 capture drain */
+    onewire_reset(capture); /* schedules the CC4 capture drain */
     TEST_ASSERT_EQUAL_UINT32(23u, mock_dmamux_ch3.CCR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
 
@@ -37,8 +37,8 @@ void test_dmamux_capture_request_routed_on_reset(void) {
     TEST_ASSERT_TRUE(hw_run_until_uif(mock_tim1.RCR + 1u));
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(2u, hw_capture_count());
-    TEST_ASSERT_EQUAL_UINT16(510u, edges[0]);
-    TEST_ASSERT_EQUAL_UINT16(700u, edges[1]);
+    TEST_ASSERT_EQUAL_UINT16(510u, capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(700u, capture[1]);
 }
 
 void test_dmamux_feed_request_routed_on_write(void) {

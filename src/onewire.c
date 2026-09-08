@@ -78,10 +78,11 @@ onewire_timing_profile_t onewire_get_timing_profile(void) {
  * @{
  */
 
-/** @brief Edge capture buffer for the merged search write+read operation
- * @note Holds [write-slot edge, id_bit, cmp_bit]. The CH4 input capture runs
- *       for the whole timer pass, so the direction-write rising edge is
- *       captured into entry 0 as well; id/cmp are decoded from entries 1 and 2. */
+/** @brief Capture buffer for the merged search write+read operation
+ * @note Holds [write-slot edge count, id pulse, cmp pulse]. The CH4 input
+ *       capture runs for the whole timer pass, so the direction-write rising
+ *       edge is captured into entry 0 as well; id/cmp are decoded from the
+ *       pulse durations in entries 1 and 2. */
 static volatile uint16_t search_edge3[3];
 
 /** @brief Read pulse durations reloaded by DMA for the merged search operation
@@ -167,13 +168,13 @@ uint8_t onewire_bus_done(void) {
     return ow_port_bus_done();
 }
 
-void onewire_reset(volatile uint16_t* edge_out) {
-    ow_port_reset(edge_out);
+void onewire_reset(volatile uint16_t* reset_pulses) {
+    ow_port_reset(reset_pulses);
 }
 
-uint8_t onewire_present(const volatile uint16_t* edge) {
-    uint16_t reset = edge[0];
-    uint16_t presence = edge[1];
+uint8_t onewire_present(const volatile uint16_t* pulses) {
+    uint16_t reset = pulses[0];
+    uint16_t presence = pulses[1];
     // Validate that reset pulse duration is within specification
     // and presence pulse timing indicates a responding device
     return (reset >= RESET_PULSE_MIN) && (reset <= RESET_PULSE_MAX) &&

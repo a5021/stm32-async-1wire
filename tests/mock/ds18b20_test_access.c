@@ -10,7 +10,7 @@
 #include <stddef.h>
 
 void ds18b20_test_register_buffers(void) {
-    hw_register_buf((const void*)&ctx.edge);
+    hw_register_buf((const void*)&ctx.capture);
     hw_register_buf((const void*)(uintptr_t)search_edge3);
     hw_register_buf((const void*)(uintptr_t)search_pair_pulse);
     hw_register_buf((const void*)((uintptr_t)conv_cmd + 1u)); /* &conv_cmd[1] */
@@ -45,8 +45,8 @@ void ds18b20_test_reset_resolution(void) {
     res_ctx.finished = 1;
 }
 
-void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) { ctx.edge[i] = v; }
-uint16_t ds18b20_test_get_capture_pulse(uint8_t i) { return ctx.edge[i]; }
+void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) { ctx.capture[i] = v; }
+uint16_t ds18b20_test_get_capture_pulse(uint8_t i) { return ctx.capture[i]; }
 void ds18b20_test_set_pulse(uint8_t i, uint8_t v) { ctx.pulse[i] = v; }
 uint8_t ds18b20_test_get_scratchpad(uint8_t i) { return ctx.scratchpad[i]; }
 void ds18b20_test_set_scratchpad(uint8_t i, uint8_t v) { ctx.scratchpad[i] = v; }
@@ -57,7 +57,7 @@ uint8_t ds18b20_test_get_address_mode(void) { return ctx.address_mode; }
 void ds18b20_test_set_address_mode(uint8_t m) { ctx.address_mode = m; }
 
 int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
-unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.edge); }
+unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
 uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc(); }
 void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
 void ds18b20_test_build_addr_prefix(void) { build_addr_prefix(); }
@@ -77,18 +77,18 @@ uint8_t ds18b20_test_get_addr_cmd(uint8_t i) { return ctx.addr_cmd[i]; }
 void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v) { ctx.addr_cmd[i] = v; }
 
 void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots) { onewire_write_slots(cmd, slots); }
-void test_bus_reset(void) { onewire_reset(ctx.edge); }
-void test_bus_read_pair(void) { onewire_read_pair(ctx.edge); }
+void test_bus_reset(void) { onewire_reset(ctx.capture); }
+void test_bus_read_pair(void) { onewire_read_pair(ctx.capture); }
 void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
 void test_bus_write_bit(uint8_t bit) { onewire_write_bit(bit); }
 void test_bus_read_data(void) { onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN); }
 void test_bus_wait_conversion(void) { wait_conversion(); }
 void test_bus_start_cycle_pause(void) { start_cycle_pause(); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
-uint8_t test_bus_present(void) { return onewire_present(ctx.edge); }
+uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
 #ifdef OW_PORT_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count) {
-    ow_port_capture((volatile void*)ctx.edge, count, 16);
+    ow_port_capture((volatile void*)ctx.capture, count, 16);
 }
 void test_bus_sleep_until_done(void) { ow_port_sleep_until_done(); }
 #endif

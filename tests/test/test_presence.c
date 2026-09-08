@@ -2,8 +2,8 @@
  *  test_presence.c - Presence Detection Boundary Tests
  *
  *  Validates check_presence() against the DS18B20 spec ranges:
- *  - edge[0] (reset pulse) in [480, 540]µs
- *  - edge[1] (presence pulse) in [555, 840]µs
+ *  - pulse[0] (reset pulse) in [480, 540]µs
+ *  - pulse[1] (presence pulse) in [555, 840]µs
  *  plus the arm_capture DMA width configuration.
  * ============================================================ */
 
@@ -17,17 +17,17 @@
 #define PRES_MIN 555u
 #define PRES_MAX 840u
 
-static unsigned check_presence_with_edges(uint16_t edge0, uint16_t edge1) {
-    ds18b20_test_set_capture_pulse(0, edge0);
-    ds18b20_test_set_capture_pulse(1, edge1);
+static unsigned check_presence_with_pulses(uint16_t pulse0, uint16_t pulse1) {
+    ds18b20_test_set_capture_pulse(0, pulse0);
+    ds18b20_test_set_capture_pulse(1, pulse1);
     return ds18b20_test_check_presence();
 }
 
-static void assert_presence(uint16_t edge0, uint16_t edge1, unsigned expected) {
+static void assert_presence(uint16_t pulse0, uint16_t pulse1, unsigned expected) {
     if (expected) {
-        TEST_ASSERT_TRUE(check_presence_with_edges(edge0, edge1));
+        TEST_ASSERT_TRUE(check_presence_with_pulses(pulse0, pulse1));
     } else {
-        TEST_ASSERT_FALSE(check_presence_with_edges(edge0, edge1));
+        TEST_ASSERT_FALSE(check_presence_with_pulses(pulse0, pulse1));
     }
 }
 
@@ -59,11 +59,11 @@ void test_presence_presence_pulse_too_long(void) {
     assert_presence(510, PRES_MAX + 1, 0);
 }
 
-void test_presence_both_edges_out_of_range(void) {
+void test_presence_both_pulses_out_of_range(void) {
     assert_presence(100, 100, 0);
 }
 
-void test_presence_zero_edges_absent(void) {
+void test_presence_zero_pulses_absent(void) {
     assert_presence(0, 0, 0);
 }
 
@@ -79,13 +79,13 @@ void test_presence_reset_max_presence_min(void) {
     assert_presence(RESET_MAX, PRES_MIN, 1);
 }
 
-/* Regression for the stale edge[1] bug: a no-presence reset captures only
- * edge[0], so a stale presence timestamp left in edge[1] from a previous reset
+/* Regression for the stale pulse[1] bug: a no-presence reset captures only
+ * pulse[0], so a stale presence duration left in pulse[1] from a previous reset
  * would make onewire_present() report a false device. onewire_reset() must
  * clear the capture buffer before arming. */
-void test_presence_reset_clears_stale_edge(void) {
-    ds18b20_test_set_capture_pulse(0, 510); /* stale master-release timestamp */
-    ds18b20_test_set_capture_pulse(1, 700); /* stale presence timestamp */
+void test_presence_reset_clears_stale_pulse(void) {
+    ds18b20_test_set_capture_pulse(0, 510); /* stale master-release duration */
+    ds18b20_test_set_capture_pulse(1, 700); /* stale presence duration */
     test_bus_reset();
     TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(0));
     TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
@@ -123,12 +123,12 @@ void run_test_presence(void) {
     TEST_RUN(test_presence_reset_pulse_too_long);
     TEST_RUN(test_presence_presence_pulse_too_short);
     TEST_RUN(test_presence_presence_pulse_too_long);
-    TEST_RUN(test_presence_both_edges_out_of_range);
-    TEST_RUN(test_presence_zero_edges_absent);
+    TEST_RUN(test_presence_both_pulses_out_of_range);
+    TEST_RUN(test_presence_zero_pulses_absent);
     TEST_RUN(test_presence_very_large_values_absent);
     TEST_RUN(test_presence_reset_min_presence_max);
     TEST_RUN(test_presence_reset_max_presence_min);
-    TEST_RUN(test_presence_reset_clears_stale_edge);
+    TEST_RUN(test_presence_reset_clears_stale_pulse);
     TEST_RUN(test_capture_16bit_config);
     TEST_RUN(test_capture_8bit_config);
 }
