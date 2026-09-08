@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-07 18:46:26</td>
+            <td class="headerValue">2026-09-08 04:07:41</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">94.4&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.8&nbsp;%</td>
             <td class="headerCovTableEntry">249</td>
-            <td class="headerCovTableEntry">235</td>
+            <td class="headerCovTableEntry">236</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -317,8 +317,8 @@
 <span id="L246"><span class="lineNum">     246</span>                 :             :  * @return CRC-8 checksum value</span>
 <span id="L247"><span class="lineNum">     247</span>                 :             :  * @note Delegates to the shared 1-Wire layer (same Dallas/Maxim algorithm).</span>
 <span id="L248"><span class="lineNum">     248</span>                 :             :  */</span>
-<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC tlaBgGNC">         738 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
-<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">         738 :     return onewire_crc8(data, len);</span></span>
+<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC tlaBgGNC">        1032 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
+<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">        1032 :     return onewire_crc8(data, len);</span></span>
 <span id="L251"><span class="lineNum">     251</span>                 :             : }</span>
 <span id="L252"><span class="lineNum">     252</span>                 :             : </span>
 <span id="L253"><span class="lineNum">     253</span>                 :             : /**</span>
@@ -459,14 +459,14 @@
 <span id="L386"><span class="lineNum">     386</span>                 :             :  * @brief Device-search sink: store the ROM in the scan-mode device table</span>
 <span id="L387"><span class="lineNum">     387</span>                 :             :  *        (capped at DS18B20_MAX_DEVICES), then forward to the user sink.</span>
 <span id="L388"><span class="lineNum">     388</span>                 :             :  */</span>
-<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">         102 : static uint8_t search_store_sink(const uint8_t* rom) {</span></span>
-<span id="L390"><span class="lineNum">     390</span>         [<span class="tlaGBC" title="Branch 0 was taken 102 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">         102 :     if (dev_count &lt; DS18B20_MAX_DEVICES) {</span></span>
-<span id="L391"><span class="lineNum">     391</span>         [<span class="tlaGBC" title="Branch 0 was taken 816 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 102 times"> + </span>]:<span class="tlaGNC">         918 :         for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">         816 :             dev_roms[dev_count][i] = rom[i];</span></span>
+<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">         156 : static uint8_t search_store_sink(const uint8_t* rom) {</span></span>
+<span id="L390"><span class="lineNum">     390</span>         [<span class="tlaGBC" title="Branch 0 was taken 150 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         156 :     if (dev_count &lt; DS18B20_MAX_DEVICES) {</span></span>
+<span id="L391"><span class="lineNum">     391</span>         [<span class="tlaGBC" title="Branch 0 was taken 1200 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 150 times"> + </span>]:<span class="tlaGNC">        1350 :         for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">        1200 :             dev_roms[dev_count][i] = rom[i];</span></span>
 <span id="L393"><span class="lineNum">     393</span>                 :             :         }</span>
-<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">         102 :         dev_count++;</span></span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">         150 :         dev_count++;</span></span>
 <span id="L395"><span class="lineNum">     395</span>                 :             :     }</span>
-<span id="L396"><span class="lineNum">     396</span>         [<span class="tlaGBC" title="Branch 0 was taken 96 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         102 :     return search_user_sink ? search_user_sink(rom) : 0;</span></span>
+<span id="L396"><span class="lineNum">     396</span>         [<span class="tlaGBC" title="Branch 0 was taken 150 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         156 :     return search_user_sink ? search_user_sink(rom) : 0;</span></span>
 <span id="L397"><span class="lineNum">     397</span>                 :             : }</span>
 <span id="L398"><span class="lineNum">     398</span>                 :             : </span>
 <span id="L399"><span class="lineNum">     399</span>                 :             : /**</span>
@@ -487,22 +487,22 @@
 <span id="L414"><span class="lineNum">     414</span>                 :             :  *       may only be started while all of them are idle; a running search</span>
 <span id="L415"><span class="lineNum">     415</span>                 :             :  *       rejects a new start.</span>
 <span id="L416"><span class="lineNum">     416</span>                 :             :  */</span>
-<span id="L417"><span class="lineNum">     417</span>                 :<span class="tlaGNC">         156 : void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {</span></span>
-<span id="L418"><span class="lineNum">     418</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 150 times"> + </span>]:<span class="tlaGNC">         156 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
+<span id="L417"><span class="lineNum">     417</span>                 :<span class="tlaGNC">         162 : void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {</span></span>
+<span id="L418"><span class="lineNum">     418</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 156 times"> + </span>]:<span class="tlaGNC">         162 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
 <span id="L419"><span class="lineNum">     419</span>                 :<span class="tlaGNC">           6 :         return; // a measurement cycle is in progress</span></span>
 <span id="L420"><span class="lineNum">     420</span>                 :             :     }</span>
-<span id="L421"><span class="lineNum">     421</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 144 times"> + </span>]:<span class="tlaGNC">         150 :     if (onewire_search_active()) {</span></span>
+<span id="L421"><span class="lineNum">     421</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 150 times"> + </span>]:<span class="tlaGNC">         156 :     if (onewire_search_active()) {</span></span>
 <span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">           6 :         return; // a search is already running - keep its sink and table</span></span>
 <span id="L423"><span class="lineNum">     423</span>                 :             :     }</span>
-<span id="L424"><span class="lineNum">     424</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 138 times"> + </span>]:<span class="tlaGNC">         144 :     if (!txn_ctx.finished) {</span></span>
+<span id="L424"><span class="lineNum">     424</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 144 times"> + </span>]:<span class="tlaGNC">         150 :     if (!txn_ctx.finished) {</span></span>
 <span id="L425"><span class="lineNum">     425</span>                 :<span class="tlaGNC">           6 :         return; // a command transaction is running</span></span>
 <span id="L426"><span class="lineNum">     426</span>                 :             :     }</span>
-<span id="L427"><span class="lineNum">     427</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         138 :     if (!res_ctx.finished) {</span></span>
+<span id="L427"><span class="lineNum">     427</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 138 times"> + </span>]:<span class="tlaGNC">         144 :     if (!res_ctx.finished) {</span></span>
 <span id="L428"><span class="lineNum">     428</span>                 :<span class="tlaGNC">           6 :         return; // a resolution change owns the timer</span></span>
 <span id="L429"><span class="lineNum">     429</span>                 :             :     }</span>
-<span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">         132 :     dev_count = 0;</span></span>
-<span id="L431"><span class="lineNum">     431</span>                 :<span class="tlaGNC">         132 :     search_user_sink = sink;</span></span>
-<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaGNC">         132 :     onewire_search_start(search_store_sink, max_devices, DS18B20_SEARCH_ROM, DS18B20_FAMILY_CODE);</span></span>
+<span id="L430"><span class="lineNum">     430</span>                 :<span class="tlaGNC">         138 :     dev_count = 0;</span></span>
+<span id="L431"><span class="lineNum">     431</span>                 :<span class="tlaGNC">         138 :     search_user_sink = sink;</span></span>
+<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaGNC">         138 :     onewire_search_start(search_store_sink, max_devices, DS18B20_SEARCH_ROM, DS18B20_FAMILY_CODE);</span></span>
 <span id="L433"><span class="lineNum">     433</span>                 :             : }</span>
 <span id="L434"><span class="lineNum">     434</span>                 :             : </span>
 <span id="L435"><span class="lineNum">     435</span>                 :             : /**</span>
@@ -533,13 +533,13 @@
 <span id="L460"><span class="lineNum">     460</span>                 :             :  * @brief Advance the non-blocking device search by one hardware operation</span>
 <span id="L461"><span class="lineNum">     461</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
 <span id="L462"><span class="lineNum">     462</span>                 :             :  */</span>
-<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">        7896 : uint8_t ds18b20_search_poll(void) { return onewire_search_poll(); }</span></span>
+<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">       11526 : uint8_t ds18b20_search_poll(void) { return onewire_search_poll(); }</span></span>
 <span id="L464"><span class="lineNum">     464</span>                 :             : </span>
 <span id="L465"><span class="lineNum">     465</span>                 :             : /**</span>
 <span id="L466"><span class="lineNum">     466</span>                 :             :  * @brief Number of DS18B20 devices found (valid once the search finished)</span>
 <span id="L467"><span class="lineNum">     467</span>                 :             :  * @return Count of found devices</span>
 <span id="L468"><span class="lineNum">     468</span>                 :             :  */</span>
-<span id="L469"><span class="lineNum">     469</span>                 :<span class="tlaGNC">         126 : uint8_t ds18b20_search_count(void) { return onewire_search_count(); }</span></span>
+<span id="L469"><span class="lineNum">     469</span>                 :<span class="tlaGNC">         132 : uint8_t ds18b20_search_count(void) { return onewire_search_count(); }</span></span>
 <span id="L470"><span class="lineNum">     470</span>                 :             : </span>
 <span id="L471"><span class="lineNum">     471</span>                 :             : /**</span>
 <span id="L472"><span class="lineNum">     472</span>                 :             :  * @brief Advance the non-blocking alarm search by one hardware operation</span>
@@ -758,17 +758,17 @@
 <span id="L684"><span class="lineNum">     684</span>                 :             :  * @brief Number of DS18B20 devices stored by the driver</span>
 <span id="L685"><span class="lineNum">     685</span>                 :             :  * @see ds18b20_device_count() in ds18b20.h</span>
 <span id="L686"><span class="lineNum">     686</span>                 :             :  */</span>
-<span id="L687"><span class="lineNum">     687</span>                 :<span class="tlaGNC">          24 : uint8_t ds18b20_device_count(void) { return dev_count; }</span></span>
+<span id="L687"><span class="lineNum">     687</span>                 :<span class="tlaGNC">          30 : uint8_t ds18b20_device_count(void) { return dev_count; }</span></span>
 <span id="L688"><span class="lineNum">     688</span>                 :             : </span>
 <span id="L689"><span class="lineNum">     689</span>                 :             : /**</span>
 <span id="L690"><span class="lineNum">     690</span>                 :             :  * @brief ROM address of a discovered device</span>
 <span id="L691"><span class="lineNum">     691</span>                 :             :  * @see ds18b20_device_rom() in ds18b20.h</span>
 <span id="L692"><span class="lineNum">     692</span>                 :             :  */</span>
-<span id="L693"><span class="lineNum">     693</span>                 :<span class="tlaGNC">         174 : const uint8_t* ds18b20_device_rom(uint8_t index) {</span></span>
-<span id="L694"><span class="lineNum">     694</span>         [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 156 times"> + </span>]:<span class="tlaGNC">         174 :     if (index &gt;= dev_count) {</span></span>
-<span id="L695"><span class="lineNum">     695</span>                 :<span class="tlaGNC">          18 :         return 0;</span></span>
+<span id="L693"><span class="lineNum">     693</span>                 :<span class="tlaGNC">         228 : const uint8_t* ds18b20_device_rom(uint8_t index) {</span></span>
+<span id="L694"><span class="lineNum">     694</span>         [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 204 times"> + </span>]:<span class="tlaGNC">         228 :     if (index &gt;= dev_count) {</span></span>
+<span id="L695"><span class="lineNum">     695</span>                 :<span class="tlaGNC">          24 :         return 0;</span></span>
 <span id="L696"><span class="lineNum">     696</span>                 :             :     }</span>
-<span id="L697"><span class="lineNum">     697</span>                 :<span class="tlaGNC">         156 :     return dev_roms[index];</span></span>
+<span id="L697"><span class="lineNum">     697</span>                 :<span class="tlaGNC">         204 :     return dev_roms[index];</span></span>
 <span id="L698"><span class="lineNum">     698</span>                 :             : }</span>
 <span id="L699"><span class="lineNum">     699</span>                 :             : </span>
 <span id="L700"><span class="lineNum">     700</span>                 :             : /**</span>
