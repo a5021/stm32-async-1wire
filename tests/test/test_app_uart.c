@@ -18,6 +18,7 @@
 #endif
 #include "hw_model.h"
 #include "unity.h"
+#include <stdint.h>
 
 #if defined(OW_PORT_TARGET_G0)
 #define TXE_BIT USART_ISR_TXE_TXFNF
@@ -74,6 +75,16 @@ void test_uart_write_int_positive(void) {
     expect_str("123");
 }
 
+void test_uart_write_int_extremes(void) {
+    uart_drain();
+    TEST_ASSERT_EQUAL_INT(11, uart_write_int(INT32_MIN));
+    expect_str("-2147483648");
+
+    uart_drain();
+    TEST_ASSERT_EQUAL_INT(10, uart_write_int(INT32_MAX));
+    expect_str("2147483647");
+}
+
 void test_uart_write_hex(void) {
     uart_drain();
     TEST_ASSERT_EQUAL_INT(2, uart_write_hex(0xA5));
@@ -102,6 +113,7 @@ void run_test_app_uart(void) {
     TEST_RUN(test_uart_write_str_transmits);
     TEST_RUN(test_uart_write_int_zero_and_negative);
     TEST_RUN(test_uart_write_int_positive);
+    TEST_RUN(test_uart_write_int_extremes);
     TEST_RUN(test_uart_write_hex);
     TEST_RUN(test_uart_buffer_full_drops_byte);
 }
