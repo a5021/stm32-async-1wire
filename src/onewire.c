@@ -91,9 +91,9 @@ static volatile uint16_t search_edge3[3];
  *        slot 3 so the one-pulse timer stops with the line released to idle
  *        HIGH (hardware bus release). */
 
-/** @brief Edge capture buffer used by the search engine for bus resets and
+/** @brief Pulse capture buffer used by the search engine for bus resets and
  *         plain id/cmp pair reads (the merged write+read uses search_edge3). */
-static volatile uint16_t search_pair_edge[OW_PORT_CAPTURE_BUF_SIZE];
+static volatile uint16_t search_pair_pulse[OW_PORT_CAPTURE_BUF_SIZE];
 
 /** @brief Search state machine phases */
 typedef enum {
@@ -197,13 +197,13 @@ void onewire_write_bit(uint8_t bit) {
     onewire_write_slots(&pulse, 1);
 }
 
-void onewire_read_pair(volatile uint16_t* edge_out) {
-    ow_port_read_pair(edge_out);
+void onewire_read_pair(volatile uint16_t* pair_pulses) {
+    ow_port_read_pair(pair_pulses);
 }
 
-void onewire_pair_bits(const volatile uint16_t* edge, uint8_t* id_bit, uint8_t* cmp_bit) {
-    *id_bit = onewire_bit_from_pulse(edge[0]);
-    *cmp_bit = onewire_bit_from_pulse(edge[1]);
+void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, uint8_t* cmp_bit) {
+    *id_bit = onewire_bit_from_pulse(pair_pulses[0]);
+    *cmp_bit = onewire_bit_from_pulse(pair_pulses[1]);
 }
 
 void onewire_write_then_read(uint8_t bit) {
@@ -328,7 +328,7 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
         return;
     }
     search_ctx.phase = ONEWIRE_SEARCH_RESET;
-    onewire_reset(search_pair_edge); // Schedule the first hardware operation
+    onewire_reset(search_pair_pulse); // Schedule the first hardware operation
 }
 
 uint8_t onewire_search_poll(void) {
@@ -369,7 +369,7 @@ uint8_t onewire_search_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so start a new search pass with the search command
         // (0xF0 Search ROM / 0xEC Alarm Search).
-        if (!onewire_present(search_pair_edge)) {
+        if (!onewire_present(search_pair_pulse)) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }
@@ -383,7 +383,7 @@ uint8_t onewire_search_poll(void) {
         // id/cmp pair.
         search_ctx.id_bit_number = 1;
         search_ctx.last_zero = 0;
-        onewire_read_pair(search_pair_edge);
+        onewire_read_pair(search_pair_pulse);
         search_ctx.phase = ONEWIRE_SEARCH_READ_PAIR;
         break;
 
@@ -392,7 +392,7 @@ uint8_t onewire_search_poll(void) {
         {
             uint8_t id_bit;
             uint8_t cmp_bit;
-            onewire_pair_bits(search_pair_edge, &id_bit, &cmp_bit);
+            onewire_pair_bits(search_pair_pulse, &id_bit, &cmp_bit);
             onewire_search_advance_bit(id_bit, cmp_bit);
         }
         break;
@@ -433,7 +433,7 @@ uint8_t onewire_search_poll(void) {
             break;
         }
         // Another device may exist - run another search pass.
-        onewire_reset(search_pair_edge);
+        onewire_reset(search_pair_pulse);
         search_ctx.phase = ONEWIRE_SEARCH_RESET;
         break;
 

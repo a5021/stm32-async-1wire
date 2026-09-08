@@ -12,7 +12,7 @@
 void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)&ctx.edge);
     hw_register_buf((const void*)(uintptr_t)search_edge3);
-    hw_register_buf((const void*)(uintptr_t)search_pair_edge);
+    hw_register_buf((const void*)(uintptr_t)search_pair_pulse);
     hw_register_buf((const void*)((uintptr_t)conv_cmd + 1u)); /* &conv_cmd[1] */
     hw_register_buf((const void*)((uintptr_t)read_cmd + 1u)); /* &read_cmd[1] */
     hw_register_buf((const void*)((uintptr_t)ctx.addr_cmd + 1u)); /* &addr_cmd[1] */
@@ -45,8 +45,8 @@ void ds18b20_test_reset_resolution(void) {
     res_ctx.finished = 1;
 }
 
-void ds18b20_test_set_edge(uint8_t i, uint16_t v) { ctx.edge[i] = v; }
-uint16_t ds18b20_test_get_edge(uint8_t i) { return ctx.edge[i]; }
+void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) { ctx.edge[i] = v; }
+uint16_t ds18b20_test_get_capture_pulse(uint8_t i) { return ctx.edge[i]; }
 void ds18b20_test_set_pulse(uint8_t i, uint8_t v) { ctx.pulse[i] = v; }
 uint8_t ds18b20_test_get_scratchpad(uint8_t i) { return ctx.scratchpad[i]; }
 void ds18b20_test_set_scratchpad(uint8_t i, uint8_t v) { ctx.scratchpad[i] = v; }

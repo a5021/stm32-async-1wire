@@ -37,8 +37,8 @@ static const uint8_t k_roms[3][DS18B20_ROM_BYTES] = {
  * -----------------------------------------------------------*/
 
 static void set_presence_ok(void) {
-    ds18b20_test_set_edge(0, 510); /* valid reset pulse */
-    ds18b20_test_set_edge(1, 700); /* valid presence pulse */
+    ds18b20_test_set_capture_pulse(0, 510); /* valid reset pulse */
+    ds18b20_test_set_capture_pulse(1, 700); /* valid presence pulse */
 }
 
 /* Feed one valid scratchpad image into the pulse array exactly as

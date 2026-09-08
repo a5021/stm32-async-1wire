@@ -301,8 +301,8 @@ void test_resolution_next_cycle_waits_short(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
 
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());

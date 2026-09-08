@@ -306,9 +306,9 @@ __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t sl
 
 /**
  * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair
- * @param[out] edge_out Buffer for the captured edge timestamps (2 x 16-bit)
+ * @param[out] pair_pulses Buffer for the captured pulse durations (2 x 16-bit)
  */
-__STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
+__STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.RCR = 1; /* Two read slots, then a single update event */
     T1.ARR = ow_one_pulse_us + ow_zero_pulse_us + ow_guard_band_us; /* Total bit slot time */
     T1.CCR3 = ow_one_pulse_us; /* Read pulse duration */
@@ -320,10 +320,10 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* edge_out) {
     T1.DIER = TIM_DIER(CC4DE);
 #endif
     ow_port_update_event();
-    T1.CCR3 = 0; /* Clear output compare value */
+    T1.CCR3 = 0; /* Clear the output-compare value (CCR4 capture is independent) */
     OW_PORT_DMA_CAPTURE.CCR = 0;
     OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)edge_out;
+    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pair_pulses;
     OW_PORT_DMA_CAPTURE.CNDTR = 2;
     OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
     T1.CR1 = TIM_CR1(OPM, CEN);

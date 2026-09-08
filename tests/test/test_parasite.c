@@ -154,8 +154,8 @@ static void pu_assert_unchanged(pu_regs_t before) {
  * -----------------------------------------------------------*/
 
 static void inject_presence(void) {
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
 }
 
 static void inject_scratchpad(void) {
@@ -540,8 +540,8 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
     /* CONVERT -> WAIT (broadcast Skip ROM) */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
@@ -550,14 +550,14 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
     /* CONTINUE -> REQUEST */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_REQUEST, ds18b20_test_get_state());
     /* REQUEST -> READ */
-    ds18b20_test_set_edge(0, 510);
-    ds18b20_test_set_edge(1, 700);
+    ds18b20_test_set_capture_pulse(0, 510);
+    ds18b20_test_set_capture_pulse(1, 700);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
@@ -598,8 +598,8 @@ void test_parasite_alarm_thresholds_release_pullup(void) {
     ds18b20_set_alarm_thresholds(0x1E, 0x00);
     uint8_t done = 0;
     for (int i = 0; i < 8 && !done; i++) {
-        ds18b20_test_set_edge(0, 510);
-        ds18b20_test_set_edge(1, 700);
+        ds18b20_test_set_capture_pulse(0, 510);
+        ds18b20_test_set_capture_pulse(1, 700);
         mock_tim1.SR |= TIM_SR_UIF;
         done = ds18b20_set_alarm_thresholds_poll();
     }
@@ -622,8 +622,8 @@ void test_parasite_convert_no_presence_engages_pullup(void) {
     ds18b20_test_set_state(DS18B20_ST_CONVERT);
 
     /* No device answers the presence pulse. */
-    ds18b20_test_set_edge(0, 100);
-    ds18b20_test_set_edge(1, 100);
+    ds18b20_test_set_capture_pulse(0, 100);
+    ds18b20_test_set_capture_pulse(1, 100);
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
 
