@@ -22,7 +22,7 @@
 
 static uint8_t g_rom[8];
 static uint8_t g_rom_b[8];
-static uint8_t g_found_roms[4][8];
+static uint8_t g_found_roms[16][8];
 static uint8_t g_found_count;
 static uint8_t g_wr_bit; /* bit whose pair the next merged write+read returns */
 static uint8_t g_pass; /* search pass counter (reset by each presence reset) */
@@ -847,6 +847,99 @@ void test_alarm_search_start_blocked_during_resolution(void) {
     TEST_ASSERT_EQUAL_UINT8(10, ds18b20_get_resolution());
 }
 
+/*-------------------------------------------------------------
+ *  A bus with more devices than the scan table can hold (16 on the
+ *  wire, DS18B20_MAX_DEVICES stored). The search finds all of them
+ *  and the user sink is invoked for every device, but search_store_
+ *  sink() must cap the stored table at DS18B20_MAX_DEVICES: no
+ *  out-of-bounds write past dev_roms[MAX-1], count stays capped.
+ *  The devices differ only in bits 9..12 (full 4-bit tree), so every
+ *  pass takes both branches and each pass resolves one more ROM.
+ * -----------------------------------------------------------*/
+static uint8_t g_army[16][8];
+static uint8_t g_army_pass;
+
+/* Pass order the Maxim search enumerates the 16 leaves (bits 9..12), derived
+ * from last_discrepancy stepping: 00,08,04,0C,02,0A,06,0E,01,09,05,0D,03,0B,07,0F */
+static const uint8_t g_army_order[16] = {
+    0x00, 0x08, 0x04, 0x0C, 0x02, 0x0A, 0x06, 0x0E,
+    0x01, 0x09, 0x05, 0x0D, 0x03, 0x0B, 0x07, 0x0F,
+};
+
+static uint16_t army_capture_src(uint32_t idx) {
+    uint8_t rcr = (uint8_t)mock_tim1.RCR;
+    if (rcr == 0) {
+        if (idx == 0) g_army_pass++; /* each reset starts a new pass */
+        return idx == 0 ? 510u : 700u; /* reset + presence pulse */
+    }
+    if (rcr == 1) { /* first read pair: bit 1 (shared family) */
+        g_wr_bit = 2;
+        uint8_t b = (g_army[0][0] >> 0) & 1u;
+        return (idx == 0) ? (b ? ONE : ZERO) : (b ? ZERO : ONE);
+    }
+    /* merged write+read capturing bit g_wr_bit */
+    uint8_t b;
+    if (g_wr_bit >= 9 && g_wr_bit <= 12) {
+        b = 2u; /* discrepancy: every branch of the full 4-bit tree is populated */
+    } else {
+        /* Bits 1..8 and 13..64 (incl. CRC) are answered by the single resolved
+         * device of this pass (byte index given by the search traversal order). */
+        const uint8_t* rom = g_army[g_army_order[g_army_pass - 1]];
+        uint8_t byte = (g_wr_bit - 1u) / 8u;
+        uint8_t bit = (g_wr_bit - 1u) % 8u;
+        b = (rom[byte] >> bit) & 1u;
+    }
+    if (idx == 0) return 0u;
+    if (idx == 1) return b == 2u ? ZERO : (b ? ONE : ZERO);
+    g_wr_bit++;
+    return b == 2u ? ZERO : (b ? ZERO : ONE);
+}
+
+void test_search_more_devices_than_table_caps(void) {
+    for (uint8_t d = 0; d < 16; d++) {
+        uint8_t serial[7] = {DS18B20_FAMILY_CODE, d, 0x00, 0x00,
+                             0x00, 0x00, 0x00};
+        memcpy(g_army[d], serial, 7);
+        g_army[d][7] = ds18b20_crc8(g_army[d], 7);
+        TEST_ASSERT_EQUAL_UINT8(0, ds18b20_crc8(g_army[d], 8));
+    }
+
+    g_found_count = 0;
+    g_wr_bit = 2;
+    g_army_pass = 0;
+    hw_set_capture_source(army_capture_src);
+    ds18b20_search_start(sink, 9);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            uint8_t ok = hw_run_until_uif(100);
+            TEST_ASSERT_TRUE(ok);
+        }
+        if (++guard > 2000) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 2000);
+
+    /* Every device found by the search reached the user sink... */
+    TEST_ASSERT_EQUAL_UINT8(9, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(9, g_found_count);
+    for (uint8_t i = 0; i < 9; i++) {
+        TEST_ASSERT_EQUAL_UINT8(0, ds18b20_crc8(g_found_roms[i], 8));
+    }
+
+    /* ...but the table is capped: no overflow past DS18B20_MAX_DEVICES. */
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_MAX_DEVICES, ds18b20_device_count());
+    TEST_ASSERT_TRUE(ds18b20_device_rom(DS18B20_MAX_DEVICES) == 0);
+    for (uint8_t i = 0; i < DS18B20_MAX_DEVICES; i++) {
+        TEST_ASSERT_EQUAL_UINT8(0, ds18b20_crc8(ds18b20_device_rom(i), 8));
+    }
+}
+
 void run_test_search(void) {
     TEST_RUN(test_search_finds_single_device);
     TEST_RUN(test_search_command_feed_release);
@@ -868,4 +961,5 @@ void run_test_search(void) {
     TEST_RUN(test_search_rejected_while_txn_running);
     TEST_RUN(test_search_start_blocked_during_resolution);
     TEST_RUN(test_alarm_search_start_blocked_during_resolution);
+    TEST_RUN(test_search_more_devices_than_table_caps);
 }
