@@ -294,19 +294,21 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
 
 /**
  * @brief Schedule a 1-Wire bus reset with presence capture
- * @param[out] edge_out Buffer for the captured edge timestamps (2 x 16-bit)
+ * @param[out] reset_pulses Buffer for the captured reset + presence pulse
+ *                          durations (2 x 16-bit)
  */
-__STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* edge_out) {
+__STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
     T1.RCR = 0;
     T1.ARR = OW_PORT_RESET_TIMEOUT;
     T1.CCR3 = OW_PORT_RESET_PULSE_DURATION;
-    /* Clear the capture buffer: only edge[0] (master release) is always written
-     * by the DMA, so a no-presence reset would otherwise leave a stale edge[1]
-     * from a previous presence reset and onewire_present() would report a false
-     * device. Zeroing makes a single-capture reset report "no device". */
-    edge_out[0] = 0;
-    edge_out[1] = 0;
-    ow_port_capture((volatile void*)edge_out, OW_PORT_CAPTURE_BUF_SIZE, 16);
+    /* Clear the capture buffer: only reset_pulses[0] (master release) is always
+     * written by the DMA, so a no-presence reset would otherwise leave a stale
+     * reset_pulses[1] from a previous presence reset and onewire_present() would
+     * report a false device. Zeroing makes a single-capture reset report "no
+     * device". */
+    reset_pulses[0] = 0;
+    reset_pulses[1] = 0;
+    ow_port_capture((volatile void*)reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);
 }
 
 /**
@@ -370,7 +372,8 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
- * @param[in] edge3 Buffer for the three captured edges (write slot, id, cmp)
+ * @param[in] edge3 Buffer for the three captured slots (write-slot edge count,
+ *                  id pulse, cmp pulse)
  * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing 0)
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* edge3,
@@ -403,7 +406,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.DIER = 0;
 #endif
     ow_port_update_event();
-    /* Capture DMA: all three slot edges into the merged-edge buffer */
+    /* Capture DMA: write-slot edge plus the id/cmp pulse pair into the buffer */
     OW_PORT_DMA_CAPTURE.CCR = 0;
     DMAMUX1_Channel3->CCR = OW_PORT_DMAMUX_REQ_TIM1_CH4;
     OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;

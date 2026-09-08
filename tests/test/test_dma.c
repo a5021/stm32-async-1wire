@@ -85,7 +85,7 @@ typedef struct {
 
 typedef struct {
     uint8_t guard_before[DMA_GUARD];
-    uint16_t edge[4]; /* capacity beyond the 2-3 transfers actually used */
+    uint16_t capture[4]; /* capacity beyond the 2-3 transfers actually used */
     uint8_t guard_after[DMA_GUARD];
 } dma_rx16_t;
 
@@ -278,13 +278,13 @@ void test_dma_rx_read_pair_16bit_destination(void) {
     static dma_rx16_t g;
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     for (uint8_t i = 0; i < 4; i++) {
-        g.edge[i] = 0xEEEE; /* pre-fill: untouched elements must stay 0xEEEE */
+        g.capture[i] = 0xEEEE; /* pre-fill: untouched elements must stay 0xEEEE */
     }
-    hw_register_buf(g.edge);
+    hw_register_buf(g.capture);
     hw_set_capture_source(two_val16_src);
 
-    onewire_read_pair(g.edge); /* capture 2 slots, 16-bit MSIZE */
-    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.edge[0], mock_dma1_ch4.CMAR);
+    onewire_read_pair(g.capture); /* capture 2 slots, 16-bit MSIZE */
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.capture[0], mock_dma1_ch4.CMAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
     TEST_ASSERT_EQUAL_UINT32(2u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
@@ -299,10 +299,10 @@ void test_dma_rx_read_pair_16bit_destination(void) {
 
     /* element 0 <- capture 0 at byte offset 0, element 1 <- capture 1 at
        byte offset 2 (16-bit MINC): the next transfer stepped 2 bytes */
-    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.edge[0]);
-    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.edge[1]);
-    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.edge[2]); /* outside the permitted range */
-    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.edge[3]);
+    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.capture[1]);
+    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.capture[2]); /* outside the permitted range */
+    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.capture[3]);
     assert_guards(g.guard_before, g.guard_after, 0xA5);
 }
 
@@ -362,12 +362,12 @@ void test_dma_rx_overrun_is_observable(void) {
     static dma_rx16_t g; /* capacity 4 x 16-bit = 8 bytes */
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     for (uint8_t i = 0; i < 4; i++) {
-        g.edge[i] = 0xEEEE;
+        g.capture[i] = 0xEEEE;
     }
-    hw_register_buf(g.edge);
+    hw_register_buf(g.capture);
     hw_set_capture_source(two_val16_src);
 
-    ds18b20_test_arm_capture(g.edge, 2, 16);
+    ds18b20_test_arm_capture(g.capture, 2, 16);
     mock_dma1_ch4.CNDTR = 5u; /* config error: 5 x 16-bit = 10 bytes > 8-byte buffer */
 
     TEST_ASSERT_TRUE(hw_run_until_uif(8));
@@ -375,8 +375,8 @@ void test_dma_rx_overrun_is_observable(void) {
 
     /* the model must NOT silently truncate: the two surplus transfers walk
        into the guard zone instead of being masked, catching the overrun */
-    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.edge[0]);
-    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.edge[1]);
+    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.capture[1]);
     uint8_t guard_hit = 0;
     for (uint8_t i = 0; i < DMA_GUARD; i++) {
         if (g.guard_after[i] != 0xA5u) {
@@ -447,21 +447,21 @@ void test_dma_rx_direction_peripheral_to_memory(void) {
     static dma_rx16_t g;
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     for (uint8_t i = 0; i < 4; i++) {
-        g.edge[i] = 0xEEEE;
+        g.capture[i] = 0xEEEE;
     }
-    hw_register_buf(g.edge);
+    hw_register_buf(g.capture);
     hw_set_capture_source(two_val16_src);
 
-    onewire_read_pair(g.edge);
+    onewire_read_pair(g.capture);
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
     run_op();
 
     /* behavioural direction: the data moved INTO memory through the capture
        register (CCR4); only the permitted range of the buffer changed */
     TEST_ASSERT_EQUAL_UINT32(0x5678u, mock_tim1.CCR4); /* last capture value */
-    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.edge[0]);
-    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.edge[1]);
-    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.edge[2]);
+    TEST_ASSERT_EQUAL_UINT16(0x1234u, g.capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(0x5678u, g.capture[1]);
+    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.capture[2]);
     assert_guards(g.guard_before, g.guard_after, 0xA5);
 }
 
@@ -470,15 +470,15 @@ void test_dma_rx_direction_peripheral_to_memory(void) {
  * ============================================================ */
 
 void test_dma_reset_capture_geometry(void) {
-    static uint16_t edge[OW_PORT_CAPTURE_BUF_SIZE];
-    hw_register_buf(edge);
+    static uint16_t capture[OW_PORT_CAPTURE_BUF_SIZE];
+    hw_register_buf(capture);
     hw_set_capture_source(presence_src);
 
-    onewire_reset(edge);
-    /* ONE slot but TWO captures: the reset bus-turnaround is 2 edges in 1 slot */
+    onewire_reset(capture);
+    /* ONE slot but TWO captures: the reset bus-turnaround is 2 pulse captures in 1 slot */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, mock_dma1_ch4.CNDTR);
-    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&edge[0], mock_dma1_ch4.CMAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CMAR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
 
@@ -486,8 +486,8 @@ void test_dma_reset_capture_geometry(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, hw_capture_count());
-    TEST_ASSERT_EQUAL_UINT16(510u, edge[0]);
-    TEST_ASSERT_EQUAL_UINT16(700u, edge[1]);
+    TEST_ASSERT_EQUAL_UINT16(510u, capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(700u, capture[1]);
 }
 
 void test_dma_write_then_read_merged_geometry(void) {
@@ -523,7 +523,7 @@ void test_dma_write_then_read_merged_geometry(void) {
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[1]);
     TEST_ASSERT_EQUAL_UINT16(0u, log->values[2]);
 
-    /* captures landed sequentially in the merged 16-bit edge buffer */
+    /* captures landed sequentially in the merged 16-bit capture buffer (write-slot edge + id/cmp pulses) */
     TEST_ASSERT_EQUAL_UINT16(0x1000u, test_search_edge(0));
     TEST_ASSERT_EQUAL_UINT16(0x2000u, test_search_edge(1));
     TEST_ASSERT_EQUAL_UINT16(0x3000u, test_search_edge(2));
@@ -551,12 +551,12 @@ void test_dma_cndtr_one_transfer(void) {
     static dma_rx16_t g;
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     for (uint8_t i = 0; i < 4; i++) {
-        g.edge[i] = 0xEEEE;
+        g.capture[i] = 0xEEEE;
     }
-    hw_register_buf(g.edge);
+    hw_register_buf(g.capture);
     hw_set_capture_source(one_val_src);
 
-    ds18b20_test_arm_capture(g.edge, 1, 16); /* minimal transfer count */
+    ds18b20_test_arm_capture(g.capture, 1, 16); /* minimal transfer count */
     TEST_ASSERT_EQUAL_UINT32(1u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
@@ -564,8 +564,8 @@ void test_dma_cndtr_one_transfer(void) {
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(1u, hw_capture_count());
-    TEST_ASSERT_EQUAL_UINT16(0x0777u, g.edge[0]);
-    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.edge[1]); /* single transfer only */
+    TEST_ASSERT_EQUAL_UINT16(0x0777u, g.capture[0]);
+    TEST_ASSERT_EQUAL_UINT16(0xEEEEu, g.capture[1]); /* single transfer only */
     assert_guards(g.guard_before, g.guard_after, 0xA5);
 }
 
@@ -693,7 +693,7 @@ void test_dma_search_transfer_accounting(void) {
             /* slots -> transfers consistency for every search operation:
                - feed always transfers one element per slot (feed CNDTR == RCR+1);
                - capture transfers == RCR+1 slots, except the reset which
-                 captures 2 edges in its single slot (CNDTR == 2 x (RCR+1)); */
+                 captures 2 pulses in its single slot (CNDTR == 2 x (RCR+1)); */
             if (pre_feed > 0u) {
                 TEST_ASSERT_EQUAL_UINT32(rcr + 1u, pre_feed);
             }
@@ -722,7 +722,7 @@ void test_dma_search_transfer_accounting(void) {
     /* 0xF0 command feed: 8 transfers. First id/cmp pair: read_pair capture 2.
        The 64 address bits walk through 63 merged write+read operations, each
        doing 3 feed (direction write reloads + read pulses + release 0) and
-       3 capture (16-bit write-slot/id/cmp edges), plus the final single-slot
+       3 capture (16-bit write-slot edge + id/cmp pulses), plus the final single-slot
        write_bit for bit 64 - which uses no DMA.
          feed = 8 + 63*3,  capture = 2 (reset) + 2 (read pair) + 63*3 */
     TEST_ASSERT_EQUAL_UINT32(8u + 63u * 3u, feed_total);

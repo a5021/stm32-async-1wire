@@ -20,21 +20,21 @@
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 4) return 0;
 
-    uint16_t edge[2];
-    memcpy(edge, data, 4);
+    uint16_t pulses[2];
+    memcpy(pulses, data, 4);
 
-    uint8_t result = onewire_present(edge);
+    uint8_t result = onewire_present(pulses);
 
     /* Property 1: output is 0 or 1 */
     if (result > 1) abort();
 
     /* Property 2: deterministic */
-    uint8_t result2 = onewire_present(edge);
+    uint8_t result2 = onewire_present(pulses);
     if (result != result2) abort();
 
     /* Property 3: matches manual range check */
-    uint16_t reset = edge[0];
-    uint16_t presence = edge[1];
+    uint16_t reset = pulses[0];
+    uint16_t presence = pulses[1];
     uint8_t expected = (reset >= RESET_PULSE_MIN) &&
                                (reset <= RESET_PULSE_MAX) &&
                                (presence >= PRESENCE_PULSE_MIN) &&

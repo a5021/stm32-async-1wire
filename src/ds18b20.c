@@ -80,7 +80,7 @@ typedef struct {
      *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.
      */
     union {
-        volatile uint16_t edge[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence, pair reads) */
+        volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence, pair reads) */
         volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
         uint64_t fill_union; /**< Utility field for filling the union */
@@ -560,7 +560,7 @@ void ds18b20_set_resolution(uint8_t bits) {
     res_ctx.finished = 0;
     build_res_pulses(bits); // Pre-build the config write for the current address mode
     res_ctx.phase = DS18B20_RES_RESET;
-    onewire_reset(ctx.edge); // Schedule the first hardware operation
+    onewire_reset(ctx.capture); // Schedule the first hardware operation
 }
 
 /**
@@ -596,7 +596,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
     case DS18B20_RES_RESET:
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the config write for the requested resolution.
-        if (!onewire_present(ctx.edge)) {
+        if (!onewire_present(ctx.capture)) {
             res_ctx.phase = DS18B20_RES_DONE;
             break;
         }
@@ -829,7 +829,7 @@ static uint8_t txn_poll(void) {
     case DS18B20_TXN_RESET:
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the command for this transaction.
-        if (!onewire_present(ctx.edge)) {
+        if (!onewire_present(ctx.capture)) {
             txn_ctx.phase = DS18B20_TXN_DONE;
             break;
         }
@@ -925,7 +925,7 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
     txn_build_pulses(); // Pre-build the command for the current address mode
     onewire_strong_pullup(0);
     txn_ctx.phase = DS18B20_TXN_RESET;
-    onewire_reset(ctx.edge); // Schedule the first hardware operation
+    onewire_reset(ctx.capture); // Schedule the first hardware operation
 }
 
 /**
@@ -1235,7 +1235,7 @@ static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
  * @param[in] next_state State to transition to on success
  */
 static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
-    if (!onewire_present(ctx.edge)) {
+    if (!onewire_present(ctx.capture)) {
         // Return to IDLE before the callback so a re-selection from inside
         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
         ctx.current_state = DS18B20_ST_IDLE;
@@ -1297,7 +1297,7 @@ void ds18b20_poll(void) {
             onewire_strong_pullup(0);
         }
         // Initiate 1-Wire bus reset sequence
-        onewire_reset(ctx.edge);
+        onewire_reset(ctx.capture);
         // Transition to CONVERT state
         ctx.current_state = DS18B20_ST_CONVERT;
         break;
@@ -1338,7 +1338,7 @@ void ds18b20_poll(void) {
         // parasite supply and the bus must be free again.
         onewire_strong_pullup(0);
         // Initiate second 1-Wire bus reset sequence
-        onewire_reset(ctx.edge);
+        onewire_reset(ctx.capture);
         ctx.current_state = DS18B20_ST_REQUEST;
         break;
 

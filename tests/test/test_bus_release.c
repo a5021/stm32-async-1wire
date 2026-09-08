@@ -199,7 +199,7 @@ void test_sequence_stays_released_between_ops(void) {
 
 /*-------------------------------------------------------------
  *  Standalone read_pair (rcr=1, 2 captures): OC3PE preload 0,
- *  id/cmp decoded from ctx.edge, bus released on completion.
+ *  id/cmp decoded from ctx.capture, bus released on completion.
  * -----------------------------------------------------------*/
 void test_read_pair_standalone_release(void) {
     hw_set_capture_source(src_pair_id_one);
