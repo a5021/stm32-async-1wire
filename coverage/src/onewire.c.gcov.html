@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-08 17:05:35</td>
+            <td class="headerValue">2026-09-08 17:44:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -162,9 +162,9 @@
 <span id="L91"><span class="lineNum">      91</span>                 :             :  *        slot 3 so the one-pulse timer stops with the line released to idle</span>
 <span id="L92"><span class="lineNum">      92</span>                 :             :  *        HIGH (hardware bus release). */</span>
 <span id="L93"><span class="lineNum">      93</span>                 :             : </span>
-<span id="L94"><span class="lineNum">      94</span>                 :             : /** @brief Edge capture buffer used by the search engine for bus resets and</span>
+<span id="L94"><span class="lineNum">      94</span>                 :             : /** @brief Pulse capture buffer used by the search engine for bus resets and</span>
 <span id="L95"><span class="lineNum">      95</span>                 :             :  *         plain id/cmp pair reads (the merged write+read uses search_edge3). */</span>
-<span id="L96"><span class="lineNum">      96</span>                 :             : static volatile uint16_t search_pair_edge[OW_PORT_CAPTURE_BUF_SIZE];</span>
+<span id="L96"><span class="lineNum">      96</span>                 :             : static volatile uint16_t search_pair_pulse[OW_PORT_CAPTURE_BUF_SIZE];</span>
 <span id="L97"><span class="lineNum">      97</span>                 :             : </span>
 <span id="L98"><span class="lineNum">      98</span>                 :             : /** @brief Search state machine phases */</span>
 <span id="L99"><span class="lineNum">      99</span>                 :             : typedef enum {</span>
@@ -268,13 +268,13 @@
 <span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         249 :     onewire_write_slots(&amp;pulse, 1);</span></span>
 <span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaGNC">         249 : }</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : </span>
-<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">         273 : void onewire_read_pair(volatile uint16_t* edge_out) {</span></span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :     ow_port_read_pair(edge_out);</span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">         273 : void onewire_read_pair(volatile uint16_t* pair_pulses) {</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :             :     ow_port_read_pair(pair_pulses);</span>
 <span id="L202"><span class="lineNum">     202</span>                 :<span class="tlaGNC">         273 : }</span></span>
 <span id="L203"><span class="lineNum">     203</span>                 :             : </span>
-<span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">         246 : void onewire_pair_bits(const volatile uint16_t* edge, uint8_t* id_bit, uint8_t* cmp_bit) {</span></span>
-<span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC">         246 :     *id_bit = onewire_bit_from_pulse(edge[0]);</span></span>
-<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">         246 :     *cmp_bit = onewire_bit_from_pulse(edge[1]);</span></span>
+<span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">         246 : void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, uint8_t* cmp_bit) {</span></span>
+<span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC">         246 :     *id_bit = onewire_bit_from_pulse(pair_pulses[0]);</span></span>
+<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">         246 :     *cmp_bit = onewire_bit_from_pulse(pair_pulses[1]);</span></span>
 <span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">         246 : }</span></span>
 <span id="L208"><span class="lineNum">     208</span>                 :             : </span>
 <span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">       14769 : void onewire_write_then_read(uint8_t bit) {</span></span>
@@ -399,7 +399,7 @@
 <span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">          12 :         return;</span></span>
 <span id="L329"><span class="lineNum">     329</span>                 :             :     }</span>
 <span id="L330"><span class="lineNum">     330</span>                 :<span class="tlaGNC">         210 :     search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
-<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">         210 :     onewire_reset(search_pair_edge); // Schedule the first hardware operation</span></span>
+<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">         210 :     onewire_reset(search_pair_pulse); // Schedule the first hardware operation</span></span>
 <span id="L332"><span class="lineNum">     332</span>                 :             : }</span>
 <span id="L333"><span class="lineNum">     333</span>                 :             : </span>
 <span id="L334"><span class="lineNum">     334</span>                 :<span class="tlaGNC">       16554 : uint8_t onewire_search_poll(void) {</span></span>
@@ -441,7 +441,7 @@
 <span id="L369"><span class="lineNum">     369</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L370"><span class="lineNum">     370</span>                 :             :         // the bus, so start a new search pass with the search command</span>
 <span id="L371"><span class="lineNum">     371</span>                 :             :         // (0xF0 Search ROM / 0xEC Alarm Search).</span>
-<span id="L372"><span class="lineNum">     372</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 246 times"> + </span>]:<span class="tlaGNC">         258 :         if (!onewire_present(search_pair_edge)) {</span></span>
+<span id="L372"><span class="lineNum">     372</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 246 times"> + </span>]:<span class="tlaGNC">         258 :         if (!onewire_present(search_pair_pulse)) {</span></span>
 <span id="L373"><span class="lineNum">     373</span>                 :<span class="tlaGNC">          12 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
 <span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">          12 :             break;</span></span>
 <span id="L375"><span class="lineNum">     375</span>                 :             :         }</span>
@@ -455,7 +455,7 @@
 <span id="L383"><span class="lineNum">     383</span>                 :             :         // id/cmp pair.</span>
 <span id="L384"><span class="lineNum">     384</span>                 :<span class="tlaGNC">         246 :         search_ctx.id_bit_number = 1;</span></span>
 <span id="L385"><span class="lineNum">     385</span>                 :<span class="tlaGNC">         246 :         search_ctx.last_zero = 0;</span></span>
-<span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">         246 :         onewire_read_pair(search_pair_edge);</span></span>
+<span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">         246 :         onewire_read_pair(search_pair_pulse);</span></span>
 <span id="L387"><span class="lineNum">     387</span>                 :<span class="tlaGNC">         246 :         search_ctx.phase = ONEWIRE_SEARCH_READ_PAIR;</span></span>
 <span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">         246 :         break;</span></span>
 <span id="L389"><span class="lineNum">     389</span>                 :             : </span>
@@ -464,7 +464,7 @@
 <span id="L392"><span class="lineNum">     392</span>                 :             :         {</span>
 <span id="L393"><span class="lineNum">     393</span>                 :             :             uint8_t id_bit;</span>
 <span id="L394"><span class="lineNum">     394</span>                 :             :             uint8_t cmp_bit;</span>
-<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         246 :             onewire_pair_bits(search_pair_edge, &amp;id_bit, &amp;cmp_bit);</span></span>
+<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         246 :             onewire_pair_bits(search_pair_pulse, &amp;id_bit, &amp;cmp_bit);</span></span>
 <span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">         246 :             onewire_search_advance_bit(id_bit, cmp_bit);</span></span>
 <span id="L397"><span class="lineNum">     397</span>                 :             :         }</span>
 <span id="L398"><span class="lineNum">     398</span>                 :<span class="tlaGNC">         246 :         break;</span></span>
@@ -505,7 +505,7 @@
 <span id="L433"><span class="lineNum">     433</span>                 :<span class="tlaGNC">          12 :             break;</span></span>
 <span id="L434"><span class="lineNum">     434</span>                 :             :         }</span>
 <span id="L435"><span class="lineNum">     435</span>                 :             :         // Another device may exist - run another search pass.</span>
-<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">          78 :         onewire_reset(search_pair_edge);</span></span>
+<span id="L436"><span class="lineNum">     436</span>                 :<span class="tlaGNC">          78 :         onewire_reset(search_pair_pulse);</span></span>
 <span id="L437"><span class="lineNum">     437</span>                 :<span class="tlaGNC">          78 :         search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
 <span id="L438"><span class="lineNum">     438</span>                 :<span class="tlaGNC">          78 :         break;</span></span>
 <span id="L439"><span class="lineNum">     439</span>                 :             : </span>
