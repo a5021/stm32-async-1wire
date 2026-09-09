@@ -34,10 +34,10 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 int main(void) {
-    /* Known CRC test vector: CRC("123456789") = 0xA2 for Dallas/Maxim */
+    /* Known CRC test vector: CRC("123456789") = 0xA1 for Dallas/Maxim */
     const uint8_t test[] = "123456789";
     uint8_t crc = onewire_crc8(test, 9);
-    (void)crc;
+    if (crc != 0xA1) abort();
 
     /* Empty input returns 0 */
     uint8_t empty_crc = onewire_crc8(test, 0);

@@ -7,9 +7,10 @@
  * libFuzzer harness for onewire_encode_byte().
  *
  * Properties:
- * 1. Every output element is either ow_one_pulse_us or ow_zero_pulse_us
- * 2. Roundtrip: decode(encode(byte)) == byte
- * 3. Deterministic
+ * 1. No crash/UB
+ * 2. Every output element is either ow_one_pulse_us or ow_zero_pulse_us
+ * 3. Roundtrip: decode(encode(byte)) == byte
+ * 4. Deterministic
  */
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -26,7 +27,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         if (out[i] != ow_one_pulse_us && out[i] != ow_zero_pulse_us) abort();
     }
 
-    /* Property 3: roundtrip decode→encode */
+    /* Property 3: roundtrip encode→decode */
     uint8_t decoded[1];
     onewire_decode_pulses(decoded, out, 1);
     if (decoded[0] != byte) abort();
