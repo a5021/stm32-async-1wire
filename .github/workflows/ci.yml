@@ -25,11 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install host GCC
-        # The ubuntu-latest image ships a Google Chrome apt source whose
-        # metadata occasionally gets a Hash Sum mismatch on the CDN, failing
-        # apt-get update for every package install. Drop it first — our tools
+        # The ubuntu-latest image ships a Google Chrome apt source (as a
+        # .list or deb822 .sources file) whose metadata occasionally gets a
+        # Hash Sum mismatch on the CDN, failing apt-get update for every
+        # package install. Drop whatever file references it first — our tools
         # come from the Ubuntu archives only.
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list && sudo apt-get update && sudo apt-get install -y gcc
+        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y gcc
       - name: Download CMSIS dependencies
         # All families up front: the host suites compile against mocks, but
         # keeping every backend's dependency set present lets any matrix cell
@@ -68,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install host GCC and lcov
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list && sudo apt-get update && sudo apt-get install -y gcc lcov
+        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y gcc lcov
       - name: Download CMSIS dependencies
         run: |
           make download-deps
@@ -119,7 +120,7 @@ jobs:
       # which match $GITHUB_WORKSPACE exactly).
       - uses: actions/checkout@v5
       - name: Install lcov
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list && sudo apt-get update && sudo apt-get install -y lcov
+        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y lcov
       - name: Download coverage traces
         uses: actions/download-artifact@v7
         with:
@@ -206,7 +207,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install cppcheck
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list && sudo apt-get update && sudo apt-get install -y cppcheck
+        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y cppcheck
       - name: Download CMSIS dependencies
         run: make download-deps
       - name: Run static analysis (F1)
@@ -258,6 +259,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install clang
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*.list && sudo apt-get update && sudo apt-get install -y clang
+        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y clang
       - name: Build and run fuzz harnesses (standalone)
         run: make FUZZ_CC=clang FUZZ_TIME=5 fuzz-all
