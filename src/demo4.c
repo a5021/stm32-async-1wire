@@ -1,6 +1,6 @@
 /**
  * @file demo4.c
- * @brief Command demo: ROM, power supply, TH/TL and the EEPROM (v1.3.0 API)
+ * @brief Command demo: ROM, power supply, TH/TL and the EEPROM
  *
  * Runs the non-blocking device search to discover every sensor, selects the
  * first device (Match ROM), then drives the non-blocking command transactions

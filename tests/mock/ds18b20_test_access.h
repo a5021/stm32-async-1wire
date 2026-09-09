@@ -6,7 +6,7 @@
 #include "ds18b20.h"
 #include <stdint.h>
 
-/* State machine / scratchpad accessors (used by the legacy unit tests). */
+/* State machine / scratchpad accessors (used by the host unit tests). */
 ds18b20_state_t ds18b20_test_get_state(void);
 void ds18b20_test_set_state(ds18b20_state_t s);
 void ds18b20_test_reset_ctx(void);
