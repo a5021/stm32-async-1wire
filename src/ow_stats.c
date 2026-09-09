@@ -12,9 +12,9 @@
 #include "app.h"
 #include <string.h>
 
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
 #include "stm32g0xx.h"
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_FAMILY_F0)
 #include "stm32f0xx.h"
 #else
 #include "stm32f1xx.h"

@@ -2,7 +2,10 @@
 #define STM32F0XX_MOCK_H
 /* Host-build stand-in for the STM32F0 CMSIS device header.
  * Provides just enough register types, instance symbols and bit-field
- * constants for the DS18B20 driver, plus the compiler helpers it expects. */
+ * constants for the DS18B20 driver, plus the compiler helpers it expects.
+ * Defines the family macro like the real stm32f0xx.h so the ow_port.h
+ * PlatformIO/CubeMX fallback path is exercised on the host too. */
+#define STM32F0 1
 #include <stdint.h>
 
 /* --- Register types (host mocks, one instance each) --- */

@@ -23,20 +23,36 @@
 #define ONEWIRE_ROM_BITS (ONEWIRE_ROM_BYTES * 8)
 /** @brief Bits per byte */
 #define ONEWIRE_BITS_PER_BYTE 8
+/** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
+ *  either the explicit OW_PORT_TARGET_* knob or the family macros
+ *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
+ *  own. ow_port.h picks the backend and app.c the device header/clock config
+ *  from the token — never from the individual spellings — so the backend and
+ *  the clock default cannot drift. To add a family, extend this chain (token
+ *  and default clock together in one branch), then add the #include branch in
+ *  ow_port.h, the app.c config, and a case in tests/test/test_sysclk_fallback.c. */
+#if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
+#define OW_PORT_FAMILY_F1
+#elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
+#define OW_PORT_FAMILY_F0
+#elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
+#define OW_PORT_FAMILY_G0
+#endif
 /** @brief System clock frequency in MHz after application clock setup.
  *  Single source of truth for the clock-dependent settings: the timer
  *  prescaler (1µs ticks) and the input-capture filter selection below
  *  derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends)
  *  are fixed constants validated on every supported clock. Family defaults
- *  are provided here; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for
- *  the clock sources available per family). */
+ *  are provided per OW_PORT_FAMILY_* above; override via
+ *  -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the clock sources available
+ *  per family). */
 #if !defined(OW_PORT_SYSCLK_MHZ)
-#if defined(OW_PORT_TARGET_F0)
-#define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
-#elif defined(OW_PORT_TARGET_G0)
-#define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
-#else
+#if defined(OW_PORT_FAMILY_F1)
 #define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
+#elif defined(OW_PORT_FAMILY_F0)
+#define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
+#elif defined(OW_PORT_FAMILY_G0)
+#define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #endif
 #endif
 /** @brief Opt-in low-power WFE sleep: when defined, long hardware stages

@@ -4,9 +4,9 @@
  */
 
 #include "app.h"
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_FAMILY_F0)
 #include "stm32f0xx.h"
-#elif defined(OW_PORT_TARGET_G0)
+#elif defined(OW_PORT_FAMILY_G0)
 #include "stm32g0xx.h"
 #else
 #include "stm32f1xx.h"
@@ -22,14 +22,14 @@ static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transm
  * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
     // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
         uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
         USART1->TDR = b;
     }
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_FAMILY_F0)
     // F0 unified USART naming: TXE lives in ISR, data goes to TDR
     if ((USART1->ISR & USART_ISR_TXE) && (uart_tx_tail != uart_tx_head)) {
         // Get byte from buffer at tail position
@@ -159,7 +159,7 @@ int uart_write_hex(uint8_t b) {
  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
 #if (OW_PORT_SYSCLK_MHZ) == 64
     // HSI16 is on and stable right after reset. PLL source must be selected
     // explicitly: on this family PLLSRC=00 means "no clock sent to the PLL",
@@ -182,7 +182,7 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
 #else
 #error "Unsupported OW_PORT_SYSCLK_MHZ for G0: use 64 (HSI16+PLL) or 16 (raw HSI16)"
 #endif
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_FAMILY_F0)
 #if (OW_PORT_SYSCLK_MHZ) == 48
     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier
     // before enabling the PLL so it locks on a valid clock (per RM0360).
@@ -244,9 +244,9 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
  *       LED on PA4 (no PC13 bonded out on TSSOP20).
  */
 __STATIC_FORCEINLINE void hardware_init(void) {
-#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
     RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
     RCC->APBENR2 |= RCC_APBENR2_USART1EN;
 #else
@@ -256,7 +256,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
 
     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1
     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;
 #else
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
@@ -264,7 +264,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (1u << GPIO_AFRH_AFSEL9_Pos);
 
     // Configure PA4 as general purpose output for LED control
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;
 #else
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;
@@ -309,17 +309,17 @@ void app_init(void) {
  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
  */
 void ds18b20_busy(unsigned action) {
-#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
     if (action) {
         // Turn LED on (PA4 low)
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
         GPIOA->BSRR = GPIO_BSRR_BR4;
 #else
         GPIOA->BSRR = GPIO_BSRR_BR_4;
 #endif
     } else {
         // Turn LED off (PA4 high)
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_G0)
         GPIOA->BSRR = GPIO_BSRR_BS4;
 #else
         GPIOA->BSRR = GPIO_BSRR_BS_4;
