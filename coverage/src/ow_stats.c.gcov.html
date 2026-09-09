@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-09 18:43:50</td>
+            <td class="headerValue">2026-09-09 18:54:13</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -183,11 +183,11 @@
 <span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">          30 : uint8_t ow_stats_dump_poll(void) {</span></span>
 <span id="L113"><span class="lineNum">     113</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 30 times"> + </span>]:<span class="tlaGNC">          30 :     if (dump_phase == 0) return 1;</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 :             : </span>
-<span id="L115"><span class="lineNum">     115</span>                 :             :     /* Each poll call enqueues one section into the non-blocking UART TX ring</span>
+<span id="L115"><span class="lineNum">     115</span>                 :             :     /* Each poll call enqueues one line into the non-blocking UART TX ring</span>
 <span id="L116"><span class="lineNum">     116</span>                 :             :      * buffer.  The main loop drains the buffer via uart_poll_tx(), so nothing</span>
-<span id="L117"><span class="lineNum">     117</span>                 :             :      * here blocks on the USART.  UART_TX_BUF_SIZE is sized to hold a whole</span>
-<span id="L118"><span class="lineNum">     118</span>                 :             :      * dump (~440 bytes worst case vs a 1024-byte ring), so the enqueue never</span>
-<span id="L119"><span class="lineNum">     119</span>                 :             :      * overflows and no bytes are dropped. */</span>
+<span id="L117"><span class="lineNum">     117</span>                 :             :      * here blocks on the USART.  UART_TX_BUF_SIZE is chosen per app (default</span>
+<span id="L118"><span class="lineNum">     118</span>                 :             :      * 128 B, demos 256 B, demo5 1024 B) so the longest single line fits</span>
+<span id="L119"><span class="lineNum">     119</span>                 :             :      * without overflowing; the dump itself streams across poll calls. */</span>
 <span id="L120"><span class="lineNum">     120</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">          30 :     switch (dump_phase) {</span></span>
 <span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
 <span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">           6 :     case 1:</span></span>
