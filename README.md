@@ -1448,17 +1448,16 @@ uint32_t ow_stats_tick(void);
 - `ow_stats_dump_start()` — begin a non-blocking UART dump.  Call from the
   main loop after the desired number of cycles (tracked via `ow_stats_tick()`).
 - `ow_stats_dump_poll()` — advance the dump by one line (header, sensor line,
-  histogram or total).  Each call blocks only for the UART TX register to
-  accept one byte (~87 µs at 115200 baud), writing directly to TDR and
-  bypassing the ring buffer entirely.  A 6-sensor report completes in ~22 ms.
-  Returns 1 when the dump is complete.
+  histogram or total).  Non-blocking: each call enqueues one line into the
+  UART TX ring buffer; the main loop drains it via `uart_poll_tx()`.  Returns
+  1 when the dump is complete.
 - `ow_stats_reset()` — zero all counters and the histogram, keep the sensor
   ROM table.  Call after `ow_stats_dump_poll()` returns 1.
 - `ow_stats_tick()` — increment the cycle counter; returns the new value.
 
-RAM cost: ~290 bytes (8 sensors × 26 B + 16-entry `uint32_t` histogram [64 B] +
-cycle/error counters; 13 of the 16 histogram buckets, indices 0–12, are
-populated).
+RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
+cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
+0–12, are populated).
 
 Example — dump every 100 cycles:
 
