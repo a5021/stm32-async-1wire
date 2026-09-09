@@ -456,7 +456,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   driver (DS18B20 today, DS2413/DS2431 later) is built on. Every operation is
   scheduled on TIM1/DMA and completes asynchronously; callers poll
   `onewire_bus_done()` / `onewire_search_poll()` to advance, never wait. The
-  layer is registered for capture via its own edge buffers and keeps the same
+  layer is registered for capture via its own capture buffers and keeps the same
   hardware bus release to idle HIGH after every transaction. It also provides
   the Dallas/Maxim CRC-8 utility `onewire_crc8()`.
 

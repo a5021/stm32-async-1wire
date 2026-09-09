@@ -585,14 +585,14 @@ DMAMUX request-routing tests). The suite covers:
 -   1-Wire pulse encoding and presence detection
 -   1-Wire layer coverage: reset/presence timing, write-then-read merge,
       multi-slot writes, multi-byte reads, search engine (device + alarm),
-      ownership guards and the search edge buffers
+      ownership guards and the merged search capture buffers
 -   DMA buffer/transfer contracts (`test_dma`), DMAMUX request routing on G0
     (`test_dmamux`)
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
 -   Channel broadcast (`test_broadcast`), UART app driver (`test_app_uart`) and
-    test-scaffold accessors/harness edge branches (`test_harness_api`)
+    test-scaffold accessors/harness edge-case branches (`test_harness_api`)
 -   `ow_stats` capture and error counters plus the non-blocking dump protocol
     (`test_ow_stats`)
 
@@ -822,7 +822,7 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
 Every operation is scheduled as one hardware transaction on TIM1/DMA and
 completes asynchronously; the caller advances it by polling
 `onewire_bus_done()` / `onewire_search_poll()`. The layer owns its own capture
-edge buffers, keeps the line released to idle HIGH after every transaction, and
+buffers, keeps the line released to idle HIGH after every transaction, and
 is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
 
@@ -954,11 +954,11 @@ Kickstart behavior
 - START (state 1)
   - LED on. Run reset_bus():
     - CH3 issues active-low reset pulse (~480µs within ~960µs slot).
-    - CH4 (indirect input) captures presence timing into ctx.edge[0..1] via DMA from CCR4.
+    - CH4 (indirect input) captures presence timing into ctx.capture[0..1] via DMA from CCR4.
   - Set state=2.
 
 - CONVERT (state 2)
-  - On UIF, check_presence() with ctx.edge[].
+  - On UIF, check_presence() with ctx.capture[].
     - If present: send convert command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
       device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
@@ -1130,14 +1130,14 @@ driver — they live in the shared 1-Wire layer (`inc/onewire.h` +
 ```C
 void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
-void        onewire_reset(volatile uint16_t *edge_out);
-uint8_t     onewire_present(const volatile uint16_t *edge);
+void        onewire_reset(volatile uint16_t *reset_pulses);
+uint8_t     onewire_present(const volatile uint16_t *pulses);
 void        onewire_write_slots(const uint8_t *pulses, uint16_t slots);
 void        onewire_write_bit(uint8_t bit);
 void        onewire_encode_byte(uint8_t *out, uint8_t byte);
-void        onewire_read_pair(volatile uint16_t *edge_out);
+void        onewire_read_pair(volatile uint16_t *pair_pulses);
 void        onewire_write_then_read(uint8_t bit);
-void        onewire_pair_bits(const volatile uint16_t *edge,
+void        onewire_pair_bits(const volatile uint16_t *pair_pulses,
                               uint8_t *id_bit, uint8_t *cmp_bit);
 void        onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
 void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
@@ -1674,7 +1674,7 @@ pulse already broke slot decoding on an F030 at 8MHz — see also the note in
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
-- Inspect Captured Data: Examine the driver context's `ctx.edge[]` after a reset
+- Inspect Captured Data: Examine the driver context's `ctx.capture[]` after a reset
   or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
   data.
 
