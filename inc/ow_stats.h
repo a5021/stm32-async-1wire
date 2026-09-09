@@ -9,11 +9,11 @@
  * builds.
  *
  * The dump is non-blocking: ow_stats_dump_start() initiates it,
- * ow_stats_dump_poll() outputs a few bytes per main-loop call.
+ * ow_stats_dump_poll() advances the dump by one line per main-loop call.
  *
- * @note RAM cost: ~290 bytes (8 sensors × 26 B + 16-entry uint32_t histogram
- *       [64 B] + cycle/error counters; 13 of the 16 histogram buckets, indices
- *       0–12, are populated).
+ * @note RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram
+ *       [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16
+ *       histogram buckets, indices 0–12, are populated).
  */
 
 #ifndef OW_STATS_H
@@ -36,7 +36,7 @@ typedef struct {
     uint8_t rom[8]; /**< 64-bit ROM address (LSB first) */
     uint8_t min_pulse; /**< Shortest observed pulse width (us) */
     uint8_t max_pulse; /**< Longest  observed pulse width (us) */
-    uint32_t count; /**< Pulse captures for this sensor (before CRC validation) */
+    uint32_t count; /**< Capture snapshots for this sensor (one per transaction, before CRC validation) */
     uint32_t crc_err; /**< CRC-8 mismatches */
     uint32_t no_presence; /**< No presence pulse detected */
     uint32_t generic_err; /**< Unexpected / reserved-byte errors */
@@ -82,7 +82,7 @@ void ow_stats_count_error(int16_t error, const uint8_t* rom);
  * @brief Begin a non-blocking stats dump via UART.
  *
  * Initiates the dump; call ow_stats_dump_poll() from the main loop to
- * advance it by a few bytes per iteration.  Returns immediately.
+ * advance it by one line per iteration.  Returns immediately.
  */
 void ow_stats_dump_start(void);
 

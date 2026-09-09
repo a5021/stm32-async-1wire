@@ -112,11 +112,11 @@ void ow_stats_dump_start(void) {
 uint8_t ow_stats_dump_poll(void) {
     if (dump_phase == 0) return 1;
 
-    /* Each poll call enqueues one section into the non-blocking UART TX ring
+    /* Each poll call enqueues one line into the non-blocking UART TX ring
      * buffer.  The main loop drains the buffer via uart_poll_tx(), so nothing
-     * here blocks on the USART.  UART_TX_BUF_SIZE is sized to hold a whole
-     * dump (~440 bytes worst case vs a 1024-byte ring), so the enqueue never
-     * overflows and no bytes are dropped. */
+     * here blocks on the USART.  UART_TX_BUF_SIZE is chosen per app (default
+     * 128 B, demos 256 B, demo5 1024 B) so the longest single line fits
+     * without overflowing; the dump itself streams across poll calls. */
     switch (dump_phase) {
     case 1:
         uart_write_str("--- stats [");
