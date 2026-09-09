@@ -528,7 +528,10 @@ TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
 
 .PHONY: test test-f0 test-g0
-test: $(TEST_EXE)
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,STM32F1))
+TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,_f1)).o
+
+test: $(TEST_EXE) $(TEST_CLOCK_OBJ)
 	$(TEST_EXE)
 
 test-f0:
@@ -536,6 +539,24 @@ test-f0:
 
 test-g0:
 	$(MAKE) OW_TARGET=g0 test
+
+# --- Family-macro fallback compile check (see test_sysclk_fallback.c) ---
+# Compile-only: verifies that selecting a family through the raw family macro
+# (STM32F1/F0/G0, the PlatformIO/STM32CubeMX path) resolves both
+# OW_PORT_FAMILY_* and the OW_PORT_SYSCLK_MHZ default for the backend under
+# test. Runs as part of every test build so the two can never drift.
+
+$(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
+	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+
+.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0
+test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0
+test-clocks-f1:
+	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
+test-clocks-f0:
+	$(MAKE) OW_TARGET=f0 $(TEST_OUT)/test_sysclk_fallback_f0.o
+test-clocks-g0:
+	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER) ---
 # Compiles the SAME suite with the low-power path enabled so the

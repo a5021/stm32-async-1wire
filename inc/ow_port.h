@@ -60,23 +60,18 @@
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 */
 #endif
 
-/* --- Backend selection --- */
-#if defined(OW_PORT_TARGET_F1)
+/* --- Backend selection: onewire.h resolves OW_PORT_FAMILY_* from either the
+ *     OW_PORT_TARGET_* knob or the PlatformIO / STM32CubeMX family macro
+ *     (STM32F1/F0/G0); a single chain keeps the default clock (onewire.h) and
+ *     the backend in sync. Add new families in both places, never here alone. */
+#if defined(OW_PORT_FAMILY_F1)
 #include "ow_port_f1.h"
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_FAMILY_F0)
 #include "ow_port_f0.h"
-#elif defined(OW_PORT_TARGET_G0)
-#include "ow_port_g0.h"
-/* PlatformIO / STM32CubeMX define the family macro (e.g. STM32F1) but not the
- * OW_PORT_TARGET_* alias; fall back to those when the explicit knob is absent. */
-#elif defined(STM32F1)
-#include "ow_port_f1.h"
-#elif defined(STM32F0)
-#include "ow_port_f0.h"
-#elif defined(STM32G0)
+#elif defined(OW_PORT_FAMILY_G0)
 #include "ow_port_g0.h"
 #else
-#error "ow_port: no backend selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, ...)"
+#error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0 or OW_PORT_TARGET_G0, or a family macro such as STM32F1/STM32F0/STM32G0)"
 #endif
 
 #endif /* OW_PORT_H */
