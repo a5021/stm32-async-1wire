@@ -9,7 +9,7 @@
  * Properties:
  * 1. No out-of-bounds write (dst must hold nbytes, pulse must hold nbytes*8)
  * 2. Each decoded byte matches per-bit onewire_bit_from_pulse decode
- * 3. Roundtrip: encode(decode(pulses)) == original pulses (for each bit)
+ * 3. Decoded bytes are roundtrip-stable: decode(encode(byte)) == byte
  */
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

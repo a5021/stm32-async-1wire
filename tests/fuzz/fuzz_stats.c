@@ -64,8 +64,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         const uint8_t* rom = (size >= 12) ? data + 2 : NULL;
         ow_stats_capture_pulse(data + 2, n, rom);
 
-        /* histogram entries are non-negative (uint32_t, always true) */
-        /* min <= max for the sensor (if allocated) */
+        /* min <= max for the sensor, count bumped by exactly one */
+        if (n > 0 && rom != NULL) {
+            uint8_t si = sensor_find_or_alloc(rom);
+            if (si < OW_STATS_MAX_SENSORS) {
+                if (st.sensors[si].min_pulse > st.sensors[si].max_pulse) abort();
+                if (st.sensors[si].count != 1) abort();
+            }
+        }
         break;
     }
     case 3: {
@@ -74,7 +80,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         int16_t error = (int16_t)((data[1] << 8) | data[2]);
         const uint8_t* rom = (size >= 12) ? data + 3 : NULL;
         ow_stats_count_error(error, rom);
-        /* total_errors should have incremented by 1 */
+        if (st.total_errors != 1) abort();
         break;
     }
     }
@@ -99,6 +105,7 @@ int main(void) {
     /* ow_stats_count_error increments total_errors */
     ow_stats_init();
     ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL, NULL);
+    if (st.total_errors != 1) abort();
 
     return 0;
 }
