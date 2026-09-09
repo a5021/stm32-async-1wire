@@ -80,7 +80,7 @@ typedef struct {
      *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.
      */
     union {
-        volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence, pair reads) */
+        volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence) */
         volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
         uint64_t fill_union; /**< Utility field for filling the union */

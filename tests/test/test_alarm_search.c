@@ -92,7 +92,7 @@ static uint16_t alarm_capture_src(uint32_t idx) {
         uint8_t b = (g_rom[0] >> 0) & 1u;
         return (idx == 0) ? (b ? ONE : ZERO) : (b ? ZERO : ONE);
     }
-    /* merged write+read capturing bit g_wr_bit (idx0 = write edge count, ignored) */
+    /* merged write+read capturing bit g_wr_bit (idx0 = write-slot capture, ignored) */
     uint8_t byte = (g_wr_bit - 1u) / 8u;
     uint8_t bit = (g_wr_bit - 1u) % 8u;
     uint8_t b = (g_rom[byte] >> bit) & 1u;

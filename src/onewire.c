@@ -79,11 +79,11 @@ onewire_timing_profile_t onewire_get_timing_profile(void) {
  */
 
 /** @brief Capture buffer for the merged search write+read operation
- * @note Holds [write-slot edge count, id pulse, cmp pulse]. The CH4 input
- *       capture runs for the whole timer pass, so the direction-write rising
- *       edge is captured into entry 0 as well; id/cmp are decoded from the
- *       pulse durations in entries 1 and 2. */
-static volatile uint16_t search_edge3[3];
+ * @note Holds [write-slot capture, id pulse, cmp pulse]. The CH4 input capture
+ *       runs for the whole timer pass, so the write-slot capture lands in entry
+ *       0 as well; id/cmp are decoded from the pulse durations in entries 1
+ *       and 2. */
+static volatile uint16_t search_pulse3[3];
 
 /** @brief Read pulse durations reloaded by DMA for the merged search operation
  *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
@@ -93,7 +93,7 @@ static volatile uint16_t search_edge3[3];
  *        HIGH (hardware bus release). */
 
 /** @brief Pulse capture buffer used by the search engine for bus resets and
- *         plain id/cmp pair reads (the merged write+read uses search_edge3). */
+ *         plain id/cmp pair reads (the merged write+read uses search_pulse3). */
 static volatile uint16_t search_pair_pulse[OW_PORT_CAPTURE_BUF_SIZE];
 
 /** @brief Search state machine phases */
@@ -208,7 +208,7 @@ void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, ui
 }
 
 void onewire_write_then_read(uint8_t bit) {
-    ow_port_write_then_read(bit, search_edge3, search_read_pulse);
+    ow_port_write_then_read(bit, search_pulse3, search_read_pulse);
 }
 
 void onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
@@ -400,11 +400,11 @@ uint8_t onewire_search_poll(void) {
 
     case ONEWIRE_SEARCH_WRITE_READ:
         // The merged operation wrote the direction for the previous bit and
-        // captured the id/cmp pair of the current bit into search_edge3.
+        // captured the id/cmp pair of the current bit into search_pulse3.
         search_ctx.id_bit_number++;
         onewire_search_advance_bit(
-            onewire_bit_from_pulse(search_edge3[1]),
-            onewire_bit_from_pulse(search_edge3[2]));
+            onewire_bit_from_pulse(search_pulse3[1]),
+            onewire_bit_from_pulse(search_pulse3[2]));
         break;
 
     case ONEWIRE_SEARCH_WRITE_DIR:
