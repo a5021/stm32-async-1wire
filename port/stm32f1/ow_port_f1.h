@@ -334,11 +334,11 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
- * @param[in] edge3 Buffer for the three captured slots (write-slot edge count,
- *                  id pulse, cmp pulse)
+ * @param[in] pulse3 Buffer for the three captured slots (write-slot capture,
+ *                   id pulse, cmp pulse)
  * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing 0)
  */
-__STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* edge3,
+__STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* pulse3,
                                                   const uint8_t* read_pulse) {
 #ifdef OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
@@ -368,10 +368,10 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.DIER = 0;
 #endif
     ow_port_update_event();
-    /* Capture DMA: write-slot edge plus the id/cmp pulse pair into the buffer */
+    /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer */
     OW_PORT_DMA_CAPTURE.CCR = 0;
     OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)edge3;
+    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pulse3;
     OW_PORT_DMA_CAPTURE.CNDTR = 3;
     OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
     /* Feed DMA: reload CCR3 with the read pulse for slots 2-3, then write the

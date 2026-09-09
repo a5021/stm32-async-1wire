@@ -523,10 +523,10 @@ void test_dma_write_then_read_merged_geometry(void) {
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[1]);
     TEST_ASSERT_EQUAL_UINT16(0u, log->values[2]);
 
-    /* captures landed sequentially in the merged 16-bit capture buffer (write-slot edge + id/cmp pulses) */
-    TEST_ASSERT_EQUAL_UINT16(0x1000u, test_search_edge(0));
-    TEST_ASSERT_EQUAL_UINT16(0x2000u, test_search_edge(1));
-    TEST_ASSERT_EQUAL_UINT16(0x3000u, test_search_edge(2));
+    /* captures landed sequentially in the merged 16-bit capture buffer (write-slot capture + id/cmp pulses) */
+    TEST_ASSERT_EQUAL_UINT16(0x1000u, test_search_pulse(0));
+    TEST_ASSERT_EQUAL_UINT16(0x2000u, test_search_pulse(1));
+    TEST_ASSERT_EQUAL_UINT16(0x3000u, test_search_pulse(2));
 }
 
 void test_dma_single_bit_write_uses_no_dma(void) {
@@ -722,7 +722,7 @@ void test_dma_search_transfer_accounting(void) {
     /* 0xF0 command feed: 8 transfers. First id/cmp pair: read_pair capture 2.
        The 64 address bits walk through 63 merged write+read operations, each
        doing 3 feed (direction write reloads + read pulses + release 0) and
-       3 capture (16-bit write-slot edge + id/cmp pulses), plus the final single-slot
+       3 capture (16-bit write-slot capture + id/cmp pulses), plus the final single-slot
        write_bit for bit 64 - which uses no DMA.
          feed = 8 + 63*3,  capture = 2 (reset) + 2 (read pair) + 63*3 */
     TEST_ASSERT_EQUAL_UINT32(8u + 63u * 3u, feed_total);

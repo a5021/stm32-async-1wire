@@ -206,7 +206,7 @@ void onewire_pair_bits(const volatile uint16_t* pair_pulses, uint8_t* id_bit, ui
  * @note One timer pass runs three slots: a write of `bit`, then a read of the
  *       next id/cmp pair. Halves the timer passes per search bit compared to a
  *       plain write plus a separate read pair. On completion, the internal
- *       merged buffer holds [write-slot edge count, id pulse, cmp pulse]: decode the
+ *       merged buffer holds [write-slot capture, id pulse, cmp pulse]: decode the
  *       pair from entries 1 and 2 with onewire_bit_from_pulse(). Do not pass
  *       this buffer to onewire_pair_bits(), which instead decodes entries 0 and
  *       1 as produced by onewire_read_pair().

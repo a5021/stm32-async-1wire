@@ -50,9 +50,9 @@ void test_bus_arm_capture_n(uint16_t count);
 void test_bus_sleep_until_done(void);
 #endif
 
-/* Merged-search capture buffer access (search_edge3: write-slot edge + id/cmp pulses). */
-uint16_t test_search_edge(uint8_t i);
-void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v);
+/* Merged-search capture buffer access (search_pulse3: write-slot capture + id/cmp pulses). */
+uint16_t test_search_pulse(uint8_t i);
+void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v);
 
 /* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */
 void ds18b20_test_set_gap_us(uint16_t us);

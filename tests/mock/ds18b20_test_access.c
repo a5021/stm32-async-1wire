@@ -11,7 +11,7 @@
 
 void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)&ctx.capture);
-    hw_register_buf((const void*)(uintptr_t)search_edge3);
+    hw_register_buf((const void*)(uintptr_t)search_pulse3);
     hw_register_buf((const void*)(uintptr_t)search_pair_pulse);
     hw_register_buf((const void*)((uintptr_t)conv_cmd + 1u)); /* &conv_cmd[1] */
     hw_register_buf((const void*)((uintptr_t)read_cmd + 1u)); /* &read_cmd[1] */
@@ -92,8 +92,8 @@ void test_bus_arm_capture_n(uint16_t count) {
 }
 void test_bus_sleep_until_done(void) { ow_port_sleep_until_done(); }
 #endif
-uint16_t test_search_edge(uint8_t i) { return search_edge3[i]; }
-void ds18b20_test_set_search_edge3(uint8_t i, uint16_t v) { search_edge3[i] = v; }
+uint16_t test_search_pulse(uint8_t i) { return search_pulse3[i]; }
+void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = v; }
 
 void ds18b20_test_reset_search(void) {
     search_ctx.finished = 1;

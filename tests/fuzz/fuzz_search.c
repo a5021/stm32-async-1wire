@@ -9,7 +9,7 @@
  * capture source decodes the running operation from mock_tim1.RCR:
  *   rcr == 0 -> reset op  (idx0 reset pulse, idx1 presence)
  *   rcr == 1 -> first read pair (idx0 id, idx1 cmp)
- *   rcr == 7 -> merged write+read (idx0 write edge ignored, idx1 id, idx2 cmp)
+ *   rcr == 7 -> merged write+read (idx0 write-slot capture ignored, idx1 id, idx2 cmp)
  * and pulls id/cmp/presence decisions from the stream (bit 0 of the byte).
  *
  * Properties:
@@ -72,7 +72,7 @@ static uint16_t fuzz_cap(uint32_t idx) {
         return (idx == 0u) ? pulse_for_bit(next_bit())
                            : pulse_for_bit(next_bit());
     }
-    /* merged write+read: idx0 is the direction-write edge, never decoded */
+    /* merged write+read: idx0 is the write-slot capture, never decoded */
     if (idx == 0u) return 0u;
     if (idx == 1u) return pulse_for_bit(next_bit());
     if (idx == 2u) return pulse_for_bit(next_bit());

@@ -129,8 +129,8 @@ void test_merged_write_read_trailing_zero(void) {
     TEST_ASSERT_EQUAL_UINT32(3, hw_capture_count());
     assert_bus_released();
 
-    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_edge(1)); /* id bit = 1 */
-    TEST_ASSERT_EQUAL_UINT16(ZERO, test_search_edge(2)); /* cmp bit = 0 */
+    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_pulse(1)); /* id bit = 1 */
+    TEST_ASSERT_EQUAL_UINT16(ZERO, test_search_pulse(2)); /* cmp bit = 0 */
 }
 
 /*-------------------------------------------------------------
@@ -141,8 +141,8 @@ void test_merged_write_read_decodes_zeros(void) {
     test_bus_write_then_read(0);
     complete_op(6);
     assert_bus_released();
-    TEST_ASSERT_EQUAL_UINT16(ZERO, test_search_edge(1));
-    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_edge(2));
+    TEST_ASSERT_EQUAL_UINT16(ZERO, test_search_pulse(1));
+    TEST_ASSERT_EQUAL_UINT16(ONE, test_search_pulse(2));
 }
 
 /*-------------------------------------------------------------

@@ -33,8 +33,8 @@ void test_harness_accessor_smoke(void) {
     ds18b20_test_build_addr_prefix();
 
     TEST_ASSERT_EQUAL_UINT8(0, test_ds18b20_bus_done());
-    ds18b20_test_set_search_edge3(0, 1234);
-    TEST_ASSERT_EQUAL_UINT16(1234, test_search_edge(0));
+    ds18b20_test_set_search_pulse3(0, 1234);
+    TEST_ASSERT_EQUAL_UINT16(1234, test_search_pulse(0));
 
     ds18b20_test_set_device_count(3);
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_device_count());
