@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-08 17:58:12</td>
+            <td class="headerValue">2026-09-09 17:18:43</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -75,9 +75,9 @@
 <span id="L4"><span class="lineNum">       4</span>                 :             :  */</span>
 <span id="L5"><span class="lineNum">       5</span>                 :             : </span>
 <span id="L6"><span class="lineNum">       6</span>                 :             : #include &quot;app.h&quot;</span>
-<span id="L7"><span class="lineNum">       7</span>                 :             : #if defined(OW_PORT_TARGET_F0)</span>
+<span id="L7"><span class="lineNum">       7</span>                 :             : #if defined(OW_PORT_FAMILY_F0)</span>
 <span id="L8"><span class="lineNum">       8</span>                 :             : #include &quot;stm32f0xx.h&quot;</span>
-<span id="L9"><span class="lineNum">       9</span>                 :             : #elif defined(OW_PORT_TARGET_G0)</span>
+<span id="L9"><span class="lineNum">       9</span>                 :             : #elif defined(OW_PORT_FAMILY_G0)</span>
 <span id="L10"><span class="lineNum">      10</span>                 :             : #include &quot;stm32g0xx.h&quot;</span>
 <span id="L11"><span class="lineNum">      11</span>                 :             : #else</span>
 <span id="L12"><span class="lineNum">      12</span>                 :             : #include &quot;stm32f1xx.h&quot;</span>
@@ -93,14 +93,14 @@
 <span id="L22"><span class="lineNum">      22</span>                 :             :  * @note Must be called periodically to feed the UART from the ring buffer</span>
 <span id="L23"><span class="lineNum">      23</span>                 :             :  */</span>
 <span id="L24"><span class="lineNum">      24</span>                 :<span class="tlaGNC tlaBgGNC">        1410 : void uart_poll_tx(void) {</span></span>
-<span id="L25"><span class="lineNum">      25</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L25"><span class="lineNum">      25</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L26"><span class="lineNum">      26</span>                 :             :     // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR</span>
 <span id="L27"><span class="lineNum">      27</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE_TXFNF) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
 <span id="L28"><span class="lineNum">      28</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
 <span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
 <span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;TDR = b;</span></span>
 <span id="L31"><span class="lineNum">      31</span>                 :             :     }</span>
-<span id="L32"><span class="lineNum">      32</span>                 :             : #elif defined(OW_PORT_TARGET_F0)</span>
+<span id="L32"><span class="lineNum">      32</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
 <span id="L33"><span class="lineNum">      33</span>                 :             :     // F0 unified USART naming: TXE lives in ISR, data goes to TDR</span>
 <span id="L34"><span class="lineNum">      34</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
 <span id="L35"><span class="lineNum">      35</span>                 :             :         // Get byte from buffer at tail position</span>
@@ -230,7 +230,7 @@
 <span id="L159"><span class="lineNum">     159</span>                 :             :  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.</span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :  */</span>
 <span id="L161"><span class="lineNum">     161</span>                 :             : __STATIC_FORCEINLINE void configure_system_clock(void) {</span>
-<span id="L162"><span class="lineNum">     162</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L162"><span class="lineNum">     162</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L163"><span class="lineNum">     163</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 64</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :     // HSI16 is on and stable right after reset. PLL source must be selected</span>
 <span id="L165"><span class="lineNum">     165</span>                 :             :     // explicitly: on this family PLLSRC=00 means &quot;no clock sent to the PLL&quot;,</span>
@@ -253,7 +253,7 @@
 <span id="L182"><span class="lineNum">     182</span>                 :             : #else</span>
 <span id="L183"><span class="lineNum">     183</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for G0: use 64 (HSI16+PLL) or 16 (raw HSI16)&quot;</span>
 <span id="L184"><span class="lineNum">     184</span>                 :             : #endif</span>
-<span id="L185"><span class="lineNum">     185</span>                 :             : #elif defined(OW_PORT_TARGET_F0)</span>
+<span id="L185"><span class="lineNum">     185</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
 <span id="L186"><span class="lineNum">     186</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 48</span>
 <span id="L187"><span class="lineNum">     187</span>                 :             :     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier</span>
 <span id="L188"><span class="lineNum">     188</span>                 :             :     // before enabling the PLL so it locks on a valid clock (per RM0360).</span>
@@ -315,9 +315,9 @@
 <span id="L244"><span class="lineNum">     244</span>                 :             :  *       LED on PA4 (no PC13 bonded out on TSSOP20).</span>
 <span id="L245"><span class="lineNum">     245</span>                 :             :  */</span>
 <span id="L246"><span class="lineNum">     246</span>                 :             : __STATIC_FORCEINLINE void hardware_init(void) {</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             : #if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
 <span id="L248"><span class="lineNum">     248</span>                 :             :     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)</span>
-<span id="L249"><span class="lineNum">     249</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L249"><span class="lineNum">     249</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L250"><span class="lineNum">     250</span>                 :             :     RCC-&gt;IOPENR |= RCC_IOPENR_GPIOAEN;</span>
 <span id="L251"><span class="lineNum">     251</span>                 :             :     RCC-&gt;APBENR2 |= RCC_APBENR2_USART1EN;</span>
 <span id="L252"><span class="lineNum">     252</span>                 :             : #else</span>
@@ -327,7 +327,7 @@
 <span id="L256"><span class="lineNum">     256</span>                 :             : </span>
 <span id="L257"><span class="lineNum">     257</span>                 :             :     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1</span>
 <span id="L258"><span class="lineNum">     258</span>                 :             :     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)</span>
-<span id="L259"><span class="lineNum">     259</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L259"><span class="lineNum">     259</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L260"><span class="lineNum">     260</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;</span>
 <span id="L261"><span class="lineNum">     261</span>                 :             : #else</span>
 <span id="L262"><span class="lineNum">     262</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
@@ -335,7 +335,7 @@
 <span id="L264"><span class="lineNum">     264</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (1u &lt;&lt; GPIO_AFRH_AFSEL9_Pos);</span>
 <span id="L265"><span class="lineNum">     265</span>                 :             : </span>
 <span id="L266"><span class="lineNum">     266</span>                 :             :     // Configure PA4 as general purpose output for LED control</span>
-<span id="L267"><span class="lineNum">     267</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L268"><span class="lineNum">     268</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;</span>
 <span id="L269"><span class="lineNum">     269</span>                 :             : #else</span>
 <span id="L270"><span class="lineNum">     270</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;</span>
@@ -380,17 +380,17 @@
 <span id="L309"><span class="lineNum">     309</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
 <span id="L310"><span class="lineNum">     310</span>                 :             :  */</span>
 <span id="L311"><span class="lineNum">     311</span>                 :             : void ds18b20_busy(unsigned action) {</span>
-<span id="L312"><span class="lineNum">     312</span>                 :             : #if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)</span>
+<span id="L312"><span class="lineNum">     312</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
 <span id="L313"><span class="lineNum">     313</span>                 :             :     if (action) {</span>
 <span id="L314"><span class="lineNum">     314</span>                 :             :         // Turn LED on (PA4 low)</span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L315"><span class="lineNum">     315</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L316"><span class="lineNum">     316</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
 <span id="L317"><span class="lineNum">     317</span>                 :             : #else</span>
 <span id="L318"><span class="lineNum">     318</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
 <span id="L319"><span class="lineNum">     319</span>                 :             : #endif</span>
 <span id="L320"><span class="lineNum">     320</span>                 :             :     } else {</span>
 <span id="L321"><span class="lineNum">     321</span>                 :             :         // Turn LED off (PA4 high)</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             : #if defined(OW_PORT_TARGET_G0)</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
 <span id="L323"><span class="lineNum">     323</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
 <span id="L324"><span class="lineNum">     324</span>                 :             : #else</span>
 <span id="L325"><span class="lineNum">     325</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
