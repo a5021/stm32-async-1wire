@@ -540,7 +540,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | Flag | Effect |
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
-| `TIMING=SLOW` | Override the compile-time default timing profile (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Low-level: `EXT="-DOW_TIMING_DEFAULT=ONEWIRE_TIMING_SLOW"` or `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=..."`. See [Configuration → Timing Profiles](#timing-profiles). |
+| `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing). |
 | `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see demo5). |
 | `EXT="-DOW_PORT_LOW_POWER"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
@@ -1152,37 +1152,26 @@ uint8_t     onewire_search_count(void);
 uint8_t     onewire_search_active(void);
 ```
 
-#### Timing Profiles
+#### Timing
 
-The slot timing is selected at **runtime** from five built-in profiles
-(`inc/onewire.h`); `ONEWIRE_TIMING_PROFILE_DEFAULT` chooses the compile-time
-default (`ONEWIRE_TIMING_STANDARD`). Switching profiles is non-blocking and
-applies immediately to every subsequent bus operation, including the Search ROM
-engine. See [Configuration → Timing Profiles](#timing-profiles) for the full
-per-profile value table.
+Slot timing is fixed at **compile time** (`inc/onewire.h`): four `ONEWIRE_*`
+macros define the bit-slot geometry, and every bus operation is scheduled with
+those exact durations. There is no runtime profile switching and no timing
+state — the values fold into the TIM1/DMA register arithmetic and can be
+overridden individually via `-D`.
 
 ```C
-typedef enum {
-    ONEWIRE_TIMING_FAST = 0,
-    ONEWIRE_TIMING_STANDARD,
-    ONEWIRE_TIMING_SLOW,
-    ONEWIRE_TIMING_ROBUST,
-    ONEWIRE_TIMING_CUSTOM,
-    ONEWIRE_TIMING_COUNT
-} onewire_timing_profile_t;
-
-void onewire_set_timing_profile(onewire_timing_profile_t profile);
-onewire_timing_profile_t onewire_get_timing_profile(void);
-void ow_set_parasite_guard(uint8_t parasite);   /* 0 = standard guard, !=0 = parasite guard */
-void onewire_strong_pullup(uint8_t on);          /* parasite power: drive bus HIGH */
+#define ONEWIRE_ONE_PULSE       5   /* µs: short low = write-1 / read pulse       */
+#define ONEWIRE_ZERO_PULSE     60   /* µs: long low = write-0                     */
+#define ONEWIRE_GUARD_BAND      5   /* µs: slot tail (external-power default)     */
+#define ONEWIRE_SHORT_PULSE_MAX 10  /* µs: pulse <= this decodes as bit '1'       */
+void onewire_strong_pullup(uint8_t on);  /* parasite power: drive bus HIGH */
 ```
 
-The macro `ONEWIRE_TIMING_PROFILE_DEFAULT` (short alias `OW_TIMING_DEFAULT`) chooses
-the compile-time default; the Makefile sugar `TIMING=SLOW` (or `FAST`/`STANDARD`/`ROBUST`/`CUSTOM`)
-is the short form — e.g. `make TIMING=SLOW` instead of the railway-station
-`EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW"`. The live values are
-also exposed as the runtime globals `ow_one_pulse_us`, `ow_zero_pulse_us`,
-`ow_guard_band_us` and `ow_short_pulse_max_us`.
+On a parasite-powered bus the release margin must be wider: define
+`OW_TIMING_PARASITE` as 1 (`-DOW_TIMING_PARASITE=1`) to select the 100µs guard
+band default, or pass `-DONEWIRE_GUARD_BAND=...` explicitly. The Makefile
+presets in [Configuration → Timing](#timing) select whole value sets.
 
 Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
 `onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
@@ -1588,20 +1577,15 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ## Configuration
 
-### Timing Profiles
+### Timing
 
-The 1-Wire slot timing is selected at runtime from five built-in profiles
-(see also the [API Reference → Timing Profiles](#timing-profiles)). The default
-profile is `ONEWIRE_TIMING_PROFILE_DEFAULT` (short alias `OW_TIMING_DEFAULT`,
-`ONEWIRE_TIMING_STANDARD`); in the Makefile use `TIMING=SLOW` (`FAST`/`STANDARD`/`SLOW`/`ROBUST`/`CUSTOM`) instead of the long `EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=..."`.
-The raw `-D` still works for direct compiler invocations.
-
-The fixed `ONEWIRE_*` macros in `inc/onewire.h` are the **STANDARD** profile
-values (and the initial runtime defaults); the reset-pulse bounds are defined in
-`src/onewire.c`:
+Slot timing is fixed at **compile time** via the `ONEWIRE_*` macros in
+`inc/onewire.h` (see also the [API Reference → Timing](#timing)). Each macro is
+overridable with `-D`, so a specific board or bus length pins its values without
+any runtime state. The reset-pulse bounds are defined in `src/onewire.c`:
 
 ```C
-/* inc/onewire.h — STANDARD profile defaults */
+/* inc/onewire.h — defaults */
 #define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
 #define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
 #define ONEWIRE_GUARD_BAND          5     // µs (built into slot formula)
@@ -1612,28 +1596,34 @@ values (and the initial runtime defaults); the reset-pulse bounds are defined in
 #define RESET_PULSE_MAX           540U    // µs
 ```
 
-Slot formula (uniform across all profiles):
+Slot formula:
 
 ```
 ARR = one_pulse + zero_pulse + guard_band
 ```
 
-| Profile    | `one` | `zero` | `guard` | `parasite guard` | `short≤` | Slot  |
-|------------|------:|-------:|--------:|-----------------:|---------:|------:|
-| FAST       | 5µs  | 60µs  | 3µs    | 50µs            | 10µs    | 68µs |
-| STANDARD   | 5µs  | 60µs  | 5µs    | 100µs           | 10µs    | 70µs |
-| SLOW       | 8µs  | 90µs  | 20µs   | 200µs           | 15µs    | 118µs|
-| ROBUST     | 10µs | 110µs | 30µs   | 250µs           | 18µs    | 150µs|
-| CUSTOM     | 1µs  | 60µs  | 1µs    | 1µs             | 15µs    | 62µs |
+The Makefile presets set all four values at once (`make TIMING=SLOW`):
 
-`parasite guard` is used in place of `guard` when parasite power is engaged
-(via `ow_set_parasite_guard()`); it widens the window so the strong-pullup
-release margin does not clip the sample. SLOW / ROBUST trade conversion
-throughput for timing margin and are intended for long wiring, parasite buses
-or electrically noisy setups.
+| Preset     | `one` | `zero` | `guard` | `short≤` | Slot  |
+|------------|------:|-------:|--------:|---------:|------:|
+| FAST       | 5µs  | 60µs  | 3µs    | 10µs    | 68µs |
+| STANDARD   | 5µs  | 60µs  | 5µs    | 10µs    | 70µs |
+| SLOW       | 8µs  | 90µs  | 20µs   | 15µs    | 118µs|
+| ROBUST     | 10µs | 110µs | 30µs   | 18µs    | 150µs|
+| CUSTOM     | 1µs  | 60µs  | 1µs    | 15µs    | 62µs |
+
+SLOW / ROBUST trade conversion throughput for timing margin and are intended for
+long wiring, parasite buses or electrically noisy setups.
+
+On a parasite-powered bus the strong-pullup release must not clip the sensor's
+slot sampling, so the guard band needs to be wider than the 5µs external-power
+default. Compile with `-DOW_TIMING_PARASITE=1`: when `ONEWIRE_GUARD_BAND` is not
+defined by a preset or an explicit `-D`, it defaults to 100µs. Presets always
+pin the guard explicitly, so on long or noisy parasite wiring pass the value
+directly instead — e.g. `make TIMING=ROBUST EXT="-DONEWIRE_GUARD_BAND=250"`.
 
 CUSTOM uses the minimum slot timing allowed by the 1-Wire standard
-(t_LOW1 = 1µs, t_LOW0 = 60µs, t_REC = 1µs). It is an experimental profile:
+(t_LOW1 = 1µs, t_LOW0 = 60µs, t_REC = 1µs). It is an experimental setting:
 a 1µs read/write pulse is **below the values validated on hardware** (a 2µs
 pulse already broke slot decoding on an F030 at 8MHz — see also the note in
 `inc/onewire.h`). Use it only for experiments or electrically ideal setups.

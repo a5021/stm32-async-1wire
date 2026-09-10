@@ -18,8 +18,8 @@
 #include <string.h>
 
 #include "onewire.h"
-#define ONE ow_one_pulse_us
-#define ZERO ow_zero_pulse_us
+#define ONE ONEWIRE_ONE_PULSE
+#define ZERO ONEWIRE_ZERO_PULSE
 
 /*-------------------------------------------------------------
  *  Shared helpers

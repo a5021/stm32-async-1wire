@@ -11,8 +11,8 @@
 #include "onewire.h"
 #include "unity.h"
 
-#define ONE_P ow_one_pulse_us
-#define ZERO_P ow_zero_pulse_us
+#define ONE_P ONEWIRE_ONE_PULSE
+#define ZERO_P ONEWIRE_ZERO_PULSE
 
 /* Mirror of the driver-internal DS18B20_MATCH_SLOTS so bounds tests use the
  * real slot count (= (DS18B20_ROM_BYTES + 2) * 8 = 80) rather than a literal. */

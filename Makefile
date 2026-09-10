@@ -94,14 +94,24 @@ ifeq ($(OW_DRIVE_ACTIVE),1)
 DEF += -DOW_DRIVE_ACTIVE
 endif
 
-# Optional default timing profile:
-# make TIMING=SLOW|FAST|STANDARD|ROBUST|CUSTOM  →  -DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_SLOW etc.
-# Short alias for the railway-station EXT="-DONEWIRE_TIMING_PROFILE_DEFAULT=...".
+# Optional compile-time timing preset: one_pulse zero_pulse guard_band short_pulse_max
+_OW_TIMING_FAST     := 5 60  3 10
+_OW_TIMING_STANDARD := 5 60  5 10
+_OW_TIMING_SLOW     := 8 90 20 15
+_OW_TIMING_ROBUST   := 10 110 30 18
+_OW_TIMING_CUSTOM   := 1 60  1 15
+
+# make TIMING=SLOW|FAST|STANDARD|ROBUST|CUSTOM  →  sets the pulse/guard
+# durations for that profile as -DONEWIRE_* defines. Override any single
+# value with EXT="-DONEWIRE_GUARD_BAND=..." etc.
 ifdef TIMING
   ifeq ($(filter $(TIMING),FAST STANDARD SLOW ROBUST CUSTOM),)
     $(error TIMING must be FAST, STANDARD, SLOW, ROBUST or CUSTOM)
   endif
-  DEF += -DONEWIRE_TIMING_PROFILE_DEFAULT=ONEWIRE_TIMING_$(TIMING)
+  DEF += -DONEWIRE_ONE_PULSE=$(word 1, $(_OW_TIMING_$(TIMING)))
+  DEF += -DONEWIRE_ZERO_PULSE=$(word 2, $(_OW_TIMING_$(TIMING)))
+  DEF += -DONEWIRE_GUARD_BAND=$(word 3, $(_OW_TIMING_$(TIMING)))
+  DEF += -DONEWIRE_SHORT_PULSE_MAX=$(word 4, $(_OW_TIMING_$(TIMING)))
 endif
 
 # Optimization flags for the compiler:
@@ -627,7 +637,7 @@ FUZZ_TIME    ?= 120
 FUZZ_HW_MOCK = tests/mock/hw_model.c
 
 .PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
-        fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
+        fuzz-encode-byte fuzz-bit-from-pulse \
         fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution fuzz-all
 
 $(FUZZ_OUT):
@@ -664,11 +674,6 @@ fuzz-bit-from-pulse: | $(FUZZ_OUT)
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_bit_from_pulse
 	$(FUZZ_OUT)/fuzz_bit_from_pulse -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 
-fuzz-timing: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_timing.c src/onewire.c $(FUZZ_HW_MOCK) \
-	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_timing
-	$(FUZZ_OUT)/fuzz_timing -max_total_time=$(FUZZ_TIME) -print_final_stats=1
-
 # Tier 3: ow_stats (single-TU, #include)
 fuzz-stats: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE \
@@ -704,7 +709,7 @@ fuzz-resolution: | $(FUZZ_OUT)
 	$(FUZZ_OUT)/fuzz_resolution -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 
 fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
-          fuzz-encode-byte fuzz-bit-from-pulse fuzz-timing \
+          fuzz-encode-byte fuzz-bit-from-pulse \
           fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution
 
 # Help target

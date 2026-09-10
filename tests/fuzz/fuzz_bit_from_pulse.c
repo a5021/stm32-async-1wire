@@ -9,7 +9,7 @@
  * Properties:
  * 1. Output is always 0 or 1
  * 2. Monotonically non-increasing (shorter pulses → 1, longer → 0)
- * 3. Boundary: dur == ow_short_pulse_max_us → 1, dur == ow_short_pulse_max_us+1 → 0
+ * 3. Boundary: dur == ONEWIRE_SHORT_PULSE_MAX → 1, dur == ONEWIRE_SHORT_PULSE_MAX+1 → 0
  * 4. Deterministic
  */
 

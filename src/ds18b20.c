@@ -1084,7 +1084,6 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  */
 void ds18b20_set_parasite(uint8_t parasite) {
     ctx.parasite = parasite ? 1u : 0u;
-    ow_set_parasite_guard(ctx.parasite);
 }
 
 /**
@@ -1108,7 +1107,6 @@ uint8_t ds18b20_detect_parasite_poll(void) {
     if (txn_ctx.ok) {
         // The sensor drives one bit: 0 = parasite power, 1 = external power.
         ctx.parasite = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
-        ow_set_parasite_guard(ctx.parasite);
     }
     return 1;
 }

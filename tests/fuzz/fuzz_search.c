@@ -59,7 +59,7 @@ static uint8_t next_bit(void) {
 }
 
 static uint16_t pulse_for_bit(uint8_t bit) {
-    return bit ? ow_one_pulse_us : ow_zero_pulse_us;
+    return bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
 }
 
 static uint16_t fuzz_cap(uint32_t idx) {
