@@ -60,7 +60,8 @@ void ow_stats_init(void);
 
 /**
  * @brief Snapshot raw pulse durations before decode_scratchpad().
- * @param[in] pulse Pointer to the DMA capture buffer (us per byte).
+ * @param[in] pulse Pointer to the capture buffer (one captured pulse duration
+ *                  per bit slot).
  * @param[in] n     Number of pulse slots (typically DS18B20_SCRATCHPAD_BITS = 72).
  * @param[in] rom   8-byte ROM of the current sensor, or NULL for Skip ROM.
  *

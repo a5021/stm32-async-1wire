@@ -171,7 +171,7 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
     while (!(RCC->CR & RCC_CR_PLLRDY))
         ;
     // Flash latency: 2 wait states above 48MHz (RM0444)
-    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1 | FLASH_ACR_LATENCY_0;
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1;
     // Switch system clock to PLLRCLK
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLLRCLK;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLLRCLK)
