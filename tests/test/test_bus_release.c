@@ -25,8 +25,8 @@
 #include "unity.h"
 
 #include "onewire.h"
-#define ONE ow_one_pulse_us
-#define ZERO ow_zero_pulse_us
+#define ONE ONEWIRE_ONE_PULSE
+#define ZERO ONEWIRE_ZERO_PULSE
 
 static void complete_op(uint32_t max_slots) {
     uint8_t ok = hw_run_until_uif(max_slots);

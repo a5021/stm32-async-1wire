@@ -8,7 +8,7 @@
  *
  * Properties:
  * 1. No crash/UB
- * 2. Every output element is either ow_one_pulse_us or ow_zero_pulse_us
+ * 2. Every output element is either ONEWIRE_ONE_PULSE or ONEWIRE_ZERO_PULSE
  * 3. Roundtrip: decode(encode(byte)) == byte
  * 4. Deterministic
  */
@@ -24,7 +24,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     /* Property 2: each output is one of two valid pulse values */
     for (int i = 0; i < 8; i++) {
-        if (out[i] != ow_one_pulse_us && out[i] != ow_zero_pulse_us) abort();
+        if (out[i] != ONEWIRE_ONE_PULSE && out[i] != ONEWIRE_ZERO_PULSE) abort();
     }
 
     /* Property 3: roundtrip encode→decode */
@@ -44,16 +44,16 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 int main(void) {
     uint8_t out[8];
 
-    /* Encode 0x00: all bits 0 → all pulses should be ow_zero_pulse_us */
+    /* Encode 0x00: all bits 0 → all pulses should be ONEWIRE_ZERO_PULSE */
     onewire_encode_byte(out, 0x00);
     for (int i = 0; i < 8; i++) {
-        if (out[i] != ow_zero_pulse_us) abort();
+        if (out[i] != ONEWIRE_ZERO_PULSE) abort();
     }
 
-    /* Encode 0xFF: all bits 1 → all pulses should be ow_one_pulse_us */
+    /* Encode 0xFF: all bits 1 → all pulses should be ONEWIRE_ONE_PULSE */
     onewire_encode_byte(out, 0xFF);
     for (int i = 0; i < 8; i++) {
-        if (out[i] != ow_one_pulse_us) abort();
+        if (out[i] != ONEWIRE_ONE_PULSE) abort();
     }
 
     /* Roundtrip all 256 byte values */

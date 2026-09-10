@@ -27,8 +27,8 @@
 
 void spy_reset(void); /* defined in test_state_machine.c */
 
-#define ONE ow_one_pulse_us
-#define ZERO ow_zero_pulse_us
+#define ONE ONEWIRE_ONE_PULSE
+#define ZERO ONEWIRE_ZERO_PULSE
 
 /*-------------------------------------------------------------
  *  Register-state helpers (per family)
@@ -402,28 +402,6 @@ void test_parasite_setter_normalises_and_init_resets(void) {
     TEST_ASSERT_TRUE(pu_idle_af_od());
 }
 
-void test_parasite_guard_band_tracks_mode(void) {
-    ow_set_parasite_guard(0);
-    ds18b20_set_parasite(0);
-    uint8_t ext = ow_guard_band_us;
-
-    /* bus in parasite mode selects the wider guard band */
-    ds18b20_set_parasite(1);
-    uint8_t para = ow_guard_band_us;
-    TEST_ASSERT_TRUE(para > ext); /* parasite guard is wider than external */
-    TEST_ASSERT_EQUAL_UINT8(para, ow_guard_band_us);
-
-    /* returning to external power restores the tighter guard */
-    ds18b20_set_parasite(0);
-    TEST_ASSERT_EQUAL_UINT8(ext, ow_guard_band_us);
-
-    /* manual override also engages the wider guard */
-    ow_set_parasite_guard(1);
-    TEST_ASSERT_EQUAL_UINT8(para, ow_guard_band_us);
-    ow_set_parasite_guard(0);
-    TEST_ASSERT_EQUAL_UINT8(ext, ow_guard_band_us);
-}
-
 /*-------------------------------------------------------------
  *  5. Auto-detect (Read Power Supply -> ctx.parasite)
  * -----------------------------------------------------------*/
@@ -641,7 +619,6 @@ void run_test_parasite(void) {
     TEST_RUN(test_parasite_copy_scratchpad_window);
     TEST_RUN(test_parasite_recall_eeprom_window);
     TEST_RUN(test_parasite_setter_normalises_and_init_resets);
-    TEST_RUN(test_parasite_guard_band_tracks_mode);
     TEST_RUN(test_parasite_scan_engages_pullup_across_pause);
     TEST_RUN(test_parasite_alarm_thresholds_release_pullup);
     TEST_RUN(test_parasite_convert_no_presence_engages_pullup);

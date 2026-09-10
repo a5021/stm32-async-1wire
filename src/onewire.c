@@ -33,45 +33,7 @@ uint8_t ow_long_pending = 0;
 
 /** @} */
 
-static const onewire_timing_t timing_profiles[ONEWIRE_TIMING_COUNT] = {
-    [ONEWIRE_TIMING_FAST] = {5, 60, 3, 50, 10},
-    [ONEWIRE_TIMING_STANDARD] = {5, 60, 5, 100, 10},
-    [ONEWIRE_TIMING_SLOW] = {8, 90, 20, 200, 15},
-    [ONEWIRE_TIMING_ROBUST] = {10, 110, 30, 250, 18},
-    [ONEWIRE_TIMING_CUSTOM] = {1, 60, 1, 1, 15},
-};
-
-static onewire_timing_profile_t ow_profile = ONEWIRE_TIMING_PROFILE_DEFAULT;
-static uint8_t ow_parasite_flag = 0;
-uint8_t ow_one_pulse_us = ONEWIRE_ONE_PULSE;
-uint8_t ow_zero_pulse_us = ONEWIRE_ZERO_PULSE;
-uint8_t ow_guard_band_us = ONEWIRE_GUARD_BAND;
-uint8_t ow_short_pulse_max_us = ONEWIRE_SHORT_PULSE_MAX;
-static uint8_t search_read_pulse[3];
-
-void ow_set_parasite_guard(uint8_t parasite) {
-    ow_parasite_flag = parasite ? 1u : 0u;
-    ow_guard_band_us = ow_parasite_flag ? timing_profiles[ow_profile].parasite_guard_band
-                                        : timing_profiles[ow_profile].guard_band;
-}
-
-void onewire_set_timing_profile(onewire_timing_profile_t profile) {
-    if (profile >= ONEWIRE_TIMING_COUNT) {
-        return;
-    }
-    ow_profile = profile;
-    ow_one_pulse_us = timing_profiles[profile].one_pulse;
-    ow_zero_pulse_us = timing_profiles[profile].zero_pulse;
-    ow_short_pulse_max_us = timing_profiles[profile].short_pulse_max;
-    search_read_pulse[0] = ow_one_pulse_us;
-    search_read_pulse[1] = ow_one_pulse_us;
-    search_read_pulse[2] = 0;
-    ow_set_parasite_guard(ow_parasite_flag);
-}
-
-onewire_timing_profile_t onewire_get_timing_profile(void) {
-    return ow_profile;
-}
+static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
 
 /**
  * @defgroup ONEWIRE_Private_Variables ONEWIRE Private Variables
@@ -154,7 +116,6 @@ void onewire_init(void) {
     search_ctx.finished = 1;
     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
-    onewire_set_timing_profile(ONEWIRE_TIMING_PROFILE_DEFAULT);
 #ifdef OW_PORT_LOW_POWER
     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
     // event even though no ISR is enabled. Done once here; the corresponding
@@ -194,7 +155,7 @@ void onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
 }
 
 void onewire_write_bit(uint8_t bit) {
-    uint8_t pulse = bit ? ow_one_pulse_us : ow_zero_pulse_us;
+    uint8_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     onewire_write_slots(&pulse, 1);
 }
 
@@ -227,7 +188,7 @@ void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t 
 
 void onewire_encode_byte(uint8_t* out, uint8_t byte) {
     for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
-        out[i] = (byte & (1u << i)) ? ow_one_pulse_us : ow_zero_pulse_us;
+        out[i] = (byte & (1u << i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     }
 }
 

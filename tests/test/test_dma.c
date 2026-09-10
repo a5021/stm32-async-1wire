@@ -52,8 +52,8 @@
 #include "unity.h"
 #include <string.h>
 
-#define ONE ow_one_pulse_us
-#define ZERO ow_zero_pulse_us
+#define ONE ONEWIRE_ONE_PULSE
+#define ZERO ONEWIRE_ZERO_PULSE
 
 #define DMA_GUARD 8u /* guard bytes on each side of a buffer under test */
 #define RX_BYTES_9 9u /* DS18B20_SCRATCHPAD_LEN (private to src/ds18b20.c) */
@@ -493,9 +493,8 @@ void test_dma_reset_capture_geometry(void) {
 void test_dma_write_then_read_merged_geometry(void) {
     hw_set_capture_source(merged_src);
 
-    /* onewire_set_timing_profile() populates search_read_pulse (the CCR3 feed
-       source for slots 2-3) via onewire_init() -> ds18b20_init(). run() may
-       never call it before this test, so initialise here for determinism. */
+    /* search_read_pulse is a compile-time constant; ds18b20_init() brings
+       the mock hardware into a clean state. */
     ds18b20_init();
 
     test_bus_write_then_read(0); /* 3 slots: write direction bit + read id/cmp */
