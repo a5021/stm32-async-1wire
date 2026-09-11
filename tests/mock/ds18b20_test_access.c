@@ -26,7 +26,6 @@ ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
 void ds18b20_test_set_state(ds18b20_state_t s) { ctx.current_state = s; }
 
 void ds18b20_test_reset_ctx(void) {
-    ctx.fill_union = (uint64_t)-1; /* 0xFF fill, same as ds18b20_poll() */
     ctx.current_state = DS18B20_ST_IDLE;
     ctx.address_mode = 0;
     ctx.scan_mode = 0;

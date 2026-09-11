@@ -33,6 +33,12 @@ uint8_t ow_long_pending = 0;
 
 /** @} */
 
+/** @brief Read pulse durations reloaded by DMA for the merged search operation
+ *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
+ *        end-of-slot compare at the end of slot 1 and sets the read slot 2
+ *        length, entry 1 sets slot 3, and the trailing 0 is written during
+ *        slot 3 so the one-pulse timer stops with the line released to idle
+ *        HIGH (hardware bus release). */
 static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
 
 /**
@@ -46,13 +52,6 @@ static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULS
  *       0 as well; id/cmp are decoded from the pulse durations in entries 1
  *       and 2. */
 static volatile uint16_t search_pulse3[3];
-
-/** @brief Read pulse durations reloaded by DMA for the merged search operation
- *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
- *        end-of-slot compare at the end of slot 1 and sets the read slot 2
- *        length, entry 1 sets slot 3, and the trailing 0 is written during
- *        slot 3 so the one-pulse timer stops with the line released to idle
- *        HIGH (hardware bus release). */
 
 /** @brief Pulse capture buffer used by the search engine for bus resets and
  *         plain id/cmp pair reads (the merged write+read uses search_pulse3). */

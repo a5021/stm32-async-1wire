@@ -29,13 +29,13 @@
 #ifndef DS18B20_CYCLE_PAUSE_US
 #define DS18B20_CYCLE_PAUSE_US 5000000 /**< default inter-cycle pause: 5s */
 #endif
-#define _OW_PAUSE_US (DS18B20_CYCLE_PAUSE_US > 0 ? DS18B20_CYCLE_PAUSE_US : 1)
-#if _OW_PAUSE_US <= 62500
-#define PAUSE_ARR (_OW_PAUSE_US)
+#define OW_PAUSE_US (DS18B20_CYCLE_PAUSE_US > 0 ? DS18B20_CYCLE_PAUSE_US : 1)
+#if OW_PAUSE_US <= 62500
+#define PAUSE_ARR (OW_PAUSE_US)
 #define PAUSE_RCR 0
 #else
 #define PAUSE_ARR 62500
-#define PAUSE_RCR ((_OW_PAUSE_US / 62500) - 1)
+#define PAUSE_RCR ((OW_PAUSE_US / 62500) - 1)
 #endif
 #define SCAN_DEVICE_GAP 1000, 0 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 /** @brief TH byte written together with the config register by the resolution
@@ -83,7 +83,6 @@ typedef struct {
         volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence) */
         volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
-        uint64_t fill_union; /**< Utility field for filling the union */
     };
     ds18b20_state_t current_state; /**< Current state of the state machine */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
@@ -1279,8 +1278,6 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
     case DS18B20_ST_IDLE:
-        // Initialize union memory (fills with 0xFF pattern)
-        ctx.fill_union = (uint64_t)-1;
         // Transition to START state
         ctx.current_state = DS18B20_ST_START;
         /* fallthrough to START state immediately */
