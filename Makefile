@@ -43,21 +43,21 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=g0   -> G0 firmware
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
 LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
 JFLASH = port/stm32f0/stm32f030f4.jflash
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s
 LDS = port/stm32g0/STM32G031X6_FLASH.ld
 MCU = -mcpu=cortex-m0plus -mthumb
 DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
 JFLASH = port/stm32g0/stm32g031f6.jflash
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = port/stm32f1/STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
