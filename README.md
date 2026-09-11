@@ -948,7 +948,7 @@ Kickstart behavior
 - After ds18b20_init(), the timer update flag (UIF) is already set. This ensures the very first call to ds18b20_poll() advances the state machine immediately without any extra priming step.
 
 - IDLE (state 0)
-  - Immediately falls through into START with no events required. Prepares context (ctx.fill_union = -1), ensures LED is off.
+  - Immediately falls through into START with no events required. Ensures LED is off.
   - Set state=1.
 
 - START (state 1)
