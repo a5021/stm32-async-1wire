@@ -23,6 +23,7 @@
             "+<onewire.c>",
             "+<ds18b20.c>",
             "+<ow_stats.c>",
+            "+<syscall.c>",
             "-<demo*>",
             "-<app.c>"
         ],

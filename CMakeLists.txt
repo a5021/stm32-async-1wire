@@ -73,6 +73,7 @@ add_library(stm32_async_1wire STATIC
     src/onewire.c
     src/ds18b20.c
     src/ow_stats.c
+    src/syscall.c
     ${CMSIS_STARTUP_DIR}/${STARTUP_ASM}
     ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
 )
