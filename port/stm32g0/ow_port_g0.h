@@ -94,7 +94,7 @@ __STATIC_FORCEINLINE void ow_port_kick(void) {
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
     T1.EGR = TIM_EGR(UG);
     __DSB();
-    T1.SR &= ~TIM_SR(UIF);
+    T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
 }
 
 /**
