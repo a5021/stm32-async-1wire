@@ -37,7 +37,8 @@
 #define PAUSE_ARR 62500
 #define PAUSE_RCR ((OW_PAUSE_US / 62500) - 1)
 #endif
-#define SCAN_DEVICE_GAP 1000, 0 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
+#define SCAN_DEVICE_GAP_US 1000 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
+#define SCAN_DEVICE_GAP_RCR 0
 /** @brief TH byte written together with the config register by the resolution
  *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
  *         0 disables the alarm trigger threshold. */
@@ -650,7 +651,7 @@ static void scan_finish_or_next(void) {
          * drive the CONTINUE state again (single-device mode gets its UIF from
          * the inter-measurement pause). Arm a short scheduling delay: its UIF
          * is the bridge to CONTINUE, which then arms the real bus reset. */
-        onewire_start_timer(SCAN_DEVICE_GAP);
+        onewire_start_timer(SCAN_DEVICE_GAP_US, SCAN_DEVICE_GAP_RCR);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
         // Parasite power: keep the strong pull-up engaged across the pause.
