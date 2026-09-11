@@ -382,7 +382,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_FEED.CMAR = (uint32_t)read_pulse;
     OW_PORT_DMA_FEED.CNDTR = 3;
     OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
-    T1.SR = 0; /* Clear any pending capture/compare flags before enabling DMA requests */
 #ifdef OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else
