@@ -9,7 +9,6 @@
 
 #ifdef OW_STATS_ENABLE
 
-#include "app.h"
 #include <string.h>
 
 #if defined(OW_PORT_FAMILY_G0)
@@ -119,9 +118,9 @@ uint8_t ow_stats_dump_poll(void) {
      * without overflowing; the dump itself streams across poll calls. */
     switch (dump_phase) {
     case 1:
-        uart_write_str("--- stats [");
-        uart_write_int(st.total_cycles);
-        uart_write_str(" c] ---\r\n");
+        ow_stats_puts("--- stats [");
+        ow_stats_print_int(st.total_cycles);
+        ow_stats_puts(" c] ---\r\n");
         dump_phase = 2;
         dump_sensor = 0;
         break;
@@ -130,20 +129,20 @@ uint8_t ow_stats_dump_poll(void) {
         if (dump_sensor < st.sensor_count) {
             const ow_stats_sensor_t* s = &st.sensors[dump_sensor];
             for (uint32_t j = 0; j < 8; j++) {
-                uart_write_hex(s->rom[j]);
-                if (j != 7) uart_tx_enqueue_byte(' ');
+                ow_stats_print_hex(s->rom[j]);
+                if (j != 7) ow_stats_tx_enqueue(' ');
             }
-            uart_tx_enqueue_byte(':');
-            uart_write_int(s->min_pulse);
-            uart_tx_enqueue_byte('-');
-            uart_write_int(s->max_pulse);
-            uart_tx_enqueue_byte(' ');
-            uart_tx_enqueue_byte('n');
-            uart_write_int(s->count);
-            uart_tx_enqueue_byte(' ');
-            uart_tx_enqueue_byte('e');
-            uart_write_int(s->crc_err + s->no_presence + s->generic_err);
-            uart_write_str("\r\n");
+            ow_stats_tx_enqueue(':');
+            ow_stats_print_int(s->min_pulse);
+            ow_stats_tx_enqueue('-');
+            ow_stats_print_int(s->max_pulse);
+            ow_stats_tx_enqueue(' ');
+            ow_stats_tx_enqueue('n');
+            ow_stats_print_int(s->count);
+            ow_stats_tx_enqueue(' ');
+            ow_stats_tx_enqueue('e');
+            ow_stats_print_int(s->crc_err + s->no_presence + s->generic_err);
+            ow_stats_puts("\r\n");
             dump_sensor++;
         } else {
             dump_phase = 3;
@@ -151,25 +150,25 @@ uint8_t ow_stats_dump_poll(void) {
         break;
 
     case 3:
-        uart_write_str("h:");
+        ow_stats_puts("h:");
         for (uint32_t i = 0; i < OW_STATS_HIST_BUCKETS; i++) {
             if (st.histogram[i]) {
-                uart_write_int(i);
-                uart_tx_enqueue_byte('=');
-                uart_write_int(st.histogram[i]);
-                uart_tx_enqueue_byte(' ');
+                ow_stats_print_int(i);
+                ow_stats_tx_enqueue('=');
+                ow_stats_print_int(st.histogram[i]);
+                ow_stats_tx_enqueue(' ');
             }
         }
-        uart_write_str("\r\n");
+        ow_stats_puts("\r\n");
         dump_phase = 4;
         break;
 
     case 4:
-        uart_write_str("t=");
-        uart_write_int(st.total_cycles);
-        uart_write_str("c ");
-        uart_write_int(st.total_errors);
-        uart_write_str("e\r\n");
+        ow_stats_puts("t=");
+        ow_stats_print_int(st.total_cycles);
+        ow_stats_puts("c ");
+        ow_stats_print_int(st.total_errors);
+        ow_stats_puts("e\r\n");
         dump_phase = 0;
         break;
     }
@@ -194,5 +193,17 @@ void ow_stats_reset(void) {
 uint32_t ow_stats_tick(void) {
     return ++st.total_cycles;
 }
+
+/* ---- weak default output callbacks ---- */
+
+__attribute__((weak)) void ow_stats_putchar(char c) { (void)c; }
+
+__attribute__((weak)) void ow_stats_puts(const char *s) { (void)s; }
+
+__attribute__((weak)) void ow_stats_print_int(int32_t v) { (void)v; }
+
+__attribute__((weak)) void ow_stats_print_hex(uint8_t v) { (void)v; }
+
+__attribute__((weak)) void ow_stats_tx_enqueue(char c) { (void)c; }
 
 #endif /* OW_STATS_ENABLE */
