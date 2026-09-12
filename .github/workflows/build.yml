@@ -53,12 +53,12 @@ jobs:
       - name: Build Project
         run: |
           make
-          make APP=demo2
-          make APP=demo3
-          make APP=demo4
-          make APP=demo5
-          make APP=demo6
-          make APP=demo6 EXT="-DOW_PORT_LOW_POWER"
+          make APP=3_round_robin
+          make APP=4_scan_mode
+          make APP=5_commands
+          make APP=6_statistics
+          make APP=7_low_power
+          make APP=7_low_power EXT="-DOW_PORT_LOW_POWER"
 
       # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts

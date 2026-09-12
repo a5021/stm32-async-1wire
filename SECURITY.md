@@ -15,7 +15,7 @@ This project is a bare-metal 1-Wire library for STM32 (DS18B20 driver
 included) and does not process untrusted input in a typical networked sense.
 However, if you find a security issue — for example in the 1-Wire
 protocol handling, buffer handling in `src/ds18b20.c` or
-`src/demo.c`, or in the build tooling — please do **not** open a
+`examples/`, or in the build tooling — please do **not** open a
 public issue.
 
 Instead, report it privately by opening an issue on GitHub and marking

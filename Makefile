@@ -1,30 +1,30 @@
-# Select the example application: demo (single sensor, Skip ROM),
-# demo1 (device search + sequential polling of every sensor, one Convert T
-#        per device - no broadcast conversion),
-# demo2 (device search + sequential polling of every sensor on the bus),
-# demo3 (device search + simultaneous broadcast conversion of every sensor),
-# demo4 (device search + command transactions: ROM, power supply, TH/TL,
-#        Copy/Recall EEPROM)
-# demo5 (device search + sequential polling with signal statistics)
-# demo6 (device search + sequential polling, WFE sleep on long stages)
-#   make               -> builds demo   (ds18b20_demo.elf)
-#   make APP=demo1     -> builds demo1  (ds18b20_demo1.elf)
-#   make APP=demo2     -> builds demo2  (ds18b20_demo2.elf)
-#   make APP=demo3     -> builds demo3  (ds18b20_demo3.elf)
-#   make APP=demo4     -> builds demo4  (ds18b20_demo4.elf)
-#   make APP=demo5     -> builds demo5  (ds18b20_demo5.elf)
-#   make APP=demo6     -> builds demo6  (ds18b20_demo6.elf)
-APP ?= demo
-ifeq ($(filter $(APP),demo demo1 demo2 demo3 demo4 demo5 demo6),)
-$(error APP must be 'demo', 'demo1', 'demo2', 'demo3', 'demo4', 'demo5' or 'demo6')
+# Select the example application:
+#   1_basic             (single sensor, Skip ROM)
+#   2_device_search     (device search + per-device polling)
+#   3_round_robin       (device search + sequential polling of every sensor)
+#   4_scan_mode         (device search + simultaneous broadcast conversion)
+#   5_commands          (device search + command transactions: ROM, power supply,
+#                        TH/TL, Copy/Recall EEPROM)
+#   6_statistics        (device search + sequential polling with signal statistics)
+#   7_low_power         (device search + WFE sleep on long stages)
+#   make                     -> builds 1_basic   (ds18b20_1_basic.elf)
+#   make APP=2_device_search -> builds 2_device_search
+#   make APP=3_round_robin   -> builds 3_round_robin
+#   make APP=4_scan_mode     -> builds 4_scan_mode
+#   make APP=5_commands      -> builds 5_commands
+#   make APP=6_statistics    -> builds 6_statistics
+#   make APP=7_low_power     -> builds 7_low_power
+APP ?= 1_basic
+ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power),)
+$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics' or '7_low_power')
 endif
 
-# demo5 is the signal-statistics example: enable the optional stats module by
+# 6_statistics is the signal-statistics example: enable the optional stats module by
 # default, shorten the inter-measurement pause to ~10ms, and widen the stats
 # window to 5000 measurement rounds.  Parasite power is deliberately NOT set
 # here (it is bus-hardware dependent) — pass EXT="-DPARASITE_POWER=1" when the
 # 1-Wire bus is parasite-powered.
-ifeq ($(APP),demo5)
+ifeq ($(APP),6_statistics)
 override EXT += -DOW_STATS_ENABLE -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000
 endif
 
@@ -43,37 +43,37 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=g0   -> G0 firmware
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
 LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
 DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
 JFLASH = port/stm32f0/stm32f030f4.jflash
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s
 LDS = port/stm32g0/STM32G031X6_FLASH.ld
 MCU = -mcpu=cortex-m0plus -mthumb
 DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
 JFLASH = port/stm32g0/stm32g031f6.jflash
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c src/$(APP).c src/onewire.c src/ds18b20.c src/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
 LDS = port/stm32f1/STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
 JFLASH = port/stm32f1/stm32f103cb.jflash
 endif
-INC = -I. -Iinc -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
-UART_TX_SIZE_demo  = 128
-UART_TX_SIZE_demo1 = 256
-UART_TX_SIZE_demo2 = 256
-UART_TX_SIZE_demo3 = 256
-UART_TX_SIZE_demo4 = 256
-UART_TX_SIZE_demo5 = 1024
-UART_TX_SIZE_demo6 = 256
+UART_TX_SIZE_1_basic        = 128
+UART_TX_SIZE_2_device_search = 256
+UART_TX_SIZE_3_round_robin  = 256
+UART_TX_SIZE_4_scan_mode    = 256
+UART_TX_SIZE_5_commands     = 256
+UART_TX_SIZE_6_statistics   = 1024
+UART_TX_SIZE_7_low_power    = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
@@ -531,7 +531,7 @@ endif
 TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc $(TEST_PORT_INC) -I$(TEST_MOCK)
+TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER
@@ -582,11 +582,11 @@ test-lowpower-f0:
 test-lowpower-g0:
 	$(MAKE) OW_TARGET=g0 test-lowpower
 
-$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) src/app.c -o $@
+$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) examples/app/app.c -o $@
 
-$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c src/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_SRC) tests/test/test_lowpower.c src/app.c -o $@
+$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
 
 $(TEST_OUT):
 	mkdir -p $@
@@ -601,7 +601,7 @@ TEST_ACTIVE_SRC = \
     $(TEST_MOCK)/ds18b20_test_spy.c \
     $(TEST_MOCK)/ds18b20_test_access.c \
     $(TEST_MOCK)/ow_stats_test_access.c \
-    src/app.c
+    examples/app/app.c
 TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE
 TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
 
@@ -731,7 +731,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=demo|demo1|demo2|demo3|demo4|demo5|demo6  - example application to build"
+	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power  - example application to build"
 	@echo "  OW_TARGET=f1|f0|g0               - MCU family (firmware build)"
 	@echo "  SYSCLK_MHZ=N                     - run on the raw internal RC (8MHz F1/F0, 16MHz G0) instead of family default"
 

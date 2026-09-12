@@ -43,7 +43,7 @@ interrupt-free, minimal CPU usage).
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
    and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
 4. Run the code quality checks used in CI:
-   - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/demo.c`
+   - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c examples/1_basic/main.c`
    - `cppcheck --enable=warning,style,performance,portability ...`
 5. Update the README and the [CHANGELOG](CHANGELOG.md) if your change
    affects behavior or usage.
@@ -54,7 +54,7 @@ interrupt-free, minimal CPU usage).
 
 - Follow the existing naming conventions in `inc/` and `src/`.
 - Keep functions short and focused on a single responsibility.
-- Prefer explicit register access via the macros in `macro.h`.
+- Prefer explicit register access via the macros in `ow_bits.h`.
 - Do not introduce `delay_us()` calls or interrupt handlers.
 
 ## Build checklist
