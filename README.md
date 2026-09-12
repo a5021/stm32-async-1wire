@@ -11,7 +11,6 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32f4/ow_port_f4.h` — STM32F401CCU6 (Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 streams 6/2 (no DMAMUX). 84 MHz via HSE+PLL (default) or 16 MHz HSI.
 
 ## Features
 
@@ -1024,12 +1023,13 @@ Practical consequences for RTOS use:
 
 1. A delayed poll is safe **because the line is released to HIGH in hardware**,
    not by software. Every bus operation now ends with the line idle-HIGH
-   automatically: the CCR3-fed writes (`send_command_n`, the merged search op)
-   append a trailing 0 to the DMA feed, and the direct-write/capture operations
-   (reset, read, single-slot write) use an OC3PE preload of 0 — both applied at
-   the instant the one-pulse timer stops. There is no software `T1.CCR3 = 0`
-   anywhere; the bus cannot be left LOW by a stale compare value, no matter how
-   long the RTOS delays the next poll.
+   automatically: the CCR3-fed writes (`ow_port_feed`, including the merged
+   search op) append a trailing 0 to the DMA feed, and the direct-write/capture
+   operations (reset, read, single-slot write) use an OC3PE preload of 0 — both
+   applied at the instant the one-pulse timer stops. Those `T1.CCR3 = 0`
+   preloads are the only software CCR3 writes on the direct paths, latched at
+   the stopping update event; the bus cannot be left LOW by a stale compare
+   value, no matter how long the RTOS delays the next poll.
 2. The usable scheduling latency budget is ~480 µs of LOW, not a tight
    microsecond window. Any RTOS that resumes the poll within hundreds of µs is
    fine; longer delays only require that the bus idles HIGH, which the hardware
@@ -1489,7 +1489,7 @@ make APP=demo5 EXT="-DPARASITE_POWER=1"            # parasite power
 
 > Note: the `demo5` target already injects `-DOW_STATS_ENABLE` plus
 > `-DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000`, so the shipped
-> demo5 dumps every 5000 cycles with a 10 s inter-cycle pause. Override either
+> demo5 dumps every 5000 cycles with a 10 ms inter-cycle pause. Override either
 > macro via `EXT=` if you want the module defaults instead.
 
 UART output format (compact, one sensor per line):
