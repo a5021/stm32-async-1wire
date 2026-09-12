@@ -21,6 +21,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef OW_STATS_ENABLE
 
 /** Maximum number of sensors tracked simultaneously. */
@@ -109,6 +113,27 @@ void ow_stats_reset(void);
  */
 uint32_t ow_stats_tick(void);
 
+/**
+ * @name Output callbacks (weak, user-provided)
+ *
+ * The statistics dump module needs a minimal UART output interface.
+ * Default weak implementations in ow_stats.c do nothing; the user
+ * supplies strong definitions to enable the dump.  Only needed when
+ * OW_STATS_ENABLE is defined.
+ * @{
+ */
+/** @brief Write a single character to the output. */
+void ow_stats_putchar(char c);
+/** @brief Write a NUL-terminated string to the output. */
+void ow_stats_puts(const char *s);
+/** @brief Write a signed integer in decimal to the output. */
+void ow_stats_print_int(int32_t v);
+/** @brief Write a byte as two hex digits to the output. */
+void ow_stats_print_hex(uint8_t v);
+/** @brief Enqueue a single character into the TX ring buffer (non-blocking). */
+void ow_stats_tx_enqueue(char c);
+/** @} */
+
 #else /* OW_STATS_ENABLE not defined — zero-overhead stubs */
 
 static inline void ow_stats_init(void) {}
@@ -128,5 +153,9 @@ static inline void ow_stats_reset(void) {}
 static inline uint32_t ow_stats_tick(void) { return 0; }
 
 #endif /* OW_STATS_ENABLE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* OW_STATS_H */
