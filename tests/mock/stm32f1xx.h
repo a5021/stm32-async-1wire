@@ -71,7 +71,7 @@ typedef struct {
     volatile uint32_t CR3;
 } USART_TypeDef;
 
-/* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work.
+/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA1_Channel3), etc. work.
  * STM32F103 fixed request map (verified on target): feed rides TIM1_CC2 ->
  * channel 3, capture rides TIM1_CH4 -> channel 4. The storage objects keep
  * their legacy names so tests and hw_model stay target-agnostic. */
