@@ -146,10 +146,10 @@ void test_copy_scratchpad_feed_release(void) {
     run_current_op();
     TEST_ASSERT_FALSE(ds18b20_copy_scratchpad_poll());
     run_current_op();
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(16, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[15]);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
     /* finish (write UIF consumed -> DONE, then the timer handover) */
     drive_txn(ds18b20_copy_scratchpad_poll);
@@ -160,7 +160,7 @@ void test_copy_scratchpad_no_presence_aborts(void) {
     ds18b20_copy_scratchpad();
     drive_txn(ds18b20_copy_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_last_command_ok());
-    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr1_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr3_feed_log()->count);
 }
 
 /*-------------------------------------------------------------

@@ -133,7 +133,7 @@ void test_alarm_search_finds_device_sends_0xEC(void) {
             uint8_t ok = hw_run_until_uif(100);
             TEST_ASSERT_TRUE(ok);
             if (!ec_feed_checked) {
-                const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+                const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
                 if (log->count == 8) { /* the 0xEC command feed */
                     ec_feed_checked = 1;
                     uint16_t expected[8];

@@ -151,11 +151,11 @@ void test_read_rom_feed_release(void) {
     /* write (feed must be the bare 8 slots ending in the release 0) */
     TEST_ASSERT_FALSE(ds18b20_read_rom_poll());
     run_current_op();
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(8, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[7]);
     TEST_ASSERT_TRUE(log->values[0] != 0);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
     /* read + finish */
     drive_txn(ds18b20_read_rom_poll);
@@ -182,7 +182,7 @@ void test_read_rom_no_presence_aborts(void) {
     for (int i = 0; i < DS18B20_ROM_BYTES; i++) {
         TEST_ASSERT_EQUAL_HEX8(0xAA, got[i]);
     }
-    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr1_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr3_feed_log()->count);
 }
 
 /*-------------------------------------------------------------
