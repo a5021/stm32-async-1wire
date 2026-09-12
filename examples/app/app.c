@@ -152,7 +152,7 @@ void ow_stats_putchar(char c) {
     uart_tx_enqueue_byte((int)c);
 }
 
-void ow_stats_puts(const char *s) {
+void ow_stats_puts(const char* s) {
     uart_write_str(s);
 }
 

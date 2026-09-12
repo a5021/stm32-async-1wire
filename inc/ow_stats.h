@@ -125,7 +125,7 @@ uint32_t ow_stats_tick(void);
 /** @brief Write a single character to the output. */
 void ow_stats_putchar(char c);
 /** @brief Write a NUL-terminated string to the output. */
-void ow_stats_puts(const char *s);
+void ow_stats_puts(const char* s);
 /** @brief Write a signed integer in decimal to the output. */
 void ow_stats_print_int(int32_t v);
 /** @brief Write a byte as two hex digits to the output. */

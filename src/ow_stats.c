@@ -199,7 +199,7 @@ uint32_t ow_stats_tick(void) {
 
 __attribute__((weak)) void ow_stats_putchar(char c) { (void)c; }
 
-__attribute__((weak)) void ow_stats_puts(const char *s) { (void)s; }
+__attribute__((weak)) void ow_stats_puts(const char* s) { (void)s; }
 
 __attribute__((weak)) void ow_stats_print_int(int32_t v) { (void)v; }
 
