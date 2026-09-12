@@ -19,6 +19,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* --- 1-Wire reset timeslot geometry (microseconds), shared by all backends.
  *     The '1'/'0' bit-slot durations live in onewire.h (ONEWIRE_ONE_PULSE,
  *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). --- */
@@ -62,6 +66,10 @@
 #include "ow_port_g0.h"
 #else
 #error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0 or OW_PORT_TARGET_G0, or a family macro such as STM32F1/STM32F0/STM32G0)"
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* OW_PORT_H */

@@ -12,6 +12,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @defgroup ONEWIRE_Protocol 1-Wire Protocol Constants
  * @{
@@ -29,7 +33,7 @@
  *  own. ow_port.h picks the backend and app.c the device header/clock config
  *  from the token — never from the individual spellings — so the backend and
  *  the clock default cannot drift. To add a family, extend this chain (token
- *  and default clock together in one branch), then add the #include branch in
+ *  and default clock together in one branch), then add the \#include branch in
  *  ow_port.h, the app.c config, and a case in tests/test/test_sysclk_fallback.c. */
 #if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
 #define OW_PORT_FAMILY_F1
@@ -332,6 +336,10 @@ uint8_t onewire_crc8(const uint8_t* data, uint8_t len);
  * @note Temporary test hook for the RTOS-latency experiment only.
  */
 void onewire_test_set_gap_us(uint16_t us);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* ONEWIRE_H */

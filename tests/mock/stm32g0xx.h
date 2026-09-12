@@ -95,7 +95,7 @@ typedef struct {
     volatile uint32_t TDR;
 } USART_TypeDef;
 
-/* Instances: pointers so macro.h's (*TIM1), (*DMA1_Channel3), etc. work.
+/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA1_Channel3), etc. work.
  * STM32G031 routes peripheral DMA requests through DMAMUX (no fixed map):
  * feed rides DMAMUX channel 2 paired with DMA1_Channel3 (TIM1_CC2), capture
  * rides DMAMUX channel 3 paired with DMA1_Channel4 (TIM1_CH4). The storage

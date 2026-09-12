@@ -23,7 +23,7 @@
 #ifndef OW_PORT_F1_H
 #define OW_PORT_F1_H
 
-#include "macro.h"
+#include "ow_bits.h"
 #include "onewire.h"
 #include "stm32f1xx.h"
 
