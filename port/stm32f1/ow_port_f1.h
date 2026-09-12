@@ -23,8 +23,8 @@
 #ifndef OW_PORT_F1_H
 #define OW_PORT_F1_H
 
-#include "ow_bits.h"
 #include "onewire.h"
+#include "ow_bits.h"
 #include "stm32f1xx.h"
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
