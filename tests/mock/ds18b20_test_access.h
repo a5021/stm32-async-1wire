@@ -47,7 +47,6 @@ uint8_t test_bus_present(void);
 /* Direct port-layer wrappers for low-power tests. */
 #ifdef OW_PORT_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count);
-void test_bus_sleep_until_done(void);
 #endif
 
 /* Merged-search capture buffer access (search_pulse3: write-slot capture + id/cmp pulses). */
