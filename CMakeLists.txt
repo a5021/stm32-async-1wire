@@ -7,6 +7,8 @@ project(stm32_async_1wire C ASM)
 set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0")
 set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0)
 
+option(OW_BUILD_EXAMPLES "Build example applications" OFF)
+
 # ---------------------------------------------------------------------------
 # FetchContent: ARM CMSIS Core + STM32 device headers
 # ---------------------------------------------------------------------------
@@ -67,25 +69,21 @@ set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
 set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 
 # ---------------------------------------------------------------------------
-# Library target
+# Library target (code only — no startup/system, no syscall.c)
 # ---------------------------------------------------------------------------
 add_library(stm32_async_1wire STATIC
     src/onewire.c
     src/ds18b20.c
     src/ow_stats.c
-    src/syscall.c
-    ${CMSIS_STARTUP_DIR}/${STARTUP_ASM}
-    ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
 )
 
 target_include_directories(stm32_async_1wire PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/port
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
-    ${CMSIS_CORE_INCLUDE}
-    ${CMSIS_DEVICE_INCLUDE}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
+    $<INSTALL_INTERFACE:include/stm32-async-1wire>
 )
 
 target_compile_definitions(stm32_async_1wire PUBLIC
@@ -102,12 +100,50 @@ target_compile_options(stm32_async_1wire PUBLIC
     -fdata-sections
 )
 
-target_link_options(stm32_async_1wire PUBLIC
-    ${MCU_FLAGS}
-    -T${LINKER_SCRIPT}
-    -Wl,--gc-sections
-    --specs=nosys.specs
-    --specs=nano.specs
+# ---------------------------------------------------------------------------
+# Install targets
+# ---------------------------------------------------------------------------
+include(GNUInstallDirs)
+
+install(TARGETS stm32_async_1wire
+    EXPORT stm32_async_1wireTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(FILES
+    inc/onewire.h
+    inc/ds18b20.h
+    inc/ow_port.h
+    inc/ow_stats.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
+)
+
+install(EXPORT stm32_async_1wireTargets
+    FILE stm32_async_1wireTargets.cmake
+    NAMESPACE stm32_async_1wire::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32_async_1wire
+)
+
+# --- Config file for find_package() ---
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/stm32_async_1wireConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/stm32_async_1wireConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32_async_1wire
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/stm32_async_1wireConfigVersion.cmake
+    VERSION 1.8.1
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/stm32_async_1wireConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/stm32_async_1wireConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32_async_1wire
 )
 
 # ---------------------------------------------------------------------------
@@ -116,3 +152,59 @@ target_link_options(stm32_async_1wire PUBLIC
 message(STATUS "stm32-async-1wire: OW_TARGET=${OW_TARGET}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
                "OW_PORT_DEF=${OW_PORT_DEF}")
+
+# ---------------------------------------------------------------------------
+# Examples (opt-in with -DOW_BUILD_EXAMPLES=ON)
+# ---------------------------------------------------------------------------
+if(OW_BUILD_EXAMPLES)
+    # Complete platform: startup, system, linker script, syscall.c
+    add_library(stm32_async_1wire_platform STATIC
+        src/syscall.c
+        ${CMSIS_STARTUP_DIR}/${STARTUP_ASM}
+        ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
+    )
+    target_include_directories(stm32_async_1wire_platform PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/port
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
+        ${CMSIS_CORE_INCLUDE}
+        ${CMSIS_DEVICE_INCLUDE}
+    )
+    target_compile_definitions(stm32_async_1wire_platform PUBLIC
+        ${CMSIS_DEVICE_DEF}
+        ${OW_PORT_DEF}
+    )
+    target_compile_options(stm32_async_1wire_platform PUBLIC
+        ${MCU_FLAGS}
+        -Os
+        -Wall
+        -Wextra
+        -ffunction-sections
+        -fdata-sections
+    )
+    target_link_options(stm32_async_1wire_platform PUBLIC
+        ${MCU_FLAGS}
+        -T${LINKER_SCRIPT}
+        -Wl,--gc-sections
+        --specs=nosys.specs
+        --specs=nano.specs
+    )
+
+    # Example applications
+    set(EXAMPLES 1_basic 2_device_search 3_manual_read 4_nonblocking
+                 5_interrupt_driven 6_crc_performance 7_low_power)
+    foreach(ex ${EXAMPLES})
+        add_executable(${ex}
+            examples/${ex}/main.c
+        )
+        target_link_libraries(${ex} PRIVATE
+            stm32_async_1wire
+            stm32_async_1wire_platform
+        )
+        target_include_directories(${ex} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/app
+        )
+    endforeach()
+endif()

@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# CMSIS headers and device files must be provided by the consumer
+# (STM32Cube, PlatformIO, or manual FetchContent).
+
+include("${CMAKE_CURRENT_LIST_DIR}/stm32_async_1wireTargets.cmake")
