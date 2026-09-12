@@ -6,6 +6,7 @@
 
 #include "ow_stats.h"
 #include "ds18b20.h"
+#include "onewire.h"
 
 #ifdef OW_STATS_ENABLE
 
