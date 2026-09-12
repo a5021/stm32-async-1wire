@@ -85,3 +85,6 @@ testbin/
 coverage.info
 coverage.filtered.info
 coverage-report/
+
+# Generated API documentation
+docs/api/
