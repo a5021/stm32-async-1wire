@@ -19,7 +19,7 @@ DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
 
 static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;
-static hw_ccr1_feed_log_t feed_log;
+static hw_ccr3_feed_log_t feed_log;
 static uint32_t op_capture_count;
 
 /* --- truncated 32-bit DMA address -> real host pointer table --- */
@@ -77,11 +77,11 @@ void hw_reset_all(void) {
 
 void hw_set_capture_source(hw_capture_fn fn) { capture_source = fn; }
 
-const hw_ccr1_feed_log_t* hw_ccr1_feed_log(void) { return &feed_log; }
+const hw_ccr3_feed_log_t* hw_ccr3_feed_log(void) { return &feed_log; }
 
 uint32_t hw_capture_count(void) { return op_capture_count; }
 
-uint16_t hw_effective_ccr1(void) {
+uint16_t hw_effective_ccr3(void) {
     if (MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE) {
         return tim_shadow_out;
     }

@@ -56,8 +56,8 @@ void test_dmamux_feed_request_routed_on_write(void) {
     /* run-through: the mux-enable actually let the feed data flow */
     TEST_ASSERT_TRUE(hw_run_until_uif(mock_tim1.RCR + 1u));
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
-    TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, hw_ccr1_feed_log()->count);
-    TEST_ASSERT_EQUAL_UINT16(0u, hw_ccr1_feed_log()->values[ONEWIRE_BITS_PER_BYTE - 1]);
+    TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, hw_ccr3_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT16(0u, hw_ccr3_feed_log()->values[ONEWIRE_BITS_PER_BYTE - 1]);
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
 }
 

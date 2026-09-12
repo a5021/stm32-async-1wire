@@ -115,7 +115,7 @@ void test_search_command_feed_release(void) {
             uint8_t ok = hw_run_until_uif(100);
             TEST_ASSERT_TRUE(ok);
             if (!f0_feed_checked) {
-                const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+                const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
                 if (log->count == 8) { /* 0xF0 command: exactly 8 slot pulses */
                     f0_feed_checked = 1;
                     TEST_ASSERT_EQUAL_UINT16(0, log->values[7]); /* trailing release zero */
@@ -134,7 +134,7 @@ void test_search_command_feed_release(void) {
     TEST_ASSERT_EQUAL_UINT8(1, g_found_count);
 
     /* DONE phase (EGR=UG timer handover) leaves the bus idle HIGH. */
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 void test_search_finds_different_serial(void) {

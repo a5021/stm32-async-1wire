@@ -172,7 +172,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
     /* every transfer carried exactly the buffer element at that offset:
        one element per transfer, in order, starting past the preloaded slot 1 */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, log->count);
     for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
         TEST_ASSERT_EQUAL_UINT8(pat_a[i + 1], log->values[i]);
@@ -185,7 +185,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
     onewire_write_slots(b.pulses, ONEWIRE_BITS_PER_BYTE);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CMAR);
     run_op();
-    log = hw_ccr1_feed_log();
+    log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, log->count);
     for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
         TEST_ASSERT_EQUAL_UINT8(pat_b[i + 1], log->values[i]);
@@ -211,7 +211,7 @@ void test_dma_tx_never_reads_neighbouring_buffer(void) {
 
     /* both buffers are registered before the model resolves CMAR, so a driver
        bug pointing CMAR at b would resolve to b and leak b's values here */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
         TEST_ASSERT_EQUAL_UINT8(pat_a[i + 1], log->values[i]);
         for (uint8_t k = 0; k < ONEWIRE_BITS_PER_BYTE; k++) {
@@ -262,7 +262,7 @@ void test_dma_tx_overrun_reads_guard(void) {
 
     /* the extra transfer must not be swallowed: it reads the guard byte that
        immediately follows the 9-byte table and surfaces in the output log */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE + 1u, log->count);
     TEST_ASSERT_EQUAL_UINT8(0xA5u, log->values[ONEWIRE_BITS_PER_BYTE]);
     /* a correct op would have placed the trailing bus-release 0 here instead */
@@ -435,11 +435,11 @@ void test_dma_tx_direction_memory_to_peripheral(void) {
     /* behavioural direction: the data moved OUT of memory. The source buffer
        is untouched, the peripheral-facing output received the values. */
     TEST_ASSERT_TRUE(memcmp(snapshot, g.pulses, sizeof(snapshot)) == 0);
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, log->count);
     TEST_ASSERT_EQUAL_UINT8(0x52u, log->values[0]);
     /* the terminal DMA reload (trailing 0) is effective in the output */
-    TEST_ASSERT_EQUAL_UINT16(0u, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0u, hw_effective_ccr3());
     assert_guards(g.guard_before, g.guard_after, 0xA5);
 }
 
@@ -514,10 +514,10 @@ void test_dma_write_then_read_merged_geometry(void) {
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
     TEST_ASSERT_EQUAL_UINT32(3u, hw_capture_count());
-    TEST_ASSERT_EQUAL_UINT8(3u, hw_ccr1_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT8(3u, hw_ccr3_feed_log()->count);
 
     /* feed reloads the read pulses for slots 2..3 and the trailing release 0 */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[0]);
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[1]);
     TEST_ASSERT_EQUAL_UINT16(0u, log->values[2]);
@@ -543,7 +543,7 @@ void test_dma_single_bit_write_uses_no_dma(void) {
     TEST_ASSERT_BITS_LOW(MOCK_TIM_CAP_DE, mock_tim1.DIER);
 
     run_op();
-    TEST_ASSERT_EQUAL_UINT8(0u, hw_ccr1_feed_log()->count); /* zero transfers */
+    TEST_ASSERT_EQUAL_UINT8(0u, hw_ccr3_feed_log()->count); /* zero transfers */
 }
 
 void test_dma_cndtr_one_transfer(void) {
@@ -606,7 +606,7 @@ void test_dma_match_rom_resolution_writes_104_slots(void) {
     /* the DMA feed delivered the pre-built 104-slot table exactly: transfer i
        carried pulses[i+1], and the last slot got the trailing release 0 */
     {
-        const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+        const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
         TEST_ASSERT_EQUAL_UINT8(104u, log->count);
         for (uint8_t i = 0; i < 104; i++) {
             TEST_ASSERT_EQUAL_UINT8(ds18b20_test_get_res_pulse((uint8_t)(i + 1)),
@@ -686,7 +686,7 @@ void test_dma_search_transfer_accounting(void) {
             TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
             TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
             /* the model performed exactly CNDTR transfers in each direction */
-            TEST_ASSERT_EQUAL_UINT32(pre_feed, hw_ccr1_feed_log()->count);
+            TEST_ASSERT_EQUAL_UINT32(pre_feed, hw_ccr3_feed_log()->count);
             TEST_ASSERT_EQUAL_UINT32(pre_cap, hw_capture_count());
 
             /* slots -> transfers consistency for every search operation:

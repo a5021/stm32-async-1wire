@@ -148,11 +148,11 @@ void test_thresholds_skip_rom_feed_release(void) {
     /* write: exactly 40 slot pulses, ending with the trailing 0 */
     TEST_ASSERT_FALSE(ds18b20_set_alarm_thresholds_poll());
     run_current_op();
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(40, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[39]);
     TEST_ASSERT_TRUE(log->values[0] != 0);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
     /* finish (the poll after the write consumed its UIF and reached DONE) */
     drive_txn(ds18b20_set_alarm_thresholds_poll);
@@ -167,10 +167,10 @@ void test_thresholds_match_rom_feed_release(void) {
     run_current_op();
     TEST_ASSERT_FALSE(ds18b20_set_alarm_thresholds_poll());
     run_current_op();
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(104, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[103]);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
     drive_txn(ds18b20_set_alarm_thresholds_poll);
 }
@@ -254,7 +254,7 @@ void test_thresholds_no_presence_aborts(void) {
     drive_txn(ds18b20_set_alarm_thresholds_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_finished());
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_last_command_ok());
-    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr1_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr3_feed_log()->count);
 }
 
 void test_thresholds_reentry_ignored(void) {

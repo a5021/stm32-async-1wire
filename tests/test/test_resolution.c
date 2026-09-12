@@ -161,11 +161,11 @@ void test_resolution_skip_rom_feed_release(void) {
     /* The last simulated operation is the config write: exactly 40 slot
      * pulses are DMA-fed and the feed must end with the trailing 0 that
      * releases the bus HIGH in hardware. */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(40, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[39]);
     TEST_ASSERT_TRUE(log->values[0] != 0);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 
@@ -176,10 +176,10 @@ void test_resolution_match_rom_feed_release(void) {
     drive_res_change(10);
     TEST_ASSERT_EQUAL_UINT8(10, ds18b20_get_resolution());
 
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(104, log->count); /* 13 bytes x 8 slots */
     TEST_ASSERT_EQUAL_UINT16(0, log->values[103]);
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 
@@ -198,7 +198,7 @@ void test_resolution_scan_mode_broadcasts_skip_rom(void) {
     TEST_ASSERT_EQUAL_UINT8(9, ds18b20_get_resolution());
 
     /* Only the 40-slot Skip ROM broadcast is sent, not the 104-slot Match ROM. */
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(40, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[39]);
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_res_pulse(40)); /* trailing at MIN */
@@ -260,7 +260,7 @@ void test_resolution_no_presence_aborts(void) {
     TEST_ASSERT_EQUAL_UINT8(12, ds18b20_get_resolution());
     /* The last simulated operation was only the presence reset: no CCR3 feed
      * (i.e. no config write) was ever sent to the bus. */
-    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr1_feed_log()->count);
+    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr3_feed_log()->count);
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_set_resolution_poll()); /* finished */
 }
 

@@ -14,7 +14,7 @@
  *      terminal update event (OPM stop).
  *
  *  The model asserts the resulting invariant directly:
- *  after completion, hw_effective_ccr1() == 0 (line idle HIGH)
+ *  after completion, hw_effective_ccr3() == 0 (line idle HIGH)
  *  and the timer has stopped (CR1.CEN == 0).
  * ============================================================ */
 
@@ -34,7 +34,7 @@ static void complete_op(uint32_t max_slots) {
 }
 
 static void assert_bus_released(void) {
-    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr1());
+    TEST_ASSERT_EQUAL_UINT16(0, hw_effective_ccr3());
     TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 
@@ -71,7 +71,7 @@ void test_write_command_trailing_zero_release(void) {
     test_bus_send_command_n(cmd, 16);
     complete_op(20);
 
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(16, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[15]); /* last DMA feed releases the bus */
     for (int i = 0; i < 15; i++) {
@@ -121,7 +121,7 @@ void test_merged_write_read_trailing_zero(void) {
     test_bus_write_then_read(1);
     complete_op(6);
 
-    const hw_ccr1_feed_log_t* log = hw_ccr1_feed_log();
+    const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(3, log->count);
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[0]);
     TEST_ASSERT_EQUAL_UINT16(ONE, log->values[1]);
