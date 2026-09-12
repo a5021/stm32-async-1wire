@@ -146,6 +146,28 @@ int uart_write_hex(uint8_t b) {
     return n;
 }
 
+/* ---- ow_stats output callbacks (strong definitions) ---- */
+
+void ow_stats_putchar(char c) {
+    uart_tx_enqueue_byte((int)c);
+}
+
+void ow_stats_puts(const char *s) {
+    uart_write_str(s);
+}
+
+void ow_stats_print_int(int32_t v) {
+    uart_write_int((int)v);
+}
+
+void ow_stats_print_hex(uint8_t v) {
+    uart_write_hex(v);
+}
+
+void ow_stats_tx_enqueue(char c) {
+    uart_tx_enqueue_byte((int)c);
+}
+
 #if !defined(DS18B20_TEST_HARNESS)
 /* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register
  *-level access.  Excluded from the host test build, which only exercises the

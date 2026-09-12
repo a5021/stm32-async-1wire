@@ -50,7 +50,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
     (0x33 / 0x4E / 0xBE / 0x48 / 0xB8 / 0xB4) with the same poll discipline as
     the device search — each `*_poll()` advances one hardware operation and
     hands the timer back to `ds18b20_poll()` when the transaction finishes.
-    See `demo4.c`.
+    See `examples/5_commands/main.c`.
  - Per-Device Addressing: Select one specific sensor by its ROM address
    (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
  - Resolution-Aware Conversion Wait: The driver waits exactly as long as the
@@ -86,9 +86,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
-│   ├── app.h               # Shared application layer (UART, clock, init)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
-│   └── macro.h             # STM32 register access macros (shared)
+│   └── ow_bits.h            # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
@@ -106,19 +105,22 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 ├── src/                    # Project source files
-│   ├── app.c               # app_init(), UART TX ring buffer, busy LED
-│   ├── demo.c              # Example: single sensor, unconditional (Skip ROM)
-│   ├── demo1.c             # Example: device search + per-device poll (no broadcast convert)
-│   ├── demo2.c             # Example: device search + sequential poll of all
-│   ├── demo3.c             # Example: device search + simultaneous conversion
-│   ├── demo4.c             # Example: device search + command transactions
-│   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
-│   ├── demo5.c             # Example: device search + stats dump every N cycles
-│   ├── demo6.c             # Example: device search + WFE low-power sleep on long stages
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
 │   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
+├── examples/               # Demo applications
+│   ├── app/                # Shared application layer (UART, clock, init)
+│   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
+│   │   └── app.h           # Shared application layer interface
+│   ├── 1_basic/main.c      # Single sensor, unconditional (Skip ROM)
+│   ├── 2_device_search/main.c  # Device search + per-device poll (no broadcast convert)
+│   ├── 3_round_robin/main.c    # Device search + sequential poll of all
+│   ├── 4_scan_mode/main.c  # Device search + simultaneous conversion
+│   ├── 5_commands/main.c   # Device search + command transactions
+│   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
+│   ├── 6_statistics/main.c # Device search + stats dump every N cycles
+│   └── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, six tiers)
@@ -157,60 +159,60 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 Seven ready-to-run example applications are provided; select one with `APP`:
 
-| APP     | File             | Behaviour                                                        |
-|---------|------------------|------------------------------------------------------------------|
-| `demo`  | `src/demo.c`     | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
-| `demo1` | `src/demo1.c`    | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
-| `demo2` | `src/demo2.c`    | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
-| `demo3` | `src/demo3.c`    | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
-| `demo4` | `src/demo4.c`    | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
-| `demo5` | `src/demo5.c`    | Startup device search + sequential measurement with signal statistics. The `demo5` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
-| `demo6` | `src/demo6.c`    | Low-power example (same search + sequential loop as `demo1`): with `-DOW_PORT_LOW_POWER` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running. Without the define, the example uses the standard polling loop. |
+| APP               | File                                  | Behaviour                                                        |
+|-------------------|---------------------------------------|------------------------------------------------------------------|
+| (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
+| `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
+| `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
+| `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
+| `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
+| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running. Without the define, the example uses the standard polling loop. |
 
 ```bash
-make                # build demo  -> build/ds18b20_demo.elf
-make APP=demo1      # build demo1 -> build/ds18b20_demo1.elf
-make APP=demo2      # build demo2 -> build/ds18b20_demo2.elf
-make APP=demo3      # build demo3 -> build/ds18b20_demo3.elf
-make APP=demo4      # build demo4 -> build/ds18b20_demo4.elf
-make APP=demo5                   # build demo5 -> build/ds18b20_demo5.elf (OW_STATS_ENABLE auto-added)
-make APP=demo6 EXT="-DOW_PORT_LOW_POWER"   # build demo6 -> build/ds18b20_demo6.elf (WFE low-power)
-make debug APP=demo2  # debug build of demo2 (for J-Link/ST-Link)
+make                                          # build 1_basic -> build/ds18b20_1_basic.elf
+make APP=2_device_search                      # build 2_device_search -> build/ds18b20_2_device_search.elf
+make APP=3_round_robin                        # build 3_round_robin -> build/ds18b20_3_round_robin.elf
+make APP=4_scan_mode                          # build 4_scan_mode -> build/ds18b20_4_scan_mode.elf
+make APP=5_commands                           # build 5_commands -> build/ds18b20_5_commands.elf
+make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
+make APP=7_low_power EXT="-DOW_PORT_LOW_POWER"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
+make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
-make OW_TARGET=f0 APP=demo3
+make OW_TARGET=f0 APP=4_scan_mode
 ```
 
 Notes:
 
-- All examples use `app_init()` (from `inc/app.h`) to set up the system
+- All examples use `app_init()` (from `examples/app/app.h`) to set up the system
   clock, USART1 TX and the busy LED in a single call.
-- `demo` uses Skip ROM, so it is meant for a **single sensor** on the bus.
+- `1_basic` uses Skip ROM, so it is meant for a **single sensor** on the bus.
   With several sensors connected, all of them respond to the read command and
   the bus data collides (CRC failures are expected).
-- `demo1` performs a startup Search ROM, then measures each discovered sensor
+- `2_device_search` performs a startup Search ROM, then measures each discovered sensor
   **individually** via Match ROM (one `Convert T` per device, no broadcast
   conversion) in round-robin order. A separator `--------------------------------`
-  is printed between full rounds. With one sensor it behaves like `demo` but
+  is printed between full rounds. With one sensor it behaves like `1_basic` but
   with ROM addressing; with N sensors a round costs `N × conversion`. Supports
   `-DPARASITE_POWER=1` (strong pull-up handled per conversion).
-- `demo2` measures the devices found at startup one at a time, in round-robin
-  order. With exactly one sensor it behaves like `demo`.
-- `demo3` (scan mode) converts every discovered sensor in parallel: a single
+- `3_round_robin` measures the devices found at startup one at a time, in round-robin
+  order. With exactly one sensor it behaves like `1_basic`.
+- `4_scan_mode` (scan mode) converts every discovered sensor in parallel: a single
   conversion wait covers all devices, so N devices take `1 x conversion + N x
   read` instead of `N x conversion`. Each reading is reported through
   `ds18b20_complete()` in device-table order; `ds18b20_scan_index()` /
   `ds18b20_device_rom()` identify the sensor. Scan mode assumes a uniform
   resolution (the config is written broadcast) and is mutually exclusive with
   `ds18b20_select()`.
-- `demo4` targets the first sensor found by the search (Match ROM) and runs the
+- `5_commands` targets the first sensor found by the search (Match ROM) and runs the
   non-blocking command sequence once at startup: power supply, raw scratchpad,
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
   the single-device Read ROM. Each command advances by one hardware operation
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
-- `demo5` extends the `demo2` sequential loop with signal statistics
-  (`-DOW_STATS_ENABLE`, auto-enabled by `make APP=demo5`). After
-  `STATS_DUMP_INTERVAL` full rounds (source default 100, shipped `demo5` build
+- `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
+  (`-DOW_STATS_ENABLE`, auto-enabled by `make APP=6_statistics`). After
+  `STATS_DUMP_INTERVAL` full rounds (source default 100, shipped `6_statistics` build
   5000 via `Makefile`) the accumulated per-sensor pulse-width min/max,
   13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
   `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
@@ -229,7 +231,7 @@ The following captures were taken on real hardware: STM32F103C8T6 (Blue Pill),
 found all 8 sensors, and every measurement round reported all of them — no
 missing devices, no CRC failures.
 
-**demo2 — device search + round-robin + resolution cycling** (`src/demo2.c`):
+**demo2 — device search + round-robin + resolution cycling** (`examples/3_round_robin/main.c`):
 the startup Search ROM finds all 8 devices, then each sensor is measured in
 turn while the resolution cycles 9 → 10 → 11 → 12 bit between measurements.
 
@@ -237,7 +239,7 @@ turn while the resolution cycles 9 → 10 → 11 → 12 bit between measurements
   <img src="docs/screenshots/demo2_uart.png" alt="demo2 on real hardware: device search, round-robin measurement, resolution cycling" width="600">
 </p>
 
-**demo3 — simultaneous multi-device conversion** (`src/demo3.c`): one broadcast
+**demo3 — simultaneous multi-device conversion** (`examples/4_scan_mode/main.c`): one broadcast
 `Convert T` converts all sensors in parallel, then each is read back via
 Match ROM — 8 readings per round in device-table order.
 
@@ -245,7 +247,7 @@ Match ROM — 8 readings per round in device-table order.
   <img src="docs/screenshots/demo3_uart.png" alt="demo3 on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
 </p>
 
-**demo4 — command transactions** (`src/demo4.c`): after the startup search, the
+**demo4 — command transactions** (`examples/5_commands/main.c`): after the startup search, the
 first sensor (Match ROM) answers every non-blocking command in turn — external
 power confirmed, raw scratchpad read with CRC ok and the resolution auto-derived
 from the config byte, TH/TL written (0x19/0x0F), copied to the EEPROM, then a
@@ -266,17 +268,17 @@ again carried 8 × DS18B20; all rounds complete with valid CRCs and no errors:
 
 | Test | Clock | Result |
 |------|-------|--------|
-| `demo2` — search + round-robin + resolution cycling | HSI+PLL 48MHz | 163 samples / 7+ sensors, 0 CRC or timeout errors |
-| `demo2` — same | HSI 8MHz | 161 samples, 0 errors |
-| `demo3` — simultaneous conversion scan | HSI+PLL 48MHz | all 8 devices found, 56 readings (7 × 8), 0 errors |
-| `demo3` — same | HSI 8MHz | all 8 devices found, 56 readings, 0 errors |
-| `demo4` — command transactions validator | both clocks | all checks pass (power supply, TH/TL write, Copy/Recall EEPROM round-trip, expected multi-device Read ROM CRC failure) |
+| `3_round_robin` — search + round-robin + resolution cycling | HSI+PLL 48MHz | 163 samples / 7+ sensors, 0 CRC or timeout errors |
+| `3_round_robin` — same | HSI 8MHz | 161 samples, 0 errors |
+| `4_scan_mode` — simultaneous conversion scan | HSI+PLL 48MHz | all 8 devices found, 56 readings (7 × 8), 0 errors |
+| `4_scan_mode` — same | HSI 8MHz | all 8 devices found, 56 readings, 0 errors |
+| `5_commands` — command transactions validator | both clocks | all checks pass (power supply, TH/TL write, Copy/Recall EEPROM round-trip, expected multi-device Read ROM CRC failure) |
 
 ### STM32G031F6P6 (WeAct TSSOP20 board)
 
 Validated on a WeAct STM32G031F6P6 minimum board: 6 × DS18B20 in parasite
 power mode on one 1-Wire bus (logical PA10 on the physical PA12 pad), USART1
-TX on logical PA9 (physical PA11), flashed via ST-Link SWD. `demo3`
+TX on logical PA9 (physical PA11), flashed via ST-Link SWD. `4_scan_mode`
 (simultaneous conversion scan) runs with every device reported each round,
 valid CRCs and zero errors at both supported clocks — the default 64MHz
 (HSI16+PLL) and the raw-HSI16 `SYSCLK_MHZ=16` build, which exercises the
@@ -285,7 +287,7 @@ SYSCFG remap described in Hardware Connections below; the USB-C connector of
 this board is wired to PA11/PA12 and must stay unplugged while the driver
 owns the bus.
 
-**demo5 — signal statistics** (`src/demo5.c`): startup device search +
+**demo5 — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. Over 100
 measurement cycles (configurable via `STATS_DUMP_INTERVAL`), the module
 accumulates per-sensor pulse-width min/max, a 13-bucket logarithmic histogram
@@ -297,11 +299,11 @@ histogram buckets populated across the normal decode range.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
+make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
 ```
 
-**demo6 — low power** (`src/demo6.c`): the same search + sequential loop as
-`demo1`, but built with `-DOW_PORT_LOW_POWER`.
+**demo6 — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
+`2_device_search`, but built with `-DOW_PORT_LOW_POWER`.
 
 > **What low-power mode does not change.** Low-power mode does not change
 > 1-Wire execution. TIM+DMA continue to control all bus timing; `WFE` allows
@@ -321,7 +323,7 @@ mechanism and measure the CPU-time saving.
 
 > **Verified on hardware (STM32F103C8 Blue Pill).** With
 > `-DOW_PORT_LOW_POWER -DPARASITE_POWER=1` and six DS18B20 sensors powered
-> in parasite mode, demo6 found all six devices, read them in turn (*24.0 °C /
+> in parasite mode, 7_low_power found all six devices, read them in turn (*24.0 °C /
 > 85.0 °C / 23.8 °C ...*) and the core demonstrably entered `__WFE()`: a
 > temporary instrumented run printed `[WFE iters=1]` before every measurement,
 > i.e. the first `__WFE()` after arming the long stage blocked and woke exactly
@@ -332,8 +334,8 @@ mechanism and measure the CPU-time saving.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER"   # (append -DPARASITE_POWER=1 on a parasite bus)
-make OW_TARGET=g0 APP=demo6                              # same example, but standard polling (define omitted)
+make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER"   # (append -DPARASITE_POWER=1 on a parasite bus)
+make OW_TARGET=g0 APP=7_low_power                              # same example, but standard polling (define omitted)
 ```
 
 ## Hardware Connections
@@ -417,7 +419,7 @@ int main(void) {
     ds18b20_init();  // One-time initialization
 
     // Optional: run the non-blocking device search to find every sensor on
-    // the bus. See demo2.c for a complete example. The search hands the
+    // the bus. See examples/3_round_robin/main.c for a complete example. The search hands the
     // driver back to poll() automatically when finished.
 
     // Optional: measure one specific device by its ROM address
@@ -433,7 +435,7 @@ int main(void) {
 ### 3. Implement Callbacks (Optional)
 
 Both callbacks are optional. Default weak implementations are provided by the
-driver, and `src/app.c` additionally supplies a default `ds18b20_busy()` that
+driver, and `examples/app/app.c` additionally supplies a default `ds18b20_busy()` that
 drives the onboard LED (PC13). The examples override both: `ds18b20_busy()`
 switches the LED and `ds18b20_complete()` formats and prints the result.
 
@@ -540,7 +542,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing). |
-| `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see demo5). |
+| `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see 6_statistics). |
 | `EXT="-DOW_PORT_LOW_POWER"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
 ### Flash
@@ -730,7 +732,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
    (J-Link)"** / **"Debug G0 (ST-Link)"** for the STM32G031 target. The F0
    configurations build with `OW_TARGET=f0` automatically, the G0 ones with
    `OW_TARGET=g0`.
-2. Open `src/demo.c` and set a breakpoint in `main()`.
+2. Open `examples/1_basic/main.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
 
@@ -798,7 +800,7 @@ The 1-Wire layer uses a hybrid of several hardware features:
 > (`ds18b20_search_*`) for multi-sensor buses. The Maxim Search ROM (0xF0)
 > algorithm is implemented as a compact state machine in the shared 1-Wire
 > layer; it performs exactly one hardware-timed operation per poll call,
-> consistent with the non-blocking measurement path. See `demo2.c` for a
+> consistent with the non-blocking measurement path. See `examples/3_round_robin/main.c` for a
 > complete Search ROM example.
 
 ### Shared 1-Wire Layer
@@ -1199,7 +1201,7 @@ with its 8-byte ROM address; `max_devices` caps the reported count. Poll
 `ds18b20_search_poll()` from the main loop until it returns 1 — it restores
 `ds18b20_poll()` state automatically. `ds18b20_search_count()` returns how many
 devices were found. Only devices with family code `DS18B20_FAMILY_CODE` (0x28)
-are reported. See `demo2.c`.
+are reported. See `examples/3_round_robin/main.c`.
 
 ### Alarm Search
 
@@ -1292,7 +1294,7 @@ uint8_t  ds18b20_last_command_ok(void);
    the driver's tracked `ctx.resolution` is **not** updated. If the EEPROM
    resolution may differ from the current one, follow `ds18b20_recall_eeprom()`
    with `ds18b20_read_scratchpad()` to resynchronise `ds18b20_get_resolution()`
-   before the next conversion (see `demo4.c`, which chains recall → scratchpad
+   before the next conversion (see `examples/5_commands/main.c`, which chains recall → scratchpad
    read for this reason).
 - `ds18b20_detect_parasite()` runs a Read Power Supply query and stores the
    answer straight into the driver state — after
@@ -1337,7 +1339,7 @@ broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously, the
 reads each one back via Match ROM in device-table order, reporting every result
 through `ds18b20_complete()`. N devices take one conversion wait plus N reads
 instead of N conversion waits. A missing device reports
-`DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See `demo3.c`.
+`DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See `examples/4_scan_mode/main.c`.
 
 - The device table must be populated first by the non-blocking device search
   (`ds18b20_search_*`).
@@ -1400,7 +1402,7 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=demo EXT=-DPARASITE_POWER=1        # or demo2 / demo3 / demo4 / demo5
+make APP=1_basic EXT=-DPARASITE_POWER=1        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
 ```
 
 ### Signal Statistics Module (`ow_stats`)
@@ -1483,13 +1485,13 @@ int main(void) {
 Build with the statistics module:
 
 ```sh
-make APP=demo5                                  # external power (OW_STATS_ENABLE auto-added)
-make APP=demo5 EXT="-DPARASITE_POWER=1"            # parasite power
+make APP=6_statistics                                  # external power (OW_STATS_ENABLE auto-added)
+make APP=6_statistics EXT="-DPARASITE_POWER=1"            # parasite power
 ```
 
-> Note: the `demo5` target already injects `-DOW_STATS_ENABLE` plus
+> Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE` plus
 > `-DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000`, so the shipped
-> demo5 dumps every 5000 cycles with a 10 ms inter-cycle pause. Override either
+> 6_statistics dumps every 5000 cycles with a 10 ms inter-cycle pause. Override either
 > macro via `EXT=` if you want the module defaults instead.
 
 UART output format (compact, one sensor per line):
@@ -1570,7 +1572,7 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - Time to result (one measurement): 93.75ms @ 9-bit … ~0.76 s @ 12-bit
   (conversion + protocol overhead; the conversion wait follows the configured
   resolution, see `ds18b20_set_resolution()`)
-- Inter-measurement pause: 5 s, configurable via `DS18B20_CYCLE_PAUSE_US` (default 5000000 µs; the demo5 build overrides it to 10000 µs)
+- Inter-measurement pause: 5 s, configurable via `DS18B20_CYCLE_PAUSE_US` (default 5000000 µs; the 6_statistics build overrides it to 10000 µs)
 - Precision: 0.1°C resolution at 12-bit (coarser steps at lower resolutions)
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
