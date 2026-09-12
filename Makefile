@@ -20,7 +20,7 @@ $(error APP must be 'demo', 'demo1', 'demo2', 'demo3', 'demo4', 'demo5' or 'demo
 endif
 
 # demo5 is the signal-statistics example: enable the optional stats module by
-# default, shorten the inter-measurement pause to ~1ms, and widen the stats
+# default, shorten the inter-measurement pause to ~10ms, and widen the stats
 # window to 5000 measurement rounds.  Parasite power is deliberately NOT set
 # here (it is bus-hardware dependent) — pass EXT="-DPARASITE_POWER=1" when the
 # 1-Wire bus is parasite-powered.
