@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['rc_0',['RC',['../ow__bits_8h.html#a9de40e06982123e40c3c92b5db6d7640',1,'ow_bits.h']]],
+  ['rcc_5fahbenr_1',['RCC_AHBENR',['../ow__bits_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c',1,'ow_bits.h']]],
+  ['rcc_5fapb1enr_2',['RCC_APB1ENR',['../ow__bits_8h.html#ae86f1a806a982542f9b84a0f57e923ac',1,'ow_bits.h']]],
+  ['rcc_5fapb1rstr_3',['RCC_APB1RSTR',['../ow__bits_8h.html#a6fe24227181b56b0b5a86dff87a789ca',1,'ow_bits.h']]],
+  ['rcc_5fapb2enr_4',['RCC_APB2ENR',['../ow__bits_8h.html#a768c19149973a577a2f6a53f372d904c',1,'ow_bits.h']]],
+  ['rcc_5fapb2rstr_5',['RCC_APB2RSTR',['../ow__bits_8h.html#adec86a8fbb4a06dec27a49deac2f312d',1,'ow_bits.h']]],
+  ['rcc_5fbdcr_6',['RCC_BDCR',['../ow__bits_8h.html#ab92edf851b739183a23caa04c926af6a',1,'ow_bits.h']]],
+  ['rcc_5fbits_7',['RCC_BITS',['../ow__bits_8h.html#a46898aeaf8d68a178e82587fac5b4e38',1,'ow_bits.h']]],
+  ['rcc_5fcfgr_8',['RCC_CFGR',['../ow__bits_8h.html#aa5cabd478619b7d8db477c6959444c6b',1,'ow_bits.h']]],
+  ['rcc_5fcir_9',['RCC_CIR',['../ow__bits_8h.html#ab78e6cea7a312e11fcbadbda2c6fadb4',1,'ow_bits.h']]],
+  ['rcc_5fcr_10',['RCC_CR',['../ow__bits_8h.html#a31c7cb2afb8e7ad7dddbaf261167ee73',1,'ow_bits.h']]],
+  ['rcc_5fcsr_11',['RCC_CSR',['../ow__bits_8h.html#aa3cd844282daf59605f2a5d6a4e417e0',1,'ow_bits.h']]],
+  ['rt_12',['RT',['../ow__bits_8h.html#ad05d2f1b67cda860903cecd9f21b6b9f',1,'ow_bits.h']]],
+  ['rtc_5falrh_13',['RTC_ALRH',['../ow__bits_8h.html#ac64a924af6a95b577778640b8eb46fe3',1,'ow_bits.h']]],
+  ['rtc_5falrl_14',['RTC_ALRL',['../ow__bits_8h.html#a9e4f4680ab1edfbd1988b27f982042ca',1,'ow_bits.h']]],
+  ['rtc_5fbits_15',['RTC_BITS',['../ow__bits_8h.html#a02766c5e5b1d917ada8876f24ed922c3',1,'ow_bits.h']]],
+  ['rtc_5fcnth_16',['RTC_CNTH',['../ow__bits_8h.html#acc3e0e4e672fdd8acafe53181d568fcc',1,'ow_bits.h']]],
+  ['rtc_5fcntl_17',['RTC_CNTL',['../ow__bits_8h.html#a18fad45f3426aba187a40a55b888c903',1,'ow_bits.h']]],
+  ['rtc_5fcrh_18',['RTC_CRH',['../ow__bits_8h.html#a7d1273d012ca29742f67eb84ef02afd3',1,'ow_bits.h']]],
+  ['rtc_5fcrl_19',['RTC_CRL',['../ow__bits_8h.html#ab23e4b2a0d7553aba96caca1bdb33173',1,'ow_bits.h']]],
+  ['rtc_5fdivh_20',['RTC_DIVH',['../ow__bits_8h.html#a12f88bb285cb9c2d9da5667f9c35acec',1,'ow_bits.h']]],
+  ['rtc_5fdivl_21',['RTC_DIVL',['../ow__bits_8h.html#a8d34ee6ebd04bca53565bdfee490bfc4',1,'ow_bits.h']]],
+  ['rtc_5fprlh_22',['RTC_PRLH',['../ow__bits_8h.html#a22351898d833920eebfdee92b75a84bb',1,'ow_bits.h']]],
+  ['rtc_5fprll_23',['RTC_PRLL',['../ow__bits_8h.html#a4f8751262e4a4e6c5c3a1a4eb32c82eb',1,'ow_bits.h']]]
+];
