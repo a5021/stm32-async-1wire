@@ -89,7 +89,6 @@ uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
 void test_bus_arm_capture_n(uint16_t count) {
     ow_port_capture((volatile void*)ctx.capture, count, 16);
 }
-void test_bus_sleep_until_done(void) { ow_port_sleep_until_done(); }
 #endif
 uint16_t test_search_pulse(uint8_t i) { return search_pulse3[i]; }
 void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = v; }
