@@ -35,6 +35,14 @@ extern "C" {
  * here keeps this header self-contained regardless of TU include order. */
 #include "onewire.h"
 
+/* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
+ * least-significant byte via MSIZE=8.  This is lossless only while every
+ * slot capture stays below 256 µs; the counter runs 0..ARR, so the maximum
+ * capture value is ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE +
+ * ONEWIRE_GUARD_BAND.  Enforce this globally across all backends. */
+_Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 256u,
+               "8-bit read capture (MSIZE=8) would truncate slot durations");
+
 /* --- CH4 input-capture digital filter (IC4F), one standard for every clock.
  *     Keep the filter time T_f = N × T_sample as close to ~500ns as the
  *     discrete IC4F table allows for the configured clock: that rejects
