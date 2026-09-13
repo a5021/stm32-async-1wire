@@ -275,7 +275,7 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
      * device". */
     reset_pulses[0] = 0;
     reset_pulses[1] = 0;
-    ow_port_capture((volatile void*)reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);
+    ow_port_capture(reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);
 }
 
 /**
@@ -405,7 +405,7 @@ __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes
     T1.RCR = bits - 1;
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
     T1.CCR3 = ONEWIRE_ONE_PULSE;
-    ow_port_capture((volatile void*)dst, bits, 8);
+    ow_port_capture(dst, bits, 8);
 }
 
 /**
