@@ -511,6 +511,20 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_MOCK)/ow_stats_test_access.c \
             $(TEST_DIR)/test_harness_api.c \
             $(TEST_DIR)/test_app_uart.c
+# Host tests compile at production optimization (-O2 -flto) instead of -O0,
+# which re-reads memory by construction.  The compiler-enforced guard for a
+# lost 'volatile' qualifier on the DMA capture path is
+# -Werror=discarded-qualifiers in TEST_FLAG below: passing a volatile buffer
+# into a non-volatile parameter becomes a hard build error, deterministically.
+# (LTO alone is not that net -- the synchronous host mock is value-correct, so
+# the optimizer may legally forward the mock's DMA writes to the loads, and
+# the tests still pass.)  COVERAGE=1 (gcov) conflicts with LTO and opts out
+# via TEST_OPT; override anytime with TEST_OPT='' or e.g. TEST_OPT=-O0.
+ifeq ($(COVERAGE),1)
+TEST_OPT ?= -O0
+else
+TEST_OPT ?= -O2 -flto
+endif
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
 # on a 64-bit host; suppress the size warnings.
 # OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
@@ -529,6 +543,7 @@ TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
 TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
+            -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
@@ -583,10 +598,10 @@ test-lowpower-g0:
 	$(MAKE) OW_TARGET=g0 test-lowpower
 
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_SRC) examples/app/app.c -o $@
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
+	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
 
 $(TEST_OUT):
 	mkdir -p $@
@@ -616,7 +631,7 @@ test-active-g0:
 	$(MAKE) OW_TARGET=g0 test-active
 
 $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_ACTIVE_SRC) -o $@
+	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
 
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
