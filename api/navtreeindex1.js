@@ -1,5 +1,7 @@
 var NAVTREEINDEX1 =
 {
+"ow__bits_8h.html#a690d30e9ad3647835c243368b36d4c41":[2,0,0,2,160],
+"ow__bits_8h.html#a6967c3abb43e5916a2947ad9476849cd":[2,0,0,2,200],
 "ow__bits_8h.html#a6c2e35fdcd9091ccada629895fa1d034":[2,0,0,2,83],
 "ow__bits_8h.html#a6c4ee038cb682907a25bef28d1b41306":[2,0,0,2,164],
 "ow__bits_8h.html#a6cfae9dfb7641bd66886d874f222174d":[2,0,0,2,13],

@@ -2,6 +2,8 @@ var onewire_8h =
 [
     [ "ONEWIRE_BITS_PER_BYTE", "group__ONEWIRE__Protocol.html#gab22d43cb4e34913349621c66b9fd2c1c", null ],
     [ "ONEWIRE_GUARD_BAND", "group__ONEWIRE__Protocol.html#gac5ba21c930f7b725a5d54d2d4b67031f", null ],
+    [ "ONEWIRE_MAX_READ_BYTES", "group__ONEWIRE__Protocol.html#gae0c96211c002f1d558a4de31f40381f2", null ],
+    [ "ONEWIRE_MAX_SLOTS", "group__ONEWIRE__Protocol.html#ga5f7f921694a4ec26d7073e20282d9b4c", null ],
     [ "ONEWIRE_ONE_PULSE", "group__ONEWIRE__Protocol.html#gaa6a4d6398a7d8069affba9f78d5e2c6e", null ],
     [ "ONEWIRE_ROM_BITS", "group__ONEWIRE__Protocol.html#ga337412c996f5683edf6ddfcf049e73e4", null ],
     [ "ONEWIRE_ROM_BYTES", "group__ONEWIRE__Protocol.html#ga203ac9e9369cd6dac73239439e7e12e1", null ],

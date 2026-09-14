@@ -348,7 +348,7 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[out]</td><td class="paramname">dst</td><td>Buffer for the captured pulse durations (bytes × 8 × 8-bit) </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">bytes</td><td>Number of bytes to read </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">bytes</td><td>Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32). Out-of-range values (0 or &gt; 32) are ignored (assert in debug): one pass is limited to ONEWIRE_MAX_SLOTS (256) slots by the 8-bit TIM1 RCR (RCR = bytes*8 - 1); larger reads must be split. </td></tr>
   </table>
   </dd>
 </dl>
@@ -531,7 +531,7 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Pulse buffer (one entry per slot); for <code>slots &gt; 1</code> the entry at index <code>slots</code> must be 0 (hardware bus release) </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256). Out-of-range values (0 or &gt; 256) are ignored (assert in debug): TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would truncate and desync the timer from the DMA (CNDTR). </td></tr>
   </table>
   </dd>
 </dl>
