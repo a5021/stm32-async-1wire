@@ -191,3 +191,194 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     }
     return 0u;
 }
+
+/* ======================================================================
+ * Temporal TIM/DMA event model
+ *
+ * Discrete-event stepper that places each event at its physical counter
+ * position inside a slot period. Unlike hw_run_until_uif() (which fires the
+ * feed DMA once per slot at the slot START), this model mirrors real TIM1
+ * behaviour: the CC2 compare at ONE+ZERO µs is the end-of-slot marker whose
+ * DMA request reloads CCR3 for the *next* slot, i.e. only after slot N's
+ * pulse has completed. See tests/test/test_tim_model.c for the contract it
+ * proves (CCR3 held per slot, reload only after CC2, trailing 0 last).
+ * ==================================================================== */
+
+typedef struct {
+    uint16_t arr; /* auto-reload value (slot period, µs) */
+    uint16_t ccr2; /* slot-end marker compare value (ONE+ZERO µs) */
+    uint8_t pe; /* OC3PE: output-compare preload active */
+    uint8_t feed_en; /* CC2DE + feed channel EN && CNDTR > 0 */
+    uint8_t cap_en; /* CC4DE + capture channel EN && CNDTR > 0 */
+    uint8_t feed_pend; /* CC2 matched; the reload transfer is due */
+    uint8_t done; /* terminal update fired */
+    uint32_t feed_rem; /* feed transfers still pending */
+    uint8_t* feed_ptr; /* resolved feed source cursor */
+    uint8_t* cap_ptr; /* resolved capture destination cursor */
+    uint32_t cap_total; /* total capture transfers scheduled */
+    uint32_t cap_done; /* capture transfers performed so far */
+    uint32_t cps; /* captures per slot (ceil) */
+    uint8_t slots; /* number of slots (RCR + 1) */
+    uint8_t period; /* current slot, 0-based */
+    uint32_t tick; /* current counter position */
+    uint16_t shadow; /* active output value (preload shadow or CCR3) */
+} hw_tim_t;
+
+static hw_tim_t g_tim;
+
+void hw_tim_init(void) {
+    g_tim = (hw_tim_t){0};
+    g_tim.arr = (uint16_t)mock_tim1.ARR;
+    g_tim.ccr2 = (uint16_t)mock_tim1.CCR2;
+    g_tim.pe = (uint8_t)((MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE) ? 1u : 0u);
+    g_tim.slots = (uint8_t)((mock_tim1.RCR & 0xFFu) + 1u);
+    g_tim.tick = 0;
+    g_tim.period = 0;
+    g_tim.shadow = (uint16_t)mock_tim1.CCR3;
+    if ((mock_tim1.DIER & MOCK_TIM_FEED_DE) && (mock_feed_ch.CCR & DMA_CCR_EN) &&
+        mock_feed_ch.CNDTR > 0u) {
+        g_tim.feed_en = 1u;
+        g_tim.feed_rem = mock_feed_ch.CNDTR;
+        g_tim.feed_ptr = (uint8_t*)hw_resolve((uint32_t)mock_feed_ch.CMAR);
+        if (g_tim.feed_ptr == NULL) {
+            fprintf(stderr, "hw_model: unresolved feed source address\n");
+            g_tim.feed_en = 0u;
+            mock_feed_ch.CNDTR = 0;
+            mock_feed_ch.CCR &= ~DMA_CCR_EN;
+        }
+    }
+    if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) && (mock_dma1_ch4.CCR & DMA_CCR_EN) &&
+        mock_dma1_ch4.CNDTR > 0u) {
+        g_tim.cap_en = 1u;
+        g_tim.cap_total = mock_dma1_ch4.CNDTR;
+        g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
+        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)mock_dma1_ch4.CMAR);
+        if (g_tim.cap_ptr == NULL) {
+            fprintf(stderr, "hw_model: unresolved capture destination address\n");
+            g_tim.cap_en = 0u;
+            mock_dma1_ch4.CNDTR = 0;
+            mock_dma1_ch4.CCR &= ~DMA_CCR_EN;
+        }
+    }
+}
+
+void hw_tim_init_shadow(uint16_t init_shadow) {
+    hw_tim_init();
+    g_tim.shadow = init_shadow;
+}
+
+/* One feed transfer: memory -> CCR3 (immediate when no OC3PE preload). */
+static void hw_tim_do_feed(void) {
+    uint16_t val = *g_tim.feed_ptr;
+    g_tim.feed_ptr += 1; /* MSIZE 8-bit */
+    mock_tim1.CCR3 = val;
+    if (g_tim.pe == 0u) {
+        g_tim.shadow = val; /* no preload: the output updates immediately */
+    }
+    g_tim.feed_rem--;
+    mock_feed_ch.CNDTR = g_tim.feed_rem;
+    if (g_tim.feed_rem == 0u) {
+        g_tim.feed_en = 0u;
+        mock_feed_ch.CCR &= ~DMA_CCR_EN;
+    }
+}
+
+/* Counter position of the next capture of the current slot, or UINT32_MAX.
+ * A capture fires at the pulse-edge time: the counter value at the moment
+ * the bus edge arrives equals the captured duration. */
+static uint32_t hw_tim_next_capture_tick(void) {
+    if (!g_tim.cap_en || g_tim.cap_done >= g_tim.cap_total) {
+        return UINT32_MAX;
+    }
+    uint32_t cap_end = (g_tim.period + 1u) * g_tim.cps;
+    if (cap_end > g_tim.cap_total) {
+        cap_end = g_tim.cap_total;
+    }
+    if (g_tim.cap_done >= cap_end) {
+        return UINT32_MAX; /* all captures of this slot already taken */
+    }
+    uint32_t t = capture_source ? capture_source(g_tim.cap_done) : 0u;
+    if (t <= g_tim.tick || t >= g_tim.arr) {
+        return UINT32_MAX; /* outside the current counter window */
+    }
+    return t;
+}
+
+/* One capture transfer: CCR4 -> memory (MSIZE 8 or 16 per DMA config). */
+static void hw_tim_do_capture(void) {
+    uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
+    mock_tim1.CCR4 = val;
+    if (mock_dma1_ch4.CCR & DMA_CCR_MSIZE_0) {
+        *(volatile uint16_t*)g_tim.cap_ptr = val;
+        g_tim.cap_ptr += 2;
+    } else {
+        *(volatile uint8_t*)g_tim.cap_ptr = (uint8_t)val;
+        g_tim.cap_ptr += 1;
+    }
+    g_tim.cap_done++;
+    mock_dma1_ch4.CNDTR = g_tim.cap_total - g_tim.cap_done;
+    if (g_tim.cap_done >= g_tim.cap_total) {
+        g_tim.cap_en = 0u;
+        mock_dma1_ch4.CCR &= ~DMA_CCR_EN;
+    }
+}
+
+hw_tim_event_t hw_tim_step(void) {
+    if (!(mock_tim1.CR1 & TIM_CR1_CEN) || g_tim.done) {
+        return HW_TIM_EV_IDLE;
+    }
+    /* CC2 matched on the previous step: the requested feed transfer is due. */
+    if (g_tim.feed_pend) {
+        g_tim.feed_pend = 0u;
+        hw_tim_do_feed();
+        return HW_TIM_EV_FEED;
+    }
+    /* Pick the next event by the smallest counter position. */
+    uint32_t next = g_tim.arr;
+    uint8_t kind = 3u; /* 3 = update/terminal */
+    uint32_t cap_tick = hw_tim_next_capture_tick();
+    if (g_tim.feed_en && g_tim.ccr2 > g_tim.tick && g_tim.ccr2 < g_tim.arr) {
+        if (g_tim.ccr2 < next) {
+            next = g_tim.ccr2;
+            kind = 1u; /* 1 = CC2 */
+        }
+    }
+    if (cap_tick != UINT32_MAX && cap_tick < next) {
+        next = cap_tick;
+        kind = 2u; /* 2 = capture */
+    }
+    if (next >= g_tim.arr) {
+        /* ARR overflow: slot boundary (terminal on the last slot). */
+        g_tim.tick = g_tim.arr;
+        if (g_tim.pe) {
+            g_tim.shadow = (uint16_t)mock_tim1.CCR3; /* preload -> shadow */
+        }
+        if (g_tim.period >= (uint32_t)g_tim.slots - 1u) {
+            g_tim.done = 1u;
+            mock_tim1.SR |= TIM_SR_UIF;
+            if (mock_tim1.CR1 & TIM_CR1_OPM) {
+                mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;
+            }
+            return HW_TIM_EV_TERMINAL;
+        }
+        g_tim.period++;
+        g_tim.tick = 0;
+        return HW_TIM_EV_UPDATE;
+    }
+    g_tim.tick = next;
+    if (kind == 1u) {
+        g_tim.feed_pend = 1u;
+        return HW_TIM_EV_CC2;
+    }
+    hw_tim_do_capture();
+    return HW_TIM_EV_CAPTURE;
+}
+
+uint32_t hw_tim_period(void) { return g_tim.period; }
+uint32_t hw_tim_tick(void) { return g_tim.tick; }
+uint16_t hw_tim_active(void) {
+    return g_tim.pe ? g_tim.shadow : (uint16_t)mock_tim1.CCR3;
+}
+uint16_t hw_tim_ccr3(void) { return (uint16_t)mock_tim1.CCR3; }
+uint16_t hw_tim_ccr4(void) { return (uint16_t)mock_tim1.CCR4; }
+uint32_t hw_tim_slots(void) { return g_tim.slots; }

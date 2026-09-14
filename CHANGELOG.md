@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **New temporal TIM/DMA event model in the host test harness.**
+  `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
+  start* ("modeled at slot start for simplicity") — fine for the memory-side
+  DMA contract, but it cannot prove the *temporal* contract. The new
+  `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
+  physical counter position and the new `test_tim_model` tests prove that
+  CCR3(slot N) stays in effect for the whole of slot N, the reload happens
+  only after the CC2 compare (never at the slot start), the trailing
+  bus-release zero is applied only after the last slot, and CC4 captures fire
+  at the pulse-edge counter position.
+
 - **New `ONEWIRE_TIMING_CUSTOM` timing profile** (selectable via
   `onewire_set_timing_profile()` or the Makefile `TIMING=CUSTOM`). It uses the
   minimum slot timing allowed by the 1-Wire standard — `one` 1µs, `zero` 60µs,
