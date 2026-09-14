@@ -30,6 +30,8 @@
 #include "ow_bits.h"
 #include "stm32f0xx.h"
 
+#include <assert.h>
+
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
  *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
  *
@@ -210,7 +212,9 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 /**
  * @brief Transmit a command sequence of arbitrary length using DMA
  * @param[in] cmd Pointer to command sequence in pulse duration format
- * @param[in] slots Number of bit slots (bits) to transmit
+ * @param[in] slots Number of bit slots (bits) to transmit, 1..ONEWIRE_MAX_SLOTS.
+ *                  Out-of-range values are ignored: TIM1 RCR is 8-bit
+ *                  (RCR = slots - 1).
  * @note The buffer must hold `slots + 1` entries and the entry at index
  *       `slots` must be 0: the final CC2-triggered DMA transfer feeds that
  *       trailing 0 into CCR3 during the last slot, so the one-pulse timer
@@ -218,6 +222,10 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  *       release — no software CCR3 write needed afterwards).
  */
 __STATIC_FORCEINLINE void ow_port_feed(const uint8_t* cmd, uint16_t slots) {
+    if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
+        assert(0 && "ow_port_feed: slots out of range");
+        return;
+    }
     T1.RCR = slots - 1;
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
     T1.CCR3 = cmd[0];
@@ -282,9 +290,14 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
  * @brief Schedule a write of `slots` bit slots
  * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
  *                   entry at index `slots` must be 0 (hardware bus release)
- * @param[in] slots Number of bit slots to transmit
+ * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS.
+ *                  Out-of-range values are ignored (8-bit RCR limit).
  */
 __STATIC_FORCEINLINE void ow_port_write_slots(const uint8_t* pulses, uint16_t slots) {
+    if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
+        assert(0 && "ow_port_write_slots: slots out of range");
+        return;
+    }
 #ifdef OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
 #endif
@@ -398,9 +411,14 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 /**
  * @brief Schedule a read of `bytes` bytes from the bus
  * @param[out] dst Buffer for the captured pulse durations (bytes x 8 x 8-bit)
- * @param[in] bytes Number of bytes to read
+ * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES.
+ *                  Out-of-range values are ignored (8-bit RCR limit: 256 slots).
  */
 __STATIC_FORCEINLINE void ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {
+    if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
+        assert(0 && "ow_port_read_data: bytes out of range");
+        return;
+    }
     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
     T1.RCR = bits - 1;
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;

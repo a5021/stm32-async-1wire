@@ -154,6 +154,13 @@ static uint8_t dev_count;
 _Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
                "addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing "
                "bus-release pulse consumed by the 1-Wire layer");
+/* RCR guard: every DS18B20 pass must fit one 8-bit RCR window (256 slots). */
+_Static_assert(DS18B20_MATCH_SLOTS <= ONEWIRE_MAX_SLOTS,
+               "Match ROM write must fit one RCR window");
+_Static_assert(DS18B20_SCRATCHPAD_BITS <= ONEWIRE_MAX_SLOTS,
+               "scratchpad read must fit one RCR window");
+_Static_assert(DS18B20_SCRATCHPAD_LEN <= ONEWIRE_MAX_READ_BYTES,
+               "scratchpad length must fit one read pass");
 
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
@@ -168,6 +175,8 @@ static uint8_t detect_buf;
 _Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
                "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
                "trailing bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(DS18B20_RES_SLOTS_MAX <= ONEWIRE_MAX_SLOTS,
+               "longest txn write must fit one RCR window");
 
 /**
  * @defgroup DS18B20_Resolution_Internal DS18B20 Internal Non-Blocking Resolution Change

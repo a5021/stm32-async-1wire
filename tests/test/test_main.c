@@ -50,6 +50,7 @@ extern void run_test_parasite(void);
 extern void run_test_dmamux(void);
 extern void run_test_dma(void);
 extern void run_test_ow_stats(void);
+extern void run_test_rcr_limits(void);
 extern void run_test_harness_api(void);
 extern void run_test_app_uart(void);
 #ifdef OW_PORT_LOW_POWER
@@ -77,6 +78,7 @@ int main(void) {
     run_test_dmamux();
     run_test_dma();
     run_test_ow_stats();
+    run_test_rcr_limits();
     run_test_harness_api();
     run_test_app_uart();
 #ifdef OW_PORT_LOW_POWER

@@ -22,7 +22,9 @@ typedef struct {
     volatile uint32_t CNT;
     volatile uint32_t PSC;
     volatile uint32_t ARR;
-    volatile uint32_t RCR;
+    /* RCR is 8-bit on real TIM1 hardware; keep the mock 8-bit so host tests
+     * reproduce the truncation instead of silently accepting wide values. */
+    volatile uint8_t RCR;
     volatile uint32_t CCR1;
     volatile uint32_t CCR2;
     volatile uint32_t CCR3;

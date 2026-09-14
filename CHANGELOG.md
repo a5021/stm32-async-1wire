@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hardware (a 2µs pulse already broke slot decoding on an F030 at 8MHz) and is
   intended for electrically ideal setups only.
 
+### Fixed
+
+- **Public write/read API limited to the 8-bit `TIM1.RCR` capacity.**
+  `onewire_write_slots()` now accepts at most `ONEWIRE_MAX_SLOTS` (256) slots
+  and `onewire_read_data()` at most `ONEWIRE_MAX_READ_BYTES` (32) bytes.
+  Out-of-range values (including zero) are ignored, with an `assert()` raised
+  in debug builds; internal buffers are guarded by `_Static_assert`, and the
+  new `test_rcr_limits` host tests cover the hardware boundary.
+
 ## [1.8.0] - 2026-09-01
 
 ### Added

@@ -1,6 +1,8 @@
 #include "onewire.h"
 #include "ow_port.h"
 
+#include <assert.h>
+
 #ifdef OW_PORT_LOW_POWER
 /** @brief Set by the driver while a long stage (>1ms) is running, read by the
  *         low-power application. Shared across translation units. */
@@ -30,6 +32,12 @@ uint8_t ow_long_pending = 0;
 #define PRESENCE_PULSE_MAX (RESET_PULSE_MAX + POSITIVE_WIDTH_MAX + NEGATIVE_WIDTH_MAX)
 /** @brief CRC8 polynomial of the Dallas/Maxim 1-Wire algorithm */
 #define ONEWIRE_CRC8_POLY 0x8C
+
+/* Hardware contract: TIM1 RCR is 8-bit (RCR = slots - 1), so one pass is
+ * limited to 256 slots / 32 bytes. Locks the public limits against drift. */
+_Static_assert(ONEWIRE_MAX_SLOTS == 256u, "ONEWIRE_MAX_SLOTS must match 8-bit TIM1 RCR");
+_Static_assert(ONEWIRE_MAX_READ_BYTES == 32u, "ONEWIRE_MAX_READ_BYTES must be 256 slots / 8 bits");
+_Static_assert(ONEWIRE_ROM_BITS <= ONEWIRE_MAX_SLOTS, "search ROM pass must fit one RCR window");
 
 /** @} */
 
@@ -94,6 +102,12 @@ typedef struct {
 /** @brief Global search context instance */
 static onewire_search_ctx_t search_ctx;
 
+/* Internal pulse buffers must always fit one RCR window (+ trailing release). */
+_Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
+               "search command buffer must fit one RCR window");
+_Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
+               "search pair capture must fit one RCR window");
+
 #ifdef DS18B20_TEST_HARNESS
 /** @brief [TEST] Idle-HIGH gap (µs) inserted after every completed search
  *         operation before scheduling the next one (0 = no gap). */
@@ -150,6 +164,10 @@ void onewire_strong_pullup(uint8_t on) {
 }
 
 void onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
+    if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
+        assert(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
+        return;
+    }
     ow_port_write_slots(pulses, slots);
 }
 
@@ -172,6 +190,10 @@ void onewire_write_then_read(uint8_t bit) {
 }
 
 void onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
+    if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
+        assert(0 && "onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)");
+        return;
+    }
     ow_port_read_data(dst, bytes);
 }
 

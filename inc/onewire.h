@@ -27,6 +27,10 @@ extern "C" {
 #define ONEWIRE_ROM_BITS (ONEWIRE_ROM_BYTES * 8)
 /** @brief Bits per byte */
 #define ONEWIRE_BITS_PER_BYTE 8
+/** @brief Maximum bit slots per hardware operation (TIM1 RCR is 8-bit: RCR = slots - 1) */
+#define ONEWIRE_MAX_SLOTS 256u
+/** @brief Maximum bytes per onewire_read_data() pass (256 slots / 8 bits) */
+#define ONEWIRE_MAX_READ_BYTES (ONEWIRE_MAX_SLOTS / ONEWIRE_BITS_PER_BYTE)
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
@@ -161,7 +165,10 @@ uint8_t onewire_present(const volatile uint16_t* pulses);
  * @brief Schedule a write of `slots` bit slots
  * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
  *                   entry at index `slots` must be 0 (hardware bus release)
- * @param[in] slots Number of bit slots to transmit
+ * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256).
+ *                  Out-of-range values (0 or > 256) are ignored (assert in debug):
+ *                  TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would
+ *                  truncate and desync the timer from the DMA (CNDTR).
  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
  *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
@@ -204,7 +211,10 @@ void onewire_write_then_read(uint8_t bit);
 /**
  * @brief Schedule a read of `bytes` bytes from the bus
  * @param[out] dst Buffer for the captured pulse durations (bytes × 8 × 8-bit)
- * @param[in] bytes Number of bytes to read
+ * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32).
+ *                  Out-of-range values (0 or > 32) are ignored (assert in debug):
+ *                  one pass is limited to ONEWIRE_MAX_SLOTS (256) slots by the
+ *                  8-bit TIM1 RCR (RCR = bytes*8 - 1); larger reads must be split.
  * @note On completion, the caller decodes the 8-bit pulse durations (pulse
  *       `<= ONEWIRE_SHORT_PULSE_MAX` reads as bit 1) into data bytes.
  */

@@ -505,6 +505,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_dmamux.c \
             $(TEST_DIR)/test_dma.c \
             $(TEST_DIR)/test_ow_stats.c \
+            $(TEST_DIR)/test_rcr_limits.c \
              $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \
             $(TEST_MOCK)/ds18b20_test_access.c \
