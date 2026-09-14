@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Formalised per-operation DMA register contract table in the host
+  tests.** New `test_dma_contract` drives every scheduleable hardware operation
+  (write, reset, read pair, read data, merged search write+read, Match-ROM
+  config write, single-bit write) against one table of exact `RCR`, `CPAR`,
+  `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
+  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
+  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
+  counter so exact transfer counts hold even beyond the 128-entry value log.
+
 - **New temporal TIM/DMA event model in the host test harness.**
   `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
   start* ("modeled at slot start for simplicity") — fine for the memory-side

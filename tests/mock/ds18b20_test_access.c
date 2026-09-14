@@ -93,6 +93,12 @@ void test_bus_arm_capture_n(uint16_t count) {
 uint16_t test_search_pulse(uint8_t i) { return search_pulse3[i]; }
 void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = v; }
 
+/* Addresses of the driver's internal DMA buffers, for the exact-CMAR
+ * assertions in the per-operation DMA contract table (test_dma_contract.c). */
+const uint8_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
+const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
+const uint8_t* test_res_pulses_feed_addr(void) { return res_ctx.pulses + 1u; }
+
 void ds18b20_test_reset_search(void) {
     search_ctx.finished = 1;
     search_ctx.phase = ONEWIRE_SEARCH_DONE;

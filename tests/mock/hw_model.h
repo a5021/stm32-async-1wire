@@ -30,7 +30,8 @@ void hw_register_buf(const void* ptr);
  * write: 104 slots). */
 typedef struct {
     uint16_t values[128];
-    uint8_t count;
+    uint8_t count; /* number of entries recorded in values[] (caps at 128) */
+    uint32_t total; /* total transfers performed, not capped */
 } hw_ccr3_feed_log_t;
 const hw_ccr3_feed_log_t* hw_ccr3_feed_log(void);
 

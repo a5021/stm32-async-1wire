@@ -53,6 +53,12 @@ void test_bus_arm_capture_n(uint16_t count);
 uint16_t test_search_pulse(uint8_t i);
 void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v);
 
+/* Addresses of the driver's internal DMA buffers, for the exact-CMAR
+ * assertions in the per-operation DMA contract table (test_dma_contract.c). */
+const uint8_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (merged feed source) */
+const volatile uint16_t* test_search_pulse3_addr(void); /* &search_pulse3[0] (merged capture sink) */
+const uint8_t* test_res_pulses_feed_addr(void); /* &res_ctx.pulses[1] (Match-ROM write feed source) */
+
 /* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */
 void ds18b20_test_set_gap_us(uint16_t us);
 

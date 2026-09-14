@@ -71,6 +71,7 @@ void hw_reset_all(void) {
     tim_shadow_out = 0;
     capture_source = NULL;
     feed_log.count = 0;
+    feed_log.total = 0;
     op_capture_count = 0;
     addr_count = 0;
 }
@@ -111,6 +112,7 @@ static void dma16_transfer(void) {
     if (d->CNDTR == 0) {
         d->CCR &= ~DMA_CCR_EN;
     }
+    feed_log.total++;
     if (feed_log.count < 128u) {
         feed_log.values[feed_log.count++] = val;
     }
@@ -148,6 +150,7 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
         return (t->SR & TIM_SR_UIF) ? 1u : 0u;
     }
     feed_log.count = 0;
+    feed_log.total = 0;
     op_capture_count = 0;
     /* Resolve the DMA buffer addresses exactly as the driver stored them. */
     d16_cur = (uint8_t*)hw_resolve((uint32_t)mock_feed_ch.CMAR);

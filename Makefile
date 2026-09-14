@@ -504,6 +504,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_parasite.c \
             $(TEST_DIR)/test_dmamux.c \
             $(TEST_DIR)/test_dma.c \
+            $(TEST_DIR)/test_dma_contract.c \
             $(TEST_DIR)/test_ow_stats.c \
             $(TEST_DIR)/test_rcr_limits.c \
             $(TEST_DIR)/test_tim_model.c \
