@@ -84,6 +84,12 @@ target_include_directories(stm32_async_1wire PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
     $<INSTALL_INTERFACE:include/stm32-async-1wire>
+    # Device/CMSIS headers are required to compile the library (ow_port.h
+    # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
+    # build tree and must not leak into install exports — consumers of the
+    # installed lib provide their own CMSIS/device headers.
+    $<BUILD_INTERFACE:${CMSIS_CORE_INCLUDE}>
+    $<BUILD_INTERFACE:${CMSIS_DEVICE_INCLUDE}>
 )
 
 target_compile_definitions(stm32_async_1wire PUBLIC
@@ -116,6 +122,12 @@ install(FILES
     inc/ds18b20.h
     inc/ow_port.h
     inc/ow_stats.h
+    inc/ow_bits.h  # included by every ow_port_<family>.h backend
+    # ow_port.h selects its backend with sibling quote-includes
+    # (#include "ow_port_f1.h"), so the backends must ship alongside it.
+    port/stm32f1/ow_port_f1.h
+    port/stm32f0/ow_port_f0.h
+    port/stm32g0/ow_port_g0.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 
@@ -192,12 +204,31 @@ if(OW_BUILD_EXAMPLES)
         --specs=nano.specs
     )
 
-    # Example applications
-    set(EXAMPLES 1_basic 2_device_search 3_manual_read 4_nonblocking
-                 5_interrupt_driven 6_crc_performance 7_low_power)
+    # ow_stats.c is compiled into the library but its implementation is
+    # entirely guarded by OW_STATS_ENABLE.  The example set includes
+    # 6_statistics, which requires the APIs unconditionally — mirror the
+    # Makefile's `APP=6_statistics` EXT flags on the shared library.
+    target_compile_definitions(stm32_async_1wire PUBLIC
+        OW_STATS_ENABLE
+        DS18B20_CYCLE_PAUSE_US=10000
+    )
+
+    # Example applications — mirror the make APP=<ex> targets: every example
+    # links the shared examples/app/app.c platform layer and gets the same
+    # per-example compile definitions as the Makefile.
+    set(EXAMPLES 1_basic 2_device_search 3_round_robin 4_scan_mode
+                 5_commands 6_statistics 7_low_power)
+    set(UART_TX_SIZE_1_basic         128)
+    set(UART_TX_SIZE_2_device_search 256)
+    set(UART_TX_SIZE_3_round_robin   256)
+    set(UART_TX_SIZE_4_scan_mode     256)
+    set(UART_TX_SIZE_5_commands      256)
+    set(UART_TX_SIZE_6_statistics    1024)
+    set(UART_TX_SIZE_7_low_power     256)
     foreach(ex ${EXAMPLES})
         add_executable(${ex}
             examples/${ex}/main.c
+            examples/app/app.c
         )
         target_link_libraries(${ex} PRIVATE
             stm32_async_1wire
@@ -206,5 +237,13 @@ if(OW_BUILD_EXAMPLES)
         target_include_directories(${ex} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/app
         )
+        target_compile_definitions(${ex} PRIVATE
+            UART_TX_BUF_SIZE=${UART_TX_SIZE_${ex}}
+        )
+        if(ex STREQUAL "6_statistics")
+            target_compile_definitions(${ex} PRIVATE
+                STATS_DUMP_INTERVAL=5000
+            )
+        endif()
     endforeach()
 endif()

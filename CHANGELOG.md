@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
+  renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
+  `5_commands`, `6_statistics` instead of `3_manual_read`, `4_nonblocking`,
+  `5_interrupt_driven`, `6_crc_performance`) and each example now links the
+  shared `examples/app/app.c` platform layer with the same per-example define
+  set as `make APP=<ex>` (`UART_TX_BUF_SIZE`, and for `6_statistics`
+  `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US`/`STATS_DUMP_INTERVAL`).
+- **CMake install package was incomplete and the library did not compile in
+  plain CMake builds.** The `stm32_async_1wire` target now gets the CMSIS and
+  device include dirs (`BUILD_INTERFACE`-scoped so install exports stay
+  clean), and install ships the backend headers and `ow_bits.h` alongside
+  `ow_port.h`.
+
 ### Added
 
 - **Formalised per-operation DMA register contract table in the host
