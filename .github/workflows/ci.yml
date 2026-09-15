@@ -14,7 +14,9 @@ jobs:
       - name: Install clang-format (pinned)
         run: pip install clang-format==18.1.8
       - name: Check code formatting
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_stats.h src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
+        # src/ds18b20.c is an amalgamated TU that #includes its four functional
+        # parts, so the parts must be linted alongside it.
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
     strategy:
@@ -274,6 +276,55 @@ jobs:
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true
+
+  cmake:
+    # Smoke-build the CMake library package (and the opt-in examples) on real
+    # ARM-flavoured object code, like the Makefile build job, so the CMake
+    # path cannot rot the way it did before the CI gate existed. The
+    # ds18b20 driver is an amalgamated TU: src/ds18b20.c #includes its four
+    # parts, which CMake must not compile alone (HEADER_FILE_ONLY) but whose
+    # edits must still retrigger ds18b20.c (GCC depfile). The install/export
+    # step additionally verifies the find_package() tree.
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [f1, f0, g0]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ARM GCC
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Cache CMSIS FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/_deps
+          key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
+      - name: Configure (OW_TARGET=${{ matrix.backend }})
+        # Bare-metal: CMake's default compiler-link check hits missing
+        # syscalls in the runtime, so the toolcheck only builds a static
+        # archive (CMAKE_TRY_COMPILE_TARGET_TYPE). The toolchain is on PATH
+        # via the action, but CMake must see absolute paths for ar/ranlib —
+        # a bare name is recorded verbatim and fails to run.
+        run: |
+          TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
+          cmake -S . -B build/cmake-${{ matrix.backend }} \
+              -DOW_TARGET=${{ matrix.backend }} \
+              -DOW_BUILD_EXAMPLES=ON \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+              -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+              -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+              -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
+              -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
+              -DFETCHCONTENT_BASE_DIR="${{ github.workspace }}/_deps"
+      - name: Build (OW_TARGET=${{ matrix.backend }})
+        run: cmake --build build/cmake-${{ matrix.backend }} -- -j"$(nproc)"
+      - name: Verify install/export tree (OW_TARGET=${{ matrix.backend }})
+        run: |
+          cmake --install build/cmake-${{ matrix.backend }} --prefix prefix-${{ matrix.backend }}
+          test -f prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
+          test -f prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
+          test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
 
   fuzz:
     runs-on: ubuntu-latest

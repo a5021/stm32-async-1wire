@@ -47,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and ABI are untouched. The Makefile test rules list the parts as
   prerequisites and CMake marks them `HEADER_FILE_ONLY` so they stay out of
   the compiled sources.
+- **The split driver parts are now covered by CI on both axes.** The Code
+  Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
+  alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
+  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0 and G0 via the ARM
+  toolchain and verifies the `find_package()` install tree — the CMake path
+  previously had no in-CI coverage despite the root `CMakeLists.txt`.
 - **The scheduling API now reports rejected parameter ranges instead of
   silently dropping them.** `onewire_write_slots()` and
   `onewire_read_data()` return `uint8_t`: 1 if the operation was
