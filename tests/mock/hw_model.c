@@ -1,6 +1,7 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 TIM1_TypeDef mock_tim1;
 DMA1_Channel_TypeDef mock_dma1_ch4;
@@ -22,19 +23,18 @@ static hw_capture_fn capture_source;
 static hw_ccr3_feed_log_t feed_log;
 static uint32_t op_capture_count;
 
-/* --- truncated 32-bit DMA address -> real host pointer table --- */
+/* --- truncated 32-bit DMA address -> real host pointer table ---
+ * The mock models what the silicon sees: CMAR/CPAR are 32-bit registers, so
+ * it keeps the true host pointer only in this bookkeeping table and resolves
+ * against the exact 32-bit value that ended up in the register.  On a 64-bit
+ * host the (uint32_t)(uintptr_t) truncation could in principle alias two
+ * distinct buffers to the same CMAR value; that collision is a model-invariant
+ * violation and must fail loudly, so the "exact DMA address" claims of the
+ * tests stay honest. */
 #define HW_ADDR_TABLE_MAX 32
 static const void* addr_table[HW_ADDR_TABLE_MAX];
 static uint32_t addr_lo[HW_ADDR_TABLE_MAX];
 static uint8_t addr_count;
-
-void hw_register_buf(const void* ptr) {
-    if (addr_count < HW_ADDR_TABLE_MAX) {
-        addr_lo[addr_count] = (uint32_t)(uintptr_t)ptr;
-        addr_table[addr_count] = ptr;
-        addr_count++;
-    }
-}
 
 static void* hw_resolve(uint32_t lo) {
     for (uint8_t i = 0; i < addr_count; i++) {
@@ -43,6 +43,28 @@ static void* hw_resolve(uint32_t lo) {
         }
     }
     return NULL;
+}
+
+void hw_register_buf(const void* ptr) {
+    uint32_t lo = (uint32_t)(uintptr_t)ptr;
+    if (hw_resolve(lo) == ptr) {
+        return; /* already registered */
+    }
+    if (hw_resolve(lo) != NULL) {
+        fprintf(stderr, "hw_model: FATAL: distinct host buffers truncate to the "
+                        "same 32-bit CMAR value 0x%08lX\n",
+                (unsigned long)lo);
+        abort();
+    }
+    if (addr_count >= HW_ADDR_TABLE_MAX) {
+        fprintf(stderr, "hw_model: FATAL: registered-buffer table exhausted "
+                        "(%u entries)\n",
+                (unsigned)HW_ADDR_TABLE_MAX);
+        abort();
+    }
+    addr_lo[addr_count] = lo;
+    addr_table[addr_count] = ptr;
+    addr_count++;
 }
 
 void hw_reset_all(void) {
