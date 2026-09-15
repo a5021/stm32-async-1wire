@@ -32,12 +32,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
-            <td class="headerCovTableEntry">177</td>
-            <td class="headerCovTableEntry">169</td>
+            <td class="headerCovTableEntry">176</td>
+            <td class="headerCovTableEntry">168</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-15 17:38:44</td>
+            <td class="headerValue">2026-09-15 18:22:16</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -237,18 +237,18 @@
 <span id="L166"><span class="lineNum">     166</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         660 :     ow_port_strong_pullup(on);</span></span>
 <span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">         660 : }</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        1172 : void onewire_write_slots(const uint8_t* pulses, uint16_t slots) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        1172 : uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots) {</span></span>
 <span id="L170"><span class="lineNum">     170</span>   [<span class="tlaGBC" title="Branch 0 was taken 1172 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1172 times"> + </span>]:<span class="tlaGNC">        1172 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         assert(0 &amp;&amp; &quot;onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)&quot;);</span></span>
-<span id="L172"><span class="lineNum">     172</span>                 :             :         return;</span>
+<span id="L172"><span class="lineNum">     172</span>                 :             :         return 0;</span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :     }</span>
-<span id="L174"><span class="lineNum">     174</span>         [<span class="tlaGBC" title="Branch 0 was taken 1172 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">        1172 :     ow_port_write_slots(pulses, slots);</span></span>
+<span id="L174"><span class="lineNum">     174</span>         [<span class="tlaGBC" title="Branch 0 was taken 1172 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">        2344 :     return ow_port_write_slots(pulses, slots);</span></span>
 <span id="L175"><span class="lineNum">     175</span>                 :             : }</span>
 <span id="L176"><span class="lineNum">     176</span>                 :             : </span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">         273 : void onewire_write_bit(uint8_t bit) {</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">         273 : uint8_t onewire_write_bit(uint8_t bit) {</span></span>
 <span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="Branch 0 was taken 207 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">         273 :     uint8_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
-<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         273 :     onewire_write_slots(&amp;pulse, 1);</span></span>
-<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         273 : }</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         273 :     return onewire_write_slots(&amp;pulse, 1);</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :             : }</span>
 <span id="L181"><span class="lineNum">     181</span>                 :             : </span>
 <span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         297 : void onewire_read_pair(volatile uint16_t* pair_pulses) {</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :     ow_port_read_pair(pair_pulses);</span>
@@ -263,12 +263,12 @@
 <span id="L192"><span class="lineNum">     192</span>         [<span class="tlaGBC" title="Branch 0 was taken 3411 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 12120 times"> + </span>]:<span class="tlaGNC">       15531 :     ow_port_write_then_read(bit, search_pulse3, search_read_pulse);</span></span>
 <span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">       15531 : }</span></span>
 <span id="L194"><span class="lineNum">     194</span>                 :             : </span>
-<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaGNC">         270 : void onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {</span></span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaGNC">         270 : uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {</span></span>
 <span id="L196"><span class="lineNum">     196</span>   [<span class="tlaGBC" title="Branch 0 was taken 270 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 270 times"> + </span>]:<span class="tlaGNC">         270 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
 <span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         assert(0 &amp;&amp; &quot;onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)&quot;);</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :             :         return;</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             :         return 0;</span>
 <span id="L199"><span class="lineNum">     199</span>                 :             :     }</span>
-<span id="L200"><span class="lineNum">     200</span>         [<span class="tlaGBC" title="Branch 0 was taken 270 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">         270 :     ow_port_read_data(dst, bytes);</span></span>
+<span id="L200"><span class="lineNum">     200</span>         [<span class="tlaGBC" title="Branch 0 was taken 270 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">         540 :     return ow_port_read_data(dst, bytes);</span></span>
 <span id="L201"><span class="lineNum">     201</span>                 :             : }</span>
 <span id="L202"><span class="lineNum">     202</span>                 :             : </span>
 <span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">         336 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>

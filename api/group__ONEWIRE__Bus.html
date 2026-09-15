@@ -110,12 +110,12 @@ Functions</h2></td></tr>
 <tr class="memitem:gae76cb2b2c181c622060c225f4b5a2c01" id="r_gae76cb2b2c181c622060c225f4b5a2c01"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gae76cb2b2c181c622060c225f4b5a2c01">onewire_present</a> (const volatile uint16_t *pulses)</td></tr>
 <tr class="memdesc:gae76cb2b2c181c622060c225f4b5a2c01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode the presence pulse captured by <a class="el" href="group__ONEWIRE__Bus.html#gabdd1e47fc5997a0806b9294560d2cf3d" title="Schedule a 1-Wire bus reset (presence pulse captured via DMA)">onewire_reset()</a>  <br /></td></tr>
 <tr class="separator:gae76cb2b2c181c622060c225f4b5a2c01"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga890a54c14ca560368fb402fb92364091" id="r_ga890a54c14ca560368fb402fb92364091"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga890a54c14ca560368fb402fb92364091">onewire_write_slots</a> (const uint8_t *pulses, uint16_t slots)</td></tr>
-<tr class="memdesc:ga890a54c14ca560368fb402fb92364091"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a write of <code>slots</code> bit slots.  <br /></td></tr>
-<tr class="separator:ga890a54c14ca560368fb402fb92364091"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga690f4e0c438b4d934b3d587ab545f4d4" id="r_ga690f4e0c438b4d934b3d587ab545f4d4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga690f4e0c438b4d934b3d587ab545f4d4">onewire_write_bit</a> (uint8_t bit)</td></tr>
-<tr class="memdesc:ga690f4e0c438b4d934b3d587ab545f4d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a single-slot write of one raw bit.  <br /></td></tr>
-<tr class="separator:ga690f4e0c438b4d934b3d587ab545f4d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga2a82a93c2c6b98c846015c4da7353eb7" id="r_ga2a82a93c2c6b98c846015c4da7353eb7"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga2a82a93c2c6b98c846015c4da7353eb7">onewire_write_slots</a> (const uint8_t *pulses, uint16_t slots)</td></tr>
+<tr class="memdesc:ga2a82a93c2c6b98c846015c4da7353eb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a write of <code>slots</code> bit slots.  <br /></td></tr>
+<tr class="separator:ga2a82a93c2c6b98c846015c4da7353eb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gade3a544265373c0eddbc68ca76a3de91" id="r_gade3a544265373c0eddbc68ca76a3de91"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gade3a544265373c0eddbc68ca76a3de91">onewire_write_bit</a> (uint8_t bit)</td></tr>
+<tr class="memdesc:gade3a544265373c0eddbc68ca76a3de91"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a single-slot write of one raw bit.  <br /></td></tr>
+<tr class="separator:gade3a544265373c0eddbc68ca76a3de91"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2951b3a34edb9b40b2f0d0e9a00b19d0" id="r_ga2951b3a34edb9b40b2f0d0e9a00b19d0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga2951b3a34edb9b40b2f0d0e9a00b19d0">onewire_read_pair</a> (volatile uint16_t *pair_pulses)</td></tr>
 <tr class="memdesc:ga2951b3a34edb9b40b2f0d0e9a00b19d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a two-slot read of a Search ROM id/cmp bit pair.  <br /></td></tr>
 <tr class="separator:ga2951b3a34edb9b40b2f0d0e9a00b19d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -125,9 +125,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ga9e1e6962332359811e5c8de92a04d413" id="r_ga9e1e6962332359811e5c8de92a04d413"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga9e1e6962332359811e5c8de92a04d413">onewire_write_then_read</a> (uint8_t bit)</td></tr>
 <tr class="memdesc:ga9e1e6962332359811e5c8de92a04d413"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a merged single-slot write followed by a two-slot read pair.  <br /></td></tr>
 <tr class="separator:ga9e1e6962332359811e5c8de92a04d413"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gae1f0e92d37772e9fea861d9f0cc4a1ea" id="r_gae1f0e92d37772e9fea861d9f0cc4a1ea"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gae1f0e92d37772e9fea861d9f0cc4a1ea">onewire_read_data</a> (volatile uint8_t *dst, uint8_t bytes)</td></tr>
-<tr class="memdesc:gae1f0e92d37772e9fea861d9f0cc4a1ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a read of <code>bytes</code> bytes from the bus.  <br /></td></tr>
-<tr class="separator:gae1f0e92d37772e9fea861d9f0cc4a1ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gad14c2d9ad1f4a1a5a04f5d59657f070c" id="r_gad14c2d9ad1f4a1a5a04f5d59657f070c"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gad14c2d9ad1f4a1a5a04f5d59657f070c">onewire_read_data</a> (volatile uint8_t *dst, uint8_t bytes)</td></tr>
+<tr class="memdesc:gad14c2d9ad1f4a1a5a04f5d59657f070c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a read of <code>bytes</code> bytes from the bus.  <br /></td></tr>
+<tr class="separator:gad14c2d9ad1f4a1a5a04f5d59657f070c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaf14e5828e2e6861d21282ec2d7ff5e59" id="r_gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gaf14e5828e2e6861d21282ec2d7ff5e59">onewire_decode_pulses</a> (uint8_t *dst, const volatile uint8_t *pulse, uint8_t nbytes)</td></tr>
 <tr class="memdesc:gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode captured pulse durations into data bytes (LSB-first bits)  <br /></td></tr>
 <tr class="separator:gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -318,14 +318,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gae1f0e92d37772e9fea861d9f0cc4a1ea" name="gae1f0e92d37772e9fea861d9f0cc4a1ea"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gae1f0e92d37772e9fea861d9f0cc4a1ea">&#9670;&#160;</a></span>onewire_read_data()</h2>
+<a id="gad14c2d9ad1f4a1a5a04f5d59657f070c" name="gad14c2d9ad1f4a1a5a04f5d59657f070c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gad14c2d9ad1f4a1a5a04f5d59657f070c">&#9670;&#160;</a></span>onewire_read_data()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void onewire_read_data </td>
+          <td class="memname">uint8_t onewire_read_data </td>
           <td>(</td>
           <td class="paramtype">volatile uint8_t *&#160;</td>
           <td class="paramname"><em>dst</em>, </td>
@@ -348,10 +348,11 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[out]</td><td class="paramname">dst</td><td>Buffer for the captured pulse durations (bytes × 8 × 8-bit) </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">bytes</td><td>Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32). Out-of-range values (0 or &gt; 32) are ignored (assert in debug): one pass is limited to ONEWIRE_MAX_SLOTS (256) slots by the 8-bit TIM1 RCR (RCR = bytes*8 - 1); larger reads must be split. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">bytes</td><td>Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32). Out-of-range values (0 or &gt; 32) are rejected: one pass is limited to ONEWIRE_MAX_SLOTS (256) slots by the 8-bit TIM1 RCR (RCR = bytes*8 - 1); larger reads must be split. </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the read was scheduled, 0 if <code>bytes</code> is out of range (the call is rejected and no operation is scheduled). In debug builds the reject path also traps with an assert; with NDEBUG it only reports 0. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>On completion, the caller decodes the 8-bit pulse durations (pulse <code>&lt;= ONEWIRE_SHORT_PULSE_MAX</code> reads as bit 1) into data bytes. </dd></dl>
 
 </div>
@@ -475,14 +476,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga690f4e0c438b4d934b3d587ab545f4d4" name="ga690f4e0c438b4d934b3d587ab545f4d4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga690f4e0c438b4d934b3d587ab545f4d4">&#9670;&#160;</a></span>onewire_write_bit()</h2>
+<a id="gade3a544265373c0eddbc68ca76a3de91" name="gade3a544265373c0eddbc68ca76a3de91"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gade3a544265373c0eddbc68ca76a3de91">&#9670;&#160;</a></span>onewire_write_bit()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void onewire_write_bit </td>
+          <td class="memname">uint8_t onewire_write_bit </td>
           <td>(</td>
           <td class="paramtype">uint8_t&#160;</td>
           <td class="paramname"><em>bit</em></td><td>)</td>
@@ -498,17 +499,18 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>1 (the only valid range always schedules) </dd></dl>
 
 </div>
 </div>
-<a id="ga890a54c14ca560368fb402fb92364091" name="ga890a54c14ca560368fb402fb92364091"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga890a54c14ca560368fb402fb92364091">&#9670;&#160;</a></span>onewire_write_slots()</h2>
+<a id="ga2a82a93c2c6b98c846015c4da7353eb7" name="ga2a82a93c2c6b98c846015c4da7353eb7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga2a82a93c2c6b98c846015c4da7353eb7">&#9670;&#160;</a></span>onewire_write_slots()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void onewire_write_slots </td>
+          <td class="memname">uint8_t onewire_write_slots </td>
           <td>(</td>
           <td class="paramtype">const uint8_t *&#160;</td>
           <td class="paramname"><em>pulses</em>, </td>
@@ -531,10 +533,11 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Pulse buffer (one entry per slot); for <code>slots &gt; 1</code> the entry at index <code>slots</code> must be 0 (hardware bus release) </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256). Out-of-range values (0 or &gt; 256) are ignored (assert in debug): TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would truncate and desync the timer from the DMA (CNDTR). </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256). Out-of-range values (0 or &gt; 256) are rejected: TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would truncate and desync the timer from the DMA (CNDTR). </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the write was scheduled, 0 if <code>slots</code> is out of range (the call is rejected and no operation is scheduled). In debug builds the reject path also traps with an assert; with NDEBUG it only reports 0. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so the buffer must stay valid until <a class="el" href="group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> reports completion. </dd></dl>
 
 </div>
