@@ -9,9 +9,10 @@
  *  guards would abort the process. These tests therefore exercise
  *  only the safe side of the boundary (valid range and the
  *  internal-only limits that the ds18b20 driver never exceeds).
- *  The out-of-range rejection is verified by the _Static_assert
- *  constants and the guard condition logic (review + code
- *  inspection), which cannot be tested without NDEBUG.
+ *  The out-of-range rejection itself is tested by
+ *  tests/test/test_param_guard.c, which is compiled only into the
+ *  release-semantics build (make test-ndebug*, -DNDEBUG) where the
+ *  guard asserts compile out and the return status is observable.
  * ============================================================ */
 
 #include "ds18b20.h"

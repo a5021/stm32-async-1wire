@@ -166,19 +166,23 @@ uint8_t onewire_present(const volatile uint16_t* pulses);
  * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
  *                   entry at index `slots` must be 0 (hardware bus release)
  * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256).
- *                  Out-of-range values (0 or > 256) are ignored (assert in debug):
- *                  TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would
- *                  truncate and desync the timer from the DMA (CNDTR).
+ *                  Out-of-range values (0 or > 256) are rejected: TIM1 RCR is
+ *                  8-bit (RCR = slots - 1), so larger counts would truncate and
+ *                  desync the timer from the DMA (CNDTR).
+ * @return 1 if the write was scheduled, 0 if `slots` is out of range (the
+ *         call is rejected and no operation is scheduled). In debug builds the
+ *         reject path also traps with an assert; with NDEBUG it only reports 0.
  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
  *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
-void onewire_write_slots(const uint8_t* pulses, uint16_t slots);
+uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots);
 
 /**
  * @brief Schedule a single-slot write of one raw bit
  * @param[in] bit Bit value to write (0 or 1)
+ * @return 1 (the only valid range always schedules)
  */
-void onewire_write_bit(uint8_t bit);
+uint8_t onewire_write_bit(uint8_t bit);
 
 /**
  * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair
@@ -212,13 +216,16 @@ void onewire_write_then_read(uint8_t bit);
  * @brief Schedule a read of `bytes` bytes from the bus
  * @param[out] dst Buffer for the captured pulse durations (bytes × 8 × 8-bit)
  * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32).
- *                  Out-of-range values (0 or > 32) are ignored (assert in debug):
- *                  one pass is limited to ONEWIRE_MAX_SLOTS (256) slots by the
- *                  8-bit TIM1 RCR (RCR = bytes*8 - 1); larger reads must be split.
+ *                  Out-of-range values (0 or > 32) are rejected: one pass is
+ *                  limited to ONEWIRE_MAX_SLOTS (256) slots by the 8-bit TIM1
+ *                  RCR (RCR = bytes*8 - 1); larger reads must be split.
+ * @return 1 if the read was scheduled, 0 if `bytes` is out of range (the call
+ *         is rejected and no operation is scheduled). In debug builds the
+ *         reject path also traps with an assert; with NDEBUG it only reports 0.
  * @note On completion, the caller decodes the 8-bit pulse durations (pulse
  *       `<= ONEWIRE_SHORT_PULSE_MAX` reads as bit 1) into data bytes.
  */
-void onewire_read_data(volatile uint8_t* dst, uint8_t bytes);
+uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes);
 
 /**
  * @brief Decode a single captured pulse duration into a 1-Wire bit

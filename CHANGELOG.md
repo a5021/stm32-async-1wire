@@ -32,6 +32,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
   `test_search_hostile_all_zero_bus_terminates`.
 
+### Changed
+
+- **The scheduling API now reports rejected parameter ranges instead of
+  silently dropping them.** `onewire_write_slots()` and
+  `onewire_read_data()` return `uint8_t`: 1 if the operation was
+  scheduled, 0 if the size argument is out of range and nothing was
+  started. `onewire_write_bit()` gains the same return type (it
+  always returns 1 because the single-slot input is always valid, but
+  propagates the status for API consistency). Debug builds still
+  trap on the reject path via `assert`; with `NDEBUG` the caller
+  receives 0 instead of a silent no-op — so an invalid size can never
+  turn into an undiscovered `onewire_bus_done()` hang. The three
+  underlying port-layer functions (`ow_port_feed`,
+  `ow_port_write_slots`, `ow_port_read_data`) follow the same
+  contract on all three backends (F0/F1/G0). Tested by a new
+  `make test-ndebug*` build that compiles the suite with `-DNDEBUG`
+  (see `tests/test/test_param_guard.c`).
+
 ### Added
 
 - **Formalised per-operation DMA register contract table in the host

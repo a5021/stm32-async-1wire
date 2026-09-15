@@ -55,6 +55,9 @@ extern void run_test_rcr_limits(void);
 extern void run_test_tim_model(void);
 extern void run_test_harness_api(void);
 extern void run_test_app_uart(void);
+#ifdef OW_TEST_PARAM_GUARD
+extern void run_test_param_guard(void);
+#endif
 #ifdef OW_PORT_LOW_POWER
 extern void run_test_lowpower(void);
 #endif
@@ -85,6 +88,9 @@ int main(void) {
     run_test_tim_model();
     run_test_harness_api();
     run_test_app_uart();
+#ifdef OW_TEST_PARAM_GUARD
+    run_test_param_guard();
+#endif
 #ifdef OW_PORT_LOW_POWER
     run_test_lowpower();
 #endif

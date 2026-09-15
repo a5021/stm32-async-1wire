@@ -636,6 +636,29 @@ test-active-g0:
 $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
 
+# --- Release-semantics build (-DNDEBUG + OW_TEST_PARAM_GUARD) ---
+# Rebuilds the SAME suite with asserts compiled out (-DNDEBUG), so the
+# guard reject paths (onewire_write_slots/read_data out-of-range sizes)
+# become observable as return codes instead of aborting the process.
+# See tests/test/test_param_guard.c (compiled only under OW_TEST_PARAM_GUARD)
+# and the note in tests/test/test_rcr_limits.c.
+TEST_NG_FLAG = $(TEST_FLAG) -DNDEBUG -DOW_TEST_PARAM_GUARD
+TEST_NG_SRC  = $(TEST_SRC) $(TEST_DIR)/test_param_guard.c
+TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+
+.PHONY: test-ndebug test-ndebug-f0 test-ndebug-g0
+test-ndebug: $(TEST_NG_EXE)
+	$(TEST_NG_EXE)
+
+test-ndebug-f0:
+	$(MAKE) OW_TARGET=f0 test-ndebug
+
+test-ndebug-g0:
+	$(MAKE) OW_TARGET=g0 test-ndebug
+
+$(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
+
 # Include the dependency files generated during compilation
 -include $(wildcard $(BUILD_DIR)/*.d)
 

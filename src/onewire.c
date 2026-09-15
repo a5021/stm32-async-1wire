@@ -166,17 +166,17 @@ void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
 
-void onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
+uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
         assert(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
-        return;
+        return 0;
     }
-    ow_port_write_slots(pulses, slots);
+    return ow_port_write_slots(pulses, slots);
 }
 
-void onewire_write_bit(uint8_t bit) {
+uint8_t onewire_write_bit(uint8_t bit) {
     uint8_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
-    onewire_write_slots(&pulse, 1);
+    return onewire_write_slots(&pulse, 1);
 }
 
 void onewire_read_pair(volatile uint16_t* pair_pulses) {
@@ -192,12 +192,12 @@ void onewire_write_then_read(uint8_t bit) {
     ow_port_write_then_read(bit, search_pulse3, search_read_pulse);
 }
 
-void onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
+uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
     if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
         assert(0 && "onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)");
-        return;
+        return 0;
     }
-    ow_port_read_data(dst, bytes);
+    return ow_port_read_data(dst, bytes);
 }
 
 void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {
