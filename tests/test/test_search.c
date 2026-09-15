@@ -242,6 +242,47 @@ void test_search_family_zero_accepts_any_rom(void) {
     ds18b20_test_reset_search();
 }
 
+/* Hostile bus: presence is always answered and every id/cmp pair reads
+ * 00 (devices disagree and all pull low). The engine keeps taking the '0'
+ * branch and assembles the all-zero ROM, whose CRC is valid but whose
+ * family byte (0x00) the DS18B20 filter rejects. Without a termination
+ * guarantee the search would walk the same zero subtree forever, never
+ * incrementing the found counter. Regression test for the CI-discovered
+ * fuzz_search livelock. */
+static uint16_t hostile_all_zero_src(uint32_t idx) {
+    uint8_t rcr = (uint8_t)mock_tim1.RCR;
+    if (rcr == 0) {
+        return idx == 0 ? 510u : 700u; /* reset + presence pulse */
+    }
+    /* every pair: id = cmp = 0 */
+    return ZERO;
+}
+
+void test_search_hostile_all_zero_bus_terminates(void) {
+    g_found_count = 0;
+    g_wr_bit = 2;
+    hw_set_capture_source(hostile_all_zero_src);
+    ds18b20_search_start(sink, 8);
+
+    uint16_t guard = 0;
+    for (;;) {
+        if (ds18b20_search_poll()) {
+            break;
+        }
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            uint8_t ok = hw_run_until_uif(100);
+            TEST_ASSERT_TRUE(ok);
+        }
+        if (++guard > 500) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 500);
+
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_search_count());
+    TEST_ASSERT_EQUAL_UINT8(0, g_found_count);
+}
+
 static uint16_t no_presence_src(uint32_t i) {
     (void)i;
     return 100u;
@@ -1000,6 +1041,7 @@ void run_test_search(void) {
     TEST_RUN(test_search_finds_different_serial);
     TEST_RUN(test_search_filters_non_ds18b20_family);
     TEST_RUN(test_search_family_zero_accepts_any_rom);
+    TEST_RUN(test_search_hostile_all_zero_bus_terminates);
     TEST_RUN(test_search_no_device_no_presence);
     TEST_RUN(test_write_then_read_configures_registers);
     TEST_RUN(test_search_two_devices_found);

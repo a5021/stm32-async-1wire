@@ -2,6 +2,7 @@
 #include "ow_port.h"
 
 #include <assert.h>
+#include <string.h>
 
 #ifdef OW_PORT_LOW_POWER
 /** @brief Set by the driver while a long stage (>1ms) is running, read by the
@@ -96,6 +97,8 @@ typedef struct {
     uint8_t found; /**< Number of accepted devices found */
     uint8_t max; /**< Maximum number of devices to report */
     uint8_t finished; /**< 1 once the search has completed */
+    uint8_t prev_leaf_valid; /**< 1 once prev_leaf holds the previous pass's ROM */
+    uint8_t prev_leaf[ONEWIRE_ROM_BYTES]; /**< ROM of the preceding completed walk */
     onewire_search_sink_t sink; /**< Per-device callback */
 } onewire_search_ctx_t;
 
@@ -304,6 +307,7 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     search_ctx.found = 0;
     search_ctx.finished = 0;
     search_ctx.last_discrepancy = 0;
+    search_ctx.prev_leaf_valid = 0;
     search_ctx.command = command;
     search_ctx.family = family;
     if (max_devices == 0) {
@@ -415,7 +419,19 @@ uint8_t onewire_search_poll(void) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }
-        // Another device may exist - run another search pass.
+        // Another device may exist - run another search pass. On a real bus
+        // every walk lands on a leaf the search has not visited before, so a
+        // leaf identical to the previous pass proves the search made no
+        // progress (a CRC-valid ROM rejected by the family filter, or a
+        // hostile/broken slave answering the same profile twice). Terminate
+        // instead of walking the same subtree forever.
+        if (search_ctx.prev_leaf_valid &&
+            memcmp(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES) == 0) {
+            search_ctx.phase = ONEWIRE_SEARCH_DONE;
+            break;
+        }
+        memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);
+        search_ctx.prev_leaf_valid = 1;
         onewire_reset(search_pair_pulse);
         search_ctx.phase = ONEWIRE_SEARCH_RESET;
         break;

@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   device include dirs (`BUILD_INTERFACE`-scoped so install exports stay
   clean), and install ships the backend headers and `ow_bits.h` alongside
   `ow_port.h`.
+- **Search ROM could livelock on a hostile/broken bus under the family
+  filter.** If every id/cmp pair keeps answering `00` (all devices disagree
+  and pull low), the engine re-assembles a CRC-valid ROM whose family byte
+  the filter rejects, so `found` never advances and `last_discrepancy` stays
+  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
+  repeated leaf (the previous walk produced the identical ROM) and terminates
+  the search instead. Found both by the `fuzz_search` harness in CI
+  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
+  `test_search_hostile_all_zero_bus_terminates`.
 
 ### Added
 
