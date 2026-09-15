@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(stm32_async_1wire C ASM)
+project(stm32_async_1wire VERSION 1.8.1 LANGUAGES C ASM)
 
 # ---------------------------------------------------------------------------
 # Options
@@ -148,7 +148,7 @@ configure_package_config_file(
 
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/stm32_async_1wireConfigVersion.cmake
-    VERSION 1.8.1
+VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 

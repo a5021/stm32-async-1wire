@@ -45,13 +45,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bus-release zero is applied only after the last slot, and CC4 captures fire
   at the pulse-edge counter position.
 
-- **New `ONEWIRE_TIMING_CUSTOM` timing profile** (selectable via
-  `onewire_set_timing_profile()` or the Makefile `TIMING=CUSTOM`). It uses the
-  minimum slot timing allowed by the 1-Wire standard — `one` 1µs, `zero` 60µs,
-  `guard` 1µs, `parasite guard` 1µs, `short≤` 15µs → 62µs slot. It is
-  experimental: a 1µs read/write pulse is below the values validated on
-  hardware (a 2µs pulse already broke slot decoding on an F030 at 8MHz) and is
-  intended for electrically ideal setups only.
+- **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
+  `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
+  -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
+  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
+  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
+  below the values validated on hardware (a 2µs pulse already broke slot
+  decoding on an F030 at 8MHz) and is intended for electrically ideal setups
+  only.
+
+### Changed
+
+- **Example applications restructured into numbered directories.**
+  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
+  shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
+  non-blocking UART TX ring buffer, busy-LED callback).
+- **Timing preset selection moved to compile time.** The four timing values
+  (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
+  Makefile presets now expand directly into
+  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
+  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
+  guard-band default on parasite-powered buses.
+- **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
+  moved to `src/syscall.c`; public version macros
+  `STM32_ASYNC_1WIRE_VERSION_*` (`1.8.1`) and C++ guards added to the headers.
+
+### Removed
+
+- **Breaking:** the runtime timing-profile API is removed —
+  `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
+  `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
+  `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
+  Changed), which is how they were always used on the target.
+- `tests/fuzz/fuzz_timing` harness removed with the runtime profile API;
+  Search ROM and resolution state-machine harnesses (`fuzz_search`,
+  `fuzz_resolution`) added.
 
 ### Fixed
 
@@ -80,10 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all short stages stay outside the sleeping path. Implemented behind a single
   header macro in all three backends (F0/F1/G0) plus the two header helpers
   `ow_port_long_wait_pending()` / `ow_port_sleep_until_done()`.
-- **New `demo6` example** (`src/demo6.c`): the `demo1` search + sequential
-  loop with WFE sleep on long stages, exposing the two helpers in its main
-  loop. Power is not yet measured — the demo only establishes the mechanism.
-  Build with `make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER"`.
+- **New low-power example** (`examples/7_low_power/main.c`): the
+  `2_device_search` search + sequential loop with WFE sleep on long stages,
+  exposing the two helpers in its main loop. Power is not yet measured — the
+  demo only establishes the mechanism. Build with `make OW_TARGET=g0
+  APP=7_low_power EXT="-DOW_PORT_LOW_POWER"`.
 
 ### Changed
 
@@ -113,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Low-power path (`OW_PORT_LOW_POWER`).** `ow_long_pending` was `static` in
   each port header, producing one independent copy per translation unit, so
-  `demo6`'s `low_power_poll()` always read its own all-zero instance and never
+  the 7_low_power example's `low_power_poll()` always read its own all-zero
+  instance and never
   slept. It is now a single `extern` symbol defined in `src/onewire.c`.
   `ow_port_start_timer()` did not enable TIM1 `UIE` for long stages, so no NVIC
   pending bit was generated and `__WFE()` could never be woken; it now sets
@@ -122,8 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   degradation) or sleep forever. It now clears the NVIC pending bit first, re-arms
   the event structure with `__SEV()` + a draining `__WFE()`, polls `T1.SR`/`UIF`
   and clears the pending bit again after waking.
-- **Wrong build flag documented.** The README, the demo6 header comment and the
-  changelog referenced `-DOWN_PORT_LOW_POWER` (an extra `N`), which defines the
+- **Wrong build flag documented.** The README, the low-power example header
+  comment and the changelog referenced `-DOWN_PORT_LOW_POWER` (an extra `N`), which defines the
   macro `OWN_PORT_LOW_POWER` while the code checks `OW_PORT_LOW_POWER` — so the
   documented command line silently disabled the very feature it described. All
   occurrences are corrected to `-DOW_PORT_LOW_POWER`.
@@ -157,10 +187,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is preserved and there is no window where the master drives HIGH while a
   slave could pull LOW. Hardware-validated on STM32F1; build/host-tested on
   F0/G0. The published default remains open-drain.
-- **Selectable default timing profile** via `TIMING=SLOW` (Makefile sugar for
-  `-DOW_TIMING_DEFAULT` / `-DONEWIRE_TIMING_PROFILE_DEFAULT`, e.g.
-  `ONEWIRE_TIMING_ROBUST` / `ONEWIRE_TIMING_SLOW`) for hardware margin testing,
-  without changing the standard default.
+- **Selectable compile-time timing presets** via `TIMING=SLOW` (Makefile sugar
+  for `-DONEWIRE_ONE_PULSE=8 -DONEWIRE_ZERO_PULSE=90 -DONEWIRE_GUARD_BAND=20`
+  plus `-DONEWIRE_SHORT_PULSE_MAX`, with `FAST`, `ROBUST` and the default
+  `STANDARD` also available) for hardware margin testing, without changing the
+  standard default.
 - `test-active`, `test-active-f0`, `test-active-g0` Makefile targets exercising
   the active-drive pin-mode switching.
 - **PlatformIO library metadata** (`library.json`, `library.properties`) for
@@ -171,12 +202,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-detection of MCU family in `ow_port.h` via PlatformIO / STM32CubeMX
   defines (`STM32F1`, `STM32F0`, `STM32G0`) alongside the explicit
   `OW_PORT_TARGET_*` knob.
-- **Fuzz testing infrastructure** (9 harnesses, 4 tiers) covering the full
-  codebase: Tier 1 — `onewire.c` pure functions (`fuzz_crc8`,
-  `fuzz_decode_pulses`, `fuzz_present`, `fuzz_pair_bits`, `fuzz_encode_byte`,
-  `fuzz_bit_from_pulse`); Tier 2 — timing profile API (`fuzz_timing`);
-  Tier 3 — `ow_stats` internals (`fuzz_stats`); Tier 4 — DS18B20 decode
-  functions (`fuzz_ds18b20_decode`). All harnesses compile and pass standalone
+- **Fuzz testing infrastructure** covering the full codebase: `onewire.c`
+  pure functions (`fuzz_crc8`, `fuzz_decode_pulses`, `fuzz_present`,
+  `fuzz_pair_bits`, `fuzz_encode_byte`, `fuzz_bit_from_pulse`), the Search ROM
+  and resolution state machines (`fuzz_search`, `fuzz_resolution`), `ow_stats`
+  internals (`fuzz_stats`) and DS18B20 decode functions
+  (`fuzz_ds18b20_decode`). All harnesses compile and pass standalone
   tests with ASAN+UBSAN. CI `fuzz` job runs all targets with host-side
   Clang/libFuzzer.
 
@@ -197,33 +228,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in ~30 ms without overflowing the 256-byte ring buffer.  RAM cost: ~96
   bytes.  Zero overhead when `OW_STATS_ENABLE` is not defined (all stubs
   inline to nothing).
-- Example application `src/demo5.c` (`make APP=demo5`): startup device
+- Example application `examples/6_statistics/main.c` (`make APP=6_statistics`):
+  startup device
   search + sequential measurement with the `ow_stats` module.  Accumulates
   statistics over `STATS_DUMP_INTERVAL` cycles (default 100), then streams
   the full report over UART and resets for the next window.  Validated on
   STM32G031@64MHz with 6 × DS18B20 in parasite power mode — all sensors
   detected, 0 errors, pulse widths 5–32 µs.
-- Example application `src/demo1.c` (`make APP=demo1`): startup device
+- Example application `examples/2_device_search/main.c`
+  (`make APP=2_device_search`):
+  startup
   search + per-device polling.  Each discovered sensor is converted and read
   back individually via Match ROM (one `Convert T` per device, no broadcast
-  conversion) — the minimal multi-sensor counterpart to `demo3`'s
+  conversion) — the minimal multi-sensor counterpart to `examples/4_scan_mode`'s
   simultaneous scan.  Parasite power is engaged with `EXT="-DPARASITE_POWER=1"`;
   note that per-device MATCH-ROM conversion is the marginal topology on a
-  parasite bus, so a broadcast convert (demo3) is preferred there.
-- Timing profiles (`inc/onewire.h`, `src/onewire.c`): four selectable slot
-  timings spanning fastest-to-slowest, all inside the DS18B20 1-Wire
-  specification — `ONEWIRE_TIMING_FAST` (5/60/3µs, 50µs parasite guard),
-  `ONEWIRE_TIMING_STANDARD` (5/60/5µs, 100µs; equals the historical defaults),
-  `ONEWIRE_TIMING_SLOW` (8/90/20µs, 200µs) and `ONEWIRE_TIMING_ROBUST`
-  (10/110/30µs, 250µs).  Select at runtime with
-  `onewire_set_timing_profile()` (or pin a compile-time default via
-  `ONEWIRE_TIMING_PROFILE_DEFAULT`); `onewire_get_timing_profile()` reports the
-  active one.  The `one_pulse`/`zero_pulse`/`guard_band`/`parasite_guard_band`/
-  `short_pulse_max` fields drive the timer ARR, the write low-time and the
-  read-decode threshold, so each profile adapts to different wire lengths and
-  sensor tolerances without touching the per-port timer code.  `onewire_init()`
-  applies the default profile; `ow_set_parasite_guard()` keeps the per-profile
-  external/parasite guard-band split.
+  parasite bus, so a broadcast convert (4_scan_mode) is preferred there.
+- Timing presets (`inc/onewire.h`, selected at build time): several selectable
+  slot timings spanning fastest-to-slowest, all inside the DS18B20 1-Wire
+  specification — `TIMING=FAST` (`ONEWIRE_ONE_PULSE=5`, `ZERO=60`, `GUARD=3`),
+  `TIMING=STANDARD` (`5/60/5`, equals the historical defaults),
+  `TIMING=SLOW` (`8/90/20`) and `TIMING=ROBUST` (`10/110/30`); see the
+  `OW_TIMING_PARASITE` flag for the wider parasite-bus guard band. Selectable
+  at build time with the Makefile `TIMING=` preset or by defining the
+  `ONEWIRE_ONE_PULSE` / `ONEWIRE_ZERO_PULSE` / `ONEWIRE_GUARD_BAND` /
+  `ONEWIRE_SHORT_PULSE_MAX` macros directly; the values drive the timer ARR,
+  the write low-time and the read-decode threshold, so each preset adapts to
+  different wire lengths and sensor tolerances without touching the per-port
+  timer code. The standard preset remains the default.
 
 ### Removed
 
@@ -235,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `demo4` reports the power-supply wiring through `ds18b20_detect_parasite()` /
+- `examples/5_commands` reports the power-supply wiring through
+  `ds18b20_detect_parasite()` /
   `ds18b20_parasite_mode()` instead of the removed `ds18b20_read_power_supply()`.
 
 ## [1.6.1]
@@ -387,7 +420,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Release pipeline now ships the full firmware matrix: all four example apps
-  (demo…demo4) for both backends (STM32F103 @72MHz/8MHz HSI, STM32F030
+  (`1_basic`, `3_round_robin`, `4_scan_mode`, `5_commands`) for both backends
+  (STM32F103 @72MHz/8MHz HSI, STM32F030
   @48MHz/8MHz HSI) — 16 variants with per-file SHA256 checksums.
 
 
@@ -464,7 +498,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TH/TL with Write Scratchpad (0x4E) without disturbing the current
   resolution; `ds18b20_copy_scratchpad()` and `ds18b20_recall_eeprom()`
   persist and restore them to/from the EEPROM with a 10 ms timed hold-off.
-- Example application `src/demo4.c` (`make APP=demo4`): device search, then
+- Example application `examples/5_commands/main.c` (`make APP=5_commands`):
+  device search, then
   the full command sequence on the first found sensor — power supply, raw
   scratchpad, TH/TL write with Copy + Recall, Read ROM — followed by
   steady-state measurement of the selected device.
@@ -510,8 +545,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   driver into the shared layer. `src/ds18b20.c` now builds on `onewire_*`; the
   public `ds18b20.h` API (including the `ds18b20_bus_*`-free surface) is
   unchanged, and the driver's `ds18b20_init()` initializes the layer for you.
-- `inc/macro.h` newlib-nano syscall stubs (`_read`, `_write`, `_close`,
-  `_lseek`) are now `weak`: the layer and the driver each include `macro.h`,
+- The newlib-nano syscall stubs (`_read`, `_write`, `_close`, `_lseek`) in
+  `src/syscall.c` are now `weak`: the layer and the driver each pull them in,
   and weak definitions keep the multi-translation-unit firmware link clean.
 
 ## [1.1.0] - 2026-08-16
@@ -522,8 +557,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ds18b20_search_count()`. Implements the Maxim Search ROM (0xF0) algorithm as
   a compact state machine that performs exactly one hardware operation per poll
   call, then hands the timer back to the measurement path automatically. See
-  `demo2.c`.
-- Shared application layer (`inc/app.h`, `src/app.c`): non-blocking UART TX ring
+  `examples/3_round_robin`.
+- Shared application layer (`examples/app/app.h`, `examples/app/app.c`):
+  non-blocking UART TX ring
   buffer, `app_init()` for clock + UART + LED setup, and a default
   `ds18b20_busy()` LED indicator. Both examples now `#include "app.h"` and
   delegate hardware setup to the shared layer.
@@ -546,7 +582,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ds18b20_device_rom()` and `ds18b20_device_count()` identify the sensor. A
   missing device reports `DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues.
   `ds18b20_select()` (single-device addressing) clears scan mode; the config
-  write for a resolution change is broadcast in scan mode. See `demo3.c`.
+  write for a resolution change is broadcast in scan mode. See
+  `examples/4_scan_mode`.
 
 ### Changed
 
@@ -580,7 +617,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DS18B20_RES_DEFAULT`, `DS18B20_BITS_PER_BYTE`) are exported by the header
   for use with the public API and host tests.
 - DMA transfer count sized to `slots-1` instead of using a sentinel value.
-- Removed the global `#define CR` peripheral alias from `inc/macro.h`: it
+- Removed the global `#define CR` peripheral alias from `inc/macro.h` (now
+  `inc/ow_bits.h`): it
   collided with the `RCC_TypeDef.CR` field name after CMSIS headers were
   included, expanding the field into a pointer that shifted every RCC register
   offset on 64-bit host builds.
@@ -630,14 +668,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `curl` fallback when `wget` is not available.
 
 ### Fixed
-- BITS macro bug and missing `#endif` in `macro.h`; removed ~220 lines of
+- BITS macro bug and missing `#endif` in `inc/macro.h` (now `inc/ow_bits.h`);
+  removed ~220 lines of
   dead, duplicated code.
 - Lost negative sign for temperatures between -0.5 and -0.1 °C in UART
   output.
 - 1-Wire slot timing: `ONE_PULSE=5`, slot formula 5+60+5 = 70 µs.
 - Undefined behavior in `uart_write_int`.
 - Missing `__DSB()` memory barrier in the driver initialization.
-- Extern C guard in `macro.h` (missing quotes).
+- Extern C guard in `inc/macro.h` (missing quotes).
 - cppcheck false positives from CMSIS headers.
 
 ### Changed
