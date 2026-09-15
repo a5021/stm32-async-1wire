@@ -34,6 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`src/ds18b20.c` was reorganized into four include-only functional
+  modules.** The driver grew to 1459 lines with the search, transaction,
+  resolution and measurement state machines sharing a single file, so the
+  per-module private state (`dev_roms`/`dev_count`, `txn_ctx`/`detect_buf`,
+  `res_ctx`, `conv_cmd`/`read_cmd`) was hard to follow. The file is now an
+  amalgamated translation unit: it keeps the shared `ctx`/`txn_ctx` statics
+  and `#include`s `src/ds18b20_search.c`, `src/ds18b20_txn.c`,
+  `src/ds18b20_resolution.c` and `src/ds18b20_measure.c` in dependency order
+  (each guarded by `DS18B20_DRIVER_BUILD`). The split is purely internal: the
+  preprocessed source and the generated machine code are unchanged, public API
+  and ABI are untouched. The Makefile test rules list the parts as
+  prerequisites and CMake marks them `HEADER_FILE_ONLY` so they stay out of
+  the compiled sources.
 - **The scheduling API now reports rejected parameter ranges instead of
   silently dropping them.** `onewire_write_slots()` and
   `onewire_read_data()` return `uint8_t`: 1 if the operation was

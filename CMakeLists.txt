@@ -77,6 +77,18 @@ add_library(stm32_async_1wire STATIC
     src/ow_stats.c
 )
 
+# src/ds18b20.c is an amalgamated translation unit: the search / txn /
+# resolution / measurement code lives in these include-only parts (guarded by
+# DS18B20_DRIVER_BUILD). Mark them as header-only-sources so the IDE shows the
+# split while only ds18b20.c itself is compiled into the library.
+set_source_files_properties(
+    src/ds18b20_resolution.c
+    src/ds18b20_txn.c
+    src/ds18b20_search.c
+    src/ds18b20_measure.c
+    PROPERTIES HEADER_FILE_ONLY TRUE
+)
+
 target_include_directories(stm32_async_1wire PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>

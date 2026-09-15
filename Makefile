@@ -600,10 +600,18 @@ test-lowpower-f0:
 test-lowpower-g0:
 	$(MAKE) OW_TARGET=g0 test-lowpower
 
-$(TEST_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+# src/ds18b20.c is an amalgamated translation unit: the search / txn /
+# resolution / measurement code lives in these include-only parts (guarded by
+# DS18B20_DRIVER_BUILD). They are listed here as prerequisites because the
+# test executables compile the sources directly rather than through per-object
+# dependency files.
+DS18B20_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
+                src/ds18b20_search.c src/ds18b20_measure.c
+
+$(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
-$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c src/onewire.c examples/app/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
+$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
 
 $(TEST_OUT):
@@ -633,7 +641,7 @@ test-active-f0:
 test-active-g0:
 	$(MAKE) OW_TARGET=g0 test-active
 
-$(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c src/onewire.c Makefile | $(TEST_OUT)
+$(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
 
 # --- Release-semantics build (-DNDEBUG + OW_TEST_PARAM_GUARD) ---
@@ -656,7 +664,7 @@ test-ndebug-f0:
 test-ndebug-g0:
 	$(MAKE) OW_TARGET=g0 test-ndebug
 
-$(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+$(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
 
 # Include the dependency files generated during compilation
