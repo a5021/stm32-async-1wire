@@ -108,7 +108,13 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
-│   └── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer
+│   ├── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer.
+│   │                       # Compiles as ONE translation unit: #includes its
+│   │                       # four functional parts in dependency order.
+│   ├── ds18b20_search.c    # (include-only part) ROM device table + search/alarm
+│   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
+│   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
+│   └── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
 ├── examples/               # Demo applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -532,6 +538,12 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
+| `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER` (WFE path, F1) |
+| `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
+| `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
+| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard` |
+| `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
+| `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make help` | Show all targets |
@@ -565,7 +577,10 @@ Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header — each suite runs the full driver against its own backend's
-    channel/DMA wiring. 286 tests run per backend (288 on G0, which adds two
+    channel/DMA wiring. (The driver itself is an amalgamated translation unit
+    too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
+    driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
+    object file.) 286 tests run per backend (288 on G0, which adds two
     DMAMUX request-routing tests). The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -1134,14 +1149,14 @@ void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
 void        onewire_reset(volatile uint16_t *reset_pulses);
 uint8_t     onewire_present(const volatile uint16_t *pulses);
-void        onewire_write_slots(const uint8_t *pulses, uint16_t slots);
-void        onewire_write_bit(uint8_t bit);
+uint8_t     onewire_write_slots(const uint8_t *pulses, uint16_t slots);
+uint8_t     onewire_write_bit(uint8_t bit);
 void        onewire_encode_byte(uint8_t *out, uint8_t byte);
 void        onewire_read_pair(volatile uint16_t *pair_pulses);
 void        onewire_write_then_read(uint8_t bit);
 void        onewire_pair_bits(const volatile uint16_t *pair_pulses,
                               uint8_t *id_bit, uint8_t *cmp_bit);
-void        onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
+uint8_t     onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
 void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
                                  uint8_t nbytes);
 void        onewire_start_timer(uint16_t arr, uint8_t rcr);
@@ -1153,6 +1168,13 @@ uint8_t     onewire_search_poll(void);
 uint8_t     onewire_search_count(void);
 uint8_t     onewire_search_active(void);
 ```
+
+`onewire_write_slots()`, `onewire_write_bit()` and `onewire_read_data()`
+report whether the operation was scheduled: they return **1** on success and
+**0** when the size argument is out of range and nothing was started. Debug
+builds additionally trap the reject path with `assert`; with `NDEBUG` the
+caller observes the 0 instead of a silent no-op, so an invalid size can never
+turn into an undiscovered `onewire_bus_done()` hang.
 
 #### Timing
 
