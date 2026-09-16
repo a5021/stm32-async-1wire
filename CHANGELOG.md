@@ -53,6 +53,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0 and G0 via the ARM
   toolchain and verifies the `find_package()` install tree — the CMake path
   previously had no in-CI coverage despite the root `CMakeLists.txt`.
+- **Feature flags now use value-style (`#if X`) instead of presence
+  (`#ifdef X`).** `OW_PORT_LOW_POWER`, `OW_DRIVE_ACTIVE` and
+  `OW_STATS_ENABLE` must be passed as `=1` on the command line
+  (e.g. `-DOW_PORT_LOW_POWER=1`); bare `-DOW_PORT_LOW_POWER` no longer
+  compiles correctly.  All Makefile targets, fuzz rules and the CMake
+  example block are updated accordingly.  The change is transparent for
+  `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
+  and Makefile knobs already pass the right flags.
+
+### Added
+
+- **`inc/ow_config.h` — central compile-time configuration header.**
+  All genuinely tunable build constants are now collected in a single
+  file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
+  `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
+  timing (`OW_TIMING_PARASITE`), feature flags (`OW_PORT_LOW_POWER`,
+  `OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`) and DS18B20 driver knobs
+  (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`).  Every macro
+  carries a `#ifndef` guard so existing `-D` overrides keep working;
+  the header is the new single source of truth for defaults and
+  hardware-validated documentation.  Protocol-inherent values
+  (`ONEWIRE_MAX_SLOTS`, `DS18B20_RES_MIN/MAX/DEFAULT`) and the
+  per-family system-clock default remain in their respective headers.
+  The header is added to `library.json` headers and
+  `library.properties` includes.
 - **The scheduling API now reports rejected parameter ranges instead of
   silently dropping them.** `onewire_write_slots()` and
   `onewire_read_data()` return `uint8_t`: 1 if the operation was

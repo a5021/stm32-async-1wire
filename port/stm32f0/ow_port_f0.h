@@ -92,7 +92,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos);
 }
 
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 /** @brief Set while a hardware stage longer than 1 ms is running. */
 extern uint8_t ow_long_pending; /* defined in onewire.c, shared across TUs */
 #endif
@@ -109,7 +109,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
          * the direct-write/capture operations (reset, read, single slot) use
          * an OC3PE preload of 0 — both applied exactly when the one-pulse
          * timer stops. */
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
         /* The update event both interrupts the low-power WFE sleep and, via
          * SEVONPEND, raises an NVIC pending bit. UIE also latches a pending
          * bit at every ow_port_update_event() re-arm (EGR=UG). Clear the
@@ -125,7 +125,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
     return 0u;
 }
 
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 /**
  * @brief Whether the currently scheduled operation is a "long" stage (> 1 ms)
  * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
@@ -186,12 +186,12 @@ __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
  * @param[in] width DMA transfer width: 8 for 8-bit, 16 for 16-bit
  */
 __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, uint16_t width) {
-#ifdef OW_DRIVE_ACTIVE
+#if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
 #endif
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
     if ((uint32_t)count * (ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) > 1000u) {
         ow_long_pending = 1; /* e.g. a 72-slot scratchpad read (~5 ms) */
@@ -234,7 +234,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const uint8_t* cmd, uint16_t slots) {
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
     T1.CCER = TIM_CCER(CC3E);
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC2DE, UIE);
 #else
     T1.DIER = TIM_DIER(CC2DE);
@@ -257,7 +257,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const uint8_t* cmd, uint16_t slots) {
 __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     T1.ARR = arr;
     T1.RCR = rcr;
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     if ((uint32_t)(rcr + 1u) * arr > 1000u) {
         ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
         /* Enable the update interrupt so the pending bit wakes __WFE() via
@@ -303,7 +303,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const uint8_t* pulses, uint16_t
         assert(0 && "ow_port_write_slots: slots out of range");
         return 0;
     }
-#ifdef OW_DRIVE_ACTIVE
+#if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
 #endif
     if (slots == 1) {
@@ -315,7 +315,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const uint8_t* pulses, uint16_t
          * event, exactly when the one-pulse timer stops (hardware bus release). */
         T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE);
         T1.CCER = TIM_CCER(CC3E);
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
         T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
 #else
         T1.DIER = 0; /* No DMA for a single bit slot */
@@ -338,7 +338,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
 #else
     T1.DIER = TIM_DIER(CC4DE);
@@ -362,7 +362,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* pulse3,
                                                   const uint8_t* read_pulse) {
-#ifdef OW_DRIVE_ACTIVE
+#if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif
     const uint8_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
@@ -384,7 +384,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * (The end-of-slot CC2 compare event of the previous merged operation can
      * leave a pending request that fires the reload DMA immediately on re-arm,
      * overwriting the freshly written direction pulse in CCR3.) */
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
 #else
     T1.DIER = 0;
@@ -404,7 +404,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_FEED.CMAR = (uint32_t)read_pulse;
     OW_PORT_DMA_FEED.CNDTR = 3;
     OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else
     T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */

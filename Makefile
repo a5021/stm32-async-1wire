@@ -25,7 +25,7 @@ endif
 # here (it is bus-hardware dependent) — pass EXT="-DPARASITE_POWER=1" when the
 # 1-Wire bus is parasite-powered.
 ifeq ($(APP),6_statistics)
-override EXT += -DOW_STATS_ENABLE -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000
+override EXT += -DOW_STATS_ENABLE=1 -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000
 endif
 
 # Define the name of the project target and the build directory
@@ -86,12 +86,12 @@ DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
 
 # Optional experimental active-drive write path:
-# make OW_DRIVE_ACTIVE=1  →  -DOW_DRIVE_ACTIVE
+# make OW_DRIVE_ACTIVE=1  →  -DOW_DRIVE_ACTIVE=1
 # Pure-write transactions switch PA10 to push-pull so the master actively
 # drives BOTH bus levels (faster, stronger write-1); read/reset phases stay
 # open-drain. Experimental; kept off by default. See bus electrical-model doc.
 ifeq ($(OW_DRIVE_ACTIVE),1)
-DEF += -DOW_DRIVE_ACTIVE
+DEF += -DOW_DRIVE_ACTIVE=1
 endif
 
 # Optional compile-time timing preset: one_pulse zero_pulse guard_band short_pulse_max
@@ -545,14 +545,14 @@ TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
 
-# Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER.
-TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER
+# Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
+TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
 
 .PHONY: test test-f0 test-g0
@@ -586,7 +586,7 @@ test-clocks-f0:
 test-clocks-g0:
 	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
 
-# --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER) ---
+# --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
 # __WFE()-related code (SEVONPEND, ow_long_pending, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
@@ -617,7 +617,7 @@ $(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c example
 $(TEST_OUT):
 	mkdir -p $@
 
-# --- Active-drive (push-pull write) test build (experimental, -DOW_DRIVE_ACTIVE) ---
+# --- Active-drive (push-pull write) test build (experimental, -DOW_DRIVE_ACTIVE=1) ---
 # Runs only the active-drive test set (the full suite's pin-regression assertions
 # assume the pin is never toggled outside the parasite strong-pull-up path).
 TEST_ACTIVE_SRC = \
@@ -628,7 +628,7 @@ TEST_ACTIVE_SRC = \
     $(TEST_MOCK)/ds18b20_test_access.c \
     $(TEST_MOCK)/ow_stats_test_access.c \
     examples/app/app.c
-TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE
+TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE=1
 TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
 
 .PHONY: test-active test-active-f0 test-active-g0
@@ -725,14 +725,14 @@ fuzz-bit-from-pulse: | $(FUZZ_OUT)
 
 # Tier 3: ow_stats (single-TU, #include)
 fuzz-stats: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE=1 \
 	    tests/fuzz/fuzz_stats.c $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_stats
 	$(FUZZ_OUT)/fuzz_stats -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 
 # Tier 4: ds18b20 decode (single-TU via test_access)
 fuzz-ds18b20-decode: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 \
 	    tests/fuzz/fuzz_ds18b20_decode.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds18b20_decode
@@ -742,7 +742,7 @@ fuzz-ds18b20-decode: | $(FUZZ_OUT)
 # The fuzz input drives the capture source; every property is checked with
 # abort() so libFuzzer reports the failing input.
 fuzz-search: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 \
 	    tests/fuzz/fuzz_search.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_search
@@ -751,7 +751,7 @@ fuzz-search: | $(FUZZ_OUT)
 # Tier 6: resolution change state machine (single-TU via test_access); fuzz
 # input drives the presence reset and the address mode (Skip vs Match ROM).
 fuzz-resolution: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 \
 	    tests/fuzz/fuzz_resolution.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_resolution

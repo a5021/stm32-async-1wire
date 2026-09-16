@@ -26,6 +26,7 @@
 #ifndef DS18B20_H
 #define DS18B20_H
 
+#include "ow_config.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -159,13 +160,11 @@ typedef enum {
 #define DS18B20_RES_DEFAULT 12
 
 /**
- * @brief Maximum number of DS18B20 devices tracked by the driver
- * @note Size of the internal device table filled by the device search; the
- *       simultaneous-conversion (scan) mode uses it to address every sensor.
+ * @brief Maximum number of DS18B20 devices tracked by the driver.
+ * @note Default 8 — override in ow_config.h or via -DDS18B20_MAX_DEVICES=N.
+ *       Size of the internal device table; each entry costs DS18B20_ROM_BYTES
+ *       (8) bytes of static RAM.
  */
-#ifndef DS18B20_MAX_DEVICES
-#define DS18B20_MAX_DEVICES 8
-#endif
 
 /**
  * @}

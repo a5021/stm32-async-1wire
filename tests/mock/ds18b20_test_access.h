@@ -45,7 +45,7 @@ uint8_t test_ds18b20_bus_done(void);
 uint8_t test_bus_present(void);
 
 /* Direct port-layer wrappers for low-power tests. */
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count);
 #endif
 

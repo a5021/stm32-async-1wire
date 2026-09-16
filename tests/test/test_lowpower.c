@@ -12,7 +12,7 @@
  *    - UIE is enabled on short ops (read_pair, write_bit,
  *      write_then_read, feed, single-slot write)
  *
- *  Compiled ONLY with -DOW_PORT_LOW_POWER (make test-lowpower);
+ *  Compiled ONLY with -DOW_PORT_LOW_POWER=1 (make test-lowpower);
  *  without the flag this TU is empty so `make test` stays
  *  a pure busy-poll build. The real __WFE()/__SEV() instructions
  *  are host stubs; we assert the observable driver state, not the
@@ -25,7 +25,7 @@
 #include "ow_port.h"
 #include "unity.h"
 
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 
 /*-------------------------------------------------------------
  *  init arms SEVONPEND in SCB.SCR

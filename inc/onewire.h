@@ -10,6 +10,7 @@
 #ifndef ONEWIRE_H
 #define ONEWIRE_H
 
+#include "ow_config.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -63,55 +64,13 @@ extern "C" {
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #endif
 #endif
-/** @brief Opt-in low-power WFE sleep: when defined, long hardware stages
- *  (> 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause)
- *  enable the TIM1 update interrupt (UIE) and SEVONPEND so that a pending
- *  update event wakes the core from WFE without an ISR; short stages stay fully
- *  polled. Long stages can sleep with ow_port_sleep_until_done(). Disabled by
- *  default so non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.
- *  @note No ISR is ever installed and NVIC_EnableIRQ is never called; the
- *        pending bit is cleared explicitly in ow_port_bus_done() so WFE does
- *        not degrade into a busy-loop. */
-#ifdef OW_PORT_LOW_POWER
+/** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */
+#if OW_PORT_LOW_POWER
 #if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
 #else
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
 #endif
-#endif
-/** @brief Duration of a '1' bit write/read pulse in microseconds.
- *  A single universal value for every clock: DS18B20 requires only ≥1µs and
- *  samples the slot at ≥15µs after its start, and the read-slot capture
- *  latency (bus RC rise + input filter + timer sync) stays far below the
- *  ONEWIRE_SHORT_PULSE_MAX window on all supported clocks. Releases v1.6.0's
- *  ≤16MHz compensation (2µs pulse): hardware on STM32F030@8MHz showed that a
- *  2µs master pulse breaks the sensor's slot decoding outright — every
- *  capture stretches past the threshold regardless of the answer — while a
- *  plain 5µs pulse measures ~9µs there with every input-filter variant
- *  swept (fCK_INT N=2/4/8 and fDTS/4 N=8). The short-pulse path was tuned on
- *  F103@8MHz bench wiring whose slower rise is not reproduced by other
- *  boards; re-validate per board before reintroducing anything similar.
- *  @note Hardware-validated at 5µs on every supported clock:
- *        STM32F030@48/8MHz, STM32F103@72/8MHz and STM32G031@64/16MHz. */
-#ifndef OW_TIMING_PARASITE
-#define OW_TIMING_PARASITE 0
-#endif
-
-#ifndef ONEWIRE_ONE_PULSE
-#define ONEWIRE_ONE_PULSE 5
-#endif
-#ifndef ONEWIRE_ZERO_PULSE
-#define ONEWIRE_ZERO_PULSE 60
-#endif
-#ifndef ONEWIRE_GUARD_BAND
-#if OW_TIMING_PARASITE
-#define ONEWIRE_GUARD_BAND 100 /* parasite-powered bus: wider release margin */
-#else
-#define ONEWIRE_GUARD_BAND 5
-#endif
-#endif
-#ifndef ONEWIRE_SHORT_PULSE_MAX
-#define ONEWIRE_SHORT_PULSE_MAX 10
 #endif
 
 /** @} */

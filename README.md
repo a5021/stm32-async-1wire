@@ -22,14 +22,14 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
   as-is.
 - Multi-MCU Backend: One MCU-independent core over a `ow_port_*` interface; header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` / `make OW_TARGET=g0` (F1 is the default).
-- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER` mode uses a timer update event (UIE) with `SEVONPEND` solely as a `WFE()` wake-up mechanism — no NVIC interrupt is enabled and no ISR is installed.
+- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER=1` mode uses a timer update event (UIE) with `SEVONPEND` solely as a `WFE()` wake-up mechanism — no NVIC interrupt is enabled and no ISR is installed.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
  - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
  - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
  - Optional Signal Statistics Module (`ow_stats`): compile-in
-   (`-DOW_STATS_ENABLE`) to collect per-sensor pulse-width min/max, a global
+   (`-DOW_STATS_ENABLE=1`) to collect per-sensor pulse-width min/max, a global
    histogram and error counters across measurement cycles.  The dump is
    non-blocking: `ow_stats_dump_start()` + `ow_stats_dump_poll()` streams the
    report over UART at baud-rate pace without overflowing the ring buffer.
@@ -172,8 +172,8 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
-| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running. Without the define, the example uses the standard polling loop. |
+| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running. Without the define, the example uses the standard polling loop. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -182,7 +182,7 @@ make APP=3_round_robin                        # build 3_round_robin -> build/ds1
 make APP=4_scan_mode                          # build 4_scan_mode -> build/ds18b20_4_scan_mode.elf
 make APP=5_commands                           # build 5_commands -> build/ds18b20_5_commands.elf
 make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
-make APP=7_low_power EXT="-DOW_PORT_LOW_POWER"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
+make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -217,7 +217,7 @@ Notes:
   the single-device Read ROM. Each command advances by one hardware operation
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
 - `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
-  (`-DOW_STATS_ENABLE`, auto-enabled by `make APP=6_statistics`). After
+  (`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
   `STATS_DUMP_INTERVAL` full rounds (source default 100, shipped `6_statistics` build
   5000 via `Makefile`) the accumulated per-sensor pulse-width min/max,
   13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
@@ -305,11 +305,11 @@ histogram buckets populated across the normal decode range.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE -DPARASITE_POWER=1"
+make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DPARASITE_POWER=1"
 ```
 
 **demo6 — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
-`2_device_search`, but built with `-DOW_PORT_LOW_POWER`.
+`2_device_search`, but built with `-DOW_PORT_LOW_POWER=1`.
 
 > **What low-power mode does not change.** Low-power mode does not change
 > 1-Wire execution. TIM+DMA continue to control all bus timing; `WFE` allows
@@ -328,7 +328,7 @@ Power is **not measured** yet — this demo's goal is only to establish the
 mechanism and measure the CPU-time saving.
 
 > **Verified on hardware (STM32F103C8 Blue Pill).** With
-> `-DOW_PORT_LOW_POWER -DPARASITE_POWER=1` and six DS18B20 sensors powered
+> `-DOW_PORT_LOW_POWER=1 -DPARASITE_POWER=1` and six DS18B20 sensors powered
 > in parasite mode, 7_low_power found all six devices, read them in turn (*24.0 °C /
 > 85.0 °C / 23.8 °C ...*) and the core demonstrably entered `__WFE()`: a
 > temporary instrumented run printed `[WFE iters=1]` before every measurement,
@@ -340,7 +340,7 @@ mechanism and measure the CPU-time saving.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER"   # (append -DPARASITE_POWER=1 on a parasite bus)
+make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DPARASITE_POWER=1 on a parasite bus)
 make OW_TARGET=g0 APP=7_low_power                              # same example, but standard polling (define omitted)
 ```
 
@@ -401,7 +401,7 @@ Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
 
 Note: "open-drain" above describes the **default/idle** bus topology, not a
 static pin configuration. With the optional active-drive write mode
-(`-DOW_DRIVE_ACTIVE`) the pin is temporarily switched to push-pull during
+(`-DOW_DRIVE_ACTIVE=1`) the pin is temporarily switched to push-pull during
 master-only write slots and restored to open-drain afterwards — see
 [Bus Electrical Model](#bus-electrical-model).
 
@@ -535,10 +535,10 @@ Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
-| `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE`) |
+| `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
-| `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER` (WFE path, F1) |
+| `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER=1` (WFE path, F1) |
 | `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard` |
@@ -552,10 +552,10 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 
 | Flag | Effect |
 |------|--------|
-| `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
+| `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing). |
 | `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see 6_statistics). |
-| `EXT="-DOW_PORT_LOW_POWER"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
+| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
 ### Flash
 
@@ -719,6 +719,61 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
     timer prescaler, the input-capture filter and the USART baud rate
     adjust automatically. Useful for testing on bare minimum hardware
     (no HSE crystal).
+
+### Compile-time Tunables (`inc/ow_config.h`)
+
+All genuinely tunable build constants live in `inc/ow_config.h`.  Every
+macro carries a `#ifndef` guard so that a `-D` on the command line (Makefile
+EXT, CMake `-D`, PlatformIO `build_flags`) overrides the default without
+editing the header.  Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
+`DS18B20_RES_MIN/MAX/DEFAULT`) and the per-family system clock default
+(`OW_PORT_SYSCLK_MHZ`) remain in their respective headers and are NOT
+listed here.
+
+The three feature flags use **value style**: define to **1** to enable,
+omit or set to 0 to disable.  Old presence-only style
+(`-DOW_PORT_LOW_POWER` without `=1`) no longer compiles correctly.
+
+| Macro | Default | Notes |
+|-------|---------|-------|
+| `ONEWIRE_ONE_PULSE` | 5 | '1'-bit duration in µs — HW-validated on every clock |
+| `ONEWIRE_ZERO_PULSE` | 60 | '0'-bit duration in µs |
+| `ONEWIRE_GUARD_BAND` | 5 (100 when `OW_TIMING_PARASITE=1`) | Slot release margin in µs |
+| `ONEWIRE_SHORT_PULSE_MAX` | 10 | Short-pulse detection window in µs |
+| `OW_TIMING_PARASITE` | 0 | 1 = set parasite timing defaults (guard band) |
+| `OW_PORT_LOW_POWER` | 0 | 1 = enable opt-in WFE sleep path |
+| `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
+| `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
+| `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) |
+| `DS18B20_CYCLE_PAUSE_US` | 5000000 | Inter-measurement pause in µs (0 = none) |
+
+**Override examples**
+
+```bash
+make                              # defaults, all flags =0
+make EXT="-DOW_PORT_LOW_POWER=1"  # enable WFE sleep path
+make OW_TIMING_PARASITE=1         # parasite guard-band (Makefile knob)
+make EXT="-DONEWIRE_SHORT_PULSE_MAX=15 -DDS18B20_MAX_DEVICES=16"
+```
+
+CMake:
+
+```bash
+cmake -DOW_TARGET=f0 -DOW_STATS_ENABLE=1 -B build .
+```
+
+PlatformIO (`platformio.ini`):
+
+```ini
+build_flags = -DOW_PORT_LOW_POWER=1 -DOW_STATS_ENABLE=1
+```
+
+Feature flags can also be set via Makefile knobs (no EXT needed):
+
+```bash
+make OW_DRIVE_ACTIVE=1        # → -DOW_DRIVE_ACTIVE=1
+make OW_TIMING_PARASITE=1     # → sets parasite timing defaults
+```
 
 ## VSCode Integration
 
@@ -955,7 +1010,7 @@ changes.
   automatically retains open-drain operation for reset, presence, read slots and
   write/read transactions where the slave may drive the bus. This is what makes
   push-pull acceptable on a 1-Wire bus at all: it is confined to phases where no
-  slave can answer. Enabled with `-DOW_DRIVE_ACTIVE`; the published default
+  slave can answer. Enabled with `-DOW_DRIVE_ACTIVE=1`; the published default
   remains open-drain.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
@@ -1431,7 +1486,7 @@ make APP=1_basic EXT=-DPARASITE_POWER=1        # or 2_device_search / 4_scan_mod
 
 An optional compile-in module that collects per-sensor pulse-width statistics
 and a global histogram across measurement cycles.  Enabled by defining
-`OW_STATS_ENABLE` at build time.  When the macro is not defined, every inline
+`OW_STATS_ENABLE=1` at build time.  When the macro is 0, every inline
 body compiles away to nothing — zero overhead in production builds.
 
 ```C
@@ -1455,7 +1510,7 @@ uint32_t ow_stats_tick(void);
   `OW_STATS_HIST_BUCKETS` array slots are populated, indices 0–12) covering
   0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29, 30–39,
   40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
-  automatically from `ds18b20.c` when `OW_STATS_ENABLE` is defined.
+  automatically from `ds18b20.c` when `OW_STATS_ENABLE=1` is set.
 - `ow_stats_count_error()` — record a CRC mismatch, missing presence pulse
   or other error event.  Called automatically from `ds18b20.c`.
 - `ow_stats_dump_start()` — begin a non-blocking UART dump.  Call from the
@@ -1511,7 +1566,7 @@ make APP=6_statistics                                  # external power (OW_STAT
 make APP=6_statistics EXT="-DPARASITE_POWER=1"            # parasite power
 ```
 
-> Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE` plus
+> Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE=1` plus
 > `-DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000`, so the shipped
 > 6_statistics dumps every 5000 cycles with a 10 ms inter-cycle pause. Override either
 > macro via `EXT=` if you want the module defaults instead.

@@ -2,7 +2,7 @@
  *  test_main_active.c - Runner for the active-drive test build
  *
  *  Mirrors tests/test/test_main.c but runs only the active-drive
- *  test set, and is compiled with -DOW_DRIVE_ACTIVE. The full suite
+ *  test set, and is compiled with -DOW_DRIVE_ACTIVE=1. The full suite
  *  is intentionally excluded: several pin-regression assertions in the
  *  standard suite assume the pin is never toggled outside the parasite
  *  strong-pull-up path, which the active-drive write path also does.

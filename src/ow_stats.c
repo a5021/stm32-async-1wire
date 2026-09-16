@@ -8,7 +8,7 @@
 #include "ds18b20.h"
 #include "onewire.h"
 
-#ifdef OW_STATS_ENABLE
+#if OW_STATS_ENABLE
 
 #include <string.h>
 

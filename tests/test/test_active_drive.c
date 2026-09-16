@@ -4,7 +4,7 @@
  *  Build:  make test-active        (F1 mock)
  *          make test-active-f0     (F0 mock)
  *          make test-active-g0     (G0 mock)
- *  Compiled ONLY with -DOW_DRIVE_ACTIVE; verifies the bus pin is
+ *  Compiled ONLY with -DOW_DRIVE_ACTIVE=1; verifies the bus pin is
  *  switched to push-pull during pure-write transactions and reverted
  *  to open-drain for every read/reset/slave-response phase.
  * ============================================================ */

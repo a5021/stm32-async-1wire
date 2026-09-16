@@ -3,8 +3,8 @@
  * @brief 1-Wire signal statistics — optional compile-in module.
  *
  * Collects per-sensor pulse-width statistics, a global pulse histogram,
- * and error counters.  Enabled by defining OW_STATS_ENABLE at build time
- * (e.g. -DOW_STATS_ENABLE).  When the macro is not defined, every inline
+ * and error counters.  Enabled by setting OW_STATS_ENABLE to 1 at build time
+ * (e.g. -DOW_STATS_ENABLE=1).  When the macro is 0, every inline
  * body compiles away to nothing so there is zero overhead in production
  * builds.
  *
@@ -19,13 +19,14 @@
 #ifndef OW_STATS_H
 #define OW_STATS_H
 
+#include "ow_config.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef OW_STATS_ENABLE
+#if OW_STATS_ENABLE
 
 /** Maximum number of sensors tracked simultaneously. */
 #define OW_STATS_MAX_SENSORS 8
@@ -119,7 +120,7 @@ uint32_t ow_stats_tick(void);
  * The statistics dump module needs a minimal UART output interface.
  * Default weak implementations in ow_stats.c do nothing; the user
  * supplies strong definitions to enable the dump.  Only needed when
- * OW_STATS_ENABLE is defined.
+ * OW_STATS_ENABLE is 1.
  * @{
  */
 /** @brief Write a single character to the output. */
@@ -134,7 +135,7 @@ void ow_stats_print_hex(uint8_t v);
 void ow_stats_tx_enqueue(char c);
 /** @} */
 
-#else /* OW_STATS_ENABLE not defined — zero-overhead stubs */
+#else /* OW_STATS_ENABLE == 0 — zero-overhead stubs */
 
 static inline void ow_stats_init(void) {}
 static inline void ow_stats_capture_pulse(const volatile uint8_t* pulse,

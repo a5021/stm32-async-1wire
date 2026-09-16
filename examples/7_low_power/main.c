@@ -9,14 +9,14 @@
  * (reset, command writes, search reads) stay non-blocking and are polled.
  *
  * Build requirements:
- *   -DOW_PORT_LOW_POWER             (this demo's whole point - enables UIE +
+ *   -DOW_PORT_LOW_POWER=1             (this demo's whole point - enables UIE +
  *                                   SEVONPEND + the sleep helpers)
  *   When the macro is omitted the demo still builds and simply busy-polls
  *   (ow_port_sleep_until_done() and ow_port_long_wait_pending() are not
  *   defined without it, so the sleep path degrades to a plain poll).
  *
  * Build:
- *   make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER"
+ *   make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER=1"
  *   On a parasite-powered bus add -DPARASITE_POWER=1.
  */
 
@@ -104,7 +104,7 @@ void ds18b20_complete(int16_t temp) {
  *       works as a plain busy-poll loop.
  */
 static void low_power_poll(void) {
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     if (ow_port_long_wait_pending() && !ow_port_bus_done()) {
         ow_port_sleep_until_done();
     }
@@ -118,7 +118,7 @@ int main(void) {
     uart_write_str("DS18B20 demo6 (low power) starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init();
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     uart_write_str("OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n");
 #else
     uart_write_str("OW_PORT_LOW_POWER NOT defined - busy-poll only\r\n");

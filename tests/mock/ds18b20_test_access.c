@@ -85,7 +85,7 @@ void test_bus_wait_conversion(void) { wait_conversion(); }
 void test_bus_start_cycle_pause(void) { start_cycle_pause(); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count) {
     ow_port_capture((volatile void*)ctx.capture, count, 16);
 }

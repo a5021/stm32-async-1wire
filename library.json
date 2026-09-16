@@ -16,7 +16,7 @@
     },
     "frameworks": "stm32cube",
     "platform": "ststm32",
-    "headers": ["onewire.h", "ds18b20.h", "ow_port.h", "ow_stats.h"],
+    "headers": ["onewire.h", "ow_config.h", "ds18b20.h", "ow_port.h", "ow_stats.h"],
     "build": {
         "srcDir": "src",
         "srcFilter": [

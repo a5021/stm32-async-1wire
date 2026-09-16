@@ -1,5 +1,6 @@
 #include "hw_model.h"
 #include "mock_target.h"
+#include "ow_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,7 +10,7 @@ DMA1_Channel_TypeDef mock_feed_ch;
 GPIO_TypeDef mock_gpioa;
 RCC_TypeDef mock_rcc;
 USART_TypeDef mock_usart1;
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
 #endif
 #if defined(OW_PORT_TARGET_G0)
@@ -74,7 +75,7 @@ void hw_reset_all(void) {
     mock_gpioa = (GPIO_TypeDef){0};
     mock_rcc = (RCC_TypeDef){0};
     mock_usart1 = (USART_TypeDef){0};
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     mock_scb = (SCB_Type){0};
 #endif
     /* USART TXE is set by hardware when the transmit buffer is empty —

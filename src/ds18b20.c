@@ -26,9 +26,6 @@
 /** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 /** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
-#ifndef DS18B20_CYCLE_PAUSE_US
-#define DS18B20_CYCLE_PAUSE_US 5000000 /**< default inter-cycle pause: 5s */
-#endif
 #define OW_PAUSE_US (DS18B20_CYCLE_PAUSE_US > 0 ? DS18B20_CYCLE_PAUSE_US : 1)
 #if OW_PAUSE_US <= 62500
 #define PAUSE_ARR (OW_PAUSE_US)

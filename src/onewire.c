@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <string.h>
 
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 /** @brief Set by the driver while a long stage (>1ms) is running, read by the
  *         low-power application. Shared across translation units. */
 uint8_t ow_long_pending = 0;
@@ -132,7 +132,7 @@ void onewire_init(void) {
     search_ctx.finished = 1;
     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
     // event even though no ISR is enabled. Done once here; the corresponding
     // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never

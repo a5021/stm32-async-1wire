@@ -58,7 +58,7 @@ extern void run_test_app_uart(void);
 #ifdef OW_TEST_PARAM_GUARD
 extern void run_test_param_guard(void);
 #endif
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
 extern void run_test_lowpower(void);
 #endif
 
@@ -91,7 +91,7 @@ int main(void) {
 #ifdef OW_TEST_PARAM_GUARD
     run_test_param_guard();
 #endif
-#ifdef OW_PORT_LOW_POWER
+#if OW_PORT_LOW_POWER
     run_test_lowpower();
 #endif
     printf("%s: %d failure(s)\n", unity_failures ? "FAIL" : "PASS", unity_failures);
