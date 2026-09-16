@@ -17,7 +17,7 @@
  *
  * Build:
  *   make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER=1"
- *   On a parasite-powered bus add -DPARASITE_POWER=1.
+ *   On a parasite-powered bus add -DOW_PARASITE_POWER=1.
  */
 
 #include "app.h"
@@ -123,7 +123,7 @@ int main(void) {
 #else
     uart_write_str("OW_PORT_LOW_POWER NOT defined - busy-poll only\r\n");
 #endif
-#if defined(PARASITE_POWER)
+#if OW_OW_PARASITE_POWER
     ds18b20_set_parasite(1);
 #endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);

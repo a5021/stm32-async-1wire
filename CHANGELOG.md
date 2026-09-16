@@ -61,6 +61,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   example block are updated accordingly.  The change is transparent for
   `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
   and Makefile knobs already pass the right flags.
+- **Unified compile-time parasite knob.** The dual naming between the
+  driver guard-band default (`OW_TIMING_PARASITE`) and the example
+  application flag (`PARASITE_POWER`) is replaced by a single
+  `OW_PARASITE_POWER` value (0/1, default 0).  Passing
+  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
+  *and* causes every example to call `ds18b20_set_parasite(1)` at
+  startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
+  longer has any effect.
 
 ### Added
 
@@ -68,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   All genuinely tunable build constants are now collected in a single
   file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
   `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
-  timing (`OW_TIMING_PARASITE`), feature flags (`OW_PORT_LOW_POWER`,
+  timing (`OW_PARASITE_POWER`), feature flags (`OW_PORT_LOW_POWER`,
   `OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`) and DS18B20 driver knobs
   (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`).  Every macro
   carries a `#ifndef` guard so existing `-D` overrides keep working;

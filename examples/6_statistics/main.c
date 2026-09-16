@@ -10,7 +10,7 @@
  *
  * Requires OW_STATS_ENABLE to be defined at build time:
  *   make clean && make OW_TARGET=g0 APP=demo5 EXT="-DOW_STATS_ENABLE"
- *   On a parasite-powered bus add -DPARASITE_POWER=1 so the driver engages
+ *   On a parasite-powered bus add -DOW_PARASITE_POWER=1 so the driver engages
  *   the strong pull-up during the conversion window.
  */
 
@@ -118,7 +118,7 @@ int main(void) {
 
     ow_stats_init();
     ds18b20_init();
-#if defined(PARASITE_POWER)
+#if OW_OW_PARASITE_POWER
     ds18b20_set_parasite(1);
 #endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);

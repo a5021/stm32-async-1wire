@@ -36,8 +36,8 @@
  * ds18b20_set_parasite(1) at startup — a runtime per-bus override that
  * is independent of the compile-time guard-band default.
  */
-#ifndef OW_TIMING_PARASITE
-#define OW_TIMING_PARASITE 0
+#ifndef OW_PARASITE_POWER
+#define OW_PARASITE_POWER 0
 #endif
 
 /* -------------------------------------------------------------------
@@ -82,12 +82,12 @@
  *        next slot, in microseconds.
  *
  * 5 µs is sufficient for external-power buses.  When
- * OW_TIMING_PARASITE is 1 the default is raised to 100 µs to leave
+ * OW_PARASITE_POWER is 1 the default is raised to 100 µs to leave
  * margin for the bus-pull-up capacitor (one full µs-tick period at the
  * slowest supported clock).
  */
 #ifndef ONEWIRE_GUARD_BAND
-#if OW_TIMING_PARASITE
+#if OW_PARASITE_POWER
 #define ONEWIRE_GUARD_BAND 100 /* parasite-powered bus: wider release margin */
 #else
 #define ONEWIRE_GUARD_BAND 5

@@ -201,7 +201,7 @@ Notes:
   conversion) in round-robin order. A separator `--------------------------------`
   is printed between full rounds. With one sensor it behaves like `1_basic` but
   with ROM addressing; with N sensors a round costs `N × conversion`. Supports
-  `-DPARASITE_POWER=1` (strong pull-up handled per conversion).
+  `-DOW_PARASITE_POWER=1` (strong pull-up handled per conversion).
 - `3_round_robin` measures the devices found at startup one at a time, in round-robin
   order. With exactly one sensor it behaves like `1_basic`.
 - `4_scan_mode` (scan mode) converts every discovered sensor in parallel: a single
@@ -223,7 +223,7 @@ Notes:
   13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
   `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
   loop is paused during the dump and resumed afterwards via `ow_stats_reset()`.
-  Supports `-DPARASITE_POWER=1`.
+  Supports `-DOW_PARASITE_POWER=1`.
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
 
@@ -305,7 +305,7 @@ histogram buckets populated across the normal decode range.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DPARASITE_POWER=1"
+make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=1"
 ```
 
 **demo6 — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
@@ -328,7 +328,7 @@ Power is **not measured** yet — this demo's goal is only to establish the
 mechanism and measure the CPU-time saving.
 
 > **Verified on hardware (STM32F103C8 Blue Pill).** With
-> `-DOW_PORT_LOW_POWER=1 -DPARASITE_POWER=1` and six DS18B20 sensors powered
+> `-DOW_PORT_LOW_POWER=1 -DOW_PARASITE_POWER=1` and six DS18B20 sensors powered
 > in parasite mode, 7_low_power found all six devices, read them in turn (*24.0 °C /
 > 85.0 °C / 23.8 °C ...*) and the core demonstrably entered `__WFE()`: a
 > temporary instrumented run printed `[WFE iters=1]` before every measurement,
@@ -340,7 +340,7 @@ mechanism and measure the CPU-time saving.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DPARASITE_POWER=1 on a parasite bus)
+make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DOW_PARASITE_POWER=1 on a parasite bus)
 make OW_TARGET=g0 APP=7_low_power                              # same example, but standard polling (define omitted)
 ```
 
@@ -554,7 +554,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing). |
-| `EXT="-DPARASITE_POWER=1"` | Build for parasite-powered buses (enables the strong-pull-up window; see 6_statistics). |
+| `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every example with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
 | `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
 ### Flash
@@ -738,9 +738,9 @@ omit or set to 0 to disable.  Old presence-only style
 |-------|---------|-------|
 | `ONEWIRE_ONE_PULSE` | 5 | '1'-bit duration in µs — HW-validated on every clock |
 | `ONEWIRE_ZERO_PULSE` | 60 | '0'-bit duration in µs |
-| `ONEWIRE_GUARD_BAND` | 5 (100 when `OW_TIMING_PARASITE=1`) | Slot release margin in µs |
+| `ONEWIRE_GUARD_BAND` | 5 (100 when `OW_PARASITE_POWER=1`) | Slot release margin in µs |
 | `ONEWIRE_SHORT_PULSE_MAX` | 10 | Short-pulse detection window in µs |
-| `OW_TIMING_PARASITE` | 0 | 1 = set parasite timing defaults (guard band) |
+| `OW_PARASITE_POWER` | 0 | 1 = set parasite timing defaults (guard band) |
 | `OW_PORT_LOW_POWER` | 0 | 1 = enable opt-in WFE sleep path |
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
@@ -752,7 +752,7 @@ omit or set to 0 to disable.  Old presence-only style
 ```bash
 make                              # defaults, all flags =0
 make EXT="-DOW_PORT_LOW_POWER=1"  # enable WFE sleep path
-make OW_TIMING_PARASITE=1         # parasite guard-band (Makefile knob)
+make EXT="-DOW_PARASITE_POWER=1"  # parasite guard-band default
 make EXT="-DONEWIRE_SHORT_PULSE_MAX=15 -DDS18B20_MAX_DEVICES=16"
 ```
 
@@ -772,7 +772,7 @@ Feature flags can also be set via Makefile knobs (no EXT needed):
 
 ```bash
 make OW_DRIVE_ACTIVE=1        # → -DOW_DRIVE_ACTIVE=1
-make OW_TIMING_PARASITE=1     # → sets parasite timing defaults
+make EXT="-DOW_PARASITE_POWER=1" # → parasite timing defaults
 ```
 
 ## VSCode Integration
@@ -1248,7 +1248,7 @@ void onewire_strong_pullup(uint8_t on);  /* parasite power: drive bus HIGH */
 ```
 
 On a parasite-powered bus the release margin must be wider: define
-`OW_TIMING_PARASITE` as 1 (`-DOW_TIMING_PARASITE=1`) to select the 100µs guard
+`OW_PARASITE_POWER` as 1 (`-DOW_PARASITE_POWER=1`) to select the 100µs guard
 band default, or pass `-DONEWIRE_GUARD_BAND=...` explicitly. The Makefile
 presets in [Configuration → Timing](#timing) select whole value sets.
 
@@ -1479,7 +1479,7 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=1_basic EXT=-DPARASITE_POWER=1        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
+make APP=1_basic EXT=-DOW_PARASITE_POWER=1        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
 ```
 
 ### Signal Statistics Module (`ow_stats`)
@@ -1563,7 +1563,7 @@ Build with the statistics module:
 
 ```sh
 make APP=6_statistics                                  # external power (OW_STATS_ENABLE auto-added)
-make APP=6_statistics EXT="-DPARASITE_POWER=1"            # parasite power
+make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"            # parasite power
 ```
 
 > Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE=1` plus
@@ -1696,7 +1696,7 @@ long wiring, parasite buses or electrically noisy setups.
 
 On a parasite-powered bus the strong-pullup release must not clip the sensor's
 slot sampling, so the guard band needs to be wider than the 5µs external-power
-default. Compile with `-DOW_TIMING_PARASITE=1`: when `ONEWIRE_GUARD_BAND` is not
+default. Compile with `-DOW_PARASITE_POWER=1`: when `ONEWIRE_GUARD_BAND` is not
 defined by a preset or an explicit `-D`, it defaults to 100µs. Presets always
 pin the guard explicitly, so on long or noisy parasite wiring pass the value
 directly instead — e.g. `make TIMING=ROBUST EXT="-DONEWIRE_GUARD_BAND=250"`.
