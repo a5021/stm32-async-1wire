@@ -16,7 +16,7 @@ jobs:
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
     strategy:
@@ -61,6 +61,27 @@ jobs:
       - name: Build and run low-power host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-lowpower-g0
+      # The same suite re-built with -DNDEBUG -DOW_TEST_PARAM_GUARD
+      # (asserts compiled out) and with the active-drive write path
+      # (-DOW_DRIVE_ACTIVE=1). Both exercise value-style feature flags.
+      - name: Build and run NDEBUG host tests (F1)
+        if: matrix.backend == 'f1'
+        run: make test-ndebug
+      - name: Build and run NDEBUG host tests (F0)
+        if: matrix.backend == 'f0'
+        run: make test-ndebug-f0
+      - name: Build and run NDEBUG host tests (G0)
+        if: matrix.backend == 'g0'
+        run: make test-ndebug-g0
+      - name: Build and run active-drive host tests (F1)
+        if: matrix.backend == 'f1'
+        run: make test-active
+      - name: Build and run active-drive host tests (F0)
+        if: matrix.backend == 'f0'
+        run: make test-active-f0
+      - name: Build and run active-drive host tests (G0)
+        if: matrix.backend == 'g0'
+        run: make test-active-g0
 
   coverage:
     strategy:

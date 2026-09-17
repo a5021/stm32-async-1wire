@@ -53,12 +53,17 @@ jobs:
       - name: Build Project
         run: |
           make
+          make APP=2_device_search
           make APP=3_round_robin
           make APP=4_scan_mode
           make APP=5_commands
           make APP=6_statistics
           make APP=7_low_power
           make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
+          # Parasite-power compile-time path: every example calls
+          # ds18b20_set_parasite(1) under -DOW_PARASITE_POWER=1.
+          make APP=1_basic EXT="-DOW_PARASITE_POWER=1"
+          make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"
 
       # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts

@@ -164,7 +164,7 @@
  *
  * ds18b20.c recomputes ARR and RCR from this value.  Set to 0 to
  * disable the pause (next measurement starts immediately after decode).
- * Overridable via -DDS18B20_CYCLE_PAUSE_US=<N>.
+ * Overridable via -DDS18B20_CYCLE_PAUSE_US=(value in µs).
  */
 #ifndef DS18B20_CYCLE_PAUSE_US
 #define DS18B20_CYCLE_PAUSE_US 5000000
