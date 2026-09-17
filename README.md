@@ -768,11 +768,10 @@ PlatformIO (`platformio.ini`):
 build_flags = -DOW_PORT_LOW_POWER=1 -DOW_STATS_ENABLE=1
 ```
 
-Feature flags can also be set via Makefile knobs (no EXT needed):
+Feature flags can also be set via a Makefile knob (no EXT needed):
 
 ```bash
 make OW_DRIVE_ACTIVE=1        # → -DOW_DRIVE_ACTIVE=1
-make EXT="-DOW_PARASITE_POWER=1" # → parasite timing defaults
 ```
 
 ## VSCode Integration

@@ -142,8 +142,8 @@ extern USART_TypeDef mock_usart1;
  *     (OW_PORT_LOW_POWER) on the host. The real CMSIS headers provide these;
  *     on the host they are harmless stubs so ow_port_start_timer()/
  *     ow_port_capture()/ow_port_bus_done()/onewire_init() compile and link.
-*    They are only compiled into the low-power test build (-DOW_PORT_LOW_POWER=1),
- *    so the default busy-poll test build stays byte-identical. --- */
+ *     They are only compiled into the low-power test build (-DOW_PORT_LOW_POWER=1),
+ *     so the default busy-poll test build stays byte-identical. --- */
 #if OW_PORT_LOW_POWER
 /* The update-event IRQ line the driver arms for WFE wake-up (onewire.h
  * maps OW_PORT_TIM1_UPD_IRQn to this on F1). Value is irrelevant on host. */

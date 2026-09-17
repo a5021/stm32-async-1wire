@@ -263,7 +263,7 @@ int main(void) {
     uart_write_str("DS18B20 demo4 starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
-#if OW_OW_PARASITE_POWER
+#if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);

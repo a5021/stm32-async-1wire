@@ -214,7 +214,7 @@ int main(void) {
 #else
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
-#if OW_OW_PARASITE_POWER
+#if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES); // Start scan

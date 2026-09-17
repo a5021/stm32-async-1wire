@@ -58,7 +58,7 @@ jobs:
           make APP=5_commands
           make APP=6_statistics
           make APP=7_low_power
-          make APP=7_low_power EXT="-DOW_PORT_LOW_POWER"
+          make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
 
       # Step 8: Upload build results (ELF, BIN, HEX)
       - name: Upload Build Artifacts

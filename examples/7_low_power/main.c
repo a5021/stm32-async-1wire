@@ -121,9 +121,9 @@ int main(void) {
 #if OW_PORT_LOW_POWER
     uart_write_str("OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n");
 #else
-    uart_write_str("OW_PORT_LOW_POWER NOT defined - busy-poll only\r\n");
+    uart_write_str("OW_PORT_LOW_POWER disabled - busy-poll only\r\n");
 #endif
-#if OW_OW_PARASITE_POWER
+#if OW_PARASITE_POWER
     ds18b20_set_parasite(1);
 #endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);

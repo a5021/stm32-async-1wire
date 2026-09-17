@@ -54,7 +54,7 @@ jobs:
       # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem | EXT.
       # A "-" target means the default (F1); F1 keeps its historical artifact
       # names without the target infix, F0 artifacts carry "_f0_". An empty EXT
-      # builds the default configuration; "lowpower" adds -DOW_PORT_LOW_POWER.
+      # builds the default configuration; "lowpower" adds -DOW_PORT_LOW_POWER=1.
       - name: Build Firmware Matrix
         run: |
           set -euo pipefail
@@ -105,7 +105,7 @@ jobs:
             flags=""
             [ "$target" != "-" ] && flags="$flags OW_TARGET=$target"
             [ "$sysclk" != "-" ] && flags="$flags SYSCLK_MHZ=$sysclk"
-            [ "$ext" = "lowpower" ] && flags="$flags EXT=-DOW_PORT_LOW_POWER"
+            [ "$ext" = "lowpower" ] && flags="$flags EXT=-DOW_PORT_LOW_POWER=1"
             echo "::group::build $out (APP=$app OW_TARGET=$target SYSCLK_MHZ=$sysclk EXT=$ext)"
             make clean
             make APP=$app $flags
@@ -168,8 +168,8 @@ jobs:
             device search + simultaneous multi-device conversion; `5_commands` —
             device search + command transactions (power supply, scratchpad,
             TH/TL, Copy/Recall EEPROM, Read ROM); `6_statistics` — device search +
-            signal-statistics dump over UART (`-DOW_STATS_ENABLE`); `7_low_power` —
-            low-power example (`-DOW_PORT_LOW_POWER`) that sleeps in `__WFE()`.
+            signal-statistics dump over UART (`-DOW_STATS_ENABLE=1`); `7_low_power` —
+            low-power example (`-DOW_PORT_LOW_POWER=1`) that sleeps in `__WFE()`.
 
             ## Highlights
 
