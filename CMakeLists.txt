@@ -134,6 +134,7 @@ install(FILES
     inc/ds18b20.h
     inc/ow_port.h
     inc/ow_stats.h
+    inc/ow_config.h
     inc/ow_bits.h  # included by every ow_port_<family>.h backend
     # ow_port.h selects its backend with sibling quote-includes
     # (#include "ow_port_f1.h"), so the backends must ship alongside it.
