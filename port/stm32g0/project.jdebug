@@ -6,7 +6,7 @@ void OnProjectLoad (void) {
   Project.SetTIFSpeed ("4 MHz");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M0plus.svd");
   Project.AddSvdFile ("$(ProjectDir)/../../CMSIS/device/STM32G031.svd");
-  File.Open ("$(ProjectDir)/../../build/ds18b20_demo.elf");
+  File.Open ("$(ProjectDir)/../../build/ds18b20_1_basic.elf");
 }
 
 void AfterTargetReset (void) {

@@ -518,7 +518,7 @@ make            # Release build (-Os -flto -g0)
 make debug      # Debug build (-Og -g3 -gdwarf)
 ```
 
-Output goes to `build/` (`ds18b20_demo.elf`, `.hex`, `.bin`).
+Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1_basic.elf` for the default `APP=1_basic`).
 
 ### Common Targets
 
@@ -580,7 +580,7 @@ CMSIS header — each suite runs the full driver against its own backend's
     channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
     driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-    object file.) 286 tests run per backend (288 on G0, which adds two
+    object file.) 297 tests run per backend (299 on G0, which adds two
     DMAMUX request-routing tests). The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -613,7 +613,7 @@ CMSIS header — each suite runs the full driver against its own backend's
     (`test_ow_stats`)
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive,
-8 tests) and `make test-lowpower` (low-power WFE path, 12 tests).
+8 tests) and `make test-lowpower` (full suite + low-power WFE path, 309 tests).
 
 ### PlatformIO
 
@@ -683,7 +683,7 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 ### Configuration Notes
 
--   **Target Name:** The firmware target name is `ds18b20_demo`.
+-   **Target Name:** The firmware target name is `ds18b20_$(APP)` (e.g. `ds18b20_1_basic`).
 
 -   **Build Directory:** Default is `build/`.
 
