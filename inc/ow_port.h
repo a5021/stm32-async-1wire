@@ -52,14 +52,25 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *     way to fDTS/4 N=8):
  *       ≤ 8MHz   fCK_INT, N=4    T_f ≈ 500ns @ 8MHz
  *       ≤16MHz   fCK_INT, N=8    T_f ≈ 500ns @ 16MHz
- *       >16MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz
- *     Backends feed the macro into TIM_CCMR2(...) unchanged. --- */
+ *       ≤72MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz
+ *       >72MHz   fDTS/8,  N=6    T_f ≈ 571ns @ 84MHz
+ *     (fDTS/4,N=8 on 84MHz would give 381ns — below the 444..667ns T_f range
+ *     shared by every other port; fDTS/8,N=6 restores it.)
+ *     Backends feed the macro into TIM_CCMR2(...) unchanged.
+ *     The default can be overridden from the build (-DOW_PORT_IC4F_ARGS=...)
+ *     to sweep the filter on a bench; the exact ICxF encoding is family
+ *     specific (F4/TIM1 fDTS table from STM32Cube LL, e.g. fDTS/4,N=8 =
+ *     IC4F_0,IC4F_1,IC4F_2 vs. fDTS/8,N=6 = IC4F_3). --- */
+#ifndef OW_PORT_IC4F_ARGS
 #if (OW_PORT_SYSCLK_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 */
 #elif (OW_PORT_SYSCLK_MHZ) <= 16
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* fCK_INT, N=8 */
-#else
+#elif (OW_PORT_SYSCLK_MHZ) <= 72
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 */
+#else
+#define OW_PORT_IC4F_ARGS IC4F_3 /* fDTS/8, N=6 */
+#endif
 #endif
 
 /* --- Backend selection: onewire.h resolves OW_PORT_FAMILY_* from either the
