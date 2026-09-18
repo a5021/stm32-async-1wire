@@ -85,9 +85,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── inc/                    # Project header files
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
+│   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
-│   └── ow_bits.h            # STM32 register access macros (shared)
+│   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
@@ -134,6 +135,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── cmake/                  # CMake toolchain
 │   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 ├── docs/                   # Documentation assets
+│   ├── api/                # Doxygen-generated API reference
 │   └── screenshots/        # UART capture screenshots
 ├── .github/                # GitHub configuration
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
@@ -666,7 +668,7 @@ In a downstream project:
 ```cmake
 FetchContent_Declare(stm32_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v1.8.0
+    GIT_TAG        v1.8.1
 )
 FetchContent_MakeAvailable(stm32_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
@@ -1232,7 +1234,7 @@ turn into an undiscovered `onewire_bus_done()` hang.
 
 #### Timing
 
-Slot timing is fixed at **compile time** (`inc/onewire.h`): four `ONEWIRE_*`
+Slot timing is fixed at **compile time** (`inc/ow_config.h`): four `ONEWIRE_*`
 macros define the bit-slot geometry, and every bus operation is scheduled with
 those exact durations. There is no runtime profile switching and no timing
 state — the values fold into the TIM1/DMA register arithmetic and can be
@@ -1658,12 +1660,12 @@ Called when a measurement cycle completes — provides temperature data in tenth
 ### Timing
 
 Slot timing is fixed at **compile time** via the `ONEWIRE_*` macros in
-`inc/onewire.h` (see also the [API Reference → Timing](#timing)). Each macro is
+`inc/ow_config.h` (see also the [API Reference → Timing](#timing)). Each macro is
 overridable with `-D`, so a specific board or bus length pins its values without
 any runtime state. The reset-pulse bounds are defined in `src/onewire.c`:
 
 ```C
-/* inc/onewire.h — defaults */
+/* inc/ow_config.h — defaults */
 #define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
 #define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
 #define ONEWIRE_GUARD_BAND          5     // µs (built into slot formula)
@@ -1704,7 +1706,7 @@ CUSTOM uses the minimum slot timing allowed by the 1-Wire standard
 (t_LOW1 = 1µs, t_LOW0 = 60µs, t_REC = 1µs). It is an experimental setting:
 a 1µs read/write pulse is **below the values validated on hardware** (a 2µs
 pulse already broke slot decoding on an F030 at 8MHz — see also the note in
-`inc/onewire.h`). Use it only for experiments or electrically ideal setups.
+`inc/ow_config.h`). Use it only for experiments or electrically ideal setups.
 
 ## Troubleshooting
 
