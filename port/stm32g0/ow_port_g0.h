@@ -255,7 +255,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  *       stops with the line already released to idle HIGH (hardware bus
  *       release — no software CCR3 write needed afterwards).
  */
-__STATIC_FORCEINLINE uint8_t ow_port_feed(const uint8_t* cmd, uint16_t slots) {
+__STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
         assert(0 && "ow_port_feed: slots out of range");
         return 0;
@@ -331,7 +331,7 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
  * @return 1 if the write was scheduled, 0 if `slots` is out of range (nothing
  *         is scheduled; the reject path also traps with assert in debug builds).
  */
-__STATIC_FORCEINLINE uint8_t ow_port_write_slots(const uint8_t* pulses, uint16_t slots) {
+__STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
         assert(0 && "ow_port_write_slots: slots out of range");
         return 0;
@@ -395,7 +395,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
  * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing 0)
  */
 __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* pulse3,
-                                                  const uint8_t* read_pulse) {
+                                                  const ow_pulse_t* read_pulse) {
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif

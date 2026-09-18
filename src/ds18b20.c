@@ -89,7 +89,7 @@ typedef struct {
     uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
     uint8_t scan_index; /**< Index of the device currently read in scan mode */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
+    ow_pulse_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
     uint8_t parasite; /**< 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
 } DS18B20_ctx_t;
@@ -123,7 +123,7 @@ typedef struct {
     uint16_t wait_us; /**< Timed wait after the command (0 = none) */
     uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
     uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
-    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ trailing 0 for hardware bus release) */
+    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ trailing 0 for hardware bus release) */
     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
     uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
     uint8_t finished; /**< 1 once the transaction finished (or aborted) */
@@ -298,7 +298,7 @@ __STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_AR
  *       once in ds18b20_select() and reused for every command.
  */
 __STATIC_FORCEINLINE void build_addr_prefix(void) {
-    uint8_t* p = ctx.addr_cmd;
+    ow_pulse_t* p = ctx.addr_cmd;
     onewire_encode_byte(p, DS18B20_MATCH_ROM);
     p += DS18B20_BITS_PER_BYTE;
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {

@@ -48,7 +48,7 @@ _Static_assert(ONEWIRE_ROM_BITS <= ONEWIRE_MAX_SLOTS, "search ROM pass must fit 
  *        length, entry 1 sets slot 3, and the trailing 0 is written during
  *        slot 3 so the one-pulse timer stops with the line released to idle
  *        HIGH (hardware bus release). */
-static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
+static const ow_pulse_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
 
 /**
  * @defgroup ONEWIRE_Private_Variables ONEWIRE Private Variables
@@ -90,7 +90,7 @@ typedef struct {
     uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
-    uint8_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ trailing 0 for hardware bus release) */
+    ow_pulse_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ trailing 0 for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -166,7 +166,7 @@ void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
 
-uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
+uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
         assert(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
         return 0;
@@ -175,7 +175,7 @@ uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots) {
 }
 
 uint8_t onewire_write_bit(uint8_t bit) {
-    uint8_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
+    ow_pulse_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     return onewire_write_slots(&pulse, 1);
 }
 
@@ -210,7 +210,7 @@ void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t 
     }
 }
 
-void onewire_encode_byte(uint8_t* out, uint8_t byte) {
+void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {
     for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
         out[i] = (byte & (1u << i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     }

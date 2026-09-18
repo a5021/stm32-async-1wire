@@ -36,7 +36,7 @@ typedef struct {
     uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
     uint8_t finished; /**< 1 once the operation has completed (or aborted) */
     uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
-    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
+    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
 } res_ctx_t;
 
 /** @brief Global resolution context instance */
@@ -76,7 +76,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // In scan mode the config write must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode;
-    uint8_t* p = res_ctx.pulses;
+    ow_pulse_t* p = res_ctx.pulses;
     if (use_match) {
         onewire_encode_byte(p, DS18B20_MATCH_ROM);
         p += DS18B20_BITS_PER_BYTE;

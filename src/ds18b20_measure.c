@@ -71,8 +71,8 @@ void ds18b20_scan_start(void) {
  */
 uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
 
-static uint8_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
-static uint8_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
+static ow_pulse_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
+static ow_pulse_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
 
 /* B1 guard: same trailing bus-release invariant as addr_cmd/txn_ctx/res_ctx —
  * the 1-Wire layer's CCR3-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
@@ -94,7 +94,7 @@ _Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
  * happens strictly between DMA bursts, never during one — the invariant is
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
-static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
+static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
     onewire_encode_byte(dst, 0xCC);
     onewire_encode_byte(dst + 8, cmd_byte);
     dst[DS18B20_DMA_TRANSFERS] = 0;
@@ -128,7 +128,7 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
         build_addr_cmd(cmd_byte);
         onewire_write_slots(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
     } else {
-        uint8_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
+        ow_pulse_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
         build_skip_cmd(skip_tbl, cmd_byte);
         onewire_write_slots(skip_tbl, DS18B20_DMA_TRANSFERS);
     }

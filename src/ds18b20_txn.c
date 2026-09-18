@@ -53,7 +53,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
     // In scan mode the command must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode && !txn_ctx.bare;
-    uint8_t* p = txn_ctx.pulses;
+    ow_pulse_t* p = txn_ctx.pulses;
     uint8_t bytes = 0;
     if (!txn_ctx.bare) {
         if (use_match) {

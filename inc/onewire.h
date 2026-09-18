@@ -46,6 +46,18 @@ extern "C" {
 #define OW_PORT_FAMILY_F0
 #elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
 #define OW_PORT_FAMILY_G0
+#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4)
+#define OW_PORT_FAMILY_F4
+#endif
+/* @brief One bit-slot pulse duration in the native width of the active port.
+ *  The STM32F4 backend feeds a 16-bit CCR3 in DMA direct mode (zero-copy from
+ *  halfword pulse entries); every other backend latches 8-bit entries. Pulse
+ *  buffers and the pulse-level signatures use this type, so each backend reads
+ *  its own native geometry without reshaping on the fly. */
+#if defined(OW_PORT_FAMILY_F4)
+typedef uint16_t ow_pulse_t;
+#else
+typedef uint8_t ow_pulse_t;
 #endif
 /** @brief System clock frequency in MHz after application clock setup.
  *  Single source of truth for the clock-dependent settings: the timer
@@ -62,6 +74,8 @@ extern "C" {
 #define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
 #elif defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
+#elif defined(OW_PORT_FAMILY_F4)
+#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: HSE + PLL */
 #endif
 #endif
 /** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */
@@ -134,7 +148,7 @@ uint8_t onewire_present(const volatile uint16_t* pulses);
  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
  *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
-uint8_t onewire_write_slots(const uint8_t* pulses, uint16_t slots);
+uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots);
 
 /**
  * @brief Schedule a single-slot write of one raw bit
@@ -212,7 +226,7 @@ void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t 
  * @param[out] out Output buffer (8 entries)
  * @param[in] byte Byte value to encode
  */
-void onewire_encode_byte(uint8_t* out, uint8_t byte);
+void onewire_encode_byte(ow_pulse_t* out, uint8_t byte);
 
 /**
  * @brief Start a hardware-timed wait with the shared one-pulse timer
