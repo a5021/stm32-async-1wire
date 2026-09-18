@@ -16,5 +16,7 @@ var searchData=
   ['dma_5fcndtr_13',['DMA_CNDTR',['../ow__bits_8h.html#a975c83783f01ea4b9a2a861acb5c6874',1,'ow_bits.h']]],
   ['dma_5fcpar_14',['DMA_CPAR',['../ow__bits_8h.html#ab622a420d0e59ece6a32b3064aa3e170',1,'ow_bits.h']]],
   ['dma_5fifcr_15',['DMA_IFCR',['../ow__bits_8h.html#a66f47ab6e3cdafcb64e124f9c858dbc8',1,'ow_bits.h']]],
-  ['dma_5fisr_16',['DMA_ISR',['../ow__bits_8h.html#a3a9dcc987fa319f409bfde7a33559895',1,'ow_bits.h']]]
+  ['dma_5fisr_16',['DMA_ISR',['../ow__bits_8h.html#a3a9dcc987fa319f409bfde7a33559895',1,'ow_bits.h']]],
+  ['ds18b20_5fcycle_5fpause_5fus_17',['DS18B20_CYCLE_PAUSE_US',['../ow__config_8h.html#a55d6ca17dbaa0c5db96d3349511b608b',1,'ow_config.h']]],
+  ['ds18b20_5fmax_5fdevices_18',['DS18B20_MAX_DEVICES',['../ow__config_8h.html#abe0f6a81aa740fdee2eb2568b94b0f3b',1,'ow_config.h']]]
 ];

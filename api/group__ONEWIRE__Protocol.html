@@ -116,17 +116,6 @@ Macros</h2></td></tr>
 <tr class="memitem:ga2e42e9ed164a7e728308c2c89bd181d8" id="r_ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8">OW_PORT_SYSCLK_MHZ</a>&#160;&#160;&#160;72 /* STM32F103: HSE + PLL x9 */</td></tr>
 <tr class="memdesc:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their own. <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a> picks the backend and app.c the device header/clock config from the token — never from the individual spellings — so the backend and the clock default cannot drift. To add a family, extend this chain (token and default clock together in one branch), then add the #include branch in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>, the app.c config, and a case in tests/test/test_sysclk_fallback.c.  <br /></td></tr>
 <tr class="separator:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gadaafe039dd1cfbff6d3856e0015e60fc" id="r_gadaafe039dd1cfbff6d3856e0015e60fc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gadaafe039dd1cfbff6d3856e0015e60fc">OW_TIMING_PARASITE</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memdesc:gadaafe039dd1cfbff6d3856e0015e60fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in low-power WFE sleep: when defined, long hardware stages (&gt; 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) enable the TIM1 update interrupt (UIE) and SEVONPEND so that a pending update event wakes the core from WFE without an ISR; short stages stay fully polled. Long stages can sleep with ow_port_sleep_until_done(). Disabled by default so non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.  <br /></td></tr>
-<tr class="separator:gadaafe039dd1cfbff6d3856e0015e60fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa6a4d6398a7d8069affba9f78d5e2c6e" id="r_gaa6a4d6398a7d8069affba9f78d5e2c6e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gaa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a>&#160;&#160;&#160;5</td></tr>
-<tr class="separator:gaa6a4d6398a7d8069affba9f78d5e2c6e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga404da404453e7f30870bd891c1792139" id="r_ga404da404453e7f30870bd891c1792139"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a>&#160;&#160;&#160;60</td></tr>
-<tr class="separator:ga404da404453e7f30870bd891c1792139"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gac5ba21c930f7b725a5d54d2d4b67031f" id="r_gac5ba21c930f7b725a5d54d2d4b67031f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gac5ba21c930f7b725a5d54d2d4b67031f">ONEWIRE_GUARD_BAND</a>&#160;&#160;&#160;5</td></tr>
-<tr class="separator:gac5ba21c930f7b725a5d54d2d4b67031f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa381644a5db469d0471052139ceb7de0" id="r_gaa381644a5db469d0471052139ceb7de0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gaa381644a5db469d0471052139ceb7de0">ONEWIRE_SHORT_PULSE_MAX</a>&#160;&#160;&#160;10</td></tr>
-<tr class="separator:gaa381644a5db469d0471052139ceb7de0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Macro Definition Documentation</h2>
@@ -143,20 +132,6 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Bits per byte. </p>
-
-</div>
-</div>
-<a id="gac5ba21c930f7b725a5d54d2d4b67031f" name="gac5ba21c930f7b725a5d54d2d4b67031f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gac5ba21c930f7b725a5d54d2d4b67031f">&#9670;&#160;</a></span>ONEWIRE_GUARD_BAND</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define ONEWIRE_GUARD_BAND&#160;&#160;&#160;5</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
 
 </div>
 </div>
@@ -192,20 +167,6 @@ Macros</h2></td></tr>
 
 </div>
 </div>
-<a id="gaa6a4d6398a7d8069affba9f78d5e2c6e" name="gaa6a4d6398a7d8069affba9f78d5e2c6e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaa6a4d6398a7d8069affba9f78d5e2c6e">&#9670;&#160;</a></span>ONEWIRE_ONE_PULSE</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define ONEWIRE_ONE_PULSE&#160;&#160;&#160;5</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="ga337412c996f5683edf6ddfcf049e73e4" name="ga337412c996f5683edf6ddfcf049e73e4"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga337412c996f5683edf6ddfcf049e73e4">&#9670;&#160;</a></span>ONEWIRE_ROM_BITS</h2>
 
@@ -238,34 +199,6 @@ Macros</h2></td></tr>
 
 </div>
 </div>
-<a id="gaa381644a5db469d0471052139ceb7de0" name="gaa381644a5db469d0471052139ceb7de0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaa381644a5db469d0471052139ceb7de0">&#9670;&#160;</a></span>ONEWIRE_SHORT_PULSE_MAX</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define ONEWIRE_SHORT_PULSE_MAX&#160;&#160;&#160;10</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="ga404da404453e7f30870bd891c1792139" name="ga404da404453e7f30870bd891c1792139"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga404da404453e7f30870bd891c1792139">&#9670;&#160;</a></span>ONEWIRE_ZERO_PULSE</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define ONEWIRE_ZERO_PULSE&#160;&#160;&#160;60</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="ga2e42e9ed164a7e728308c2c89bd181d8" name="ga2e42e9ed164a7e728308c2c89bd181d8"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga2e42e9ed164a7e728308c2c89bd181d8">&#9670;&#160;</a></span>OW_PORT_SYSCLK_MHZ</h2>
 
@@ -280,24 +213,6 @@ Macros</h2></td></tr>
 
 <p>Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their own. <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a> picks the backend and app.c the device header/clock config from the token — never from the individual spellings — so the backend and the clock default cannot drift. To add a family, extend this chain (token and default clock together in one branch), then add the #include branch in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>, the app.c config, and a case in tests/test/test_sysclk_fallback.c. </p>
 <p>System clock frequency in MHz after application clock setup. Single source of truth for the clock-dependent settings: the timer prescaler (1µs ticks) and the input-capture filter selection below derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends) are fixed constants validated on every supported clock. Family defaults are provided per OW_PORT_FAMILY_* above; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the clock sources available per family). </p>
-
-</div>
-</div>
-<a id="gadaafe039dd1cfbff6d3856e0015e60fc" name="gadaafe039dd1cfbff6d3856e0015e60fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gadaafe039dd1cfbff6d3856e0015e60fc">&#9670;&#160;</a></span>OW_TIMING_PARASITE</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_TIMING_PARASITE&#160;&#160;&#160;0</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Opt-in low-power WFE sleep: when defined, long hardware stages (&gt; 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) enable the TIM1 update interrupt (UIE) and SEVONPEND so that a pending update event wakes the core from WFE without an ISR; short stages stay fully polled. Long stages can sleep with ow_port_sleep_until_done(). Disabled by default so non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER. </p>
-<dl class="section note"><dt>Note</dt><dd>No ISR is ever installed and NVIC_EnableIRQ is never called; the pending bit is cleared explicitly in ow_port_bus_done() so WFE does not degrade into a busy-loop.</dd></dl>
-<p>Duration of a '1' bit write/read pulse in microseconds. A single universal value for every clock: DS18B20 requires only ≥1µs and samples the slot at ≥15µs after its start, and the read-slot capture latency (bus RC rise + input filter + timer sync) stays far below the ONEWIRE_SHORT_PULSE_MAX window on all supported clocks. Releases v1.6.0's ≤16MHz compensation (2µs pulse): hardware on STM32F030@8MHz showed that a 2µs master pulse breaks the sensor's slot decoding outright — every capture stretches past the threshold regardless of the answer — while a plain 5µs pulse measures ~9µs there with every input-filter variant swept (fCK_INT N=2/4/8 and fDTS/4 N=8). The short-pulse path was tuned on F103@8MHz bench wiring whose slower rise is not reproduced by other boards; re-validate per board before reintroducing anything similar. </p><dl class="section note"><dt>Note</dt><dd>Hardware-validated at 5µs on every supported clock: STM32F030@48/8MHz, STM32F103@72/8MHz and STM32G031@64/16MHz. </dd></dl>
 
 </div>
 </div>

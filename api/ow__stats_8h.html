@@ -100,7 +100,8 @@ $(document).ready(function(){initNavTree('ow__stats_8h.html',''); initResizable(
 
 <p>1-Wire signal statistics — optional compile-in module.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
+<div class="textblock"><code>#include &quot;<a class="el" href="ow__config_8h_source.html">ow_config.h</a>&quot;</code><br />
+<code>#include &lt;stdint.h&gt;</code><br />
 </div>
 <p><a href="ow__stats_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -144,7 +145,7 @@ Functions</h2></td></tr>
 <tr class="memdesc:a1d8183a6069f7661bc7c3d999fbb22c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Increment the cycle counter (called from the demo callback).  <br /></td></tr>
 <tr class="separator:a1d8183a6069f7661bc7c3d999fbb22c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr><td colspan="2"><div class="groupHeader">Output callbacks (weak, user-provided)</div></td></tr>
-<tr><td colspan="2"><div class="groupText"><p>The statistics dump module needs a minimal UART output interface. Default weak implementations in ow_stats.c do nothing; the user supplies strong definitions to enable the dump. Only needed when OW_STATS_ENABLE is defined. </p>
+<tr><td colspan="2"><div class="groupText"><p>The statistics dump module needs a minimal UART output interface. Default weak implementations in ow_stats.c do nothing; the user supplies strong definitions to enable the dump. Only needed when OW_STATS_ENABLE is 1. </p>
 </div></td></tr>
 <tr class="memitem:a69d994ca7655034da5b8640d01e533d3" id="r_a69d994ca7655034da5b8640d01e533d3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__stats_8h.html#a69d994ca7655034da5b8640d01e533d3">ow_stats_putchar</a> (char c)</td></tr>
 <tr class="memdesc:a69d994ca7655034da5b8640d01e533d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write a single character to the output.  <br /></td></tr>
@@ -164,7 +165,7 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>1-Wire signal statistics — optional compile-in module. </p>
-<p>Collects per-sensor pulse-width statistics, a global pulse histogram, and error counters. Enabled by defining OW_STATS_ENABLE at build time (e.g. -DOW_STATS_ENABLE). When the macro is not defined, every inline body compiles away to nothing so there is zero overhead in production builds.</p>
+<p>Collects per-sensor pulse-width statistics, a global pulse histogram, and error counters. Enabled by setting OW_STATS_ENABLE to 1 at build time (e.g. -DOW_STATS_ENABLE=1). When the macro is 0, every inline body compiles away to nothing so there is zero overhead in production builds.</p>
 <p>The dump is non-blocking: <a class="el" href="ow__stats_8h.html#a80dad30beb47862038c8a5e8a33f0625" title="Begin a non-blocking stats dump via UART.">ow_stats_dump_start()</a> initiates it, <a class="el" href="ow__stats_8h.html#af4ba0b9a859190954918984c21af4b9d" title="Advance the non-blocking stats dump by one line.">ow_stats_dump_poll()</a> advances the dump by one line per main-loop call.</p>
 <dl class="section note"><dt>Note</dt><dd>RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16 histogram buckets, indices 0–12, are populated). </dd></dl>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>

@@ -100,7 +100,8 @@ $(document).ready(function(){initNavTree('onewire_8h.html',''); initResizable();
 
 <p>Universal non-blocking 1-Wire bus layer for STM32.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
+<div class="textblock"><code>#include &quot;<a class="el" href="ow__config_8h_source.html">ow_config.h</a>&quot;</code><br />
+<code>#include &lt;stdint.h&gt;</code><br />
 </div>
 <p><a href="onewire_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -124,17 +125,6 @@ Macros</h2></td></tr>
 <tr class="memitem:ga2e42e9ed164a7e728308c2c89bd181d8" id="r_ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8">OW_PORT_SYSCLK_MHZ</a>&#160;&#160;&#160;72 /* STM32F103: HSE + PLL x9 */</td></tr>
 <tr class="memdesc:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their own. <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a> picks the backend and app.c the device header/clock config from the token — never from the individual spellings — so the backend and the clock default cannot drift. To add a family, extend this chain (token and default clock together in one branch), then add the #include branch in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>, the app.c config, and a case in tests/test/test_sysclk_fallback.c.  <br /></td></tr>
 <tr class="separator:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gadaafe039dd1cfbff6d3856e0015e60fc" id="r_gadaafe039dd1cfbff6d3856e0015e60fc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gadaafe039dd1cfbff6d3856e0015e60fc">OW_TIMING_PARASITE</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memdesc:gadaafe039dd1cfbff6d3856e0015e60fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in low-power WFE sleep: when defined, long hardware stages (&gt; 1 ms: conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) enable the TIM1 update interrupt (UIE) and SEVONPEND so that a pending update event wakes the core from WFE without an ISR; short stages stay fully polled. Long stages can sleep with ow_port_sleep_until_done(). Disabled by default so non-low-power builds pay zero cost. Enable with -DOW_PORT_LOW_POWER.  <br /></td></tr>
-<tr class="separator:gadaafe039dd1cfbff6d3856e0015e60fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa6a4d6398a7d8069affba9f78d5e2c6e" id="r_gaa6a4d6398a7d8069affba9f78d5e2c6e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gaa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a>&#160;&#160;&#160;5</td></tr>
-<tr class="separator:gaa6a4d6398a7d8069affba9f78d5e2c6e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga404da404453e7f30870bd891c1792139" id="r_ga404da404453e7f30870bd891c1792139"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a>&#160;&#160;&#160;60</td></tr>
-<tr class="separator:ga404da404453e7f30870bd891c1792139"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gac5ba21c930f7b725a5d54d2d4b67031f" id="r_gac5ba21c930f7b725a5d54d2d4b67031f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gac5ba21c930f7b725a5d54d2d4b67031f">ONEWIRE_GUARD_BAND</a>&#160;&#160;&#160;5</td></tr>
-<tr class="separator:gac5ba21c930f7b725a5d54d2d4b67031f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa381644a5db469d0471052139ceb7de0" id="r_gaa381644a5db469d0471052139ceb7de0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gaa381644a5db469d0471052139ceb7de0">ONEWIRE_SHORT_PULSE_MAX</a>&#160;&#160;&#160;10</td></tr>
-<tr class="separator:gaa381644a5db469d0471052139ceb7de0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>

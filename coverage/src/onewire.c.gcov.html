@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-16 04:18:15</td>
+            <td class="headerValue">2026-09-18 04:13:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -75,7 +75,7 @@
 <span id="L4"><span class="lineNum">       4</span>                 :             : #include &lt;assert.h&gt;</span>
 <span id="L5"><span class="lineNum">       5</span>                 :             : #include &lt;string.h&gt;</span>
 <span id="L6"><span class="lineNum">       6</span>                 :             : </span>
-<span id="L7"><span class="lineNum">       7</span>                 :             : #ifdef OW_PORT_LOW_POWER</span>
+<span id="L7"><span class="lineNum">       7</span>                 :             : #if OW_PORT_LOW_POWER</span>
 <span id="L8"><span class="lineNum">       8</span>                 :             : /** @brief Set by the driver while a long stage (&gt;1ms) is running, read by the</span>
 <span id="L9"><span class="lineNum">       9</span>                 :             :  *         low-power application. Shared across translation units. */</span>
 <span id="L10"><span class="lineNum">      10</span>                 :             : uint8_t ow_long_pending = 0;</span>
@@ -203,7 +203,7 @@
 <span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">         421 :     search_ctx.finished = 1;</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.</span>
 <span id="L134"><span class="lineNum">     134</span>                 :             :     ow_port_init();</span>
-<span id="L135"><span class="lineNum">     135</span>                 :             : #ifdef OW_PORT_LOW_POWER</span>
+<span id="L135"><span class="lineNum">     135</span>                 :             : #if OW_PORT_LOW_POWER</span>
 <span id="L136"><span class="lineNum">     136</span>                 :             :     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :     // event even though no ISR is enabled. Done once here; the corresponding</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :     // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never</span>
