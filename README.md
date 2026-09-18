@@ -920,10 +920,10 @@ All bus-level protocol lives in `src/onewire.c` (interface in `inc/onewire.h`),
 a reusable 1-Wire master that the DS18B20 driver builds on:
 
 - `onewire_init()`, `onewire_reset()`, `onewire_present()`,
-  `onewire_write_slots()`, `onewire_write_bit()`, `onewire_encode_byte()`,
-   `onewire_read_pair()`, `onewire_write_then_read()`, `onewire_pair_bits()`,
-   `onewire_read_data()`, `onewire_decode_pulses()`, `onewire_start_timer()`,
-   `onewire_bus_done()` — the
+  `onewire_write_pulses()`, `onewire_write_command()`,
+   `onewire_write_bit()`, `onewire_read_pair()`, `onewire_write_then_read()`,
+   `onewire_pair_bits()`, `onewire_read_data()`, `onewire_decode_pulses()`,
+   `onewire_start_timer()`, `onewire_bus_done()` — the
   TIM1/DMA bus primitives.
 - `onewire_search_start()`, `onewire_search_poll()`,
   `onewire_search_count()`, `onewire_search_active()` — the generic Maxim
@@ -1234,9 +1234,10 @@ void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
 void        onewire_reset(volatile uint16_t *reset_pulses);
 uint8_t     onewire_present(const volatile uint16_t *pulses);
-uint8_t     onewire_write_slots(const uint8_t *pulses, uint16_t slots);
+uint8_t     onewire_write_pulses(const uint8_t *pulses, uint16_t slots);
+void        onewire_write_command(const uint8_t *bytes, uint8_t nbytes);
+void        onewire_write_command_byte(uint8_t byte);
 uint8_t     onewire_write_bit(uint8_t bit);
-void        onewire_encode_byte(uint8_t *out, uint8_t byte);
 void        onewire_read_pair(volatile uint16_t *pair_pulses);
 void        onewire_write_then_read(uint8_t bit);
 void        onewire_pair_bits(const volatile uint16_t *pair_pulses,
@@ -1254,12 +1255,23 @@ uint8_t     onewire_search_count(void);
 uint8_t     onewire_search_active(void);
 ```
 
-`onewire_write_slots()`, `onewire_write_bit()` and `onewire_read_data()`
+`onewire_write_pulses()`, `onewire_write_bit()` and `onewire_read_data()`
 report whether the operation was scheduled: they return **1** on success and
 **0** when the size argument is out of range and nothing was started. Debug
 builds additionally trap the reject path with `assert`; with `NDEBUG` the
 caller observes the 0 instead of a silent no-op, so an invalid size can never
 turn into an undiscovered `onewire_bus_done()` hang.
+
+`onewire_write_command()` is the byte-oriented API the DS18B20 driver uses:
+it synchronously encodes the command bytes (MSB-first push wire order, LSB-first
+bit order) into an internal pulse buffer, appends the trailing bus-release
+zero, and schedules the transfer in one call, so individual bus transactions
+never need to touch slot-level pulse tables. An empty command or one longer
+than `ONEWIRE_CMD_MAX_BYTES` (13 — the longest Match ROM sequence) is rejected
+with a debug `assert` and no transfer is started. The slot-level primitives
+`onewire_encode_byte()` and the `ow_pulse_t` type are now internal
+(`inc/onewire_internal.h`); only driver-internal code and the test harness use
+them.
 
 #### Timing
 

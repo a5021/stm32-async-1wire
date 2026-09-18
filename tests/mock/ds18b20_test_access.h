@@ -29,8 +29,8 @@ void ds18b20_test_build_addr_cmd(uint8_t cmd_byte);
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width);
 void ds18b20_test_get_selected_rom(uint8_t* rom_out);
 void ds18b20_test_set_selected_rom(const uint8_t* rom_in);
-uint8_t ds18b20_test_get_addr_cmd(uint8_t i);
-void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v);
+uint8_t ds18b20_test_get_addr_byte(uint8_t i);
+void ds18b20_test_set_addr_byte(uint8_t i, uint8_t v);
 
 /* Bus-operation wrappers for the hardware-release tests. */
 void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots);
@@ -57,7 +57,6 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v);
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
 const uint8_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (merged feed source) */
 const volatile uint16_t* test_search_pulse3_addr(void); /* &search_pulse3[0] (merged capture sink) */
-const uint8_t* test_res_pulses_feed_addr(void); /* &res_ctx.pulses[1] (Match-ROM write feed source) */
 
 /* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */
 void ds18b20_test_set_gap_us(uint16_t us);
@@ -75,15 +74,16 @@ uint8_t ds18b20_test_get_scan_index(void);
 
 /* Resolution-change accessors (resolution state machine in src/ds18b20.c). */
 void ds18b20_test_set_resolution(uint8_t r); /* set ctx.resolution directly */
-uint8_t ds18b20_test_get_res_pulse(uint8_t i); /* pre-built res_ctx.pulses[i] */
+uint8_t ds18b20_test_get_res_byte(uint8_t i); /* pre-built res_ctx.bytes[i] */
+uint8_t ds18b20_test_get_res_nbytes(void); /* res_ctx.nbytes */
 
 /* Reset the resolution context to "no change running" (finished, DONE phase). */
 void ds18b20_test_reset_resolution(void);
 
 /* Command-transaction accessors (txn engine in src/ds18b20.c). */
 void ds18b20_test_reset_txn(void); /* finished + DONE phase + ok cleared */
-uint8_t ds18b20_test_get_txn_pulse(uint8_t i); /* pre-built txn_ctx.pulses[i] */
-uint8_t ds18b20_test_get_txn_slots(void); /* txn_ctx.slots */
+uint8_t ds18b20_test_get_txn_byte(uint8_t i); /* pre-built txn_ctx.bytes[i] */
+uint8_t ds18b20_test_get_txn_nbytes(void); /* txn_ctx.nbytes */
 uint8_t ds18b20_test_get_txn_ok(void); /* txn_ctx.ok */
 uint8_t ds18b20_test_get_txn_finished(void); /* txn_ctx.finished */
 

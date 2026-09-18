@@ -13,7 +13,8 @@ and packing/unpacking between different source/destination widths is available
 only in FIFO mode (AN4031 §1.1.9). `CCR3` is a 16-bit (halfword) register, so:
 
 - the feed source must be a **halfword** buffer — the family-typed `ow_pulse_t`
-  (`uint16_t` on F4) feeds `CCR3` zero-copy from `&cmd[1]` with `MSIZE_0` set;
+  (`uint16_t` on F4) feeds `CCR3` zero-copy from the shared command buffer
+  (`&ow_cmd_buf[1]`: the first slot is latched directly) with `MSIZE_0` set;
 - the capture path moves matching 16-bit halfwords (`MSIZE_0` = `PSIZE_0`).
 
 ### Rejected: 8-bit feed (`MSIZE=8`) under a halfword PSIZE
@@ -35,7 +36,8 @@ CRC failures. With the halfword feed the same command reads back clean
 Storing 8-bit DMA writes straight into the 16-bit `CCR3` was also tested and
 rejected: the timer does not latch them, and search again returns all-zero ROMs
 with CRC failures. The source must therefore be widened to halfwords, which is
-why the feed is zero-copy from the `ow_pulse_t` buffer with no staging copy.
+why the feed is zero-copy from the internal `ow_pulse_t` command buffer with no
+staging copy.
 
 ## Forced-update (`URS`) race
 

@@ -67,8 +67,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `OW_PARASITE_POWER` value (0/1, default 0).  Passing
   `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
   *and* causes every example to call `ds18b20_set_parasite(1)` at
-  startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
-  longer has any effect.
+   startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
+   longer has any effect.
+- **Public 1-Wire write API is now byte-oriented.** `onewire_write_slots()`
+  and `onewire_encode_byte()` are replaced on the public surface by
+  `onewire_write_command(const uint8_t *bytes, uint8_t nbytes)` and
+  `onewire_write_command_byte(uint8_t byte)` (`inc/onewire.h`): the command
+  bytes are encoded synchronously (MSB-first wire order, LSB-first bit
+  order) into an internal pulse buffer, the trailing bus-release zero is
+  appended there, and the transfer is scheduled in a single call. An empty
+  command or one longer than `ONEWIRE_CMD_MAX_BYTES` (13) is rejected
+  without starting a transfer. The slot-level encoder and the `ow_pulse_t`
+  type move to the new internal header `inc/onewire_internal.h`, used only
+  by the driver and the test harness. The DS18B20 driver
+  (`addr_bytes`/`txn_ctx.bytes`/`res_ctx.bytes`), the test accessors and the
+  DMA-contract/param-guard tests are updated accordingly; externally the
+  encoded pulse stream and timing are unchanged.
 
 ### Added
 

@@ -72,13 +72,11 @@ static void drive_txn(uint8_t (*poll)(void)) {
     TEST_ASSERT_TRUE(guard <= 500);
 }
 
-/* Assert that txn_ctx.pulses[0..8*len) encodes the expected bytes. */
-static void assert_txn_pulses_bytes(const uint8_t* bytes, uint8_t len) {
+/* Assert that txn_ctx.bytes[0..len) matches the expected bytes. */
+static void assert_txn_bytes(const uint8_t* bytes, uint8_t len) {
+    TEST_ASSERT_EQUAL_UINT8(len, ds18b20_test_get_txn_nbytes());
     for (uint8_t i = 0; i < len; i++) {
-        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
-            uint16_t want = ((bytes[i] >> b) & 1u) ? ONE : ZERO;
-            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse((uint8_t)(i * 8 + b)));
-        }
+        TEST_ASSERT_EQUAL_HEX8(bytes[i], ds18b20_test_get_txn_byte(i));
     }
 }
 
@@ -92,10 +90,7 @@ void test_thresholds_skip_rom_pulses_built(void) {
     ds18b20_set_alarm_thresholds(0x4B, 0x46);
     /* 0xCC + 0x4E + TH + TL + CFG(9 bit -> 0x1F) */
     static const uint8_t k_bytes[] = {0xCC, 0x4E, 0x4B, 0x46, 0x1F};
-    assert_txn_pulses_bytes(k_bytes, sizeof(k_bytes));
-    TEST_ASSERT_EQUAL_UINT8(40, ds18b20_test_get_txn_slots());
-    /* trailing bus-release zero at the Skip ROM slot count (40) */
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(40));
+    assert_txn_bytes(k_bytes, sizeof(k_bytes));
 }
 
 void test_thresholds_match_rom_pulses_built(void) {
@@ -111,10 +106,7 @@ void test_thresholds_match_rom_pulses_built(void) {
     k_bytes[10] = 0x4B;
     k_bytes[11] = 0x46;
     k_bytes[12] = 0x7F;
-    assert_txn_pulses_bytes(k_bytes, sizeof(k_bytes));
-    TEST_ASSERT_EQUAL_UINT8(104, ds18b20_test_get_txn_slots());
-    /* trailing bus-release zero at the Match ROM slot count (104) */
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(104));
+    assert_txn_bytes(k_bytes, sizeof(k_bytes));
 }
 
 void test_thresholds_cfg_preserves_current_resolution(void) {
@@ -122,7 +114,7 @@ void test_thresholds_cfg_preserves_current_resolution(void) {
     ds18b20_test_set_resolution(11);
     ds18b20_set_alarm_thresholds(0x00, 0x00);
     static const uint8_t k_bytes[] = {0xCC, 0x4E, 0x00, 0x00, 0x5F}; /* 11 bit */
-    assert_txn_pulses_bytes(k_bytes, sizeof(k_bytes));
+    assert_txn_bytes(k_bytes, sizeof(k_bytes));
 }
 
 /*-------------------------------------------------------------
@@ -263,7 +255,7 @@ void test_thresholds_reentry_ignored(void) {
     /* Re-entry while running must be ignored: still the 0x4B/0x46 write. */
     ds18b20_set_alarm_thresholds(0x00, 0x00);
     static const uint8_t k_bytes[] = {0xCC, 0x4E, 0x4B, 0x46, 0x7F};
-    assert_txn_pulses_bytes(k_bytes, sizeof(k_bytes));
+    assert_txn_bytes(k_bytes, sizeof(k_bytes));
     drive_txn(ds18b20_set_alarm_thresholds_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
 }

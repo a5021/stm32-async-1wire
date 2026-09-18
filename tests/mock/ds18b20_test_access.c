@@ -13,13 +13,10 @@ void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)&ctx.capture);
     hw_register_buf((const void*)(uintptr_t)search_pulse3);
     hw_register_buf((const void*)(uintptr_t)search_pair_pulse);
-    hw_register_buf((const void*)((uintptr_t)conv_cmd + 1u)); /* &conv_cmd[1] */
-    hw_register_buf((const void*)((uintptr_t)read_cmd + 1u)); /* &read_cmd[1] */
-    hw_register_buf((const void*)((uintptr_t)ctx.addr_cmd + 1u)); /* &addr_cmd[1] */
-    hw_register_buf((const void*)((uintptr_t)search_ctx.pulses + 1u)); /* &pulses[1] */
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
-    hw_register_buf((const void*)((uintptr_t)res_ctx.pulses + 1u)); /* &res_ctx.pulses[1] */
-    hw_register_buf((const void*)((uintptr_t)txn_ctx.pulses + 1u)); /* &txn_ctx.pulses[1] */
+    /* Every command write is encoded synchronously into the 1-Wire layer's
+     * internal pulse buffer, so only that one feed source needs registering. */
+    onewire_test_register_cmd_buffer();
 }
 
 ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
@@ -35,7 +32,8 @@ void ds18b20_test_reset_ctx(void) {
 
 void ds18b20_test_set_resolution(uint8_t r) { ctx.resolution = r; }
 
-uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return res_ctx.pulses[i]; }
+uint8_t ds18b20_test_get_res_byte(uint8_t i) { return res_ctx.bytes[i]; }
+uint8_t ds18b20_test_get_res_nbytes(void) { return res_ctx.nbytes; }
 
 void ds18b20_test_reset_resolution(void) {
     res_ctx.phase = DS18B20_RES_DONE;
@@ -58,7 +56,7 @@ void ds18b20_test_set_address_mode(uint8_t m) { ctx.address_mode = m; }
 int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
 unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
 uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc(); }
-void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
+void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte) { onewire_encode_byte((ow_pulse_t*)out, byte); }
 void ds18b20_test_build_addr_prefix(void) { build_addr_prefix(); }
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte) { build_addr_cmd(cmd_byte); }
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width) { ow_port_capture(dst, count, width); }
@@ -72,10 +70,10 @@ void ds18b20_test_set_selected_rom(const uint8_t* rom_in) {
         ctx.selected_rom[i] = rom_in[i];
     }
 }
-uint8_t ds18b20_test_get_addr_cmd(uint8_t i) { return ctx.addr_cmd[i]; }
-void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v) { ctx.addr_cmd[i] = v; }
+uint8_t ds18b20_test_get_addr_byte(uint8_t i) { return ctx.addr_bytes[i]; }
+void ds18b20_test_set_addr_byte(uint8_t i, uint8_t v) { ctx.addr_bytes[i] = v; }
 
-void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots) { onewire_write_slots(cmd, slots); }
+void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots) { onewire_write_pulses((const ow_pulse_t*)cmd, slots); }
 void test_bus_reset(void) { onewire_reset(ctx.capture); }
 void test_bus_read_pair(void) { onewire_read_pair(ctx.capture); }
 void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
@@ -97,7 +95,6 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = 
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
 const uint8_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
 const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
-const uint8_t* test_res_pulses_feed_addr(void) { return res_ctx.pulses + 1u; }
 
 void ds18b20_test_reset_search(void) {
     search_ctx.finished = 1;
@@ -139,12 +136,12 @@ void ds18b20_test_reset_txn(void) {
     txn_ctx.read_bytes = 0;
     txn_ctx.wait_us = 0;
     txn_ctx.bare = 0;
-    txn_ctx.slots = 0;
+    txn_ctx.nbytes = 0;
     txn_ctx.ok = 0;
     txn_ctx.finished = 1;
 }
 
-uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return txn_ctx.pulses[i]; }
-uint8_t ds18b20_test_get_txn_slots(void) { return txn_ctx.slots; }
+uint8_t ds18b20_test_get_txn_byte(uint8_t i) { return txn_ctx.bytes[i]; }
+uint8_t ds18b20_test_get_txn_nbytes(void) { return txn_ctx.nbytes; }
 uint8_t ds18b20_test_get_txn_ok(void) { return txn_ctx.ok; }
 uint8_t ds18b20_test_get_txn_finished(void) { return txn_ctx.finished; }

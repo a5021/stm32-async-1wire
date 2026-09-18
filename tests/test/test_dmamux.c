@@ -13,7 +13,7 @@
 #include "ds18b20.h"
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire.h"
+#include "onewire_internal.h"
 #include "unity.h"
 
 #if defined(OW_PORT_TARGET_G0)
@@ -49,7 +49,7 @@ void test_dmamux_feed_request_routed_on_write(void) {
 
     onewire_encode_byte(pulses, 0xCC);
     pulses[ONEWIRE_BITS_PER_BYTE] = 0; /* trailing hardware bus release */
-    onewire_write_slots(pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_pulses(pulses, ONEWIRE_BITS_PER_BYTE);
     TEST_ASSERT_EQUAL_UINT32(21u, mock_dmamux_ch2.CCR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR, mock_feed_ch.CCR);
 

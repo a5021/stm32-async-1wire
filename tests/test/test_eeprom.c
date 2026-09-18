@@ -99,14 +99,10 @@ void test_copy_scratchpad_pulses_built(void) {
     ds18b20_copy_scratchpad();
     /* 0xCC + 0x48 */
     static const uint8_t k_bytes[] = {0xCC, 0x48};
+    TEST_ASSERT_EQUAL_UINT8(sizeof(k_bytes), ds18b20_test_get_txn_nbytes());
     for (uint8_t i = 0; i < sizeof(k_bytes); i++) {
-        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
-            uint16_t want = ((k_bytes[i] >> b) & 1u) ? ONE : ZERO;
-            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse((uint8_t)(i * 8 + b)));
-        }
+        TEST_ASSERT_EQUAL_HEX8(k_bytes[i], ds18b20_test_get_txn_byte(i));
     }
-    TEST_ASSERT_EQUAL_UINT8(16, ds18b20_test_get_txn_slots());
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(16));
 }
 
 void test_copy_scratchpad_match_rom_built(void) {
@@ -115,15 +111,10 @@ void test_copy_scratchpad_match_rom_built(void) {
     ds18b20_copy_scratchpad();
     /* 0x55 + ROM + 0x48 */
     static const uint8_t k_bytes[] = {0x55, 0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x48};
-    TEST_ASSERT_EQUAL_UINT8(80, ds18b20_test_get_txn_slots());
+    TEST_ASSERT_EQUAL_UINT8(10, ds18b20_test_get_txn_nbytes());
     for (uint8_t i = 0; i < 10; i++) {
-        uint8_t want_byte = k_bytes[i];
-        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
-            uint16_t want = ((want_byte >> b) & 1u) ? ONE : ZERO;
-            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse((uint8_t)(i * 8 + b)));
-        }
+        TEST_ASSERT_EQUAL_HEX8(k_bytes[i], ds18b20_test_get_txn_byte(i));
     }
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(80));
 }
 
 void test_copy_scratchpad_waits_10ms(void) {
@@ -172,14 +163,10 @@ void test_recall_eeprom_pulses_built(void) {
     ds18b20_recall_eeprom();
     /* 0xCC + 0xB8 */
     static const uint8_t k_bytes[] = {0xCC, 0xB8};
+    TEST_ASSERT_EQUAL_UINT8(sizeof(k_bytes), ds18b20_test_get_txn_nbytes());
     for (uint8_t i = 0; i < sizeof(k_bytes); i++) {
-        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
-            uint16_t want = ((k_bytes[i] >> b) & 1u) ? ONE : ZERO;
-            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse((uint8_t)(i * 8 + b)));
-        }
+        TEST_ASSERT_EQUAL_HEX8(k_bytes[i], ds18b20_test_get_txn_byte(i));
     }
-    TEST_ASSERT_EQUAL_UINT8(16, ds18b20_test_get_txn_slots());
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(16));
 }
 
 void test_recall_eeprom_waits_10ms(void) {
@@ -257,14 +244,14 @@ void test_command_ignored_during_scan(void) {
      * txn_can_start() must reject it (no pulses built, never started). */
     ds18b20_test_set_scan_mode(1);
     ds18b20_set_alarm_thresholds(0x4B, 0x46);
-    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_slots());
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_nbytes());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_finished());
 
     /* Sanity: the identical command starts cleanly once scan mode is cleared. */
     ds18b20_test_reset_txn();
     ds18b20_test_set_scan_mode(0);
     ds18b20_set_alarm_thresholds(0x4B, 0x46);
-    TEST_ASSERT_NOT_EQUAL(0, ds18b20_test_get_txn_slots());
+    TEST_ASSERT_NOT_EQUAL(0, ds18b20_test_get_txn_nbytes());
 }
 
 /*-------------------------------------------------------------
@@ -300,13 +287,10 @@ void test_power_supply_command_built(void) {
     ds18b20_detect_parasite();
     /* 0xCC + 0xB4, single read byte */
     static const uint8_t k_bytes[] = {0xCC, 0xB4};
+    TEST_ASSERT_EQUAL_UINT8(sizeof(k_bytes), ds18b20_test_get_txn_nbytes());
     for (uint8_t i = 0; i < sizeof(k_bytes); i++) {
-        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
-            uint16_t want = ((k_bytes[i] >> b) & 1u) ? ONE : ZERO;
-            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse((uint8_t)(i * 8 + b)));
-        }
+        TEST_ASSERT_EQUAL_HEX8(k_bytes[i], ds18b20_test_get_txn_byte(i));
     }
-    TEST_ASSERT_EQUAL_UINT8(16, ds18b20_test_get_txn_slots());
 }
 
 void test_power_supply_no_presence_aborts(void) {

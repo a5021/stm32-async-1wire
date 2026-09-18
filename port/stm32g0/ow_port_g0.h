@@ -41,7 +41,7 @@
 #ifndef OW_PORT_G0_H
 #define OW_PORT_G0_H
 
-#include "onewire.h"
+#include "onewire_internal.h"
 #include "ow_bits.h"
 #include "stm32g0xx.h"
 

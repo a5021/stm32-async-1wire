@@ -685,7 +685,8 @@ $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewir
 
 # --- Release-semantics build (-DNDEBUG + OW_TEST_PARAM_GUARD) ---
 # Rebuilds the SAME suite with asserts compiled out (-DNDEBUG), so the
-# guard reject paths (onewire_write_slots/read_data out-of-range sizes)
+# guard reject paths (onewire_write_pulses/read_data out-of-range sizes and
+# onewire_write_command empty/oversized commands)
 # become observable as return codes instead of aborting the process.
 # See tests/test/test_param_guard.c (compiled only under OW_TEST_PARAM_GUARD)
 # and the note in tests/test/test_rcr_limits.c.

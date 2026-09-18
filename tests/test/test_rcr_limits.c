@@ -19,7 +19,7 @@
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire.h"
+#include "onewire_internal.h"
 #include "ow_port.h"
 #include "unity.h"
 
@@ -48,7 +48,7 @@ void test_rcr_write_slots_256_ok(void) {
     max_pulses[ONEWIRE_MAX_SLOTS] = 0; /* trailing bus release */
     hw_register_buf(&max_pulses[1]);
 
-    onewire_write_slots(max_pulses, ONEWIRE_MAX_SLOTS);
+    onewire_write_pulses(max_pulses, ONEWIRE_MAX_SLOTS);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_MAX_SLOTS - 1u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_MAX_SLOTS, mock_feed_ch.CNDTR);
@@ -63,7 +63,7 @@ void test_rcr_write_slots_256_ok(void) {
 void test_rcr_write_slots_1_ok(void) {
     /* slots == 1: single-slot path, no DMA. Must not touch the feed channel. */
     uint8_t pulse = ONEWIRE_ONE_PULSE;
-    onewire_write_slots(&pulse, 1);
+    onewire_write_pulses(&pulse, 1);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
@@ -127,7 +127,7 @@ void test_rcr_write_slots_256_buffer_integrity(void) {
     max_pulses[ONEWIRE_MAX_SLOTS] = 0;
     hw_register_buf(&max_pulses[1]);
 
-    onewire_write_slots(max_pulses, ONEWIRE_MAX_SLOTS);
+    onewire_write_pulses(max_pulses, ONEWIRE_MAX_SLOTS);
     uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));
 
