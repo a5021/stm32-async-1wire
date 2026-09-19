@@ -56,7 +56,7 @@ void ds18b20_test_set_address_mode(uint8_t m) { ctx.address_mode = m; }
 int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
 unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
 uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc(); }
-void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte) { onewire_encode_byte((ow_pulse_t*)out, byte); }
+void ds18b20_test_encode_byte_pulses(ow_pulse_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
 void ds18b20_test_build_addr_prefix(void) { build_addr_prefix(); }
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte) { build_addr_cmd(cmd_byte); }
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width) { ow_port_capture(dst, count, width); }
@@ -73,7 +73,7 @@ void ds18b20_test_set_selected_rom(const uint8_t* rom_in) {
 uint8_t ds18b20_test_get_addr_byte(uint8_t i) { return ctx.addr_bytes[i]; }
 void ds18b20_test_set_addr_byte(uint8_t i, uint8_t v) { ctx.addr_bytes[i] = v; }
 
-void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots) { onewire_write_pulses((const ow_pulse_t*)cmd, slots); }
+void test_bus_send_command_n(const ow_pulse_t* cmd, uint16_t slots) { onewire_write_pulses(cmd, slots); }
 void test_bus_reset(void) { onewire_reset(ctx.capture); }
 void test_bus_read_pair(void) { onewire_read_pair(ctx.capture); }
 void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
@@ -93,7 +93,7 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = 
 
 /* Addresses of the driver's internal DMA buffers, for the exact-CMAR
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
-const uint8_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
+const ow_pulse_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
 const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
 
 void ds18b20_test_reset_search(void) {

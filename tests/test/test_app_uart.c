@@ -9,7 +9,9 @@
  * ============================================================ */
 
 #include "app.h"
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_F4)
+#include "stm32f4xx.h"
+#elif defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "stm32g0xx.h"
@@ -28,6 +30,10 @@
 #define TXE_BIT USART_ISR_TXE
 #define TX_SR ISR
 #define TX_DR TDR
+#elif defined(OW_PORT_TARGET_F4)
+#define TXE_BIT USART_SR_TXE
+#define TX_SR SR
+#define TX_DR DR
 #else /* F1 */
 #define TXE_BIT USART_SR_TXE
 #define TX_SR SR

@@ -79,7 +79,7 @@ static void assert_guards(const uint8_t* before, const uint8_t* after, uint8_t v
 
 typedef struct {
     uint8_t guard_before[DMA_GUARD];
-    uint8_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /* slots + trailing bus release 0 */
+    ow_pulse_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /* slots + trailing bus release 0 */
     uint8_t guard_after[DMA_GUARD];
 } dma_tx_t;
 
@@ -145,9 +145,9 @@ static void run_op(void) {
 
 void test_dma_tx_reads_exact_buffer_in_order(void) {
     static dma_tx_t a, b;
-    static const uint8_t pat_a[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat_a[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x00};
-    static const uint8_t pat_b[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat_b[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x00};
     fill_guards(a.guard_before, a.guard_after, 0xA5);
     fill_guards(b.guard_before, b.guard_after, 0xA5);
@@ -164,7 +164,12 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
     /* memory -> peripheral, 8-bit memory element, increment on */
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0,
                           mock_feed_ch.CCR);
-    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1, mock_feed_ch.CCR);
+    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_1, mock_feed_ch.CCR);
+#if defined(OW_PORT_TARGET_F4)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 16-bit feed cells */
+#else
+    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 8-bit feed cells */
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR); /* fully exhausted */
@@ -195,9 +200,9 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
 void test_dma_tx_never_reads_neighbouring_buffer(void) {
     static dma_tx_t a, b;
-    static const uint8_t pat_a[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat_a[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x00};
-    static const uint8_t pat_b[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat_b[ONEWIRE_BITS_PER_BYTE + 1] =
         {0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0x00};
     fill_guards(a.guard_before, a.guard_after, 0xA5);
     fill_guards(b.guard_before, b.guard_after, 0xA5);
@@ -223,7 +228,7 @@ void test_dma_tx_never_reads_neighbouring_buffer(void) {
 
 void test_dma_tx_leftover_transfer_detected(void) {
     static dma_tx_t g;
-    static const uint8_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x00};
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     memcpy(g.pulses, pat, sizeof(pat));
@@ -245,7 +250,7 @@ void test_dma_tx_leftover_transfer_detected(void) {
 
 void test_dma_tx_overrun_reads_guard(void) {
     static dma_tx_t g;
-    static const uint8_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x00};
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     memcpy(g.pulses, pat, sizeof(pat));
@@ -264,7 +269,13 @@ void test_dma_tx_overrun_reads_guard(void) {
        immediately follows the 9-byte table and surfaces in the output log */
     const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE + 1u, log->count);
-    TEST_ASSERT_EQUAL_UINT8(0xA5u, log->values[ONEWIRE_BITS_PER_BYTE]);
+    /* the guard zone is filled with 0xA5 bytes: a feed memory element reads
+       sizeof(ow_pulse_t) of them, so the observed cell is width-dependent */
+    ow_pulse_t guard_cell = 0;
+    for (size_t b = 0; b < sizeof(guard_cell); b++) {
+        guard_cell |= (ow_pulse_t)(0xA5u << (8u * b));
+    }
+    TEST_ASSERT_EQUAL_UINT16(guard_cell, log->values[ONEWIRE_BITS_PER_BYTE]);
     /* a correct op would have placed the trailing bus-release 0 here instead */
     TEST_ASSERT_TRUE(log->values[ONEWIRE_BITS_PER_BYTE] != 0u);
 }
@@ -316,7 +327,12 @@ void test_dma_rx_byte_read_8bit_minc(void) {
     onewire_read_data(g.buf, 1); /* 1 byte = 8 slots, 8-bit MSIZE */
     TEST_ASSERT_EQUAL_UINT32(8u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(7u, mock_tim1.RCR);
-    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR);
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
+#if defined(OW_PORT_TARGET_F4)
+    TEST_ASSERT_BITS_LOW(DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR); /* 8-bit direct-mode width */
+#else
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR);
+#endif
     TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1, mock_dma1_ch4.CCR); /* 8-bit */
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR);
 
@@ -419,13 +435,13 @@ void test_dma_rx_overrun_8bit_walks_guard(void) {
 
 void test_dma_tx_direction_memory_to_peripheral(void) {
     static dma_tx_t g;
-    static const uint8_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
+    static const ow_pulse_t pat[ONEWIRE_BITS_PER_BYTE + 1] =
         {0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x00};
     fill_guards(g.guard_before, g.guard_after, 0xA5);
     memcpy(g.pulses, pat, sizeof(pat));
     hw_register_buf(&g.pulses[1]);
 
-    uint8_t snapshot[ONEWIRE_BITS_PER_BYTE + 1];
+    ow_pulse_t snapshot[ONEWIRE_BITS_PER_BYTE + 1];
     onewire_write_pulses(g.pulses, ONEWIRE_BITS_PER_BYTE);
     memcpy(snapshot, g.pulses, sizeof(snapshot));
 

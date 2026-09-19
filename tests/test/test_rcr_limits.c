@@ -26,7 +26,7 @@
 /* ---- helpers ---- */
 
 /* Multi-slot pulse buffer: 256 entries + trailing bus release 0. */
-static uint8_t max_pulses[ONEWIRE_MAX_SLOTS + 1];
+static ow_pulse_t max_pulses[ONEWIRE_MAX_SLOTS + 1];
 
 /* Capture source: return slot index as byte value. */
 static uint16_t idx_capture_src(uint32_t idx) { return (uint16_t)(idx & 0xFFu); }
@@ -62,7 +62,7 @@ void test_rcr_write_slots_256_ok(void) {
 
 void test_rcr_write_slots_1_ok(void) {
     /* slots == 1: single-slot path, no DMA. Must not touch the feed channel. */
-    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    ow_pulse_t pulse = ONEWIRE_ONE_PULSE;
     onewire_write_pulses(&pulse, 1);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);

@@ -109,7 +109,12 @@ void test_capture_8bit_config(void) {
     uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MINC) != 0);
+#if defined(OW_PORT_TARGET_F4)
+    /* F4 direct mode forces the memory width to the 8-bit PSIZE */
+    TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) == 0);
+#else
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) != 0);
+#endif
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_0) == 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_1) == 0);
     TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch4.CNDTR);

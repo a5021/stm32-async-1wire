@@ -27,7 +27,7 @@ void test_timing_reset_programs_timeout_and_pulse(void) {
 
 void test_timing_command_programs_slot_period(void) {
     hw_reset_all();
-    uint8_t cmd[17];
+    ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     }
@@ -99,6 +99,9 @@ void test_apb_prescaler_div1_for_tim1(void) {
 
 #if defined(OW_PORT_TARGET_F1)
     /* F1: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+#elif defined(OW_PORT_TARGET_F4)
+    /* F4: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F0)
     /* F0: single APB bus — PPRE must be /1 (field = 0) */

@@ -157,7 +157,7 @@ void test_lowpower_write_then_read_enables_uie(void) {
  * -----------------------------------------------------------*/
 void test_lowpower_feed_sets_uie_without_pending(void) {
     /* A 16-slot command (e.g. Match ROM) exercises ow_port_feed(). */
-    static const uint8_t cmd[17] = {
+    static const ow_pulse_t cmd[17] = {
         0x55, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
     ow_long_pending = 0;
     mock_tim1.DIER = 0;

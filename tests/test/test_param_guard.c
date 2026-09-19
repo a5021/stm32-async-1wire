@@ -39,14 +39,14 @@ static void assert_engine_idle(void) {
 /* ---- rejected schedules ---- */
 
 void test_guard_write_pulses_zero_rejected(void) {
-    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    ow_pulse_t pulse = ONEWIRE_ONE_PULSE;
     uint8_t st = onewire_write_pulses(&pulse, 0);
     TEST_ASSERT_EQUAL_UINT8(0u, st);
     assert_engine_idle();
 }
 
 void test_guard_write_pulses_over_max_rejected(void) {
-    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    ow_pulse_t pulse = ONEWIRE_ONE_PULSE;
     uint8_t st = onewire_write_pulses(&pulse, (uint16_t)(ONEWIRE_MAX_SLOTS + 1u));
     TEST_ASSERT_EQUAL_UINT8(0u, st);
     assert_engine_idle();
@@ -92,7 +92,7 @@ void test_guard_write_bit_schedules(void) {
 }
 
 void test_guard_write_pulses_schedules(void) {
-    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    ow_pulse_t pulse = ONEWIRE_ONE_PULSE;
     uint8_t st = onewire_write_pulses(&pulse, 1);
     TEST_ASSERT_EQUAL_UINT8(1u, st);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);

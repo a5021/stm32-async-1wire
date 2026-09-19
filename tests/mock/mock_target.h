@@ -3,7 +3,9 @@
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (OW_PORT_TARGET_F0 / OW_PORT_TARGET_F1 /
  * OW_PORT_TARGET_G0). */
-#if defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_F4)
+#include "stm32f4xx.h"
+#elif defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "stm32g0xx.h"
@@ -25,4 +27,23 @@
 #define MOCK_TIM_CAP_DE TIM_DIER_CC4DE
 #define MOCK_TIM_OUT_CCE TIM_CCER_CC3E
 #define MOCK_TIM_CAP_CCE TIM_CCER_CC4E
+
+/* --- DMA model abstraction -------------------------------------------------
+ * The hw_model works on one feed and one capture channel per family. F1/F0/G0
+ * use DMA1 channels with the CCR/CNDTR/CPAR/CMAR register names and 8-bit
+ * memory cells; F4 uses DMA2 streams with CR/NDTR/PAR/M0AR. The F4 mock unions
+ * keep the legacy field spellings valid, so the model can name a field
+ * uniformly; only the ENABLE/MSIZE bit spellings and the memory-cell width
+ * genuinely differ and are abstracted here. */
+#define MOCK_DMA_FEED mock_feed_ch /* feed channel storage */
+#define MOCK_DMA_CAP mock_dma1_ch4 /* capture channel storage */
+#if defined(OW_PORT_TARGET_F4)
+#define MOCK_DMA_FEED_EN DMA_SxCR_EN
+#define MOCK_DMA_CAP_EN DMA_SxCR_EN
+#define MOCK_DMA_CAP_MSIZE_0 DMA_SxCR_MSIZE_0
+#else
+#define MOCK_DMA_FEED_EN DMA_CCR_EN
+#define MOCK_DMA_CAP_EN DMA_CCR_EN
+#define MOCK_DMA_CAP_MSIZE_0 DMA_CCR_MSIZE_0
+#endif
 #endif /* MOCK_TARGET_H */

@@ -22,7 +22,7 @@
 #if defined(OW_PORT_TARGET_G0)
 #define PIN_IS_PP() ((GPIOA->OTYPER & GPIO_OTYPER_OT10) == 0u)
 #define PIN_IS_OD() ((GPIOA->OTYPER & GPIO_OTYPER_OT10) != 0u)
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
 #define PIN_IS_PP() ((GPIOA->OTYPER & GPIO_OTYPER_OT_10) == 0u)
 #define PIN_IS_OD() ((GPIOA->OTYPER & GPIO_OTYPER_OT_10) != 0u)
 #else /* OW_PORT_TARGET_F1 */
@@ -33,7 +33,7 @@
 /* A trivial 8-slot command buffer of '1' bits (value irrelevant for the
  * pin-mode assertion; only the fact that it is a write transaction matters). */
 static void send_8x_one(void) {
-    uint8_t cmd[9];
+    ow_pulse_t cmd[9];
     for (uint8_t i = 0; i < 8; i++) {
         cmd[i] = ONEWIRE_ONE_PULSE;
     }

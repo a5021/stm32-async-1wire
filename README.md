@@ -6,11 +6,12 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Three backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Four backends ship today:
 
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `port/stm32f4/ow_port_f4.h` — STM32F401CCU6 (WeAct Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode).
 
 ## Table of Contents
 
@@ -44,9 +45,9 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   (DS2413, DS2431, ...) can reuse it as-is — see
   [1-Wire Layer (shared)](#1-wire-layer-shared).
 - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
-  header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared
-  CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` /
-  `make OW_TARGET=g0` (F1 is the default).
+  header-only backends for STM32F1, STM32F0, STM32G0 and STM32F4, all on the
+  shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` /
+  `make OW_TARGET=g0` / `make OW_TARGET=f4` (F1 is the default).
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -93,7 +94,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: any STM32 with a single advanced-control timer instance
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
-  STM32G031x6; see port backends in `port/`).
+  STM32G031x6, STM32F401CCU6; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
@@ -119,11 +120,16 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 │   │   ├── stm32f030f4.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
-│   └── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
+│   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
 │   │   ├── ow_port_g0.h    # Register-level ow_port_* implementation for STM32G0
 │   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
+│   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
+│   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4
+│   │   ├── STM32F401CCU6_FLASH.ld  # Linker script, STM32F401CCU6 (256KB flash / 64KB RAM)
+│   │   ├── stm32f401ccu6.jflash    # J-Flash project file
+│   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
@@ -162,7 +168,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Build-time dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 device headers and startup (F1/F0/G0) + SVD
+│   └── device/             # STM32 device headers and startup (F1/F0/G0/F4) + SVD
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
 │   ├── launch.json         # Debug configuration (F5, J-Link / ST-Link)
@@ -208,6 +214,9 @@ make debug APP=3_round_robin                  # debug build of 3_round_robin (fo
 
 # STM32F030 target (same examples, bus on PA10):
 make OW_TARGET=f0 APP=4_scan_mode
+
+# STM32F401 target (same examples, bus on PA10):
+make OW_TARGET=f4 APP=4_scan_mode
 ```
 
 Notes:
@@ -314,6 +323,17 @@ slow-clock timing path natively. The bus pads are reachable only through the
 SYSCFG remap described in Hardware Connections below; the USB-C connector of
 this board is wired to PA11/PA12 and must stay unplugged while the driver
 owns the bus.
+
+### STM32F401CCU6 (WeAct Black Pill)
+
+Validated on a WeAct STM32F401CCU6 board (25 MHz HSE): 7 × DS18B20 on one
+1-Wire bus on **PA10** (TIM1 CH3/CH4 pair, DMA2 streams 2/4 — the feed stream
+runs 16-bit), USART1 TX on PA9 (AF7) at 115200 8N1 through a CP2102 adapter,
+flashed via ST-Link SWD. The default build (`2_device_search`) found all seven
+devices and completed every measurement round with valid CRCs and zero errors
+at both the 84 MHz PLL clock and the 16 MHz HSI clock; the same capture also
+covers the F4 low-power (`-DOW_PORT_LOW_POWER=1`) path. The F4-specific DMA
+topology and timing choices are documented in `port/stm32f4/HARDWARE-NOTES.md`.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -429,6 +449,20 @@ static pin configuration. With the optional active-drive write mode
 master-only write slots and restored to open-drain afterwards — see
 [Bus Electrical Model](#bus-electrical-model).
 
+### STM32F401CCU6 (WeAct Black Pill)
+
+The STM32F4 backend is hardware-validated (see Hardware Verified above); the
+wiring is the same as F1/F0:
+
+| Pin  | Function            | Notes                              |
+|------|---------------------|------------------------------------|
+| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1           |
+| PA9  | USART1 TX (115200)  | USART1 AF7; RX line of the USB-UART adapter |
+| PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
+
+Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V. The board's
+25 MHz HSE drives the default 84 MHz PLL clock.
+
 ## Quick Start
 
 ### 1. Include the Driver
@@ -533,7 +567,7 @@ void ds18b20_complete(int16_t temp) {
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F1/F0/G0) are not stored in the
+ARM CMSIS core headers and STM32 device files (F1/F0/G0/F4) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -576,16 +610,20 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make jprogram` | Flash via J-LINK |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
+| `make test-f4` | Build and run host tests against the STM32F4 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
+| `make test-active-f4` | Same as above against the STM32F4 backend mock |
 | `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER=1` (WFE path, F1) |
 | `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
+| `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard` |
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
+| `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make help` | Show all targets |
@@ -613,12 +651,14 @@ hardware required:
 make test        # host tests against the STM32F1 backend mock
 make test-f0     # same suite against the STM32F0 backend mock
 make test-g0     # same suite against the STM32G0 backend mock
+make test-f4     # same suite against the STM32F4 backend mock
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
-CMSIS header — each suite runs the full driver against its own backend's
+CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32g0xx.h` /
+`stm32f4xx.h`) — each suite runs the full driver against its own backend's
     channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
     driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
@@ -701,7 +741,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
 cmake --build build
 ```
 
-Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, or `g0`.
+Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`.
 
 In a downstream project:
 
@@ -736,13 +776,15 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
-    `OW_TARGET=g0`.
+    `OW_TARGET=g0`; `STM32F401xC` (Cortex-M4) with `OW_TARGET=f4`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
-    `port/stm32g0/STM32G031X6_FLASH.ld`). The default target is STM32F103
-    (bus on PA10 for F1/F0, logical PA10 via PA12 remap for G0).
+    `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
+    backend (84MHz default clock, `port/stm32f4/STM32F401CCU6_FLASH.ld`). The
+    default target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via
+    PA12 remap for G0).
 
 -   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
     ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
@@ -1000,16 +1042,18 @@ Two DMA channels are required, each carrying a specific peripheral request:
 
 F0/F1 have a fixed request map (no `DMA_CSELR` mux) — channel 3 = CC2,
 channel 4 = CC4, confirmed empirically.  G0 uses a DMAMUX: TIM1_CC2 = request
-21, TIM1_CH4 = request 23.  A new backend must verify the DMA request
-numbers for its target; the channel roles are identical across all families.
+21, TIM1_CH4 = request 23.  F4 uses DMA2 with the per-stream `CHSEL` field
+set to 6 (`TIM1_CH2`/`TIM1_CH4`): stream 2 = feed, stream 4 = capture.  A new
+backend must verify the DMA request numbers for its target; the channel roles
+are identical across all families.
 
 #### 4. Clocking invariant
 
 The APB prescaler feeding the timer **must be /1**.  STM32 timers double
 their clock when the APB prescaler is >1 (`timer clock = 2 × PCLK`), which
-would break every µs-based timing constant in the driver.  All three
-supported families satisfy this by construction: F1 keeps PPRE2=/1 (TIM1 is
-on APB2), F0 and G0 have a single APB bus at /1.
+would break every µs-based timing constant in the driver.  All four
+supported families satisfy this by construction: F1 and F4 keep PPRE2=/1
+(TIM1 is on APB2), F0 and G0 have a single APB bus at /1.
 
 #### 5. GPIO
 
@@ -1026,6 +1070,7 @@ changes.
 | STM32F1 | TIM1 | PA10 (default AFIO) | Fixed: CC2→DMA1 ch3 (feeds CCR3), CH4→DMA1 ch4 | APB2=/1 by default |
 | STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
 | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
+| STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
 
 #### Bus Electrical Model
 
@@ -1514,7 +1559,7 @@ the pull-up must also source the conversion current:
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
   alone: a six-device broadcast cycle completed without a single CRC error.
 - Budget ~1.5mA per simultaneously converting sensor against the pin's drive
-  capability (~25mA source on F1/F0/G0) and the VOH droop across your pull-up
+  capability (~25mA source on F1/F0/G0/F4) and the VOH droop across your pull-up
   arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
 - For longer buses or larger fleets add an external P-MOSFET (or a dedicated
   strong pull-up IC) as the high-side switch and treat the MCU pin as its gate

@@ -14,7 +14,7 @@
 #define ZERO_P ONEWIRE_ZERO_PULSE
 
 void test_pulse_encoding_zero_byte_all_zero_pulse(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0x00);
     for (int i = 0; i < 8; i++) {
         TEST_ASSERT_EQUAL_UINT8(ZERO_P, out[i]);
@@ -22,7 +22,7 @@ void test_pulse_encoding_zero_byte_all_zero_pulse(void) {
 }
 
 void test_pulse_encoding_0xFF_all_one_pulse(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0xFF);
     for (int i = 0; i < 8; i++) {
         TEST_ASSERT_EQUAL_UINT8(ONE_P, out[i]);
@@ -30,7 +30,7 @@ void test_pulse_encoding_0xFF_all_one_pulse(void) {
 }
 
 void test_pulse_encoding_0x01_first_bit_one_pulse(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0x01);
     TEST_ASSERT_EQUAL_UINT8(ONE_P, out[0]);
     for (int i = 1; i < 8; i++) {
@@ -39,7 +39,7 @@ void test_pulse_encoding_0x01_first_bit_one_pulse(void) {
 }
 
 void test_pulse_encoding_0x80_last_bit_one_pulse(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0x80);
     for (int i = 0; i < 7; i++) {
         TEST_ASSERT_EQUAL_UINT8(ZERO_P, out[i]);
@@ -48,7 +48,7 @@ void test_pulse_encoding_0x80_last_bit_one_pulse(void) {
 }
 
 void test_pulse_encoding_0xAA_alternating(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0xAA);
     for (int i = 0; i < 8; i++) {
         TEST_ASSERT_EQUAL_UINT8((i & 1) ? ONE_P : ZERO_P, out[i]);
@@ -56,7 +56,7 @@ void test_pulse_encoding_0xAA_alternating(void) {
 }
 
 void test_pulse_encoding_0x55_alternating(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0x55);
     for (int i = 0; i < 8; i++) {
         TEST_ASSERT_EQUAL_UINT8((i & 1) ? ZERO_P : ONE_P, out[i]);
@@ -64,7 +64,7 @@ void test_pulse_encoding_0x55_alternating(void) {
 }
 
 void test_pulse_encoding_output_length_always_8(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     ds18b20_test_encode_byte_pulses(out, 0x00);
     ds18b20_test_encode_byte_pulses(out, 0xFF);
     ds18b20_test_encode_byte_pulses(out, 0x55);
@@ -73,7 +73,7 @@ void test_pulse_encoding_output_length_always_8(void) {
 }
 
 void test_pulse_encoding_only_valid_pulse_values(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     for (int b = 0; b < 256; b++) {
         ds18b20_test_encode_byte_pulses(out, (uint8_t)b);
         for (int i = 0; i < 8; i++) {
@@ -83,7 +83,7 @@ void test_pulse_encoding_only_valid_pulse_values(void) {
 }
 
 void test_pulse_encoding_single_bit_positions(void) {
-    uint8_t out[8];
+    ow_pulse_t out[8];
     for (int bit = 0; bit < 8; bit++) {
         ds18b20_test_encode_byte_pulses(out, (uint8_t)(1u << bit));
         for (int i = 0; i < 8; i++) {

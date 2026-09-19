@@ -4,6 +4,7 @@
  * #includes src/ds18b20.c, so the driver is compiled ONLY through that TU
  * (it must not also be compiled separately). */
 #include "ds18b20.h"
+#include "onewire_internal.h"
 #include <stdint.h>
 
 /* State machine / scratchpad accessors (used by the host unit tests). */
@@ -23,7 +24,7 @@ void ds18b20_test_set_address_mode(uint8_t m);
 int16_t ds18b20_test_decode_temperature(void);
 unsigned ds18b20_test_check_presence(void);
 uint8_t ds18b20_test_check_scratchpad_crc(void);
-void ds18b20_test_encode_byte_pulses(uint8_t* out, uint8_t byte);
+void ds18b20_test_encode_byte_pulses(ow_pulse_t* out, uint8_t byte);
 void ds18b20_test_build_addr_prefix(void);
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte);
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width);
@@ -33,7 +34,7 @@ uint8_t ds18b20_test_get_addr_byte(uint8_t i);
 void ds18b20_test_set_addr_byte(uint8_t i, uint8_t v);
 
 /* Bus-operation wrappers for the hardware-release tests. */
-void test_bus_send_command_n(const uint8_t* cmd, uint16_t slots);
+void test_bus_send_command_n(const ow_pulse_t* cmd, uint16_t slots);
 void test_bus_reset(void);
 void test_bus_read_pair(void);
 void test_bus_write_then_read(uint8_t bit);
@@ -55,7 +56,7 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v);
 
 /* Addresses of the driver's internal DMA buffers, for the exact-CMAR
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
-const uint8_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (merged feed source) */
+const ow_pulse_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (merged feed source) */
 const volatile uint16_t* test_search_pulse3_addr(void); /* &search_pulse3[0] (merged capture sink) */
 
 /* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */

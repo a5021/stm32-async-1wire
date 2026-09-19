@@ -40,12 +40,22 @@ static uint16_t presence_src(uint32_t idx) {
     return idx == 0 ? 510u : 700u;
 }
 
-/* CCR bit fields a correct operation must program (see table above). */
-#define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0)
-#define FEED_8BIT_LO (DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
+/* CCR bit fields a correct operation must program (see table above).
+ * Direct mode forces the memory width to PSIZE: F4 feeds 16-bit halfwords
+ * from the ow_pulse_t buffer (MSIZE_0) and drops PSIZE for 8-bit captures,
+ * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout. */
+#if defined(OW_PORT_TARGET_F4)
+#define WIDTH_MSIZE16 DMA_CCR_MSIZE_0
+#define WIDTH_PSIZE8 0u
+#else
+#define WIDTH_MSIZE16 0u
+#define WIDTH_PSIZE8 DMA_CCR_PSIZE_0
+#endif
+#define FEED_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
+#define FEED_LO (DMA_CCR_MSIZE_1)
 #define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
 #define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
-#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0)
+#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
 
 /* ------------------------------------------------------------------ */
@@ -79,18 +89,22 @@ typedef struct {
 
 /* ---------------------- row schedules ---------------------- */
 
-static uint8_t w8[ONEWIRE_BITS_PER_BYTE + 1];
-static uint8_t w256[ONEWIRE_MAX_SLOTS + 1];
+static ow_pulse_t w8[ONEWIRE_BITS_PER_BYTE + 1];
+static ow_pulse_t w256[ONEWIRE_MAX_SLOTS + 1];
 
 static void sched_write_8(void) {
-    memset(w8, ONE, sizeof(w8));
+    for (uint16_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
+        w8[i] = (ow_pulse_t)ONE;
+    }
     w8[ONEWIRE_BITS_PER_BYTE] = 0u;
     hw_register_buf(&w8[1]);
     onewire_write_pulses(w8, ONEWIRE_BITS_PER_BYTE);
 }
 
 static void sched_write_256(void) {
-    memset(w256, ZERO, sizeof(w256));
+    for (uint16_t i = 0; i < ONEWIRE_MAX_SLOTS; i++) {
+        w256[i] = (ow_pulse_t)ZERO;
+    }
     w256[ONEWIRE_MAX_SLOTS] = 0u;
     hw_register_buf(&w256[1]);
     onewire_write_pulses(w256, ONEWIRE_MAX_SLOTS);
@@ -158,8 +172,8 @@ static dma_contract_row_t k_contracts[] = {
         (uintptr_t)&w8[1],
         (uintptr_t)&mock_tim1.CCR3,
         8u,
-        FEED_8BIT_HI,
-        FEED_8BIT_LO,
+        FEED_HI,
+        FEED_LO,
         0u,
         0u,
         0u,
@@ -176,8 +190,8 @@ static dma_contract_row_t k_contracts[] = {
         (uintptr_t)&w256[1],
         (uintptr_t)&mock_tim1.CCR3,
         256u,
-        FEED_8BIT_HI,
-        FEED_8BIT_LO,
+        FEED_HI,
+        FEED_LO,
         0u,
         0u,
         0u,
@@ -266,8 +280,8 @@ static dma_contract_row_t k_contracts[] = {
         0u,
         (uintptr_t)&mock_tim1.CCR3, /* CMAR patched at runtime */
         3u,
-        FEED_8BIT_HI,
-        FEED_8BIT_LO,
+        FEED_HI,
+        FEED_LO,
         0u,
         (uintptr_t)&mock_tim1.CCR4, /* CMAR patched at runtime */
         3u,
@@ -284,8 +298,8 @@ static dma_contract_row_t k_contracts[] = {
         0u,
         (uintptr_t)&mock_tim1.CCR3, /* CMAR patched at runtime */
         104u,
-        FEED_8BIT_HI,
-        FEED_8BIT_LO,
+        FEED_HI,
+        FEED_LO,
         0u,
         0u,
         0u,

@@ -60,7 +60,7 @@ static uint16_t src_read_scratchpad(uint32_t i) {
  *  all 16 data pulses correct, bus released on completion.
  * -----------------------------------------------------------*/
 void test_write_command_trailing_zero_release(void) {
-    uint8_t cmd[17];
+    ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1) ? (uint8_t)ONE : (uint8_t)ZERO;
     }
@@ -178,7 +178,7 @@ void test_sequence_stays_released_between_ops(void) {
     complete_op(4);
     assert_bus_released();
 
-    uint8_t cmd[17];
+    ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1) ? (uint8_t)ONE : (uint8_t)ZERO;
     }
@@ -227,7 +227,7 @@ void test_read_pair_standalone_release(void) {
  *  is still released when the timer stops.
  * -----------------------------------------------------------*/
 void test_wait_and_pause_keep_bus_released(void) {
-    uint8_t cmd[17];
+    ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1) ? (uint8_t)ONE : (uint8_t)ZERO;
     }

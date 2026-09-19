@@ -55,7 +55,7 @@ static void pu_assert_af_mode(void) {
     TEST_ASSERT_FALSE(mock_gpioa.MODER & GPIO_MODER_MODE10_0);
 }
 
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
 
 /* PA10 in timer-driven AF open-drain mode (post-init baseline). */
 static uint8_t pu_idle_af_od(void) {
@@ -115,7 +115,7 @@ static void pu_assert_unchanged(pu_regs_t before) {
     TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
 }
 
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
 
 typedef struct {
     uint32_t otyper;

@@ -75,10 +75,14 @@ extern "C" {
 #endif
 /** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */
 #if OW_PORT_LOW_POWER
-#if defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
-#else
+#elif defined(OW_PORT_FAMILY_F4)
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
+#elif defined(OW_PORT_FAMILY_F1)
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
+#else
+#error "OW_PORT_LOW_POWER: no TIM1 update IRQ mapping for this family"
 #endif
 #endif
 

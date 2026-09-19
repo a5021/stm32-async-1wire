@@ -579,6 +579,10 @@ else ifeq ($(OW_TARGET),g0)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_G0
 TEST_PORT_INC = -Iport/stm32g0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
+else ifeq ($(OW_TARGET),f4)
+TEST_PORT_FLAG = -DOW_PORT_TARGET_F4
+TEST_PORT_INC = -Iport/stm32f4
+TEST_EXE = $(TEST_OUT)/ds18b20_test_f4.exe
 else
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
@@ -592,11 +596,11 @@ TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
-TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test test-f0 test-g0
-TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,STM32F1))
-TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,_f1)).o
+.PHONY: test test-f0 test-g0 test-f4
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1)))
+TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
 
 test: $(TEST_EXE) $(TEST_CLOCK_OBJ)
 	$(TEST_EXE)
@@ -607,6 +611,9 @@ test-f0:
 test-g0:
 	$(MAKE) OW_TARGET=g0 test
 
+test-f4:
+	$(MAKE) OW_TARGET=f4 test
+
 # --- Family-macro fallback compile check (see test_sysclk_fallback.c) ---
 # Compile-only: verifies that selecting a family through the raw family macro
 # (STM32F1/F0/G0, the PlatformIO/STM32CubeMX path) resolves both
@@ -616,20 +623,22 @@ test-g0:
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
-.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0
-test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0
+.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4
+test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
 test-clocks-f0:
 	$(MAKE) OW_TARGET=f0 $(TEST_OUT)/test_sysclk_fallback_f0.o
 test-clocks-g0:
 	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
+test-clocks-f4:
+	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f4.o
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
 # __WFE()-related code (SEVONPEND, ow_long_pending, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
-.PHONY: test-lowpower test-lowpower-f0 test-lowpower-g0
+.PHONY: test-lowpower test-lowpower-f0 test-lowpower-g0 test-lowpower-f4
 test-lowpower: $(TEST_LP_EXE)
 	$(TEST_LP_EXE)
 
@@ -638,6 +647,9 @@ test-lowpower-f0:
 
 test-lowpower-g0:
 	$(MAKE) OW_TARGET=g0 test-lowpower
+
+test-lowpower-f4:
+	$(MAKE) OW_TARGET=f4 test-lowpower
 
 # src/ds18b20.c is an amalgamated translation unit: the search / txn /
 # resolution / measurement code lives in these include-only parts (guarded by
@@ -668,9 +680,9 @@ TEST_ACTIVE_SRC = \
     $(TEST_MOCK)/ow_stats_test_access.c \
     examples/app/app.c
 TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE=1
-TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test-active test-active-f0 test-active-g0
+.PHONY: test-active test-active-f0 test-active-g0 test-active-f4
 test-active: $(TEST_ACTIVE_EXE)
 	$(TEST_ACTIVE_EXE)
 
@@ -679,6 +691,9 @@ test-active-f0:
 
 test-active-g0:
 	$(MAKE) OW_TARGET=g0 test-active
+
+test-active-f4:
+	$(MAKE) OW_TARGET=f4 test-active
 
 $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
@@ -692,9 +707,9 @@ $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewir
 # and the note in tests/test/test_rcr_limits.c.
 TEST_NG_FLAG = $(TEST_FLAG) -DNDEBUG -DOW_TEST_PARAM_GUARD
 TEST_NG_SRC  = $(TEST_SRC) $(TEST_DIR)/test_param_guard.c
-TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,)).exe
+TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test-ndebug test-ndebug-f0 test-ndebug-g0
+.PHONY: test-ndebug test-ndebug-f0 test-ndebug-g0 test-ndebug-f4
 test-ndebug: $(TEST_NG_EXE)
 	$(TEST_NG_EXE)
 
@@ -703,6 +718,9 @@ test-ndebug-f0:
 
 test-ndebug-g0:
 	$(MAKE) OW_TARGET=g0 test-ndebug
+
+test-ndebug-f4:
+	$(MAKE) OW_TARGET=f4 test-ndebug
 
 $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@

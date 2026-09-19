@@ -31,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the search instead. Found both by the `fuzz_search` harness in CI
   (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
   `test_search_hostile_all_zero_bus_terminates`.
+- **STM32F4 low-power build did not compile (`-DOW_PORT_LOW_POWER=1`).**
+  The TIM1 update-IRQ mapping in `inc/onewire.h` tested the raw target macros
+  (`OW_PORT_TARGET_F0`/`OW_PORT_TARGET_G0`) instead of `OW_PORT_FAMILY_*`, so
+  an F4 build took the F1 branch and referenced the nonexistent `TIM1_UP_IRQn`
+  (the F4 vector is `TIM1_UP_TIM10_IRQn`). The mapping now keys off
+  `OW_PORT_FAMILY_*` and covers F0/G0/F1/F4, with a hard `#error` for any
+  unhandled family.
+- **`src/ow_stats.c` failed to build on STM32F4 with `OW_STATS_ENABLE=1`.**
+  Its device-header chain handled G0/F0/F1 but fell through to `stm32f1xx.h`
+  for F4; it now includes `stm32f4xx.h` under `OW_PORT_FAMILY_F4`.
 
 ### Changed
 
@@ -83,6 +93,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`addr_bytes`/`txn_ctx.bytes`/`res_ctx.bytes`), the test accessors and the
   DMA-contract/param-guard tests are updated accordingly; externally the
   encoded pulse stream and timing are unchanged.
+- **STM32F4 backend is now covered by the host-test harness.** New
+  `tests/mock/stm32f4xx.h` (TIM1/DMA2/GPIO/RCC/USART register model) plus an
+  F4 dispatch in `tests/mock/mock_target.h` / `tests/mock/hw_model.c` let the
+  entire suite run against the F4 backend, including the low-power WFE path.
+  The F1/F4 register differences are hidden behind `MOCK_DMA_*` macros and a
+  `DMA_SxCR`/`DMA_CCR` union alias. Pulse buffers are typed `ow_pulse_t`
+  throughout, so the F4 16-bit feed width (direct mode, `MSIZE=16`) and the
+  8-bit direct-mode capture width are exercised by the same tests. New
+  Makefile targets `test-f4`, `test-lowpower-f4`, `test-ndebug-f4`,
+  `test-active-f4` and `test-clocks-f4` mirror the per-family targets.
+- **CMake gained the STM32F4 target.** `-DOW_TARGET=f4` selects the
+  `cmsis_device_f4` headers (`STM32F401xC`, Cortex-M4), the
+  `port/stm32f4/STM32F401CCU6_FLASH.ld` linker script, and ships
+  `port/stm32f4/ow_port_f4.h` in the install set.
 
 ### Added
 

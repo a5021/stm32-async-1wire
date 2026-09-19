@@ -16,6 +16,8 @@
 #include "stm32g0xx.h"
 #elif defined(OW_PORT_FAMILY_F0)
 #include "stm32f0xx.h"
+#elif defined(OW_PORT_FAMILY_F4)
+#include "stm32f4xx.h"
 #else
 #include "stm32f1xx.h"
 #endif

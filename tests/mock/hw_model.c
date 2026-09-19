@@ -1,5 +1,6 @@
 #include "hw_model.h"
 #include "mock_target.h"
+#include "onewire_internal.h"
 #include "ow_config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,9 @@ SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
 DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0 backend only */
 DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
+#endif
+#if defined(OW_PORT_TARGET_F4)
+DMA_TypeDef mock_dma2; /* F4 backend only */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -91,6 +95,9 @@ void hw_reset_all(void) {
     mock_dmamux_ch2 = (DMAMUX_Channel_TypeDef){0};
     mock_dmamux_ch3 = (DMAMUX_Channel_TypeDef){0};
 #endif
+#if defined(OW_PORT_TARGET_F4)
+    mock_dma2 = (DMA_TypeDef){0};
+#endif
     tim_shadow_out = 0;
     capture_source = NULL;
     feed_log.count = 0;
@@ -113,27 +120,27 @@ uint16_t hw_effective_ccr3(void) {
 }
 
 /* Resolved buffer pointers for the current operation (set by hw_run_until_uif). */
-static uint8_t* d16_cur; /* feed DMA source (memory read) */
+static ow_pulse_t* d16_cur; /* feed DMA source (memory read) */
 static uint8_t* d13_cur; /* capture DMA destination (memory write) */
 
-/* One feed transfer: memory -> output CCR (16-bit peripheral, 8-bit memory). */
+/* One feed transfer: memory -> output CCR (family-width memory cell). */
 static void dma16_transfer(void) {
-    DMA1_Channel_TypeDef* d = &mock_feed_ch;
-    if (!(d->CCR & DMA_CCR_EN) || d->CNDTR == 0) {
+    DMA1_Channel_TypeDef* d = &MOCK_DMA_FEED;
+    if (!(d->CCR & MOCK_DMA_FEED_EN) || d->CNDTR == 0) {
         return;
     }
     if (d16_cur == NULL) {
         fprintf(stderr, "hw_model: unresolved feed source address\n");
         d->CNDTR = 0;
-        d->CCR &= ~DMA_CCR_EN;
+        d->CCR &= ~MOCK_DMA_FEED_EN;
         return;
     }
     uint16_t val = *d16_cur;
     MOCK_TIM_OUT_CCR = val;
-    d16_cur += 1; /* MSIZE 8-bit */
+    d16_cur += 1; /* advance one ow_pulse_t cell */
     d->CNDTR--;
     if (d->CNDTR == 0) {
-        d->CCR &= ~DMA_CCR_EN;
+        d->CCR &= ~MOCK_DMA_FEED_EN;
     }
     feed_log.total++;
     if (feed_log.count < 128u) {
@@ -143,18 +150,18 @@ static void dma16_transfer(void) {
 
 /* One capture transfer: capture CCR -> memory (MSIZE 8 or 16 per DMA config). */
 static void dma13_transfer(void) {
-    DMA1_Channel_TypeDef* d = &mock_dma1_ch4;
-    if (!(d->CCR & DMA_CCR_EN) || d->CNDTR == 0) {
+    DMA1_Channel_TypeDef* d = &MOCK_DMA_CAP;
+    if (!(d->CCR & MOCK_DMA_CAP_EN) || d->CNDTR == 0) {
         return;
     }
     if (d13_cur == NULL) {
         fprintf(stderr, "hw_model: unresolved capture destination address\n");
         d->CNDTR = 0;
-        d->CCR &= ~DMA_CCR_EN;
+        d->CCR &= ~MOCK_DMA_CAP_EN;
         return;
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
-    if (d->CCR & DMA_CCR_MSIZE_0) {
+    if (d->CCR & MOCK_DMA_CAP_MSIZE_0) {
         *(volatile uint16_t*)d13_cur = val;
         d13_cur += 2;
     } else {
@@ -163,7 +170,7 @@ static void dma13_transfer(void) {
     }
     d->CNDTR--;
     if (d->CNDTR == 0) {
-        d->CCR &= ~DMA_CCR_EN;
+        d->CCR &= ~MOCK_DMA_CAP_EN;
     }
 }
 
@@ -176,16 +183,17 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     feed_log.total = 0;
     op_capture_count = 0;
     /* Resolve the DMA buffer addresses exactly as the driver stored them. */
-    d16_cur = (uint8_t*)hw_resolve((uint32_t)mock_feed_ch.CMAR);
-    d13_cur = (uint8_t*)hw_resolve((uint32_t)mock_dma1_ch4.CMAR);
+    d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
+    d13_cur = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
     uint32_t slots = (uint32_t)(t->RCR & 0xFFu) + 1u;
     if (slots > max_slots) {
         slots = max_slots;
     }
     /* captures per slot: ceil(CNDTR / slots) — e.g. reset = 2 in 1 slot. */
     uint32_t cps = 0;
-    if ((t->DIER & MOCK_TIM_CAP_DE) && (mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > 0) {
-        uint32_t n = mock_dma1_ch4.CNDTR;
+    if ((t->DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
+        MOCK_DMA_CAP.CNDTR > 0) {
+        uint32_t n = MOCK_DMA_CAP.CNDTR;
         uint32_t s = (uint32_t)(t->RCR & 0xFFu) + 1u;
         cps = (n + s - 1u) / s;
     }
@@ -239,7 +247,7 @@ typedef struct {
     uint8_t feed_pend; /* CC2 matched; the reload transfer is due */
     uint8_t done; /* terminal update fired */
     uint32_t feed_rem; /* feed transfers still pending */
-    uint8_t* feed_ptr; /* resolved feed source cursor */
+    ow_pulse_t* feed_ptr; /* resolved feed source cursor */
     uint8_t* cap_ptr; /* resolved capture destination cursor */
     uint32_t cap_total; /* total capture transfers scheduled */
     uint32_t cap_done; /* capture transfers performed so far */
@@ -261,29 +269,29 @@ void hw_tim_init(void) {
     g_tim.tick = 0;
     g_tim.period = 0;
     g_tim.shadow = (uint16_t)mock_tim1.CCR3;
-    if ((mock_tim1.DIER & MOCK_TIM_FEED_DE) && (mock_feed_ch.CCR & DMA_CCR_EN) &&
-        mock_feed_ch.CNDTR > 0u) {
+    if ((mock_tim1.DIER & MOCK_TIM_FEED_DE) && (MOCK_DMA_FEED.CCR & MOCK_DMA_FEED_EN) &&
+        MOCK_DMA_FEED.CNDTR > 0u) {
         g_tim.feed_en = 1u;
-        g_tim.feed_rem = mock_feed_ch.CNDTR;
-        g_tim.feed_ptr = (uint8_t*)hw_resolve((uint32_t)mock_feed_ch.CMAR);
+        g_tim.feed_rem = MOCK_DMA_FEED.CNDTR;
+        g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
         if (g_tim.feed_ptr == NULL) {
             fprintf(stderr, "hw_model: unresolved feed source address\n");
             g_tim.feed_en = 0u;
-            mock_feed_ch.CNDTR = 0;
-            mock_feed_ch.CCR &= ~DMA_CCR_EN;
+            MOCK_DMA_FEED.CNDTR = 0;
+            MOCK_DMA_FEED.CCR &= ~MOCK_DMA_FEED_EN;
         }
     }
-    if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) && (mock_dma1_ch4.CCR & DMA_CCR_EN) &&
-        mock_dma1_ch4.CNDTR > 0u) {
+    if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
+        MOCK_DMA_CAP.CNDTR > 0u) {
         g_tim.cap_en = 1u;
-        g_tim.cap_total = mock_dma1_ch4.CNDTR;
+        g_tim.cap_total = MOCK_DMA_CAP.CNDTR;
         g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
-        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)mock_dma1_ch4.CMAR);
+        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
         if (g_tim.cap_ptr == NULL) {
             fprintf(stderr, "hw_model: unresolved capture destination address\n");
             g_tim.cap_en = 0u;
-            mock_dma1_ch4.CNDTR = 0;
-            mock_dma1_ch4.CCR &= ~DMA_CCR_EN;
+            MOCK_DMA_CAP.CNDTR = 0;
+            MOCK_DMA_CAP.CCR &= ~MOCK_DMA_CAP_EN;
         }
     }
 }
@@ -296,16 +304,16 @@ void hw_tim_init_shadow(uint16_t init_shadow) {
 /* One feed transfer: memory -> CCR3 (immediate when no OC3PE preload). */
 static void hw_tim_do_feed(void) {
     uint16_t val = *g_tim.feed_ptr;
-    g_tim.feed_ptr += 1; /* MSIZE 8-bit */
+    g_tim.feed_ptr += 1; /* advance one ow_pulse_t cell */
     mock_tim1.CCR3 = val;
     if (g_tim.pe == 0u) {
         g_tim.shadow = val; /* no preload: the output updates immediately */
     }
     g_tim.feed_rem--;
-    mock_feed_ch.CNDTR = g_tim.feed_rem;
+    MOCK_DMA_FEED.CNDTR = g_tim.feed_rem;
     if (g_tim.feed_rem == 0u) {
         g_tim.feed_en = 0u;
-        mock_feed_ch.CCR &= ~DMA_CCR_EN;
+        MOCK_DMA_FEED.CCR &= ~MOCK_DMA_FEED_EN;
     }
 }
 
@@ -334,7 +342,7 @@ static uint32_t hw_tim_next_capture_tick(void) {
 static void hw_tim_do_capture(void) {
     uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
     mock_tim1.CCR4 = val;
-    if (mock_dma1_ch4.CCR & DMA_CCR_MSIZE_0) {
+    if (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_MSIZE_0) {
         *(volatile uint16_t*)g_tim.cap_ptr = val;
         g_tim.cap_ptr += 2;
     } else {
@@ -342,10 +350,10 @@ static void hw_tim_do_capture(void) {
         g_tim.cap_ptr += 1;
     }
     g_tim.cap_done++;
-    mock_dma1_ch4.CNDTR = g_tim.cap_total - g_tim.cap_done;
+    MOCK_DMA_CAP.CNDTR = g_tim.cap_total - g_tim.cap_done;
     if (g_tim.cap_done >= g_tim.cap_total) {
         g_tim.cap_en = 0u;
-        mock_dma1_ch4.CCR &= ~DMA_CCR_EN;
+        MOCK_DMA_CAP.CCR &= ~MOCK_DMA_CAP_EN;
     }
 }
 

@@ -61,7 +61,7 @@ void test_hw_run_until_uif_branches(void) {
     /* Arm a 16-slot op (RCR=15) with CEN set, then ask for fewer slots than
      * exist. The slot count is clamped and the loop ends without a terminal
      * update event, exercising the clamp + early-return paths. */
-    uint8_t cmd[17];
+    ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1u) ? 5u : 60u;
     }
