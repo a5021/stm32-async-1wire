@@ -16,13 +16,13 @@ jobs:
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h tests/mock/*.h tests/mock/*.c tests/test/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h port/stm32f4/ow_port_f4.h tests/mock/*.h tests/mock/*.c tests/test/*.c
 
   host-tests:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0]
+        backend: [f1, f0, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -41,6 +41,7 @@ jobs:
           make download-deps
           make OW_TARGET=f0 download-deps
           make OW_TARGET=g0 download-deps
+          make OW_TARGET=f4 download-deps
       - name: Build and run host tests (F1)
         if: matrix.backend == 'f1'
         run: make test
@@ -50,6 +51,9 @@ jobs:
       - name: Build and run host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-g0
+      - name: Build and run host tests (F4)
+        if: matrix.backend == 'f4'
+        run: make test-f4
       # The same suite re-built with -DOW_PORT_LOW_POWER=1 exercises the
       # opt-in WFE path (SEVONPEND, ow_long_pending, UIE) on the host.
       - name: Build and run low-power host tests (F1)
@@ -61,6 +65,9 @@ jobs:
       - name: Build and run low-power host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-lowpower-g0
+      - name: Build and run low-power host tests (F4)
+        if: matrix.backend == 'f4'
+        run: make test-lowpower-f4
       # The same suite re-built with -DNDEBUG -DOW_TEST_PARAM_GUARD
       # (asserts compiled out) and with the active-drive write path
       # (-DOW_DRIVE_ACTIVE=1). Both exercise value-style feature flags.
@@ -73,6 +80,9 @@ jobs:
       - name: Build and run NDEBUG host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-ndebug-g0
+      - name: Build and run NDEBUG host tests (F4)
+        if: matrix.backend == 'f4'
+        run: make test-ndebug-f4
       - name: Build and run active-drive host tests (F1)
         if: matrix.backend == 'f1'
         run: make test-active
@@ -82,12 +92,15 @@ jobs:
       - name: Build and run active-drive host tests (G0)
         if: matrix.backend == 'g0'
         run: make test-active-g0
+      - name: Build and run active-drive host tests (F4)
+        if: matrix.backend == 'f4'
+        run: make test-active-f4
 
   coverage:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0]
+        backend: [f1, f0, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -98,6 +111,7 @@ jobs:
           make download-deps
           make OW_TARGET=f0 download-deps
           make OW_TARGET=g0 download-deps
+          make OW_TARGET=f4 download-deps
       - name: Build and run host tests with coverage
         # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
         # build. The test executables run from the repository root, so the
@@ -111,6 +125,8 @@ jobs:
             make test-f0 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "g0" ]; then
             make test-g0 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "f4" ]; then
+            make test-f4 COVERAGE=1
           else
             make test COVERAGE=1
           fi
@@ -120,6 +136,8 @@ jobs:
             make test-lowpower-f0 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "g0" ]; then
             make test-lowpower-g0 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "f4" ]; then
+            make test-lowpower-f4 COVERAGE=1
           else
             make test-lowpower COVERAGE=1
           fi
@@ -275,7 +293,9 @@ jobs:
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: make download-deps
+        run: |
+          make download-deps
+          make OW_TARGET=f4 download-deps
       - name: Build release (1_basic)
         run: make
       - name: Build release (3_round_robin)
@@ -294,6 +314,10 @@ jobs:
         run: make clean && make OW_TARGET=g0
       - name: Build release (G0 backend, 16MHz RC)
         run: make clean && make OW_TARGET=g0 SYSCLK_MHZ=16
+      - name: Build release (F4 backend)
+        run: make clean && make OW_TARGET=f4
+      - name: Build release (F4 backend, 16MHz HSI)
+        run: make clean && make OW_TARGET=f4 SYSCLK_MHZ=16
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true
@@ -309,7 +333,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0]
+        backend: [f1, f0, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
