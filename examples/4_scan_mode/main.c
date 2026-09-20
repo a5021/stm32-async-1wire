@@ -3,10 +3,15 @@
  * @brief Multi-sensor example: simultaneous broadcast conversion (scan mode)
  *
  * Runs the non-blocking device search (ds18b20_search_*) to discover every
- * sensor, then ds18b20_scan_start() to convert all sensors at the same time
- * with a single broadcast Convert T (Skip ROM) and read each one back through
- * Match ROM. One conversion wait covers every device; the temperature of each
- * sensor is reported through ds18b20_complete() in device-table order.
+ * sensor, then programs the conversion resolution to every sensor with one
+ * broadcast Write Scratchpad (ds18b20_set_resolution(), Skip ROM), then
+ * ds18b20_scan_start() to convert all sensors at the same time with a single
+ * broadcast Convert T (Skip ROM) and read each one back through Match ROM.
+ * Programming the resolution first makes the fleet uniform, so scan mode's
+ * single conversion wait is correct even if a previous run left a sensor at a
+ * different resolution. One conversion wait covers every device; the
+ * temperature of each sensor is reported through ds18b20_complete() in
+ * device-table order.
  * All low-level bus operations live in the shared 1-Wire layer
  * (onewire.h/onewire.c), and the driver's search/scan state machines build on
  * it; this example only uses the public high-level interface. Everything is
@@ -24,6 +29,16 @@
 #endif
 
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
+static uint8_t cfg_running = 0; // 1 while the broadcast resolution write runs
+
+// Conversion resolution programmed to every sensor (broadcast) before the
+// scan: scan mode assumes a uniform resolution, so the single broadcast
+// conversion wait matches the whole fleet. Without this, a sensor left at a
+// different resolution by a previous run would be read before its conversion
+// completes (a 12-bit sensor after a 9-bit one reads back 85.0).
+#ifndef SCAN_RESOLUTION
+#define SCAN_RESOLUTION DS18B20_RES_DEFAULT
+#endif
 
 /**
  * @brief Device search callback - prints the ROM in hex
@@ -111,7 +126,17 @@ int main(void) {
                 uart_write_str("Found ");
                 uart_write_int(ds18b20_device_count());
                 uart_write_str(" device(s). Simultaneous conversion:\r\n");
+                // Program the conversion resolution to every device (broadcast
+                // Skip ROM config write) BEFORE converting, so scan mode's
+                // single conversion wait matches a uniform resolution.
                 ds18b20_scan_start();
+                ds18b20_set_resolution(SCAN_RESOLUTION);
+                cfg_running = 1;
+            }
+        } else if (cfg_running) {
+            // Advance the non-blocking broadcast configuration write.
+            if (ds18b20_set_resolution_poll()) {
+                cfg_running = 0;
             }
         } else {
             ds18b20_poll(); // Advance the scan/measurement state machine

@@ -236,11 +236,19 @@ Notes:
   order. With exactly one sensor it behaves like `1_basic`.
 - `4_scan_mode` (scan mode) converts every discovered sensor in parallel: a single
   conversion wait covers all devices, so N devices take `1 x conversion + N x
-  read` instead of `N x conversion`. Each reading is reported through
-  `ds18b20_complete()` in device-table order; `ds18b20_scan_index()` /
-  `ds18b20_device_rom()` identify the sensor. Scan mode assumes a uniform
-  resolution (the config is written broadcast) and is mutually exclusive with
-  `ds18b20_select()`.
+  read` instead of `N x conversion`. Before converting, it programs the
+  conversion resolution to every sensor with one broadcast Write Scratchpad
+  (`ds18b20_set_resolution()`), because scan mode assumes a uniform resolution:
+  the single conversion wait must match the whole fleet. Skipping this can make
+  a 12-bit sensor that follows a 9-bit one read back its 85.0 °C power-on-reset
+  value. Each reading is reported through `ds18b20_complete()` in device-table
+  order; `ds18b20_scan_index()` / `ds18b20_device_rom()` identify the sensor.
+  Scan mode is mutually exclusive with `ds18b20_select()`.
+  With several parasite-powered devices, a simultaneous broadcast conversion
+  draws all their current from the one strong pull-up; on the STM32F401 at
+  84 MHz this has been observed to brown out a marginal sensor (a stuck
+  127.9 °C reading with a valid CRC). Use `2_device_search` (per-device
+  conversion) or `SYSCLK_MHZ=16` for a parasite-powered multi-drop at 84 MHz.
 - `5_commands` targets the first sensor found by the search (Match ROM) and runs the
   non-blocking command sequence once at startup: power supply, raw scratchpad,
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and

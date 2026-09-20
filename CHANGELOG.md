@@ -8,7 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Configurable 1-Wire bus-pin drive strength (`OW_BUS_DRIVE`).** The bus pin
+  (PA10) pad speed / drive strength is now selectable at build time
+  (`-DOW_BUS_DRIVE=0..3`: WEAK/MEDIUM/STRONG/MAX, default MAX) on every backend
+  — `OSPEEDR` on F0/F4/G0, CRH `MODE` bits on F1. A stronger pad sources more
+  current into the bus capacitance, which matters for the parasite strong
+  pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
+
 ### Fixed
+
+- **`4_scan_mode` could report 85.0 °C for a sensor left at a different
+  resolution.** Scan mode converts every sensor in parallel and waits once,
+  assuming a uniform resolution, but the example never established one: a
+  sensor left at 12-bit by a previous run would be read with the conversion
+  wait derived from another device's (lower) resolution and return its 85.0 °C
+  power-on-reset value before the conversion completed. The example now
+  programs the resolution to every sensor with one broadcast Write Scratchpad
+  (`ds18b20_set_resolution()`) before scanning. Diagnosed on hardware with a
+  logic analyzer on the bus pin.
 
 - **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
   renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
