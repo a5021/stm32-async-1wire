@@ -555,7 +555,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | Flag | Effect |
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
-| `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing). |
+| `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing-1). |
 | `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every example with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
 | `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
 
@@ -826,7 +826,7 @@ protocol on embedded systems:
 | Technique | How it works | Blocking? | Timing precision | Typical use |
 |---|---|---|---|---|
 | **Bit-banging + delay** (e.g. OneWire Arduino) | GPIO toggling with `delayMicroseconds()`, interrupts disabled | Yes | Low (compiler/optimization dependent) | Hobbyist Arduino projects |
-| **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi- | Medium | RTOS-based firmware |
+| **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi-blocking | Medium | RTOS-based firmware |
 | **UART bit-banging** | UART at 9600/115200 baud emulates 1-Wire timings | Depends | Medium | Systems with spare UARTs |
 | **Hardware 1-Wire master** | Dedicated IC (DS2482) or kernel subsystem (Linux w1-gpio) | No | High | Linux SBCs, complex systems |
 | **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values autonomously; timer self-disables after each transaction | No | High (1µs resolution, zero jitter) | STM32 resource-constrained firmware |
@@ -1251,7 +1251,7 @@ void onewire_strong_pullup(uint8_t on);  /* parasite power: drive bus HIGH */
 On a parasite-powered bus the release margin must be wider: define
 `OW_PARASITE_POWER` as 1 (`-DOW_PARASITE_POWER=1`) to select the 100µs guard
 band default, or pass `-DONEWIRE_GUARD_BAND=...` explicitly. The Makefile
-presets in [Configuration → Timing](#timing) select whole value sets.
+presets in [Configuration → Timing](#timing-1) select whole value sets.
 
 Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
 `onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
@@ -1264,6 +1264,8 @@ uint8_t ds18b20_crc8(const uint8_t *data, uint8_t len);
 ```
 Calculates the Dallas/Maxim CRC-8 used by the driver to validate ROM codes and
 scratchpad data. Exposed publicly as a small utility (e.g., for host tools).
+It is a thin DS18B20-namespaced wrapper around the shared `onewire_crc8()`
+(see [1-Wire Layer](#1-wire-layer-shared)); both compute the same checksum.
 
 ### Device Search
 
@@ -1480,7 +1482,7 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=1_basic EXT=-DOW_PARASITE_POWER=1        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
+make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
 ```
 
 ### Signal Statistics Module (`ow_stats`)
