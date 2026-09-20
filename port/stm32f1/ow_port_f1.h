@@ -84,8 +84,21 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     T1.PSC = OW_PORT_TIM_PRESCALER;
     ow_port_kick(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
-    /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map) */
-    PA.CRH |= GPIO_CRH(CNF10_0, CNF10_1, MODE10_1);
+    /* PA10: alternate function open-drain (TIM1_CH3, default map).
+     * Bus-pin drive strength via MODE bits (no OSPEEDR on F1):
+     *   WEAK   -> 2 MHz (MODE10 = 10b)
+     *   MEDIUM -> 10 MHz (MODE10 = 01b)
+     *   STRONG/MAX -> 50 MHz (MODE10 = 11b, F1 ceiling)
+     * Configurable via OW_BUS_DRIVE (default MAX). */
+    PA.CRH &= ~(GPIO_CRH_CNF10 | GPIO_CRH_MODE10);
+    PA.CRH |= GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1; /* CNF = 11b (AF OD) */
+#if OW_BUS_DRIVE >= OW_BUS_DRIVE_STRONG
+    PA.CRH |= GPIO_CRH_MODE10; /* MODE10 = 11b -> 50 MHz */
+#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
+    PA.CRH |= (1u << GPIO_CRH_MODE10_Pos); /* MODE10 = 01b -> 10 MHz */
+#else
+    PA.CRH |= GPIO_CRH_MODE10_1; /* MODE10 = 10b -> 2 MHz */
+#endif
 }
 
 #if OW_PORT_LOW_POWER

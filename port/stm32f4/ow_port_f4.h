@@ -141,6 +141,15 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
     PA.OTYPER |= GPIO_OTYPER_OT_10;
     PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos);
+    /* PA10: bus-pin drive strength.  The strong pull-up is this pin in AF
+     * push-pull (TIM1_CH3 driven HIGH while the timer is stopped), so its
+     * drive strength is the parasite supply for the whole fleet: at the
+     * reset-default low speed a simultaneous (broadcast) conversion of
+     * several devices droops the line into brown-out (POR 85 C / garbage
+     * with valid CRC), while one device at a time still converts fine.
+     * Configurable via OW_BUS_DRIVE (default MAX = very-high). */
+    PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |
+                 ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);
     /* PA11: debug/logic-analyzer marker, GPIO output push-pull, low by default.
      * PA11 is not needed for TIM1_CH4 (IC4 is routed internally to TI3 = PA10),
      * so the pad is free as a plain output. */

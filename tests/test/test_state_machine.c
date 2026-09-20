@@ -789,6 +789,9 @@ void test_state_machine_init_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT10, mock_gpioa.OTYPER);
     TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
                              mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
+    /* Logical PA10 bus-pin drive strength */
+    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos,
+                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEED10);
 #elif defined(OW_PORT_TARGET_F0)
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_GPIOAEN | RCC_AHBENR_DMAEN, mock_rcc.AHBENR);
@@ -800,6 +803,9 @@ void test_state_machine_init_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT_10, mock_gpioa.OTYPER);
     TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
                              mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
+    /* PA10 bus-pin drive strength */
+    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEEDR10_Pos,
+                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEEDR10);
 #elif defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_DMA2EN, mock_rcc.AHB1ENR);
@@ -811,12 +817,24 @@ void test_state_machine_init_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT_10, mock_gpioa.OTYPER);
     TEST_ASSERT_EQUAL_UINT32(1u << GPIO_AFRH_AFSEL10_Pos,
                              mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
+    /* PA10 very-high speed (OW_BUS_DRIVE=MAX by default): the AF push-pull
+     * strong pull-up must source a whole parasite fleet during broadcast
+     * conversion, not one device. */
+    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos,
+                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEED10);
 #else
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_IOPAEN | RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1 | GPIO_CRH_MODE10_1, mock_gpioa.CRH);
+    /* F1: MODE10 = 11b (50 MHz, STRONG/MAX) when OW_BUS_DRIVE >= 2 */
+#if OW_BUS_DRIVE >= OW_BUS_DRIVE_STRONG
+    TEST_ASSERT_EQUAL_UINT32(GPIO_CRH_MODE10, mock_gpioa.CRH & GPIO_CRH_MODE10);
+#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
+    TEST_ASSERT_EQUAL_UINT32(GPIO_CRH_MODE10_0, mock_gpioa.CRH & GPIO_CRH_MODE10);
+#else
+    TEST_ASSERT_EQUAL_UINT32(GPIO_CRH_MODE10_1, mock_gpioa.CRH & GPIO_CRH_MODE10);
+#endif
 #endif
 }
 

@@ -121,6 +121,9 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1;
     PA.OTYPER |= GPIO_OTYPER_OT10;
     PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos);
+    /* Logical PA10: bus-pin drive strength (configurable via OW_BUS_DRIVE, default MAX). */
+    PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |
+                 ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);
 }
 
 #if OW_PORT_LOW_POWER
