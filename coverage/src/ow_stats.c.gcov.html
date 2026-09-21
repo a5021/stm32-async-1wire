@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-20 10:10:52</td>
+            <td class="headerValue">2026-09-21 18:50:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">64.3&nbsp;%</td>
@@ -186,7 +186,7 @@
 <span id="L115"><span class="lineNum">     115</span>                 :             :     /* Each poll call enqueues one line into the non-blocking UART TX ring</span>
 <span id="L116"><span class="lineNum">     116</span>                 :             :      * buffer.  The main loop drains the buffer via uart_poll_tx(), so nothing</span>
 <span id="L117"><span class="lineNum">     117</span>                 :             :      * here blocks on the USART.  UART_TX_BUF_SIZE is chosen per app (default</span>
-<span id="L118"><span class="lineNum">     118</span>                 :             :      * 128 B, demos 256 B, demo5 1024 B) so the longest single line fits</span>
+<span id="L118"><span class="lineNum">     118</span>                 :             :      * 128 B, examples 256 B, the 6_statistics example 1024 B) so the longest single line fits</span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :      * without overflowing; the dump itself streams across poll calls. */</span>
 <span id="L120"><span class="lineNum">     120</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 6 times"> + </span> :<span class="tlaGNC">          30 :     switch (dump_phase) {</span></span>
 <span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
