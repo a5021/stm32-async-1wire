@@ -9,8 +9,11 @@
  * (reset, command writes, search reads) stay non-blocking and are polled.
  *
  * Build requirements:
- *   -DOW_PORT_LOW_POWER=1             (this demo's whole point - enables UIE +
- *                                   SEVONPEND + the sleep helpers)
+ *   -DOW_PORT_LOW_POWER=1             (this demo's whole point - enables the
+ *                                   TIM1 update interrupt source (UIE) +
+ *                                   SEVONPEND + the sleep helpers; UIE is used
+ *                                   only as a WFE wake-up event source, no
+ *                                   NVIC interrupt or ISR is involved)
  *   When the macro is omitted the demo still builds and simply busy-polls
  *   (ow_port_sleep_until_done() and ow_port_long_wait_pending() are not
  *   defined without it, so the sleep path degrades to a plain poll).

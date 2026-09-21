@@ -22,7 +22,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
   as-is.
 - Multi-MCU Backend: One MCU-independent core over a `ow_port_*` interface; header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` / `make OW_TARGET=g0` (F1 is the default).
-- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER=1` mode uses a timer update event (UIE) with `SEVONPEND` solely as a `WFE()` wake-up mechanism — no NVIC interrupt is enabled and no ISR is installed.
+- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer update **interrupt source** (UIE) only to generate a pending event that wakes `WFE()` via `SEVONPEND` — no NVIC interrupt is enabled and no ISR is installed.
 - RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
 - Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
 - State Machine Architecture: Event-driven operation controlled by hardware completion signals.
@@ -320,12 +320,13 @@ make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=
 > the CPU to sleep during sufficiently long hardware-controlled transaction
 > stages.
 
-The one-wire driver then enables the TIM1 update interrupt (UIE) and the
-`SEVONPEND` system-control bit, so the application main loop can block in
-`__WFE()` while a *long* 1-Wire stage is running and be woken by the timer's
-update event — no ISR is ever installed, no `NVIC_EnableIRQ` call is made, and
-the driver itself stays fully non-blocking. Stages treated as "long" (strictly
-more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
+The one-wire driver then enables the TIM1 update **interrupt source** (UIE)
+and the `SEVONPEND` system-control bit. This is not a real interrupt: UIE is
+enabled **only** to generate a pending event that wakes `WFE()` — no ISR is
+ever installed and no `NVIC_EnableIRQ` call is made. The application main loop
+can block in `__WFE()` while a *long* 1-Wire stage is running and is woken by
+the timer's update event; the driver itself stays fully non-blocking. Stages
+treated as "long" (strictly more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
 (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement pause; short
 stages (reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this demo's goal is only to establish the
@@ -577,7 +578,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing-1). |
 | `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every example with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
-| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: TIM1 UIE + `SEVONPEND` so the application can `__WFE()`-sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The driver itself stays non-blocking; no ISR is installed. Without this define builds are byte-identical to the original. |
+| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the application can sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. No ISR is installed and `NVIC_EnableIRQ` is never called; the driver itself stays non-blocking. Without this define builds are byte-identical to the original. |
 
 ### Flash
 
