@@ -445,12 +445,19 @@ int main(void) {
 ### 3. Implement Callbacks (Optional)
 
 Both callbacks are optional. Default weak implementations are provided by the
-driver, and `examples/app/app.c` additionally supplies a default `ds18b20_busy()` that
-drives the onboard LED (PC13). The examples override both: `ds18b20_busy()`
-switches the LED and `ds18b20_complete()` formats and prints the result.
+driver, and `examples/app/app.c` supplies per-MCU defaults: `ds18b20_busy()`
+drives the onboard LED (F1: PC13, F0/G0: PA4) and `ds18b20_complete()` formats
+and prints the result.
+
+> **The callback example below is STM32F1-specific** (Blue Pill onboard LED on
+> PC13, active-low). Pin and polarity differ per MCU — see
+> [Hardware Connections](#hardware-connections): F1 uses PC13 active-low,
+> F0 uses PA4 active-high, G0 uses PA4 active-low. On F0/G0 the same logic
+> targets `GPIOA` and swaps the BSRR set/reset bits accordingly.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
+// STM32F1 (Blue Pill): onboard LED on PC13, active-low.
 void ds18b20_busy(unsigned action) {
     if (action) {
         // Turn LED on (measurement in progress)
@@ -488,10 +495,21 @@ void ds18b20_complete(int16_t temp) {
     utilities (`objcopy`, `size`). Clang is **not** a supported firmware
     toolchain — Clang references in this project refer to optional
     host-side tooling only (fuzz testing, `clang-format`, static analysis).
--   **wget:** Required for downloading CMSIS build dependencies.
+-   **wget** (or **curl**): Required for downloading CMSIS build dependencies.
+-   **POSIX shell:** On Linux/macOS any shell works; on Windows the `Makefile`
+    targets (including `make download-deps`) need a Linux-like environment —
+    Git Bash, MSYS2 or WSL. `cmd`/PowerShell are **not** supported for builds.
 -   **Programmer tools:**
     -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
     -   **J-LINK:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
+
+> **Building on Windows.** The `Makefile` uses POSIX shell constructs
+> (`mkdir -p`, `rm -rf`, `awk`, `sleep`, `command -v`) and downloads
+> dependencies via `wget`/`curl`, so the build itself cannot run from native
+> `cmd`/PowerShell. Use Git Bash, MSYS2 or WSL and ensure `make`, `wget` (or
+> `curl`) and `arm-none-eabi-gcc` are on `PATH`. The Windows-native flashers
+> listed above are only invoked by `make program` / `make jprogram` — they do
+> not replace the POSIX build environment.
 
 ### CMSIS Dependencies
 
