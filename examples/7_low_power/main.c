@@ -1,8 +1,8 @@
 /**
- * @file demo6.c
+ * @file main.c
  * @brief Low-power example: WFE sleep during long 1-Wire stages
  *
- * Same search + sequential poll architecture as demo1, but the main loop
+ * Same search + sequential poll architecture as `2_device_search`, but the main loop
  * blocks in __WFE() while the driver is running a "long" stage (> 1 ms):
  * the temperature conversion (up to 750 ms), the scratchpad read (~5 ms),
  * an EEPROM hold-off (10 ms) and the inter-measurement pause. Short stages
@@ -16,7 +16,7 @@
  *   defined without it, so the sleep path degrades to a plain poll).
  *
  * Build:
- *   make OW_TARGET=g0 APP=demo6 EXT="-DOW_PORT_LOW_POWER=1"
+ *   make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
  *   On a parasite-powered bus add -DOW_PARASITE_POWER=1.
  */
 
@@ -115,7 +115,7 @@ static void low_power_poll(void) {
 
 int main(void) {
     app_init();
-    uart_write_str("DS18B20 demo6 (low power) starting...\r\n");
+    uart_write_str("DS18B20 7_low_power (low power) starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init();
 #if OW_PORT_LOW_POWER

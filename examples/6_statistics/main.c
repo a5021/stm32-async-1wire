@@ -1,16 +1,20 @@
 /**
- * @file demo5.c
+ * @file main.c
  * @brief Multi-sensor example with signal statistics collection
  *
- * Builds on the demo2 scan-and-poll architecture but replaces the
+ * Builds on the `3_round_robin` sequential architecture but replaces the
  * resolution cycling with a statistics dump: after a configurable
- * number of full measurement rounds (default 100), the accumulated
+ * number of full measurement rounds the accumulated
  * pulse-width histogram, per-sensor min/max, and error counters are
  * printed via UART, then the counters are reset for the next batch.
  *
  * Requires OW_STATS_ENABLE=1 at build time (auto-added by `make APP=6_statistics`):
  *   On a parasite-powered bus add -DOW_PARASITE_POWER=1 so the driver engages
  *   the strong pull-up during the conversion window.
+ *
+ * Shipped builds (`make APP=6_statistics` and the CMake example target) define
+ * STATS_DUMP_INTERVAL=5000; compiled without it, the source default of 100
+ * below applies.
  */
 
 #include "app.h"
@@ -22,6 +26,9 @@
 #define DS18B20_SEARCH_MAX_DEVICES 8u
 #endif
 
+/* Full measurement rounds between stats dumps.  Fallback for direct/PlatformIO
+ * builds: `make APP=6_statistics` (Makefile) and the CMake example target
+ * compile with STATS_DUMP_INTERVAL=5000 instead. */
 #ifndef STATS_DUMP_INTERVAL
 #define STATS_DUMP_INTERVAL 100u
 #endif
@@ -113,7 +120,7 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
     app_init();
 
-    uart_write_str("DS18B20 demo5 (stats) starting...\r\n");
+    uart_write_str("DS18B20 6_statistics (stats) starting...\r\n");
 
     ow_stats_init();
     ds18b20_init();

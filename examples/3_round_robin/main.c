@@ -1,5 +1,5 @@
 /**
- * @file demo2.c
+ * @file main.c
  * @brief Multi-sensor example: non-blocking bus scan + round-robin polling
  *
  * Demonstrates a Maxim 1-Wire Search ROM bus scan using the driver's

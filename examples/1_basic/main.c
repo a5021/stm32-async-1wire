@@ -1,5 +1,5 @@
 /**
- * @file demo.c
+ * @file main.c
  * @brief Single-sensor example: one DS18B20, Skip ROM addressing
  * 
  * Demonstrates the basic measurement flow of the non-blocking driver.
@@ -44,7 +44,7 @@ int main(void) {
 
     app_init(); // System clock, UART and LED GPIO - single setup call
 
-    uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message
+    uart_write_str("DS18B20 1_basic starting...\r\n"); // Enqueue startup message
 
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
 #if OW_PARASITE_POWER

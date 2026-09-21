@@ -74,7 +74,7 @@ void ds18b20_complete(int16_t temp) {
 
 int main(void) {
     app_init();
-    uart_write_str("DS18B20 demo1 starting...\r\n");
+    uart_write_str("DS18B20 2_device_search starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init();
 #if OW_PARASITE_POWER

@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
 
-Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot; the CPU never waits, never spins, and never enters an interrupt. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
+Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Three backends ship today:
 
@@ -220,8 +220,9 @@ Notes:
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
 - `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
   (`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
-  `STATS_DUMP_INTERVAL` full rounds (source default 100, shipped `6_statistics` build
-  5000 via `Makefile`) the accumulated per-sensor pulse-width min/max,
+  `STATS_DUMP_INTERVAL` full rounds (source default 100; the `Makefile` and
+  CMake `6_statistics` build targets compile it with 5000) the accumulated
+  per-sensor pulse-width min/max,
   13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
   `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
   loop is paused during the dump and resumed afterwards via `ow_stats_reset()`.
@@ -239,23 +240,23 @@ The following captures were taken on real hardware: STM32F103C8T6 (Blue Pill),
 found all 8 sensors, and every measurement round reported all of them — no
 missing devices, no CRC failures.
 
-**demo2 — device search + round-robin + resolution cycling** (`examples/3_round_robin/main.c`):
+**3_round_robin — device search + round-robin + resolution cycling** (`examples/3_round_robin/main.c`):
 the startup Search ROM finds all 8 devices, then each sensor is measured in
 turn while the resolution cycles 9 → 10 → 11 → 12 bit between measurements.
 
 <p align="center">
-  <img src="docs/screenshots/demo2_uart.png" alt="demo2 on real hardware: device search, round-robin measurement, resolution cycling" width="600">
+  <img src="docs/screenshots/3_round_robin_uart.png" alt="3_round_robin on real hardware: device search, round-robin measurement, resolution cycling" width="600">
 </p>
 
-**demo3 — simultaneous multi-device conversion** (`examples/4_scan_mode/main.c`): one broadcast
+**4_scan_mode — simultaneous multi-device conversion** (`examples/4_scan_mode/main.c`): one broadcast
 `Convert T` converts all sensors in parallel, then each is read back via
 Match ROM — 8 readings per round in device-table order.
 
 <p align="center">
-  <img src="docs/screenshots/demo3_uart.png" alt="demo3 on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
+  <img src="docs/screenshots/4_scan_mode_uart.png" alt="4_scan_mode on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
 </p>
 
-**demo4 — command transactions** (`examples/5_commands/main.c`): after the startup search, the
+**5_commands — command transactions** (`examples/5_commands/main.c`): after the startup search, the
 first sensor (Match ROM) answers every non-blocking command in turn — external
 power confirmed, raw scratchpad read with CRC ok and the resolution auto-derived
 from the config byte, TH/TL written (0x19/0x0F), copied to the EEPROM, then a
@@ -264,7 +265,7 @@ bare Read ROM reporting a CRC failure as expected with 8 devices on the bus
 (0x33 is single-device only).
 
 <p align="center">
-  <img src="docs/screenshots/demo4_uart.png" alt="demo4 on real hardware: command transactions (power supply, scratchpad, TH/TL, EEPROM, Read ROM)" width="600">
+  <img src="docs/screenshots/5_commands_uart.png" alt="5_commands on real hardware: command transactions (power supply, scratchpad, TH/TL, EEPROM, Read ROM)" width="600">
 </p>
 
 ### STM32F030F4P6 (TSSOP20)
@@ -295,14 +296,15 @@ SYSCFG remap described in Hardware Connections below; the USB-C connector of
 this board is wired to PA11/PA12 and must stay unplugged while the driver
 owns the bus.
 
-**demo5 — signal statistics** (`examples/6_statistics/main.c`): startup device search +
-sequential measurement with the optional `ow_stats` module. Over 100
-measurement cycles (configurable via `STATS_DUMP_INTERVAL`), the module
-accumulates per-sensor pulse-width min/max, a 13-bucket logarithmic histogram
-(0–60+ µs) and error counters (CRC, presence, other), then streams the full
-report over UART. Validated on STM32G031@64MHz with 6 × DS18B20 in parasite
-power mode — all six sensors detected, 0 errors, pulse widths 5–32 µs,
-histogram buckets populated across the normal decode range.
+**6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
+sequential measurement with the optional `ow_stats` module. By default the
+module accumulates after every `STATS_DUMP_INTERVAL` full rounds (source
+default 100; the `make APP=6_statistics` Makefile target and the CMake example
+build compile it with 5000) — per-sensor pulse-width min/max, a 13-bucket
+logarithmic histogram (0–60+ µs) and error counters (CRC, presence, other),
+then streams the full report over UART. Validated on STM32G031@64MHz with
+6 × DS18B20 in parasite power mode — all six sensors detected, 0 errors, pulse
+widths 5–32 µs, histogram buckets populated across the normal decode range.
 
 Build and run:
 
@@ -310,7 +312,7 @@ Build and run:
 make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=1"
 ```
 
-**demo6 — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
+**7_low_power — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
 `2_device_search`, but built with `-DOW_PORT_LOW_POWER=1`.
 
 > **What low-power mode does not change.** Low-power mode does not change

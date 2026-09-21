@@ -209,7 +209,7 @@ void test_eeprom_persistence_e2e(void) {
      * verifies the full command chaining (Write Scratchpad -> Copy Scratchpad
      * -> Recall EEPROM -> Read Scratchpad) and the scratchpad data-path
      * coherence. True non-volatile retention across a power cycle is covered by
-     * hardware validation (demo4). */
+     * hardware validation (5_commands). */
     hw_set_capture_source(ep_capture_present);
     ds18b20_test_set_address_mode(0); /* broadcast Skip ROM */
 

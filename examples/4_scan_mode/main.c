@@ -1,5 +1,5 @@
 /**
- * @file demo3.c
+ * @file main.c
  * @brief Multi-sensor example: simultaneous broadcast conversion (scan mode)
  *
  * Runs the non-blocking device search (ds18b20_search_*) to discover every
@@ -95,7 +95,7 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
 
-    uart_write_str("DS18B20 demo3 starting...\r\n"); // Enqueue startup message
+    uart_write_str("DS18B20 4_scan_mode starting...\r\n"); // Enqueue startup message
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
 #if OW_PARASITE_POWER

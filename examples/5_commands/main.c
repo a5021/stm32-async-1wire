@@ -1,5 +1,5 @@
 /**
- * @file demo4.c
+ * @file main.c
  * @brief Command demo: ROM, power supply, TH/TL and the EEPROM
  *
  * Runs the non-blocking device search to discover every sensor, selects the
@@ -260,7 +260,7 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
 
-    uart_write_str("DS18B20 demo4 starting...\r\n");
+    uart_write_str("DS18B20 5_commands starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
 #if OW_PARASITE_POWER
