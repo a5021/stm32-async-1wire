@@ -14,8 +14,8 @@
 #ifndef ONEWIRE_INTERNAL_H
 #define ONEWIRE_INTERNAL_H
 
-#include <stdint.h>
 #include "onewire.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

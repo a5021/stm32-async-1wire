@@ -145,6 +145,7 @@ install(FILES
     inc/ow_stats.h
     inc/ow_config.h
     inc/ow_bits.h  # included by every ow_port_<family>.h backend
+    inc/onewire_internal.h  # included by every ow_port_<family>.h backend
     # ow_port.h selects its backend with sibling quote-includes
     # (#include "ow_port_f1.h"), so the backends must ship alongside it.
     port/stm32f1/ow_port_f1.h

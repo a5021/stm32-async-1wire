@@ -97,7 +97,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   STM32G031x6, STM32F407VGT6; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
 
 ## File Structure
 
@@ -108,6 +108,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
+│   ├── onewire_internal.h  # Private pulse-level interface (ow_pulse_t, encode/write)
 │   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
@@ -342,7 +343,8 @@ USART1 TX / **PB6** at 115200 8N1 (AF7; the F4DISCOVERY carries no signal on
 the default PA9 USART1 pad, so the console rides the remapped PB6) through a
 USB-TTL adapter; flashed via the on-board ST-Link SWD. All seven examples
 ran with valid CRCs and zero errors (including the statistics and low-power
-variants), every device reading ~24–26 °C, at the default 168 MHz PLL clock.
+variants), every device reading ~24–26 °C, at the default 168 MHz PLL clock;
+the bus timing was additionally validated at `SYSCLK_MHZ=8` (raw HSE).
 The fleet is fed through a **2.2 kΩ** pull-up from a dedicated supply: with a
 weak supply (USB adapter power) broadcast conversion droops the line, which
 is what the `4_scan_mode` note above describes. `SYSCLK_MHZ=16` selects raw
@@ -472,9 +474,16 @@ TX remapped to PB6 (AF7); see the complete build line in Hardware Verified:
 
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
-| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1           |
+| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1; also OTG_FS_ID |
 | PB6  | USART1 TX (115200)  | USART1 AF7 (remapped from PA9); RX line of the USB-UART adapter |
+| PA11 | LA marker (optional) | GPIO push-pull output; also USB OTG FS D− |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
+
+Important: the board's USB OTG FS connector is wired to the pins above —
+**do not plug a USB cable into it while the driver runs**. A standard A-cable
+grounds OTG_FS_ID on **PA10** and holds the 1-Wire bus LOW; **PA11** (LA
+marker) is USB D− and **PA12** is USB D+, so a connected cable conflicts with
+the marker probe and any use of PA12.
 
 Note: a pull-up is required between the bus pin and the supply — 4.7 kΩ for a
 single device, 2.2 kΩ for a parasite-powered multi-drop fleet (fed from a

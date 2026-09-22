@@ -97,3 +97,18 @@ per clock, low-width histogram (write-`0` lows measure 60.0 µs and resets
 - Decode margin: `ONEWIRE_SHORT_PULSE_MAX = 10` still clears `'1' = 9` at
   8 MHz, but with only 1 µs to spare — anything slower needs a re-check of the
   decode window.
+
+## Board connector hazards (STM32F4DISCOVERY MB997C)
+
+The F4DISCOVERY's USB OTG FS mini-AB connector shares pads with the driver's
+pins — keep it unplugged while the driver owns the bus (same class of hazard
+as the G031's USB-C on PA11/PA12):
+
+| Pad | Driver use | OTG FS use | Failure mode with a cable plugged |
+|---|---|---|---|
+| PA10 | 1-Wire bus (TIM1_CH3) | OTG_FS_ID | An A-cable grounds ID → holds the bus LOW; every reset/presence fails |
+| PA11 | LA marker (GPIO) | OTG_FS_D− | Probe/cable contention on the marker; USB traffic would corrupt it |
+| PA12 | — (free) | OTG_FS_D+ | Only matters if USB is initialised or PA12 is repurposed |
+
+Never enable the USB FS peripheral while the driver runs: its pin
+initialisation would reconfigure PA10/PA11 away from TIM1_CH3 / the marker.

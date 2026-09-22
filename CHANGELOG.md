@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **STM32F4 backend (`port/stm32f4/ow_port_f4.h`) for the STM32F407**
+  (validated on the STM32F4DISCOVERY, MB997C): the 1-Wire bus runs on PA10
+  (TIM1_CH3 PWM / CH4 indirect capture, AF1) with the feed and capture on
+  DMA2 streams 2/4 (16-bit direct-mode feed, zero-copy from the family-sized
+  `ow_pulse_t`). The console rides USART1 TX remapped to PB6 (AF7). Select
+  with `make OW_TARGET=f4` / `-DOW_TARGET=f4`; the host suite runs the whole
+  test matrix (default, low-power, NDEBUG, active-drive) against an F4
+  register mock.
+
 - **Configurable 1-Wire bus-pin drive strength (`OW_BUS_DRIVE`).** The bus pin
   (PA10) pad speed / drive strength is now selectable at build time
   (`-DOW_BUS_DRIVE=0..3`: WEAK/MEDIUM/STRONG/MAX, default MAX) on every backend
@@ -88,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The split driver parts are now covered by CI on both axes.** The Code
   Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
   alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
-  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0 and G0 via the ARM
+  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0, G0 and F4 via the ARM
   toolchain and verifies the `find_package()` install tree — the CMake path
   previously had no in-CI coverage despite the root `CMakeLists.txt`.
 - **Feature flags now use value-style (`#if X`) instead of presence
@@ -132,8 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Makefile targets `test-f4`, `test-lowpower-f4`, `test-ndebug-f4`,
   `test-active-f4` and `test-clocks-f4` mirror the per-family targets.
 - **CMake gained the STM32F4 target.** `-DOW_TARGET=f4` selects the
-  `cmsis_device_f4` headers (`STM32F401xC`, Cortex-M4), the
-  `port/stm32f4/STM32F401CCU6_FLASH.ld` linker script, and ships
+  `cmsis_device_f4` headers (`STM32F407xx`, Cortex-M4), the
+  `port/stm32f4/STM32F407VGT6_FLASH.ld` linker script, and ships
   `port/stm32f4/ow_port_f4.h` in the install set.
 
 ### Added
@@ -164,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   turn into an undiscovered `onewire_bus_done()` hang. The three
   underlying port-layer functions (`ow_port_feed`,
   `ow_port_write_slots`, `ow_port_read_data`) follow the same
-  contract on all three backends (F0/F1/G0). Tested by a new
+  contract on all four backends (F0/F1/G0/F4). Tested by a new
   `make test-ndebug*` build that compiles the suite with `-DNDEBUG`
   (see `tests/test/test_param_guard.c`).
 

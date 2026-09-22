@@ -69,13 +69,19 @@
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
  *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
  *
- *  INVARIANT: TIM1 clock must equal SYSCLK — the APB prescaler feeding
- *  TIM1 must be /1.  STM32 rule: if APB prescaler != 1, TIM clock
- *  doubles to 2 × PCLK, breaking every µs-based timing constant.
+ *  INVARIANT: the TIM1 kernel clock must equal SYSCLK — only then does
+ *  PSC = SYSCLK_MHZ - 1 produce a 1µs tick.  STM32 rule: when the APB
+ *  prescaler feeding TIM1 is != 1, the timer clock doubles to 2 × PCLK;
+ *  configure_system_clock() relies on that doubling at 168MHz.
  *
- *  F4: TIM1 is on APB2.  configure_system_clock() sets PPRE1=/2 but
- *  PPRE2 stays /1, so TIM1 clock = PCLK2 = SYSCLK = 84MHz.  ✓
- *  (PPRE1 /2 affects TIM2/3/4, USART2/3, I2C — not used here.)
+ *  F4: TIM1 is on APB2 (RM0090 §7):
+ *   - 168MHz (8MHz HSE+PLL, default): PPRE1=/4 (APB1=42MHz), PPRE2=/2
+ *     (APB2=84MHz) — both at their datasheet limits — and the APB2 timer
+ *     clock doubles to 2 × 84 = 168MHz = SYSCLK.  ✓
+ *   - 16MHz (raw HSI) / 8MHz (raw HSE): both APB prescalers stay /1, so
+ *     TIM1 = PCLK2 = SYSCLK directly.  ✓
+ *  (PPRE1=/4 only affects APB1 peripherals — TIM2..5, USART2/3/6, I2C —
+ *  none of which this port uses.)
  *
  *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)

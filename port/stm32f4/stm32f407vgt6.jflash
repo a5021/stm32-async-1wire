@@ -3,7 +3,7 @@ AppVersion = 70001
 [GENERAL]
   aATEModuleSel[10] = 0,0,0,0,0,0,0,0,0,0
   ConnectMode = 0
-  CurrentFile = "build/ds18b20_demo.hex"
+  CurrentFile = "build/ds18b20_1_basic.hex"
   DataFileSAddr = 0x00000000
   GUIMode = 0
   HostName = ""
