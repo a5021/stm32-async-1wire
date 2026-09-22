@@ -149,7 +149,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
-│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, six tiers)
+│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
 │   └── test/               # Unity-based test cases
 ├── cmake/                  # CMake toolchain
 │   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
@@ -348,7 +348,7 @@ the timer's update event; the driver itself stays fully non-blocking. Stages
 treated as "long" (strictly more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
 (~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement pause; short
 stages (reset, commands, search reads) are still handled by standard polling.
-Power is **not measured** yet — this demo's goal is only to establish the
+Power is **not measured** yet — this example's goal is only to establish the
 mechanism and measure the CPU-time saving.
 
 > **Verified on hardware (STM32F103C8 Blue Pill).** With
@@ -1350,7 +1350,7 @@ ignored and the scan round continues. To switch out of scan mode, call
 `ds18b20_select()` from the main loop after the scan completes, then
 `ds18b20_scan_start()` to resume simultaneous conversion.
 
-The demo measures the single device directly when exactly one is found, and
+The driver measures the single device directly when exactly one is found, and
 cycles through all found devices in turn when several are present.
 
 ### Command Transactions
@@ -1687,7 +1687,8 @@ Called when a measurement cycle completes — provides temperature data in tenth
   (conversion + protocol overhead; the conversion wait follows the configured
   resolution, see `ds18b20_set_resolution()`)
 - Inter-measurement pause: 5 s, configurable via `DS18B20_CYCLE_PAUSE_US` (default 5000000 µs; the 6_statistics build overrides it to 10000 µs)
-- Precision: 0.1°C resolution at 12-bit (coarser steps at lower resolutions)
+- Precision: 0.1°C reported (API tenths; the sensor step at 12-bit is
+  0.0625°C — coarser steps at lower resolutions)
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
