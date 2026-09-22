@@ -39,6 +39,17 @@
  */
 void app_init(void);
 
+#if defined(DS18B20_TEST_HARNESS) && defined(OW_PORT_FAMILY_F4)
+/**
+ * @brief Configure system clock (exposed for the F4 host harness)
+ * @note On target builds this is file-local and force-inlined in app.c.
+ *       Under DS18B20_TEST_HARNESS the F4 suite drives the real clock path
+ *       against the RCC/FLASH mocks (test_timing), so it needs external
+ *       linkage. Other families keep the function out of the harness.
+ */
+void configure_system_clock(void);
+#endif
+
 /**
  * @brief Advance USART1 transmission by at most one byte (non-blocking)
  * @note Must be called periodically to feed the UART from the ring buffer

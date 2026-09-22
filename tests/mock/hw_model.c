@@ -21,6 +21,7 @@ DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
 #endif
 #if defined(OW_PORT_TARGET_F4)
 DMA_TypeDef mock_dma2; /* F4 backend only */
+FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -97,6 +98,7 @@ void hw_reset_all(void) {
 #endif
 #if defined(OW_PORT_TARGET_F4)
     mock_dma2 = (DMA_TypeDef){0};
+    mock_flash = (FLASH_TypeDef){0};
 #endif
     tim_shadow_out = 0;
     capture_source = NULL;

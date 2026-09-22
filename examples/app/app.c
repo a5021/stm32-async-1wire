@@ -179,11 +179,13 @@ void ow_stats_tx_enqueue(char c) {
     uart_tx_enqueue_byte((int)c);
 }
 
-#if !defined(DS18B20_TEST_HARNESS)
 /* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register
  *-level access.  Excluded from the host test build, which only exercises the
- * non-blocking UART ring buffer above. */
+ * non-blocking UART ring buffer above — except configure_system_clock(),
+ * which the F4 harness compiles (and test_timing drives) against the RCC
+ * and FLASH mocks. hardware_init/app_init/ds18b20_busy stay target-only. */
 
+#if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4)
 /**
  * @brief Configure system clock
  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).
@@ -193,7 +195,7 @@ void ow_stats_tx_enqueue(char c) {
  *       F407 (STM32F4DISCOVERY): 168MHz via 8MHz HSE + PLL (M=8, N=336,
  *       P=2), raw HSI at 16MHz, or raw HSE at 8MHz.
  */
-__STATIC_FORCEINLINE void configure_system_clock(void) {
+void configure_system_clock(void) {
 #if defined(OW_PORT_FAMILY_G0)
 #if (OW_PORT_SYSCLK_MHZ) == 64
     // HSI16 is on and stable right after reset. PLL source must be selected
@@ -319,7 +321,9 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
 #endif
 #endif
 }
+#endif /* !DS18B20_TEST_HARNESS || OW_PORT_FAMILY_F4 */
 
+#if !defined(DS18B20_TEST_HARNESS)
 /**
  * @brief Initialize microcontroller peripherals for UART communication and LED control
  * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART

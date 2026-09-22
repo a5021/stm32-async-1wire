@@ -98,6 +98,17 @@ typedef struct {
     volatile uint32_t APB2ENR;
 } RCC_TypeDef;
 
+/* Flash interface: only ACR is touched by configure_system_clock() latency
+ * programming; the remaining registers keep the real layout for fidelity. */
+typedef struct {
+    volatile uint32_t ACR;
+    volatile uint32_t KEYR;
+    volatile uint32_t OPTKEYR;
+    volatile uint32_t SR;
+    volatile uint32_t CR;
+    volatile uint32_t OPTCR;
+} FLASH_TypeDef;
+
 typedef struct {
     volatile uint32_t SR;
     volatile uint32_t DR;
@@ -120,6 +131,7 @@ extern DMA_TypeDef mock_dma2;
 extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 extern USART_TypeDef mock_usart1;
+extern FLASH_TypeDef mock_flash;
 #define TIM1 (&mock_tim1)
 #define DMA2_Stream2 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
 #define DMA2_Stream4 (&mock_dma1_ch4) /* CC4 capture -> drains CCR4 */
@@ -127,12 +139,37 @@ extern USART_TypeDef mock_usart1;
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
 #define USART1 (&mock_usart1)
+#define FLASH (&mock_flash)
 
 /* --- Bit-field constants used by the driver (F4 spellings) --- */
 #define RCC_AHB1ENR_GPIOAEN 0x00000001u
 #define RCC_AHB1ENR_DMA2EN 0x00400000u
 #define RCC_APB2ENR_TIM1EN 0x00000001u
+/* Clock-path constants used by configure_system_clock() under the harness
+ * (RM0090 / stm32f407xx.h spellings and values). */
+#define RCC_CR_HSEON 0x00010000u
+#define RCC_CR_HSERDY 0x00020000u
+#define RCC_CR_PLLON 0x01000000u
+#define RCC_CR_PLLRDY 0x02000000u
+#define RCC_PLLCFGR_PLLSRC_HSE 0x00400000u
+#define RCC_PLLCFGR_PLLM_Pos 0u
+#define RCC_PLLCFGR_PLLN_Pos 6u
+#define RCC_PLLCFGR_PLLP_Pos 16u
+#define RCC_PLLCFGR_PLLQ_Pos 24u
+#define RCC_CFGR_SW 0x00000003u
+#define RCC_CFGR_SW_PLL 0x00000002u
+#define RCC_CFGR_SWS 0x0000000Cu
+#define RCC_CFGR_SWS_PLL 0x00000008u
+#define RCC_CFGR_PPRE1_Msk (0x7UL << 10) /* APB1 prescaler field [12:10] */
+#define RCC_CFGR_PPRE1 RCC_CFGR_PPRE1_Msk
+#define RCC_CFGR_PPRE1_DIV4 0x00001400u /* HCLK/4 -> 42MHz at 168 */
 #define RCC_CFGR_PPRE2_Msk (0x7UL << 13) /* APB2 prescaler field [15:13] */
+#define RCC_CFGR_PPRE2 RCC_CFGR_PPRE2_Msk
+#define RCC_CFGR_PPRE2_DIV2 0x00008000u /* HCLK/2 -> 84MHz at 168 */
+#define FLASH_ACR_PRFTEN 0x00000100u
+#define FLASH_ACR_ICEN 0x00000200u
+#define FLASH_ACR_DCEN 0x00000400u
+#define FLASH_ACR_LATENCY_5WS 0x00000005u
 #define GPIO_MODER_MODER10 0x00C00000u
 #define GPIO_MODER_MODER10_0 0x00400000u
 #define GPIO_MODER_MODER10_1 0x00800000u

@@ -12,6 +12,9 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
+#if defined(OW_PORT_TARGET_F4)
+#include "app.h" /* configure_system_clock() test surface */
+#endif
 
 void test_timing_reset_programs_timeout_and_pulse(void) {
     hw_reset_all();
@@ -78,16 +81,20 @@ void test_timing_temperature_formula(void) {
 }
 
 /*-------------------------------------------------------------
- *  Test: APB prescaler for TIM1 bus must be /1.
+ *  Test: APB prescaler feeding TIM1 keeps the 1µs-tick invariant.
  *
  *  STM32 rule: if APB prescaler != 1, TIM clock = 2 × PCLK.
- *  This doubles the tick rate and breaks every µs-based timing
- *  constant (slots, reset pulse, conversion wait).
+ *  On F0/F1/G0 that doubles the tick rate and breaks every µs-based
+ *  timing constant (slots, reset pulse, conversion wait), so those
+ *  families must leave the TIM1 APB prescaler at /1.
  *
- *  configure_system_clock() must NOT divide the APB bus feeding
- *  TIM1.  This test catches the mistake at the register level.
+ *  F4 (168MHz) is the intentional exception: APB2 is programmed /2
+ *  (84MHz, datasheet max) by configure_system_clock(), and the timer
+ *  clock doubles back to 2 × 84 = 168 = SYSCLK — same 1µs tick.
+ *  This test drives the real clock path against the RCC/FLASH mocks
+ *  and asserts those programmed fields.
  *
- *  F0: TIM1 on APB2, PPRE defaults /1.  ✓
+ *  F0: TIM1 on APB2, PPRE defaults /1.  ✓ (vacuous under harness)
  *  F1: TIM1 on APB2, PPRE2 stays /1 (PPRE1=/2 is OK — different bus).  ✓
  *  G0: single APB bus, PPRE defaults /1.  ✓
  * -----------------------------------------------------------*/
@@ -101,8 +108,15 @@ void test_apb_prescaler_div1_for_tim1(void) {
     /* F1: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F4)
-    /* F4: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
-    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+    /* Preset the ready/status flags configure_system_clock() spin-waits on:
+     * the mock does not model hardware self-setting of HSERDY/PLLRDY/SWS. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLLRDY;
+    mock_rcc.CFGR = RCC_CFGR_SWS_PLL;
+    configure_system_clock();
+    /* APB1 /4 = 42MHz, APB2 /2 = 84MHz (both at datasheet limits).
+     * TIM1 is on APB2: 2 × 84 = 168 = SYSCLK (1µs tick invariant). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE1_DIV4, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE2_DIV2, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F0)
     /* F0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
