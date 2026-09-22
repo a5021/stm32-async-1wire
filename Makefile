@@ -58,11 +58,11 @@ DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
 JFLASH = port/stm32g0/stm32g031f6.jflash
 else ifeq ($(OW_TARGET),f4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s
-LDS = port/stm32f4/STM32F401CCU6_FLASH.ld
+ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s
+LDS = port/stm32f4/STM32F407VGT6_FLASH.ld
 MCU = -mcpu=cortex-m4 -mthumb
-DEF = -DSTM32F401xC -DOW_PORT_TARGET_F4
-JFLASH = port/stm32f4/stm32f401ccu6.jflash
+DEF = -DSTM32F407xx -DOW_PORT_TARGET_F4
+JFLASH = port/stm32f4/stm32f407vgt6.jflash
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
@@ -234,7 +234,7 @@ F4_URL = $(ST_URL)cmsis_device_f4/master
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
-SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
+SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F407.svd
 
 # Required external files (needed for build but not in repo)
 ifeq ($(OW_TARGET),f0)
@@ -266,11 +266,11 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm4.h \
                 $(CMSIS_CORE_DIR)/cmsis_gcc.h \
                 $(CMSIS_CORE_DIR)/cmsis_version.h \
                 $(CMSIS_DEVICE_DIR)/stm32f4xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32f401xc.h \
+                $(CMSIS_DEVICE_DIR)/stm32f407xx.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s \
-                $(CMSIS_DEVICE_DIR)/STM32F401.svd
+                $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s \
+                $(CMSIS_DEVICE_DIR)/STM32F407.svd
 else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
@@ -399,8 +399,8 @@ $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/stm32f4xx.h,$@)
 
-$(CMSIS_DEVICE_DIR)/stm32f401xc.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/stm32f401xc.h,$@)
+$(CMSIS_DEVICE_DIR)/stm32f407xx.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Include/stm32f407xx.h,$@)
 
 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/system_stm32f4xx.h,$@)
@@ -408,8 +408,8 @@ $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Source/Templates/system_stm32f4xx.c,$@)
 
-$(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s,$@)
+$(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s,$@)
 
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
@@ -421,7 +421,7 @@ $(CMSIS_DEVICE_DIR)/STM32F030.svd: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/STM32G031.svd: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(SVD_URL_G0),$@)
 
-$(CMSIS_DEVICE_DIR)/STM32F401.svd: | $(CMSIS_DEVICE_DIR)
+$(CMSIS_DEVICE_DIR)/STM32F407.svd: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(SVD_URL_F4),$@)
 
 # License download targets

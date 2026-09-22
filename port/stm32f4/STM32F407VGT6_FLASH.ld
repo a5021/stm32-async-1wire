@@ -1,9 +1,12 @@
 /*
- * Linker script for STM32F401CCU6 (256KB Flash, 64KB RAM)
+ * Linker script for STM32F407VGT6 (STM32F4DISCOVERY, MB997C)
  *
  * Memory layout:
- *   FLASH (rx)  : 0x08000000, 256K
- *   RAM   (xrw) : 0x20000000,  64K
+ *   FLASH (rx)  : 0x08000000, 1024K
+ *   RAM   (xrw) : 0x20000000,  128K  (SRAM1 112K + SRAM2 16K, contiguous)
+ *
+ * The 64K CCM RAM at 0x10000000 is intentionally not used: it is not
+ * accessible by the DMA controller, which the 1-Wire backend relies on.
  *
  * Provides symbols needed by the CMSIS startup code:
  *   _estack, _sidata, _sdata, _edata, _sbss, _ebss
@@ -18,8 +21,8 @@ _Min_Stack_Size = 0x400;
 
 MEMORY
 {
-  FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 256K
-  RAM   (xrw) : ORIGIN = 0x20000000, LENGTH =  64K
+  FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+  RAM   (xrw) : ORIGIN = 0x20000000, LENGTH =  128K
 }
 
 SECTIONS

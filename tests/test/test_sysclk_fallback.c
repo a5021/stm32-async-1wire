@@ -25,8 +25,8 @@
 #error "G0 family-macro selection must default to a 64 MHz system clock"
 #endif
 #elif defined(OW_PORT_FAMILY_F4)
-#if OW_PORT_SYSCLK_MHZ != 84
-#error "F4 family-macro selection must default to a 84 MHz system clock"
+#if OW_PORT_SYSCLK_MHZ != 168
+#error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
 #else
 #error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"

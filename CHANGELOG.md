@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current into the bus capacitance, which matters for the parasite strong
   pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
 
+### Changed
+
+- **STM32F4 console UART relocated to USART1 TX on PB6.** The `examples/app`
+  F4 branch now routes the console through USART1 on the remapped **PB6** pin
+  (AF7, push-pull) instead of the default PA9 pad, which has no
+  USART1-to-ST-LINK route on the STM32F4DISCOVERY; the optional
+  `-DOW_UART_USART3` (PB10) path remains available. The bus stays on the
+  default PA10 pin (`OW_PORT_BUS_PE13` remains an option).
+
 ### Fixed
 
 - **`4_scan_mode` could report 85.0 °C for a sensor left at a different

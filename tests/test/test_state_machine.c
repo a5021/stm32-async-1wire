@@ -809,7 +809,7 @@ void test_state_machine_init_configures_registers(void) {
 #elif defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
     TEST_ASSERT_BITS_HIGH(RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_DMA2EN, mock_rcc.AHB1ENR);
-    TEST_ASSERT_EQUAL_UINT32(83, mock_tim1.PSC); /* 84MHz/84 = 1MHz -> 1us */
+    TEST_ASSERT_EQUAL_UINT32(167, mock_tim1.PSC); /* 168MHz/168 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
     /* Bus pin PA10: AF mode (MODER10_1), open-drain, AF1 in AFRH */
     TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODER10_1, mock_gpioa.MODER);

@@ -41,9 +41,9 @@ AppVersion = 70001
   UseAutoSpeed = 0x00000001
   ClockSpeed = 0x00000000
   EndianMode = 0
-  ChipName = "ST STM32F401CC (allow opt. bytes)"
+  ChipName = "ST STM32F407VG (allow opt. bytes)"
 [FLASH]
-  aRangeSel[1] = 0-256
+  aRangeSel[1] = 0-1024
   BankName = "Internal flash"
   BankSelMode = 1
   BaseAddr = 0x06000000

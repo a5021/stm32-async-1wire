@@ -3,7 +3,7 @@
  * @brief STM32F4 backend: TIM1 (advanced) + DMA2 dual streams + PA10
  *
  * Header-only static inline implementation of the ow_port_* interface for the
- * STM32F401. The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain
+ * STM32F407 (STM32F4DISCOVERY). The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain
  * alternate function AF1); CH4 captures in indirect mode on the same pin
  * (CC4S routes IC4 to TI3) and drains CCR4 via DMA2_Stream4. Multi-slot writes
  * and the merged search write+read drive the CC2 slot-end marker
@@ -36,6 +36,35 @@
 #include "stm32f4xx.h"
 
 #include <assert.h>
+
+/* ------------------------------------------------------------------
+ *  1-Wire bus pin selection (TIM1_CH3 output + IC4 capture via TI3).
+ *
+ *  Default: PA10 (AF1). With -DOW_PORT_BUS_PE13=1 the bus moves to PE13
+ *  (also TIM1_CH3, AF1) for boards where PA10 is loaded/unavailable. The
+ *  PA11 logic-analyzer marker stays on GPIOA in both cases.
+ * ------------------------------------------------------------------ */
+#if defined(OW_PORT_BUS_PE13)
+#define OW_BUS_GPIO (*GPIOE)
+#define OW_BUS_GPIO_CLK RCC_AHB1ENR_GPIOEEN
+#define OW_BUS_MODER GPIO_MODER_MODER13
+#define OW_BUS_MODER_1 GPIO_MODER_MODER13_1
+#define OW_BUS_OT GPIO_OTYPER_OT_13
+#define OW_BUS_OSPEEDR GPIO_OSPEEDR_OSPEED13
+#define OW_BUS_OSPEEDR_Pos GPIO_OSPEEDR_OSPEED13_Pos
+#define OW_BUS_AFSEL GPIO_AFRH_AFSEL13
+#define OW_BUS_AFSEL_Pos GPIO_AFRH_AFSEL13_Pos
+#else
+#define OW_BUS_GPIO (*GPIOA)
+#define OW_BUS_GPIO_CLK RCC_AHB1ENR_GPIOAEN
+#define OW_BUS_MODER GPIO_MODER_MODER10
+#define OW_BUS_MODER_1 GPIO_MODER_MODER10_1
+#define OW_BUS_OT GPIO_OTYPER_OT_10
+#define OW_BUS_OSPEEDR GPIO_OSPEEDR_OSPEED10
+#define OW_BUS_OSPEEDR_Pos GPIO_OSPEEDR_OSPEED10_Pos
+#define OW_BUS_AFSEL GPIO_AFRH_AFSEL10
+#define OW_BUS_AFSEL_Pos GPIO_AFRH_AFSEL10_Pos
+#endif
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
  *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
@@ -132,27 +161,27 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
  * @brief Enable clocks, configure the timer prescaler and PA10 open-drain AF
  */
 __STATIC_FORCEINLINE void ow_port_init(void) {
-    RC.AHB1ENR |= RCC_BITS(AHB1ENR, DMA2EN, GPIOAEN); /* TIM1 requests route via DMA2 */
+    RC.AHB1ENR |= RCC_BITS(AHB1ENR, DMA2EN, GPIOAEN) | OW_BUS_GPIO_CLK; /* TIM1 requests route via DMA2 */
     RC.APB2ENR |= RCC_APB2ENR(TIM1EN);
     T1.PSC = OW_PORT_TIM_PRESCALER;
     ow_port_kick(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
-    /* PA10: alternate function, open-drain, AF1 (TIM1_CH3) */
-    PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
-    PA.OTYPER |= GPIO_OTYPER_OT_10;
-    PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos);
-    /* PA10: bus-pin drive strength.  The strong pull-up is this pin in AF
+    /* Bus pin: alternate function, open-drain, AF1 (TIM1_CH3) */
+    OW_BUS_GPIO.MODER = (OW_BUS_GPIO.MODER & ~OW_BUS_MODER) | OW_BUS_MODER_1;
+    OW_BUS_GPIO.OTYPER |= OW_BUS_OT;
+    OW_BUS_GPIO.AFR[1] = (OW_BUS_GPIO.AFR[1] & ~OW_BUS_AFSEL) | (1u << OW_BUS_AFSEL_Pos);
+    /* Bus-pin drive strength.  The strong pull-up is this pin in AF
      * push-pull (TIM1_CH3 driven HIGH while the timer is stopped), so its
      * drive strength is the parasite supply for the whole fleet: at the
      * reset-default low speed a simultaneous (broadcast) conversion of
      * several devices droops the line into brown-out (POR 85 C / garbage
      * with valid CRC), while one device at a time still converts fine.
      * Configurable via OW_BUS_DRIVE (default MAX = very-high). */
-    PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |
-                 ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);
+    OW_BUS_GPIO.OSPEEDR = (OW_BUS_GPIO.OSPEEDR & ~OW_BUS_OSPEEDR) |
+                          ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos);
     /* PA11: debug/logic-analyzer marker, GPIO output push-pull, low by default.
-     * PA11 is not needed for TIM1_CH4 (IC4 is routed internally to TI3 = PA10),
-     * so the pad is free as a plain output. */
+     * PA11 is not needed for TIM1_CH4 (IC4 is routed internally to TI3), so the
+     * pad is free as a plain output. */
     PA.MODER = (PA.MODER & ~GPIO_MODER_MODER11) | GPIO_MODER_MODER11_0;
     PA.OTYPER &= ~GPIO_OTYPER_OT_11;
     PA.ODR &= ~GPIO_ODR_OD11;
@@ -247,9 +276,9 @@ __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
  */
 __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
     if (push_pull) {
-        PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */
+        OW_BUS_GPIO.OTYPER &= ~OW_BUS_OT; /* OD -> PP (strong HIGH) */
     } else {
-        PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */
+        OW_BUS_GPIO.OTYPER |= OW_BUS_OT; /* PP -> OD (release) */
     }
 }
 

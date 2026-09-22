@@ -6,6 +6,11 @@
 #error "ds18b20_measure.c is an include-only driver part; compile src/ds18b20.c"
 #endif
 
+#if defined(OW_DEBUG_PULSE_DUMP) && OW_STATS_ENABLE
+/* One-shot raw CCR4 pulse dump (latency experiments; needs the stats UART API) */
+static uint8_t pulse_dumped;
+#endif
+
 /**
  * @defgroup DS18B20_Measurement_Internal DS18B20 Measurement State Machine
  * @{
@@ -230,6 +235,25 @@ void ds18b20_poll(void) {
          * via the union alias (scratchpad[n] == pulse[n]). */
         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,
                                ctx.address_mode ? ctx.selected_rom : (const uint8_t*)0);
+#if defined(OW_DEBUG_PULSE_DUMP) && OW_STATS_ENABLE
+        if (!pulse_dumped) {
+            pulse_dumped = 1;
+            ow_stats_puts("--- pulse [");
+            ow_stats_print_int(DS18B20_SCRATCHPAD_BITS);
+            ow_stats_puts("] ---\r\n");
+            for (uint8_t i = 0; i < DS18B20_SCRATCHPAD_BITS; i++) {
+                ow_stats_print_int((int)ctx.pulse[i]);
+                if ((i & 15) == 15) {
+                    ow_stats_puts("\r\n");
+                } else {
+                    ow_stats_putchar(' ');
+                }
+            }
+            if ((DS18B20_SCRATCHPAD_BITS & 15) != 0) {
+                ow_stats_puts("\r\n");
+            }
+        }
+#endif
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete

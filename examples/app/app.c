@@ -42,7 +42,15 @@ void uart_poll_tx(void) {
         USART1->TDR = b;
     }
 #else
-    // Check if UART is ready to transmit (TXE flag set) and buffer not empty
+    // Check if UART is ready to transmit (TXE flag set) and buffer not empty.
+    // Optional OW_UART_USART3 selects USART3/PB10 instead of USART1 (TX on PB6).
+#if defined(OW_UART_USART3)
+    if ((USART3->SR & USART_SR_TXE) && (uart_tx_tail != uart_tx_head)) {
+        uint8_t b = uart_tx_buf[uart_tx_tail];
+        uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
+        USART3->DR = b;
+    }
+#else
     if ((USART1->SR & USART_SR_TXE) && (uart_tx_tail != uart_tx_head)) {
         // Get byte from buffer at tail position
         uint8_t b = uart_tx_buf[uart_tx_tail];
@@ -51,6 +59,7 @@ void uart_poll_tx(void) {
         // Write byte to UART data register for transmission
         USART1->DR = b;
     }
+#endif
 #endif
 }
 
@@ -181,7 +190,8 @@ void ow_stats_tx_enqueue(char c) {
  *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:
  *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz. G031x6 has no HSE:
  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.
- *       F401: 84MHz via 25MHz HSE + PLL (M=25, N=168, P=2), or raw HSI at 16MHz.
+ *       F407 (STM32F4DISCOVERY): 168MHz via 8MHz HSE + PLL (M=8, N=336,
+ *       P=2), raw HSI at 16MHz, or raw HSE at 8MHz.
  */
 __STATIC_FORCEINLINE void configure_system_clock(void) {
 #if defined(OW_PORT_FAMILY_G0)
@@ -228,36 +238,53 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
 #error "Unsupported OW_PORT_SYSCLK_MHZ for F0: use 48 (HSI+PLL) or 8 (raw HSI)"
 #endif
 #elif defined(OW_PORT_FAMILY_F4)
-#if (OW_PORT_SYSCLK_MHZ) == 84
-    // HSE (crystal, 25MHz on this board) -> PLL: M=25, N=168, P=2.
-    // PLL input = 25/25 = 1MHz (valid 1-2MHz), VCO = 168MHz (valid
-    // 100-432MHz), SYSCLK = 168/2 = 84MHz. Q=7 only feeds USB (unused here)
-    // but is kept at the canonical ST value so the clock tree matches CubeMX.
+#if (OW_PORT_SYSCLK_MHZ) == 168
+    // STM32F4DISCOVERY (MB997C): HSE = 8MHz crystal -> PLL.
+    //   PLL input = 8/8 = 1MHz (valid 1-2MHz), VCO = 1 * 336 = 336MHz
+    //   (valid 100-432MHz), SYSCLK = 336/2 = 168MHz, USB = 336/7 = 48MHz.
+    // Q=7 feeds USB (unused here) but keeps the tree CubeMX-canonical.
     RCC->CR |= RCC_CR_HSEON;
     // Wait for HSE to stabilize - HSERDY is the hardware stabilization
     // indicator, so no fixed delay is required
     while (!(RCC->CR & RCC_CR_HSERDY))
         ;
-    RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (25u << RCC_PLLCFGR_PLLM_Pos) |
-                   (168u << RCC_PLLCFGR_PLLN_Pos) | (0u << RCC_PLLCFGR_PLLP_Pos) |
+    RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (8u << RCC_PLLCFGR_PLLM_Pos) |
+                   (336u << RCC_PLLCFGR_PLLN_Pos) | (0u << RCC_PLLCFGR_PLLP_Pos) |
                    (7u << RCC_PLLCFGR_PLLQ_Pos);
     RCC->CR |= RCC_CR_PLLON;
     // Wait for the PLL to lock
     while (!(RCC->CR & RCC_CR_PLLRDY))
         ;
-    // Flash latency: 1 wait state above 42MHz and up to 84MHz (RM0368)
-    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS;
-    // APB1 /2 = 42MHz (datasheet limit); APB2 stays /1 so TIM1 = SYSCLK
-    RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_PPRE1) | RCC_CFGR_PPRE1_DIV2;
+    // Flash latency: 5 wait states for 150 < HCLK <= 168MHz (RM0090).
+    // 168MHz is the max without over-drive, so over-drive is not enabled.
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                 FLASH_ACR_LATENCY_5WS;
+    // APB1 /4 = 42MHz, APB2 /2 = 84MHz (both at their datasheet limits). TIM1
+    // is on APB2: with a prescaler != 1 the timer clock is doubled, so
+    // TIM1 = 2 * 84 = 168MHz = SYSCLK (the ow_port 1us-tick invariant).
+    RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2)) |
+                RCC_CFGR_PPRE1_DIV4 | RCC_CFGR_PPRE2_DIV2;
     // Switch system clock to PLL
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
         ;
 #elif (OW_PORT_SYSCLK_MHZ) == 16
     // Raw HSI: the MCU already runs on the internal 16MHz RC after reset —
-    // nothing to configure
+    // nothing to configure (APB2 stays /1, so TIM1 = HSI = 16MHz)
+#elif (OW_PORT_SYSCLK_MHZ) == 8
+    // Raw HSE: run SYSCLK directly from the 8MHz crystal, no PLL, so the core
+    // clock is the crystal itself and PCLK2 = 8MHz.
+    RCC->CR |= RCC_CR_HSEON;
+    while (!(RCC->CR & RCC_CR_HSERDY))
+        ;
+    // Flash latency: 0 wait states (<= 30MHz); caches on for deterministic timing.
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;
+    // APB1/APB2 stay /1, so TIM1 = SYSCLK = HSE = 8MHz.
+    RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_HSE;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE)
+        ;
 #else
-#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 84 (HSE+PLL) or 16 (raw HSI)"
+#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 (8MHz HSE+PLL), 16 (raw HSI) or 8 (raw HSE)"
 #endif
 #else /* F1 */
 #if (OW_PORT_SYSCLK_MHZ) == 72
@@ -298,26 +325,51 @@ __STATIC_FORCEINLINE void configure_system_clock(void) {
  * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART
  *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6). G0: UART TX on
  *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),
- *       LED on PA4 (no PC13 bonded out on TSSOP20).
+ *       LED on PA4 (no PC13 bonded out on TSSOP20). F4: USART1 TX on PB6
+ *       (AF7; the F4DISCOVERY has no USART1-to-ST-LINK route on PA9), LED on
+ *       PD12, with an optional OW_UART_USART3 path on PB10.
  */
 __STATIC_FORCEINLINE void hardware_init(void) {
 #if defined(OW_PORT_FAMILY_F4)
-    // Enable AHB1 GPIOA/GPIOC and APB2 USART1 clocks (GPIOA/DMA2/TIM1 clock is
+    // Enable AHB1 GPIOA/GPIOD/GPIOB and APB2 USART1 clocks (GPIOA/DMA2/TIM1 clock is
     // enabled by ow_port_init())
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;
+
+    // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -> LED -> GND)
+    GPIOD->MODER = (GPIOD->MODER & ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;
+
+    // Optional OW_UART_USART3 selects USART3 TX on PB10 (AF7) instead of
+    // USART1 on PB6 (the STM32F4DISCOVERY has no USART1-to-ST-LINK route).
+    // USART3 is on APB1.
+#if defined(OW_UART_USART3)
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+    RCC->APB1ENR |= RCC_APB1ENR_USART3EN;
+    GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_10;
+    GPIOB->AFR[1] = (GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL10) | (7u << GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */
+    // PCLK1: APB1 /4 at 168MHz (42MHz), /1 otherwise (= SYSCLK).
+#if (OW_PORT_SYSCLK_MHZ) == 168
+    USART3->BRR = USART_BRR_CALC(42000000u, 115200);
+#else
+    USART3->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200);
+#endif
+    USART3->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only
+#else
+    // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).
+    // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console
+    // rides USART1 on PB6 (AF7); PA9 stays free.
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-
-    // Configure PA9 as alternate function push-pull output (AF7 = USART1_TX)
-    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
-    GPIOA->OTYPER &= ~GPIO_OTYPER_OT_9;
-    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos); /* AF7 = USART1 */
-
-    // Configure PC13 as general purpose output for LED control (active low)
-    GPIOC->MODER = (GPIOC->MODER & ~GPIO_MODER_MODER13) | GPIO_MODER_MODER13_0;
-
-    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+    GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_6;
+    GPIOB->AFR[0] = (GPIOB->AFR[0] & ~GPIO_AFRL_AFSEL6) | (7u << GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */
+    // USART1 is on APB2: /2 at 168MHz (84MHz), /1 otherwise (= SYSCLK).
+#if (OW_PORT_SYSCLK_MHZ) == 168
+    USART1->BRR = USART_BRR_CALC(84000000u, 115200); // PCLK2 = APB2 = 84MHz
+#else
     USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK
+#endif
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#endif
 #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)
 #if defined(OW_PORT_FAMILY_G0)
@@ -381,6 +433,7 @@ void app_init(void) {
  * @note Non-blocking LED control using atomic BSRR register operations.
  *       Strong definition overrides the weak one in the DS18B20 driver.
  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
+ *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).
  */
 void ds18b20_busy(unsigned action) {
 #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
@@ -398,6 +451,14 @@ void ds18b20_busy(unsigned action) {
 #else
         GPIOA->BSRR = GPIO_BSRR_BS_4;
 #endif
+    }
+#elif defined(OW_PORT_FAMILY_F4)
+    if (action) {
+        // Turn LED on (PD12 high)
+        GPIOD->BSRR = GPIO_BSRR_BS12;
+    } else {
+        // Turn LED off (PD12 low)
+        GPIOD->BSRR = GPIO_BSRR_BR12;
     }
 #else
     if (action) {

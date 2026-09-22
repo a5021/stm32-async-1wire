@@ -3,7 +3,7 @@
 /* Host-build stand-in for the STM32F4 CMSIS device header.
  * Provides just enough register types, instance symbols and bit-field
  * constants for the DS18B20 driver, plus the compiler helpers it expects.
- * Register/bit names follow the real stm32f401xc.h spelling (DMA_Stream_TypeDef
+ * Register/bit names follow the real stm32f407xx.h spelling (DMA_Stream_TypeDef
  * with CR/NDTR/PAR/M0AR, DMA_SxCR_* positions, MODER/OTYPER/AFR, RCC_AHB1ENR,
  * RCC_APB2ENR) so tests catch wrong-symbol bugs.
  *

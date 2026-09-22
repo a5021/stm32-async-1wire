@@ -11,7 +11,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32f4/ow_port_f4.h` — STM32F401CCU6 (WeAct Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode).
+- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode).
 
 ## Table of Contents
 
@@ -94,7 +94,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: any STM32 with a single advanced-control timer instance
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
-  STM32G031x6, STM32F401CCU6; see port backends in `port/`).
+  STM32G031x6, STM32F407VGT6; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. Both targets take `SYSCLK_MHZ=8`; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
@@ -127,8 +127,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 │   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
 │   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4
-│   │   ├── STM32F401CCU6_FLASH.ld  # Linker script, STM32F401CCU6 (256KB flash / 64KB RAM)
-│   │   ├── stm32f401ccu6.jflash    # J-Flash project file
+│   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (256KB flash / 64KB RAM)
+│   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
@@ -215,7 +215,7 @@ make debug APP=3_round_robin                  # debug build of 3_round_robin (fo
 # STM32F030 target (same examples, bus on PA10):
 make OW_TARGET=f0 APP=4_scan_mode
 
-# STM32F401 target (same examples, bus on PA10):
+# STM32F407 target (same examples, bus on PA10):
 make OW_TARGET=f4 APP=4_scan_mode
 ```
 
@@ -245,10 +245,11 @@ Notes:
   order; `ds18b20_scan_index()` / `ds18b20_device_rom()` identify the sensor.
   Scan mode is mutually exclusive with `ds18b20_select()`.
   With several parasite-powered devices, a simultaneous broadcast conversion
-  draws all their current from the one strong pull-up; on the STM32F401 at
-  84 MHz this has been observed to brown out a marginal sensor (a stuck
-  127.9 °C reading with a valid CRC). Use `2_device_search` (per-device
-  conversion) or `SYSCLK_MHZ=16` for a parasite-powered multi-drop at 84 MHz.
+  draws all their current from the one strong pull-up. A sagging supply (for
+  example feeding the bus from a USB adapter) can brown out a marginal sensor
+  (a stuck 127.9 °C reading with a valid CRC). Feed the fleet from a dedicated
+  supply with an adequate pull-up — see the STM32F407VGT6 section in Hardware
+  Verified — and the broadcast conversion stays reliable at the high PLL clock.
 - `5_commands` targets the first sensor found by the search (Match ROM) and runs the
   non-blocking command sequence once at startup: power supply, raw scratchpad,
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
@@ -332,16 +333,21 @@ SYSCFG remap described in Hardware Connections below; the USB-C connector of
 this board is wired to PA11/PA12 and must stay unplugged while the driver
 owns the bus.
 
-### STM32F401CCU6 (WeAct Black Pill)
+### STM32F407VGT6 (STM32F4DISCOVERY)
 
-Validated on a WeAct STM32F401CCU6 board (25 MHz HSE): 7 × DS18B20 on one
-1-Wire bus on **PA10** (TIM1 CH3/CH4 pair, DMA2 streams 2/4 — the feed stream
-runs 16-bit), USART1 TX on PA9 (AF7) at 115200 8N1 through a CP2102 adapter,
-flashed via ST-Link SWD. The default build (`2_device_search`) found all seven
-devices and completed every measurement round with valid CRCs and zero errors
-at both the 84 MHz PLL clock and the 16 MHz HSI clock; the same capture also
-covers the F4 low-power (`-DOW_PORT_LOW_POWER=1`) path. The F4-specific DMA
-topology and timing choices are documented in `port/stm32f4/HARDWARE-NOTES.md`.
+Validated on an **STM32F4DISCOVERY** (MB997C, STM32F407VGT6, 8 MHz HSE):
+7 × DS18B20 in parasite power mode on one 1-Wire bus on **PA10** (TIM1 CH3/CH4
+pair, DMA2 streams 2/4 — the feed stream runs 16-bit), with the console on
+USART1 TX / **PB6** at 115200 8N1 (AF7; the F4DISCOVERY carries no signal on
+the default PA9 USART1 pad, so the console rides the remapped PB6) through a
+USB-TTL adapter; flashed via the on-board ST-Link SWD. All seven examples
+ran with valid CRCs and zero errors (including the statistics and low-power
+variants), every device reading ~24–26 °C, at the default 168 MHz PLL clock.
+The fleet is fed through a **2.2 kΩ** pull-up from a dedicated supply: with a
+weak supply (USB adapter power) broadcast conversion droops the line, which
+is what the `4_scan_mode` note above describes. `SYSCLK_MHZ=16` selects raw
+HSI. The F4-specific DMA topology and timing choices are documented in
+`port/stm32f4/HARDWARE-NOTES.md`.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -457,19 +463,23 @@ static pin configuration. With the optional active-drive write mode
 master-only write slots and restored to open-drain afterwards — see
 [Bus Electrical Model](#bus-electrical-model).
 
-### STM32F401CCU6 (WeAct Black Pill)
+### STM32F407VGT6 (STM32F4DISCOVERY)
 
-The STM32F4 backend is hardware-validated (see Hardware Verified above); the
-wiring is the same as F1/F0:
+The STM32F4 backend is hardware-validated (see Hardware Verified above). The
+bus pin defaults to PA10 (the same wiring as F1/F0). The F4DISCOVERY board
+carries no signal on the default PA9 USART1 pad, so the console rides USART1
+TX remapped to PB6 (AF7); see the complete build line in Hardware Verified:
 
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1           |
-| PA9  | USART1 TX (115200)  | USART1 AF7; RX line of the USB-UART adapter |
+| PB6  | USART1 TX (115200)  | USART1 AF7 (remapped from PA9); RX line of the USB-UART adapter |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
 
-Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V. The board's
-25 MHz HSE drives the default 84 MHz PLL clock.
+Note: a pull-up is required between the bus pin and the supply — 4.7 kΩ for a
+single device, 2.2 kΩ for a parasite-powered multi-drop fleet (fed from a
+dedicated supply; see the `4_scan_mode` note). The board's 8 MHz HSE drives
+the default 168 MHz PLL clock.
 
 ## Quick Start
 
@@ -784,13 +794,13 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
-    `OW_TARGET=g0`; `STM32F401xC` (Cortex-M4) with `OW_TARGET=f4`.
+    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
-    backend (84MHz default clock, `port/stm32f4/STM32F401CCU6_FLASH.ld`). The
+    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`). The
     default target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via
     PA12 remap for G0).
 

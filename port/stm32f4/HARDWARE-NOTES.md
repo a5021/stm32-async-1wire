@@ -1,4 +1,4 @@
-# STM32F4 (STM32F401) backend — hardware notes
+# STM32F4 (STM32F407) backend — hardware notes
 
 Bring-up notes for `ow_port_f4.h`: the peripheral topology that works, and the
 alternatives that were tested on real hardware and rejected. The operating
@@ -60,3 +60,40 @@ DMA2 streams select their request source with their own `CHSEL` field
 (RM0368 §9.3.3, Table 29). Both the feed and the capture stream use `CHSEL=6`
 (`DMA2_Stream2` → `TIM1_CH2`, `DMA2_Stream4` → `TIM1_CH4`); this is not a
 shared physical request line, and neither stream consumes the other's request.
+
+## Capture-chain latency scales with the timer kernel clock
+
+Raw pulse dumps (`-DOW_DEBUG_PULSE_DUMP=1`, one-shot on the first scratchpad
+read of `6_statistics`, 7 sensors, parasite power) across `SYSCLK_MHZ` builds.
+The values are CCR4 input-capture readings on a 1 µs tick; both slot levels
+shift together:
+
+| SYSCLK | IC4F filter | CCR4 `'1'` | CCR4 `'0'` | Δ vs 168 | LA physical `'1'` | LA physical read-`'0'` |
+|---|---|---|---|---|---|---|
+| 168 MHz (HSE+PLL) | fDTS/8, N=6 | 5 | 28 | 0 | 5.0–6.2 µs | 29.4–30.6 µs |
+| 16 MHz (raw HSI) | fCK, N=8 (default) | 7 | 30 | +2 | 5.0–6.2 µs | 29.4–30.6 µs |
+| 16 MHz | fCK, N=2 (`IC4F_0`) | 7 | 30 | +2 | — | — |
+| 16 MHz | fCK, N=4 (`IC4F_1`) | 7 | 30 | +2 | — | — |
+| 8 MHz (raw HSE) | fCK, N=8 | 9 | 32 | +4 | 5.0–6.2 µs | 29.4–30.6 µs |
+
+Logic-analyzer column: fx2lafw @ 16 MS/s on PA10 (D0), 0.26 s windows merged
+per clock, low-width histogram (write-`0` lows measure 60.0 µs and resets
+≈ 481–485 µs at every clock, as they must).
+
+- The master low is hardware-timed in µs ticks (CCR3 compare), so the physical
+  waveform is identical across builds — the offset lives in the capture path
+  (edge → latched CCR4), not in the emitted pulse. The LA shows no clock
+  dependence while CCR4 moves 5 → 7 → 9.
+- The offset is independent of the input filter depth (N=2 and N=8 measure
+  identically): the IC4F configuration is not the cause.
+- The offset tracks the timer **kernel** clock (before the prescaler): 32 timer
+  cycles → 32/168 ≈ 0 µs, 32/16 = 2 µs, 32/8 = 4 µs. Same law as the F030@8
+  datapoint in the CHANGELOG ("a 5 µs pulse measures ~9 µs").
+- The slow slave release (read-`'0'`) explains why CCR4 `'0'` reads 28 at
+  168 MHz while the analyzer (higher logic threshold, later crossing on the RC
+  front) shows ≈ 30: the capture latches earlier on the slow edge than the
+  analyzer's threshold, then the same +0/+2/+4 latency applies on top
+  (29.6 − 1.6 + {0,2,4} = {28, 30, 32}).
+- Decode margin: `ONEWIRE_SHORT_PULSE_MAX = 10` still clears `'1' = 9` at
+  8 MHz, but with only 1 µs to spare — anything slower needs a re-check of the
+  decode window.

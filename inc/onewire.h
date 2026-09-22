@@ -70,7 +70,7 @@ extern "C" {
 #elif defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #elif defined(OW_PORT_FAMILY_F4)
-#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: HSE + PLL */
+#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407 (DISCOVERY): 8MHz HSE + PLL */
 #endif
 #endif
 /** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */
