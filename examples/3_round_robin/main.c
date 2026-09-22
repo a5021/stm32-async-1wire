@@ -167,7 +167,7 @@ int main(void) {
 
     app_init(); // System clock, UART and LED GPIO - single setup call
 
-    uart_write_str("DS18B20 demo starting...\r\n"); // Enqueue startup message
+    uart_write_str("DS18B20 3_round_robin starting...\r\n"); // Enqueue startup message
 
 #ifdef DS18B20_TEST_HARNESS
     // [TEST] Gap sweep: run the non-blocking search repeatedly, inserting a

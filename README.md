@@ -135,7 +135,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
 │   └── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
-├── examples/               # Demo applications
+├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
 │   │   └── app.h           # Shared application layer interface
@@ -1540,9 +1540,9 @@ uint32_t ow_stats_tick(void);
 - `ow_stats_capture_pulse()` — snapshot raw pulse widths before
   `decode_scratchpad()` overwrites the capture buffer via the union alias.
   Updates the 13-bucket logarithmic histogram (0–60+ µs; 13 of the 16
-  `OW_STATS_HIST_BUCKETS` array slots are populated, indices 0–12) covering
-  0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29, 30–39,
-  40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
+  `OW_STATS_HIST_BUCKETS` array slots are populated, indices 0–12;
+  buckets 0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29,
+  30–39, 40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
   automatically from `ds18b20.c` when `OW_STATS_ENABLE=1` is set.
 - `ow_stats_count_error()` — record a CRC mismatch, missing presence pulse
   or other error event.  Called automatically from `ds18b20.c`.
@@ -1560,17 +1560,21 @@ RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
 cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
 0–12, are populated).
 
-Example — dump every 100 cycles:
+Example — dump after `STATS_DUMP_INTERVAL` full rounds (source default 100):
 
 ```C
 #include "ow_stats.h"
+
+#ifndef STATS_DUMP_INTERVAL
+#define STATS_DUMP_INTERVAL 100u
+#endif
 
 static uint8_t dump_busy = 0;
 
 void ds18b20_complete(int16_t temp) {
     // ... handle temperature reading ...
     uint32_t cycles = ow_stats_tick();
-    if (cycles >= 100 && !dump_busy) {
+    if (cycles >= STATS_DUMP_INTERVAL && !dump_busy) {
         ow_stats_dump_start();
         dump_busy = 1;
     }
