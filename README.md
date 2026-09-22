@@ -438,7 +438,7 @@ in main loop) — fully non-blocking, no interrupts.
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF2 (default topology) |
 | PA9  | USART1 TX (115200)  | RX line of the USB-UART adapter    |
-| PA4  | Busy LED (optional) | Active-high                        |
+| PA4  | Busy LED (optional) | Active-low                         |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
 
 Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V.
@@ -532,9 +532,9 @@ and prints the result.
 
 > **The callback example below is STM32F1-specific** (Blue Pill onboard LED on
 > PC13, active-low). Pin and polarity differ per MCU — see
-> [Hardware Connections](#hardware-connections): F1 uses PC13 active-low,
-> F0 uses PA4 active-high, G0 uses PA4 active-low. On F0/G0 the same logic
-> targets `GPIOA` and swaps the BSRR set/reset bits accordingly.
+> [Hardware Connections](#hardware-connections): F1 uses PC13 active-low;
+> F0/G0 use PA4 active-low. On F0/G0 the same logic targets `GPIOA` instead
+> of `GPIOC`.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
@@ -1639,6 +1639,12 @@ uint32_t ow_stats_tick(void);
 - `ow_stats_reset()` — zero all counters and the histogram, keep the sensor
   ROM table.  Call after `ow_stats_dump_poll()` returns 1.
 - `ow_stats_tick()` — increment the cycle counter; returns the new value.
+
+The dump also needs five weak output hooks the application provides as strong
+definitions: `ow_stats_putchar()`, `ow_stats_puts()`, `ow_stats_print_int()`,
+`ow_stats_print_hex()` and `ow_stats_tx_enqueue()`.  Defaults in `ow_stats.c`
+are no-ops, so without them the dump stays silent; `examples/6_statistics`
+implements them on top of the UART TX ring buffer.
 
 RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
 cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
