@@ -12,62 +12,81 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
 
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [File Structure](#file-structure)
+- [Examples](#examples)
+- [Hardware Verified](#hardware-verified)
+- [Hardware Connections](#hardware-connections)
+- [Quick Start](#quick-start)
+- [Building](#building)
+- [VSCode Integration](#vscode-integration)
+- [Comparison with Common 1-Wire Techniques](#comparison-with-common-1-wire-techniques)
+- [Architecture](#architecture)
+- [RTOS Integration](#rtos-integration)
+- [API Reference](#api-reference)
+- [Performance](#performance)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contributing](#contributing)
+- [Support](#support)
+- [References](#references)
+
 ## Features
 
-- Pure Bare-Metal: Direct register manipulation, no HAL or LL libraries.
+- Pure Bare-Metal: direct register manipulation, no HAL or LL libraries.
 - Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
-  non-blocking 1-Wire master. The bus primitives (reset, presence, write/read
-  slots, multi-byte read) and the generic Maxim Search ROM engine are
-  scheduled on TIM1/DMA and complete asynchronously. `src/ds18b20.c` is built
-  on this layer, and other 1-Wire slaves (DS2413, DS2431, ...) can reuse it
-  as-is.
-- Multi-MCU Backend: One MCU-independent core over a `ow_port_*` interface; header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` / `make OW_TARGET=g0` (F1 is the default).
-- Zero NVIC Interrupts: No NVIC interrupts or ISRs are used. Fully polled operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer update **interrupt source** (UIE) only to generate a pending event that wakes `WFE()` via `SEVONPEND` — no NVIC interrupt is enabled and no ISR is installed.
-- RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA, so ds18b20_poll() can be called at any rate from an RTOS task without corrupting the bus. The driver is fully polled and interrupt-free, but is not thread-safe by itself — see RTOS Integration.
-- Hardware Automation: Uses TIM1 Output Compare and Input Capture with DMA to automate waveform generation and data capture.
-- State Machine Architecture: Event-driven operation controlled by hardware completion signals.
- - Weak Function Callbacks: Hooks for driver busy state and measurement completion.
- - CRC Validation: CRC-8 ensures every sensor reading is checked for data integrity.
- - Optional Signal Statistics Module (`ow_stats`): compile-in
-   (`-DOW_STATS_ENABLE=1`) to collect per-sensor pulse-width min/max, a global
-   histogram and error counters across measurement cycles.  The dump is
-   non-blocking: `ow_stats_dump_start()` + `ow_stats_dump_poll()` streams the
-   report over UART at baud-rate pace without overflowing the ring buffer.
-   Zero overhead in production builds (all stubs inline to nothing).
- - Non-Blocking Device Search: `ds18b20_search_start()`, `ds18b20_search_poll()`,
-   `ds18b20_search_count()` find every DS18B20 on the bus. The engine is the
-   generic Search ROM state machine of the shared 1-Wire layer; the driver
-   stays a small high-level interface on top of it.
- - Non-Blocking Alarm Search: `ds18b20_alarm_search_start()`,
-    `ds18b20_alarm_search_poll()`, `ds18b20_alarm_search_count()` report only the
-    DS18B20 devices currently in alarm state (temperature outside the TH/TL
-    thresholds set with Write Scratchpad). It uses the same Maxim search engine
-    as the device search and leaves the scan-mode device table untouched.
- - Non-Blocking Command Transactions: `ds18b20_read_rom()`,
-    `ds18b20_set_alarm_thresholds()`, `ds18b20_read_scratchpad()`,
-    `ds18b20_copy_scratchpad()`, `ds18b20_recall_eeprom()` and
-    `ds18b20_detect_parasite()` drive the DS18B20 commands
-    (0x33 / 0x4E / 0xBE / 0x48 / 0xB8 / 0xB4) with the same poll discipline as
-    the device search — each `*_poll()` advances one hardware operation and
-    hands the timer back to `ds18b20_poll()` when the transaction finishes.
-    See `examples/5_commands/main.c`.
- - Per-Device Addressing: Select one specific sensor by its ROM address
-   (`ds18b20_select()`, Match ROM 0x55) for use with multiple devices on one bus.
- - Resolution-Aware Conversion Wait: The driver waits exactly as long as the
-   configured conversion resolution requires (93.75ms @ 9-bit … 750ms @ 12-bit),
-   so lowering the resolution speeds up the measurement cycle.
- - Non-Blocking Resolution Change: `ds18b20_set_resolution()` /
-    `ds18b20_set_resolution_poll()` change the conversion resolution (9..12 bit)
-    between measurement cycles with zero busy-waits, mirroring the device search
-    state machine. The resolution is also auto-derived from every valid
-    scratchpad read (`ds18b20_get_resolution()`).
- - Simultaneous Multi-Device Conversion: `ds18b20_scan_start()` converts every
-    discovered sensor in parallel with one broadcast `Convert T` (Skip ROM) and
-    reads each one back via Match ROM, so N devices take one conversion wait
-    plus N reads. Each reading is reported through `ds18b20_complete()` in
-    device-table order; `ds18b20_scan_index()`, `ds18b20_device_rom()` and
-    `ds18b20_device_count()` identify the sensors (requires the device search
-    to have run first; assumes a uniform resolution).
+  non-blocking 1-Wire master (bus primitives + Maxim Search ROM) scheduled on
+  TIM1/DMA; the DS18B20 driver is built on it, and other 1-Wire slaves
+  (DS2413, DS2431, ...) can reuse it as-is — see
+  [1-Wire Layer (shared)](#1-wire-layer-shared).
+- Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
+  header-only backends for STM32F1, STM32F0 and STM32G0, all on the shared
+  CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` /
+  `make OW_TARGET=g0` (F1 is the default).
+- Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
+  operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
+  update **interrupt source** (UIE) only to generate a pending event that
+  wakes `WFE()` via `SEVONPEND` — no NVIC interrupt is enabled and no ISR is
+  installed.
+- RTOS-Ready: the strict 1-Wire bit timing is generated entirely by TIM1+DMA,
+  so `ds18b20_poll()` can be called at any rate from an RTOS task without
+  corrupting the bus. Not thread-safe by itself — see
+  [RTOS Integration](#rtos-integration).
+- Hardware Automation: TIM1 output compare + input capture with DMA automate
+  waveform generation and data capture — see [Architecture](#architecture).
+- State Machine Architecture: event-driven operation controlled by hardware
+  completion signals — see
+  [State Machine Flow](#state-machine-flow-hardware-timed-polled-on-uif).
+- Weak Function Callbacks (`ds18b20_busy()`, `ds18b20_complete()`) and CRC-8
+  validation of every sensor reading — see [Weak Callbacks](#weak-callbacks)
+  and [Error Codes](#error-codes).
+- Resolution-Aware Conversion Wait: the driver waits exactly as long as the
+  configured conversion resolution requires (93.75ms @ 9-bit … 750ms @
+  12-bit), so lowering the resolution speeds up the measurement cycle.
+- Non-blocking across the board — each operation advances one hardware
+  operation per `*_poll()` call from the main loop:
+  - Device search: `ds18b20_search_start()` / `_poll()` / `_count()` —
+    [Device Search](#device-search).
+  - Alarm search: `ds18b20_alarm_search_*()` reports only devices in alarm —
+    [Alarm Search](#alarm-search).
+  - Command transactions: Read ROM, TH/TL, scratchpad, Copy/Recall EEPROM,
+    parasite detect — [Command Transactions](#command-transactions),
+    `examples/5_commands`.
+  - Per-device addressing: `ds18b20_select()` (Match ROM 0x55) —
+    [Per-Device Addressing](#per-device-addressing).
+  - Resolution change: `ds18b20_set_resolution()` / `_poll()` —
+    [Resolution Change](#resolution-change).
+  - Simultaneous multi-device conversion: one broadcast `Convert T`, read
+    back via Match ROM —
+    [Simultaneous Multi-Device Conversion](#simultaneous-multi-device-conversion).
+- Optional Signal Statistics Module (`ow_stats`, `-DOW_STATS_ENABLE=1`):
+  per-sensor pulse-width min/max, a global histogram, error counters and a
+  non-blocking UART dump; all stubs inline to nothing in production builds —
+  see [Signal Statistics Module](#signal-statistics-module-ow_stats).
 
 ## Requirements
 
@@ -1041,7 +1060,7 @@ Kickstart behavior
 - After ds18b20_init(), the timer update flag (UIF) is already set. This ensures the very first call to ds18b20_poll() advances the state machine immediately without any extra priming step.
 
 - IDLE (state 0)
-  - Immediately falls through into START with no events required. Ensures LED is off.
+  - Immediately falls through into START with no events required. Ensures LED is off and initialises the data union.
   - Set state=1.
 
 - START (state 1)
@@ -1061,7 +1080,9 @@ Kickstart behavior
 - WAIT (state 3)
   - On UIF: wait_conversion() schedules exactly the conversion time of the
     configured resolution `ctx.resolution` (9-bit: 10×9.375ms; 10-bit:
-    10×18.75ms; 11-bit: 20×18.75ms; 12-bit: 12×62.5ms = 750ms); set state=4.
+    10×18.75ms; 11-bit: 20×18.75ms; 12-bit: 12×62.5ms = 750ms). The
+    resolution is auto-derived from each valid scratchpad read and updated
+    by `ds18b20_set_resolution()`; set state=4.
 
 - CONTINUE (state 4)
   - On UIF: run reset_bus() again; set state=5.
@@ -1079,19 +1100,6 @@ Kickstart behavior
 
 - DECODE (state 7)
   - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; start 5s pause; set state=0.
-
-#### Detailed State Descriptions
-
-| State Number | State Name     | Description                                                                                                                              | Next State(s)                                                                                               |
-| :----------- | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
-| **0**        | **IDLE**       | Initial state. Immediately falls through into START with no events required; prepares the context for a new measurement cycle by initializing the data union. | State 1 (START)                                                                                             |
-| **1**        | **START**      | Begins the measurement cycle. Turns on the user LED (if implemented) and initiates a **1-Wire bus reset** sequence to detect devices.     | State 2 (CONVERT)                                                                                           |
-| **2**        | **CONVERT**    | Checks if a DS18B20 responded correctly to the reset. If present, sends the **Convert T (`0x44`)** command — either via **Skip ROM (0xCC)** to all devices, or via **Match ROM (0x55) + device ROM** to the device selected with `ds18b20_select()`. If not, reports an error.     | State 3 (WAIT) on success.<br/>State 0 (IDLE) after pause on error. |
-| **3**        | **WAIT**       | Starts a non-blocking timer delay for the temperature conversion of the configured resolution (93.75ms @ 9-bit … 750ms @ 12-bit) to complete. The resolution is auto-derived from each valid scratchpad read and updated by `ds18b20_set_resolution()`.                       | State 4 (CONTINUE)                                                                                          |
-| **4**        | **CONTINUE**   | Initiates a second **1-Wire bus reset** sequence to prepare for reading the converted data.                                              | State 5 (REQUEST)                                                                                           |
-| **5**        | **REQUEST**    | Checks for the DS18B20's presence again. If present, sends the **Read Scratchpad (`0xBE`)** command — via **Skip ROM (0xCC)** or **Match ROM (0x55) + device ROM** depending on the selected device. If not, reports an error.            | State 6 (READ) on success.<br/>State 0 (IDLE) after pause on error.                                         |
-| **6**        | **READ**       | Reads the **9 bytes of scratchpad data** (including CRC) from the sensor using precise pulse-width measurement via timer input capture. | State 7 (DECODE)                                                                                            |
-| **7**        | **DECODE**     | **Decodes** the captured pulse widths into data bytes, validates the **CRC**, converts the raw temperature, and reports the result. Turns off the user LED. Starts a pause before the next cycle. | State 0 (IDLE) after pause.                                                                                 |
 
 ## RTOS Integration
 
@@ -1404,12 +1412,10 @@ uint8_t  ds18b20_last_command_ok(void);
   bus the open-drain answer is a wired-AND: any externally powered device masks
   the parasite report, so detect per-device in Match ROM addressing mode for
   heterogeneous wiring.
-- `ds18b20_set_parasite(1)` enables parasite-power support: the driver then
-  engages the strong pull-up (bus pin switched to push-pull HIGH) for every
-  conversion window (t_CONV) and EEPROM hold-off (t_COPY / t_RECALL), and
-  releases the line before any further bus activity. Default is 0 — external
-  VDD wiring, no pin mode changes. Applying the strong pull-up is harmless
-  for externally powered devices, so a mixed bus works with the flag set.
+- `ds18b20_set_parasite(1)` enables parasite-power support (default 0 —
+  external VDD wiring, no pin mode changes). The strong pull-up is harmless
+  for externally powered devices, so a mixed bus works with the flag set —
+  mechanism and wiring budget in [Parasite Power](#parasite-power).
 - `ds18b20_last_command_ok()` reports whether the last transaction found a
   device present (and, for read commands, read its data back).
 
@@ -1488,7 +1494,10 @@ while (!ds18b20_detect_parasite_poll()) {
 /* ds18b20_parasite_mode() now reflects the detected wiring */
 ```
 
-Wiring guidance, from bench validation on an STM32F103 with a 2.2k pull-up:
+Wiring guidance, from bench validation on an STM32F103 with a 2.2kΩ pull-up —
+deliberately stronger than the 4.7kΩ recommended for externally powered buses
+(see [Hardware Connections](#hardware-connections)), because on a parasite bus
+the pull-up must also source the conversion current:
 
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
   alone: a six-device broadcast cycle completed without a single CRC error.
@@ -1776,11 +1785,16 @@ This project is released under the MIT License. See the LICENSE file for details
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (git checkout -b feature/AmazingFeature)
-3. Commit your changes (git commit -m 'Add some AmazingFeature')
-4. Push to the branch (git push origin feature/AmazingFeature)
-5. Open a Pull Request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (bug reports via
+the issue templates, feature requests, Code of Conduct, PR workflow). Quick
+version:
+
+1. Fork and create a feature branch (`git checkout -b fix/my-change`).
+2. Make your changes and keep the host tests green: `make test`, plus
+   `make test-f0` / `make test-g0` for the other backends.
+3. Format touched sources with the repo's `.clang-format`
+   (`clang-format --dry-run --Werror <files>` must pass).
+4. Open a Pull Request — CI builds every target and runs the test suite.
 
 ## Support
 
