@@ -84,13 +84,9 @@ set_source_files_properties(
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
-# Build a core library target <tgt> from the driver sources.
+# Build a core library target <tgt> from the supplied driver sources.
 function(ow_add_core_library tgt)
-    add_library(${tgt} STATIC
-        src/onewire.c
-        src/ds18b20.c
-        src/ow_stats.c
-    )
+    add_library(${tgt} STATIC ${ARGN})
     target_include_directories(${tgt} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
@@ -123,7 +119,11 @@ endfunction()
 # is inert (its body and the inline ow_stats_* hooks compile away).  The
 # example build below adds a dedicated stats-enabled variant for 6_statistics
 # only.
-ow_add_core_library(stm32_async_1wire)
+ow_add_core_library(stm32_async_1wire
+    src/onewire.c
+    src/ds18b20.c
+    src/ow_stats.c
+)
 
 # ---------------------------------------------------------------------------
 # Install targets
@@ -224,12 +224,13 @@ if(OW_BUILD_EXAMPLES)
         --specs=nano.specs
     )
 
-    # 6_statistics is the only example that uses the stats module.  Mirror
-    # `make APP=6_statistics` (which enables -DOW_STATS_ENABLE=1 and
-    # -DDS18B20_CYCLE_PAUSE_US=10000 for that app only) with a private
-    # core-library variant.  The plain library and every other example stay
-    # free of stats instrumentation.
-    ow_add_core_library(stm32_async_1wire_stats)
+    # 6_statistics is the only example that uses the stats module.  Rebuild
+    # only the DS18B20 driver and stats implementation with stats enabled;
+    # it reuses onewire.c from the plain library when linked below.
+    ow_add_core_library(stm32_async_1wire_stats
+        src/ds18b20.c
+        src/ow_stats.c
+    )
     target_compile_definitions(stm32_async_1wire_stats PUBLIC
         OW_STATS_ENABLE=1
         DS18B20_CYCLE_PAUSE_US=10000
@@ -255,6 +256,7 @@ if(OW_BUILD_EXAMPLES)
         if(ex STREQUAL "6_statistics")
             target_link_libraries(${ex} PRIVATE
                 stm32_async_1wire_stats
+                stm32_async_1wire
                 stm32_async_1wire_platform
             )
             # Mirror `make APP=6_statistics`.
