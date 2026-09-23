@@ -10,14 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **STM32F4 backend (`port/stm32f4/ow_port_f4.h`) for the STM32F407**
-  (validated on the STM32F4DISCOVERY, MB997C): the 1-Wire bus runs on PA10
-  (TIM1_CH3 PWM / CH4 indirect capture, AF1) with the feed and capture on
-  DMA2 streams 2/4 (16-bit direct-mode feed, zero-copy from the family-sized
-  `ow_pulse_t`). The console rides USART1 TX remapped to PB6 (AF7). Select
-  with `make OW_TARGET=f4` / `-DOW_TARGET=f4`; the host suite runs the whole
-  test matrix (default, low-power, NDEBUG, active-drive) against an F4
-  register mock.
+- **STM32F4 backend (`port/stm32f4/ow_port_f4.h`): chip-generic across the
+  STM32F407VGT6 (STM32F4DISCOVERY, MB997C) and the STM32F401CC family.** The
+  1-Wire bus runs on PA10 (TIM1_CH3 PWM / CH4 indirect capture, AF1) with the
+  feed and capture on DMA2 streams 2/4 (16-bit direct-mode feed, zero-copy
+  from the family-sized `ow_pulse_t`); the console rides USART1 TX remapped
+  to PB6 (AF7). The same header drives both parts — TIM1/DMA2/CHSEL=6 map
+  identically (RM0090 / RM0368) — with the chip selecting the CMSIS device
+  layer, linker script and clock default: `make OW_TARGET=f4` (F407, 168MHz
+  HSE+PLL default) vs `make OW_TARGET=f4 OW_CHIP=f401` (F401CC, 84MHz
+  HSE+PLL default; 256KB flash / 64KB RAM, `STM32F401CC_FLASH.ld`; 84MHz
+  clock-config branch in `app.c` and an 84MHz F4 library clock default). The
+  host suite runs the whole test matrix (default, low-power, NDEBUG,
+  active-drive) against an F4 register mock, plus a dedicated
+  F4/F401-family fallback compile check.
 
 - **Configurable 1-Wire bus-pin drive strength (`OW_BUS_DRIVE`).** The bus pin
   (PA10) pad speed / drive strength is now selectable at build time

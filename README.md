@@ -11,7 +11,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode).
+- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY) and STM32F401CC (e.g. WeAct F401 Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for both parts — the chip selects the CMSIS device layer, linker script and clock default.
 
 ## Table of Contents
 
@@ -94,10 +94,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: any STM32 with a single advanced-control timer instance
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
-  STM32G031x6, STM32F407VGT6; see port backends in `port/`).
+  STM32G031x6, STM32F407VGT6, STM32F401CC; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32F401 — 84MHz via 8MHz HSE+PLL (default, `OW_CHIP=f401`), 16MHz via internal RC or 8MHz via the HSE crystal; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
 
 ## File Structure
 
@@ -127,8 +127,9 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 │   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
-│   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4
+│   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4 (F407/F401)
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (256KB flash / 64KB RAM)
+│   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── src/                    # Project source files
@@ -218,6 +219,11 @@ make OW_TARGET=f0 APP=4_scan_mode
 
 # STM32F407 target (same examples, bus on PA10):
 make OW_TARGET=f4 APP=4_scan_mode
+
+# STM32F401CC target (F401 Black Pill, 84MHz HSE+PLL default):
+make OW_TARGET=f4 OW_CHIP=f401 APP=4_scan_mode
+# ... or on the raw internal RC (no HSE crystal needed):
+make OW_TARGET=f4 OW_CHIP=f401 SYSCLK_MHZ=16 APP=4_scan_mode
 ```
 
 Notes:
@@ -349,7 +355,23 @@ The fleet is fed through a **2.2 kΩ** pull-up from a dedicated supply: with a
 weak supply (USB adapter power) broadcast conversion droops the line, which
 is what the `4_scan_mode` note above describes. `SYSCLK_MHZ=16` selects raw
 HSI. The F4-specific DMA topology and timing choices are documented in
-`port/stm32f4/HARDWARE-NOTES.md`.
+`port/stm32f4/HARDWARE-NOTES.md` (including the full 3-frequency × 6-example
+validation matrix for this board).
+
+### STM32F401CC (F401 Black Pill)
+
+The **same backend header** drives the 84 MHz-capped STM32F401 family: TIM1,
+the DMA2 dual-stream topology and the `CHSEL=6` request map are identical to
+the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
+port layer is chip-generic. The chip-specific parts (CMSIS device header
+`stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
+script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
+clock default) are selected with `OW_CHIP=f401`. Expected wiring matches the
+F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams 2/4), parasite mode on the
+same 2.2 kΩ pull-up, and a console UART on the board's own TX (the `app.c`
+F4 UART paths are already board-selectable). **Not yet validated on silicon** —
+the three-frequency timing envelope (168/16/8 MHz) brackets the 84MHz default,
+but a hardware pass on a real F401 board is still required.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -803,15 +825,18 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
-    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`.
+    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4` or
+    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
-    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`). The
-    default target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via
-    PA12 remap for G0).
+    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`), and
+    `make OW_TARGET=f4 OW_CHIP=f401` for the F401CC variant of the same backend
+    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`). The default
+    target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via PA12 remap
+    for G0).
 
 -   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
     ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
