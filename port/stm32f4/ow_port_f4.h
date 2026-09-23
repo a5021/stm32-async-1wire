@@ -46,7 +46,7 @@
  * ------------------------------------------------------------------ */
 #if defined(OW_PORT_BUS_PE13)
 #define OW_BUS_GPIO (*GPIOE)
-#define OW_BUS_GPIO_CLK RCC_AHB1ENR_GPIOEEN
+#define OW_BUS_GPIO_CLK RCC_BITS(AHB1ENR, GPIOEEN)
 #define OW_BUS_MODER GPIO_MODER_MODER13
 #define OW_BUS_MODER_1 GPIO_MODER_MODER13_1
 #define OW_BUS_OT GPIO_OTYPER_OT_13
@@ -56,7 +56,7 @@
 #define OW_BUS_AFSEL_Pos GPIO_AFRH_AFSEL13_Pos
 #else
 #define OW_BUS_GPIO (*GPIOA)
-#define OW_BUS_GPIO_CLK RCC_AHB1ENR_GPIOAEN
+#define OW_BUS_GPIO_CLK RCC_BITS(AHB1ENR, GPIOAEN)
 #define OW_BUS_MODER GPIO_MODER_MODER10
 #define OW_BUS_MODER_1 GPIO_MODER_MODER10_1
 #define OW_BUS_OT GPIO_OTYPER_OT_10
@@ -102,32 +102,32 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  *       forces the memory width to PSIZE, so the caller also sets MSIZE_0
  *       (matching halfwords).  Note the F4 DIR field is two bits wide: the
  *       generic single-bit DMA_SxCR_DIR macro would write the reserved 0b11. */
-#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | \
-                                DMA_SxCR_PL_1)
+#define OW_PORT_DMA_CR_CAPTURE DMA_SxCR(MINC, PSIZE_0, PL_1)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
  *       halfword register), PL_1 = high priority.  The caller also sets
  *       MSIZE_0: direct mode forces the memory width to PSIZE, so the source
  *       must be a matching halfword (ow_pulse_t) buffer. */
-#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | \
-                             DMA_SxCR_PL_1 | DMA_SxCR_PSIZE_0)
+#define OW_PORT_DMA_CR_FEED DMA_SxCR(DIR_0, MINC, PL_1, PSIZE_0)
 
-/* @brief Retire a DMA stream's interrupt flags so the next arm starts clean
- * @note Non-blocking. A normal-mode stream disables itself (hardware clears
- *       EN) when its transfer completes, and every operation here is gated by
- *       ow_port_bus_done(), so the stream is already idle when it is re-armed:
- *       this only has to clear the TC/HT/TE/DME/FE flags. STM32F4 clears EN
- *       only at the end of a transfer, so an EN=0 wait would block for the
- *       remainder of an in-flight transfer - the CR write below just requests
- *       the disable (a no-op in steady state) and never waits. Capture =
- *       DMA2_Stream4 (high group, HIFCR).
+/* @brief Disable a DMA stream and retire all its status flags before re-arm
+ * @note Non-blocking. Both call sites only ever pass Stream2 (feed) or
+ *       Stream4 (capture); the flag register is derived from the pointer.
+ *       Clears all five flags (TC/HT/TE/DME/FE) so the next EN starts from
+ *       a clean state — auto-recovery in case a stale error flag would
+ *       otherwise silently corrupt the next operation.  stm32F4 clears EN
+ *       only at the end of a normal-mode transfer, so an EN=0 wait would
+ *       block — CR=0 just requests the disable (no-op once
+ *       ow_port_bus_done() has gated us) and never waits.
  */
-__STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream,
-                                            volatile uint32_t* isr,
-                                            uint32_t mask) {
+__STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream) {
     stream->CR = 0; /* request disable: no-op once the previous transfer finished */
-    *isr = mask; /* clear TC/HT/TE/DME/FE so the re-enable is clean */
+    if (stream == DMA2_Stream2) {
+        D2.LIFCR = DMA_LIFCR(CFEIF2, CDMEIF2, CTEIF2, CHTIF2, CTCIF2);
+    } else {
+        D2.HIFCR = DMA_HIFCR(CFEIF4, CDMEIF4, CTEIF4, CHTIF4, CTCIF4);
+    }
 }
 
 /**
@@ -137,30 +137,19 @@ __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream,
  */
 __STATIC_FORCEINLINE void ow_port_kick(void) {
     T1.EGR = TIM_EGR(UG);
-    __DSB();
 }
 
 /**
  * @brief Force a timer update event and clear the update flag
  * @note Re-arm: reloads ARR/RCR/CCR preloads and clears UIF so the freshly
- *       scheduled operation has a clean completion flag. Same intent as the
- *       F1/F0/G0 ports (EGR=UG; clear the flag) but the F4 flag clear is gated
- *       with URS instead of spun on - see the body comment. No waiting.
+ *       scheduled operation has a clean completion flag. Same as the F1/F0/G0
+ *       ports: the dummy SR read flushes posted APB writes so UG is fully
+ *       processed before SR=0 clears UIF.
  */
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
-    /* Force a timer update (reload ARR/RCR/CCR preloads and clear CNT) without
-     * leaving a stale UIF behind. On the F4 the UG-raised UIF appears a few
-     * timer cycles after the EGR write, so clearing SR straight after EGR=UG
-     * races it and can drop the clear, leaving a stale update flag that makes
-     * the next ow_port_bus_done() report the freshly scheduled operation
-     * complete before it starts. Gate the forced update with URS so it raises
-     * no UIF at all, clear any leftover flag, then restore URS; the real
-     * completion (counter overflow) still sets UIF. Non-blocking, no spin. */
-    T1.CR1 |= TIM_CR1(URS);
     T1.EGR = TIM_EGR(UG);
-    __DSB();
+    (void)T1.SR; /* flush posted APB writes to TIM1 so UG sets UIF before SR=0 */
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
-    T1.CR1 &= ~TIM_CR1(URS);
 }
 
 /**
@@ -190,7 +179,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
      * pad is free as a plain output. */
     PA.MODER = (PA.MODER & ~GPIO_MODER_MODER11) | GPIO_MODER_MODER11_0;
     PA.OTYPER &= ~GPIO_OTYPER_OT_11;
-    PA.ODR &= ~GPIO_ODR_OD11;
+    PA.ODR &= ~GPIO_ODR(OD11);
 }
 
 /**
@@ -198,7 +187,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
  * @note One transition per merged op pass (and per re-arm call it happens in).
  */
 __STATIC_FORCEINLINE void ow_port_marker_toggle(void) {
-    PA.ODR ^= GPIO_ODR_OD11;
+    PA.ODR ^= GPIO_ODR(OD11);
 }
 
 #if OW_PORT_LOW_POWER
@@ -310,16 +299,14 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #endif
     ow_port_update_event();
     T1.CCR3 = 0;
-    ow_port_dma_rearm(DMA2_Stream4, &DMA2->HIFCR,
-                      DMA_HIFCR_CTCIF4 | DMA_HIFCR_CHTIF4 | DMA_HIFCR_CTEIF4 |
-                          DMA_HIFCR_CDMEIF4 | DMA_HIFCR_CFEIF4);
+    ow_port_dma_rearm(DMA2_Stream4);
     OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4;
     OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)dst;
     OW_PORT_DMA_CAPTURE.NDTR = count;
-    OW_PORT_DMA_CAPTURE.CR = (OW_PORT_DMA_CR_CAPTURE & ~DMA_SxCR_PSIZE_0) |
+    OW_PORT_DMA_CAPTURE.CR = (OW_PORT_DMA_CR_CAPTURE & ~DMA_SxCR(PSIZE_0)) |
                              OW_PORT_DMA_CHSEL |
-                             ((width == 16) ? (DMA_SxCR_MSIZE_0 | DMA_SxCR_PSIZE_0) : 0) |
-                             DMA_SxCR_EN;
+                             ((width == 16) ? DMA_SxCR(MSIZE_0, PSIZE_0) : 0) |
+                             DMA_SxCR(EN);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
@@ -357,13 +344,11 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
     T1.DIER = 0;
 #endif
     ow_port_update_event();
-    ow_port_dma_rearm(DMA2_Stream2, &DMA2->LIFCR,
-                      DMA_LIFCR_CTCIF2 | DMA_LIFCR_CHTIF2 | DMA_LIFCR_CTEIF2 |
-                          DMA_LIFCR_CDMEIF2 | DMA_LIFCR_CFEIF2);
+    ow_port_dma_rearm(DMA2_Stream2);
     OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3;
     OW_PORT_DMA_FEED.M0AR = (uint32_t)&cmd[1];
     OW_PORT_DMA_FEED.NDTR = slots; /* Feed slots 2..N, then the trailing 0 (bus release) */
-    OW_PORT_DMA_FEED.CR = OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+    OW_PORT_DMA_FEED.CR = OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN);
     /* Re-connect the slot-end reload, then re-arm the first slot last so a
      * stale CC2 request can never clobber it before the timer has started. */
 #if OW_PORT_LOW_POWER
@@ -471,14 +456,12 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
 #endif
     ow_port_update_event();
     T1.CCR3 = 0; /* Clear the output-compare value (CCR4 capture is independent) */
-    ow_port_dma_rearm(DMA2_Stream4, &DMA2->HIFCR,
-                      DMA_HIFCR_CTCIF4 | DMA_HIFCR_CHTIF4 | DMA_HIFCR_CTEIF4 |
-                          DMA_HIFCR_CDMEIF4 | DMA_HIFCR_CFEIF4);
+    ow_port_dma_rearm(DMA2_Stream4);
     OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4;
     OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)pair_pulses;
     OW_PORT_DMA_CAPTURE.NDTR = 2;
     OW_PORT_DMA_CAPTURE.CR = OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL |
-                             DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+                             DMA_SxCR(MSIZE_0, EN);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
@@ -506,13 +489,9 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #endif
     const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     ow_port_marker_toggle(); /* LA marker: rising edge = merged pass starts here */
-    /* Clean re-arm of both streams: clear all flags. */
-    ow_port_dma_rearm(DMA2_Stream2, &DMA2->LIFCR,
-                      DMA_LIFCR_CTCIF2 | DMA_LIFCR_CHTIF2 | DMA_LIFCR_CTEIF2 |
-                          DMA_LIFCR_CDMEIF2 | DMA_LIFCR_CFEIF2);
-    ow_port_dma_rearm(DMA2_Stream4, &DMA2->HIFCR,
-                      DMA_HIFCR_CTCIF4 | DMA_HIFCR_CHTIF4 | DMA_HIFCR_CTEIF4 |
-                          DMA_HIFCR_CDMEIF4 | DMA_HIFCR_CFEIF4);
+    /* Clear TCIF status on both streams before reprogram. */
+    ow_port_dma_rearm(DMA2_Stream2);
+    ow_port_dma_rearm(DMA2_Stream4);
     /* Arrange the timer pass: three slots, then a single update event. CC4 is
      * armed for the whole pass, so the write-slot falling edge is captured
      * into pulse3[0] as well as the id/cmp reads into [1] and [2]. */
@@ -533,7 +512,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)pulse3;
     OW_PORT_DMA_CAPTURE.NDTR = 3;
     OW_PORT_DMA_CAPTURE.CR = OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL |
-                             DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+                             DMA_SxCR(MSIZE_0, EN);
     /* Feed stream: halfword-width reloads of CCR3 — read pulse for slots 2-3,
      * then the trailing 0 during slot 3 so the OPM stop hands the line back
      * idle HIGH (hardware bus release); fed zero-copy from read_pulse. */
@@ -541,7 +520,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_FEED.M0AR = (uint32_t)read_pulse;
     OW_PORT_DMA_FEED.NDTR = 3;
     OW_PORT_DMA_FEED.CR = OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL |
-                          DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+                          DMA_SxCR(MSIZE_0, EN);
     /* UG kick: reload ARR/RCR preloads and hand the fresh operation a clean
      * UIF, then re-connect the DMA requests and start. The direction pulse is
      * re-armed after the DIER write so a stale CC2 request can never clobber

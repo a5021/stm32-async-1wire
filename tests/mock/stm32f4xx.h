@@ -68,8 +68,8 @@ typedef struct {
  * so the model stays family-agnostic. */
 typedef DMA_Stream_TypeDef DMA1_Channel_TypeDef;
 
-/* DMA2 controller: interrupt/flag registers the driver retires through
- * ow_port_dma_rearm(). Only HIFCR/LIFCR are touched by the port. */
+/* DMA2 controller: interrupt/flag registers. The F4 port writes LIFCR/HIFCR
+ * only to clear stream TCIF (ow_port_dma_rearm). */
 typedef struct {
     volatile uint32_t LISR;
     volatile uint32_t HISR;
@@ -215,17 +215,21 @@ extern FLASH_TypeDef mock_flash;
 #define DMA_SxCR_MSIZE_1 0x00004000u
 #define DMA_SxCR_PL_1 0x00020000u
 #define DMA_SxCR_CHSEL_Pos 25U
-/* Stream2/4 flag-clear bits (low/high interrupt-flag groups). */
-#define DMA_LIFCR_CTCIF2 0x00000020u
-#define DMA_LIFCR_CHTIF2 0x00000010u
-#define DMA_LIFCR_CTEIF2 0x00000008u
-#define DMA_LIFCR_CDMEIF2 0x00000004u
-#define DMA_LIFCR_CFEIF2 0x00000002u
-#define DMA_HIFCR_CTCIF4 0x00000020u
-#define DMA_HIFCR_CHTIF4 0x00000010u
-#define DMA_HIFCR_CTEIF4 0x00000008u
-#define DMA_HIFCR_CDMEIF4 0x00000004u
-#define DMA_HIFCR_CFEIF4 0x00000002u
+/* Stream2 flag-clear bits (low group, streams 0-3, each 6 bits:
+ *  stream0 @0, stream1 @6, stream2 @12, stream3 @18.
+ *  Within 6 bits: [FE, X, DME, TE, HT, TC] = [bit0, bit1, bit2, bit3, bit4, bit5]. */
+#define DMA_LIFCR_CFEIF2 0x00001000u /* Stream2 FIFO error      (bit 12) */
+#define DMA_LIFCR_CDMEIF2 0x00004000u /* Stream2 direct-mode err (bit 14) */
+#define DMA_LIFCR_CTEIF2 0x00008000u /* Stream2 transfer error  (bit 15) */
+#define DMA_LIFCR_CHTIF2 0x00010000u /* Stream2 half-transfer   (bit 16) */
+#define DMA_LIFCR_CTCIF2 0x00020000u /* Stream2 transfer compl  (bit 17) */
+/* Stream4 flag-clear bits (high group, streams 4-7). Stream4 starts at
+ *  HIFCR bit 0: [FE, X, DME, TE, HT, TC] = [0,1,2,3,4,5]. */
+#define DMA_HIFCR_CFEIF4 0x00000001u /* Stream4 FIFO error      (bit  0) */
+#define DMA_HIFCR_CDMEIF4 0x00000004u /* Stream4 direct-mode err (bit  2) */
+#define DMA_HIFCR_CTEIF4 0x00000008u /* Stream4 transfer error  (bit  3) */
+#define DMA_HIFCR_CHTIF4 0x00000010u /* Stream4 half-transfer   (bit  4) */
+#define DMA_HIFCR_CTCIF4 0x00000020u /* Stream4 transfer compl  (bit  5) */
 /* Legacy F1-style aliases: the target-agnostic hw_model and the register-level
  * tests name the same F4 bits through these spellings (DIR maps to the low bit
  * of the two-bit F4 direction field). */
