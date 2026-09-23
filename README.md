@@ -1355,8 +1355,16 @@ ignored and the scan round continues. To switch out of scan mode, call
 `ds18b20_select()` from the main loop after the scan completes, then
 `ds18b20_scan_start()` to resume simultaneous conversion.
 
-The driver measures the single device directly when exactly one is found, and
-cycles through all found devices in turn when several are present.
+`ds18b20_select()` targets one device and does not automatically cycle through
+the devices found by a search. For round-robin measurements, the application
+stores the ROM addresses returned by the search and selects the next device
+between measurement cycles; see `examples/3_round_robin/main.c`.
+
+To convert all discovered devices in parallel, use the separate scan mode:
+`ds18b20_scan_start()` broadcasts one Convert T command, then reads each device
+by ROM address and reports results in device-table order. See
+`examples/4_scan_mode/main.c`. Scan mode and single-device selection are
+mutually exclusive.
 
 ### Command Transactions
 
