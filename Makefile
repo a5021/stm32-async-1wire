@@ -58,11 +58,27 @@ DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
 JFLASH = port/stm32g0/stm32g031f6.jflash
 else ifeq ($(OW_TARGET),f4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+MCU = -mcpu=cortex-m4 -mthumb
+ifeq ($(OW_CHIP),f401)
+# STM32F401CC (e.g. the WeAct F401 Black Pill): 256KB flash / 64KB SRAM,
+# 84MHz system-clock cap. Same port backend: TIM1/DMA2/CHSEL=6 map identically.
+# The device macro is the canonical CMSIS STM32F401xC spelling (stm32f4xx.h
+# maps it to stm32f401xc.h); STM32F401xE would need stm32f401xe.h.
+ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s
+LDS = port/stm32f4/STM32F401CC_FLASH.ld
+DEF = -DSTM32F401xC -DOW_PORT_TARGET_F4
+# F401 default is 84MHz via 8MHz HSE+PLL (M=8,N=168,P=2); the generic F4
+# default of 168 is only valid on F405/F407-class parts. SYSCLK_MHZ still wins
+# when passed explicitly (e.g. 16 for a board without an HSE crystal).
+ifndef SYSCLK_MHZ
+DEF += -DOW_PORT_SYSCLK_MHZ=84
+endif
+else
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s
 LDS = port/stm32f4/STM32F407VGT6_FLASH.ld
-MCU = -mcpu=cortex-m4 -mthumb
 DEF = -DSTM32F407xx -DOW_PORT_TARGET_F4
 JFLASH = port/stm32f4/stm32f407vgt6.jflash
+endif
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
@@ -267,9 +283,11 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm4.h \
                 $(CMSIS_CORE_DIR)/cmsis_version.h \
                 $(CMSIS_DEVICE_DIR)/stm32f4xx.h \
                 $(CMSIS_DEVICE_DIR)/stm32f407xx.h \
+                $(CMSIS_DEVICE_DIR)/stm32f401xc.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c \
                 $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s \
+                $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s \
                 $(CMSIS_DEVICE_DIR)/STM32F407.svd
 else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
@@ -402,6 +420,9 @@ $(CMSIS_DEVICE_DIR)/stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/stm32f407xx.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/stm32f407xx.h,$@)
 
+$(CMSIS_DEVICE_DIR)/stm32f401xc.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Include/stm32f401xc.h,$@)
+
 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/system_stm32f4xx.h,$@)
 
@@ -410,6 +431,9 @@ $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c: | $(CMSIS_DEVICE_DIR)
 
 $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s,$@)
+
+$(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s,$@)
 
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
@@ -601,8 +625,11 @@ TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f
 .PHONY: test test-f0 test-g0 test-f4
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1)))
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
+# F4/F401-family fallback compile check: always built as part of `make test`,
+# independent of the active OW_TARGET (see rule below test-clocks).
+TEST_CLOCK_F401_OBJ = $(TEST_OUT)/test_sysclk_fallback_f401.o
 
-test: $(TEST_EXE) $(TEST_CLOCK_OBJ)
+test: $(TEST_EXE) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_F401_OBJ)
 	$(TEST_EXE)
 
 test-f0:
@@ -623,8 +650,21 @@ test-f4:
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
-.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4
-test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4
+# --- F4/F401 fallback compile check (see test_sysclk_fallback.c) ---
+# Compile-only, built as part of every `make test` (dependency of the `test`
+# target above): verifies that selecting the F4 family together with the
+# STM32F401xC/F401xE device macro (the OW_CHIP=f401 build, or a bare
+# PlatformIO/CubeMX F401 project) resolves the F4 backend with an 84 MHz clock
+# default instead of the F405/F407 168 MHz one. Always built with the F4 port
+# include path, independent of the active OW_TARGET. Also part of
+# `test-clocks-f401`.
+
+$(TEST_CLOCK_F401_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
+	$(HOST_CC) -c -DSTM32F4 -DSTM32F401xC -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
+	    tests/test/test_sysclk_fallback.c -o $@
+
+.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
+test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
 test-clocks-f0:
@@ -633,6 +673,8 @@ test-clocks-g0:
 	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
 test-clocks-f4:
 	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f4.o
+test-clocks-f401:
+	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f401.o
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the

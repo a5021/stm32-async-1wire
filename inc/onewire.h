@@ -40,18 +40,21 @@ extern "C" {
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
- *  own. ow_port.h picks the backend and app.c the device header/clock config
- *  from the token — never from the individual spellings — so the backend and
- *  the clock default cannot drift. To add a family, extend this chain (token
- *  and default clock together in one branch), then add the \#include branch in
- *  ow_port.h, the app.c config, and a case in tests/test/test_sysclk_fallback.c. */
+ *  own; for the F4 family the concrete device spellings (STM32F407xx /
+ *  STM32F401xC/STM32F401xE) are accepted too. ow_port.h picks the backend and app.c the
+ *  device header/clock config from the token — never from the individual
+ *  spellings — so the backend and the clock default cannot drift. To add a
+ *  family, extend this chain (token and default clock together in one
+ *  branch), then add the \#include branch in ow_port.h, the app.c config, and
+ *  a case in tests/test/test_sysclk_fallback.c. */
 #if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
 #define OW_PORT_FAMILY_F0
 #elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
 #define OW_PORT_FAMILY_G0
-#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4)
+#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) || \
+    defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_FAMILY_F4
 #endif
 /** @brief System clock frequency in MHz after application clock setup.
@@ -70,7 +73,11 @@ extern "C" {
 #elif defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #elif defined(OW_PORT_FAMILY_F4)
+#if defined(STM32F401xC) || defined(STM32F401xE)
+#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: 8MHz HSE + PLL (M=8, N=168, P=2) */
+#else
 #define OW_PORT_SYSCLK_MHZ 168 /* STM32F407 (DISCOVERY): 8MHz HSE + PLL */
+#endif
 #endif
 #endif
 /** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */

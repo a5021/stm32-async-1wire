@@ -194,6 +194,8 @@ void ow_stats_tx_enqueue(char c) {
  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.
  *       F407 (STM32F4DISCOVERY): 168MHz via 8MHz HSE + PLL (M=8, N=336,
  *       P=2), raw HSI at 16MHz, or raw HSE at 8MHz.
+ *       F401 (84MHz cap): 84MHz via 8MHz HSE + PLL (M=8, N=168, P=2),
+ *       raw HSI at 16MHz, or raw HSE at 8MHz.
  */
 void configure_system_clock(void) {
 #if defined(OW_PORT_FAMILY_G0)
@@ -270,6 +272,32 @@ void configure_system_clock(void) {
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
         ;
+#elif (OW_PORT_SYSCLK_MHZ) == 84
+    // STM32F401 (84MHz cap): HSE = 8MHz crystal -> PLL.
+    //   PLL input = 8/8 = 1MHz (valid 1-2MHz), VCO = 1 * 168 = 168MHz
+    //   (valid 100-432MHz), SYSCLK = 168/2 = 84MHz.
+    RCC->CR |= RCC_CR_HSEON;
+    while (!(RCC->CR & RCC_CR_HSERDY))
+        ;
+    RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (8u << RCC_PLLCFGR_PLLM_Pos) |
+                   (168u << RCC_PLLCFGR_PLLN_Pos) | (0u << RCC_PLLCFGR_PLLP_Pos) |
+                   (7u << RCC_PLLCFGR_PLLQ_Pos);
+    RCC->CR |= RCC_CR_PLLON;
+    // Wait for the PLL to lock
+    while (!(RCC->CR & RCC_CR_PLLRDY))
+        ;
+    // Flash latency: 2 wait states for 48 < HCLK <= 84MHz (RM0368).
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                 FLASH_ACR_LATENCY_2WS;
+    // APB1 /2 = 42MHz, APB2 /2 = 42MHz (both at their datasheet limits). TIM1
+    // is on APB2: with a prescaler != 1 the timer clock is doubled, so
+    // TIM1 = 2 * 42 = 84MHz = SYSCLK (the ow_port 1us-tick invariant).
+    RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2)) |
+                RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV2;
+    // Switch system clock to PLL
+    RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
+        ;
 #elif (OW_PORT_SYSCLK_MHZ) == 16
     // Raw HSI: the MCU already runs on the internal 16MHz RC after reset —
     // nothing to configure (APB2 stays /1, so TIM1 = HSI = 16MHz)
@@ -286,7 +314,7 @@ void configure_system_clock(void) {
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE)
         ;
 #else
-#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 (8MHz HSE+PLL), 16 (raw HSI) or 8 (raw HSE)"
+#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 (8MHz HSE+PLL, F405/F407), 84 (8MHz HSE+PLL, F401), 16 (raw HSI) or 8 (raw HSE)"
 #endif
 #else /* F1 */
 #if (OW_PORT_SYSCLK_MHZ) == 72
@@ -339,6 +367,15 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // enabled by ow_port_init())
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;
 
+    // APB bus clocks for the console UART, derived from the active clock
+    // config (see configure_system_clock): 168MHz -> APB1 /4 = 42, APB2 /2
+    // = 84; 84MHz -> APB1 /2 = 42, APB2 /2 = 42; raw 16/8MHz -> APB1/APB2 /1
+    // = SYSCLK.
+#define OW_PORT_PCLK1_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 42 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \
+                                                                                         : (OW_PORT_SYSCLK_MHZ))
+#define OW_PORT_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 84 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \
+                                                                                         : (OW_PORT_SYSCLK_MHZ))
+
     // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -> LED -> GND)
     GPIOD->MODER = (GPIOD->MODER & ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;
 
@@ -351,12 +388,8 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
     GPIOB->OTYPER &= ~GPIO_OTYPER_OT_10;
     GPIOB->AFR[1] = (GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL10) | (7u << GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */
-    // PCLK1: APB1 /4 at 168MHz (42MHz), /1 otherwise (= SYSCLK).
-#if (OW_PORT_SYSCLK_MHZ) == 168
-    USART3->BRR = USART_BRR_CALC(42000000u, 115200);
-#else
-    USART3->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200);
-#endif
+    // PCLK1: APB1 /4 at 168MHz (42MHz), /2 at 84MHz (42MHz), /1 otherwise.
+    USART3->BRR = USART_BRR_CALC((OW_PORT_PCLK1_MHZ) * 1000000u, 115200);
     USART3->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only
 #else
     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).
@@ -366,12 +399,8 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;
     GPIOB->OTYPER &= ~GPIO_OTYPER_OT_6;
     GPIOB->AFR[0] = (GPIOB->AFR[0] & ~GPIO_AFRL_AFSEL6) | (7u << GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */
-    // USART1 is on APB2: /2 at 168MHz (84MHz), /1 otherwise (= SYSCLK).
-#if (OW_PORT_SYSCLK_MHZ) == 168
-    USART1->BRR = USART_BRR_CALC(84000000u, 115200); // PCLK2 = APB2 = 84MHz
-#else
-    USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK
-#endif
+    // USART1 is on APB2: /2 at 168MHz (84MHz) and at 84MHz (42MHz), /1 otherwise.
+    USART1->BRR = USART_BRR_CALC((OW_PORT_PCLK2_MHZ) * 1000000u, 115200);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #endif
 #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
