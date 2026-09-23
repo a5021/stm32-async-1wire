@@ -444,16 +444,21 @@ master-only write slots and restored to open-drain afterwards — see
 
 ### 2. Initialize the Driver
 
+Before `ds18b20_init()`, the driver must know the system-clock frequency: the
+TIM1 prescaler that generates the 1-Wire timing derives from
+`OW_PORT_SYSCLK_MHZ`. Each backend has a built-in default (72 on STM32F1,
+48 on STM32F0, 64 on STM32G0), and the examples enable that clock in their
+`app_init()`. If your firmware runs the MCU at a different frequency, provide
+it explicitly — e.g. `-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build.
+
+**Single sensor (Skip ROM).** With one DS18B20 on the bus there is no need for
+a ROM search — the driver uses Skip ROM (broadcast) addressing by default:
+
 ```C
+#include "ds18b20.h"
+
 int main(void) {
     ds18b20_init();  // One-time initialization
-
-    // Optional: run the non-blocking device search to find every sensor on
-    // the bus. See examples/3_round_robin/main.c for a complete example. The search hands the
-    // driver back to poll() automatically when finished.
-
-    // Optional: measure one specific device by its ROM address
-    ds18b20_select(my_rom);  // my_rom from a bus search
 
     while (1) {
         ds18b20_poll();  // Call repeatedly from main loop
@@ -461,6 +466,50 @@ int main(void) {
     }
 }
 ```
+
+**Multiple sensors (bus search).** To find every device, run the non-blocking
+Search ROM state machine, then address each sensor by ROM with
+`ds18b20_select()`:
+
+```C
+#include "ds18b20.h"
+
+static uint8_t found_roms[8][DS18B20_ROM_BYTES];
+static uint8_t found_count = 0;
+
+// Called for every DS18B20 the search finds; return 0 to keep searching.
+static uint8_t on_device_found(const uint8_t* rom) {
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        found_roms[found_count][i] = rom[i];
+    }
+    found_count++;
+    return 0;
+}
+
+int main(void) {
+    ds18b20_init();  // One-time initialization
+
+    // The search owns the bus until it finishes: do not call ds18b20_poll()
+    // while it is running.
+    ds18b20_search_start(on_device_found, 8);
+    while (!ds18b20_search_poll()) {
+        // Repeatedly advance the search; returns 1 when it is finished.
+    }
+
+    if (found_count > 0) {
+        ds18b20_select(found_roms[0]);  // Measure the first sensor
+
+        while (1) {
+            ds18b20_poll();  // Call repeatedly from main loop
+            // Other application code...
+        }
+    }
+    return 0;
+}
+```
+
+See `examples/1_basic/main.c` for a complete single-sensor setup and
+`examples/2_device_search/main.c` for the search + round-robin loop.
 
 ### 3. Implement Callbacks (Optional)
 
