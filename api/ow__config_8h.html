@@ -133,9 +133,9 @@ Macros</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Central compile-time configuration for the 1-Wire stack. </p>
-<p>All genuinely tunable build constants are collected here. Every macro carries its own <code>#ifndef</code> guard so that a <code>-D</code> on the command line (Makefile EXT, CMake -D, PlatformIO build_flags) overrides the default without touching this file — the existing override mechanism is unchanged.</p>
+<p>All genuinely tunable build constants are collected here. Every macro carries its own <code>#ifndef</code> guard so that a <code>-D</code> on the command line (Makefile EXT, PlatformIO build_flags) overrides the default without touching this file — the existing override mechanism is unchanged. Note that these are preprocessor macros, not CMake options: the CMake project does not forward <code>-D&lt;macro&gt;=...</code> cache variables to the compiler, so pass the flags via the C flags (CMAKE_C_FLAGS / toolchain file) or, for the stats example, rely on the example target.</p>
 <p>Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES, DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the per-family system-clock default (OW_PORT_SYSCLK_MHZ, selected from the OW_PORT_TARGET / STM32F* family token) remain in their respective headers and are intentionally NOT listed here.</p>
-<p>The three feature flags are value-style: define to 1 to enable, omit or set to 0 to disable. Old -D presence-only style (-DOW_PORT_LOW_POWER without =1) no longer works with these flags — always pass =1. </p>
+<p>The four feature flags are value-style: define to 1 to enable, omit or set to 0 to disable. Old -D presence-only style (-DOW_PORT_LOW_POWER without =1) no longer works with these flags — always pass =1. </p>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a55d6ca17dbaa0c5db96d3349511b608b" name="a55d6ca17dbaa0c5db96d3349511b608b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a55d6ca17dbaa0c5db96d3349511b608b">&#9670;&#160;</a></span>DS18B20_CYCLE_PAUSE_US</h2>
