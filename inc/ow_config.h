@@ -4,8 +4,12 @@
  *
  * All genuinely tunable build constants are collected here.  Every macro
  * carries its own `#ifndef` guard so that a `-D` on the command line
- * (Makefile EXT, CMake -D, PlatformIO build_flags) overrides the default
- * without touching this file — the existing override mechanism is unchanged.
+ * (Makefile EXT, PlatformIO build_flags) overrides the default without
+ * touching this file — the existing override mechanism is unchanged.
+ * Note that these are preprocessor macros, not CMake options: the CMake
+ * project does not forward `-D<macro>=...` cache variables to the compiler,
+ * so pass the flags via the C flags (CMAKE_C_FLAGS / toolchain file) or, for
+ * the stats example, rely on the example target.
  *
  * Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES,
  * DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the
@@ -13,7 +17,7 @@
  * OW_PORT_TARGET / STM32F* family token) remain in their respective headers
  * and are intentionally NOT listed here.
  *
- * The three feature flags are value-style: define to 1 to enable, omit or
+ * The four feature flags are value-style: define to 1 to enable, omit or
  * set to 0 to disable.  Old -D presence-only style (-DOW_PORT_LOW_POWER
  * without =1) no longer works with these flags — always pass =1.
  */

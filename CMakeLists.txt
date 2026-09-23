@@ -69,13 +69,8 @@ set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
 set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 
 # ---------------------------------------------------------------------------
-# Library target (code only — no startup/system, no syscall.c)
+# Library targets (code only — no startup/system, no syscall.c)
 # ---------------------------------------------------------------------------
-add_library(stm32_async_1wire STATIC
-    src/onewire.c
-    src/ds18b20.c
-    src/ow_stats.c
-)
 
 # src/ds18b20.c is an amalgamated translation unit: the search / txn /
 # resolution / measurement code lives in these include-only parts (guarded by
@@ -89,34 +84,46 @@ set_source_files_properties(
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
-target_include_directories(stm32_async_1wire PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
-    $<INSTALL_INTERFACE:include/stm32-async-1wire>
-    # Device/CMSIS headers are required to compile the library (ow_port.h
-    # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
-    # build tree and must not leak into install exports — consumers of the
-    # installed lib provide their own CMSIS/device headers.
-    $<BUILD_INTERFACE:${CMSIS_CORE_INCLUDE}>
-    $<BUILD_INTERFACE:${CMSIS_DEVICE_INCLUDE}>
-)
+# Build a core library target <tgt> from the driver sources.
+function(ow_add_core_library tgt)
+    add_library(${tgt} STATIC
+        src/onewire.c
+        src/ds18b20.c
+        src/ow_stats.c
+    )
+    target_include_directories(${tgt} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
+        $<INSTALL_INTERFACE:include/stm32-async-1wire>
+        # Device/CMSIS headers are required to compile the library (ow_port.h
+        # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
+        # build tree and must not leak into install exports — consumers of the
+        # installed lib provide their own CMSIS/device headers.
+        $<BUILD_INTERFACE:${CMSIS_CORE_INCLUDE}>
+        $<BUILD_INTERFACE:${CMSIS_DEVICE_INCLUDE}>
+    )
+    target_compile_definitions(${tgt} PUBLIC
+        ${CMSIS_DEVICE_DEF}
+        ${OW_PORT_DEF}
+    )
+    target_compile_options(${tgt} PUBLIC
+        ${MCU_FLAGS}
+        -Os
+        -Wall
+        -Wextra
+        -ffunction-sections
+        -fdata-sections
+    )
+endfunction()
 
-target_compile_definitions(stm32_async_1wire PUBLIC
-    ${CMSIS_DEVICE_DEF}
-    ${OW_PORT_DEF}
-)
-
-target_compile_options(stm32_async_1wire PUBLIC
-    ${MCU_FLAGS}
-    -Os
-    -Wall
-    -Wextra
-    -ffunction-sections
-    -fdata-sections
-)
+# The plain library is always built without OW_STATS_ENABLE: the stats module
+# is inert (its body and the inline ow_stats_* hooks compile away).  The
+# example build below adds a dedicated stats-enabled variant for 6_statistics
+# only.
+ow_add_core_library(stm32_async_1wire)
 
 # ---------------------------------------------------------------------------
 # Install targets
@@ -217,11 +224,13 @@ if(OW_BUILD_EXAMPLES)
         --specs=nano.specs
     )
 
-    # ow_stats.c is compiled into the library but its implementation is
-    # entirely guarded by OW_STATS_ENABLE.  The example set includes
-    # 6_statistics, which requires the APIs unconditionally — mirror the
-    # Makefile's `APP=6_statistics` EXT flags on the shared library.
-    target_compile_definitions(stm32_async_1wire PUBLIC
+    # 6_statistics is the only example that uses the stats module.  Mirror
+    # `make APP=6_statistics` (which enables -DOW_STATS_ENABLE=1 and
+    # -DDS18B20_CYCLE_PAUSE_US=10000 for that app only) with a private
+    # core-library variant.  The plain library and every other example stay
+    # free of stats instrumentation.
+    ow_add_core_library(stm32_async_1wire_stats)
+    target_compile_definitions(stm32_async_1wire_stats PUBLIC
         OW_STATS_ENABLE=1
         DS18B20_CYCLE_PAUSE_US=10000
     )
@@ -243,20 +252,26 @@ if(OW_BUILD_EXAMPLES)
             examples/${ex}/main.c
             examples/app/app.c
         )
-        target_link_libraries(${ex} PRIVATE
-            stm32_async_1wire
-            stm32_async_1wire_platform
-        )
+        if(ex STREQUAL "6_statistics")
+            target_link_libraries(${ex} PRIVATE
+                stm32_async_1wire_stats
+                stm32_async_1wire_platform
+            )
+            # Mirror `make APP=6_statistics`.
+            target_compile_definitions(${ex} PRIVATE
+                STATS_DUMP_INTERVAL=5000
+            )
+        else()
+            target_link_libraries(${ex} PRIVATE
+                stm32_async_1wire
+                stm32_async_1wire_platform
+            )
+        endif()
         target_include_directories(${ex} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/app
         )
         target_compile_definitions(${ex} PRIVATE
             UART_TX_BUF_SIZE=${UART_TX_SIZE_${ex}}
         )
-        if(ex STREQUAL "6_statistics")
-            target_compile_definitions(${ex} PRIVATE
-                STATS_DUMP_INTERVAL=5000
-            )
-        endif()
     endforeach()
 endif()

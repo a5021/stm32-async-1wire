@@ -766,13 +766,16 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 All genuinely tunable build constants live in `inc/ow_config.h`.  Every
 macro carries a `#ifndef` guard so that a `-D` on the command line (Makefile
-EXT, CMake `-D`, PlatformIO `build_flags`) overrides the default without
-editing the header.  Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
+EXT, PlatformIO `build_flags`) overrides the default without editing the
+header.  (These are preprocessor macros, not CMake options: a `cmake
+-DOW_STATS_ENABLE=1` variable would not reach the compiler.  The CMake
+example build enables stats automatically for `6_statistics` — see below.)
+Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
 `DS18B20_RES_MIN/MAX/DEFAULT`) and the per-family system clock default
 (`OW_PORT_SYSCLK_MHZ`) remain in their respective headers and are NOT
 listed here.
 
-The three feature flags use **value style**: define to **1** to enable,
+The four feature flags use **value style**: define to **1** to enable,
 omit or set to 0 to disable.  Old presence-only style
 (`-DOW_PORT_LOW_POWER` without `=1`) no longer compiles correctly.
 
@@ -798,11 +801,19 @@ make EXT="-DOW_PARASITE_POWER=1"  # parasite guard-band default
 make EXT="-DONEWIRE_SHORT_PULSE_MAX=15 -DDS18B20_MAX_DEVICES=16"
 ```
 
-CMake:
+CMake: the `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US` flags are not CMake
+options.  With `-DOW_BUILD_EXAMPLES=ON` they are applied automatically to
+the `6_statistics` example only (its dedicated library variant), mirroring
+`make APP=6_statistics`:
 
 ```bash
-cmake -DOW_TARGET=f0 -DOW_STATS_ENABLE=1 -B build .
+cmake -DOW_TARGET=f0 -DOW_BUILD_EXAMPLES=ON -B build .
+cmake --build build --target 6_statistics
 ```
+
+Other CMake feature flags can be forwarded to the compiler via a standard
+`CMAKE_C_FLAGS` (or a toolchain-file edit) — the `#ifndef` guard in
+`ow_config.h` picks them up:
 
 PlatformIO (`platformio.ini`):
 
