@@ -869,7 +869,7 @@ protocol on embedded systems:
 | **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi-blocking | Medium | RTOS-based firmware |
 | **UART bit-banging** | UART at 9600/115200 baud emulates 1-Wire timings | Depends | Medium | Systems with spare UARTs |
 | **Hardware 1-Wire master** | Dedicated IC (DS2482) or kernel subsystem (Linux w1-gpio) | No | High | Linux SBCs, complex systems |
-| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values autonomously; timer self-disables after each transaction | No | High (1µs resolution, zero jitter) | STM32 resource-constrained firmware |
+| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values to the timer, which generates bus timing without CPU-driven edges | No | Hardware-timed, 1 µs timer resolution; no CPU-induced edge jitter | STM32 firmware with available timer and DMA resources |
 
 ### Trade-offs
 
@@ -880,12 +880,14 @@ needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
 portable across MCUs with limited peripherals.
 
-**Precision vs. portability.** Timer+DMA provides deterministic 1µs resolution
-with zero jitter, because the CPU is never in the timing-critical path. Software
-delays degrade under interrupt load, and even timer-ISR approaches incur jitter
-from preemption. The trade-off is complexity: this driver's hardware configuration
-is ~150 lines of register-level code versus ~20 lines for a typical bit-bang
-implementation.
+**Precision vs. portability.** Timer+DMA keeps the CPU out of the
+timing-critical path. The timer schedules bus edges at a nominal 1 µs
+resolution, so CPU activity does not introduce edge jitter. Actual timing
+accuracy depends on the timer clock and the electrical characteristics of the
+bus. Software delays degrade under interrupt load, and even timer-ISR approaches
+incur jitter from preemption. The trade-off is complexity: this driver's
+hardware configuration is ~150 lines of register-level code versus ~20 lines
+for a typical bit-bang implementation.
 
 ## Architecture
 
@@ -931,9 +933,12 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
   `ds18b20_alarm_search_*`.
 - `onewire_crc8()` — the Dallas/Maxim CRC-8 utility.
 
-Every operation is scheduled as one hardware transaction on TIM1/DMA and
-completes asynchronously; the caller advances it by polling
-`onewire_bus_done()` / `onewire_search_poll()`. The layer owns its own capture
+Each bus transaction is timed and executed by TIM1 and DMA, without CPU-driven
+timing. The application calls `onewire_bus_done()` / `onewire_search_poll()` to
+let the non-blocking state machine check hardware completion and advance to the
+next step; no busy-wait is used. Helper functions such as CRC calculation and
+pulse encoding/decoding process data in software and do not start bus
+transactions. The layer owns its own capture
 buffers, keeps the line released to idle HIGH after every transaction, and
 is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
