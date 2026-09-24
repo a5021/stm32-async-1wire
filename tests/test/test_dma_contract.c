@@ -14,7 +14,7 @@
  *    read data (N B)   P->M CCR4        user buffer   8          N*8         N*8-1
  *    write (N slots)   M->P CCR3        cmd+1         8          N           N-1
  *    merged w+r        both CCR3/CCR4   exact builds  8 / 16     3 / 3       2
- *    Match-ROM write   M->P CCR3        cmd buffer+1  8          104         103
+ *    Match-ROM write   M->P CCR3        res pulses+1  8          104         103
  *
  *  plus the boundaries (write 256 / read 32 bytes -> RCR 255) and the
  *  single-bit write, whose whole contract is that *no* DMA channel is
@@ -28,7 +28,7 @@
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire_internal.h"
+#include "onewire.h"
 #include "ow_port.h"
 #include "unity.h"
 #include <string.h>
@@ -51,8 +51,8 @@ static uint16_t presence_src(uint32_t idx) {
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 DMA_CCR_PSIZE_0
 #endif
-#define FEED_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
-#define FEED_LO (DMA_CCR_MSIZE_1)
+#define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
+#define FEED_8BIT_LO (DMA_CCR_MSIZE_1)
 #define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
 #define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
 #define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
@@ -98,7 +98,7 @@ static void sched_write_8(void) {
     }
     w8[ONEWIRE_BITS_PER_BYTE] = 0u;
     hw_register_buf(&w8[1]);
-    onewire_write_pulses(w8, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(w8, ONEWIRE_BITS_PER_BYTE);
 }
 
 static void sched_write_256(void) {
@@ -107,7 +107,7 @@ static void sched_write_256(void) {
     }
     w256[ONEWIRE_MAX_SLOTS] = 0u;
     hw_register_buf(&w256[1]);
-    onewire_write_pulses(w256, ONEWIRE_MAX_SLOTS);
+    onewire_write_slots(w256, ONEWIRE_MAX_SLOTS);
 }
 
 static uint16_t rst_buf[OW_PORT_CAPTURE_BUF_SIZE];
@@ -166,14 +166,14 @@ static void sched_single_bit_write(void) {
 
 static dma_contract_row_t k_contracts[] = {
     {
-        "write_pulses 8 (TX)",
+        "write_slots 8 (TX)",
         sched_write_8,
         /* rcr */ 7u,
         (uintptr_t)&w8[1],
         (uintptr_t)&mock_tim1.CCR3,
         8u,
-        FEED_HI,
-        FEED_LO,
+        FEED_8BIT_HI,
+        FEED_8BIT_LO,
         0u,
         0u,
         0u,
@@ -184,14 +184,14 @@ static dma_contract_row_t k_contracts[] = {
         0u,
     },
     {
-        "write_pulses 256 (TX max)",
+        "write_slots 256 (TX max)",
         sched_write_256,
         255u,
         (uintptr_t)&w256[1],
         (uintptr_t)&mock_tim1.CCR3,
         256u,
-        FEED_HI,
-        FEED_LO,
+        FEED_8BIT_HI,
+        FEED_8BIT_LO,
         0u,
         0u,
         0u,
@@ -280,8 +280,8 @@ static dma_contract_row_t k_contracts[] = {
         0u,
         (uintptr_t)&mock_tim1.CCR3, /* CMAR patched at runtime */
         3u,
-        FEED_HI,
-        FEED_LO,
+        FEED_8BIT_HI,
+        FEED_8BIT_LO,
         0u,
         (uintptr_t)&mock_tim1.CCR4, /* CMAR patched at runtime */
         3u,
@@ -298,8 +298,8 @@ static dma_contract_row_t k_contracts[] = {
         0u,
         (uintptr_t)&mock_tim1.CCR3, /* CMAR patched at runtime */
         104u,
-        FEED_HI,
-        FEED_LO,
+        FEED_8BIT_HI,
+        FEED_8BIT_LO,
         0u,
         0u,
         0u,
@@ -380,7 +380,7 @@ void test_dma_contract_table(void) {
     /* exact internal-buffer CMAR targets (addresses are runtime constants) */
     k_contracts[6].exp_feed_cmar = (uintptr_t)test_search_read_pulse_addr();
     k_contracts[6].exp_cap_cmar = (uintptr_t)test_search_pulse3_addr();
-    k_contracts[7].exp_feed_cmar = (uintptr_t)onewire_test_cmd_feed_addr();
+    k_contracts[7].exp_feed_cmar = (uintptr_t)test_res_pulses_feed_addr();
 
     for (uint32_t i = 0u; i < (uint32_t)(sizeof(k_contracts) / sizeof(k_contracts[0])); i++) {
         run_contract_row(&k_contracts[i]);

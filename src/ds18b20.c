@@ -19,12 +19,12 @@
 #define DS18B20_CRC8_BYTES 8
 /** @brief Total number of bits in DS18B20 scratchpad */
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
-/** @brief Bytes in a Match ROM command (0x55 + 8-byte ROM + command byte) */
-#define DS18B20_MATCH_BYTES (DS18B20_ROM_BYTES + 2)
-/** @brief Bytes in the invariant Match ROM prefix (0x55 + 8-byte ROM, built on select) */
-#define DS18B20_PREFIX_BYTES (DS18B20_ROM_BYTES + 1)
-/** @brief Bytes in a Skip ROM broadcast command (0xCC + command byte) */
-#define DS18B20_SKIP_BYTES 2
+/** @brief Total slots for Match ROM + 8-byte ROM + command */
+#define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
+/** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
+#define DS18B20_PREFIX_SLOTS ((DS18B20_ROM_BYTES + 1) * DS18B20_BITS_PER_BYTE)
+/** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
+#define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 #define SCAN_DEVICE_GAP_US 1000 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 #define SCAN_DEVICE_GAP_RCR 0
 /** @brief TH byte written together with the config register by the resolution
@@ -40,6 +40,10 @@
 /** @brief Bytes in the resolution config write for Match ROM mode
  *         (Match ROM 0x55 + 8-byte ROM + 0x4E + TH + TL + CFG) */
 #define DS18B20_RES_BYTES_MAX (1 + DS18B20_ROM_BYTES + 1 + 3)
+/** @brief Slots for the Skip ROM resolution config write */
+#define DS18B20_RES_SLOTS_MIN (DS18B20_RES_BYTES_MIN * DS18B20_BITS_PER_BYTE)
+/** @brief Slots for the Match ROM resolution config write */
+#define DS18B20_RES_SLOTS_MAX (DS18B20_RES_BYTES_MAX * DS18B20_BITS_PER_BYTE)
 /** @brief Wait for Copy Scratchpad (t_COPY) / Recall EEPROM (t_RECALL)
  *         completion in microseconds (DS18B20 datasheet: 10ms max). */
 #define DS18B20_EEPROM_WAIT_US 10000
@@ -76,7 +80,7 @@ typedef struct {
     uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
     uint8_t scan_index; /**< Index of the device currently read in scan mode */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t addr_bytes[DS18B20_MATCH_BYTES]; /**< Pre-built Match ROM + command byte (0x55 + ROM + cmd) */
+    ow_pulse_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
     uint8_t parasite; /**< 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
 } DS18B20_ctx_t;
@@ -109,8 +113,8 @@ typedef struct {
     uint8_t read_bytes; /**< Bytes to read back (0 = no read phase) */
     uint16_t wait_us; /**< Timed wait after the command (0 = none) */
     uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
-    uint8_t nbytes; /**< Bytes in the built command (incl. prefix and payload) */
-    uint8_t bytes[DS18B20_RES_BYTES_MAX]; /**< Built command bytes (prefix + function + payload) */
+    uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
+    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
     uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
     uint8_t finished; /**< 1 once the transaction finished (or aborted) */
@@ -128,29 +132,34 @@ typedef struct {
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
 
-/* B1 guard: the byte array pre-building the Match ROM command must hold the
- * full command (0x55 + ROM + function byte) so issue_command() can send it. */
-_Static_assert(sizeof(ctx.addr_bytes) == DS18B20_MATCH_BYTES,
-               "addr_bytes must hold a full Match ROM command (0x55 + ROM + cmd)");
+/* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing
+ * ONEWIRE_RELEASE_PULSE that the final DMA transfer feeds into CCR3 to
+ * release the 1-Wire bus. The addr_cmd buffer must therefore hold
+ * DS18B20_MATCH_SLOTS + 1 entries, not DS18B20_MATCH_SLOTS, or that last
+ * slot reads one byte past the buffer. */
+_Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
+               "addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
 /* RCR guard: every DS18B20 pass must fit one 8-bit RCR window (256 slots). */
+_Static_assert(DS18B20_MATCH_SLOTS <= ONEWIRE_MAX_SLOTS,
+               "Match ROM write must fit one RCR window");
 _Static_assert(DS18B20_SCRATCHPAD_BITS <= ONEWIRE_MAX_SLOTS,
                "scratchpad read must fit one RCR window");
 _Static_assert(DS18B20_SCRATCHPAD_LEN <= ONEWIRE_MAX_READ_BYTES,
                "scratchpad length must fit one read pass");
-/* Command-limit guard: every DS18B20 write must fit the 1-Wire layer's
- * per-command byte limit (ONEWIRE_CMD_MAX_BYTES). */
-_Static_assert(DS18B20_MATCH_BYTES <= ONEWIRE_CMD_MAX_BYTES,
-               "Match ROM command must fit the 1-Wire command limit");
-_Static_assert(DS18B20_RES_BYTES_MAX <= ONEWIRE_CMD_MAX_BYTES,
-               "longest resolution/config write must fit the 1-Wire command limit");
 
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
 
-/* B1 guard: the command byte array must hold the longest command the txn
- * engine builds (Match ROM + function + 3-byte payload). */
-_Static_assert(sizeof(txn_ctx.bytes) >= DS18B20_RES_BYTES_MAX,
-               "txn_ctx.bytes must hold the longest (Match ROM) command write");
+/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
+ * DMA's final transfer must always be present at the exact slot index used
+ * for the write (see txn_build_pulses); the buffer is sized for the longest
+ * (Match ROM) command write. */
+_Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
+               "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
+               "trailing bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(DS18B20_RES_SLOTS_MAX <= ONEWIRE_MAX_SLOTS,
+               "longest txn write must fit one RCR window");
 
 /**
  * @}
@@ -269,26 +278,40 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
 }
 
 /**
+ * @brief Start inter-measurement pause period (5s)
+ * @note Non-blocking - starts timer for inter-measurement delay
+ */
+/**
  * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)
- * @note Fills the first DS18B20_PREFIX_BYTES bytes of ctx.addr_bytes.
+ * @note Fills the first DS18B20_PREFIX_SLOTS entries of ctx.addr_cmd.
  *       The prefix depends only on the selected device, so it is built
  *       once in ds18b20_select() and reused for every command.
  */
 __STATIC_FORCEINLINE void build_addr_prefix(void) {
-    ctx.addr_bytes[0] = DS18B20_MATCH_ROM;
+    ow_pulse_t* p = ctx.addr_cmd;
+    onewire_encode_byte(p, DS18B20_MATCH_ROM);
+    p += DS18B20_BITS_PER_BYTE;
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-        ctx.addr_bytes[1 + i] = ctx.selected_rom[i];
+        onewire_encode_byte(p, ctx.selected_rom[i]);
+        p += DS18B20_BITS_PER_BYTE;
     }
+    /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
+     * reads as its final DMA transfer into CCR3 is present, even though
+     * build_addr_cmd() only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1.
+     * Without this, the bus-release pulse would depend on whatever happened
+     * to sit at addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not
+     * guaranteed). */
+    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
  * @brief Append one command byte to the pre-built Match ROM prefix
  * @param[in] cmd_byte Command byte to send after the ROM address
  * @note Requires build_addr_prefix() to have been called for the current
- *       selected device. Only the last byte is rewritten per call.
+ *       selected device. Only the last byte (8 slots) is re-encoded per call.
  */
 __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
-    ctx.addr_bytes[DS18B20_PREFIX_BYTES] = cmd_byte;
+    onewire_encode_byte(&ctx.addr_cmd[DS18B20_PREFIX_SLOTS], cmd_byte);
 }
 
 /**
@@ -320,9 +343,10 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
 
 /**
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
- * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the
- *       driver idle so the measurement state machine owns the timer until the
- *       application starts a device search.
+ * @note Calls onewire_init(), which takes exclusive ownership of the shared
+ *       TIM1/DMA1/GPIO resources for the lifetime of the driver (until reset),
+ *       and marks the driver idle so the measurement state machine owns the
+ *       timer until the application starts a device search.
  */
 void ds18b20_init(void) {
     onewire_init();
@@ -353,7 +377,7 @@ void ds18b20_init(void) {
  *       the per-device scan callback (which the driver invokes at
  *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the
  *       scan round continues. Applying a select mid-cycle would overwrite
- *       ctx.addr_bytes while the DMA is still feeding it, corrupting the
+ *       ctx.addr_cmd while the DMA is still feeding it, corrupting the
  *       in-flight bus transaction. Re-call at IDLE (e.g. from
  *       ds18b20_complete() in single-device mode, or between rounds) to switch
  *       addressing.

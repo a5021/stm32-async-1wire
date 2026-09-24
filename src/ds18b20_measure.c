@@ -6,11 +6,6 @@
 #error "ds18b20_measure.c is an include-only driver part; compile src/ds18b20.c"
 #endif
 
-#if defined(OW_DEBUG_PULSE_DUMP) && OW_STATS_ENABLE
-/* One-shot raw CCR4 pulse dump (latency experiments; needs the stats UART API) */
-static uint8_t pulse_dumped;
-#endif
-
 /**
  * @defgroup DS18B20_Measurement_Internal DS18B20 Measurement State Machine
  * @{
@@ -94,8 +89,18 @@ void ds18b20_scan_start(void) {
  */
 uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
 
-static uint8_t conv_cmd[DS18B20_SKIP_BYTES];
-static uint8_t read_cmd[DS18B20_SKIP_BYTES];
+static ow_pulse_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
+static ow_pulse_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
+
+/* B1 guard: same trailing bus-release invariant as addr_cmd/txn_ctx/res_ctx —
+ * the 1-Wire layer's CCR3-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
+ * final ONEWIRE_RELEASE_PULSE. Keep both Skip-ROM buffers at +1 for uniformity. */
+_Static_assert(sizeof(conv_cmd) >= DS18B20_DMA_TRANSFERS + 1,
+               "conv_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
+               "read_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
 
 /* Lifetime note: conv_cmd/read_cmd are shared static buffers reused on every
  * build_skip_cmd() call. This is safe only because issue_command() is invoked
@@ -103,12 +108,14 @@ static uint8_t read_cmd[DS18B20_SKIP_BYTES];
  * confirmed that the timer/DMA of the previous 1-Wire operation is idle, and
  * the ownership guards (ds18b20_select/search/resolution reject while busy)
  * prevent any concurrent re-entry that could interleave a second build while
- * onewire_write_command() encodes the bytes. onewire_write_command() copies
- * the bytes synchronously into the 1-Wire layer's internal pulse buffer, so
- * the rewrite happens strictly between DMA bursts, never during one. */
-static void build_skip_cmd(uint8_t* dst, uint8_t cmd_byte) {
-    dst[0] = 0xCC;
-    dst[1] = cmd_byte;
+ * the CCR3-feed DMA is still reading the table. In other words the rewrite
+ * happens strictly between DMA bursts, never during one — the invariant is
+ * implicit in the call site, hence documented here at the same level of
+ * detail as the B1 guards for the other pulse buffers. */
+static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
+    onewire_encode_byte(dst, 0xCC);
+    onewire_encode_byte(dst + 8, cmd_byte);
+    dst[DS18B20_DMA_TRANSFERS] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -136,11 +143,11 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
     }
     if (ctx.address_mode) {
         build_addr_cmd(cmd_byte);
-        onewire_write_command(ctx.addr_bytes, DS18B20_MATCH_BYTES);
+        onewire_write_slots(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
     } else {
-        uint8_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
+        ow_pulse_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
         build_skip_cmd(skip_tbl, cmd_byte);
-        onewire_write_command(skip_tbl, DS18B20_SKIP_BYTES);
+        onewire_write_slots(skip_tbl, DS18B20_DMA_TRANSFERS);
     }
     ctx.current_state = next_state;
 }
@@ -253,25 +260,6 @@ void ds18b20_poll(void) {
          * via the union alias (scratchpad[n] == pulse[n]). */
         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,
                                ctx.address_mode ? ctx.selected_rom : (const uint8_t*)0);
-#if defined(OW_DEBUG_PULSE_DUMP) && OW_STATS_ENABLE
-        if (!pulse_dumped) {
-            pulse_dumped = 1;
-            ow_stats_puts("--- pulse [");
-            ow_stats_print_int(DS18B20_SCRATCHPAD_BITS);
-            ow_stats_puts("] ---\r\n");
-            for (uint8_t i = 0; i < DS18B20_SCRATCHPAD_BITS; i++) {
-                ow_stats_print_int((int)ctx.pulse[i]);
-                if ((i & 15) == 15) {
-                    ow_stats_puts("\r\n");
-                } else {
-                    ow_stats_putchar(' ');
-                }
-            }
-            if ((DS18B20_SCRATCHPAD_BITS & 15) != 0) {
-                ow_stats_puts("\r\n");
-            }
-        }
-#endif
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete

@@ -1,6 +1,6 @@
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire_internal.h"
+#include "onewire.h"
 #include "ow_config.h"
 #include <stdio.h>
 #include <stdlib.h>

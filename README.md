@@ -528,16 +528,21 @@ the default 168 MHz PLL clock.
 
 ### 2. Initialize the Driver
 
+Before `ds18b20_init()`, the driver must know the system-clock frequency: the
+TIM1 prescaler that generates the 1-Wire timing derives from
+`OW_PORT_SYSCLK_MHZ`. Each backend has a built-in default (72 on STM32F1,
+48 on STM32F0, 64 on STM32G0), and the examples enable that clock in their
+`app_init()`. If your firmware runs the MCU at a different frequency, provide
+it explicitly — e.g. `-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build.
+
+**Single sensor (Skip ROM).** With one DS18B20 on the bus there is no need for
+a ROM search — the driver uses Skip ROM (broadcast) addressing by default:
+
 ```C
+#include "ds18b20.h"
+
 int main(void) {
     ds18b20_init();  // One-time initialization
-
-    // Optional: run the non-blocking device search to find every sensor on
-    // the bus. See examples/3_round_robin/main.c for a complete example. The
-    // search leaves the bus idle when it finishes.
-
-    // Optional: measure one specific device by its ROM address
-    ds18b20_select(my_rom);  // my_rom from a bus search
 
     ds18b20_start_measure();  // Request one measurement cycle
 
@@ -548,6 +553,52 @@ int main(void) {
     }
 }
 ```
+
+**Multiple sensors (bus search).** To find every device, run the non-blocking
+Search ROM state machine, then address each sensor by ROM with
+`ds18b20_select()`:
+
+```C
+#include "ds18b20.h"
+
+static uint8_t found_roms[8][DS18B20_ROM_BYTES];
+static uint8_t found_count = 0;
+
+// Called for every DS18B20 the search finds; return 0 to keep searching.
+static uint8_t on_device_found(const uint8_t* rom) {
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        found_roms[found_count][i] = rom[i];
+    }
+    found_count++;
+    return 0;
+}
+
+int main(void) {
+    ds18b20_init();  // One-time initialization
+
+    // The search owns the bus until it finishes: do not call ds18b20_poll()
+    // while it is running.
+    ds18b20_search_start(on_device_found, 8);
+    while (!ds18b20_search_poll()) {
+        // Repeatedly advance the search; returns 1 when it is finished.
+    }
+
+    if (found_count > 0) {
+        ds18b20_select(found_roms[0]);  // Measure the first sensor
+        ds18b20_start_measure();        // Request one measurement cycle
+
+        while (1) {
+            ds18b20_poll();  // Call repeatedly from main loop
+            // Other application code... decide here when to request the
+            // next cycle with ds18b20_start_measure()
+        }
+    }
+    return 0;
+}
+```
+
+See `examples/1_basic/main.c` for a complete single-sensor setup and
+`examples/2_device_search/main.c` for the search + round-robin loop.
 
 ### 3. Implement Callbacks (Optional)
 
@@ -864,13 +915,16 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 All genuinely tunable build constants live in `inc/ow_config.h`.  Every
 macro carries a `#ifndef` guard so that a `-D` on the command line (Makefile
-EXT, CMake `-D`, PlatformIO `build_flags`) overrides the default without
-editing the header.  Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
+EXT, PlatformIO `build_flags`) overrides the default without editing the
+header.  (These are preprocessor macros, not CMake options: a `cmake
+-DOW_STATS_ENABLE=1` variable would not reach the compiler.  The CMake
+example build enables stats automatically for `6_statistics` — see below.)
+Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
 `DS18B20_RES_MIN/MAX/DEFAULT`) and the per-family system clock default
 (`OW_PORT_SYSCLK_MHZ`) remain in their respective headers and are NOT
 listed here.
 
-The three feature flags use **value style**: define to **1** to enable,
+The four feature flags use **value style**: define to **1** to enable,
 omit or set to 0 to disable.  Old presence-only style
 (`-DOW_PORT_LOW_POWER` without `=1`) no longer compiles correctly.
 
@@ -895,11 +949,19 @@ make EXT="-DOW_PARASITE_POWER=1"  # parasite guard-band default
 make EXT="-DONEWIRE_SHORT_PULSE_MAX=15 -DDS18B20_MAX_DEVICES=16"
 ```
 
-CMake:
+CMake: the `OW_STATS_ENABLE` flag is not a CMake option.  With
+`-DOW_BUILD_EXAMPLES=ON` it is applied automatically to
+the `6_statistics` example only (its dedicated library variant), mirroring
+`make APP=6_statistics`:
 
 ```bash
-cmake -DOW_TARGET=f0 -DOW_STATS_ENABLE=1 -B build .
+cmake -DOW_TARGET=f0 -DOW_BUILD_EXAMPLES=ON -B build .
+cmake --build build --target 6_statistics
 ```
+
+Other CMake feature flags can be forwarded to the compiler via a standard
+`CMAKE_C_FLAGS` (or a toolchain-file edit) — the `#ifndef` guard in
+`ow_config.h` picks them up:
 
 PlatformIO (`platformio.ini`):
 
@@ -966,7 +1028,7 @@ protocol on embedded systems:
 | **Bit-banging + timer ISR** | Timer interrupt drives GPIO transitions | Semi-blocking | Medium | RTOS-based firmware |
 | **UART bit-banging** | UART at 9600/115200 baud emulates 1-Wire timings | Depends | Medium | Systems with spare UARTs |
 | **Hardware 1-Wire master** | Dedicated IC (DS2482) or kernel subsystem (Linux w1-gpio) | No | High | Linux SBCs, complex systems |
-| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values autonomously; timer self-disables after each transaction | No | High (1µs resolution, zero jitter) | STM32 resource-constrained firmware |
+| **Timer + DMA + One-Pulse Mode** (this driver) | DMA feeds CCR values to the timer, which generates bus timing without CPU-driven edges | No | Hardware-timed, 1 µs timer resolution; no CPU-induced edge jitter | STM32 firmware with available timer and DMA resources |
 
 ### Trade-offs
 
@@ -977,12 +1039,14 @@ needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
 portable across MCUs with limited peripherals.
 
-**Precision vs. portability.** Timer+DMA provides deterministic 1µs resolution
-with zero jitter, because the CPU is never in the timing-critical path. Software
-delays degrade under interrupt load, and even timer-ISR approaches incur jitter
-from preemption. The trade-off is complexity: this driver's hardware configuration
-is ~150 lines of register-level code versus ~20 lines for a typical bit-bang
-implementation.
+**Precision vs. portability.** Timer+DMA keeps the CPU out of the
+timing-critical path. The timer schedules bus edges at a nominal 1 µs
+resolution, so CPU activity does not introduce edge jitter. Actual timing
+accuracy depends on the timer clock and the electrical characteristics of the
+bus. Software delays degrade under interrupt load, and even timer-ISR approaches
+incur jitter from preemption. The trade-off is complexity: this driver's
+hardware configuration is ~150 lines of register-level code versus ~20 lines
+for a typical bit-bang implementation.
 
 ## Architecture
 
@@ -1028,9 +1092,12 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
   `ds18b20_alarm_search_*`.
 - `onewire_crc8()` — the Dallas/Maxim CRC-8 utility.
 
-Every operation is scheduled as one hardware transaction on TIM1/DMA and
-completes asynchronously; the caller advances it by polling
-`onewire_bus_done()` / `onewire_search_poll()`. The layer owns its own capture
+Each bus transaction is timed and executed by TIM1 and DMA, without CPU-driven
+timing. The application calls `onewire_bus_done()` / `onewire_search_poll()` to
+let the non-blocking state machine check hardware completion and advance to the
+next step; no busy-wait is used. Helper functions such as CRC calculation and
+pulse encoding/decoding process data in software and do not start bus
+transactions. The layer owns its own capture
 buffers, keeps the line released to idle HIGH after every transaction, and
 is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
@@ -1271,8 +1338,22 @@ Rules for correct RTOS use:
    must be advanced by its own `*_poll()` (as in the loop above) — not by
    `ds18b20_poll()`.
 
-2. **TIM1 and DMA1 (channels 3 and 4) are owned by the driver.** No other task
-   or peripheral may use them while the driver is initialised.
+2. **TIM1, DMA1 (channels 3 and 4) and the bus GPIO pin are owned exclusively
+   by the driver from initialisation until reset.** No other task, ISR or
+   peripheral may configure or use them:
+
+   - **TIM1** — the prescaler, pulse-generation/CCR3-feed logic and input
+     capture on CCR4 are all driver-managed.
+   - **DMA1 channels 3 and 4** — fixed channel mapping on F0/F1, requested via
+     DMAMUX requests 21 (TIM1_CC2 → CCR3 feed) and 23 (TIM1_CH4 → CCR4
+     capture) on G0.
+   - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or the
+     physical PA12 pad remapped to logical PA10 on G0 (those pads must not be
+     used as plain GPIO while the driver is active).
+
+   The library has no deinit or release API — the exclusivity begins at
+   `onewire_init()` / `ds18b20_init()` and lasts until reset. Configure any of
+   these resources before initialising the driver, never after.
 
 3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
    entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
@@ -1467,8 +1548,16 @@ ignored and the scan round continues. To switch out of scan mode, call
 `ds18b20_select()` from the main loop after the scan completes, then
 `ds18b20_scan_start()` to resume simultaneous conversion.
 
-The driver measures the single device directly when exactly one is found, and
-cycles through all found devices in turn when several are present.
+`ds18b20_select()` targets one device and does not automatically cycle through
+the devices found by a search. For round-robin measurements, the application
+stores the ROM addresses returned by the search and selects the next device
+between measurement cycles; see `examples/3_round_robin/main.c`.
+
+To convert all discovered devices in parallel, use the separate scan mode:
+`ds18b20_scan_start()` broadcasts one Convert T command, then reads each device
+by ROM address and reports results in device-table order. See
+`examples/4_scan_mode/main.c`. Scan mode and single-device selection are
+mutually exclusive.
 
 ### Command Transactions
 
@@ -1710,12 +1799,13 @@ void ds18b20_complete(int16_t temp) {
 
 int main(void) {
     ow_stats_init();
-    // ... ds18b20_init(), device search ...
+    // ... ds18b20_init(), device search, ds18b20_start_measure() ...
     for (;;) {
         if (dump_busy) {
             if (ow_stats_dump_poll()) {
                 dump_busy = 0;
                 ow_stats_reset();
+                ds18b20_start_measure(); // resume measuring with a clean window
             }
         } else {
             ds18b20_poll();

@@ -31,11 +31,10 @@ extern "C" {
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
 /* onewire.h supplies OW_PORT_SYSCLK_MHZ (used for the timer prescaler and
- * the IC4F selection below); the bit-slot durations come from ow_config.h.
- * onewire_internal.h additionally defines ow_pulse_t for the backend
- * signatures.  Including them here keeps this header self-contained
- * regardless of TU include order. */
-#include "onewire_internal.h"
+ * the IC4F selection below), the bit-slot durations come from ow_config.h, and
+ * it defines ow_pulse_t for the backend signatures.  Including it here keeps
+ * this header self-contained regardless of TU include order. */
+#include "onewire.h"
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
  * least-significant byte via MSIZE=8.  This is lossless only while every

@@ -2,11 +2,12 @@
  *  test_sysclk_fallback.c - Family-macro backend selection check
  *
  *  Compile-only (no test harness): verifies that selecting a family
- *  through the raw family macro (STM32F1/F0/G0) — the path
- *  PlatformIO / STM32CubeMX use, without the OW_PORT_TARGET_* knob —
- *  resolves both the OW_PORT_FAMILY_* token and the matching default
- *  OW_PORT_SYSCLK_MHZ. Guards against a family gaining a backend today
- *  and a wrong clock default tomorrow (see ow_port.h backend selection).
+ *  through the raw family macro (STM32F1/F0/G0/F4 — for F4 also the
+ *  concrete device spellings) — the path PlatformIO / STM32CubeMX use,
+ *  without the OW_PORT_TARGET_* knob — resolves both the OW_PORT_FAMILY_*
+ *  token and the matching default OW_PORT_SYSCLK_MHZ. Guards against a
+ *  family gaining a backend today and a wrong clock default tomorrow
+ *  (see ow_port.h backend selection).
  *  Built per OW_TARGET by the test-clocks Makefile target.
  * ============================================================ */
 

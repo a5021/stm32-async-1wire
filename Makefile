@@ -740,12 +740,11 @@ $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewir
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
 
 # --- Release-semantics build (-DNDEBUG + OW_TEST_PARAM_GUARD) ---
-# Rebuilds the SAME suite with asserts compiled out (-DNDEBUG), so the
-# guard reject paths (onewire_write_pulses/read_data out-of-range sizes and
-# onewire_write_command empty/oversized commands)
-# become observable as return codes instead of aborting the process.
-# See tests/test/test_param_guard.c (compiled only under OW_TEST_PARAM_GUARD)
-# and the note in tests/test/test_rcr_limits.c.
+# Rebuilds the same suite with the public API asserts compiled out
+# (-DNDEBUG), so the onewire_write_slots/read_data reject paths become
+# observable as return codes instead of aborting the process. Backend
+# reject paths run fail-soft in every test variant.
+# See tests/test/test_param_guard.c and test_rcr_limits.c.
 TEST_NG_FLAG = $(TEST_FLAG) -DNDEBUG -DOW_TEST_PARAM_GUARD
 TEST_NG_SRC  = $(TEST_SRC) $(TEST_DIR)/test_param_guard.c
 TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe

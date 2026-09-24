@@ -1,4 +1,4 @@
-#include "onewire_internal.h"
+#include "onewire.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

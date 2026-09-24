@@ -5,6 +5,9 @@
  *          DS2431, ...) are built on top of this layer. Every operation is
  *          scheduled on TIM1/DMA and completes asynchronously: callers poll
  *          onewire_bus_done() / onewire_search_poll() to advance, never wait.
+ *          The layer owns TIM1, its DMA1 channels and the bus GPIO pin from
+ *          onewire_init() until reset (see there); access the bus only
+ *          through this API.
  */
 
 #ifndef ONEWIRE_H
@@ -32,11 +35,17 @@ extern "C" {
 #define ONEWIRE_MAX_SLOTS 256u
 /** @brief Maximum bytes per onewire_read_data() pass (256 slots / 8 bits) */
 #define ONEWIRE_MAX_READ_BYTES (ONEWIRE_MAX_SLOTS / ONEWIRE_BITS_PER_BYTE)
-/** @brief Longest command onewire_write_command() accepts, in bytes.
- *  Sized for the longest sequence any bundled driver sends: a DS18B20
- *  Match ROM (0x55 + 8-byte ROM) plus Write Scratchpad (0x4E + TH + TL + CFG)
- *  = 13 bytes. Slave drivers with longer sequences would need this raised. */
-#define ONEWIRE_CMD_MAX_BYTES 13
+/** @brief Value that releases the bus (idle HIGH) at the end of a multi-slot
+ *         write or merged write+read operation.
+ *  @note Pulse buffers for multi-slot writes must hold `slots + 1` entries:
+ *        entries [0 .. slots-1] encode the transmitted slots and the entry at
+ *        index `slots` must equal this value. The CCR3-feed DMA loads it during
+ *        the final slot, so the one-pulse timer stops with the line already
+ *        released to idle HIGH (hardware bus release — no software CCR3 write
+ *        afterwards). It is not an additional 1-Wire slot. For a single-slot
+ *        write (slots == 1) the backend uses a separate path without DMA and
+ *        does not read entry `slots`. */
+#define ONEWIRE_RELEASE_PULSE 0u
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
@@ -44,9 +53,9 @@ extern "C" {
  *  STM32F401xC/STM32F401xE) are accepted too. ow_port.h picks the backend and app.c the
  *  device header/clock config from the token — never from the individual
  *  spellings — so the backend and the clock default cannot drift. To add a
- *  family, extend this chain (token and default clock together in one
- *  branch), then add the \#include branch in ow_port.h, the app.c config, and
- *  a case in tests/test/test_sysclk_fallback.c. */
+ *  family, extend this chain (token and default clock together in one branch),
+ *  then add the \#include branch in ow_port.h, the app.c config, and a case in
+ *  tests/test/test_sysclk_fallback.c. */
 #if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
@@ -103,9 +112,17 @@ extern "C" {
 /**
  * @brief Initialize the shared 1-Wire timer/DMA/GPIO resources
  * @note Enables GPIOA/TIM1/DMA1 clocks, sets the timer prescaler for 1µs
- *       resolution, configures PA10 as alternate-function open-drain and marks
- *       the search engine idle. Called once at startup, e.g. by the slave
- *       driver's own init.
+ *       resolution, configures the bus pin as alternate-function open-drain
+ *       (PA10, or the logical PA10 behind the physical PA12 pad on G0) and
+ *       marks the search engine idle. Called once at startup, e.g. by the
+ *       slave driver's own init.
+ * @warning After initialization the 1-Wire layer exclusively owns TIM1, the
+ *          DMA1 channels of the active backend (channel 3 feeding CCR3 and
+ *          channel 4 draining CCR4), and the bus GPIO pin including its
+ *          alternate-function/remap configuration. Application code, ISRs and
+ *          other drivers must not configure or use these resources while the
+ *          layer is in use. The library has no deinit or release API: the
+ *          ownership lasts until reset.
  */
 void onewire_init(void);
 
@@ -126,6 +143,19 @@ void onewire_init(void);
 uint8_t onewire_bus_done(void);
 
 /**
+ * @brief One bit-slot write-pulse duration in the native width of the active port
+ * @note Family sized on purpose: the STM32F4 backend feeds CCR3 in DMA
+ *       direct mode, so a feed entry is a 16-bit halfword there (zero-copy,
+ *       CNDTR == slots), while every other supported port latches 8-bit
+ *       entries. Measured (capture-side) durations are always uint16_t.
+ */
+#if defined(OW_PORT_FAMILY_F4)
+typedef uint16_t ow_pulse_t;
+#else
+typedef uint8_t ow_pulse_t;
+#endif
+
+/**
  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)
  * @param[out] reset_pulses Buffer for the captured reset + presence pulse
  *                          durations (2 x 16-bit)
@@ -141,24 +171,24 @@ void onewire_reset(volatile uint16_t* reset_pulses);
 uint8_t onewire_present(const volatile uint16_t* pulses);
 
 /**
- * @brief Schedule a write of a command byte sequence
- * @param[in] bytes Command bytes (e.g. 0x55 Match ROM, 0xCC Skip ROM, or a
- *                  command followed by its payload)
- * @param[in] nbytes Number of bytes, 1..ONEWIRE_CMD_MAX_BYTES (13).
- *                   Out-of-range values (0 or > 13) are rejected and no
- *                   operation is scheduled.
- * @note Non-blocking: the command is encoded synchronously into the 1-Wire
- *       layer's internal pulse buffer, so `bytes` may be a short-lived stack
- *       object. The DMA feeds CCR3 from that buffer asynchronously.
+ * @brief Schedule a write of `slots` bit slots
+ * @param[in] pulses Pulse buffer: one entry per slot, plus one trailing entry
+ *                   at index `slots` that must equal ONEWIRE_RELEASE_PULSE
+ *                   (hardware bus release) when `slots > 1`; in that case the
+ *                   buffer therefore holds `slots + 1` entries. A single-slot
+ *                   write (slots == 1) uses the DMA-free path and only reads
+ *                   entry 0.
+ * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256).
+ *                  Out-of-range values (0 or > 256) are rejected: TIM1 RCR is
+ *                  8-bit (RCR = slots - 1), so larger counts would truncate and
+ *                  desync the timer from the DMA (CNDTR).
+ * @return 1 if the write was scheduled, 0 if `slots` is out of range (the
+ *         call is rejected and no operation is scheduled). In debug builds the
+ *         reject path also traps with an assert; with NDEBUG it only reports 0.
+ * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
+ *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
-void onewire_write_command(const uint8_t* bytes, uint8_t nbytes);
-
-/**
- * @brief Schedule a write of a single command byte
- * @param[in] byte Command byte to transmit
- * @note Convenience wrapper for onewire_write_command().
- */
-void onewire_write_command_byte(uint8_t byte);
+uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots);
 
 /**
  * @brief Schedule a single-slot write of one raw bit
@@ -230,6 +260,13 @@ static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {
  *       read capture.
  */
 void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes);
+
+/**
+ * @brief Encode a byte into write-pulse durations
+ * @param[out] out Output buffer (8 entries)
+ * @param[in] byte Byte value to encode
+ */
+void onewire_encode_byte(ow_pulse_t* out, uint8_t byte);
 
 /**
  * @brief Start a hardware-timed wait with the shared one-pulse timer

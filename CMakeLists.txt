@@ -4,10 +4,8 @@ project(stm32_async_1wire VERSION 1.8.1 LANGUAGES C ASM)
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0, f4")
-set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0 f4)
-set(OW_CHIP "f407" CACHE STRING "Member of OW_TARGET=f4: f407 (default) or f401")
-set_property(CACHE OW_CHIP PROPERTY STRINGS f407 f401)
+set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0")
+set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0)
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 
@@ -52,22 +50,8 @@ elseif(OW_TARGET STREQUAL "g0")
     set(STARTUP_ASM        "startup_stm32g031xx.s")
     set(SYSTEM_SRC         "system_stm32g0xx.c")
     set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0/STM32G031X6_FLASH.ld")
-elseif(OW_TARGET STREQUAL "f4")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
-    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f4xx.c")
-    if(OW_CHIP STREQUAL "f401")
-        set(CMSIS_DEVICE_DEF  "STM32F401xC")
-        set(STARTUP_ASM        "startup_stm32f401xc.s")
-        set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4/STM32F401CC_FLASH.ld")
-    else()
-        set(CMSIS_DEVICE_DEF  "STM32F407xx")
-        set(STARTUP_ASM        "startup_stm32f407xx.s")
-        set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4/STM32F407VGT6_FLASH.ld")
-    endif()
 else()
-    message(FATAL_ERROR "OW_TARGET must be f1, f0, g0, or f4 (got: ${OW_TARGET})")
+    message(FATAL_ERROR "OW_TARGET must be f1, f0, or g0 (got: ${OW_TARGET})")
 endif()
 
 FetchContent_Declare(cmsis_device
@@ -85,13 +69,8 @@ set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
 set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 
 # ---------------------------------------------------------------------------
-# Library target (code only — no startup/system, no syscall.c)
+# Library targets (code only — no startup/system, no syscall.c)
 # ---------------------------------------------------------------------------
-add_library(stm32_async_1wire STATIC
-    src/onewire.c
-    src/ds18b20.c
-    src/ow_stats.c
-)
 
 # src/ds18b20.c is an amalgamated translation unit: the search / txn /
 # resolution / measurement code lives in these include-only parts (guarded by
@@ -105,34 +84,45 @@ set_source_files_properties(
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
-target_include_directories(stm32_async_1wire PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4>
-    $<INSTALL_INTERFACE:include/stm32-async-1wire>
-    # Device/CMSIS headers are required to compile the library (ow_port.h
-    # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
-    # build tree and must not leak into install exports — consumers of the
-    # installed lib provide their own CMSIS/device headers.
-    $<BUILD_INTERFACE:${CMSIS_CORE_INCLUDE}>
-    $<BUILD_INTERFACE:${CMSIS_DEVICE_INCLUDE}>
-)
+# Build a core library target <tgt> from the supplied driver sources.
+function(ow_add_core_library tgt)
+    add_library(${tgt} STATIC ${ARGN})
+    target_include_directories(${tgt} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
+        $<INSTALL_INTERFACE:include/stm32-async-1wire>
+        # Device/CMSIS headers are required to compile the library (ow_port.h
+        # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
+        # build tree and must not leak into install exports — consumers of the
+        # installed lib provide their own CMSIS/device headers.
+        $<BUILD_INTERFACE:${CMSIS_CORE_INCLUDE}>
+        $<BUILD_INTERFACE:${CMSIS_DEVICE_INCLUDE}>
+    )
+    target_compile_definitions(${tgt} PUBLIC
+        ${CMSIS_DEVICE_DEF}
+        ${OW_PORT_DEF}
+    )
+    target_compile_options(${tgt} PUBLIC
+        ${MCU_FLAGS}
+        -Os
+        -Wall
+        -Wextra
+        -ffunction-sections
+        -fdata-sections
+    )
+endfunction()
 
-target_compile_definitions(stm32_async_1wire PUBLIC
-    ${CMSIS_DEVICE_DEF}
-    ${OW_PORT_DEF}
-)
-
-target_compile_options(stm32_async_1wire PUBLIC
-    ${MCU_FLAGS}
-    -Os
-    -Wall
-    -Wextra
-    -ffunction-sections
-    -fdata-sections
+# The plain library is always built without OW_STATS_ENABLE: the stats module
+# is inert (its body and the inline ow_stats_* hooks compile away).  The
+# example build below adds a dedicated stats-enabled variant for 6_statistics
+# only.
+ow_add_core_library(stm32_async_1wire
+    src/onewire.c
+    src/ds18b20.c
+    src/ow_stats.c
 )
 
 # ---------------------------------------------------------------------------
@@ -153,13 +143,11 @@ install(FILES
     inc/ow_stats.h
     inc/ow_config.h
     inc/ow_bits.h  # included by every ow_port_<family>.h backend
-    inc/onewire_internal.h  # included by every ow_port_<family>.h backend
     # ow_port.h selects its backend with sibling quote-includes
     # (#include "ow_port_f1.h"), so the backends must ship alongside it.
     port/stm32f1/ow_port_f1.h
     port/stm32f0/ow_port_f0.h
     port/stm32g0/ow_port_g0.h
-    port/stm32f4/ow_port_f4.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 
@@ -213,7 +201,6 @@ if(OW_BUILD_EXAMPLES)
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4
         ${CMSIS_CORE_INCLUDE}
         ${CMSIS_DEVICE_INCLUDE}
     )
@@ -237,11 +224,14 @@ if(OW_BUILD_EXAMPLES)
         --specs=nano.specs
     )
 
-    # ow_stats.c is compiled into the library but its implementation is
-    # entirely guarded by OW_STATS_ENABLE.  The example set includes
-    # 6_statistics, which requires the APIs unconditionally — mirror the
-    # Makefile's `APP=6_statistics` EXT flags on the shared library.
-    target_compile_definitions(stm32_async_1wire PUBLIC
+    # 6_statistics is the only example that uses the stats module.  Rebuild
+    # only the DS18B20 driver and stats implementation with stats enabled;
+    # it reuses onewire.c from the plain library when linked below.
+    ow_add_core_library(stm32_async_1wire_stats
+        src/ds18b20.c
+        src/ow_stats.c
+    )
+    target_compile_definitions(stm32_async_1wire_stats PUBLIC
         OW_STATS_ENABLE=1
     )
 
@@ -262,20 +252,27 @@ if(OW_BUILD_EXAMPLES)
             examples/${ex}/main.c
             examples/app/app.c
         )
-        target_link_libraries(${ex} PRIVATE
-            stm32_async_1wire
-            stm32_async_1wire_platform
-        )
+        if(ex STREQUAL "6_statistics")
+            target_link_libraries(${ex} PRIVATE
+                stm32_async_1wire_stats
+                stm32_async_1wire
+                stm32_async_1wire_platform
+            )
+            # Mirror `make APP=6_statistics`.
+            target_compile_definitions(${ex} PRIVATE
+                STATS_DUMP_INTERVAL=5000
+            )
+        else()
+            target_link_libraries(${ex} PRIVATE
+                stm32_async_1wire
+                stm32_async_1wire_platform
+            )
+        endif()
         target_include_directories(${ex} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/app
         )
         target_compile_definitions(${ex} PRIVATE
             UART_TX_BUF_SIZE=${UART_TX_SIZE_${ex}}
         )
-        if(ex STREQUAL "6_statistics")
-            target_compile_definitions(${ex} PRIVATE
-                STATS_DUMP_INTERVAL=5000
-            )
-        endif()
     endforeach()
 endif()

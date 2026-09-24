@@ -13,10 +13,16 @@ void ds18b20_test_register_buffers(void) {
     hw_register_buf((const void*)&ctx.capture);
     hw_register_buf((const void*)(uintptr_t)search_pulse3);
     hw_register_buf((const void*)(uintptr_t)search_pair_pulse);
+    /* The driver builds each command in its own pulse buffer and the CCR3-feed
+     * DMA sources from &buf[1]; the element is family sized (16-bit on F4), so
+     * the offset must be one element, not one byte. */
+    hw_register_buf((const void*)&conv_cmd[1]);
+    hw_register_buf((const void*)&read_cmd[1]);
+    hw_register_buf((const void*)&ctx.addr_cmd[1]);
+    hw_register_buf((const void*)&search_ctx.pulses[1]);
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
-    /* Every command write is encoded synchronously into the 1-Wire layer's
-     * internal pulse buffer, so only that one feed source needs registering. */
-    onewire_test_register_cmd_buffer();
+    hw_register_buf((const void*)&res_ctx.pulses[1]);
+    hw_register_buf((const void*)&txn_ctx.pulses[1]);
 }
 
 ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
@@ -32,8 +38,7 @@ void ds18b20_test_reset_ctx(void) {
 
 void ds18b20_test_set_resolution(uint8_t r) { ctx.resolution = r; }
 
-uint8_t ds18b20_test_get_res_byte(uint8_t i) { return res_ctx.bytes[i]; }
-uint8_t ds18b20_test_get_res_nbytes(void) { return res_ctx.nbytes; }
+uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return res_ctx.pulses[i]; }
 
 void ds18b20_test_reset_resolution(void) {
     res_ctx.phase = DS18B20_RES_DONE;
@@ -70,10 +75,10 @@ void ds18b20_test_set_selected_rom(const uint8_t* rom_in) {
         ctx.selected_rom[i] = rom_in[i];
     }
 }
-uint8_t ds18b20_test_get_addr_byte(uint8_t i) { return ctx.addr_bytes[i]; }
-void ds18b20_test_set_addr_byte(uint8_t i, uint8_t v) { ctx.addr_bytes[i] = v; }
+uint8_t ds18b20_test_get_addr_cmd(uint8_t i) { return ctx.addr_cmd[i]; }
+void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v) { ctx.addr_cmd[i] = v; }
 
-void test_bus_send_command_n(const ow_pulse_t* cmd, uint16_t slots) { onewire_write_pulses(cmd, slots); }
+void test_bus_send_command_n(const ow_pulse_t* cmd, uint16_t slots) { onewire_write_slots(cmd, slots); }
 void test_bus_reset(void) { onewire_reset(ctx.capture); }
 void test_bus_read_pair(void) { onewire_read_pair(ctx.capture); }
 void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
@@ -95,6 +100,7 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = 
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
 const ow_pulse_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
 const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
+const ow_pulse_t* test_res_pulses_feed_addr(void) { return res_ctx.pulses + 1u; }
 
 void ds18b20_test_reset_search(void) {
     search_ctx.finished = 1;
@@ -136,12 +142,12 @@ void ds18b20_test_reset_txn(void) {
     txn_ctx.read_bytes = 0;
     txn_ctx.wait_us = 0;
     txn_ctx.bare = 0;
-    txn_ctx.nbytes = 0;
+    txn_ctx.slots = 0;
     txn_ctx.ok = 0;
     txn_ctx.finished = 1;
 }
 
-uint8_t ds18b20_test_get_txn_byte(uint8_t i) { return txn_ctx.bytes[i]; }
-uint8_t ds18b20_test_get_txn_nbytes(void) { return txn_ctx.nbytes; }
+uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return txn_ctx.pulses[i]; }
+uint8_t ds18b20_test_get_txn_slots(void) { return txn_ctx.slots; }
 uint8_t ds18b20_test_get_txn_ok(void) { return txn_ctx.ok; }
 uint8_t ds18b20_test_get_txn_finished(void) { return txn_ctx.finished; }

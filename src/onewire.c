@@ -1,5 +1,4 @@
 #include "onewire.h"
-#include "onewire_internal.h"
 #include "ow_port.h"
 
 #include <assert.h>
@@ -46,10 +45,10 @@ _Static_assert(ONEWIRE_ROM_BITS <= ONEWIRE_MAX_SLOTS, "search ROM pass must fit 
 /** @brief Read pulse durations reloaded by DMA for the merged search operation
  *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
  *        end-of-slot compare at the end of slot 1 and sets the read slot 2
- *        length, entry 1 sets slot 3, and the trailing 0 is written during
- *        slot 3 so the one-pulse timer stops with the line released to idle
- *        HIGH (hardware bus release). */
-static const ow_pulse_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
+ *        length, entry 1 sets slot 3, and ONEWIRE_RELEASE_PULSE is written
+ *        during slot 3 so the one-pulse timer stops with the line released to
+ *        idle HIGH (hardware bus release). */
+static const ow_pulse_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_RELEASE_PULSE};
 
 /**
  * @defgroup ONEWIRE_Private_Variables ONEWIRE Private Variables
@@ -91,6 +90,7 @@ typedef struct {
     uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
+    ow_pulse_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -105,7 +105,9 @@ typedef struct {
 /** @brief Global search context instance */
 static onewire_search_ctx_t search_ctx;
 
-/* Internal pulse buffers must always fit one RCR window. */
+/* Internal pulse buffers must always fit one RCR window (+ trailing release). */
+_Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
+               "search command buffer must fit one RCR window");
 _Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
                "search pair capture must fit one RCR window");
 
@@ -166,38 +168,9 @@ void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
 
-/**
- * @brief Internal pulse buffer backing onewire_write_command()
- * @note Sized for the longest command the library layer accepts
- *       (ONEWIRE_CMD_MAX_BYTES bytes) plus the trailing bus-release entry.
- *       onewire_write_command() encodes synchronously into this buffer, so the
- *       caller's byte array may be a short-lived stack object.
- */
-static ow_pulse_t ow_cmd_buf[ONEWIRE_CMD_MAX_BYTES * ONEWIRE_BITS_PER_BYTE + 1];
-
-void onewire_write_command(const uint8_t* bytes, uint8_t nbytes) {
-    if (nbytes == 0u || nbytes > ONEWIRE_CMD_MAX_BYTES) {
-        assert(0 && "onewire_write_command: nbytes out of range (1..ONEWIRE_CMD_MAX_BYTES)");
-        return; /* bounded, non-blocking: refuse an empty or oversized command */
-    }
-    uint16_t slot = 0;
-    for (uint8_t i = 0; i < nbytes; i++) {
-        onewire_encode_byte(&ow_cmd_buf[slot], bytes[i]);
-        slot += ONEWIRE_BITS_PER_BYTE;
-    }
-    /* Trailing 0 consumed by the CCR3-feed DMA's final transfer: hardware bus
-     * release after the last slot. */
-    ow_cmd_buf[slot] = 0;
-    onewire_write_pulses(ow_cmd_buf, slot);
-}
-
-void onewire_write_command_byte(uint8_t byte) {
-    onewire_write_command(&byte, 1u);
-}
-
-uint8_t onewire_write_pulses(const ow_pulse_t* pulses, uint16_t slots) {
+uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "onewire_write_pulses: slots out of range (1..ONEWIRE_MAX_SLOTS)");
+        assert(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
         return 0;
     }
     return ow_port_write_slots(pulses, slots);
@@ -205,7 +178,7 @@ uint8_t onewire_write_pulses(const ow_pulse_t* pulses, uint16_t slots) {
 
 uint8_t onewire_write_bit(uint8_t bit) {
     ow_pulse_t pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
-    return onewire_write_pulses(&pulse, 1);
+    return onewire_write_slots(&pulse, 1);
 }
 
 void onewire_read_pair(volatile uint16_t* pair_pulses) {
@@ -328,6 +301,9 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     for (uint8_t i = 0; i < ONEWIRE_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
+    // Trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final
+    // transfer: this is the hardware bus release after the search command.
+    search_ctx.pulses[ONEWIRE_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;
@@ -386,7 +362,8 @@ uint8_t onewire_search_poll(void) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }
-        onewire_write_command_byte(search_ctx.command);
+        onewire_encode_byte(search_ctx.pulses, search_ctx.command);
+        onewire_write_slots(search_ctx.pulses, ONEWIRE_BITS_PER_BYTE);
         search_ctx.phase = ONEWIRE_SEARCH_CMD;
         break;
 
@@ -484,20 +461,4 @@ uint8_t onewire_search_active(void) { return (uint8_t)!search_ctx.finished; }
 
 #ifdef DS18B20_TEST_HARNESS
 void onewire_test_set_gap_us(uint16_t us) { test_gap_us = us; }
-
-/* [TEST] Feed-DMA source registration: declare the host mock's buffer
- * registration here rather than pulling the test header into this TU. */
-extern void hw_register_buf(const void* ptr);
-
-void onewire_test_register_cmd_buffer(void) {
-    /* The CCR3-feed DMA sources from &ow_cmd_buf[1] (slot 0 is latched
-     * directly), so translate the feed CMAR back to a host pointer at
-     * offset 1, matching the other feed buffers. */
-    hw_register_buf((const void*)((uintptr_t)ow_cmd_buf + sizeof(ow_pulse_t)));
-}
-
-const void* onewire_test_cmd_feed_addr(void) {
-    /* Feed source of every command write encoded from a driver byte array. */
-    return (const void*)((uintptr_t)ow_cmd_buf + sizeof(ow_pulse_t));
-}
 #endif

@@ -27,25 +27,28 @@ typedef enum {
 
 /**
  * @brief Non-blocking resolution change context
- * @note The command bytes are encoded into the 1-Wire layer's internal pulse
- *       buffer synchronously by onewire_write_command(), so no driver-side
- *       pulse buffer is kept.
+ * @note The pulse buffer must stay valid across poll calls because the DMA
+ *       feeds CCR3 from it asynchronously while the config write is sent.
  */
 typedef struct {
     res_phase_t phase; /**< Current phase of the resolution state machine */
     uint8_t pending_res; /**< Resolution (bits) to apply */
     uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
     uint8_t finished; /**< 1 once the operation has completed (or aborted) */
-    uint8_t nbytes; /**< Bytes in the built config write (incl. prefix and payload) */
-    uint8_t bytes[DS18B20_RES_BYTES_MAX]; /**< Built config write bytes (prefix + 0x4E + TH + TL + CFG) */
+    uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
+    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
 } res_ctx_t;
 
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
 
-/* B1 guard: the config byte array must hold the longest (Match ROM) write. */
-_Static_assert(sizeof(res_ctx.bytes) >= DS18B20_RES_BYTES_MAX,
-               "res_ctx.bytes must hold the longest (Match ROM) config write");
+/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
+ * DMA's final transfer must always be present at the exact slot index used
+ * for the write (see build_res_pulses); the buffer is sized for the longest
+ * (Match ROM) mode. */
+_Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
+               "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
+               "trailing bus-release pulse consumed by the 1-Wire layer");
 
 /**
  * @}
@@ -62,30 +65,39 @@ __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
 }
 
 /**
- * @brief Pre-build the resolution config write into res_ctx.bytes
+ * @brief Pre-build the resolution config write into res_ctx.pulses
  * @param[in] res Resolution in bits (9..12)
- * @note Builds Skip ROM (0xCC) or Match ROM (0x55 + selected ROM) followed by
- *       Write Scratchpad (0x4E), TH, TL and the config byte, and records the
- *       byte count in res_ctx.nbytes.
+ * @note Encodes Skip ROM (0xCC) or Match ROM (0x55 + selected ROM) followed by
+ *       Write Scratchpad (0x4E), TH, TL and the config byte. The trailing
+ *       zero-pulse that the 1-Wire layer consumes as the final DMA transfer
+ *       (hardware bus release) is written at the slot index of the mode
+ *       actually used, not always at the end of the buffer.
  */
-__STATIC_FORCEINLINE void build_res_command(uint8_t res) {
+__STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // In scan mode the config write must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode;
-    uint8_t* p = res_ctx.bytes;
+    ow_pulse_t* p = res_ctx.pulses;
     if (use_match) {
-        *p++ = DS18B20_MATCH_ROM;
+        onewire_encode_byte(p, DS18B20_MATCH_ROM);
+        p += DS18B20_BITS_PER_BYTE;
         for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-            *p++ = ctx.selected_rom[i];
+            onewire_encode_byte(p, ctx.selected_rom[i]);
+            p += DS18B20_BITS_PER_BYTE;
         }
     } else {
-        *p++ = 0xCC; /* Skip ROM */
+        onewire_encode_byte(p, 0xCC); /* Skip ROM */
+        p += DS18B20_BITS_PER_BYTE;
     }
-    *p++ = DS18B20_WRITE_SCRATCHPAD;
-    *p++ = DS18B20_RES_TH;
-    *p++ = DS18B20_RES_TL;
-    *p++ = res_config_byte(res);
-    res_ctx.nbytes = use_match ? DS18B20_RES_BYTES_MAX : DS18B20_RES_BYTES_MIN;
+    onewire_encode_byte(p, DS18B20_WRITE_SCRATCHPAD);
+    p += DS18B20_BITS_PER_BYTE;
+    onewire_encode_byte(p, DS18B20_RES_TH);
+    p += DS18B20_BITS_PER_BYTE;
+    onewire_encode_byte(p, DS18B20_RES_TL);
+    p += DS18B20_BITS_PER_BYTE;
+    onewire_encode_byte(p, res_config_byte(res));
+    res_ctx.slots = use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN;
+    res_ctx.pulses[res_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -116,7 +128,7 @@ void ds18b20_set_resolution(uint8_t bits) {
     res_ctx.pending_res = bits;
     res_ctx.applied = 0;
     res_ctx.finished = 0;
-    build_res_command(bits); // Pre-build the config write for the current address mode
+    build_res_pulses(bits); // Pre-build the config write for the current address mode
     res_ctx.phase = DS18B20_RES_RESET;
     onewire_reset(ctx.capture); // Schedule the first hardware operation
 }
@@ -158,7 +170,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
             res_ctx.phase = DS18B20_RES_DONE;
             break;
         }
-        onewire_write_command(res_ctx.bytes, res_ctx.nbytes);
+        onewire_write_slots(res_ctx.pulses, res_ctx.slots);
         res_ctx.phase = DS18B20_RES_WRITE;
         break;
 

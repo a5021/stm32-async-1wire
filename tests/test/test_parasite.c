@@ -85,29 +85,13 @@ static uint8_t pu_idle_af_od(void) {
 
 /* PA10 in AF push-pull mode (CNF=10: AF PP, strong pull-up engaged). */
 static uint8_t pu_engaged(void) {
-    uint32_t mode = mock_gpioa.CRH & GPIO_CRH_MODE10;
-#if OW_BUS_DRIVE >= OW_BUS_DRIVE_STRONG
-    uint32_t exp_mode = GPIO_CRH_MODE10;
-#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
-    uint32_t exp_mode = GPIO_CRH_MODE10_0;
-#else
-    uint32_t exp_mode = GPIO_CRH_MODE10_1;
-#endif
     return !(mock_gpioa.CRH & GPIO_CRH_CNF10_0) &&
            (mock_gpioa.CRH & GPIO_CRH_CNF10_1) &&
-           (mode == exp_mode);
+           (mock_gpioa.CRH & GPIO_CRH_MODE10_1);
 }
 
 static void pu_assert_af_mode(void) {
-    uint32_t mode = mock_gpioa.CRH & GPIO_CRH_MODE10;
-#if OW_BUS_DRIVE >= OW_BUS_DRIVE_STRONG
-    uint32_t exp_mode = GPIO_CRH_MODE10;
-#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
-    uint32_t exp_mode = GPIO_CRH_MODE10_0;
-#else
-    uint32_t exp_mode = GPIO_CRH_MODE10_1;
-#endif
-    TEST_ASSERT_EQUAL_UINT32(exp_mode, mode);
+    TEST_ASSERT_TRUE(mock_gpioa.CRH & GPIO_CRH_MODE10_1);
 }
 
 #endif

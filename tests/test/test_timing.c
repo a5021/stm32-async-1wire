@@ -83,20 +83,16 @@ void test_timing_temperature_formula(void) {
 }
 
 /*-------------------------------------------------------------
- *  Test: APB prescaler feeding TIM1 keeps the 1µs-tick invariant.
+ *  Test: APB prescaler for TIM1 bus must be /1.
  *
  *  STM32 rule: if APB prescaler != 1, TIM clock = 2 × PCLK.
- *  On F0/F1/G0 that doubles the tick rate and breaks every µs-based
- *  timing constant (slots, reset pulse, conversion wait), so those
- *  families must leave the TIM1 APB prescaler at /1.
+ *  This doubles the tick rate and breaks every µs-based timing
+ *  constant (slots, reset pulse, conversion wait).
  *
- *  F4 (168MHz) is the intentional exception: APB2 is programmed /2
- *  (84MHz, datasheet max) by configure_system_clock(), and the timer
- *  clock doubles back to 2 × 84 = 168 = SYSCLK — same 1µs tick.
- *  This test drives the real clock path against the RCC/FLASH mocks
- *  and asserts those programmed fields.
+ *  configure_system_clock() must NOT divide the APB bus feeding
+ *  TIM1.  This test catches the mistake at the register level.
  *
- *  F0: TIM1 on APB2, PPRE defaults /1.  ✓ (vacuous under harness)
+ *  F0: TIM1 on APB2, PPRE defaults /1.  ✓
  *  F1: TIM1 on APB2, PPRE2 stays /1 (PPRE1=/2 is OK — different bus).  ✓
  *  G0: single APB bus, PPRE defaults /1.  ✓
  * -----------------------------------------------------------*/
@@ -107,7 +103,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT16(OW_PORT_SYSCLK_MHZ - 1, (uint16_t)mock_tim1.PSC);
 
 #if defined(OW_PORT_TARGET_F1)
-    /* F1: TIM1 on APB2 — PPRE2 must be /1 (field = 0) */
+    /* F1: TIM1 on APB2 → PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F4)
     /* Preset the ready/status flags configure_system_clock() spin-waits on:

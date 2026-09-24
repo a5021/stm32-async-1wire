@@ -41,40 +41,50 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
 }
 
 /**
- * @brief Build the command byte sequence into txn_ctx.bytes
- * @note Builds the addressing prefix (Skip ROM 0xCC, or Match ROM 0x55 +
+ * @brief Build the command pulse sequence into txn_ctx.pulses
+ * @note Encodes the addressing prefix (Skip ROM 0xCC, or Match ROM 0x55 +
  *       selected ROM; none for a bare command such as Read ROM), the function
- *       command byte and the optional payload (Write Scratchpad TH/TL/CFG),
- *       and records the byte count in txn_ctx.nbytes. onewire_write_command()
- *       encodes the bytes into the 1-Wire layer's internal pulse buffer
- *       synchronously, including the hardware bus release.
+ *       command byte and the optional payload (Write Scratchpad TH/TL/CFG).
+ *       The trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer consumes as
+ *       the final DMA transfer (hardware bus release) is written at the slot
+ *       index of the mode actually used, not always at the end of the buffer.
  */
-__STATIC_FORCEINLINE void txn_build_command(void) {
+__STATIC_FORCEINLINE void txn_build_pulses(void) {
     // In scan mode the command must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode && !txn_ctx.bare;
-    uint8_t* p = txn_ctx.bytes;
-    uint8_t nbytes = 0;
+    ow_pulse_t* p = txn_ctx.pulses;
+    uint8_t bytes = 0;
     if (!txn_ctx.bare) {
         if (use_match) {
-            *p++ = DS18B20_MATCH_ROM;
-            nbytes++;
+            onewire_encode_byte(p, DS18B20_MATCH_ROM);
+            p += DS18B20_BITS_PER_BYTE;
+            bytes++;
             for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-                *p++ = ctx.selected_rom[i];
-                nbytes++;
+                onewire_encode_byte(p, ctx.selected_rom[i]);
+                p += DS18B20_BITS_PER_BYTE;
+                bytes++;
             }
         } else {
-            *p++ = 0xCC; /* Skip ROM */
-            nbytes++;
+            onewire_encode_byte(p, 0xCC); /* Skip ROM */
+            p += DS18B20_BITS_PER_BYTE;
+            bytes++;
         }
     }
-    *p++ = txn_ctx.command;
-    nbytes++;
+    onewire_encode_byte(p, txn_ctx.command);
+    p += DS18B20_BITS_PER_BYTE;
+    bytes++;
     for (uint8_t i = 0; i < txn_ctx.payload_len; i++) {
-        *p++ = txn_ctx.payload[i];
-        nbytes++;
+        onewire_encode_byte(p, txn_ctx.payload[i]);
+        p += DS18B20_BITS_PER_BYTE;
+        bytes++;
     }
-    txn_ctx.nbytes = nbytes;
+    txn_ctx.slots = (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
+    /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
+     * reads as its final DMA transfer into CCR3, even though the command
+     * write only ever fills slots 0 .. slots - 1 (see build_res_pulses for
+     * the same pattern). */
+    txn_ctx.pulses[txn_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -132,7 +142,7 @@ static uint8_t txn_poll(void) {
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        onewire_write_command(txn_ctx.bytes, txn_ctx.nbytes);
+        onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);
         txn_ctx.phase = DS18B20_TXN_WRITE;
         break;
 
@@ -218,7 +228,7 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
     }
     txn_ctx.ok = 0;
     txn_ctx.finished = 0;
-    txn_build_command(); // Pre-build the command for the current address mode
+    txn_build_pulses(); // Pre-build the command for the current address mode
     onewire_strong_pullup(0);
     txn_ctx.phase = DS18B20_TXN_RESET;
     onewire_reset(ctx.capture); // Schedule the first hardware operation

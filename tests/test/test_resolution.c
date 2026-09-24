@@ -63,11 +63,13 @@ static void drive_res_change(uint8_t bits) {
     drive_poll_until_done();
 }
 
-/* Assert that res_ctx.bytes[0..len) matches the expected bytes. */
-static void assert_res_bytes(const uint8_t* bytes, uint8_t len) {
-    TEST_ASSERT_EQUAL_UINT8(len, ds18b20_test_get_res_nbytes());
+/* Assert that res_ctx.pulses[0..8*len) encodes the expected bytes. */
+static void assert_res_pulses_bytes(const uint8_t* bytes, uint8_t len) {
     for (uint8_t i = 0; i < len; i++) {
-        TEST_ASSERT_EQUAL_HEX8(bytes[i], ds18b20_test_get_res_byte(i));
+        for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
+            uint16_t want = ((bytes[i] >> b) & 1u) ? ONE : ZERO;
+            TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_res_pulse((uint8_t)(i * 8 + b)));
+        }
     }
 }
 
@@ -114,7 +116,9 @@ void test_resolution_skip_rom_pulses_built(void) {
     ds18b20_set_resolution(9);
     /* 0xCC (Skip ROM) + 0x4E (Write Scratchpad) + TH + TL + CFG(0x1F) */
     static const uint8_t k_bytes[] = {0xCC, 0x4E, 0x00, 0x00, 0x1F};
-    assert_res_bytes(k_bytes, sizeof(k_bytes));
+    assert_res_pulses_bytes(k_bytes, sizeof(k_bytes));
+    /* trailing bus-release zero at the Skip ROM slot count (40) */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_res_pulse(40));
 }
 
 void test_resolution_match_rom_pulses_built(void) {
@@ -129,7 +133,9 @@ void test_resolution_match_rom_pulses_built(void) {
     k_bytes[10] = 0x00;
     k_bytes[11] = 0x00;
     k_bytes[12] = 0x7F;
-    assert_res_bytes(k_bytes, sizeof(k_bytes));
+    assert_res_pulses_bytes(k_bytes, sizeof(k_bytes));
+    /* trailing bus-release zero at the Match ROM slot count (104) */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_res_pulse(104));
 }
 
 /*-------------------------------------------------------------
@@ -195,7 +201,7 @@ void test_resolution_scan_mode_broadcasts_skip_rom(void) {
     const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(40, log->count);
     TEST_ASSERT_EQUAL_UINT16(0, log->values[39]);
-    TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_res_nbytes()); /* Skip ROM write */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_res_pulse(40)); /* trailing at MIN */
 }
 
 /*-------------------------------------------------------------
@@ -240,7 +246,7 @@ void test_resolution_reentry_ignored(void) {
     TEST_ASSERT_EQUAL_UINT8(10, ds18b20_get_resolution());
     /* The pre-built config byte is still the 10-bit one (0x3F). */
     static const uint8_t k_bytes[] = {0xCC, 0x4E, 0x00, 0x00, 0x3F};
-    assert_res_bytes(k_bytes, sizeof(k_bytes));
+    assert_res_pulses_bytes(k_bytes, sizeof(k_bytes));
 }
 
 /*-------------------------------------------------------------

@@ -91,8 +91,13 @@ void test_read_rom_bare_command_built(void) {
     uint8_t rom[DS18B20_ROM_BYTES];
     ds18b20_read_rom(rom);
     /* Exactly the Read ROM byte, no addressing prefix. */
-    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_nbytes());
-    TEST_ASSERT_EQUAL_HEX8(DS18B20_READ_ROM, ds18b20_test_get_txn_byte(0));
+    TEST_ASSERT_EQUAL_UINT8(8, ds18b20_test_get_txn_slots());
+    for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {
+        uint16_t want = ((DS18B20_READ_ROM >> b) & 1u) ? ONE : ZERO;
+        TEST_ASSERT_EQUAL_UINT16(want, ds18b20_test_get_txn_pulse(b));
+    }
+    /* trailing bus-release zero at the bare slot count (8) */
+    TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_txn_pulse(8));
 }
 
 /*-------------------------------------------------------------
@@ -222,7 +227,7 @@ void test_read_rom_reentry_ignored(void) {
     /* Re-entry while running must be ignored: still the bare Read ROM. */
     uint8_t rom2[DS18B20_ROM_BYTES];
     ds18b20_read_rom(rom2);
-    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_nbytes());
+    TEST_ASSERT_EQUAL_UINT8(8, ds18b20_test_get_txn_slots());
     drive_txn(ds18b20_read_rom_poll);
     for (int i = 0; i < DS18B20_ROM_BYTES; i++) {
         TEST_ASSERT_EQUAL_HEX8(want[i], rom[i]);

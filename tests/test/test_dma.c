@@ -47,7 +47,7 @@
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire_internal.h"
+#include "onewire.h"
 #include "ow_port.h"
 #include "unity.h"
 #include <string.h>
@@ -157,18 +157,18 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
     hw_register_buf(&b.pulses[1]);
 
     /* first buffer: CMAR must address exactly its slot-1 element */
-    onewire_write_pulses(a.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(a.pulses, ONEWIRE_BITS_PER_BYTE);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&a.pulses[1], mock_feed_ch.CMAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CPAR);
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_BITS_PER_BYTE, mock_feed_ch.CNDTR);
-    /* memory -> peripheral, 8-bit memory element, increment on */
-    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0,
-                          mock_feed_ch.CCR);
-    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_1, mock_feed_ch.CCR);
+    /* memory -> peripheral, increment on; the memory element is family sized
+     * (F4 feeds 16-bit halfwords in direct mode, F1 8-bit cells) */
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 #if defined(OW_PORT_TARGET_F4)
-    TEST_ASSERT_BITS_HIGH(DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 16-bit feed cells */
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 16-bit cells */
 #else
-    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 8-bit feed cells */
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0, mock_feed_ch.CCR);
+    TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1, mock_feed_ch.CCR);
 #endif
 
     run_op();
@@ -187,7 +187,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
     assert_guards(a.guard_before, a.guard_after, 0xA5);
 
     /* second buffer: identical geometry but the data must follow B */
-    onewire_write_pulses(b.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(b.pulses, ONEWIRE_BITS_PER_BYTE);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CMAR);
     run_op();
     log = hw_ccr3_feed_log();
@@ -211,7 +211,7 @@ void test_dma_tx_never_reads_neighbouring_buffer(void) {
     hw_register_buf(&a.pulses[1]);
     hw_register_buf(&b.pulses[1]);
 
-    onewire_write_pulses(a.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(a.pulses, ONEWIRE_BITS_PER_BYTE);
     run_op();
 
     /* both buffers are registered before the model resolves CMAR, so a driver
@@ -234,7 +234,7 @@ void test_dma_tx_leftover_transfer_detected(void) {
     memcpy(g.pulses, pat, sizeof(pat));
     hw_register_buf(&g.pulses[1]);
 
-    onewire_write_pulses(g.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(g.pulses, ONEWIRE_BITS_PER_BYTE);
     mock_feed_ch.CNDTR += 1u; /* over-run: 9 transfers against an 8-slot op */
 
     TEST_ASSERT_TRUE(hw_run_until_uif(ONEWIRE_BITS_PER_BYTE));
@@ -256,7 +256,7 @@ void test_dma_tx_overrun_reads_guard(void) {
     memcpy(g.pulses, pat, sizeof(pat));
     hw_register_buf(&g.pulses[1]);
 
-    onewire_write_pulses(g.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(g.pulses, ONEWIRE_BITS_PER_BYTE);
     /* consistent off-by-one: the driver claimed 9 slots for a buffer table
        that only holds 8 entries, so CNDTR is also 9 */
     mock_feed_ch.CNDTR = ONEWIRE_BITS_PER_BYTE + 1u;
@@ -269,13 +269,7 @@ void test_dma_tx_overrun_reads_guard(void) {
        immediately follows the 9-byte table and surfaces in the output log */
     const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE + 1u, log->count);
-    /* the guard zone is filled with 0xA5 bytes: a feed memory element reads
-       sizeof(ow_pulse_t) of them, so the observed cell is width-dependent */
-    ow_pulse_t guard_cell = 0;
-    for (size_t b = 0; b < sizeof(guard_cell); b++) {
-        guard_cell |= (ow_pulse_t)(0xA5u << (8u * b));
-    }
-    TEST_ASSERT_EQUAL_UINT16(guard_cell, log->values[ONEWIRE_BITS_PER_BYTE]);
+    TEST_ASSERT_EQUAL_UINT8(0xA5u, log->values[ONEWIRE_BITS_PER_BYTE]);
     /* a correct op would have placed the trailing bus-release 0 here instead */
     TEST_ASSERT_TRUE(log->values[ONEWIRE_BITS_PER_BYTE] != 0u);
 }
@@ -442,7 +436,7 @@ void test_dma_tx_direction_memory_to_peripheral(void) {
     hw_register_buf(&g.pulses[1]);
 
     ow_pulse_t snapshot[ONEWIRE_BITS_PER_BYTE + 1];
-    onewire_write_pulses(g.pulses, ONEWIRE_BITS_PER_BYTE);
+    onewire_write_slots(g.pulses, ONEWIRE_BITS_PER_BYTE);
     memcpy(snapshot, g.pulses, sizeof(snapshot));
 
     TEST_ASSERT_BITS_HIGH(DMA_CCR_DIR, mock_feed_ch.CCR); /* memory -> peripheral */
@@ -619,25 +613,20 @@ void test_dma_match_rom_resolution_writes_104_slots(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
 
-    /* the DMA feed delivered the encoded 104-slot table exactly: the last
-       slot carried the trailing release 0 */
+    /* the DMA feed delivered the pre-built 104-slot table exactly: transfer i
+       carried pulses[i+1], and the last slot got the trailing release 0 */
     {
         const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
         TEST_ASSERT_EQUAL_UINT8(104u, log->count);
-        TEST_ASSERT_EQUAL_UINT16(0u, log->values[103]); /* release zero */
+        for (uint8_t i = 0; i < 104; i++) {
+            TEST_ASSERT_EQUAL_UINT8(ds18b20_test_get_res_pulse((uint8_t)(i + 1)),
+                                    (uint8_t)log->values[i]);
+        }
+        TEST_ASSERT_EQUAL_UINT8(0u, (uint8_t)log->values[103]); /* release zero */
     }
 
-    /* the command bytes are intact after the synchronous encode: 0x55 + ROM +
-       + 0x4E + TH + TL + CFG (0x1F for 9-bit) */
-    {
-        static const uint8_t k_bytes[13] = {
-            0x55, 0x28, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00,
-            0x4E, 0x00, 0x00, 0x1F};
-        TEST_ASSERT_EQUAL_UINT8(13u, ds18b20_test_get_res_nbytes());
-        for (uint8_t i = 0; i < 13u; i++) {
-            TEST_ASSERT_EQUAL_HEX8(k_bytes[i], ds18b20_test_get_res_byte(i));
-        }
-    }
+    /* the two DMA modes only moved the output: the pulse table is intact */
+    TEST_ASSERT_EQUAL_UINT8(0u, ds18b20_test_get_res_pulse(104)); /* trailing 0 */
 
     /* change completes and hands the timer back with the resolution applied */
     TEST_ASSERT_EQUAL_UINT8(0u, ds18b20_set_resolution_poll()); /* WRITE -> DONE */

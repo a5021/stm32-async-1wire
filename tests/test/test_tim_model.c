@@ -22,7 +22,7 @@
 
 #include "hw_model.h"
 #include "mock_target.h"
-#include "onewire_internal.h"
+#include "onewire.h"
 #include "unity.h"
 
 #define ONE ONEWIRE_ONE_PULSE
@@ -35,9 +35,9 @@
  * ============================================================ */
 
 void test_tim_reload_happens_only_after_cc2(void) {
-    static ow_pulse_t buf[4] = {(uint8_t)ONE, ZERO, ONE, 0u};
+    static ow_pulse_t buf[4] = {(ow_pulse_t)ONE, ZERO, ONE, 0u};
     hw_register_buf(&buf[1]); /* the driver feeds CCR3 from &cmd[1] */
-    onewire_write_pulses(buf, 3);
+    onewire_write_slots(buf, 3);
     TEST_ASSERT_EQUAL_UINT32(3u, mock_feed_ch.CNDTR);
     hw_tim_init();
 
@@ -101,9 +101,9 @@ void test_tim_reload_happens_only_after_cc2(void) {
  * ============================================================ */
 
 void test_tim_trailing_zero_not_during_last_slot(void) {
-    static ow_pulse_t buf[3] = {(uint8_t)ZERO, ZERO, 0u}; /* 2 slots */
+    static ow_pulse_t buf[3] = {(ow_pulse_t)ZERO, ZERO, 0u}; /* 2 slots */
     hw_register_buf(&buf[1]);
-    onewire_write_pulses(buf, 2);
+    onewire_write_slots(buf, 2);
     hw_tim_init();
 
     /* skip slot 0 */
@@ -138,7 +138,7 @@ void test_tim_trailing_zero_not_during_last_slot(void) {
 
 void test_tim_preload_shadow_stable_through_slot(void) {
     ow_pulse_t pulse = ONE;
-    onewire_write_pulses(&pulse, 1); /* single-slot path: OC3PE + preload 0 */
+    onewire_write_slots(&pulse, 1); /* single-slot path: OC3PE + preload 0 */
 
     /* the driver programmed OC3PE (preload enabled) */
     TEST_ASSERT_TRUE(MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE);

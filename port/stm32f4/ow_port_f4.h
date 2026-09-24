@@ -31,7 +31,7 @@
 #ifndef OW_PORT_F4_H
 #define OW_PORT_F4_H
 
-#include "onewire_internal.h"
+#include "onewire.h"
 #include "ow_bits.h"
 #include "stm32f4xx.h"
 
