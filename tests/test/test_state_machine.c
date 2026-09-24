@@ -1040,6 +1040,76 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
 }
 
 /*-------------------------------------------------------------
+ *  Explicit measurement start: a parked driver measures only
+ *  when ds18b20_start_measure() asks for it.
+ * -----------------------------------------------------------*/
+void test_state_machine_parked_until_start_request(void) {
+    hw_reset_all();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* No UIF after init: poll() must not touch the bus. */
+    mock_tim1.SR &= ~TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.EGR & TIM_EGR_UG);
+
+    /* The request is a bare timer update event: it schedules no timing of its
+     * own (no ARR/RCR reprogramming, no timer start). */
+    mock_tim1.EGR = 0;
+    ds18b20_start_measure();
+    TEST_ASSERT_BITS_HIGH(TIM_EGR_UG, mock_tim1.EGR);
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.ARR);
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.RCR);
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.CR1 & TIM_CR1_CEN);
+}
+
+/*-------------------------------------------------------------
+ *  A running cycle owns the bus: a start request in the middle
+ *  of one is refused (no update event, no state change).
+ * -----------------------------------------------------------*/
+void test_state_machine_start_refused_mid_cycle(void) {
+    hw_reset_all();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    ds18b20_test_set_state(DS18B20_ST_READ);
+    mock_tim1.EGR = 0;
+    ds18b20_start_measure();
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.EGR & TIM_EGR_UG);
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
+}
+
+/*-------------------------------------------------------------
+ *  A finished cycle parks the driver: polling it schedules no
+ *  hardware operation, so nothing restarts a conversion without
+ *  a new ds18b20_start_measure() request.
+ * -----------------------------------------------------------*/
+void test_state_machine_no_timer_armed_after_cycle(void) {
+    hw_reset_all();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    hw_set_capture_source(NULL);
+
+    ts_drive_measurement_raw(0x0164);
+
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+
+    /* A parked driver must not arm anything: poll() writes no update event
+     * (EGR) and stays at IDLE. */
+    mock_tim1.EGR = 0;
+    mock_tim1.SR &= ~TIM_SR_UIF;
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.EGR & TIM_EGR_UG);
+
+    /* Only an explicit request wakes it: the next cycle starts from the
+     * update event ds18b20_start_measure() raises. */
+    ds18b20_start_measure();
+    TEST_ASSERT_BITS_HIGH(TIM_EGR_UG, mock_tim1.EGR);
+}
+
+/*-------------------------------------------------------------
  *  Run all state machine tests
  * -----------------------------------------------------------*/
 void run_test_state_machine(void) {
@@ -1071,4 +1141,7 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_full_cycle_skip_rom_value);
     TEST_RUN(test_state_machine_repeated_measurement_cycles);
     TEST_RUN(test_state_machine_reselect_in_callback);
+    TEST_RUN(test_state_machine_parked_until_start_request);
+    TEST_RUN(test_state_machine_start_refused_mid_cycle);
+    TEST_RUN(test_state_machine_no_timer_armed_after_cycle);
 }

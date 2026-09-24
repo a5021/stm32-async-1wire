@@ -13,13 +13,22 @@
  * - Weak function callbacks for customization
  * - Built-in non-blocking device search (ds18b20_search_*) for multi-sensor
  *   buses, with zero busy-waits
- * 
+ *
+ * Measurement model: the driver measures when it is asked to. It runs exactly
+ * one conversion + scratchpad-read cycle per ds18b20_start_measure() call,
+ * reports the result through ds18b20_complete() and then parks at
+ * DS18B20_ST_IDLE. It never starts a cycle on its own, so the measurement
+ * cadence, the retry policy and any idle interval belong to the application.
+ *
  * Usage:
  * 1. Call ds18b20_init() once at startup
- * 2. Call ds18b20_poll() repeatedly from main loop
- * 3. (Optional) Run the non-blocking device search (ds18b20_search_*) before
- *    starting poll(); the search helper hands back to poll() automatically
- * 4. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
+ * 2. Call ds18b20_start_measure() to request a measurement cycle
+ * 3. Call ds18b20_poll() repeatedly from main loop until ds18b20_complete()
+ *    reports the result
+ * 4. Repeat steps 2-3 at whatever rate the application wants to measure
+ * 5. (Optional) Run the non-blocking device search (ds18b20_search_*) to get
+ *    the ROM addresses to pass to ds18b20_select() before measuring
+ * 6. Implement weak callbacks ds18b20_busy() and ds18b20_complete()
  *    to handle status indication and temperature results
  */
 
@@ -43,7 +52,7 @@ extern "C" {
  * @brief DS18B20 driver state machine states
  */
 typedef enum {
-    DS18B20_ST_IDLE = 0, /**< Initial state, falls through to START */
+    DS18B20_ST_IDLE = 0, /**< Parked between cycles; ds18b20_start_measure() leaves it */
     DS18B20_ST_START, /**< Begin measurement, reset bus */
     DS18B20_ST_CONVERT, /**< Check presence, send Convert T command */
     DS18B20_ST_WAIT, /**< Wait for conversion to complete (93.75ms @ 9-bit .. 750ms @ 12-bit) */
@@ -175,7 +184,9 @@ typedef enum {
  * @brief Maxim Search ROM (0xF0) state machine, driven from the main loop
  *        like the measurement state machine. It filters by family code,
  *        validates the CRC and reports each found DS18B20 via a callback.
- *        When the search finishes it hands the timer back to ds18b20_poll().
+ *        When the search finishes the driver stays idle until the application
+ *        requests the next operation (ds18b20_start_measure(), a new search or
+ *        a command).
  * @{
  */
 
@@ -221,7 +232,8 @@ uint8_t ds18b20_search_count(void);
  * The alarm search reuses the device search engine (same poll/ownership
  * model, same family filter, same sink protocol) and does not touch the
  * scan-mode device table: run ds18b20_search_start() to (re)populate it.
- * When it finishes it hands the timer back to ds18b20_poll().
+ * When it finishes the driver stays idle until the application requests the
+ * next operation (ds18b20_start_measure(), a new search or a command).
  * @{
  */
 
@@ -256,8 +268,8 @@ uint8_t ds18b20_alarm_search_count(void);
  *        measurement cycles. The sensor answers Convert T (0x44) after
  *        93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms
  *        (12 bit); this driver waits exactly as long as the configured
- *        resolution requires and hands the timer back to ds18b20_poll()
- *        when the change is complete.
+ *        resolution requires and parks until the application starts the next
+ *        measurement cycle.
  *
  * The configuration is written to the volatile scratchpad (Write Scratchpad
  * 0x4E): it takes effect immediately and is not persisted to the EEPROM.
@@ -272,7 +284,7 @@ uint8_t ds18b20_alarm_search_count(void);
  *       measurement cycles and only while the device search is idle; otherwise
  *       it is ignored. While running, it owns TIM1/DMA; poll it with
  *       ds18b20_set_resolution_poll() until it reports completion, then call
- *       ds18b20_poll() again to resume measuring with the new resolution.
+ *       ds18b20_start_measure() to measure with the new resolution.
  */
 void ds18b20_set_resolution(uint8_t bits);
 
@@ -301,10 +313,10 @@ uint8_t ds18b20_get_resolution(void);
  * @brief Infrequent DS18B20 commands driven with the same non-blocking
  *        discipline as the device search and the resolution change: every
  *        command owns TIM1/DMA while it runs (reset -> presence -> write ->
- *        read | wait) and hands the timer back to ds18b20_poll() when done.
+ *        read | wait) and leaves the bus idle when done.
  *
- * Each command is a start/poll pair; poll until it returns 1, then resume
- * calling ds18b20_poll() for measurements. Commands are ignored mid-cycle,
+ * Each command is a start/poll pair; poll until it returns 1, then call
+ * ds18b20_start_measure() to measure again. Commands are ignored mid-cycle,
  * while a device search or a resolution change runs, or while another
  * command transaction is still running. Result buffers passed to the read
  * commands must stay valid until the transaction finishes.
@@ -524,8 +536,25 @@ void ds18b20_init(void);
  * This function implements the core non-blocking state machine that manages
  * the 1-Wire communication protocol with the DS18B20 sensor. It uses hardware
  * timer and DMA to handle timing-critical operations without software delays.
+ * At DS18B20_ST_IDLE it does nothing until ds18b20_start_measure() requests a
+ * cycle.
  */
 void ds18b20_poll(void);
+
+/**
+ * @brief Start one measurement cycle (non-blocking)
+ * @note Schedules the first bus operation of a single conversion +
+ *       scratchpad-read cycle on the currently selected device (every
+ *       discovered device in scan mode); ds18b20_poll() then advances it and
+ *       the result is reported through ds18b20_complete(). When the cycle
+ *       finishes the driver parks at DS18B20_ST_IDLE and waits for the next
+ *       request, so the measurement cadence is entirely the application's
+ *       decision - the driver itself starts no cycle and retries nothing on
+ *       its own.
+ * @note Ignored (no-op) while a measurement cycle, a device search, a
+ *       resolution change or a command transaction owns the bus.
+ */
+void ds18b20_start_measure(void);
 
 /**
  * @brief Select which DS18B20 device to measure by its ROM address
@@ -542,7 +571,7 @@ void ds18b20_poll(void);
  *       DS18B20_ST_DECODE mid-round: a select() there is rejected and the scan
  *       round continues. To switch out of scan mode, call ds18b20_select()
  *       from ds18b20_complete() in single-device mode (the callback runs at
- *       IDLE) or between measurement rounds (at IDLE).
+ *       IDLE) or while the driver is parked between measurement cycles.
  */
 void ds18b20_select(const uint8_t* rom);
 

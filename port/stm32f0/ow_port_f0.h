@@ -58,8 +58,10 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 
 /**
  * @brief Force a timer update event, leaving UIF set
- * @note Kickstart / timer hand-over: EGR=UG with no SR clear, so the owner
- *       (measurement state machine) sees UIF set and advances immediately.
+ * @note Explicit start: EGR=UG with no SR clear, so the owner (measurement
+ *       state machine) sees UIF set and advances on its next poll. Nothing
+ *       calls this implicitly: after init and after every finished operation
+ *       the timer stays idle until the application requests the next one.
  */
 __STATIC_FORCEINLINE void ow_port_kick(void) {
     T1.EGR = TIM_EGR(UG);
@@ -84,7 +86,6 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     RC.AHBENR |= RCC_AHBENR(GPIOAEN, DMAEN);
     RC.APB2ENR |= RCC_APB2ENR(TIM1EN);
     T1.PSC = OW_PORT_TIM_PRESCALER;
-    ow_port_kick(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
     /* PA10: alternate function mode, open-drain, AF2 (TIM1_CH3) */
     PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
@@ -131,8 +132,8 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
 #if OW_PORT_LOW_POWER
 /**
  * @brief Whether the currently scheduled operation is a "long" stage (> 1 ms)
- * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
- *         inter-cycle pause) is in flight, 0 otherwise
+ * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off)
+ *         is in flight, 0 otherwise
  * @note A low-power application checks this, then calls
  *       ow_port_sleep_until_done() when it is set, instead of busy-polling.
  */
@@ -253,7 +254,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
 }
 
 /**
- * @brief Start a hardware-timed wait (conversion wait / inter-cycle pause)
+ * @brief Start a hardware-timed wait (conversion wait / EEPROM hold-off)
  * @param[in] arr Auto-reload value (one timer period in µs)
  * @param[in] rcr Repetition counter (number of periods - 1)
  */
@@ -262,7 +263,7 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     T1.RCR = rcr;
 #if OW_PORT_LOW_POWER
     if ((uint32_t)(rcr + 1u) * arr > 1000u) {
-        ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
+        ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off */
         /* Enable the update interrupt so the pending bit wakes __WFE() via
          * SEVONPEND. ow_port_capture() already sets UIE for the long scratchpad
          * read stage, but start_timer() must too, else WFE sleeps forever. */

@@ -160,6 +160,8 @@ void onewire_start_timer(uint16_t arr, uint8_t rcr) {
     ow_port_start_timer(arr, rcr);
 }
 
+void onewire_kick(void) { ow_port_kick(); }
+
 void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
@@ -348,9 +350,9 @@ uint8_t onewire_search_poll(void) {
     }
 
     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {
-        // No hardware operation is pending at the end of the search: hand the
-        // timer back to the owner exactly once.
-        ow_port_kick();
+        // No hardware operation is pending at the end of the search: the timer
+        // stays idle until the owner asks for the next operation (a new search
+        // schedules its own reset, a measurement calls onewire_kick()).
         search_ctx.finished = 1;
         return 1;
     }

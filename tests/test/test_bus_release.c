@@ -222,11 +222,11 @@ void test_read_pair_standalone_release(void) {
 
 /*-------------------------------------------------------------
  *  Long pure-timer waits (wait_conversion = 750ms, RCR=11;
- *  start_cycle_pause = 5s, RCR=79). They never touch CCR3,
+ *  a generic 5s wait, RCR=79). They never touch CCR3,
  *  so the line stays idle HIGH for the whole wait and the bus
  *  is still released when the timer stops.
  * -----------------------------------------------------------*/
-void test_wait_and_pause_keep_bus_released(void) {
+void test_long_waits_keep_bus_released(void) {
     ow_pulse_t cmd[17];
     for (int i = 0; i < 16; i++) {
         cmd[i] = (i & 1) ? (uint8_t)ONE : (uint8_t)ZERO;
@@ -243,7 +243,7 @@ void test_wait_and_pause_keep_bus_released(void) {
     complete_op(100); /* 12 slots */
     assert_bus_released();
 
-    test_bus_start_cycle_pause();
+    test_bus_start_timer(62500, 79);
     TEST_ASSERT_EQUAL_UINT8(79, mock_tim1.RCR);
     complete_op(100); /* 80 slots */
     assert_bus_released();
@@ -260,6 +260,6 @@ void run_test_bus_release(void) {
     TEST_RUN(test_merged_write_read_decodes_zeros);
     TEST_RUN(test_read_pair_standalone_release);
     TEST_RUN(test_read_data_hardware_path_decode);
-    TEST_RUN(test_wait_and_pause_keep_bus_released);
+    TEST_RUN(test_long_waits_keep_bus_released);
     TEST_RUN(test_sequence_stays_released_between_ops);
 }

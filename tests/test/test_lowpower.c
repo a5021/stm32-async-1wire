@@ -46,10 +46,10 @@ void test_lowpower_conversion_wait_sets_pending_and_uie(void) {
 }
 
 /*-------------------------------------------------------------
- *  Inter-measurement pause (5 s) is a long stage too
+ *  Any long timed wait (> 1 ms) is a long stage too
  * -----------------------------------------------------------*/
-void test_lowpower_cycle_pause_sets_pending_and_uie(void) {
-    test_bus_start_cycle_pause();
+void test_lowpower_long_wait_sets_pending_and_uie(void) {
+    test_bus_start_timer(62500, 79);
     TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
     TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
 }
@@ -180,7 +180,7 @@ void test_lowpower_single_slot_write_enables_uie(void) {
 void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_init_sets_sevonpend);
     TEST_RUN(test_lowpower_conversion_wait_sets_pending_and_uie);
-    TEST_RUN(test_lowpower_cycle_pause_sets_pending_and_uie);
+    TEST_RUN(test_lowpower_long_wait_sets_pending_and_uie);
     TEST_RUN(test_lowpower_short_op_keeps_pending_clear);
     TEST_RUN(test_lowpower_bus_done_clears_pending);
     TEST_RUN(test_lowpower_sleep_until_done_smoke);

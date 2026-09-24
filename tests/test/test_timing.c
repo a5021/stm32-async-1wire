@@ -65,10 +65,12 @@ void test_timing_wait_conversion_750ms(void) {
     TEST_ASSERT_EQUAL_UINT32(11, mock_tim1.RCR);
 }
 
-void test_timing_start_cycle_pause_5s(void) {
+void test_timing_long_wait_arr_rcr(void) {
     hw_reset_all();
-    test_bus_start_cycle_pause();
-    /* PAUSE_5S = 62500 ticks * 80 periods * 1µs = 5s */
+    /* Generic long idle-HIGH wait: 62500 ticks * 80 periods * 1us = 5s. The
+     * driver no longer has a cycle-pause knob, so the ARR/RCR math of a long
+     * timer pass is covered through the raw onewire_start_timer() contract. */
+    test_bus_start_timer(62500, 79);
     TEST_ASSERT_EQUAL_UINT32(62500, mock_tim1.ARR);
     TEST_ASSERT_EQUAL_UINT32(79, mock_tim1.RCR);
 }
@@ -143,7 +145,7 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_command_programs_slot_period);
     TEST_RUN(test_timing_read_programs_72_slots);
     TEST_RUN(test_timing_wait_conversion_750ms);
-    TEST_RUN(test_timing_start_cycle_pause_5s);
+    TEST_RUN(test_timing_long_wait_arr_rcr);
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
     TEST_RUN(test_search_start_ignored_while_running);

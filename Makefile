@@ -20,12 +20,11 @@ $(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode'
 endif
 
 # 6_statistics is the signal-statistics example: enable the optional stats module by
-# default, shorten the inter-measurement pause to ~10ms, and widen the stats
-# window to 5000 measurement rounds.  Parasite power is deliberately NOT set
-# here (it is bus-hardware dependent) — pass EXT="-DOW_PARASITE_POWER=1" when the
-# 1-Wire bus is parasite-powered.
+# default and widen the stats window to 5000 measurement rounds.  Parasite power is
+# deliberately NOT set here (it is bus-hardware dependent) — pass EXT="-DOW_PARASITE_POWER=1"
+# when the 1-Wire bus is parasite-powered.
 ifeq ($(APP),6_statistics)
-override EXT += -DOW_STATS_ENABLE=1 -DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000
+override EXT += -DOW_STATS_ENABLE=1 -DSTATS_DUMP_INTERVAL=5000
 endif
 
 # Define the name of the project target and the build directory

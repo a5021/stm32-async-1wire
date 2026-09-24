@@ -107,9 +107,10 @@ static uint8_t txn_poll(void) {
     }
 
     if (txn_ctx.phase == DS18B20_TXN_DONE) {
-        // The last hardware operation completed (command done or aborted):
-        // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        // The last hardware operation completed (command done or aborted).
+        // The timer is idle from here on: it is picked up again by the next
+        // ds18b20_start_measure() (or by the next search/command), which is
+        // what keeps a command from silently starting a measurement.
         txn_ctx.finished = 1;
         return 1;
     }

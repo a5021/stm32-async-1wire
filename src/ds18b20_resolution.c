@@ -134,9 +134,9 @@ uint8_t ds18b20_set_resolution_poll(void) {
     }
 
     if (res_ctx.phase == DS18B20_RES_DONE) {
-        // The last hardware operation completed (config written or aborted):
-        // hand the timer back to the measurement state machine exactly once.
-        ow_port_kick();
+        // The last hardware operation completed (config written or aborted).
+        // The timer stays idle: the next ds18b20_start_measure() picks it up,
+        // so a resolution change never starts a measurement on its own.
         if (res_ctx.applied) {
             ctx.resolution = res_ctx.pending_res;
         }

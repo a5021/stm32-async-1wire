@@ -80,7 +80,7 @@ void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
 void test_bus_write_bit(uint8_t bit) { onewire_write_bit(bit); }
 void test_bus_read_data(void) { onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN); }
 void test_bus_wait_conversion(void) { wait_conversion(); }
-void test_bus_start_cycle_pause(void) { start_cycle_pause(); }
+void test_bus_start_timer(uint16_t arr, uint8_t rcr) { onewire_start_timer(arr, rcr); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
 #if OW_PORT_LOW_POWER

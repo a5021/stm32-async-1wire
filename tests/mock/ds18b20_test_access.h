@@ -41,7 +41,8 @@ void test_bus_write_then_read(uint8_t bit);
 void test_bus_write_bit(uint8_t bit);
 void test_bus_read_data(void);
 void test_bus_wait_conversion(void);
-void test_bus_start_cycle_pause(void);
+/* Generic timed wait (ARR, RCR) for tests that need a long idle-HIGH stage. */
+void test_bus_start_timer(uint16_t arr, uint8_t rcr);
 uint8_t test_ds18b20_bus_done(void);
 uint8_t test_bus_present(void);
 

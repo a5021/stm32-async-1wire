@@ -20,36 +20,54 @@ static uint8_t pulse_dumped;
  * @brief Finish the current scan-mode device read
  * @note Called after every per-device report in scan mode. Advances to the
  *       next device (CONTINUE, skipping a fresh conversion) or, after the last
- *       device, returns to IDLE and starts the inter-measurement pause so the
- *       next round begins with a new broadcast Convert T. In single-device
- *       mode it only starts the inter-measurement pause.
+ *       device, returns to IDLE. In single-device mode it only returns to IDLE.
+ * @note The driver never starts a round on its own: at IDLE it waits for
+ *       ds18b20_start_measure(), so the measurement cadence is the
+ *       application's decision.
  */
 static void scan_finish_or_next(void) {
     if (!ctx.scan_mode) {
-        // Parasite power: hold the strong pull-up during the inter-round pause
-        // so the device capacitors stay charged for the next measurement cycle.
+        // Parasite power: hold the strong pull-up while the driver is parked
+        // so the device capacitors stay charged for the next measurement
+        // cycle. ds18b20_start_measure() releases it again in START.
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        start_cycle_pause();
         return;
     }
     ctx.scan_index++;
     if (ctx.scan_index < dev_count) {
         ctx.current_state = DS18B20_ST_CONTINUE;
         /* DECODE armed nothing, so without a running timer no UIF would ever
-         * drive the CONTINUE state again (single-device mode gets its UIF from
-         * the inter-measurement pause). Arm a short scheduling delay: its UIF
+         * drive the CONTINUE state again (single-device rounds get their UIF
+         * from ds18b20_start_measure()). Arm a short scheduling delay: its UIF
          * is the bridge to CONTINUE, which then arms the real bus reset. */
         onewire_start_timer(SCAN_DEVICE_GAP_US, SCAN_DEVICE_GAP_RCR);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
-        // Parasite power: keep the strong pull-up engaged across the pause.
+        // Parasite power: keep the strong pull-up engaged while parked.
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        start_cycle_pause();
     }
+}
+
+/**
+ * @brief Start one measurement cycle (non-blocking)
+ * @see ds18b20_start_measure() in ds18b20.h
+ * @note Schedules the bus reset the state machine needs to leave IDLE; the
+ *       cycle itself is then advanced by ds18b20_poll(). Ignored while a
+ *       measurement cycle, a device search, a resolution change or a command
+ *       transaction owns the timer.
+ */
+void ds18b20_start_measure(void) {
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        return; // a measurement cycle is in progress
+    }
+    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
+        return; // the search, a resolution change or a command owns the timer
+    }
+    onewire_kick();
 }
 
 /**
@@ -110,11 +128,10 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
         // exit skips the DECODE state where busy(0) is normally cleared.
         ds18b20_busy(0);
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
-        // Parasite power: hold the strong pull-up during the retry pause.
+        // Parasite power: hold the strong pull-up while parked.
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        start_cycle_pause();
         return;
     }
     if (ctx.address_mode) {
@@ -148,7 +165,8 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
     case DS18B20_ST_IDLE:
-        // Transition to START state
+        // A parked driver advances only on the UIF raised by
+        // ds18b20_start_measure(); without such a request the bus stays idle.
         ctx.current_state = DS18B20_ST_START;
         /* fallthrough to START state immediately */
         __attribute__((fallthrough));
@@ -319,8 +337,8 @@ void ds18b20_poll(void) {
         }
 
         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the
-        // last device, back to IDLE plus the inter-measurement pause. In
-        // single-device mode this only starts the pause.
+        // last device, back to IDLE. In single-device mode this only returns to
+        // IDLE, where the driver waits for ds18b20_start_measure().
         scan_finish_or_next();
         break;
 

@@ -192,15 +192,4 @@
 #define DS18B20_MAX_DEVICES 8
 #endif
 
-/**
- * @brief Default inter-measurement pause in microseconds (default 5 s).
- *
- * ds18b20.c recomputes ARR and RCR from this value.  Set to 0 to
- * disable the pause (next measurement starts immediately after decode).
- * Overridable via -DDS18B20_CYCLE_PAUSE_US=(value in µs).
- */
-#ifndef DS18B20_CYCLE_PAUSE_US
-#define DS18B20_CYCLE_PAUSE_US 5000000
-#endif
-
 #endif /* OW_CONFIG_H */

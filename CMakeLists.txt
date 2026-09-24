@@ -243,7 +243,6 @@ if(OW_BUILD_EXAMPLES)
     # Makefile's `APP=6_statistics` EXT flags on the shared library.
     target_compile_definitions(stm32_async_1wire PUBLIC
         OW_STATS_ENABLE=1
-        DS18B20_CYCLE_PAUSE_US=10000
     )
 
     # Example applications — mirror the make APP=<ex> targets: every example

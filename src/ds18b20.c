@@ -25,15 +25,6 @@
 #define DS18B20_PREFIX_BYTES (DS18B20_ROM_BYTES + 1)
 /** @brief Bytes in a Skip ROM broadcast command (0xCC + command byte) */
 #define DS18B20_SKIP_BYTES 2
-/** @brief Timer configuration for wait and pause (ARR, RCR) — 62500 ticks @ 1µs = 62.5ms per period */
-#define OW_PAUSE_US (DS18B20_CYCLE_PAUSE_US > 0 ? DS18B20_CYCLE_PAUSE_US : 1)
-#if OW_PAUSE_US <= 62500
-#define PAUSE_ARR (OW_PAUSE_US)
-#define PAUSE_RCR 0
-#else
-#define PAUSE_ARR 62500
-#define PAUSE_RCR ((OW_PAUSE_US / 62500) - 1)
-#endif
 #define SCAN_DEVICE_GAP_US 1000 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
 #define SCAN_DEVICE_GAP_RCR 0
 /** @brief TH byte written together with the config register by the resolution
@@ -276,12 +267,6 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
     resolution_to_wait(ctx.resolution, &arr, &rcr);
     onewire_start_timer(arr, rcr);
 }
-
-/**
- * @brief Start inter-measurement pause period (5s)
- * @note Non-blocking - starts timer for inter-measurement delay
- */
-__STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_ARR, PAUSE_RCR); }
 
 /**
  * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)

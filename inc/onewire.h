@@ -236,9 +236,18 @@ void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t 
  * @param[in] arr Auto-reload value (one timer period in µs)
  * @param[in] rcr Repetition counter (number of periods - 1)
  * @note The timer update event fires after (RCR + 1) × ARR microseconds; used
- *       for DS18B20 conversion waits and inter-measurement pauses.
+ *       for DS18B20 conversion waits and EEPROM hold-off windows.
  */
 void onewire_start_timer(uint16_t arr, uint8_t rcr);
+
+/**
+ * @brief Raise the timer update flag so the caller's state machine advances
+ * @note No hardware timing is involved: the operation this call unblocks is
+ *       scheduled by the owner itself. Used by the DS18B20 driver to start one
+ *       measurement cycle (ds18b20_start_measure()). Call it only while no
+ *       operation is in flight.
+ */
+void onewire_kick(void);
 
 /**
  * @brief Engage or release the parasite-power strong pull-up on the bus
