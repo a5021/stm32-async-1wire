@@ -22,6 +22,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - [Hardware Connections](#hardware-connections)
 - [Quick Start](#quick-start)
 - [Building](#building)
+- [Integrating into your project](INTEGRATION.md)
 - [VSCode Integration](#vscode-integration)
 - [Comparison with Common 1-Wire Techniques](#comparison-with-common-1-wire-techniques)
 - [Architecture](#architecture)
@@ -430,6 +431,8 @@ static pin configuration. With the optional active-drive write mode
 (`-DOW_DRIVE_ACTIVE=1`) the pin is temporarily switched to push-pull during
 master-only write slots and restored to open-drain afterwards — see
 [Bus Electrical Model](#bus-electrical-model).
+
+For wiring the library into an existing application (CMake, CubeIDE, PlatformIO, Arduino, plain Makefile) see **[INTEGRATION.md](INTEGRATION.md)**.
 
 ## Quick Start
 
