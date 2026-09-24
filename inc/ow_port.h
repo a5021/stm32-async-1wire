@@ -24,17 +24,17 @@ extern "C" {
 #endif
 
 /* --- 1-Wire reset timeslot geometry (microseconds), shared by all backends.
- *     The '1'/'0' bit-slot durations live in onewire.h (ONEWIRE_ONE_PULSE,
+ *     The '1'/'0' bit-slot durations live in ow_config.h (ONEWIRE_ONE_PULSE,
  *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). --- */
 #define OW_PORT_RESET_PULSE_DURATION 480u
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
 /* onewire.h supplies OW_PORT_SYSCLK_MHZ (used for the timer prescaler and
- * the IC4F selection below) plus the fixed bit-slot durations; the internal
- * header additionally defines ow_pulse_t for the backend signatures.
- * Including them here keeps this header self-contained regardless of TU
- * include order. */
+ * the IC4F selection below); the bit-slot durations come from ow_config.h.
+ * onewire_internal.h additionally defines ow_pulse_t for the backend
+ * signatures.  Including them here keeps this header self-contained
+ * regardless of TU include order. */
 #include "onewire_internal.h"
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
@@ -77,8 +77,10 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 
 /* --- Backend selection: onewire.h resolves OW_PORT_FAMILY_* from either the
  *     OW_PORT_TARGET_* knob or the PlatformIO / STM32CubeMX family macro
- *     (STM32F1/F0/G0); a single chain keeps the default clock (onewire.h) and
- *     the backend in sync. Add new families in both places, never here alone. */
+ *     (STM32F1/F0/G0/F4, plus the concrete F4 device spellings
+ *     STM32F407xx / STM32F401xC / STM32F401xE); a single chain keeps the
+ *     default clock (onewire.h) and the backend in sync. Add new families in
+ *     both places, never here alone. */
 #if defined(OW_PORT_FAMILY_F1)
 #include "ow_port_f1.h"
 #elif defined(OW_PORT_FAMILY_F0)
@@ -88,7 +90,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #elif defined(OW_PORT_FAMILY_F4)
 #include "ow_port_f4.h"
 #else
-#error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32G0/STM32F4)"
+#error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)"
 #endif
 
 #ifdef __cplusplus
