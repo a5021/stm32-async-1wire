@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-24 16:28:22</td>
+            <td class="headerValue">2026-09-24 16:56:55</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">60.0&nbsp;%</td>
@@ -427,82 +427,83 @@
 <span id="L354"><span class="lineNum">     354</span>                 :             : </span>
 <span id="L355"><span class="lineNum">     355</span>                 :             : /**</span>
 <span id="L356"><span class="lineNum">     356</span>                 :             :  * @brief Initialize DS18B20 driver - configure clocks and peripherals</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :  * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             :  *       driver idle so the measurement state machine owns the timer until the</span>
-<span id="L359"><span class="lineNum">     359</span>                 :             :  *       application starts a device search.</span>
-<span id="L360"><span class="lineNum">     360</span>                 :             :  */</span>
-<span id="L361"><span class="lineNum">     361</span>                 :<span class="tlaGNC">         421 : void ds18b20_init(void) {</span></span>
-<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">         421 :     onewire_init();</span></span>
-<span id="L363"><span class="lineNum">     363</span>                 :             :     // No resolution change or command transaction running after init; the</span>
-<span id="L364"><span class="lineNum">     364</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
-<span id="L365"><span class="lineNum">     365</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
-<span id="L366"><span class="lineNum">     366</span>                 :<span class="tlaGNC">         421 :     res_ctx.finished = 1;</span></span>
-<span id="L367"><span class="lineNum">     367</span>                 :<span class="tlaGNC">         421 :     txn_ctx.finished = 1;</span></span>
-<span id="L368"><span class="lineNum">     368</span>                 :<span class="tlaGNC">         421 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
-<span id="L369"><span class="lineNum">     369</span>                 :<span class="tlaGNC">         421 :     ctx.scan_mode = 0;</span></span>
-<span id="L370"><span class="lineNum">     370</span>                 :<span class="tlaGNC">         421 :     ctx.scan_index = 0;</span></span>
-<span id="L371"><span class="lineNum">     371</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
-<span id="L372"><span class="lineNum">     372</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite().</span>
-<span id="L373"><span class="lineNum">     373</span>                 :<span class="tlaGNC">         421 :     ctx.parasite = 0;</span></span>
-<span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">         421 : }</span></span>
-<span id="L375"><span class="lineNum">     375</span>                 :             : </span>
-<span id="L376"><span class="lineNum">     376</span>                 :             : /**</span>
-<span id="L377"><span class="lineNum">     377</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
-<span id="L378"><span class="lineNum">     378</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
-<span id="L379"><span class="lineNum">     379</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
-<span id="L380"><span class="lineNum">     380</span>                 :             :  * @note With a non-NULL address, the state machine sends Match ROM (0x55)</span>
-<span id="L381"><span class="lineNum">     381</span>                 :             :  *       plus the device address before each command, so only that device</span>
-<span id="L382"><span class="lineNum">     382</span>                 :             :  *       responds. Pass NULL (or a freshly initialised driver) to keep the</span>
-<span id="L383"><span class="lineNum">     383</span>                 :             :  *       legacy single-sensor Skip ROM behaviour. The address should come from</span>
-<span id="L384"><span class="lineNum">     384</span>                 :             :  *       the non-blocking device search (ds18b20_search_*).</span>
-<span id="L385"><span class="lineNum">     385</span>                 :             :  * @note The selection is applied only between measurement cycles (driver</span>
-<span id="L386"><span class="lineNum">     386</span>                 :             :  *       IDLE). Calls made while a cycle is running are ignored, including from</span>
-<span id="L387"><span class="lineNum">     387</span>                 :             :  *       the per-device scan callback (which the driver invokes at</span>
-<span id="L388"><span class="lineNum">     388</span>                 :             :  *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the</span>
-<span id="L389"><span class="lineNum">     389</span>                 :             :  *       scan round continues. Applying a select mid-cycle would overwrite</span>
-<span id="L390"><span class="lineNum">     390</span>                 :             :  *       ctx.addr_cmd while the DMA is still feeding it, corrupting the</span>
-<span id="L391"><span class="lineNum">     391</span>                 :             :  *       in-flight bus transaction. Re-call at IDLE (e.g. from</span>
-<span id="L392"><span class="lineNum">     392</span>                 :             :  *       ds18b20_complete() in single-device mode, or between rounds) to switch</span>
-<span id="L393"><span class="lineNum">     393</span>                 :             :  *       addressing.</span>
-<span id="L394"><span class="lineNum">     394</span>                 :             :  */</span>
-<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         198 : void ds18b20_select(const uint8_t* rom) {</span></span>
-<span id="L396"><span class="lineNum">     396</span>                 :             :     /* Select is accepted only when no bus transaction is in flight, i.e. at</span>
-<span id="L397"><span class="lineNum">     397</span>                 :             :      * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE</span>
-<span id="L398"><span class="lineNum">     398</span>                 :             :      * mid-round: a select() there is rejected so it cannot interrupt the</span>
-<span id="L399"><span class="lineNum">     399</span>                 :             :      * in-progress scan. To leave scan mode, call select() between measurement</span>
-<span id="L400"><span class="lineNum">     400</span>                 :             :      * rounds (at IDLE) or from the single-device ds18b20_complete() callback</span>
-<span id="L401"><span class="lineNum">     401</span>                 :             :      * (which runs at IDLE). */</span>
-<span id="L402"><span class="lineNum">     402</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span>]:<span class="tlaGNC">         198 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
-<span id="L403"><span class="lineNum">     403</span>                 :<span class="tlaGNC">          12 :         return;</span></span>
-<span id="L404"><span class="lineNum">     404</span>                 :             :     }</span>
-<span id="L405"><span class="lineNum">     405</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 180 times"> + </span>]:<span class="tlaGNC">         186 :     if (!txn_ctx.finished) {</span></span>
-<span id="L406"><span class="lineNum">     406</span>                 :             :         // A command transaction is running - reject to keep its addressing.</span>
-<span id="L407"><span class="lineNum">     407</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L408"><span class="lineNum">     408</span>                 :             :     }</span>
-<span id="L409"><span class="lineNum">     409</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 174 times"> + </span>]:<span class="tlaGNC">         180 :     if (!res_ctx.finished) {</span></span>
-<span id="L410"><span class="lineNum">     410</span>                 :             :         // A resolution change is running - reject to keep its addressing.</span>
-<span id="L411"><span class="lineNum">     411</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L412"><span class="lineNum">     412</span>                 :             :     }</span>
-<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 168 times"> + </span>]:<span class="tlaGNC">         174 :     if (onewire_search_active()) {</span></span>
-<span id="L414"><span class="lineNum">     414</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
-<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L416"><span class="lineNum">     416</span>                 :             :     }</span>
-<span id="L417"><span class="lineNum">     417</span>                 :             :     // Explicit single-device addressing: leave simultaneous-conversion mode.</span>
-<span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">         168 :     ctx.scan_mode = 0;</span></span>
-<span id="L419"><span class="lineNum">     419</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         168 :     if (rom == 0) {</span></span>
-<span id="L420"><span class="lineNum">     420</span>                 :<span class="tlaGNC">           6 :         ctx.address_mode = 0;</span></span>
-<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L422"><span class="lineNum">     422</span>                 :             :     }</span>
-<span id="L423"><span class="lineNum">     423</span>         [<span class="tlaGBC" title="Branch 0 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">        1458 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L424"><span class="lineNum">     424</span>                 :<span class="tlaGNC">        1296 :         ctx.selected_rom[i] = rom[i];</span></span>
-<span id="L425"><span class="lineNum">     425</span>                 :             :     }</span>
-<span id="L426"><span class="lineNum">     426</span>                 :             :     build_addr_prefix(); // Build the invariant Match ROM prefix once per selection</span>
-<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">         162 :     ctx.address_mode = 1;</span></span>
-<span id="L428"><span class="lineNum">     428</span>                 :             : }</span>
-<span id="L429"><span class="lineNum">     429</span>                 :             : </span>
-<span id="L430"><span class="lineNum">     430</span>                 :             : /**</span>
-<span id="L431"><span class="lineNum">     431</span>                 :             :  * @}</span>
-<span id="L432"><span class="lineNum">     432</span>                 :             :  */</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             :  * @note Calls onewire_init(), which takes exclusive ownership of the shared</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             :  *       TIM1/DMA1/GPIO resources for the lifetime of the driver (until reset),</span>
+<span id="L359"><span class="lineNum">     359</span>                 :             :  *       and marks the driver idle so the measurement state machine owns the</span>
+<span id="L360"><span class="lineNum">     360</span>                 :             :  *       timer until the application starts a device search.</span>
+<span id="L361"><span class="lineNum">     361</span>                 :             :  */</span>
+<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">         421 : void ds18b20_init(void) {</span></span>
+<span id="L363"><span class="lineNum">     363</span>                 :<span class="tlaGNC">         421 :     onewire_init();</span></span>
+<span id="L364"><span class="lineNum">     364</span>                 :             :     // No resolution change or command transaction running after init; the</span>
+<span id="L365"><span class="lineNum">     365</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
+<span id="L366"><span class="lineNum">     366</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
+<span id="L367"><span class="lineNum">     367</span>                 :<span class="tlaGNC">         421 :     res_ctx.finished = 1;</span></span>
+<span id="L368"><span class="lineNum">     368</span>                 :<span class="tlaGNC">         421 :     txn_ctx.finished = 1;</span></span>
+<span id="L369"><span class="lineNum">     369</span>                 :<span class="tlaGNC">         421 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
+<span id="L370"><span class="lineNum">     370</span>                 :<span class="tlaGNC">         421 :     ctx.scan_mode = 0;</span></span>
+<span id="L371"><span class="lineNum">     371</span>                 :<span class="tlaGNC">         421 :     ctx.scan_index = 0;</span></span>
+<span id="L372"><span class="lineNum">     372</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
+<span id="L373"><span class="lineNum">     373</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite().</span>
+<span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">         421 :     ctx.parasite = 0;</span></span>
+<span id="L375"><span class="lineNum">     375</span>                 :<span class="tlaGNC">         421 : }</span></span>
+<span id="L376"><span class="lineNum">     376</span>                 :             : </span>
+<span id="L377"><span class="lineNum">     377</span>                 :             : /**</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
+<span id="L379"><span class="lineNum">     379</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
+<span id="L380"><span class="lineNum">     380</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
+<span id="L381"><span class="lineNum">     381</span>                 :             :  * @note With a non-NULL address, the state machine sends Match ROM (0x55)</span>
+<span id="L382"><span class="lineNum">     382</span>                 :             :  *       plus the device address before each command, so only that device</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             :  *       responds. Pass NULL (or a freshly initialised driver) to keep the</span>
+<span id="L384"><span class="lineNum">     384</span>                 :             :  *       legacy single-sensor Skip ROM behaviour. The address should come from</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             :  *       the non-blocking device search (ds18b20_search_*).</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             :  * @note The selection is applied only between measurement cycles (driver</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             :  *       IDLE). Calls made while a cycle is running are ignored, including from</span>
+<span id="L388"><span class="lineNum">     388</span>                 :             :  *       the per-device scan callback (which the driver invokes at</span>
+<span id="L389"><span class="lineNum">     389</span>                 :             :  *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the</span>
+<span id="L390"><span class="lineNum">     390</span>                 :             :  *       scan round continues. Applying a select mid-cycle would overwrite</span>
+<span id="L391"><span class="lineNum">     391</span>                 :             :  *       ctx.addr_cmd while the DMA is still feeding it, corrupting the</span>
+<span id="L392"><span class="lineNum">     392</span>                 :             :  *       in-flight bus transaction. Re-call at IDLE (e.g. from</span>
+<span id="L393"><span class="lineNum">     393</span>                 :             :  *       ds18b20_complete() in single-device mode, or between rounds) to switch</span>
+<span id="L394"><span class="lineNum">     394</span>                 :             :  *       addressing.</span>
+<span id="L395"><span class="lineNum">     395</span>                 :             :  */</span>
+<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">         198 : void ds18b20_select(const uint8_t* rom) {</span></span>
+<span id="L397"><span class="lineNum">     397</span>                 :             :     /* Select is accepted only when no bus transaction is in flight, i.e. at</span>
+<span id="L398"><span class="lineNum">     398</span>                 :             :      * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE</span>
+<span id="L399"><span class="lineNum">     399</span>                 :             :      * mid-round: a select() there is rejected so it cannot interrupt the</span>
+<span id="L400"><span class="lineNum">     400</span>                 :             :      * in-progress scan. To leave scan mode, call select() between measurement</span>
+<span id="L401"><span class="lineNum">     401</span>                 :             :      * rounds (at IDLE) or from the single-device ds18b20_complete() callback</span>
+<span id="L402"><span class="lineNum">     402</span>                 :             :      * (which runs at IDLE). */</span>
+<span id="L403"><span class="lineNum">     403</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span>]:<span class="tlaGNC">         198 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
+<span id="L404"><span class="lineNum">     404</span>                 :<span class="tlaGNC">          12 :         return;</span></span>
+<span id="L405"><span class="lineNum">     405</span>                 :             :     }</span>
+<span id="L406"><span class="lineNum">     406</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 180 times"> + </span>]:<span class="tlaGNC">         186 :     if (!txn_ctx.finished) {</span></span>
+<span id="L407"><span class="lineNum">     407</span>                 :             :         // A command transaction is running - reject to keep its addressing.</span>
+<span id="L408"><span class="lineNum">     408</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L409"><span class="lineNum">     409</span>                 :             :     }</span>
+<span id="L410"><span class="lineNum">     410</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 174 times"> + </span>]:<span class="tlaGNC">         180 :     if (!res_ctx.finished) {</span></span>
+<span id="L411"><span class="lineNum">     411</span>                 :             :         // A resolution change is running - reject to keep its addressing.</span>
+<span id="L412"><span class="lineNum">     412</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L413"><span class="lineNum">     413</span>                 :             :     }</span>
+<span id="L414"><span class="lineNum">     414</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 168 times"> + </span>]:<span class="tlaGNC">         174 :     if (onewire_search_active()) {</span></span>
+<span id="L415"><span class="lineNum">     415</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
+<span id="L416"><span class="lineNum">     416</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L417"><span class="lineNum">     417</span>                 :             :     }</span>
+<span id="L418"><span class="lineNum">     418</span>                 :             :     // Explicit single-device addressing: leave simultaneous-conversion mode.</span>
+<span id="L419"><span class="lineNum">     419</span>                 :<span class="tlaGNC">         168 :     ctx.scan_mode = 0;</span></span>
+<span id="L420"><span class="lineNum">     420</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         168 :     if (rom == 0) {</span></span>
+<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">           6 :         ctx.address_mode = 0;</span></span>
+<span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L423"><span class="lineNum">     423</span>                 :             :     }</span>
+<span id="L424"><span class="lineNum">     424</span>         [<span class="tlaGBC" title="Branch 0 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">        1458 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L425"><span class="lineNum">     425</span>                 :<span class="tlaGNC">        1296 :         ctx.selected_rom[i] = rom[i];</span></span>
+<span id="L426"><span class="lineNum">     426</span>                 :             :     }</span>
+<span id="L427"><span class="lineNum">     427</span>                 :             :     build_addr_prefix(); // Build the invariant Match ROM prefix once per selection</span>
+<span id="L428"><span class="lineNum">     428</span>                 :<span class="tlaGNC">         162 :     ctx.address_mode = 1;</span></span>
+<span id="L429"><span class="lineNum">     429</span>                 :             : }</span>
+<span id="L430"><span class="lineNum">     430</span>                 :             : </span>
+<span id="L431"><span class="lineNum">     431</span>                 :             : /**</span>
+<span id="L432"><span class="lineNum">     432</span>                 :             :  * @}</span>
+<span id="L433"><span class="lineNum">     433</span>                 :             :  */</span>
         </pre>
               </td>
             </tr>
