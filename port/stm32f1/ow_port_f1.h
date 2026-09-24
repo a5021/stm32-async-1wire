@@ -87,8 +87,7 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map).
      * Clear the whole MODE10/CNF10 field first so the pin is configured
      * correctly even if it was previously set to another mode. */
-    PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10))
-           | GPIO_CRH(MODE10_1, CNF10_0, CNF10_1);
+    PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) | GPIO_CRH(MODE10_1, CNF10_0, CNF10_1);
 }
 
 #if OW_PORT_LOW_POWER
@@ -174,8 +173,7 @@ __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
     /* Rewrite the whole CNF10 field: CNF=10 is AF push-pull, CNF=11 is AF
      * open-drain. Masking the full field (not just toggling one bit) makes the
      * result independent of the previous CNF state. */
-    PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10)
-           | (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10);
+    PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10) | (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10);
 }
 
 /**
