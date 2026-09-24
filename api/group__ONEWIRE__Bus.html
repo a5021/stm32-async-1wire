@@ -532,7 +532,7 @@ Functions</h2></td></tr>
 <p>Schedule a write of <code>slots</code> bit slots. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Pulse buffer (one entry per slot); for <code>slots &gt; 1</code> the entry at index <code>slots</code> must be 0 (hardware bus release) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Pulse buffer: one entry per slot, plus one trailing entry at index <code>slots</code> that must equal ONEWIRE_RELEASE_PULSE (hardware bus release) when <code>slots &gt; 1</code>; in that case the buffer therefore holds <code>slots + 1</code> entries. A single-slot write (slots == 1) uses the DMA-free path and only reads entry 0. </td></tr>
     <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256). Out-of-range values (0 or &gt; 256) are rejected: TIM1 RCR is 8-bit (RCR = slots - 1), so larger counts would truncate and desync the timer from the DMA (CNDTR). </td></tr>
   </table>
   </dd>

@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-23 17:24:39</td>
+            <td class="headerValue">2026-09-24 16:28:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">60.0&nbsp;%</td>
@@ -160,7 +160,7 @@
 <span id="L89"><span class="lineNum">      89</span>                 :             :     uint8_t scan_mode; /**&lt; 1 = simultaneous multi-device conversion (scan) mode */</span>
 <span id="L90"><span class="lineNum">      90</span>                 :             :     uint8_t scan_index; /**&lt; Index of the device currently read in scan mode */</span>
 <span id="L91"><span class="lineNum">      91</span>                 :             :     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**&lt; ROM of the selected device */</span>
-<span id="L92"><span class="lineNum">      92</span>                 :             :     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**&lt; Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */</span>
+<span id="L92"><span class="lineNum">      92</span>                 :             :     uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**&lt; Pulse buffer for Match ROM command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */</span>
 <span id="L93"><span class="lineNum">      93</span>                 :             :     uint8_t resolution; /**&lt; Conversion resolution in bits (9..12); drives the conversion wait */</span>
 <span id="L94"><span class="lineNum">      94</span>                 :             :     uint8_t parasite; /**&lt; 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */</span>
 <span id="L95"><span class="lineNum">      95</span>                 :             : } DS18B20_ctx_t;</span>
@@ -194,7 +194,7 @@
 <span id="L123"><span class="lineNum">     123</span>                 :             :     uint16_t wait_us; /**&lt; Timed wait after the command (0 = none) */</span>
 <span id="L124"><span class="lineNum">     124</span>                 :             :     uint8_t bare; /**&lt; 1 = no addressing prefix (Read ROM: single-device bus only) */</span>
 <span id="L125"><span class="lineNum">     125</span>                 :             :     uint8_t slots; /**&lt; Bit slots in the built pulses (incl. prefix and payload) */</span>
-<span id="L126"><span class="lineNum">     126</span>                 :             :     uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**&lt; Built command (+ trailing 0 for hardware bus release) */</span>
+<span id="L126"><span class="lineNum">     126</span>                 :             :     uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**&lt; Built command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */</span>
 <span id="L127"><span class="lineNum">     127</span>                 :             :     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**&lt; Decoded read result */</span>
 <span id="L128"><span class="lineNum">     128</span>                 :             :     uint8_t ok; /**&lt; 1 once the transaction completed with a device present / valid read */</span>
 <span id="L129"><span class="lineNum">     129</span>                 :             :     uint8_t finished; /**&lt; 1 once the transaction finished (or aborted) */</span>
@@ -212,295 +212,297 @@
 <span id="L141"><span class="lineNum">     141</span>                 :             : /** @brief Global driver context instance */</span>
 <span id="L142"><span class="lineNum">     142</span>                 :             : static DS18B20_ctx_t ctx;</span>
 <span id="L143"><span class="lineNum">     143</span>                 :             : </span>
-<span id="L144"><span class="lineNum">     144</span>                 :             : /* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing zero-pulse that</span>
-<span id="L145"><span class="lineNum">     145</span>                 :             :  * the final DMA transfer feeds into CCR3 to release the 1-Wire bus. The</span>
-<span id="L146"><span class="lineNum">     146</span>                 :             :  * addr_cmd buffer must therefore hold DS18B20_MATCH_SLOTS + 1 entries, not</span>
-<span id="L147"><span class="lineNum">     147</span>                 :             :  * DS18B20_MATCH_SLOTS, or that last slot reads one byte past the buffer. */</span>
-<span id="L148"><span class="lineNum">     148</span>                 :             : _Static_assert(sizeof(ctx.addr_cmd) &gt;= DS18B20_MATCH_SLOTS + 1,</span>
-<span id="L149"><span class="lineNum">     149</span>                 :             :                &quot;addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing &quot;</span>
-<span id="L150"><span class="lineNum">     150</span>                 :             :                &quot;bus-release pulse consumed by the 1-Wire layer&quot;);</span>
-<span id="L151"><span class="lineNum">     151</span>                 :             : /* RCR guard: every DS18B20 pass must fit one 8-bit RCR window (256 slots). */</span>
-<span id="L152"><span class="lineNum">     152</span>                 :             : _Static_assert(DS18B20_MATCH_SLOTS &lt;= ONEWIRE_MAX_SLOTS,</span>
-<span id="L153"><span class="lineNum">     153</span>                 :             :                &quot;Match ROM write must fit one RCR window&quot;);</span>
-<span id="L154"><span class="lineNum">     154</span>                 :             : _Static_assert(DS18B20_SCRATCHPAD_BITS &lt;= ONEWIRE_MAX_SLOTS,</span>
-<span id="L155"><span class="lineNum">     155</span>                 :             :                &quot;scratchpad read must fit one RCR window&quot;);</span>
-<span id="L156"><span class="lineNum">     156</span>                 :             : _Static_assert(DS18B20_SCRATCHPAD_LEN &lt;= ONEWIRE_MAX_READ_BYTES,</span>
-<span id="L157"><span class="lineNum">     157</span>                 :             :                &quot;scratchpad length must fit one read pass&quot;);</span>
-<span id="L158"><span class="lineNum">     158</span>                 :             : </span>
-<span id="L159"><span class="lineNum">     159</span>                 :             : /** @brief Global single-command transaction context instance */</span>
-<span id="L160"><span class="lineNum">     160</span>                 :             : static ds18b20_txn_ctx_t txn_ctx;</span>
-<span id="L161"><span class="lineNum">     161</span>                 :             : </span>
-<span id="L162"><span class="lineNum">     162</span>                 :             : /* B1 guard: the trailing zero-pulse consumed by the CCR3-feed DMA's final</span>
-<span id="L163"><span class="lineNum">     163</span>                 :             :  * transfer must always be present at the exact slot index used for the write</span>
-<span id="L164"><span class="lineNum">     164</span>                 :             :  * (see txn_build_pulses); the buffer is sized for the longest (Match ROM)</span>
-<span id="L165"><span class="lineNum">     165</span>                 :             :  * command write. */</span>
-<span id="L166"><span class="lineNum">     166</span>                 :             : _Static_assert(sizeof(txn_ctx.pulses) &gt;= DS18B20_RES_SLOTS_MAX + 1,</span>
-<span id="L167"><span class="lineNum">     167</span>                 :             :                &quot;txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the &quot;</span>
-<span id="L168"><span class="lineNum">     168</span>                 :             :                &quot;trailing bus-release pulse consumed by the 1-Wire layer&quot;);</span>
-<span id="L169"><span class="lineNum">     169</span>                 :             : _Static_assert(DS18B20_RES_SLOTS_MAX &lt;= ONEWIRE_MAX_SLOTS,</span>
-<span id="L170"><span class="lineNum">     170</span>                 :             :                &quot;longest txn write must fit one RCR window&quot;);</span>
-<span id="L171"><span class="lineNum">     171</span>                 :             : </span>
-<span id="L172"><span class="lineNum">     172</span>                 :             : /**</span>
-<span id="L173"><span class="lineNum">     173</span>                 :             :  * @}</span>
-<span id="L174"><span class="lineNum">     174</span>                 :             :  */</span>
-<span id="L175"><span class="lineNum">     175</span>                 :             : </span>
-<span id="L176"><span class="lineNum">     176</span>                 :             : /**</span>
-<span id="L177"><span class="lineNum">     177</span>                 :             :  * @defgroup DS18B20_Private_Functions DS18B20 Private Functions</span>
-<span id="L178"><span class="lineNum">     178</span>                 :             :  * @{</span>
-<span id="L179"><span class="lineNum">     179</span>                 :             :  */</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             : </span>
-<span id="L181"><span class="lineNum">     181</span>                 :             : /**</span>
-<span id="L182"><span class="lineNum">     182</span>                 :             :  * @brief Default weak implementation for busy indicator (e.g. LED toggling during measurement)</span>
-<span id="L183"><span class="lineNum">     183</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
-<span id="L184"><span class="lineNum">     184</span>                 :             :  */</span>
-<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaUNC tlaBgUNC">           0 : __WEAK void ds18b20_busy(unsigned action) {</span></span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :     (void)action;</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :     // Default implementation - empty (no LED control)</span>
-<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaUNC">           0 : }</span></span>
-<span id="L189"><span class="lineNum">     189</span>                 :             : </span>
-<span id="L190"><span class="lineNum">     190</span>                 :             : /**</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :  * @brief Default weak implementation for measurement completion callback</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             :  * @param[in] temp_tenths Temperature value in tenths of degrees Celsius, or error code</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :  */</span>
-<span id="L194"><span class="lineNum">     194</span>                 :<span class="tlaUNC">           0 : __WEAK void ds18b20_complete(int16_t temp_tenths) {</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :             :     (void)temp_tenths;</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             :     // Default implementation - empty (no temperature handling)</span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaUNC">           0 : }</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :             : </span>
-<span id="L199"><span class="lineNum">     199</span>                 :             : /**</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             :  * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :  * @param[in] data Input buffer</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[in] len Number of bytes to process</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :  * @return CRC-8 checksum value</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :  * @note Delegates to the shared 1-Wire layer (same Dallas/Maxim algorithm).</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :  */</span>
-<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC tlaBgGNC">        1038 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
-<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">        1038 :     return onewire_crc8(data, len);</span></span>
-<span id="L208"><span class="lineNum">     208</span>                 :             : }</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             : </span>
-<span id="L210"><span class="lineNum">     210</span>                 :             : /**</span>
-<span id="L211"><span class="lineNum">     211</span>                 :             :  * @brief Calculate CRC8 checksum for DS18B20 scratchpad data validation</span>
-<span id="L212"><span class="lineNum">     212</span>                 :             :  * @return CRC8 checksum value</span>
-<span id="L213"><span class="lineNum">     213</span>                 :             :  */</span>
-<span id="L214"><span class="lineNum">     214</span>                 :             : __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {</span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         192 :     return ds18b20_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);</span></span>
-<span id="L216"><span class="lineNum">     216</span>                 :             : }</span>
-<span id="L217"><span class="lineNum">     217</span>                 :             : </span>
-<span id="L218"><span class="lineNum">     218</span>                 :             : /**</span>
-<span id="L219"><span class="lineNum">     219</span>                 :             :  * @brief Decode pulse durations into scratchpad bytes using bit timing analysis</span>
-<span id="L220"><span class="lineNum">     220</span>                 :             :  * @note Branchless implementation: accumulates bits into native-width variable,</span>
-<span id="L221"><span class="lineNum">     221</span>                 :             :  *       then writes once per byte. Relies on union aliasing invariant — see DS18B20_ctx_t.</span>
-<span id="L222"><span class="lineNum">     222</span>                 :             :  */</span>
-<span id="L223"><span class="lineNum">     223</span>                 :             : __STATIC_FORCEINLINE void decode_scratchpad(void) {</span>
-<span id="L224"><span class="lineNum">     224</span>                 :             :     /* Captured pulse durations (volatile, written by the read DMA) carry one</span>
-<span id="L225"><span class="lineNum">     225</span>                 :             :      * bit each; onewire_decode_pulses() recovers the scratchpad bytes. */</span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         240 :     onewire_decode_pulses(ctx.scratchpad, ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         240 : }</span></span>
-<span id="L228"><span class="lineNum">     228</span>                 :             : </span>
-<span id="L229"><span class="lineNum">     229</span>                 :             : /**</span>
-<span id="L230"><span class="lineNum">     230</span>                 :             :  * @brief Convert raw temperature data from scratchpad to tenths of degrees Celsius</span>
-<span id="L231"><span class="lineNum">     231</span>                 :             :  * @return Temperature value in tenths of degrees Celsius</span>
-<span id="L232"><span class="lineNum">     232</span>                 :             :  */</span>
-<span id="L233"><span class="lineNum">     233</span>                 :             : __STATIC_FORCEINLINE int16_t decode_temperature(void) {</span>
-<span id="L234"><span class="lineNum">     234</span>                 :             :     // Combine LSB and MSB of temperature register (bytes 0 and 1)</span>
-<span id="L235"><span class="lineNum">     235</span>                 :<span class="tlaGNC">         192 :     int16_t raw = (int16_t)((ctx.scratchpad[1] &lt;&lt; 8) | ctx.scratchpad[0]);</span></span>
-<span id="L236"><span class="lineNum">     236</span>                 :             :     // Convert to tenths of degrees Celsius (raw value in 1/16th degrees):</span>
-<span id="L237"><span class="lineNum">     237</span>                 :             :     // multiply by 10 and divide by 16 with round-half-away-from-zero so the</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :     // sign is preserved for small negative values (raw = -1 would otherwise</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :     // truncate to 0 and report +0.0 °C for a temperature below freezing).</span>
-<span id="L240"><span class="lineNum">     240</span>   [<span class="tlaGBC" title="Branch 0 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 42 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 114 times"> + </span>]:<span class="tlaGNC">         192 :     return (int16_t)(((int32_t)raw * 10 + ((raw &lt; 0) ? -8 : 8)) / 16);</span></span>
-<span id="L241"><span class="lineNum">     241</span>                 :             : }</span>
-<span id="L242"><span class="lineNum">     242</span>                 :             : </span>
-<span id="L243"><span class="lineNum">     243</span>                 :             : /**</span>
-<span id="L244"><span class="lineNum">     244</span>                 :             :  * @brief Map a conversion resolution to its exact DS18B20 conversion time</span>
-<span id="L245"><span class="lineNum">     245</span>                 :             :  * @param[in] res Resolution in bits (9..12)</span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :  * @param[out] arr Auto-reload value (one timer period in µs)</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :  * @param[out] rcr Repetition counter (number of periods - 1)</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :  * @note DS18B20 datasheet conversion times: 9-bit 93.75ms, 10-bit 187.5ms,</span>
-<span id="L249"><span class="lineNum">     249</span>                 :             :  *       11-bit 375ms, 12-bit 750ms. The (ARR, RCR) pairs below reproduce</span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :  *       exactly those minimum waits at 1µs/tick with the invariant</span>
-<span id="L251"><span class="lineNum">     251</span>                 :             :  *       (RCR + 1) × ARR = wait in µs.</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             :  */</span>
-<span id="L253"><span class="lineNum">     253</span>                 :             : __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {</span>
-<span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">         171 :     switch (res) {</span></span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">          12 :     case 9:</span></span>
-<span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">          12 :         *arr = 9375;</span></span>
-<span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">          12 :         *rcr = 9;</span></span>
-<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">          12 :         break; /* 10 × 9.375ms = 93.75ms */</span></span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">           6 :     case 10:</span></span>
-<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">           6 :         *arr = 18750;</span></span>
-<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">           6 :         *rcr = 9;</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">           6 :         break; /* 10 × 18.75ms = 187.5ms */</span></span>
-<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">           6 :     case 11:</span></span>
-<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">           6 :         *arr = 18750;</span></span>
-<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           6 :         *rcr = 19;</span></span>
-<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">           6 :         break; /* 20 × 18.75ms = 375ms */</span></span>
-<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">         147 :     case 12:</span></span>
-<span id="L268"><span class="lineNum">     268</span>                 :             :     default:</span>
-<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">         147 :         *arr = 62500;</span></span>
-<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">         147 :         *rcr = 11;</span></span>
-<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">         147 :         break; /* 12 × 62.5ms = 750ms */</span></span>
-<span id="L272"><span class="lineNum">     272</span>                 :             :     }</span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">         171 : }</span></span>
-<span id="L274"><span class="lineNum">     274</span>                 :             : </span>
-<span id="L275"><span class="lineNum">     275</span>                 :             : /**</span>
-<span id="L276"><span class="lineNum">     276</span>                 :             :  * @brief Wait for temperature conversion to complete</span>
-<span id="L277"><span class="lineNum">     277</span>                 :             :  * @note Non-blocking - starts a timer that generates an update event when the</span>
-<span id="L278"><span class="lineNum">     278</span>                 :             :  *       conversion of the currently configured resolution (ctx.resolution)</span>
-<span id="L279"><span class="lineNum">     279</span>                 :             :  *       is guaranteed finished: 93.75ms (9 bit) .. 750ms (12 bit).</span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :  */</span>
-<span id="L281"><span class="lineNum">     281</span>                 :             : __STATIC_FORCEINLINE void wait_conversion(void) {</span>
-<span id="L282"><span class="lineNum">     282</span>                 :             :     uint16_t arr;</span>
-<span id="L283"><span class="lineNum">     283</span>                 :             :     uint8_t rcr;</span>
-<span id="L284"><span class="lineNum">     284</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 27 times"> + </span> :<span class="tlaGNC">         171 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
+<span id="L144"><span class="lineNum">     144</span>                 :             : /* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing</span>
+<span id="L145"><span class="lineNum">     145</span>                 :             :  * ONEWIRE_RELEASE_PULSE that the final DMA transfer feeds into CCR3 to</span>
+<span id="L146"><span class="lineNum">     146</span>                 :             :  * release the 1-Wire bus. The addr_cmd buffer must therefore hold</span>
+<span id="L147"><span class="lineNum">     147</span>                 :             :  * DS18B20_MATCH_SLOTS + 1 entries, not DS18B20_MATCH_SLOTS, or that last</span>
+<span id="L148"><span class="lineNum">     148</span>                 :             :  * slot reads one byte past the buffer. */</span>
+<span id="L149"><span class="lineNum">     149</span>                 :             : _Static_assert(sizeof(ctx.addr_cmd) &gt;= DS18B20_MATCH_SLOTS + 1,</span>
+<span id="L150"><span class="lineNum">     150</span>                 :             :                &quot;addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing &quot;</span>
+<span id="L151"><span class="lineNum">     151</span>                 :             :                &quot;bus-release pulse consumed by the 1-Wire layer&quot;);</span>
+<span id="L152"><span class="lineNum">     152</span>                 :             : /* RCR guard: every DS18B20 pass must fit one 8-bit RCR window (256 slots). */</span>
+<span id="L153"><span class="lineNum">     153</span>                 :             : _Static_assert(DS18B20_MATCH_SLOTS &lt;= ONEWIRE_MAX_SLOTS,</span>
+<span id="L154"><span class="lineNum">     154</span>                 :             :                &quot;Match ROM write must fit one RCR window&quot;);</span>
+<span id="L155"><span class="lineNum">     155</span>                 :             : _Static_assert(DS18B20_SCRATCHPAD_BITS &lt;= ONEWIRE_MAX_SLOTS,</span>
+<span id="L156"><span class="lineNum">     156</span>                 :             :                &quot;scratchpad read must fit one RCR window&quot;);</span>
+<span id="L157"><span class="lineNum">     157</span>                 :             : _Static_assert(DS18B20_SCRATCHPAD_LEN &lt;= ONEWIRE_MAX_READ_BYTES,</span>
+<span id="L158"><span class="lineNum">     158</span>                 :             :                &quot;scratchpad length must fit one read pass&quot;);</span>
+<span id="L159"><span class="lineNum">     159</span>                 :             : </span>
+<span id="L160"><span class="lineNum">     160</span>                 :             : /** @brief Global single-command transaction context instance */</span>
+<span id="L161"><span class="lineNum">     161</span>                 :             : static ds18b20_txn_ctx_t txn_ctx;</span>
+<span id="L162"><span class="lineNum">     162</span>                 :             : </span>
+<span id="L163"><span class="lineNum">     163</span>                 :             : /* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed</span>
+<span id="L164"><span class="lineNum">     164</span>                 :             :  * DMA's final transfer must always be present at the exact slot index used</span>
+<span id="L165"><span class="lineNum">     165</span>                 :             :  * for the write (see txn_build_pulses); the buffer is sized for the longest</span>
+<span id="L166"><span class="lineNum">     166</span>                 :             :  * (Match ROM) command write. */</span>
+<span id="L167"><span class="lineNum">     167</span>                 :             : _Static_assert(sizeof(txn_ctx.pulses) &gt;= DS18B20_RES_SLOTS_MAX + 1,</span>
+<span id="L168"><span class="lineNum">     168</span>                 :             :                &quot;txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the &quot;</span>
+<span id="L169"><span class="lineNum">     169</span>                 :             :                &quot;trailing bus-release pulse consumed by the 1-Wire layer&quot;);</span>
+<span id="L170"><span class="lineNum">     170</span>                 :             : _Static_assert(DS18B20_RES_SLOTS_MAX &lt;= ONEWIRE_MAX_SLOTS,</span>
+<span id="L171"><span class="lineNum">     171</span>                 :             :                &quot;longest txn write must fit one RCR window&quot;);</span>
+<span id="L172"><span class="lineNum">     172</span>                 :             : </span>
+<span id="L173"><span class="lineNum">     173</span>                 :             : /**</span>
+<span id="L174"><span class="lineNum">     174</span>                 :             :  * @}</span>
+<span id="L175"><span class="lineNum">     175</span>                 :             :  */</span>
+<span id="L176"><span class="lineNum">     176</span>                 :             : </span>
+<span id="L177"><span class="lineNum">     177</span>                 :             : /**</span>
+<span id="L178"><span class="lineNum">     178</span>                 :             :  * @defgroup DS18B20_Private_Functions DS18B20 Private Functions</span>
+<span id="L179"><span class="lineNum">     179</span>                 :             :  * @{</span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :  */</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             : </span>
+<span id="L182"><span class="lineNum">     182</span>                 :             : /**</span>
+<span id="L183"><span class="lineNum">     183</span>                 :             :  * @brief Default weak implementation for busy indicator (e.g. LED toggling during measurement)</span>
+<span id="L184"><span class="lineNum">     184</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
+<span id="L185"><span class="lineNum">     185</span>                 :             :  */</span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaUNC tlaBgUNC">           0 : __WEAK void ds18b20_busy(unsigned action) {</span></span>
+<span id="L187"><span class="lineNum">     187</span>                 :             :     (void)action;</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             :     // Default implementation - empty (no LED control)</span>
+<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaUNC">           0 : }</span></span>
+<span id="L190"><span class="lineNum">     190</span>                 :             : </span>
+<span id="L191"><span class="lineNum">     191</span>                 :             : /**</span>
+<span id="L192"><span class="lineNum">     192</span>                 :             :  * @brief Default weak implementation for measurement completion callback</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             :  * @param[in] temp_tenths Temperature value in tenths of degrees Celsius, or error code</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             :  */</span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC">           0 : __WEAK void ds18b20_complete(int16_t temp_tenths) {</span></span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :     (void)temp_tenths;</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :     // Default implementation - empty (no temperature handling)</span>
+<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaUNC">           0 : }</span></span>
+<span id="L199"><span class="lineNum">     199</span>                 :             : </span>
+<span id="L200"><span class="lineNum">     200</span>                 :             : /**</span>
+<span id="L201"><span class="lineNum">     201</span>                 :             :  * @brief Calculate Dallas/Maxim CRC-8 over a byte buffer</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[in] data Input buffer</span>
+<span id="L203"><span class="lineNum">     203</span>                 :             :  * @param[in] len Number of bytes to process</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             :  * @return CRC-8 checksum value</span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :  * @note Delegates to the shared 1-Wire layer (same Dallas/Maxim algorithm).</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             :  */</span>
+<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC tlaBgGNC">        1038 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
+<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaGNC">        1038 :     return onewire_crc8(data, len);</span></span>
+<span id="L209"><span class="lineNum">     209</span>                 :             : }</span>
+<span id="L210"><span class="lineNum">     210</span>                 :             : </span>
+<span id="L211"><span class="lineNum">     211</span>                 :             : /**</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :  * @brief Calculate CRC8 checksum for DS18B20 scratchpad data validation</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :  * @return CRC8 checksum value</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             :  */</span>
+<span id="L215"><span class="lineNum">     215</span>                 :             : __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {</span>
+<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">         192 :     return ds18b20_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);</span></span>
+<span id="L217"><span class="lineNum">     217</span>                 :             : }</span>
+<span id="L218"><span class="lineNum">     218</span>                 :             : </span>
+<span id="L219"><span class="lineNum">     219</span>                 :             : /**</span>
+<span id="L220"><span class="lineNum">     220</span>                 :             :  * @brief Decode pulse durations into scratchpad bytes using bit timing analysis</span>
+<span id="L221"><span class="lineNum">     221</span>                 :             :  * @note Branchless implementation: accumulates bits into native-width variable,</span>
+<span id="L222"><span class="lineNum">     222</span>                 :             :  *       then writes once per byte. Relies on union aliasing invariant — see DS18B20_ctx_t.</span>
+<span id="L223"><span class="lineNum">     223</span>                 :             :  */</span>
+<span id="L224"><span class="lineNum">     224</span>                 :             : __STATIC_FORCEINLINE void decode_scratchpad(void) {</span>
+<span id="L225"><span class="lineNum">     225</span>                 :             :     /* Captured pulse durations (volatile, written by the read DMA) carry one</span>
+<span id="L226"><span class="lineNum">     226</span>                 :             :      * bit each; onewire_decode_pulses() recovers the scratchpad bytes. */</span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         240 :     onewire_decode_pulses(ctx.scratchpad, ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
+<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         240 : }</span></span>
+<span id="L229"><span class="lineNum">     229</span>                 :             : </span>
+<span id="L230"><span class="lineNum">     230</span>                 :             : /**</span>
+<span id="L231"><span class="lineNum">     231</span>                 :             :  * @brief Convert raw temperature data from scratchpad to tenths of degrees Celsius</span>
+<span id="L232"><span class="lineNum">     232</span>                 :             :  * @return Temperature value in tenths of degrees Celsius</span>
+<span id="L233"><span class="lineNum">     233</span>                 :             :  */</span>
+<span id="L234"><span class="lineNum">     234</span>                 :             : __STATIC_FORCEINLINE int16_t decode_temperature(void) {</span>
+<span id="L235"><span class="lineNum">     235</span>                 :             :     // Combine LSB and MSB of temperature register (bytes 0 and 1)</span>
+<span id="L236"><span class="lineNum">     236</span>                 :<span class="tlaGNC">         192 :     int16_t raw = (int16_t)((ctx.scratchpad[1] &lt;&lt; 8) | ctx.scratchpad[0]);</span></span>
+<span id="L237"><span class="lineNum">     237</span>                 :             :     // Convert to tenths of degrees Celsius (raw value in 1/16th degrees):</span>
+<span id="L238"><span class="lineNum">     238</span>                 :             :     // multiply by 10 and divide by 16 with round-half-away-from-zero so the</span>
+<span id="L239"><span class="lineNum">     239</span>                 :             :     // sign is preserved for small negative values (raw = -1 would otherwise</span>
+<span id="L240"><span class="lineNum">     240</span>                 :             :     // truncate to 0 and report +0.0 °C for a temperature below freezing).</span>
+<span id="L241"><span class="lineNum">     241</span>   [<span class="tlaGBC" title="Branch 0 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 42 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 114 times"> + </span>]:<span class="tlaGNC">         192 :     return (int16_t)(((int32_t)raw * 10 + ((raw &lt; 0) ? -8 : 8)) / 16);</span></span>
+<span id="L242"><span class="lineNum">     242</span>                 :             : }</span>
+<span id="L243"><span class="lineNum">     243</span>                 :             : </span>
+<span id="L244"><span class="lineNum">     244</span>                 :             : /**</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             :  * @brief Map a conversion resolution to its exact DS18B20 conversion time</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :  * @param[in] res Resolution in bits (9..12)</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :  * @param[out] arr Auto-reload value (one timer period in µs)</span>
+<span id="L248"><span class="lineNum">     248</span>                 :             :  * @param[out] rcr Repetition counter (number of periods - 1)</span>
+<span id="L249"><span class="lineNum">     249</span>                 :             :  * @note DS18B20 datasheet conversion times: 9-bit 93.75ms, 10-bit 187.5ms,</span>
+<span id="L250"><span class="lineNum">     250</span>                 :             :  *       11-bit 375ms, 12-bit 750ms. The (ARR, RCR) pairs below reproduce</span>
+<span id="L251"><span class="lineNum">     251</span>                 :             :  *       exactly those minimum waits at 1µs/tick with the invariant</span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :  *       (RCR + 1) × ARR = wait in µs.</span>
+<span id="L253"><span class="lineNum">     253</span>                 :             :  */</span>
+<span id="L254"><span class="lineNum">     254</span>                 :             : __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {</span>
+<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">         171 :     switch (res) {</span></span>
+<span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">          12 :     case 9:</span></span>
+<span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">          12 :         *arr = 9375;</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">          12 :         *rcr = 9;</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">          12 :         break; /* 10 × 9.375ms = 93.75ms */</span></span>
+<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">           6 :     case 10:</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">           6 :         *arr = 18750;</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">           6 :         *rcr = 9;</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">           6 :         break; /* 10 × 18.75ms = 187.5ms */</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">           6 :     case 11:</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           6 :         *arr = 18750;</span></span>
+<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">           6 :         *rcr = 19;</span></span>
+<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">           6 :         break; /* 20 × 18.75ms = 375ms */</span></span>
+<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">         147 :     case 12:</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :             :     default:</span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">         147 :         *arr = 62500;</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">         147 :         *rcr = 11;</span></span>
+<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">         147 :         break; /* 12 × 62.5ms = 750ms */</span></span>
+<span id="L273"><span class="lineNum">     273</span>                 :             :     }</span>
+<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         171 : }</span></span>
+<span id="L275"><span class="lineNum">     275</span>                 :             : </span>
+<span id="L276"><span class="lineNum">     276</span>                 :             : /**</span>
+<span id="L277"><span class="lineNum">     277</span>                 :             :  * @brief Wait for temperature conversion to complete</span>
+<span id="L278"><span class="lineNum">     278</span>                 :             :  * @note Non-blocking - starts a timer that generates an update event when the</span>
+<span id="L279"><span class="lineNum">     279</span>                 :             :  *       conversion of the currently configured resolution (ctx.resolution)</span>
+<span id="L280"><span class="lineNum">     280</span>                 :             :  *       is guaranteed finished: 93.75ms (9 bit) .. 750ms (12 bit).</span>
+<span id="L281"><span class="lineNum">     281</span>                 :             :  */</span>
+<span id="L282"><span class="lineNum">     282</span>                 :             : __STATIC_FORCEINLINE void wait_conversion(void) {</span>
+<span id="L283"><span class="lineNum">     283</span>                 :             :     uint16_t arr;</span>
+<span id="L284"><span class="lineNum">     284</span>                 :             :     uint8_t rcr;</span>
+<span id="L285"><span class="lineNum">     285</span>   [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 27 times"> + </span> :<span class="tlaGNC">         171 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 120 times"> + </span>]
-<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">         171 :     onewire_start_timer(arr, rcr);</span></span>
-<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">         171 : }</span></span>
-<span id="L287"><span class="lineNum">     287</span>                 :             : </span>
-<span id="L288"><span class="lineNum">     288</span>                 :             : /**</span>
-<span id="L289"><span class="lineNum">     289</span>                 :             :  * @brief Start inter-measurement pause period (5s)</span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :  * @note Non-blocking - starts timer for inter-measurement delay</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             :  */</span>
-<span id="L292"><span class="lineNum">     292</span>                 :<span class="tlaGNC">         195 : __STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_ARR, PAUSE_RCR); }</span></span>
-<span id="L293"><span class="lineNum">     293</span>                 :             : </span>
-<span id="L294"><span class="lineNum">     294</span>                 :             : /**</span>
-<span id="L295"><span class="lineNum">     295</span>                 :             :  * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)</span>
-<span id="L296"><span class="lineNum">     296</span>                 :             :  * @note Fills the first DS18B20_PREFIX_SLOTS entries of ctx.addr_cmd.</span>
-<span id="L297"><span class="lineNum">     297</span>                 :             :  *       The prefix depends only on the selected device, so it is built</span>
-<span id="L298"><span class="lineNum">     298</span>                 :             :  *       once in ds18b20_select() and reused for every command.</span>
-<span id="L299"><span class="lineNum">     299</span>                 :             :  */</span>
-<span id="L300"><span class="lineNum">     300</span>                 :             : __STATIC_FORCEINLINE void build_addr_prefix(void) {</span>
-<span id="L301"><span class="lineNum">     301</span>                 :<span class="tlaGNC">         222 :     uint8_t* p = ctx.addr_cmd;</span></span>
-<span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">         222 :     onewire_encode_byte(p, DS18B20_MATCH_ROM);</span></span>
-<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">         222 :     p += DS18B20_BITS_PER_BYTE;</span></span>
-<span id="L304"><span class="lineNum">     304</span>   [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 162 times"> + </span> :<span class="tlaGNC">        1998 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">         171 :     onewire_start_timer(arr, rcr);</span></span>
+<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">         171 : }</span></span>
+<span id="L288"><span class="lineNum">     288</span>                 :             : </span>
+<span id="L289"><span class="lineNum">     289</span>                 :             : /**</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             :  * @brief Start inter-measurement pause period (5s)</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :  * @note Non-blocking - starts timer for inter-measurement delay</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :  */</span>
+<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">         195 : __STATIC_FORCEINLINE void start_cycle_pause(void) { onewire_start_timer(PAUSE_ARR, PAUSE_RCR); }</span></span>
+<span id="L294"><span class="lineNum">     294</span>                 :             : </span>
+<span id="L295"><span class="lineNum">     295</span>                 :             : /**</span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :  * @brief Build the invariant Match ROM prefix (0x55 + selected ROM)</span>
+<span id="L297"><span class="lineNum">     297</span>                 :             :  * @note Fills the first DS18B20_PREFIX_SLOTS entries of ctx.addr_cmd.</span>
+<span id="L298"><span class="lineNum">     298</span>                 :             :  *       The prefix depends only on the selected device, so it is built</span>
+<span id="L299"><span class="lineNum">     299</span>                 :             :  *       once in ds18b20_select() and reused for every command.</span>
+<span id="L300"><span class="lineNum">     300</span>                 :             :  */</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             : __STATIC_FORCEINLINE void build_addr_prefix(void) {</span>
+<span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">         222 :     uint8_t* p = ctx.addr_cmd;</span></span>
+<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">         222 :     onewire_encode_byte(p, DS18B20_MATCH_ROM);</span></span>
+<span id="L304"><span class="lineNum">     304</span>                 :<span class="tlaGNC">         222 :     p += DS18B20_BITS_PER_BYTE;</span></span>
+<span id="L305"><span class="lineNum">     305</span>   [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 162 times"> + </span> :<span class="tlaGNC">        1998 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 432 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 54 times"> + </span>]
-<span id="L305"><span class="lineNum">     305</span>                 :<span class="tlaGNC">        1776 :         onewire_encode_byte(p, ctx.selected_rom[i]);</span></span>
-<span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">        1776 :         p += DS18B20_BITS_PER_BYTE;</span></span>
-<span id="L307"><span class="lineNum">     307</span>                 :             :     }</span>
-<span id="L308"><span class="lineNum">     308</span>                 :             :     /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its</span>
-<span id="L309"><span class="lineNum">     309</span>                 :             :      * final DMA transfer into CCR3 is present, even though build_addr_cmd()</span>
-<span id="L310"><span class="lineNum">     310</span>                 :             :      * only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1. Without this, the</span>
-<span id="L311"><span class="lineNum">     311</span>                 :             :      * bus-release pulse would depend on whatever happened to sit at</span>
-<span id="L312"><span class="lineNum">     312</span>                 :             :      * addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not guaranteed). */</span>
-<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">         222 :     ctx.addr_cmd[DS18B20_MATCH_SLOTS] = 0;</span></span>
-<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">         222 : }</span></span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : </span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : /**</span>
-<span id="L317"><span class="lineNum">     317</span>                 :             :  * @brief Append one command byte to the pre-built Match ROM prefix</span>
-<span id="L318"><span class="lineNum">     318</span>                 :             :  * @param[in] cmd_byte Command byte to send after the ROM address</span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :  * @note Requires build_addr_prefix() to have been called for the current</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :  *       selected device. Only the last byte (8 slots) is re-encoded per call.</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             :  */</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             : __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {</span>
-<span id="L323"><span class="lineNum">     323</span>                 :<span class="tlaGNC">         114 :     onewire_encode_byte(&amp;ctx.addr_cmd[DS18B20_PREFIX_SLOTS], cmd_byte);</span></span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">         114 : }</span></span>
-<span id="L325"><span class="lineNum">     325</span>                 :             : </span>
-<span id="L326"><span class="lineNum">     326</span>                 :             : /**</span>
-<span id="L327"><span class="lineNum">     327</span>                 :             :  * @}</span>
-<span id="L328"><span class="lineNum">     328</span>                 :             :  */</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             : </span>
-<span id="L330"><span class="lineNum">     330</span>                 :             : /* Include-only driver parts: the four functional modules of the</span>
-<span id="L331"><span class="lineNum">     331</span>                 :             :  * DS18B20 driver live in their own translation units of this file and</span>
-<span id="L332"><span class="lineNum">     332</span>                 :             :  * are compiled in here so the whole driver stays one object file. Each</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             :  * part owns its private state (DS18B20_DRIVER_BUILD gate above) and is</span>
-<span id="L334"><span class="lineNum">     334</span>                 :             :  * guarded so it cannot be compiled standalone (it would miss the shared</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             :  * ctx/txn_ctx/res_ctx/dev_roms statics below).</span>
-<span id="L336"><span class="lineNum">     336</span>                 :             :  *</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             :  * The include order is load-bearing: every part references file-scope</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             :  * declarations from the parts included above it (txn uses res_config_byte</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             :  * from resolution; search uses txn_ctx, and measure uses dev_roms/dev_count</span>
-<span id="L340"><span class="lineNum">     340</span>                 :             :  * from search). clang-format must not alphabetise these lines. */</span>
-<span id="L341"><span class="lineNum">     341</span>                 :             : // clang-format off</span>
-<span id="L342"><span class="lineNum">     342</span>                 :             : #include &quot;ds18b20_resolution.c&quot;</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             : #include &quot;ds18b20_txn.c&quot;</span>
-<span id="L344"><span class="lineNum">     344</span>                 :             : #include &quot;ds18b20_search.c&quot;</span>
-<span id="L345"><span class="lineNum">     345</span>                 :             : #include &quot;ds18b20_measure.c&quot;</span>
-<span id="L346"><span class="lineNum">     346</span>                 :             : // clang-format on</span>
-<span id="L347"><span class="lineNum">     347</span>                 :             : </span>
-<span id="L348"><span class="lineNum">     348</span>                 :             : /**</span>
-<span id="L349"><span class="lineNum">     349</span>                 :             :  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions</span>
-<span id="L350"><span class="lineNum">     350</span>                 :             :  * @{</span>
-<span id="L351"><span class="lineNum">     351</span>                 :             :  */</span>
-<span id="L352"><span class="lineNum">     352</span>                 :             : </span>
-<span id="L353"><span class="lineNum">     353</span>                 :             : /**</span>
-<span id="L354"><span class="lineNum">     354</span>                 :             :  * @brief Initialize DS18B20 driver - configure clocks and peripherals</span>
-<span id="L355"><span class="lineNum">     355</span>                 :             :  * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the</span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :  *       driver idle so the measurement state machine owns the timer until the</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :  *       application starts a device search.</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             :  */</span>
-<span id="L359"><span class="lineNum">     359</span>                 :<span class="tlaGNC">         421 : void ds18b20_init(void) {</span></span>
-<span id="L360"><span class="lineNum">     360</span>                 :<span class="tlaGNC">         421 :     onewire_init();</span></span>
-<span id="L361"><span class="lineNum">     361</span>                 :             :     // No resolution change or command transaction running after init; the</span>
-<span id="L362"><span class="lineNum">     362</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
-<span id="L363"><span class="lineNum">     363</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
-<span id="L364"><span class="lineNum">     364</span>                 :<span class="tlaGNC">         421 :     res_ctx.finished = 1;</span></span>
-<span id="L365"><span class="lineNum">     365</span>                 :<span class="tlaGNC">         421 :     txn_ctx.finished = 1;</span></span>
-<span id="L366"><span class="lineNum">     366</span>                 :<span class="tlaGNC">         421 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
-<span id="L367"><span class="lineNum">     367</span>                 :<span class="tlaGNC">         421 :     ctx.scan_mode = 0;</span></span>
-<span id="L368"><span class="lineNum">     368</span>                 :<span class="tlaGNC">         421 :     ctx.scan_index = 0;</span></span>
-<span id="L369"><span class="lineNum">     369</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
-<span id="L370"><span class="lineNum">     370</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite().</span>
-<span id="L371"><span class="lineNum">     371</span>                 :<span class="tlaGNC">         421 :     ctx.parasite = 0;</span></span>
-<span id="L372"><span class="lineNum">     372</span>                 :<span class="tlaGNC">         421 : }</span></span>
-<span id="L373"><span class="lineNum">     373</span>                 :             : </span>
-<span id="L374"><span class="lineNum">     374</span>                 :             : /**</span>
-<span id="L375"><span class="lineNum">     375</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
-<span id="L376"><span class="lineNum">     376</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
-<span id="L377"><span class="lineNum">     377</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
-<span id="L378"><span class="lineNum">     378</span>                 :             :  * @note With a non-NULL address, the state machine sends Match ROM (0x55)</span>
-<span id="L379"><span class="lineNum">     379</span>                 :             :  *       plus the device address before each command, so only that device</span>
-<span id="L380"><span class="lineNum">     380</span>                 :             :  *       responds. Pass NULL (or a freshly initialised driver) to keep the</span>
-<span id="L381"><span class="lineNum">     381</span>                 :             :  *       legacy single-sensor Skip ROM behaviour. The address should come from</span>
-<span id="L382"><span class="lineNum">     382</span>                 :             :  *       the non-blocking device search (ds18b20_search_*).</span>
-<span id="L383"><span class="lineNum">     383</span>                 :             :  * @note The selection is applied only between measurement cycles (driver</span>
-<span id="L384"><span class="lineNum">     384</span>                 :             :  *       IDLE). Calls made while a cycle is running are ignored, including from</span>
-<span id="L385"><span class="lineNum">     385</span>                 :             :  *       the per-device scan callback (which the driver invokes at</span>
-<span id="L386"><span class="lineNum">     386</span>                 :             :  *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the</span>
-<span id="L387"><span class="lineNum">     387</span>                 :             :  *       scan round continues. Applying a select mid-cycle would overwrite</span>
-<span id="L388"><span class="lineNum">     388</span>                 :             :  *       ctx.addr_cmd while the DMA is still feeding it, corrupting the</span>
-<span id="L389"><span class="lineNum">     389</span>                 :             :  *       in-flight bus transaction. Re-call at IDLE (e.g. from</span>
-<span id="L390"><span class="lineNum">     390</span>                 :             :  *       ds18b20_complete() in single-device mode, or between rounds) to switch</span>
-<span id="L391"><span class="lineNum">     391</span>                 :             :  *       addressing.</span>
-<span id="L392"><span class="lineNum">     392</span>                 :             :  */</span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">         198 : void ds18b20_select(const uint8_t* rom) {</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :             :     /* Select is accepted only when no bus transaction is in flight, i.e. at</span>
-<span id="L395"><span class="lineNum">     395</span>                 :             :      * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE</span>
-<span id="L396"><span class="lineNum">     396</span>                 :             :      * mid-round: a select() there is rejected so it cannot interrupt the</span>
-<span id="L397"><span class="lineNum">     397</span>                 :             :      * in-progress scan. To leave scan mode, call select() between measurement</span>
-<span id="L398"><span class="lineNum">     398</span>                 :             :      * rounds (at IDLE) or from the single-device ds18b20_complete() callback</span>
-<span id="L399"><span class="lineNum">     399</span>                 :             :      * (which runs at IDLE). */</span>
-<span id="L400"><span class="lineNum">     400</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span>]:<span class="tlaGNC">         198 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
-<span id="L401"><span class="lineNum">     401</span>                 :<span class="tlaGNC">          12 :         return;</span></span>
-<span id="L402"><span class="lineNum">     402</span>                 :             :     }</span>
-<span id="L403"><span class="lineNum">     403</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 180 times"> + </span>]:<span class="tlaGNC">         186 :     if (!txn_ctx.finished) {</span></span>
-<span id="L404"><span class="lineNum">     404</span>                 :             :         // A command transaction is running - reject to keep its addressing.</span>
-<span id="L405"><span class="lineNum">     405</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L406"><span class="lineNum">     406</span>                 :             :     }</span>
-<span id="L407"><span class="lineNum">     407</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 174 times"> + </span>]:<span class="tlaGNC">         180 :     if (!res_ctx.finished) {</span></span>
-<span id="L408"><span class="lineNum">     408</span>                 :             :         // A resolution change is running - reject to keep its addressing.</span>
-<span id="L409"><span class="lineNum">     409</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L410"><span class="lineNum">     410</span>                 :             :     }</span>
-<span id="L411"><span class="lineNum">     411</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 168 times"> + </span>]:<span class="tlaGNC">         174 :     if (onewire_search_active()) {</span></span>
-<span id="L412"><span class="lineNum">     412</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
-<span id="L413"><span class="lineNum">     413</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L414"><span class="lineNum">     414</span>                 :             :     }</span>
-<span id="L415"><span class="lineNum">     415</span>                 :             :     // Explicit single-device addressing: leave simultaneous-conversion mode.</span>
-<span id="L416"><span class="lineNum">     416</span>                 :<span class="tlaGNC">         168 :     ctx.scan_mode = 0;</span></span>
-<span id="L417"><span class="lineNum">     417</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         168 :     if (rom == 0) {</span></span>
-<span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">           6 :         ctx.address_mode = 0;</span></span>
-<span id="L419"><span class="lineNum">     419</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
-<span id="L420"><span class="lineNum">     420</span>                 :             :     }</span>
-<span id="L421"><span class="lineNum">     421</span>         [<span class="tlaGBC" title="Branch 0 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">        1458 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">        1296 :         ctx.selected_rom[i] = rom[i];</span></span>
-<span id="L423"><span class="lineNum">     423</span>                 :             :     }</span>
-<span id="L424"><span class="lineNum">     424</span>                 :             :     build_addr_prefix(); // Build the invariant Match ROM prefix once per selection</span>
-<span id="L425"><span class="lineNum">     425</span>                 :<span class="tlaGNC">         162 :     ctx.address_mode = 1;</span></span>
-<span id="L426"><span class="lineNum">     426</span>                 :             : }</span>
-<span id="L427"><span class="lineNum">     427</span>                 :             : </span>
-<span id="L428"><span class="lineNum">     428</span>                 :             : /**</span>
-<span id="L429"><span class="lineNum">     429</span>                 :             :  * @}</span>
-<span id="L430"><span class="lineNum">     430</span>                 :             :  */</span>
+<span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">        1776 :         onewire_encode_byte(p, ctx.selected_rom[i]);</span></span>
+<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">        1776 :         p += DS18B20_BITS_PER_BYTE;</span></span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :     }</span>
+<span id="L309"><span class="lineNum">     309</span>                 :             :     /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer</span>
+<span id="L310"><span class="lineNum">     310</span>                 :             :      * reads as its final DMA transfer into CCR3 is present, even though</span>
+<span id="L311"><span class="lineNum">     311</span>                 :             :      * build_addr_cmd() only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1.</span>
+<span id="L312"><span class="lineNum">     312</span>                 :             :      * Without this, the bus-release pulse would depend on whatever happened</span>
+<span id="L313"><span class="lineNum">     313</span>                 :             :      * to sit at addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not</span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :      * guaranteed). */</span>
+<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">         222 :     ctx.addr_cmd[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">         222 : }</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :             : </span>
+<span id="L318"><span class="lineNum">     318</span>                 :             : /**</span>
+<span id="L319"><span class="lineNum">     319</span>                 :             :  * @brief Append one command byte to the pre-built Match ROM prefix</span>
+<span id="L320"><span class="lineNum">     320</span>                 :             :  * @param[in] cmd_byte Command byte to send after the ROM address</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :  * @note Requires build_addr_prefix() to have been called for the current</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             :  *       selected device. Only the last byte (8 slots) is re-encoded per call.</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :  */</span>
+<span id="L324"><span class="lineNum">     324</span>                 :             : __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {</span>
+<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">         114 :     onewire_encode_byte(&amp;ctx.addr_cmd[DS18B20_PREFIX_SLOTS], cmd_byte);</span></span>
+<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">         114 : }</span></span>
+<span id="L327"><span class="lineNum">     327</span>                 :             : </span>
+<span id="L328"><span class="lineNum">     328</span>                 :             : /**</span>
+<span id="L329"><span class="lineNum">     329</span>                 :             :  * @}</span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :  */</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             : </span>
+<span id="L332"><span class="lineNum">     332</span>                 :             : /* Include-only driver parts: the four functional modules of the</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             :  * DS18B20 driver live in their own translation units of this file and</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :  * are compiled in here so the whole driver stays one object file. Each</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             :  * part owns its private state (DS18B20_DRIVER_BUILD gate above) and is</span>
+<span id="L336"><span class="lineNum">     336</span>                 :             :  * guarded so it cannot be compiled standalone (it would miss the shared</span>
+<span id="L337"><span class="lineNum">     337</span>                 :             :  * ctx/txn_ctx/res_ctx/dev_roms statics below).</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             :  *</span>
+<span id="L339"><span class="lineNum">     339</span>                 :             :  * The include order is load-bearing: every part references file-scope</span>
+<span id="L340"><span class="lineNum">     340</span>                 :             :  * declarations from the parts included above it (txn uses res_config_byte</span>
+<span id="L341"><span class="lineNum">     341</span>                 :             :  * from resolution; search uses txn_ctx, and measure uses dev_roms/dev_count</span>
+<span id="L342"><span class="lineNum">     342</span>                 :             :  * from search). clang-format must not alphabetise these lines. */</span>
+<span id="L343"><span class="lineNum">     343</span>                 :             : // clang-format off</span>
+<span id="L344"><span class="lineNum">     344</span>                 :             : #include &quot;ds18b20_resolution.c&quot;</span>
+<span id="L345"><span class="lineNum">     345</span>                 :             : #include &quot;ds18b20_txn.c&quot;</span>
+<span id="L346"><span class="lineNum">     346</span>                 :             : #include &quot;ds18b20_search.c&quot;</span>
+<span id="L347"><span class="lineNum">     347</span>                 :             : #include &quot;ds18b20_measure.c&quot;</span>
+<span id="L348"><span class="lineNum">     348</span>                 :             : // clang-format on</span>
+<span id="L349"><span class="lineNum">     349</span>                 :             : </span>
+<span id="L350"><span class="lineNum">     350</span>                 :             : /**</span>
+<span id="L351"><span class="lineNum">     351</span>                 :             :  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions</span>
+<span id="L352"><span class="lineNum">     352</span>                 :             :  * @{</span>
+<span id="L353"><span class="lineNum">     353</span>                 :             :  */</span>
+<span id="L354"><span class="lineNum">     354</span>                 :             : </span>
+<span id="L355"><span class="lineNum">     355</span>                 :             : /**</span>
+<span id="L356"><span class="lineNum">     356</span>                 :             :  * @brief Initialize DS18B20 driver - configure clocks and peripherals</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             :  * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             :  *       driver idle so the measurement state machine owns the timer until the</span>
+<span id="L359"><span class="lineNum">     359</span>                 :             :  *       application starts a device search.</span>
+<span id="L360"><span class="lineNum">     360</span>                 :             :  */</span>
+<span id="L361"><span class="lineNum">     361</span>                 :<span class="tlaGNC">         421 : void ds18b20_init(void) {</span></span>
+<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">         421 :     onewire_init();</span></span>
+<span id="L363"><span class="lineNum">     363</span>                 :             :     // No resolution change or command transaction running after init; the</span>
+<span id="L364"><span class="lineNum">     364</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
+<span id="L365"><span class="lineNum">     365</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
+<span id="L366"><span class="lineNum">     366</span>                 :<span class="tlaGNC">         421 :     res_ctx.finished = 1;</span></span>
+<span id="L367"><span class="lineNum">     367</span>                 :<span class="tlaGNC">         421 :     txn_ctx.finished = 1;</span></span>
+<span id="L368"><span class="lineNum">     368</span>                 :<span class="tlaGNC">         421 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
+<span id="L369"><span class="lineNum">     369</span>                 :<span class="tlaGNC">         421 :     ctx.scan_mode = 0;</span></span>
+<span id="L370"><span class="lineNum">     370</span>                 :<span class="tlaGNC">         421 :     ctx.scan_index = 0;</span></span>
+<span id="L371"><span class="lineNum">     371</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
+<span id="L372"><span class="lineNum">     372</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite().</span>
+<span id="L373"><span class="lineNum">     373</span>                 :<span class="tlaGNC">         421 :     ctx.parasite = 0;</span></span>
+<span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">         421 : }</span></span>
+<span id="L375"><span class="lineNum">     375</span>                 :             : </span>
+<span id="L376"><span class="lineNum">     376</span>                 :             : /**</span>
+<span id="L377"><span class="lineNum">     377</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
+<span id="L379"><span class="lineNum">     379</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
+<span id="L380"><span class="lineNum">     380</span>                 :             :  * @note With a non-NULL address, the state machine sends Match ROM (0x55)</span>
+<span id="L381"><span class="lineNum">     381</span>                 :             :  *       plus the device address before each command, so only that device</span>
+<span id="L382"><span class="lineNum">     382</span>                 :             :  *       responds. Pass NULL (or a freshly initialised driver) to keep the</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             :  *       legacy single-sensor Skip ROM behaviour. The address should come from</span>
+<span id="L384"><span class="lineNum">     384</span>                 :             :  *       the non-blocking device search (ds18b20_search_*).</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             :  * @note The selection is applied only between measurement cycles (driver</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             :  *       IDLE). Calls made while a cycle is running are ignored, including from</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             :  *       the per-device scan callback (which the driver invokes at</span>
+<span id="L388"><span class="lineNum">     388</span>                 :             :  *       DS18B20_ST_DECODE mid-round): a select() there is rejected and the</span>
+<span id="L389"><span class="lineNum">     389</span>                 :             :  *       scan round continues. Applying a select mid-cycle would overwrite</span>
+<span id="L390"><span class="lineNum">     390</span>                 :             :  *       ctx.addr_cmd while the DMA is still feeding it, corrupting the</span>
+<span id="L391"><span class="lineNum">     391</span>                 :             :  *       in-flight bus transaction. Re-call at IDLE (e.g. from</span>
+<span id="L392"><span class="lineNum">     392</span>                 :             :  *       ds18b20_complete() in single-device mode, or between rounds) to switch</span>
+<span id="L393"><span class="lineNum">     393</span>                 :             :  *       addressing.</span>
+<span id="L394"><span class="lineNum">     394</span>                 :             :  */</span>
+<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         198 : void ds18b20_select(const uint8_t* rom) {</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :             :     /* Select is accepted only when no bus transaction is in flight, i.e. at</span>
+<span id="L397"><span class="lineNum">     397</span>                 :             :      * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE</span>
+<span id="L398"><span class="lineNum">     398</span>                 :             :      * mid-round: a select() there is rejected so it cannot interrupt the</span>
+<span id="L399"><span class="lineNum">     399</span>                 :             :      * in-progress scan. To leave scan mode, call select() between measurement</span>
+<span id="L400"><span class="lineNum">     400</span>                 :             :      * rounds (at IDLE) or from the single-device ds18b20_complete() callback</span>
+<span id="L401"><span class="lineNum">     401</span>                 :             :      * (which runs at IDLE). */</span>
+<span id="L402"><span class="lineNum">     402</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span>]:<span class="tlaGNC">         198 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
+<span id="L403"><span class="lineNum">     403</span>                 :<span class="tlaGNC">          12 :         return;</span></span>
+<span id="L404"><span class="lineNum">     404</span>                 :             :     }</span>
+<span id="L405"><span class="lineNum">     405</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 180 times"> + </span>]:<span class="tlaGNC">         186 :     if (!txn_ctx.finished) {</span></span>
+<span id="L406"><span class="lineNum">     406</span>                 :             :         // A command transaction is running - reject to keep its addressing.</span>
+<span id="L407"><span class="lineNum">     407</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L408"><span class="lineNum">     408</span>                 :             :     }</span>
+<span id="L409"><span class="lineNum">     409</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 174 times"> + </span>]:<span class="tlaGNC">         180 :     if (!res_ctx.finished) {</span></span>
+<span id="L410"><span class="lineNum">     410</span>                 :             :         // A resolution change is running - reject to keep its addressing.</span>
+<span id="L411"><span class="lineNum">     411</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L412"><span class="lineNum">     412</span>                 :             :     }</span>
+<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 168 times"> + </span>]:<span class="tlaGNC">         174 :     if (onewire_search_active()) {</span></span>
+<span id="L414"><span class="lineNum">     414</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
+<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L416"><span class="lineNum">     416</span>                 :             :     }</span>
+<span id="L417"><span class="lineNum">     417</span>                 :             :     // Explicit single-device addressing: leave simultaneous-conversion mode.</span>
+<span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">         168 :     ctx.scan_mode = 0;</span></span>
+<span id="L419"><span class="lineNum">     419</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         168 :     if (rom == 0) {</span></span>
+<span id="L420"><span class="lineNum">     420</span>                 :<span class="tlaGNC">           6 :         ctx.address_mode = 0;</span></span>
+<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">           6 :         return;</span></span>
+<span id="L422"><span class="lineNum">     422</span>                 :             :     }</span>
+<span id="L423"><span class="lineNum">     423</span>         [<span class="tlaGBC" title="Branch 0 was taken 1296 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">        1458 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L424"><span class="lineNum">     424</span>                 :<span class="tlaGNC">        1296 :         ctx.selected_rom[i] = rom[i];</span></span>
+<span id="L425"><span class="lineNum">     425</span>                 :             :     }</span>
+<span id="L426"><span class="lineNum">     426</span>                 :             :     build_addr_prefix(); // Build the invariant Match ROM prefix once per selection</span>
+<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">         162 :     ctx.address_mode = 1;</span></span>
+<span id="L428"><span class="lineNum">     428</span>                 :             : }</span>
+<span id="L429"><span class="lineNum">     429</span>                 :             : </span>
+<span id="L430"><span class="lineNum">     430</span>                 :             : /**</span>
+<span id="L431"><span class="lineNum">     431</span>                 :             :  * @}</span>
+<span id="L432"><span class="lineNum">     432</span>                 :             :  */</span>
         </pre>
               </td>
             </tr>
