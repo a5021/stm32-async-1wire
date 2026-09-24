@@ -213,7 +213,7 @@ void loop() {
 
 ```cpp
 void ds18b20_complete(int16_t temp_tenths) { /* your handler */ }
-void ds18b20_busy(unsigned action)         { /* optional LED */ }
+void ds18b20_busy(uint8_t action)         { /* optional LED */ }
 ```
 
 ### 4b. Family detection

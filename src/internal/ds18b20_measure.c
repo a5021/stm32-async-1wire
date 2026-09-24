@@ -3,8 +3,12 @@
  * resolves the DS18B20_DRIVER_BUILD gate. This part owns conv_cmd,
  * read_cmd and the DS18B20_ST_* measurement state machine (ds18b20_poll). */
 #ifndef DS18B20_DRIVER_BUILD
-#error "ds18b20_measure.c is an include-only driver part; compile src/ds18b20.c"
-#endif
+/* Include-only amalgamation part of src/ds18b20.c (guarded by
+ * DS18B20_DRIVER_BUILD there). Build systems that compile every .c under
+ * src/ recursively (Arduino Library Manager, IDE indexers) get an empty
+ * translation unit instead of a hard error. */
+typedef int ow_ds18b20_internal_part_is_include_only;
+#else
 
 /**
  * @defgroup DS18B20_Measurement_Internal DS18B20 Measurement State Machine
@@ -49,20 +53,20 @@ static void scan_finish_or_next(void) {
 
 /**
  * @brief Begin simultaneous conversion of every discovered device
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @see ds18b20_scan_start() in ds18b20.h
  */
-void ds18b20_scan_start(void) {
-    if (ctx.current_state != DS18B20_ST_IDLE) {
-        return; // a measurement cycle is in progress
-    }
-    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
-        return; // the search, a resolution change or a command owns the timer
+uint8_t ds18b20_scan_start(void) {
+    ds18b20_status_t st = start_owner_status();
+    if (st != DS18B20_STATUS_OK) {
+        return start_result(st);
     }
     if (dev_count == 0) {
-        return; // nothing discovered: there is no device to convert
+        return start_result(DS18B20_STATUS_EMPTY);
     }
     ctx.scan_mode = 1;
     ctx.scan_index = 0;
+    return start_result(DS18B20_STATUS_OK);
 }
 
 /**
@@ -115,8 +119,8 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
         ctx.current_state = DS18B20_ST_IDLE;
         // Turn the busy indicator off: busy(1) was set in START and this early
         // exit skips the DECODE state where busy(0) is normally cleared.
-        ds18b20_busy(0);
-        ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+        notify_busy(0);
+        notify_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
         // Parasite power: hold the strong pull-up during the retry pause.
         if (ctx.parasite) {
             onewire_strong_pullup(1);
@@ -162,7 +166,7 @@ void ds18b20_poll(void) {
 
     case DS18B20_ST_START:
         // Turn on LED to indicate measurement in progress
-        ds18b20_busy(1);
+        notify_busy(1);
         // Parasite power: release the strong pull-up so the reset pulse can
         // drive the line LOW; it is re-engaged for the conversion window.
         if (ctx.parasite) {
@@ -245,7 +249,7 @@ void ds18b20_poll(void) {
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete
-        ds18b20_busy(0);
+        notify_busy(0);
 
         // In single-device mode the callback runs at IDLE, so a re-selection
         // from inside ds18b20_complete() is accepted there. Scan mode keeps its
@@ -268,7 +272,7 @@ void ds18b20_poll(void) {
                 }
             }
             if (all_ones) {
-                ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+                notify_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,
                                      ctx.selected_rom);
                 scan_finish_or_next();
@@ -280,7 +284,7 @@ void ds18b20_poll(void) {
         // Byte 5 must be 0xFF, Byte 7 must be 0x10.
         // This catches all-zero, all-0xFF, and bus fault conditions.
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
-            ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            notify_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
                                  ctx.selected_rom);
             scan_finish_or_next();
@@ -298,10 +302,10 @@ void ds18b20_poll(void) {
             // It is derived only on a valid CRC so a corrupted config byte can
             // never shorten the next conversion wait prematurely.
             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] >> 5) & 0x3);
-            ds18b20_complete(decode_temperature());
+            notify_complete(decode_temperature());
         } else {
             // CRC invalid - report error (resolution kept unchanged)
-            ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            notify_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
                                  ctx.selected_rom);
         }
@@ -315,7 +319,7 @@ void ds18b20_poll(void) {
     default:
         // Unexpected state - report generic error
         ctx.current_state = DS18B20_ST_IDLE;
-        ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
+        notify_complete(DS18B20_TEMP_ERROR_GENERIC);
         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,
                              (const uint8_t*)0);
         break;
@@ -325,3 +329,4 @@ void ds18b20_poll(void) {
 /**
  * @}
  */
+#endif /* DS18B20_DRIVER_BUILD */

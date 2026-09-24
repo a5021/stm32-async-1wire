@@ -288,6 +288,13 @@ uint8_t onewire_search_count(void);
  */
 uint8_t onewire_search_active(void);
 
+/**
+ * @brief Abandon a running search and mark the engine idle
+ * @note Stops software ownership of TIM1/DMA; an in-flight hardware window
+ *       is not aborted at the peripheral level. Used by ds18b20_deinit().
+ */
+void onewire_search_stop(void);
+
 /** @} */
 
 /**

@@ -175,6 +175,33 @@ typedef enum {
  */
 
 /**
+ * @brief Status of the most recent start-style API call
+ * @note Queried via ds18b20_last_status(). Start functions return 1 when the
+ *       operation was accepted and 0 when rejected; this code explains why.
+ */
+typedef enum {
+    DS18B20_STATUS_OK = 0,      /**< last start was accepted */
+    DS18B20_STATUS_BUSY = 1,    /**< a measurement cycle owns the driver */
+    DS18B20_STATUS_OWNER = 2,   /**< search / resolution / txn owns TIM1/DMA */
+    DS18B20_STATUS_INVALID = 3, /**< invalid argument (e.g. resolution range) */
+    DS18B20_STATUS_EMPTY = 4    /**< no devices discovered (scan with empty table) */
+} ds18b20_status_t;
+
+/**
+ * @brief Busy-indicator callback type (runtime registration)
+ * @param[in] action 0 = idle, non-zero = busy
+ * @param[in] user_ctx Opaque pointer passed to ds18b20_set_callbacks()
+ */
+typedef void (*ds18b20_busy_fn)(uint8_t action, void* user_ctx);
+
+/**
+ * @brief Measurement-complete callback type (runtime registration)
+ * @param[in] temp Temperature in tenths of degrees Celsius, or error code
+ * @param[in] user_ctx Opaque pointer passed to ds18b20_set_callbacks()
+ */
+typedef void (*ds18b20_complete_fn)(int16_t temp, void* user_ctx);
+
+/**
  * @brief Callback invoked for every DS18B20 found by the search
  * @param[in] rom Pointer to the 8-byte ROM address (LSB first)
  * @return 0 to continue the search, non-zero to stop
@@ -186,8 +213,10 @@ typedef uint8_t (*ds18b20_search_sink_t)(const uint8_t* rom);
  * @brief Start a non-blocking device search
  * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
  * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @return 1 when the search was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 
 /**
  * @brief Advance the non-blocking device search by one hardware operation
@@ -224,10 +253,12 @@ uint8_t ds18b20_search_count(void);
  * @brief Start a non-blocking alarm search
  * @param[in] sink Callback invoked per DS18B20 currently in alarm (may be NULL)
  * @param[in] max_devices Maximum number of alarmed devices to report (0 aborts)
+ * @return 1 when the search was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  * @note Only devices in alarm state respond to Alarm Search (0xEC). The
  *       scan-mode device table is left untouched by the alarm search.
  */
-void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 
 /**
  * @brief Advance the non-blocking alarm search by one hardware operation
@@ -263,13 +294,16 @@ uint8_t ds18b20_alarm_search_count(void);
 /**
  * @brief Start a non-blocking resolution change
  * @param[in] bits New resolution in bits: DS18B20_RES_MIN (9) .. DS18B20_RES_MAX (12)
- * @note Out-of-range values are ignored. The change is scheduled only between
- *       measurement cycles and only while the device search is idle; otherwise
- *       it is ignored. While running, it owns TIM1/DMA; poll it with
- *       ds18b20_set_resolution_poll() until it reports completion, then call
- *       ds18b20_poll() again to resume measuring with the new resolution.
+ * @return 1 when the change was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
+ * @note Out-of-range values are rejected (DS18B20_STATUS_INVALID). The change
+ *       is scheduled only between measurement cycles and only while the device
+ *       search is idle; otherwise it is rejected. While running, it owns
+ *       TIM1/DMA; poll it with ds18b20_set_resolution_poll() until it reports
+ *       completion, then call ds18b20_poll() again to resume measuring with
+ *       the new resolution.
  */
-void ds18b20_set_resolution(uint8_t bits);
+uint8_t ds18b20_set_resolution(uint8_t bits);
 
 /**
  * @brief Advance the non-blocking resolution change by one hardware operation
@@ -314,8 +348,10 @@ uint8_t ds18b20_get_resolution(void);
  *       (ds18b20_search_*).
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
  *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_read_rom(uint8_t* rom);
+uint8_t ds18b20_read_rom(uint8_t* rom);
 
 /**
  * @brief Advance the non-blocking Read ROM transaction
@@ -334,8 +370,10 @@ uint8_t ds18b20_read_rom_poll(void);
  * @note Takes effect immediately in the scratchpad; run
  *       ds18b20_copy_scratchpad() afterwards to persist TH/TL/CFG to the
  *       EEPROM.
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
+uint8_t ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
 
 /**
  * @brief Advance the non-blocking alarm threshold write
@@ -349,8 +387,10 @@ uint8_t ds18b20_set_alarm_thresholds_poll(void);
  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
  *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_read_scratchpad(uint8_t* buf);
+uint8_t ds18b20_read_scratchpad(uint8_t* buf);
 
 /**
  * @brief Advance the non-blocking raw scratchpad read
@@ -367,8 +407,10 @@ uint8_t ds18b20_read_scratchpad_poll(void);
  *       the driver engages for the t_COPY hold-off window when
  *       ds18b20_set_parasite(1) is set. The driver waits the datasheet
  *       hold-off (10ms) before finishing.
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_copy_scratchpad(void);
+uint8_t ds18b20_copy_scratchpad(void);
 
 /**
  * @brief Advance the non-blocking Copy Scratchpad transaction
@@ -381,8 +423,10 @@ uint8_t ds18b20_copy_scratchpad_poll(void);
  * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
  *       The driver waits the datasheet t_RECALL hold-off (10ms) before
  *       finishing.
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_recall_eeprom(void);
+uint8_t ds18b20_recall_eeprom(void);
 
 /**
  * @brief Advance the non-blocking Recall EEPROM transaction
@@ -415,8 +459,10 @@ void ds18b20_set_parasite(uint8_t parasite);
  *       wired-AND: any externally powered device masks the parasite report,
  *       so run the detection per-device in MATCH-ROM addressing mode for
  *       heterogeneous wiring.
+ * @return 1 when the transaction was scheduled, 0 when rejected
+ *         (see ds18b20_last_status())
  */
-void ds18b20_detect_parasite(void);
+uint8_t ds18b20_detect_parasite(void);
 
 /**
  * @brief Advance the non-blocking parasite-mode detection
@@ -441,6 +487,15 @@ uint8_t ds18b20_parasite_mode(void);
 uint8_t ds18b20_last_command_ok(void);
 
 /**
+ * @brief Status of the most recent start-style API call
+ * @return One of the ds18b20_status_t codes; DS18B20_STATUS_OK after an
+ *         accepted start (or after init/deinit)
+ * @note Start functions return 1/0 directly; this reports the reason for
+ *       the most recent rejection (or the last acceptance).
+ */
+ds18b20_status_t ds18b20_last_status(void);
+
+/**
  * @}
  */
 
@@ -461,13 +516,17 @@ uint8_t ds18b20_last_command_ok(void);
 
 /**
  * @brief Begin simultaneous conversion of every discovered device
+ * @return 1 when the scan was accepted, 0 when rejected
+ *         (see ds18b20_last_status())
  * @note Schedules a broadcast Convert T (Skip ROM) so all sensors convert in
- *       parallel; the driver then reads each one via Match ROM. Ignored
- *       mid-cycle or while a device search / resolution change owns the timer.
+ *       parallel; the driver then reads each one via Match ROM. Rejected
+ *       mid-cycle, while a device search / resolution change / command owns
+ *       the timer, or when the device table is empty
+ *       (DS18B20_STATUS_EMPTY).
  * @note ds18b20_select() (single-device addressing) clears scan mode; call
  *       ds18b20_scan_start() again to resume simultaneous conversion.
  */
-void ds18b20_scan_start(void);
+uint8_t ds18b20_scan_start(void);
 
 /**
  * @brief Number of DS18B20 devices stored by the driver
@@ -509,8 +568,21 @@ uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len);
 
 /**
  * @brief Initialize DS18B20 driver hardware and peripherals
+ * @return 1 when the driver is ready (always succeeds today)
  */
-void ds18b20_init(void);
+uint8_t ds18b20_init(void);
+
+/**
+ * @brief Tear the driver down and return it to the pre-init state
+ * @note Releases the strong pull-up, aborts any software state machine
+ *       (measurement, search, resolution change, command transaction), clears
+ *       the scan-mode device table and removes callbacks registered with
+ *       ds18b20_set_callbacks(). Hardware registers are left as-is; call
+ *       ds18b20_init() again to reconfigure them. Prefer calling at IDLE
+ *       between operations: an in-flight hardware window is not aborted at
+ *       the peripheral level, only abandoned in software.
+ */
+void ds18b20_deinit(void);
 
 /**
  * @brief Advance the state machine (non-blocking)
@@ -544,14 +616,33 @@ void ds18b20_select(const uint8_t* rom);
 /**
  * @brief Busy indicator callback (weak)
  * @param[in] action 0 = idle, non-zero = busy
+ * @note Override by defining a strong symbol, or register a function
+ *       pointer with user context via ds18b20_set_callbacks().
  */
-void ds18b20_busy(unsigned action);
+void ds18b20_busy(uint8_t action);
 
 /**
  * @brief Measurement complete callback (weak)
  * @param[in] temp Temperature in tenths of degrees Celsius, or error code
+ * @note Override by defining a strong symbol, or register a function
+ *       pointer with user context via ds18b20_set_callbacks().
  */
 void ds18b20_complete(int16_t temp);
+
+/**
+ * @brief Register runtime busy/complete callbacks (optional)
+ * @param[in] busy Busy handler taking a user context, or NULL to use the
+ *                 weak ds18b20_busy() symbol
+ * @param[in] complete Result handler taking a user context, or NULL to use
+ *                     the weak ds18b20_complete() symbol
+ * @param[in] user_ctx Opaque pointer passed to both handlers
+ * @note Registered handlers take priority over the weak symbols for the
+ *       side they non-NULL; each NULL side falls back to weak. Cleared by
+ *       ds18b20_deinit(). Safe to call at any time (handlers are picked up
+ *       on the next dispatch).
+ */
+void ds18b20_set_callbacks(ds18b20_busy_fn busy, ds18b20_complete_fn complete,
+                           void* user_ctx);
 
 /**
  * @}

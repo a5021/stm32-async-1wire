@@ -178,11 +178,64 @@ _Static_assert(DS18B20_RES_SLOTS_MAX <= ONEWIRE_MAX_SLOTS,
  * @{
  */
 
+/** @brief Status of the most recent start-style API call */
+static ds18b20_status_t last_status = DS18B20_STATUS_OK;
+
+/** @brief Runtime busy handler registered via ds18b20_set_callbacks() */
+static ds18b20_busy_fn cb_busy;
+/** @brief Runtime complete handler registered via ds18b20_set_callbacks() */
+static ds18b20_complete_fn cb_complete;
+/** @brief User context passed to cb_busy / cb_complete */
+static void* cb_user_ctx;
+
+/**
+ * @brief Record a start attempt result
+ * @param[in] st DS18B20_STATUS_OK when accepted, otherwise the rejection
+ * @return 1 when st is OK (accepted), 0 when rejected
+ */
+__STATIC_FORCEINLINE uint8_t start_result(ds18b20_status_t st) {
+    last_status = st;
+    return (uint8_t)(st == DS18B20_STATUS_OK);
+}
+
+/**
+ * @brief Dispatch the busy indicator to the registered handler or weak symbol
+ * @param[in] action 0 = idle, non-zero = busy
+ */
+static void notify_busy(uint8_t action) {
+    if (cb_busy) {
+        cb_busy(action, cb_user_ctx);
+    } else {
+        ds18b20_busy(action);
+    }
+}
+
+/**
+ * @brief Dispatch a result to the registered handler or weak symbol
+ * @param[in] temp Temperature in tenths of degrees Celsius, or error code
+ */
+static void notify_complete(int16_t temp) {
+    if (cb_complete) {
+        cb_complete(temp, cb_user_ctx);
+    } else {
+        ds18b20_complete(temp);
+    }
+}
+
+/**
+ * @brief Shared ownership check for start-style APIs
+ * @return DS18B20_STATUS_OK when the driver may start a new operation,
+ *         otherwise the rejection reason (BUSY / OWNER)
+ * @note Defined after the include-only parts (res_ctx lives in
+ *       internal/ds18b20_resolution.c); forward-declared for them.
+ */
+static ds18b20_status_t start_owner_status(void);
+
 /**
  * @brief Default weak implementation for busy indicator (e.g. LED toggling during measurement)
  * @param[in] action 0 = idle, non-zero = busy
  */
-__WEAK void ds18b20_busy(unsigned action) {
+__WEAK void ds18b20_busy(uint8_t action) {
     (void)action;
     // Default implementation - empty (no LED control)
 }
@@ -346,17 +399,39 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
 // clang-format on
 
 /**
+ * @brief Shared ownership check for start-style APIs
+ * @return DS18B20_STATUS_OK when the driver may start a new operation,
+ *         otherwise the rejection reason (BUSY / OWNER)
+ */
+static ds18b20_status_t start_owner_status(void) {
+    if (ctx.current_state != DS18B20_ST_IDLE) {
+        return DS18B20_STATUS_BUSY;
+    }
+    if (onewire_search_active()) {
+        return DS18B20_STATUS_OWNER;
+    }
+    if (!txn_ctx.finished) {
+        return DS18B20_STATUS_OWNER;
+    }
+    if (!res_ctx.finished) {
+        return DS18B20_STATUS_OWNER;
+    }
+    return DS18B20_STATUS_OK;
+}
+
+/**
  * @defgroup DS18B20_Public_Functions DS18B20 Public Functions
  * @{
  */
 
 /**
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
+ * @return 1 when the driver is ready
  * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the
  *       driver idle so the measurement state machine owns the timer until the
  *       application starts a device search.
  */
-void ds18b20_init(void) {
+uint8_t ds18b20_init(void) {
     onewire_init();
     // No resolution change or command transaction running after init; the
     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that
@@ -369,6 +444,47 @@ void ds18b20_init(void) {
     // External power is the default wiring assumption; parasite-powered
     // setups opt in explicitly via ds18b20_set_parasite().
     ctx.parasite = 0;
+    last_status = DS18B20_STATUS_OK;
+    return 1;
+}
+
+/**
+ * @brief Tear the driver down and return it to the pre-init state
+ * @see ds18b20_deinit() in ds18b20.h
+ */
+void ds18b20_deinit(void) {
+    onewire_strong_pullup(0);
+    onewire_search_stop();
+    ctx.current_state = DS18B20_ST_IDLE;
+    ctx.scan_mode = 0;
+    ctx.scan_index = 0;
+    ctx.address_mode = 0;
+    res_ctx.finished = 1;
+    txn_ctx.finished = 1;
+    txn_ctx.ok = 0;
+    dev_count = 0;
+    search_user_sink = 0;
+    cb_busy = 0;
+    cb_complete = 0;
+    cb_user_ctx = 0;
+    last_status = DS18B20_STATUS_OK;
+}
+
+/**
+ * @brief Status of the most recent start-style API call
+ * @see ds18b20_last_status() in ds18b20.h
+ */
+ds18b20_status_t ds18b20_last_status(void) { return last_status; }
+
+/**
+ * @brief Register runtime busy/complete callbacks (optional)
+ * @see ds18b20_set_callbacks() in ds18b20.h
+ */
+void ds18b20_set_callbacks(ds18b20_busy_fn busy, ds18b20_complete_fn complete,
+                           void* user_ctx) {
+    cb_busy = busy;
+    cb_complete = complete;
+    cb_user_ctx = user_ctx;
 }
 
 /**

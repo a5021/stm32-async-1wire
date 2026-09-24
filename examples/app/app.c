@@ -330,7 +330,7 @@ void app_init(void) {
  *       Strong definition overrides the weak one in the DS18B20 driver.
  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
  */
-void ds18b20_busy(unsigned action) {
+void ds18b20_busy(uint8_t action) {
 #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
     if (action) {
         // Turn LED on (PA4 low)

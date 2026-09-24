@@ -9,7 +9,7 @@
  * fallback for the Makefile targets and platform consumers; duplicate weak
  * definitions are resolved to one by the linker.
  */
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(ARDUINO)
 
 __attribute__((weak)) int _close(int file) {
     (void)file;

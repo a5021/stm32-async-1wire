@@ -3,8 +3,12 @@
  * resolves the DS18B20_DRIVER_BUILD gate. This part owns res_ctx and the
  * resolution-change state machine (ds18b20_set_resolution{,_poll}). */
 #ifndef DS18B20_DRIVER_BUILD
-#error "ds18b20_resolution.c is an include-only driver part; compile src/ds18b20.c"
-#endif
+/* Include-only amalgamation part of src/ds18b20.c (guarded by
+ * DS18B20_DRIVER_BUILD there). Build systems that compile every .c under
+ * src/ recursively (Arduino Library Manager, IDE indexers) get an empty
+ * translation unit instead of a hard error. */
+typedef int ow_ds18b20_internal_part_is_include_only;
+#else
 
 /**
  * @defgroup DS18B20_Resolution_Internal DS18B20 Internal Non-Blocking Resolution Change
@@ -102,27 +106,21 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
 /**
  * @brief Start a non-blocking resolution change
  * @param[in] bits New resolution in bits: DS18B20_RES_MIN (9) .. DS18B20_RES_MAX (12)
- * @note Out-of-range values are ignored. The change is scheduled only between
- *       measurement cycles and only while the device search is idle; otherwise
- *       it is ignored. While running, it owns TIM1/DMA; poll it with
- *       ds18b20_set_resolution_poll() until it reports completion, then call
- *       ds18b20_poll() again to resume measuring with the new resolution.
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
+ * @note Out-of-range values are rejected (DS18B20_STATUS_INVALID). The change
+ *       is scheduled only between measurement cycles and only while the device
+ *       search is idle; otherwise it is rejected. While running, it owns
+ *       TIM1/DMA; poll it with ds18b20_set_resolution_poll() until it reports
+ *       completion, then call ds18b20_poll() again to resume measuring with
+ *       the new resolution.
  */
-void ds18b20_set_resolution(uint8_t bits) {
+uint8_t ds18b20_set_resolution(uint8_t bits) {
     if (bits < DS18B20_RES_MIN || bits > DS18B20_RES_MAX) {
-        return; // out of range - ignore
+        return start_result(DS18B20_STATUS_INVALID);
     }
-    if (!res_ctx.finished) {
-        return; // a resolution change is already running
-    }
-    if (!txn_ctx.finished) {
-        return; // a command transaction is running
-    }
-    if (onewire_search_active()) {
-        return; // the device search owns the timer
-    }
-    if (ctx.current_state != DS18B20_ST_IDLE) {
-        return; // a measurement cycle is in progress
+    ds18b20_status_t st = start_owner_status();
+    if (st != DS18B20_STATUS_OK) {
+        return start_result(st);
     }
     res_ctx.pending_res = bits;
     res_ctx.applied = 0;
@@ -130,6 +128,7 @@ void ds18b20_set_resolution(uint8_t bits) {
     build_res_pulses(bits); // Pre-build the config write for the current address mode
     res_ctx.phase = DS18B20_RES_RESET;
     onewire_reset(ctx.capture); // Schedule the first hardware operation
+    return start_result(DS18B20_STATUS_OK);
 }
 
 /**
@@ -194,3 +193,4 @@ uint8_t ds18b20_set_resolution_poll(void) {
  *       so it also tracks a resolution changed externally.
  */
 uint8_t ds18b20_get_resolution(void) { return ctx.resolution; }
+#endif /* DS18B20_DRIVER_BUILD */

@@ -44,7 +44,7 @@ void ds18b20_complete(int16_t temp) {
     }
 }
 
-void ds18b20_busy(unsigned action) {
+void ds18b20_busy(uint8_t action) {
     test_spy_busy_calls++;
     test_spy_busy_last_action = action;
 }

@@ -532,7 +532,7 @@ and prints the result.
 ```C
 // Busy indicator — e.g. LED toggling during measurement
 // STM32F1 (Blue Pill): onboard LED on PC13, active-low.
-void ds18b20_busy(unsigned action) {
+void ds18b20_busy(uint8_t action) {
     if (action) {
         // Turn LED on (measurement in progress)
         GPIOC->BSRR = GPIO_BSRR_BR13;
@@ -713,15 +713,9 @@ Separate opt-in builds extend the suite: `make test-active` (active-drive,
 
 ### PlatformIO
 
-The repository ships with `library.json` and `library.properties` so
-PlatformIO can discover the library automatically.
-
-```bash
-# One-time: fetch CMSIS headers (the ststm32 platform provides its own
-# copy, but the driver's ow_port_* headers expect the standard layout
-# under CMSIS/core/ and CMSIS/device/).
-make download-deps
-```
+The repository ships with `library.json` so PlatformIO discovers the library
+automatically. The `ststm32` platform's `stm32cube` framework already provides
+CMSIS Core + device headers — no `make download-deps` step is required.
 
 Minimal `platformio.ini`:
 
@@ -730,17 +724,29 @@ Minimal `platformio.ini`:
 platform  = ststm32
 board     = bluepill_f103c8
 framework = stm32cube
-lib_deps  = a5021/stm32-async-1wire
+lib_deps  = a5021/stm32-async-1wire@^2.0.0
+build_flags =
+    -DOW_PORT_TARGET_F1
+    ; optional:
+    ; -DOW_STATS_ENABLE=1
+    ; -DOW_PARASITE_POWER=1
 ```
 
-Or point to a local checkout:
+Or point to a local checkout / submodule:
 
 ```ini
 lib_deps = symlink:///path/to/stm32-async-1wire
+; or: lib_deps = file://../stm32-async-1wire
 ```
 
+Only `onewire.c`, `ds18b20.c` and `ow_stats.c` are compiled (`srcFilter`);
+`src/internal/*` (include-only amalgamation parts) and `src/syscall.c`
+(Makefile-only newlib stubs) are excluded. The family define may be omitted
+when the framework already defines `STM32F1` / `STM32F0` / `STM32G0`.
+
 The library is also compatible with the Arduino Library Manager (see
-`library.properties`).
+`library.properties`). Full walkthroughs for every integration path:
+[INTEGRATION.md](INTEGRATION.md).
 
 ### CMake (FetchContent)
 
@@ -770,13 +776,17 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 ### STM32CubeIDE
 
-1.  Run `make download-deps` once to fetch CMSIS headers.
-2.  In STM32CubeIDE: **File → New → STM32 Project from an Existing Makefile**.
-3.  Point to the repository root directory.
-4.  The IDE auto-generates the CDT project; select your MCU target
-    (e.g. STM32F103C8).
-5.  Build and flash as usual.
+Two supported shapes — see [INTEGRATION.md → STM32CubeIDE](INTEGRATION.md#2-stm32cubeide)
+for the full walkthrough:
 
+1.  **Existing CubeIDE project (recommended):** link the checkout into the
+    project, add \include/\ and \port/\ to the include path, compile only
+    \src/onewire.c\, \src/ds18b20.c\ and \src/ow_stats.c\ (not
+    \src/internal/*\). The family define comes from Cube (\STM32F1\ …) or
+    \. -DOW_PORT_TARGET_F1\.
+2.  **Makefile import:** run \make download-deps\ once, then
+    **File → New → STM32 Project from an Existing Makefile** pointed at this
+    repository root; select the MCU (e.g. STM32F103C8) and build.
 ### Configuration Notes
 
 -   **Target Name:** The firmware target name is `ds18b20_$(APP)` (e.g. `ds18b20_1_basic`).
@@ -1284,9 +1294,10 @@ Rules for correct RTOS use:
 ### Core Functions
 
 ```C
-void ds18b20_init(void);
+uint8_t ds18b20_init(void);
+void    ds18b20_deinit(void);
 ```
-Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start the state machine.
+Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start the state machine. Returns 1 when ready. `ds18b20_deinit()` tears the driver back down (releases the strong pull-up, aborts software state machines, clears the device table and `ds18b20_set_callbacks()` registrations).
 
 ```C
 void ds18b20_poll(void);
@@ -1369,7 +1380,7 @@ It is a thin DS18B20-namespaced wrapper around the shared `onewire_crc8()`
 ### Device Search
 
 ```C
-void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 uint8_t ds18b20_search_poll(void);
 uint8_t ds18b20_search_count(void);
 ```
@@ -1385,7 +1396,7 @@ are reported. See `examples/3_round_robin/main.c`.
 ### Alarm Search
 
 ```C
-void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
+uint8_t ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 uint8_t ds18b20_alarm_search_poll(void);
 uint8_t ds18b20_alarm_search_count(void);
 ```
@@ -1439,21 +1450,22 @@ it runs (reset → presence → write → read | timed wait) and hands the timer
 back to `ds18b20_poll()` when it finishes.
 
 ```C
-void     ds18b20_read_rom(uint8_t *rom);
+uint8_t  ds18b20_read_rom(uint8_t *rom);
 uint8_t  ds18b20_read_rom_poll(void);
-void     ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
+uint8_t  ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
 uint8_t  ds18b20_set_alarm_thresholds_poll(void);
-void     ds18b20_read_scratchpad(uint8_t *buf);
+uint8_t  ds18b20_read_scratchpad(uint8_t *buf);
 uint8_t  ds18b20_read_scratchpad_poll(void);
-void     ds18b20_copy_scratchpad(void);
+uint8_t  ds18b20_copy_scratchpad(void);
 uint8_t  ds18b20_copy_scratchpad_poll(void);
-void     ds18b20_recall_eeprom(void);
+uint8_t  ds18b20_recall_eeprom(void);
 uint8_t  ds18b20_recall_eeprom_poll(void);
 void     ds18b20_set_parasite(uint8_t parasite);
-void     ds18b20_detect_parasite(void);
+uint8_t  ds18b20_detect_parasite(void);
 uint8_t  ds18b20_detect_parasite_poll(void);
 uint8_t  ds18b20_parasite_mode(void);
 uint8_t  ds18b20_last_command_ok(void);
+ds18b20_status_t ds18b20_last_status(void);
 ```
 
 - Every command is a `start`/`poll` pair: call the start function, then poll
@@ -1513,7 +1525,7 @@ while (!ds18b20_copy_scratchpad_poll()) {
 ### Simultaneous Multi-Device Conversion
 
 ```C
-void ds18b20_scan_start(void);
+uint8_t ds18b20_scan_start(void);
 uint8_t ds18b20_device_count(void);
 const uint8_t* ds18b20_device_rom(uint8_t index);
 uint8_t ds18b20_scan_index(void);
@@ -1714,7 +1726,7 @@ cycle count, E = total error count.
 ### Resolution Change
 
 ```C
-void ds18b20_set_resolution(uint8_t bits);
+uint8_t ds18b20_set_resolution(uint8_t bits);
 uint8_t ds18b20_set_resolution_poll(void);
 uint8_t ds18b20_get_resolution(void);
 ```
@@ -1750,7 +1762,7 @@ while (!ds18b20_set_resolution_poll()) {
 ### Weak Callbacks
 
 ```C
-void ds18b20_busy(unsigned action);
+void ds18b20_busy(uint8_t action);
 ```
 Called to indicate busy/idle status — toggle an LED, for example. `action` is non-zero for busy (measurement in progress), 0 for idle.
 
@@ -1758,6 +1770,23 @@ Called to indicate busy/idle status — toggle an LED, for example. `action` is 
 void ds18b20_complete(int16_t temp);
 ```
 Called when a measurement cycle completes — provides temperature data in tenths of degrees Celsius, or an error code (`DS18B20_TEMP_ERROR_*`).
+
+```C
+void ds18b20_set_callbacks(ds18b20_busy_fn busy,
+                           ds18b20_complete_fn complete,
+                           void *user_ctx);
+```
+Optional runtime alternative to the weak symbols: register function pointers
+that take a `user_ctx`. A non-NULL `busy` / `complete` overrides the
+corresponding weak symbol; NULL falls back to weak. Cleared by
+`ds18b20_deinit()`.
+
+```C
+ds18b20_status_t ds18b20_last_status(void);
+```
+Reports why the most recent start-style call was accepted or rejected
+(`DS18B20_STATUS_OK` / `BUSY` / `OWNER` / `INVALID` / `EMPTY`). Start functions
+return 1/0 directly; this gives the reason for a 0.
 
 ### Error Codes
 

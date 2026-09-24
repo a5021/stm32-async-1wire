@@ -23,11 +23,24 @@
             "+<onewire.c>",
             "+<ds18b20.c>",
             "+<ow_stats.c>",
-            "-<internal/*>"
+            "-<internal/*>",
+            "-<syscall.c>"
         ],
         "includeDir": "include",
         "flags": [
             "-Iport"
+        ]
+    },
+    "export": {
+        "exclude": [
+            "tests",
+            "examples",
+            "docs",
+            "build",
+            "CMSIS",
+            ".github",
+            ".vscode",
+            "cmake"
         ]
     }
 }

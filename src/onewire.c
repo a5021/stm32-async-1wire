@@ -455,6 +455,12 @@ uint8_t onewire_search_count(void) { return search_ctx.found; }
 
 uint8_t onewire_search_active(void) { return (uint8_t)!search_ctx.finished; }
 
+void onewire_search_stop(void) {
+    search_ctx.finished = 1;
+    search_ctx.phase = ONEWIRE_SEARCH_DONE;
+    search_ctx.sink = 0;
+}
+
 /** @} */
 
 #ifdef DS18B20_TEST_HARNESS

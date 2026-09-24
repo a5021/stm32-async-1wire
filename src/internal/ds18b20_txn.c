@@ -5,8 +5,12 @@
  * the non-blocking command transactions (Read ROM, Read/Write Scratchpad,
  * Copy/Recall EEPROM, alarm thresholds, parasite detection). */
 #ifndef DS18B20_DRIVER_BUILD
-#error "ds18b20_txn.c is an include-only driver part; compile src/ds18b20.c"
-#endif
+/* Include-only amalgamation part of src/ds18b20.c (guarded by
+ * DS18B20_DRIVER_BUILD there). Build systems that compile every .c under
+ * src/ recursively (Arduino Library Manager, IDE indexers) get an empty
+ * translation unit instead of a hard error. */
+typedef int ow_ds18b20_internal_part_is_include_only;
+#else
 
 /** @brief Receive buffer for the parasite-mode detection answer byte */
 static uint8_t detect_buf;
@@ -24,21 +28,6 @@ static uint8_t detect_buf;
  *        while it runs and hands the timer back to ds18b20_poll() when done.
  * @{
  */
-
-/**
- * @brief Ownership guard shared by every command transaction start
- * @return 1 when a new transaction may be scheduled
- */
-__STATIC_FORCEINLINE uint8_t txn_can_start(void) {
-    /* A scan session owns the timer for its whole duration (scan_mode stays 1
-     * until ds18b20_select() clears it): a command transaction started then
-     * would clobber the in-flight measurement/scan cycle, so it must be
-     * rejected. Without this check a command could slip through during the
-     * brief IDLE pause between scan rounds. */
-    return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &&
-                     !ctx.scan_mode && !onewire_search_active() &&
-                     res_ctx.finished && txn_ctx.finished);
-}
 
 /**
  * @brief Build the command pulse sequence into txn_ctx.pulses
@@ -204,16 +193,26 @@ static uint8_t txn_poll(void) {
  * @param[in] read_bytes Bytes to read back after the command (0 = none)
  * @param[in] wait_us Timed hold-off after the command (0 = none)
  * @param[in] bare 1 to send the command without an addressing prefix
- * @note Ignored unless the driver is IDLE, the device search and any
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
+ * @note Rejected unless the driver is IDLE, the device search and any
  *       resolution change are finished, and no transaction is already
  *       running. The result buffer must stay valid until the transaction
  *       completes (ds18b20_*_poll() reports 1).
  */
-static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
-                      uint8_t payload_len, uint8_t read_bytes, uint16_t wait_us,
-                      uint8_t bare) {
-    if (!txn_can_start()) {
-        return; // the timer belongs to someone else right now
+static uint8_t txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
+                         uint8_t payload_len, uint8_t read_bytes, uint16_t wait_us,
+                         uint8_t bare) {
+    /* A scan session owns the timer for its whole duration (scan_mode stays 1
+     * until ds18b20_select() clears it): a command transaction started then
+     * would clobber the in-flight measurement/scan cycle, so it must be
+     * rejected. Without this check a command could slip through during the
+     * brief IDLE pause between scan rounds. */
+    if (ctx.scan_mode) {
+        return start_result(DS18B20_STATUS_OWNER);
+    }
+    ds18b20_status_t st = start_owner_status();
+    if (st != DS18B20_STATUS_OK) {
+        return start_result(st);
     }
     txn_ctx.command = command;
     txn_ctx.out = out;
@@ -230,18 +229,20 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
     onewire_strong_pullup(0);
     txn_ctx.phase = DS18B20_TXN_RESET;
     onewire_reset(ctx.capture); // Schedule the first hardware operation
+    return start_result(DS18B20_STATUS_OK);
 }
 
 /**
  * @brief Read the 64-bit ROM of the (only) DS18B20 on the bus
  * @param[in,out] rom Buffer for the 8-byte ROM (LSB first); written on success
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Valid only when exactly one device is on the bus (datasheet Read ROM
  *       0x33). With several devices use the device search (ds18b20_search_*).
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
  *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).
  */
-void ds18b20_read_rom(uint8_t* rom) {
-    txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);
+uint8_t ds18b20_read_rom(uint8_t* rom) {
+    return txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);
 }
 
 /**
@@ -262,6 +263,7 @@ uint8_t ds18b20_read_rom_poll(void) {
  * @brief Configure the alarm trigger thresholds TH and TL
  * @param[in] th High-alarm trigger value (DS18B20 8-bit threshold code)
  * @param[in] tl Low-alarm trigger value (DS18B20 8-bit threshold code)
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Uses the DS18B20 8-bit sign-extended temperature code, the same
  *       encoding the scratchpad TH/TL bytes use; converting to/from Celsius is
  *       left to the application. The current conversion resolution (byte 4,
@@ -269,9 +271,9 @@ uint8_t ds18b20_read_rom_poll(void) {
  * @note Takes effect immediately in the scratchpad; run ds18b20_copy_scratchpad()
  *       afterwards to persist TH/TL/CFG to the EEPROM.
  */
-void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl) {
+uint8_t ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl) {
     const uint8_t payload[3] = {th, tl, res_config_byte(ctx.resolution)};
-    txn_start(DS18B20_WRITE_SCRATCHPAD, 0, payload, 3, 0, 0, 0);
+    return txn_start(DS18B20_WRITE_SCRATCHPAD, 0, payload, 3, 0, 0, 0);
 }
 
 /**
@@ -284,11 +286,12 @@ uint8_t ds18b20_set_alarm_thresholds_poll(void) { return txn_poll(); }
  * @brief Read the 9-byte scratchpad (raw; includes TH, TL and the CRC)
  * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,
  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the
  *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).
  */
-void ds18b20_read_scratchpad(uint8_t* buf) {
-    txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);
+uint8_t ds18b20_read_scratchpad(uint8_t* buf) {
+    return txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);
 }
 
 /**
@@ -313,14 +316,15 @@ uint8_t ds18b20_read_scratchpad_poll(void) {
 
 /**
  * @brief Copy the scratchpad into the EEPROM (non-volatile)
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note The copy draws its supply from VDD on externally powered devices;
  *       parasite-powered devices are supplied by the strong pull-up, which
  *       the driver engages for the t_COPY hold-off window when
  *       ds18b20_set_parasite(1) is set. The driver waits the datasheet
  *       t_COPY hold-off (10ms) before finishing.
  */
-void ds18b20_copy_scratchpad(void) {
-    txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
+uint8_t ds18b20_copy_scratchpad(void) {
+    return txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
 }
 
 /**
@@ -331,6 +335,7 @@ uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }
 
 /**
  * @brief Recall the EEPROM contents into the scratchpad
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.
  *       The driver waits the datasheet t_RECALL hold-off (10ms) before
  *       finishing.
@@ -342,8 +347,8 @@ uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }
  *       ds18b20_read_scratchpad() / ds18b20_read_scratchpad_poll() to
  *       resynchronise ctx.resolution before the next conversion.
  */
-void ds18b20_recall_eeprom(void) {
-    txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
+uint8_t ds18b20_recall_eeprom(void) {
+    return txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);
 }
 
 /**
@@ -399,10 +404,13 @@ uint8_t ds18b20_parasite_mode(void) { return ctx.parasite; }
 
 /**
  * @brief Detect the bus wiring and configure parasite mode automatically
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Issues a Read Power Supply command and stores the decoded answer in
  *       ctx.parasite on success (see ds18b20_detect_parasite_poll()).
  */
-void ds18b20_detect_parasite(void) { txn_start(DS18B20_READ_POWER_SUPPLY, &detect_buf, 0, 0, 1, 0, 0); }
+uint8_t ds18b20_detect_parasite(void) {
+    return txn_start(DS18B20_READ_POWER_SUPPLY, &detect_buf, 0, 0, 1, 0, 0);
+}
 
 uint8_t ds18b20_detect_parasite_poll(void) {
     if (!txn_poll()) {
@@ -418,3 +426,4 @@ uint8_t ds18b20_detect_parasite_poll(void) {
 /**
  * @}
  */
+#endif /* DS18B20_DRIVER_BUILD */

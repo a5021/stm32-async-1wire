@@ -4,8 +4,12 @@
  * dev_count and search_user_sink, and implements the non-blocking device
  * search plus the scanned-device table accessors. */
 #ifndef DS18B20_DRIVER_BUILD
-#error "ds18b20_search.c is an include-only driver part; compile src/ds18b20.c"
-#endif
+/* Include-only amalgamation part of src/ds18b20.c (guarded by
+ * DS18B20_DRIVER_BUILD there). Build systems that compile every .c under
+ * src/ recursively (Arduino Library Manager, IDE indexers) get an empty
+ * translation unit instead of a hard error. */
+typedef int ow_ds18b20_internal_part_is_include_only;
+#else
 
 /** @brief ROM table of the discovered devices (filled by the device search). */
 static uint8_t dev_roms[DS18B20_MAX_DEVICES][DS18B20_ROM_BYTES];
@@ -50,52 +54,42 @@ static uint8_t search_alarm_sink(const uint8_t* rom) {
  * @brief Start a non-blocking device search
  * @param[in] sink Callback invoked per found DS18B20 device (may be NULL)
  * @param[in] max_devices Maximum number of devices to report (0 aborts)
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note The device search (re)populates the scan-mode device table.
  * @note Ownership guards: the search, the measurement state machine, command
  *       transactions and resolution changes all share TIM1/DMA, so a new search
  *       may only be started while all of them are idle; a running search
  *       rejects a new start.
  */
-void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
-    if (ctx.current_state != DS18B20_ST_IDLE) {
-        return; // a measurement cycle is in progress
-    }
-    if (onewire_search_active()) {
-        return; // a search is already running - keep its sink and table
-    }
-    if (!txn_ctx.finished) {
-        return; // a command transaction is running
-    }
-    if (!res_ctx.finished) {
-        return; // a resolution change owns the timer
+uint8_t ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    ds18b20_status_t st = start_owner_status();
+    if (st != DS18B20_STATUS_OK) {
+        // Rejected while a search is running: keep its sink and table.
+        return start_result(st);
     }
     dev_count = 0;
     search_user_sink = sink;
     onewire_search_start(search_store_sink, max_devices, DS18B20_SEARCH_ROM, DS18B20_FAMILY_CODE);
+    return start_result(DS18B20_STATUS_OK);
 }
 
 /**
  * @brief Start a non-blocking alarm search
  * @param[in] sink Callback invoked per DS18B20 currently in alarm (may be NULL)
  * @param[in] max_devices Maximum number of alarmed devices to report (0 aborts)
+ * @return 1 when scheduled, 0 when rejected (see ds18b20_last_status())
  * @note Only devices in alarm state respond to Alarm Search (0xEC). The
  *       scan-mode device table is left untouched.
  */
-void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
-    if (ctx.current_state != DS18B20_ST_IDLE) {
-        return; // a measurement cycle is in progress
-    }
-    if (onewire_search_active()) {
-        return; // a search is already running - keep its sink
-    }
-    if (!txn_ctx.finished) {
-        return; // a command transaction is running
-    }
-    if (!res_ctx.finished) {
-        return; // a resolution change owns the timer
+uint8_t ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
+    ds18b20_status_t st = start_owner_status();
+    if (st != DS18B20_STATUS_OK) {
+        // Rejected while a search is running: keep its sink.
+        return start_result(st);
     }
     search_user_sink = sink;
     onewire_search_start(search_alarm_sink, max_devices, DS18B20_ALARM_SEARCH, DS18B20_FAMILY_CODE);
+    return start_result(DS18B20_STATUS_OK);
 }
 
 /**
@@ -142,3 +136,4 @@ const uint8_t* ds18b20_device_rom(uint8_t index) {
     }
     return dev_roms[index];
 }
+#endif /* DS18B20_DRIVER_BUILD */
