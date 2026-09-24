@@ -2,7 +2,51 @@
 
 include(CMakeFindDependencyMacro)
 
-# CMSIS headers and device files must be provided by the consumer
-# (STM32Cube, PlatformIO, or manual FetchContent).
+# ---------------------------------------------------------------------------
+# CMSIS headers are NOT bundled with the installed package.
+# Best-effort discovery so a plain find_package() works when the consumer
+# tree already contains CMSIS (STM32Cube firmware layout, custom SDK).
+# Consumers can always override by setting these variables before
+# find_package(stm32_async_1wire).
+# ---------------------------------------------------------------------------
+if(NOT DEFINED OW_CMSIS_CORE_INCLUDE OR NOT OW_CMSIS_CORE_INCLUDE)
+    find_path(OW_CMSIS_CORE_INCLUDE
+        NAMES cmsis_gcc.h
+        PATH_SUFFIXES CMSIS/Core/Include Include
+    )
+endif()
+
+if(NOT DEFINED OW_CMSIS_DEVICE_INCLUDE OR NOT OW_CMSIS_DEVICE_INCLUDE)
+    find_path(OW_CMSIS_DEVICE_INCLUDE
+        NAMES stm32f1xx.h stm32f0xx.h stm32g0xx.h
+        PATH_SUFFIXES
+            Include
+            CMSIS/Device/ST/STM32F1xx/Include
+            CMSIS/Device/ST/STM32F0xx/Include
+            CMSIS/Device/ST/STM32G0xx/Include
+            Drivers/CMSIS/Device/ST/STM32F1xx/Include
+            Drivers/CMSIS/Device/ST/STM32F0xx/Include
+            Drivers/CMSIS/Device/ST/STM32G0xx/Include
+    )
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/stm32_async_1wireTargets.cmake")
+
+# Attach discovered CMSIS include dirs to the imported target so consumers
+# do not have to wire them manually.  If discovery failed, leave the target
+# as-is and tell the user what to set.
+if(OW_CMSIS_CORE_INCLUDE AND OW_CMSIS_DEVICE_INCLUDE)
+    set_property(TARGET stm32_async_1wire::stm32_async_1wire APPEND PROPERTY
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${OW_CMSIS_CORE_INCLUDE}"
+            "${OW_CMSIS_DEVICE_INCLUDE}"
+    )
+else()
+    set(stm32_async_1wire_CMSIS_NOT_FOUND TRUE)
+    string(CONCAT stm32_async_1wire_CMSIS_NOT_FOUND_MESSAGE
+        "CMSIS headers not found. Set OW_CMSIS_CORE_INCLUDE (cmsis_gcc.h) and "
+        "OW_CMSIS_DEVICE_INCLUDE (stm32*xx.h) before find_package(), or add "
+        "your CMSIS include dirs to the consuming target manually.")
+endif()
+
+check_required_components(stm32_async_1wire)
