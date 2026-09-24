@@ -45,9 +45,9 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
  * @note Encodes the addressing prefix (Skip ROM 0xCC, or Match ROM 0x55 +
  *       selected ROM; none for a bare command such as Read ROM), the function
  *       command byte and the optional payload (Write Scratchpad TH/TL/CFG).
- *       The trailing zero-pulse that the 1-Wire layer consumes as the final
- *       DMA transfer (hardware bus release) is written at the slot index of
- *       the mode actually used, not always at the end of the buffer.
+ *       The trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer consumes as
+ *       the final DMA transfer (hardware bus release) is written at the slot
+ *       index of the mode actually used, not always at the end of the buffer.
  */
 __STATIC_FORCEINLINE void txn_build_pulses(void) {
     // In scan mode the command must reach every sensor, so the Match ROM
@@ -80,10 +80,11 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
         bytes++;
     }
     txn_ctx.slots = (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
-    /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its
-     * final DMA transfer into CCR3, even though the command write only ever
-     * fills slots 0 .. slots - 1 (see build_res_pulses for the same pattern). */
-    txn_ctx.pulses[txn_ctx.slots] = 0;
+    /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
+     * reads as its final DMA transfer into CCR3, even though the command
+     * write only ever fills slots 0 .. slots - 1 (see build_res_pulses for
+     * the same pattern). */
+    txn_ctx.pulses[txn_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**

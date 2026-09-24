@@ -32,6 +32,17 @@ extern "C" {
 #define ONEWIRE_MAX_SLOTS 256u
 /** @brief Maximum bytes per onewire_read_data() pass (256 slots / 8 bits) */
 #define ONEWIRE_MAX_READ_BYTES (ONEWIRE_MAX_SLOTS / ONEWIRE_BITS_PER_BYTE)
+/** @brief Value that releases the bus (idle HIGH) at the end of a multi-slot
+ *         write or merged write+read operation.
+ *  @note Pulse buffers for multi-slot writes must hold `slots + 1` entries:
+ *        entries [0 .. slots-1] encode the transmitted slots and the entry at
+ *        index `slots` must equal this value. The CCR3-feed DMA loads it during
+ *        the final slot, so the one-pulse timer stops with the line already
+ *        released to idle HIGH (hardware bus release — no software CCR3 write
+ *        afterwards). It is not an additional 1-Wire slot. For a single-slot
+ *        write (slots == 1) the backend uses a separate path without DMA and
+ *        does not read entry `slots`. */
+#define ONEWIRE_RELEASE_PULSE 0u
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
@@ -122,8 +133,12 @@ uint8_t onewire_present(const volatile uint16_t* pulses);
 
 /**
  * @brief Schedule a write of `slots` bit slots
- * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
- *                   entry at index `slots` must be 0 (hardware bus release)
+ * @param[in] pulses Pulse buffer: one entry per slot, plus one trailing entry
+ *                   at index `slots` that must equal ONEWIRE_RELEASE_PULSE
+ *                   (hardware bus release) when `slots > 1`; in that case the
+ *                   buffer therefore holds `slots + 1` entries. A single-slot
+ *                   write (slots == 1) uses the DMA-free path and only reads
+ *                   entry 0.
  * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256).
  *                  Out-of-range values (0 or > 256) are rejected: TIM1 RCR is
  *                  8-bit (RCR = slots - 1), so larger counts would truncate and

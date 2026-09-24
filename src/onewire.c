@@ -45,10 +45,10 @@ _Static_assert(ONEWIRE_ROM_BITS <= ONEWIRE_MAX_SLOTS, "search ROM pass must fit 
 /** @brief Read pulse durations reloaded by DMA for the merged search operation
  *        (the CCR3 feed DMA reads from this). Entry 0 is loaded at the CH2
  *        end-of-slot compare at the end of slot 1 and sets the read slot 2
- *        length, entry 1 sets slot 3, and the trailing 0 is written during
- *        slot 3 so the one-pulse timer stops with the line released to idle
- *        HIGH (hardware bus release). */
-static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, 0};
+ *        length, entry 1 sets slot 3, and ONEWIRE_RELEASE_PULSE is written
+ *        during slot 3 so the one-pulse timer stops with the line released to
+ *        idle HIGH (hardware bus release). */
+static const uint8_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_RELEASE_PULSE};
 
 /**
  * @defgroup ONEWIRE_Private_Variables ONEWIRE Private Variables
@@ -90,7 +90,7 @@ typedef struct {
     uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
-    uint8_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ trailing 0 for hardware bus release) */
+    uint8_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -299,9 +299,9 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     for (uint8_t i = 0; i < ONEWIRE_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
-    // Trailing zero consumed by the CCR3-feed DMA's final transfer: this is the
-    // hardware bus release after the search command.
-    search_ctx.pulses[ONEWIRE_BITS_PER_BYTE] = 0;
+    // Trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final
+    // transfer: this is the hardware bus release after the search command.
+    search_ctx.pulses[ONEWIRE_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;

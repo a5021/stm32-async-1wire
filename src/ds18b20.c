@@ -89,7 +89,7 @@ typedef struct {
     uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
     uint8_t scan_index; /**< Index of the device currently read in scan mode */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ trailing 0 for hardware bus release) */
+    uint8_t addr_cmd[DS18B20_MATCH_SLOTS + 1]; /**< Pulse buffer for Match ROM command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
     uint8_t parasite; /**< 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
 } DS18B20_ctx_t;
@@ -123,7 +123,7 @@ typedef struct {
     uint16_t wait_us; /**< Timed wait after the command (0 = none) */
     uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
     uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
-    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ trailing 0 for hardware bus release) */
+    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
     uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
     uint8_t finished; /**< 1 once the transaction finished (or aborted) */
@@ -141,10 +141,11 @@ typedef struct {
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
 
-/* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing zero-pulse that
- * the final DMA transfer feeds into CCR3 to release the 1-Wire bus. The
- * addr_cmd buffer must therefore hold DS18B20_MATCH_SLOTS + 1 entries, not
- * DS18B20_MATCH_SLOTS, or that last slot reads one byte past the buffer. */
+/* B1 guard: the 1-Wire layer reads cmd[slots] as the trailing
+ * ONEWIRE_RELEASE_PULSE that the final DMA transfer feeds into CCR3 to
+ * release the 1-Wire bus. The addr_cmd buffer must therefore hold
+ * DS18B20_MATCH_SLOTS + 1 entries, not DS18B20_MATCH_SLOTS, or that last
+ * slot reads one byte past the buffer. */
 _Static_assert(sizeof(ctx.addr_cmd) >= DS18B20_MATCH_SLOTS + 1,
                "addr_cmd must be DS18B20_MATCH_SLOTS + 1 to hold the trailing "
                "bus-release pulse consumed by the 1-Wire layer");
@@ -159,10 +160,10 @@ _Static_assert(DS18B20_SCRATCHPAD_LEN <= ONEWIRE_MAX_READ_BYTES,
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
 
-/* B1 guard: the trailing zero-pulse consumed by the CCR3-feed DMA's final
- * transfer must always be present at the exact slot index used for the write
- * (see txn_build_pulses); the buffer is sized for the longest (Match ROM)
- * command write. */
+/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
+ * DMA's final transfer must always be present at the exact slot index used
+ * for the write (see txn_build_pulses); the buffer is sized for the longest
+ * (Match ROM) command write. */
 _Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
                "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
                "trailing bus-release pulse consumed by the 1-Wire layer");
@@ -305,12 +306,13 @@ __STATIC_FORCEINLINE void build_addr_prefix(void) {
         onewire_encode_byte(p, ctx.selected_rom[i]);
         p += DS18B20_BITS_PER_BYTE;
     }
-    /* B1: guarantee the trailing zero-pulse that the 1-Wire layer reads as its
-     * final DMA transfer into CCR3 is present, even though build_addr_cmd()
-     * only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1. Without this, the
-     * bus-release pulse would depend on whatever happened to sit at
-     * addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not guaranteed). */
-    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = 0;
+    /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
+     * reads as its final DMA transfer into CCR3 is present, even though
+     * build_addr_cmd() only ever writes slots 0 .. DS18B20_MATCH_SLOTS - 1.
+     * Without this, the bus-release pulse would depend on whatever happened
+     * to sit at addr_cmd[DS18B20_MATCH_SLOTS] (typically 0 from .bss, but not
+     * guaranteed). */
+    ctx.addr_cmd[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**

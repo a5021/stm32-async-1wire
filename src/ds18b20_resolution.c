@@ -36,15 +36,16 @@ typedef struct {
     uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
     uint8_t finished; /**< 1 once the operation has completed (or aborted) */
     uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
-    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ trailing 0 for hardware bus release) */
+    uint8_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
 } res_ctx_t;
 
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
 
-/* B1 guard: the trailing zero-pulse consumed by the CCR3-feed DMA's final
- * transfer must always be present at the exact slot index used for the write
- * (see build_res_pulses); the buffer is sized for the longest (Match ROM) mode. */
+/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
+ * DMA's final transfer must always be present at the exact slot index used
+ * for the write (see build_res_pulses); the buffer is sized for the longest
+ * (Match ROM) mode. */
 _Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
                "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
                "trailing bus-release pulse consumed by the 1-Wire layer");
@@ -96,7 +97,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, res_config_byte(res));
     res_ctx.slots = use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN;
-    res_ctx.pulses[res_ctx.slots] = 0;
+    res_ctx.pulses[res_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
