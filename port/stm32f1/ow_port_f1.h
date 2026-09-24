@@ -84,8 +84,11 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     T1.PSC = OW_PORT_TIM_PRESCALER;
     ow_port_kick(); /* kickstart: first poll advances immediately */
     T1.BDTR = TIM_BDTR(MOE);
-    /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map) */
-    PA.CRH |= GPIO_CRH(CNF10_0, CNF10_1, MODE10_1);
+    /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map).
+     * Clear the whole MODE10/CNF10 field first so the pin is configured
+     * correctly even if it was previously set to another mode. */
+    PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10))
+           | GPIO_CRH(MODE10_1, CNF10_0, CNF10_1);
 }
 
 #if OW_PORT_LOW_POWER
@@ -168,11 +171,11 @@ __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
  *       alternate-function (TIM1_CH3); only the output-stage topology changes.
  */
 __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
-    if (push_pull) {
-        PA.CRH &= ~GPIO_CRH_CNF10_0; /* CNF=11->10: AF OD -> AF PP */
-    } else {
-        PA.CRH |= GPIO_CRH_CNF10_0; /* CNF=10->11: AF PP -> AF OD */
-    }
+    /* Rewrite the whole CNF10 field: CNF=10 is AF push-pull, CNF=11 is AF
+     * open-drain. Masking the full field (not just toggling one bit) makes the
+     * result independent of the previous CNF state. */
+    PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10)
+           | (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10);
 }
 
 /**

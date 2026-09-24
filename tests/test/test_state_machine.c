@@ -805,7 +805,11 @@ void test_state_machine_init_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
     TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
     TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1 | GPIO_CRH_MODE10_1, mock_gpioa.CRH);
+    /* Bus pin PA10: AF mode (MODE=10 -> MODE10_1), AF open-drain (CNF=11). The
+     * init clears the whole MODE10/CNF10 field first, so MODE10_0 is LOW too. */
+    TEST_ASSERT_BITS_HIGH(GPIO_CRH_MODE10_1, mock_gpioa.CRH);
+    TEST_ASSERT_BITS_LOW(GPIO_CRH_MODE10_0, mock_gpioa.CRH);
+    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF10, mock_gpioa.CRH & GPIO_CRH_CNF10);
 #endif
 }
 
