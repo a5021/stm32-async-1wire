@@ -137,16 +137,23 @@ jobs:
             three header-only backends (F0/F1/G0) selected at build time with
             `make OW_TARGET=f0` / `make OW_TARGET=g0`.
 
-            ## What's new in 1.8.1
+            ## What's new in 2.0.0
 
-            - **Restructured examples**: demo files renamed to numbered
-              directories (`1_basic`, `2_device_search`, `3_round_robin`,
-              `4_scan_mode`, `5_commands`, `6_statistics`, `7_low_power`)
-            - **CMake install targets**: `find_package(stm32_async_1wire)` support
-            - **Version macros**: `STM32_ASYNC_1WIRE_VERSION_MAJOR/MINOR/PATCH`
-            - **C++ compatibility**: `extern "C"` guards on all public headers
-            - **Renamed `macro.h` → `ow_bits.h`**: avoids newlib name conflict
-            - **Doxygen API docs**: auto-deployed to gh-pages via CI
+            - **Breaking API audit**: start functions return `uint8_t`
+              (accepted/rejected); `ds18b20_busy(uint8_t action)`
+            - **`ds18b20_status_t` + `ds18b20_last_status()`**: query why a
+              start was rejected (`BUSY`, `OWNER`, `INVALID`, `EMPTY`)
+            - **`ds18b20_set_callbacks()` / `ds18b20_deinit()`**: registered
+              busy/complete handlers with user context; clean teardown
+            - **Five consumption paths**: CMake (FetchContent /
+              add_subdirectory / find_package), STM32CubeIDE, PlatformIO,
+              Arduino STM32, git submodule + plain Makefile — see
+              `INTEGRATION.md`
+            - **Layout**: `inc/` → `include/`, flat `port/`, internals in
+              `src/internal/`; `VERSION` is the single source of truth
+              enforced by a CI version-sync job
+            - **`onewire_search_stop()`**: terminate an in-flight Search ROM
+              walk mid-enumeration
 
             ## Download
 

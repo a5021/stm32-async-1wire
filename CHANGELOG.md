@@ -8,6 +8,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-24
+
+### Breaking
+
+- **Start functions now report acceptance.** Every DS18B20 operation starter
+  returns `uint8_t` (1 = accepted, 0 = rejected) instead of `void`:
+  `ds18b20_init`, `ds18b20_search_start`, `ds18b20_alarm_search_start`,
+  `ds18b20_scan_start`, `ds18b20_set_resolution`, `ds18b20_read_rom`,
+  `ds18b20_set_alarm_thresholds`, `ds18b20_read_scratchpad`,
+  `ds18b20_copy_scratchpad`, `ds18b20_recall_eeprom`,
+  `ds18b20_detect_parasite`. Poll/status helpers (`*_poll`, `*_count`,
+  `*_last_command_ok`, `parasite_mode`, `device_count`, `crc8`) already
+  returned values and are unchanged.
+- **`ds18b20_busy(unsigned)` → `ds18b20_busy(uint8_t action)`.** The weak
+  callback and any registered busy handler use `uint8_t`; update overrides
+  and `ds18b20_set_callbacks` registrations accordingly.
+- **Repository layout restructured.** `inc/` → `include/`, flat
+  `port/ow_port_{f0,f1,g0}.h`, driver internals under `src/internal/`.
+  Include paths in consumer projects must be updated (`#include <ds18b20.h>`
+  is unchanged).
+
+### Added
+
+- **`ds18b20_status_t` + `ds18b20_last_status()`.** After any start call the
+  caller can query why it was accepted or rejected: `OK`, `BUSY`, `OWNER`
+  (another owner holds the bus), `INVALID` (bad argument), `EMPTY` (no
+  devices found for the requested operation).
+- **`ds18b20_set_callbacks(busy, complete, user_ctx)`.** Register
+  application busy/complete handlers with a `void*` context; a non-NULL
+  pointer overrides the weak symbol, NULL restores the weak default.
+  Cleared by `ds18b20_deinit()`.
+- **`ds18b20_deinit()`.** Resets driver state machines, stops an in-flight
+  search, releases strong pull-up, and clears device table and callbacks.
+  Hardware is left as-is; prefer calling while the bus is IDLE.
+- **`onewire_search_stop()`.** Force-terminates a Search ROM / Alarm Search
+  walk so the owner can release the bus mid-enumeration.
+- **Five consumption paths documented and smoke-tested** (`INTEGRATION.md`):
+  CMake FetchContent / add_subdirectory / find_package, STM32CubeIDE,
+  PlatformIO, Arduino STM32, git submodule + plain Makefile
+  (`ow-integration.mk`).
+- **CMake package hardening.** Pinned CMSIS/device tags, `find_path` with
+  `NO_CMAKE_FIND_ROOT_PATH` for cross toolchains, PRIVATE warning flags,
+  top-level guard for `OW_BUILD_EXAMPLES`, Config package
+  `check_required_components`.
+- **`VERSION` file as single source of truth**; CMake reads it for
+  `project(... VERSION ...)`. `include/version.h`, `library.json` and
+  `library.properties` must match; a CI `version-sync` job enforces this.
+- **PlatformIO packaging.** `library.json` `srcFilter` excludes
+  `syscall.c`; `export.exclude` trims the published package.
+- **Arduino STM32 support.** Internal driver parts are guarded by
+  `DS18B20_DRIVER_BUILD` so IDE builds that compile every `.c` still work;
+  `syscall.c` newlib stubs are skipped under `ARDUINO`.
+
+### Changed
+
+- **API audit completed; public signatures normalised.** Start functions
+  return `uint8_t`, status is queryable via `ds18b20_last_status()`, and
+  busy/complete dispatch goes through registered-or-weak helpers
+  (`notify_busy` / `notify_complete`) instead of direct weak calls.
+
 ### Fixed
 
 - **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
@@ -26,10 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   filter.** If every id/cmp pair keeps answering `00` (all devices disagree
   and pull low), the engine re-assembles a CRC-valid ROM whose family byte
   the filter rejects, so `found` never advances and `last_discrepancy` stays
-  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
+  pinned тАФ the walk would loop forever. `onewire_search_poll()` now detects a
   repeated leaf (the previous walk produced the identical ROM) and terminates
   the search instead. Found both by the `fuzz_search` harness in CI
-  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
+  (`crash-99a30a39тАж`, seed `2971683640`) and locally; regression covered by
   `test_search_hostile_all_zero_bus_terminates`.
 
 ### Changed
@@ -51,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
   alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
   package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0 and G0 via the ARM
-  toolchain and verifies the `find_package()` install tree — the CMake path
+  toolchain and verifies the `find_package()` install tree тАФ the CMake path
   previously had no in-CI coverage despite the root `CMakeLists.txt`.
 - **Feature flags now use value-style (`#if X`) instead of presence
   (`#ifdef X`).** `OW_PORT_LOW_POWER`, `OW_DRIVE_ACTIVE` and
@@ -59,20 +119,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g. `-DOW_PORT_LOW_POWER=1`); bare `-DOW_PORT_LOW_POWER` no longer
   compiles correctly.  All Makefile targets, fuzz rules and the CMake
   example block are updated accordingly.  The change is transparent for
-  `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
+  `make`/`make test`/`make fuzz-all` invocations тАФ the shipped defaults
   and Makefile knobs already pass the right flags.
 - **Unified compile-time parasite knob.** The dual naming between the
   driver guard-band default (`OW_TIMING_PARASITE`) and the example
   application flag (`PARASITE_POWER`) is replaced by a single
   `OW_PARASITE_POWER` value (0/1, default 0).  Passing
-  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
+  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 ┬╡s
   *and* causes every example to call `ds18b20_set_parasite(1)` at
   startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
   longer has any effect.
 
 ### Added
 
-- **`inc/ow_config.h` — central compile-time configuration header.**
+- **`inc/ow_config.h` тАФ central compile-time configuration header.**
   All genuinely tunable build constants are now collected in a single
   file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
   `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
@@ -94,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   always returns 1 because the single-slot input is always valid, but
   propagates the status for API consistency). Debug builds still
   trap on the reject path via `assert`; with `NDEBUG` the caller
-  receives 0 instead of a silent no-op — so an invalid size can never
+  receives 0 instead of a silent no-op тАФ so an invalid size can never
   turn into an undiscovered `onewire_bus_done()` hang. The three
   underlying port-layer functions (`ow_port_feed`,
   `ow_port_write_slots`, `ow_port_read_data`) follow the same
@@ -109,13 +169,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (write, reset, read pair, read data, merged search write+read, Match-ROM
   config write, single-bit write) against one table of exact `RCR`, `CPAR`,
   `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
-  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
-  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
+  transfer accounting тАФ including the 8-bit `RCR` boundaries (write 256 slots /
+  read 32 bytes тЖТ `RCR` 255). The feed log gained an uncapped total-transfer
   counter so exact transfer counts hold even beyond the 128-entry value log.
 
 - **New temporal TIM/DMA event model in the host test harness.**
   `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
-  start* ("modeled at slot start for simplicity") — fine for the memory-side
+  start* ("modeled at slot start for simplicity") тАФ fine for the memory-side
   DMA contract, but it cannot prove the *temporal* contract. The new
   `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
   physical counter position and the new `test_tim_model` tests prove that
@@ -127,23 +187,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
   `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
   -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
-  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
-  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
-  below the values validated on hardware (a 2µs pulse already broke slot
+  the 1-Wire standard тАФ `one` 1┬╡s, `zero` 60┬╡s, `guard` 1┬╡s,
+  `shortтЙд` 15┬╡s тЖТ 62┬╡s slot. It is experimental: a 1┬╡s read/write pulse is
+  below the values validated on hardware (a 2┬╡s pulse already broke slot
   decoding on an F030 at 8MHz) and is intended for electrically ideal setups
   only.
 
 ### Changed
 
 - **Example applications restructured into numbered directories.**
-  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
+  `src/demo*.c` became `examples/1_basic` тАж `examples/7_low_power`, with the
   shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
   non-blocking UART TX ring buffer, busy-LED callback).
 - **Timing preset selection moved to compile time.** The four timing values
   (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
   Makefile presets now expand directly into
-  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
-  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
+  `-DONEWIRE_ONE_PULSE=тАж -DONEWIRE_ZERO_PULSE=тАж -DONEWIRE_GUARD_BAND=тАж
+  -DONEWIRE_SHORT_PULSE_MAX=тАж`; `OW_TIMING_PARASITE` selects the wider 100┬╡s
   guard-band default on parasite-powered buses.
 - **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
   moved to `src/syscall.c`; public version macros
@@ -151,7 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **Breaking:** the runtime timing-profile API is removed —
+- **Breaking:** the runtime timing-profile API is removed тАФ
   `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
   `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
   `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see

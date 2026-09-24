@@ -7,6 +7,44 @@ on:
     branches: [ "master", "main" ]
 
 jobs:
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify VERSION matches derived files
+        # VERSION is the single source of truth (CMake project version).
+        # include/version.h, library.json and library.properties must carry
+        # the same number; the job fails the build on any drift.
+        run: |
+          set -euo pipefail
+          V="$(tr -d '[:space:]' < VERSION)"
+          echo "VERSION=$V"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$V"
+          fail=0
+          expect() {
+            local label="$1" want="$2" got="$3"
+            got="$(printf '%s' "$got" | tr -d '\r')"
+            if [ "$got" != "$want" ]; then
+              echo "::error::$label: expected '$want', found '$got'"
+              fail=1
+            else
+              echo "ok: $label = $got"
+            fi
+          }
+          expect "version.h MAJOR" "$MAJOR" \
+            "$(sed -n 's/.*_VERSION_MAJOR \([0-9]\+\).*/\1/p' include/version.h)"
+          expect "version.h MINOR" "$MINOR" \
+            "$(sed -n 's/.*_VERSION_MINOR \([0-9]\+\).*/\1/p' include/version.h)"
+          expect "version.h PATCH" "$PATCH" \
+            "$(sed -n 's/.*_VERSION_PATCH \([0-9]\+\).*/\1/p' include/version.h)"
+          expect "version.h STRING" "$V" \
+            "$(sed -n 's/.*_VERSION_STRING "\([^"]*\)".*/\1/p' include/version.h)"
+          expect "library.json version" "$V" \
+            "$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' library.json | head -1)"
+          expect "library.properties version" "$V" \
+            "$(sed -n 's/^version=//p' library.properties)"
+          exit "$fail"
+
   format:
     runs-on: ubuntu-latest
     steps:
