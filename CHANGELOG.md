@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ds18b20_start_measure()`: explicit, one-shot measurement cycles.** The
+  driver now measures only when asked: one call requests exactly one
+  `Convert T` + scratchpad-read cycle, the result arrives through
+  `ds18b20_complete()`, and the driver then parks at `DS18B20_ST_IDLE` until
+  the next request. The measurement cadence, the retry policy and any idle
+  interval are therefore entirely the application's decision. The call is
+  idempotent and ignored while a measurement cycle, a device search, a
+  resolution change or a command transaction owns the bus. The 1-Wire layer
+  exposes the underlying `onewire_kick()`.
+
+- **Application-side time base for the examples (`examples/app`).**
+  `app_tick_init(hz)`, `app_millis()` and `app_sleep_until(deadline_ms)`
+  (SysTick + WFE) let the demos pace their own measurement cycles without a
+  driver-side pause timer and without a blocking delay loop.
+
 - **STM32F4 backend (`port/stm32f4/ow_port_f4.h`): chip-generic across the
   STM32F407VGT6 (STM32F4DISCOVERY, MB997C) and the STM32F401CC family.** The
   1-Wire bus runs on PA10 (TIM1_CH3 PWM / CH4 indirect capture, AF1) with the
@@ -33,6 +48,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
 
 ### Changed
+
+- **No hidden measurement cycles: the driver starts nothing on its own.**
+  Previously the driver re-armed itself through a timer update event after
+  *every* finished operation — the 5 s inter-measurement pause, but also the
+  completion of a device search, a resolution change or a command transaction,
+  so a plain `Read ROM` or `Write Scratchpad` silently started a 750 ms
+  conversion. All of these implicit starts are gone: after init and after every
+  finished operation the timer stays idle until the application calls
+  `ds18b20_start_measure()`. `ds18b20_poll()` at IDLE is a no-op, exactly like
+  a poll with a cleared UIF.
+
+- **The inter-measurement pause left the library.** `DS18B20_CYCLE_PAUSE_US`
+  (default 5 s) and the internal `start_cycle_pause()` timer are removed from
+  `inc/ow_config.h` and the driver; a finished cycle now simply parks. The
+  examples keep their observable 5 s cadence as an application-side
+  `MEASURE_PERIOD_MS` (see `examples/*/main.c`), and `6_statistics` — whose
+  10 ms pause never mattered next to the conversion wait — now requests the
+  next cycle as soon as its dump is done. Datasheet waits (conversion time,
+  EEPROM hold-off) and the 1 ms scan-mode scheduling bridge are unchanged: they
+  are part of a measurement, not of a service cadence.
 
 - **STM32F4 console UART relocated to USART1 TX on PB6.** The `examples/app`
   F4 branch now routes the console through USART1 on the remapped **PB6** pin

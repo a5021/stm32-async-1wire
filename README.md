@@ -202,7 +202,7 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off, inter-cycle pause) is running. Without the define, the example uses the standard polling loop. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, and also while it waits for its own measurement interval (the app-side SysTick tick wakes the core). Without the define, the example uses the standard polling loop. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -404,7 +404,8 @@ ever installed and no `NVIC_EnableIRQ` call is made. The application main loop
 can block in `__WFE()` while a *long* 1-Wire stage is running and is woken by
 the timer's update event; the driver itself stays fully non-blocking. Stages
 treated as "long" (strictly more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
-(~5 ms), an EEPROM hold-off (10 ms) and the inter-measurement pause; short
+(~5 ms) and an EEPROM hold-off (10 ms); the interval between measurement cycles
+is the application's own (this example sleeps in `__WFE()` until its next deadline); short
 stages (reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this example's goal is only to establish the
 mechanism and measure the CPU-time saving.
@@ -532,15 +533,18 @@ int main(void) {
     ds18b20_init();  // One-time initialization
 
     // Optional: run the non-blocking device search to find every sensor on
-    // the bus. See examples/3_round_robin/main.c for a complete example. The search hands the
-    // driver back to poll() automatically when finished.
+    // the bus. See examples/3_round_robin/main.c for a complete example. The
+    // search leaves the bus idle when it finishes.
 
     // Optional: measure one specific device by its ROM address
     ds18b20_select(my_rom);  // my_rom from a bus search
 
+    ds18b20_start_measure();  // Request one measurement cycle
+
     while (1) {
         ds18b20_poll();  // Call repeatedly from main loop
-        // Other application code...
+        // ... report in ds18b20_complete(), decide the cadence here:
+        //     when to call ds18b20_start_measure() again ...
     }
 }
 ```
@@ -881,7 +885,6 @@ omit or set to 0 to disable.  Old presence-only style
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
 | `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) |
-| `DS18B20_CYCLE_PAUSE_US` | 5000000 | Inter-measurement pause in µs (0 = none) |
 
 **Override examples**
 
@@ -1153,11 +1156,11 @@ changes.
 
 ### State Machine Flow (hardware-timed; polled on UIF)
 
-Kickstart behavior
-- After ds18b20_init(), the timer update flag (UIF) is already set. This ensures the very first call to ds18b20_poll() advances the state machine immediately without any extra priming step.
+Explicit-start behavior
+- The driver measures **only when asked**: after `ds18b20_init()` the bus stays idle, and one `ds18b20_start_measure()` call requests exactly one conversion + scratchpad-read cycle. Afterwards the driver parks at IDLE again — it never restarts a cycle on its own, so the measurement cadence, the retry policy and any idle interval are the application's decision. Nothing else starts a conversion either: finishing a device search, a resolution change or a command transaction leaves the bus idle.
 
 - IDLE (state 0)
-  - Immediately falls through into START with no events required. Ensures LED is off and initialises the data union.
+  - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()`) falls through into START, which ensures the LED is off and initialises the data union.
   - Set state=1.
 
 - START (state 1)
@@ -1172,7 +1175,7 @@ Kickstart behavior
       this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
       device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
       + Convert T 0x44" (80 slots, RCR=79). Set state=3.
-    - Else: report NO_SENSOR; start 5s pause; set state=0.
+    - Else: report NO_SENSOR; set state=0 (parked until the next ds18b20_start_measure()).
 
 - WAIT (state 3)
   - On UIF: wait_conversion() schedules exactly the conversion time of the
@@ -1190,13 +1193,13 @@ Kickstart behavior
       this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
       selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
       (80 slots). Set state=6.
-    - Else: report NO_SENSOR; start 5s pause; set state=0.
+    - Else: report NO_SENSOR; set state=0 (parked until the next ds18b20_start_measure()).
 
 - READ (state 6)
   - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH3 emits ~5µs active-low kick at each slot start and then releases; CH4 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
 
 - DECODE (state 7)
-  - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; start 5s pause; set state=0.
+  - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; set state=0 (parked until the next ds18b20_start_measure()).
 
 ## RTOS Integration
 
@@ -1248,8 +1251,8 @@ Rules for correct RTOS use:
 
 1. **Confine every `ds18b20_*` call to a single task, or serialise with a
    lock.** Either drive the whole driver from one task (the same one that calls
-   `ds18b20_poll()`), or wrap every entry point — each `*_start`, each
-   `*_poll`, `ds18b20_select()`, `ds18b20_scan_start()`,
+   `ds18b20_poll()`), or wrap every entry point — `ds18b20_start_measure()`,
+   each `*_start`, each `*_poll`, `ds18b20_select()`, `ds18b20_scan_start()`,
    `ds18b20_search_start()` — in a mutex/semaphore taken for the entire
    sequence (start + poll loop). Two tasks touching the driver at once corrupt
    the shared state machine and the TIM1/DMA registers. Example (FreeRTOS):
@@ -1313,12 +1316,17 @@ Rules for correct RTOS use:
 ```C
 void ds18b20_init(void);
 ```
-Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start the state machine.
+Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start a measurement.
+
+```C
+void ds18b20_start_measure(void);
+```
+Request exactly one measurement cycle (broadcast `Convert T` + scratchpad read) on the currently selected device, or on every discovered device in scan mode. The result is reported through `ds18b20_complete()`. When the cycle finishes the driver parks at IDLE and waits for the next request — it never starts a cycle on its own, so the measurement cadence, retries and idle intervals are entirely the application's decision. Ignored (no-op) while a measurement cycle, a device search, a resolution change or a command transaction owns the bus.
 
 ```C
 void ds18b20_poll(void);
 ```
-The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck.
+The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck. At IDLE it does nothing until `ds18b20_start_measure()` requests a cycle.
 
 ### 1-Wire Layer (shared)
 
@@ -1466,8 +1474,8 @@ cycles through all found devices in turn when several are present.
 
 The remaining DS18B20 commands run with the same non-blocking discipline as the
 device search and the resolution change: each transaction owns TIM1/DMA while
-it runs (reset → presence → write → read | timed wait) and hands the timer
-back to `ds18b20_poll()` when it finishes.
+it runs (reset → presence → write → read | timed wait) and leaves the bus idle
+when it finishes.
 
 ```C
 void     ds18b20_read_rom(uint8_t *rom);
@@ -1488,8 +1496,9 @@ uint8_t  ds18b20_last_command_ok(void);
 ```
 
 - Every command is a `start`/`poll` pair: call the start function, then poll
-  the matching `*_poll()` from the main loop until it returns 1, then resume
-  `ds18b20_poll()`. Commands are ignored mid-cycle, while a device search, an
+  the matching `*_poll()` from the main loop until it returns 1, then call
+  `ds18b20_start_measure()` when you want a measurement again. Commands are
+  ignored mid-cycle, while a device search, an
   alarm search or a resolution change owns the timer, or while another command
   transaction is still running. Result buffers must stay valid until the
   transaction finishes.
@@ -1550,12 +1559,14 @@ const uint8_t* ds18b20_device_rom(uint8_t index);
 uint8_t ds18b20_scan_index(void);
 ```
 
-Convert every discovered device in parallel. `ds18b20_scan_start()` schedules one
-broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously, then
-reads each one back via Match ROM in device-table order, reporting every result
-through `ds18b20_complete()`. N devices take one conversion wait plus N reads
-instead of N conversion waits. A missing device reports
-`DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See `examples/4_scan_mode/main.c`.
+Convert every discovered device in parallel. `ds18b20_scan_start()` switches the
+driver into scan mode, then `ds18b20_start_measure()` runs one round: a
+broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously,
+followed by reading each one back via Match ROM in device-table order, with
+every result reported through `ds18b20_complete()`. N devices take one
+conversion wait plus N reads instead of N conversion waits. A missing device
+reports `DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See
+`examples/4_scan_mode/main.c`.
 
 - The device table must be populated first by the non-blocking device search
   (`ds18b20_search_*`).
@@ -1572,9 +1583,11 @@ instead of N conversion waits. A missing device reports
 Example:
 
 ```C
-ds18b20_scan_start();   // begin simultaneous conversion of all sensors
+ds18b20_scan_start();     // enter scan mode (once)
+ds18b20_start_measure();   // request one simultaneous-conversion round
 while (1) {
     ds18b20_poll();     // scan reports each device via ds18b20_complete()
+    // ... when the next round is due, call ds18b20_start_measure() again ...
 }
 
 // inside ds18b20_complete(): identify the sensor
@@ -1719,9 +1732,10 @@ make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"            # parasite power
 ```
 
 > Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE=1` plus
-> `-DSTATS_DUMP_INTERVAL=5000 -DDS18B20_CYCLE_PAUSE_US=10000`, so the shipped
-> 6_statistics dumps every 5000 cycles with a 10 ms inter-cycle pause. Override either
-> macro via `EXT=` if you want the module defaults instead.
+> `-DSTATS_DUMP_INTERVAL=5000`, so the shipped 6_statistics dumps every 5000
+> cycles. The demo needs no inter-measurement pause: it requests the next cycle
+> as soon as the dump is done, so the conversion time itself is the cadence.
+> Override the macro via `EXT=` if you want the module default instead.
 
 UART output format (compact, one sensor per line):
 
@@ -1762,7 +1776,8 @@ non-blocking and without interrupts, mirroring the device search state machine:
   takes effect immediately; it is **not** persisted to the EEPROM (Copy
   Scratchpad would need a strong pull-up under parasitic power).
 - Poll `ds18b20_set_resolution_poll()` from the main loop until it returns 1,
-  then resume `ds18b20_poll()`. The next measurement waits exactly as long as
+  then call `ds18b20_start_measure()` for the next cycle. That measurement waits
+  exactly as long as
   the new resolution requires (e.g. 93.75ms at 9-bit instead of 750ms).
 - `ds18b20_get_resolution()` returns the current resolution. It is updated by a
   successful resolution change and auto-derived from every valid scratchpad
@@ -1775,7 +1790,8 @@ ds18b20_set_resolution(9);
 while (!ds18b20_set_resolution_poll()) {
     /* keep calling from the main loop; never blocks */
 }
-/* ds18b20_get_resolution() == 9; ds18b20_poll() resumes with the fast wait */
+/* ds18b20_get_resolution() == 9; the next ds18b20_start_measure() uses the
+   fast wait */
 ```
 
 ### Weak Callbacks
@@ -1801,7 +1817,11 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - Time to result (one measurement): 93.75ms @ 9-bit … ~0.76 s @ 12-bit
   (conversion + protocol overhead; the conversion wait follows the configured
   resolution, see `ds18b20_set_resolution()`)
-- Inter-measurement pause: 5 s, configurable via `DS18B20_CYCLE_PAUSE_US` (default 5000000 µs; the 6_statistics build overrides it to 10000 µs)
+- Measurement cadence: **application-defined**. The driver measures one cycle per
+  `ds18b20_start_measure()` and then parks, so it has no inter-measurement
+  interval of its own; the examples pace themselves (5 s, see
+  `MEASURE_PERIOD_MS` in `examples/*/main.c`, and `app_tick_init()` in the
+  shared app layer)
 - Precision: 0.1°C reported (API tenths; the sensor step at 12-bit is
   0.0625°C — coarser steps at lower resolutions)
 - Accuracy: ±0.5°C (typical)
