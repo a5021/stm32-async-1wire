@@ -354,9 +354,10 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
 
 /**
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
- * @note Initializes the shared 1-Wire layer (timer/DMA/GPIO) and marks the
- *       driver idle so the measurement state machine owns the timer until the
- *       application starts a device search.
+ * @note Calls onewire_init(), which takes exclusive ownership of the shared
+ *       TIM1/DMA1/GPIO resources for the lifetime of the driver (until reset),
+ *       and marks the driver idle so the measurement state machine owns the
+ *       timer until the application starts a device search.
  */
 void ds18b20_init(void) {
     onewire_init();

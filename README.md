@@ -1236,8 +1236,22 @@ Rules for correct RTOS use:
    must be advanced by its own `*_poll()` (as in the loop above) — not by
    `ds18b20_poll()`.
 
-2. **TIM1 and DMA1 (channels 3 and 4) are owned by the driver.** No other task
-   or peripheral may use them while the driver is initialised.
+2. **TIM1, DMA1 (channels 3 and 4) and the bus GPIO pin are owned exclusively
+   by the driver from initialisation until reset.** No other task, ISR or
+   peripheral may configure or use them:
+
+   - **TIM1** — the prescaler, pulse-generation/CCR3-feed logic and input
+     capture on CCR4 are all driver-managed.
+   - **DMA1 channels 3 and 4** — fixed channel mapping on F0/F1, requested via
+     DMAMUX requests 21 (TIM1_CC2 → CCR3 feed) and 23 (TIM1_CH4 → CCR4
+     capture) on G0.
+   - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or the
+     physical PA12 pad remapped to logical PA10 on G0 (those pads must not be
+     used as plain GPIO while the driver is active).
+
+   The library has no deinit or release API — the exclusivity begins at
+   `onewire_init()` / `ds18b20_init()` and lasts until reset. Configure any of
+   these resources before initialising the driver, never after.
 
 3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
    entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
