@@ -4,13 +4,16 @@
  * 
  * Bundles everything an example application needs: the DS18B20 driver API
  * plus a small platform layer (system clock, USART1 TX ring buffer, busy
- * LED) behind a single header, so the demos stay short and readable.
- * 
+ * LED, millisecond time base) behind a single header, so the demos stay
+ * short and readable.
+ *
  * Usage:
  * 1. #include "app.h" (defines UART_TX_BUF_SIZE, or -D on the command line)
  * 2. Call app_init() once at startup
  * 3. Use uart_write_*() to enqueue strings to the non-blocking TX ring buffer
  * 4. Call uart_poll_tx() periodically to feed the UART from the buffer
+ * 5. Call app_tick_init() once, then pace the measurement cycles with
+ *    app_millis(): the driver measures only on ds18b20_start_measure()
  */
 
 #ifndef APP_H
@@ -38,6 +41,36 @@
  * @note One call instead of configure_system_clock() + hardware_init()
  */
 void app_init(void);
+
+/* ======== Application time base ========
+ * The driver has no time policy of its own: it measures one cycle per
+ * ds18b20_start_measure() call. These helpers give the examples a clock to
+ * decide *when* the next cycle starts. */
+
+#if !defined(DS18B20_TEST_HARNESS)
+/**
+ * @brief Start the millisecond time base (SysTick)
+ * @param[in] hz Requested tick frequency in Hz (1000 = 1 ms, 10 = 100 ms)
+ * @note Call once after app_init(). Low-power demos should pick a low rate so
+ *       the idle wait between measurements costs few wake-ups; SysTick reloads
+ *       are 24-bit, so a rate below the core's slowest tick is clamped.
+ */
+void app_tick_init(uint32_t hz);
+
+/**
+ * @brief Milliseconds elapsed since app_tick_init()
+ * @return Free-running millisecond counter (wraps after ~49 days)
+ */
+uint32_t app_millis(void);
+
+/**
+ * @brief Sleep in WFE until the given millisecond deadline
+ * @param[in] deadline_ms Absolute app_millis() deadline
+ * @note Blocking but idle: the core waits for the SysTick event instead of
+ *       spinning. Returns immediately if the deadline has already passed.
+ */
+void app_sleep_until(uint32_t deadline_ms);
+#endif
 
 #if defined(DS18B20_TEST_HARNESS) && defined(OW_PORT_FAMILY_F4)
 /**

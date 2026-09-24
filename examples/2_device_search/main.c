@@ -10,6 +10,12 @@ static uint8_t found_count = 0;
 static uint8_t select_index = 0;
 static uint8_t search_running = 1;
 
+/** Time between two measurement cycles (ms) */
+#define MEASURE_PERIOD_MS 5000u
+
+/** Deadline (app_millis()) for the next measurement cycle */
+static uint32_t next_measure_ms;
+
 static uint8_t device_found_sink(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
         found_roms[found_count][i] = rom[i];
@@ -33,6 +39,8 @@ static void report_search_result(void) {
         uart_write_str(" device(s). Measuring each in turn.\r\n");
         select_index = 0;
         ds18b20_select(found_roms[select_index]);
+        next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
+        ds18b20_start_measure(); // Request the first measurement cycle
     }
 }
 
@@ -70,10 +78,14 @@ void ds18b20_complete(int16_t temp) {
             uart_write_str("--------------------------------\r\n");
         }
     }
+    /* The driver is parked now: the next cycle starts when our own clock
+     * reaches the deadline set below. */
+    next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
 }
 
 int main(void) {
     app_init();
+    app_tick_init(1000u);
     uart_write_str("DS18B20 2_device_search starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init();
@@ -90,6 +102,10 @@ int main(void) {
             }
         } else {
             ds18b20_poll();
+            if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
+                next_measure_ms += MEASURE_PERIOD_MS;
+                ds18b20_start_measure();
+            }
         }
         uart_poll_tx();
     }

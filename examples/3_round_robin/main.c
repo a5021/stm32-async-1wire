@@ -13,8 +13,13 @@
  * search/resolution state machines build on it; the example only uses the
  * public high-level interface. Everything is non-blocking: the search and the
  * resolution change advance by one hardware operation per poll call from the
- * main loop. The shared platform layer (app.h/app.c) hides the UART and clock
- * setup.
+ * main loop. The shared platform layer (app.h/app.c) hides the UART, the clock
+ * and the application time base.
+ *
+ * The driver itself has no cadence: it measures one cycle per
+ * ds18b20_start_measure() and then parks, so the demo paces the rounds with its
+ * own millisecond clock and only asks for the next cycle once the current
+ * device, the queued resolution change and the deadline are all settled.
  */
 
 #include "app.h"
@@ -34,6 +39,12 @@ static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8]; // ROMs found at start
 static uint8_t found_count = 0; // how many devices were found
 static uint8_t select_index = 0; // index of the currently selected device
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
+
+// ======== Application-paced measurement cycles ========
+// The driver measures only on ds18b20_start_measure(); the demo decides when
+// the next cycle is due (MEASURE_PERIOD_MS after the previous result).
+#define MEASURE_PERIOD_MS 5000u
+static uint32_t next_measure_ms; // deadline for the next measurement cycle
 
 // ======== Non-blocking resolution change (resolution demo) ========
 // After every measurement the demo queues the next resolution for the device
@@ -83,6 +94,8 @@ static void report_search_result(void) {
         uart_write_str(" device(s).\r\n");
         select_index = 0;
         ds18b20_select(found_roms[select_index]);
+        next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
+        ds18b20_start_measure(); // Request the first measurement cycle
         if (found_count == 1) {
             uart_write_str("Measuring the single device.\r\n");
         } else {
@@ -155,6 +168,10 @@ void ds18b20_complete(int16_t temp) {
     uart_write_str("  next resolution: ");
     uart_write_int(next_resolution);
     uart_write_str(" bit\r\n");
+
+    // The driver is parked now; the queued resolution change and the deadline
+    // below decide when the next round is requested.
+    next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
 }
 
 /**
@@ -166,6 +183,7 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
 
     app_init(); // System clock, UART and LED GPIO - single setup call
+    app_tick_init(1000u); // 1 ms time base for the measurement cadence
 
     uart_write_str("DS18B20 3_round_robin starting...\r\n"); // Enqueue startup message
 
@@ -236,8 +254,8 @@ int main(void) {
                     uart_write_str("  resolution applied: ");
                     uart_write_int(ds18b20_get_resolution());
                     uart_write_str(" bit\r\n");
-                    // The resolution change forces a timer update event, so the
-                    // next ds18b20_poll() begins a measurement immediately,
+                    // The driver stays parked when the change completes: the
+                    // next cycle starts when the deadline below is reached,
                     // now with the faster (or slower) conversion wait.
                 }
             } else if (next_resolution != 0) {
@@ -246,6 +264,11 @@ int main(void) {
                 ds18b20_set_resolution(next_resolution);
                 next_resolution = 0;
                 res_change_busy = 1;
+            } else if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
+                // Deadline reached and no resolution change pending: ask the
+                // driver for the next measurement cycle.
+                next_measure_ms += MEASURE_PERIOD_MS;
+                ds18b20_start_measure();
             } else {
                 ds18b20_poll(); // Poll DS18B20 state machine - measures devices in turn
             }

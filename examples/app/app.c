@@ -460,6 +460,62 @@ void app_init(void) {
     hardware_init();
 }
 
+/* ---- SysTick-based millisecond clock (application time base) ----
+ *
+ * The driver measures only when the application asks it to
+ * (ds18b20_start_measure()), so the cadence between measurements - and any
+ * idle interval - belongs to the application. This tick is that time base:
+ * the examples set a deadline in ds18b20_complete() and call
+ * ds18b20_start_measure() once app_millis() reaches it, which keeps the whole
+ * demo non-blocking (no delay loop, no busy-wait). SysTick runs from HCLK, so
+ * the reload is derived from the configured system clock. */
+
+static volatile uint32_t app_tick_ms;
+
+/**
+ * @brief SysTick interrupt: advance the millisecond counter
+ * @note Also the wake-up source for app_sleep_until(); the handler is
+ *       deliberately empty otherwise.
+ */
+void SysTick_Handler(void) { app_tick_ms++; }
+
+/**
+ * @brief Start the millisecond time base
+ * @param[in] hz Requested tick frequency in Hz (e.g. 1000 for 1 ms, 10 for 100 ms)
+ * @note Call once after app_init(). A low-power demo should use a low rate
+ *       (10-100 Hz) so the idle wait between measurements costs few wake-ups.
+ *       SysTick reloads are 24-bit, so on a fast core a very low requested rate
+ *       is clamped to the slowest tick the core can produce (16.8 ms at 168 MHz);
+ *       the millisecond counter then simply advances in bigger steps.
+ */
+void app_tick_init(uint32_t hz) {
+    uint32_t ticks = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000000u) / hz;
+    if (ticks > 0x00FFFFFFu) {
+        ticks = 0x00FFFFFFu;
+    }
+    app_tick_ms = 0;
+    SysTick_Config(ticks - 1u);
+}
+
+/**
+ * @brief Milliseconds since app_tick_init()
+ * @return Free-running millisecond counter (wraps after ~49 days)
+ */
+uint32_t app_millis(void) { return app_tick_ms; }
+
+/**
+ * @brief Sleep in WFE until the given millisecond deadline
+ * @param[in] deadline_ms Absolute app_millis() deadline
+ * @note Blocking, but idle: the core waits for the SysTick event instead of
+ *       spinning, so a long wait between measurements costs almost no
+ *       current. Safe to call with a deadline that has already passed.
+ */
+void app_sleep_until(uint32_t deadline_ms) {
+    while ((int32_t)(deadline_ms - app_tick_ms) > 0) {
+        __WFE();
+    }
+}
+
 /**
  * @brief Busy indicator - toggles LED during measurement
  * @param[in] action 0 = idle, non-zero = busy

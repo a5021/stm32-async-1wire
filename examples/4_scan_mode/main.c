@@ -17,7 +17,10 @@
  * it; this example only uses the public high-level interface. Everything is
  * non-blocking: the search and the scan advance by one hardware operation per
  * poll call from the main loop. The shared platform layer (app.h/app.c) hides
- * the UART and clock setup.
+ * the UART, the clock and the application time base.
+ *
+ * The driver measures only when asked (ds18b20_start_measure()), so the demo
+ * paces the simultaneous-conversion rounds with its own millisecond clock.
  */
 
 #include "app.h"
@@ -30,6 +33,12 @@
 
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
 static uint8_t cfg_running = 0; // 1 while the broadcast resolution write runs
+
+/** Time between two simultaneous-conversion rounds (ms) */
+#define MEASURE_PERIOD_MS 5000u
+
+/** Deadline (app_millis()) for the next round */
+static uint32_t next_measure_ms;
 
 // Conversion resolution programmed to every sensor (broadcast) before the
 // scan: scan mode assumes a uniform resolution, so the single broadcast
@@ -93,22 +102,27 @@ void ds18b20_complete(int16_t temp) {
 
     // Close the measurement batch: a separator as wide as the measurement
     // line marks the end of the round (the last device was just reported and
-    // the scan returns to IDLE before the next broadcast Convert T).
+    // the scan returned to IDLE before the next broadcast Convert T). The
+    // driver is parked until the deadline below, so schedule the next round.
     if ((uint16_t)idx + 1u >= ds18b20_device_count()) {
         for (int i = 0; i < line_len; i++) {
             uart_tx_enqueue_byte('-');
         }
         uart_write_str("\r\n");
+        next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
     }
 }
 
 /**
  * @brief Main application entry point
  * @note Fully non-blocking: the search advances step by step, then scan mode
- *       converts every sensor in parallel and reports each one in turn.
+ *       converts every sensor in parallel and reports each one in turn. Each
+ *       round is requested explicitly (ds18b20_start_measure()) once its
+ *       application-side deadline is reached.
  */
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
+    app_tick_init(1000u); // 1 ms time base for the round cadence
 
     uart_write_str("DS18B20 4_scan_mode starting...\r\n"); // Enqueue startup message
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
@@ -137,9 +151,16 @@ int main(void) {
             // Advance the non-blocking broadcast configuration write.
             if (ds18b20_set_resolution_poll()) {
                 cfg_running = 0;
+                // The config write leaves the driver parked: ask for the
+                // first simultaneous-conversion round now.
+                ds18b20_start_measure();
             }
         } else {
             ds18b20_poll(); // Advance the scan/measurement state machine
+            if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
+                next_measure_ms += MEASURE_PERIOD_MS;
+                ds18b20_start_measure();
+            }
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
         // Other non-blocking tasks can be added here

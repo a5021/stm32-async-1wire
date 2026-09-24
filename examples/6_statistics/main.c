@@ -8,6 +8,11 @@
  * pulse-width histogram, per-sensor min/max, and error counters are
  * printed via UART, then the counters are reset for the next batch.
  *
+ * The driver measures only when asked (ds18b20_start_measure()), so this demo
+ * needs no time base at all: it requests the next cycle as soon as the dump
+ * is out of the way, which makes the conversion time itself the cadence (and
+ * collects statistics as fast as the bus allows).
+ *
  * Requires OW_STATS_ENABLE=1 at build time (auto-added by `make APP=6_statistics`):
  *   On a parasite-powered bus add -DOW_PARASITE_POWER=1 so the driver engages
  *   the strong pull-up during the conversion window.
@@ -41,6 +46,7 @@ static uint8_t search_running = 1;
 
 /* ======== Non-blocking stats dump state ======== */
 static uint8_t dump_busy = 0; /**< 1 while ow_stats_dump_poll() is running */
+static uint8_t measure_pending = 0; /**< 1 = the demo wants the next cycle started */
 
 /* ======== Search callback ======== */
 static uint8_t device_found_sink(const uint8_t* rom) {
@@ -66,6 +72,7 @@ static void report_search_result(void) {
         uart_write_str(" device(s).\r\n");
         select_index = 0;
         ds18b20_select(found_roms[select_index]);
+        ds18b20_start_measure(); // Request the first measurement cycle
     }
 }
 
@@ -113,6 +120,11 @@ void ds18b20_complete(int16_t temp) {
     if (cycles >= STATS_DUMP_INTERVAL && !dump_busy) {
         ow_stats_dump_start();
         dump_busy = 1;
+    } else {
+        /* No dump in the way: ask for the next cycle straight away. The
+         * driver is parked after this callback, so it stays idle until the
+         * main loop calls ds18b20_start_measure(). */
+        measure_pending = 1;
     }
 }
 
@@ -134,6 +146,8 @@ int main(void) {
             if (ow_stats_dump_poll()) {
                 dump_busy = 0;
                 ow_stats_reset();
+                // Resume measuring now that the bus is free again.
+                measure_pending = 1;
             }
         } else if (search_running) {
             if (ds18b20_search_poll()) {
@@ -143,6 +157,10 @@ int main(void) {
             }
         } else {
             ds18b20_poll();
+            if (measure_pending) {
+                measure_pending = 0;
+                ds18b20_start_measure();
+            }
         }
         uart_poll_tx();
     }

@@ -8,10 +8,15 @@
  * Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad
  * TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8)
  * and the single-device Read ROM (0x33). Every command owns TIM1/DMA while it
- * runs and hands the timer back to the measurement state machine, which then
- * reports the selected sensor's temperature. All low-level bus operations live
- * in the shared 1-Wire layer (onewire.h/onewire.c), and the command engine
- * builds on it; this example only uses the public high-level interface.
+ * runs and leaves the bus idle when done, so a command never starts a
+ * measurement on its own. All low-level bus operations live in the shared
+ * 1-Wire layer (onewire.h/onewire.c), and the command engine builds on it;
+ * this example only uses the public high-level interface.
+ *
+ * After the command sequence the demo switches to the terminal STEP_MEASURE
+ * phase and measures the selected sensor on an application-paced cycle
+ * (MEASURE_PERIOD_MS), the same explicit ds18b20_start_measure() request every
+ * example uses.
  */
 
 #include "app.h"
@@ -49,6 +54,12 @@ typedef enum {
 static step_t step = STEP_MEASURE;
 static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
 static uint8_t cmd_running = 0; // 1 while a command transaction is in flight
+
+/** Time between two measurement cycles in STEP_MEASURE (ms) */
+#define MEASURE_PERIOD_MS 5000u
+
+/** Deadline (app_millis()) for the next measurement cycle */
+static uint32_t next_measure_ms;
 
 static uint8_t scratchpad[SCRATCHPAD_BYTES]; // Scratchpad result buffer
 static uint8_t rom[DS18B20_ROM_BYTES]; // Read ROM result buffer
@@ -226,8 +237,10 @@ static void finish_step(step_t s) {
 
 /**
  * @brief Weak implementation for DS18B20 measurement completion callback
- * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
- * @note The selected device is measured, so one result arrives per cycle.
+ * @param[in] temp Temperature in tenths of degrees Celsius, or error code
+ * @note The selected device is measured, so one result arrives per cycle. The
+ *       driver is parked after the callback: the deadline set here paces the
+ *       next cycle.
  */
 void ds18b20_complete(int16_t temp) {
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) {
@@ -249,16 +262,19 @@ void ds18b20_complete(int16_t temp) {
         uart_write_int(frac); // Display fractional part
         uart_write_str(" C\r\n"); // Units
     }
+    next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
 }
 
 /**
  * @brief Main application entry point
  * @note Fully non-blocking: the search, every command transaction and the
  *       measurement advance by one hardware operation per poll call from the
- *       main loop.
+ *       main loop. The steady-state measurement phase requests each cycle
+ *       explicitly once its application-side deadline is reached.
  */
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
+    app_tick_init(1000u); // 1 ms time base for the measurement cadence
 
     uart_write_str("DS18B20 5_commands starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
@@ -288,6 +304,10 @@ int main(void) {
             }
         } else if (step == STEP_MEASURE) {
             ds18b20_poll(); // Steady state: measure the selected sensor
+            if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
+                next_measure_ms += MEASURE_PERIOD_MS;
+                ds18b20_start_measure();
+            }
         } else if (!cmd_running) {
             start_step(step); // Launch the next command transaction
             cmd_running = 1;
@@ -297,6 +317,9 @@ int main(void) {
             step = (step_t)(step + 1);
             if (step == STEP_MEASURE) {
                 uart_write_str("Command demo done. Measuring selected device:\r\n");
+                // The command sequence left the bus idle: request the first
+                // measurement cycle now.
+                ds18b20_start_measure();
             }
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
