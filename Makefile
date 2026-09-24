@@ -64,7 +64,7 @@ MCU = -mcpu=cortex-m3 -mthumb
 DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
 JFLASH = port/stm32f1/stm32f103cb.jflash
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinclude -Iexamples/app -Iport   -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -534,22 +534,22 @@ endif
 # OW_TARGET=g0 against the STM32G0 backend mock.
 ifeq ($(OW_TARGET),f0)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F0
-TEST_PORT_INC = -Iport/stm32f0
+TEST_PORT_INC = -Iport
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f0.exe
 else ifeq ($(OW_TARGET),g0)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_G0
-TEST_PORT_INC = -Iport/stm32g0
+TEST_PORT_INC = -Iport
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
 else
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
-TEST_PORT_INC = -Iport/stm32f1
+TEST_PORT_INC = -Iport
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
 TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
+TEST_INC  = -Iinclude -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
@@ -605,8 +605,8 @@ test-lowpower-g0:
 # DS18B20_DRIVER_BUILD). They are listed here as prerequisites because the
 # test executables compile the sources directly rather than through per-object
 # dependency files.
-DS18B20_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
-                src/ds18b20_search.c src/ds18b20_measure.c
+DS18B20_PARTS = src/internal/ds18b20_resolution.c src/internal/ds18b20_txn.c \
+                src/internal/ds18b20_search.c src/internal/ds18b20_measure.c
 
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
@@ -678,7 +678,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Itests/mock \
+               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinclude -Iport -Itests/mock \
                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz

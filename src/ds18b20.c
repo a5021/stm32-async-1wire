@@ -339,10 +339,10 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
  * from resolution; search uses txn_ctx, and measure uses dev_roms/dev_count
  * from search). clang-format must not alphabetise these lines. */
 // clang-format off
-#include "ds18b20_resolution.c"
-#include "ds18b20_txn.c"
-#include "ds18b20_search.c"
-#include "ds18b20_measure.c"
+#include "internal/ds18b20_resolution.c"
+#include "internal/ds18b20_txn.c"
+#include "internal/ds18b20_search.c"
+#include "internal/ds18b20_measure.c"
 // clang-format on
 
 /**

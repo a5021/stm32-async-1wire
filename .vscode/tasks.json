@@ -108,7 +108,7 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "-I.",
-                "-Iinc",
+                "-Iinclude",
                 "-ICMSIS/core",
                 "-ICMSIS/device",
                 "-DSTM32F103xB",

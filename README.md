@@ -6,11 +6,11 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Three backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`include/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Three backends ship today:
 
-- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `port/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `port/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `port/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
 
 ## Table of Contents
 
@@ -38,7 +38,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ## Features
 
 - Pure Bare-Metal: direct register manipulation, no HAL or LL libraries.
-- Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
+- Universal 1-Wire Layer: `include/onewire.h` + `src/onewire.c` — a reusable,
   non-blocking 1-Wire master (bus primitives + Maxim Search ROM) scheduled on
   TIM1/DMA; the DS18B20 driver is built on it, and other 1-Wire slaves
   (DS2413, DS2431, ...) can reuse it as-is — see
@@ -101,40 +101,40 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ## File Structure
 
 ```
-├── inc/                    # Project header files
+├── include/                # Public header files
+│   ├── stm32_async_1wire.h # Umbrella header (whole public API)
+│   ├── version.h           # Library version macros (synced with VERSION)
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
 │   └── ow_bits.h           # STM32 register access macros (shared)
-├── port/                   # Per-MCU backends for the ow_port_* interface
-│   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
-│   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
-│   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
-│   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
-│   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
-│   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
-│   │   ├── stm32f030f4.jflash    # J-Flash project file
-│   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
-│   └── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
-│   │   ├── ow_port_g0.h    # Register-level ow_port_* implementation for STM32G0
-│   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
-│   │   ├── stm32g031f6.jflash    # J-Flash project file
-│   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
-├── src/                    # Project source files
-│   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
+├── port/                   # Flat include dir: header-only ow_port_* backends
+│   ├── ow_port_f1.h        # STM32F1: TIM1 + DMA1 + PA10 (static inline)
+│   ├── ow_port_f0.h        # STM32F0: TIM1 + DMA1 + PA10 (static inline)
+│   ├── ow_port_g0.h        # STM32G0: TIM1 + DMA1 + DMAMUX + PA12 remap
+│   ├── stm32f1/            # F1 assets: linker script, J-Flash, Ozone
+│   │   ├── STM32F103XB_FLASH.ld
+│   │   ├── stm32f103cb.jflash
+│   │   └── project.jdebug
+│   ├── stm32f0/            # F0 assets
+│   │   ├── STM32F030X6_FLASH.ld
+│   │   ├── stm32f030f4.jflash
+│   │   └── project.jdebug
+│   └── stm32g0/            # G0 assets
+│       ├── STM32G031X6_FLASH.ld
+│       ├── stm32g031f6.jflash
+│       └── project.jdebug
+├── src/                    # Library sources (compile these three + headers)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
-│   │                       #               + non-blocking Search ROM engine
-│   ├── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer.
-│   │                       # Compiles as ONE translation unit: #includes its
-│   │                       # four functional parts in dependency order.
-│   ├── ds18b20_search.c    # (include-only part) ROM device table + search/alarm
-│   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
-│   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
-│   └── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
+│   ├── ds18b20.c           # DS18B20 driver (amalgamated TU; see src/internal/)
+│   ├── ow_stats.c          # Optional signal statistics (empty without OW_STATS_ENABLE)
+│   └── internal/           # Include-only parts of ds18b20.c (NOT compiled alone)
+│       ├── ds18b20_search.c
+│       ├── ds18b20_txn.c
+│       ├── ds18b20_resolution.c
+│       └── ds18b20_measure.c
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -173,6 +173,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── CMakeLists.txt          # CMake build (FetchContent for CMSIS)
 ├── library.json            # PlatformIO library metadata
 ├── library.properties      # Arduino Library Manager metadata
+├── VERSION                 # Single source of truth for the version number
+├── INTEGRATION.md          # How to add this library to an external project
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
@@ -811,9 +813,9 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
     adjust automatically. Useful for testing on bare minimum hardware
     (no HSE crystal).
 
-### Compile-time Tunables (`inc/ow_config.h`)
+### Compile-time Tunables (`include/ow_config.h`)
 
-All genuinely tunable build constants live in `inc/ow_config.h`.  Every
+All genuinely tunable build constants live in `include/ow_config.h`.  Every
 macro carries a `#ifndef` guard so that a `-D` on the command line (Makefile
 EXT, PlatformIO `build_flags`) overrides the default without editing the
 header.  (These are preprocessor macros, not CMake options: a `cmake
@@ -978,7 +980,7 @@ The 1-Wire layer uses a hybrid of several hardware features:
 
 ### Shared 1-Wire Layer
 
-All bus-level protocol lives in `src/onewire.c` (interface in `inc/onewire.h`),
+All bus-level protocol lives in `src/onewire.c` (interface in `include/onewire.h`),
 a reusable 1-Wire master that the DS18B20 driver builds on:
 
 - `onewire_init()`, `onewire_reset()`, `onewire_present()`,
@@ -1291,7 +1293,7 @@ The Core Driver Function: Must be called from the main loop. It checks the Timer
 ### 1-Wire Layer (shared)
 
 The 1-Wire bus primitives and the Search ROM engine are **not** part of the
-driver — they live in the shared 1-Wire layer (`inc/onewire.h` +
+driver — they live in the shared 1-Wire layer (`include/onewire.h` +
 `src/onewire.c`) that `src/ds18b20.c` is built on. Full interface:
 
 ```C
@@ -1328,7 +1330,7 @@ turn into an undiscovered `onewire_bus_done()` hang.
 
 #### Timing
 
-Slot timing is fixed at **compile time** (`inc/ow_config.h`): four `ONEWIRE_*`
+Slot timing is fixed at **compile time** (`include/ow_config.h`): four `ONEWIRE_*`
 macros define the bit-slot geometry, and every bus operation is scheduled with
 those exact durations. There is no runtime profile switching and no timing
 state — the values fold into the TIM1/DMA register arithmetic and can be
@@ -1776,12 +1778,12 @@ Called when a measurement cycle completes — provides temperature data in tenth
 ### Timing
 
 Slot timing is fixed at **compile time** via the `ONEWIRE_*` macros in
-`inc/ow_config.h` (see also the [API Reference → Timing](#timing)). Each macro is
+`include/ow_config.h` (see also the [API Reference → Timing](#timing)). Each macro is
 overridable with `-D`, so a specific board or bus length pins its values without
 any runtime state. The reset-pulse bounds are defined in `src/onewire.c`:
 
 ```C
-/* inc/ow_config.h — defaults */
+/* include/ow_config.h — defaults */
 #define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
 #define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
 #define ONEWIRE_GUARD_BAND          5     // µs (built into slot formula)
@@ -1822,7 +1824,7 @@ CUSTOM uses the minimum slot timing allowed by the 1-Wire standard
 (t_LOW1 = 1µs, t_LOW0 = 60µs, t_REC = 1µs). It is an experimental setting:
 a 1µs read/write pulse is **below the values validated on hardware** (a 2µs
 pulse already broke slot decoding on an F030 at 8MHz — see also the note in
-`inc/ow_config.h`). Use it only for experiments or electrically ideal setups.
+`include/ow_config.h`). Use it only for experiments or electrically ideal setups.
 
 ## Troubleshooting
 

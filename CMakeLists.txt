@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
-project(stm32_async_1wire VERSION 1.8.1 LANGUAGES C ASM)
+
+# Single source of truth for the library version: the VERSION file.
+# include/version.h, library.json and library.properties must match;
+# the version-sync CI job enforces it.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" STM32_ASYNC_1WIRE_VERSION)
+string(STRIP "${STM32_ASYNC_1WIRE_VERSION}" STM32_ASYNC_1WIRE_VERSION)
+
+project(stm32_async_1wire VERSION ${STM32_ASYNC_1WIRE_VERSION} LANGUAGES C ASM)
 
 # ---------------------------------------------------------------------------
 # Options
@@ -77,10 +84,10 @@ set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 # DS18B20_DRIVER_BUILD). Mark them as header-only-sources so the IDE shows the
 # split while only ds18b20.c itself is compiled into the library.
 set_source_files_properties(
-    src/ds18b20_resolution.c
-    src/ds18b20_txn.c
-    src/ds18b20_search.c
-    src/ds18b20_measure.c
+    src/internal/ds18b20_resolution.c
+    src/internal/ds18b20_txn.c
+    src/internal/ds18b20_search.c
+    src/internal/ds18b20_measure.c
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
@@ -88,11 +95,8 @@ set_source_files_properties(
 function(ow_add_core_library tgt)
     add_library(${tgt} STATIC ${ARGN})
     target_include_directories(${tgt} PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
         $<INSTALL_INTERFACE:include/stm32-async-1wire>
         # Device/CMSIS headers are required to compile the library (ow_port.h
         # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
@@ -137,17 +141,19 @@ install(TARGETS stm32_async_1wire
 )
 
 install(FILES
-    inc/onewire.h
-    inc/ds18b20.h
-    inc/ow_port.h
-    inc/ow_stats.h
-    inc/ow_config.h
-    inc/ow_bits.h  # included by every ow_port_<family>.h backend
+    include/stm32_async_1wire.h
+    include/version.h
+    include/onewire.h
+    include/ds18b20.h
+    include/ow_port.h
+    include/ow_stats.h
+    include/ow_config.h
+    include/ow_bits.h  # included by every ow_port_<family>.h backend
     # ow_port.h selects its backend with sibling quote-includes
     # (#include "ow_port_f1.h"), so the backends must ship alongside it.
-    port/stm32f1/ow_port_f1.h
-    port/stm32f0/ow_port_f0.h
-    port/stm32g0/ow_port_g0.h
+    port/ow_port_f1.h
+    port/ow_port_f0.h
+    port/ow_port_g0.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 
@@ -196,11 +202,8 @@ if(OW_BUILD_EXAMPLES)
         ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
     )
     target_include_directories(stm32_async_1wire_platform PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/port
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
         ${CMSIS_CORE_INCLUDE}
         ${CMSIS_DEVICE_INCLUDE}
     )

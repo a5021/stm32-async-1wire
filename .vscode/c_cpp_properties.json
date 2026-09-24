@@ -4,7 +4,7 @@
             "name": "STM32F103 (default)",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/inc",
+                "${workspaceFolder}/include",
                 "${workspaceFolder}/CMSIS/core",
                 "${workspaceFolder}/CMSIS/device"
             ],
@@ -19,7 +19,7 @@
             "name": "STM32F030 (make OW_TARGET=f0)",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/inc",
+                "${workspaceFolder}/include",
                 "${workspaceFolder}/CMSIS/core",
                 "${workspaceFolder}/CMSIS/device"
             ],
@@ -34,7 +34,7 @@
             "name": "STM32G031 (make OW_TARGET=g0)",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/inc",
+                "${workspaceFolder}/include",
                 "${workspaceFolder}/CMSIS/core",
                 "${workspaceFolder}/CMSIS/device"
             ],

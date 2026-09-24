@@ -27,17 +27,12 @@
 #define DS18B20_H
 
 #include "ow_config.h"
+#include "version.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/** @brief Library version (semantic versioning) */
-#define STM32_ASYNC_1WIRE_VERSION_MAJOR 1
-#define STM32_ASYNC_1WIRE_VERSION_MINOR 8
-#define STM32_ASYNC_1WIRE_VERSION_PATCH 1
-#define STM32_ASYNC_1WIRE_VERSION_STRING "1.8.1"
 
 /**
  * @brief DS18B20 driver state machine states

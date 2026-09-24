@@ -32,7 +32,7 @@ body:
     attributes:
       label: Scope of change
       options:
-        - Driver API change (inc/ds18b20.h)
+        - Driver API change (include/ds18b20.h)
         - Driver internals (src/ds18b20.c)
         - Demo application (examples/)
         - Build system / tooling
