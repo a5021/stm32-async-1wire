@@ -27,8 +27,6 @@
 #include "ow_bits.h"
 #include "stm32f1xx.h"
 
-#include <assert.h>
-
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
  *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
  *
@@ -213,7 +211,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  *                  Out-of-range values are rejected: TIM1 RCR is 8-bit
  *                  (RCR = slots - 1).
  * @return 1 if the feed was scheduled, 0 if `slots` is out of range (nothing
- *         is scheduled; the reject path also traps with assert in debug builds).
+ *         is scheduled).
  * @note The buffer must hold `slots + 1` entries and the entry at index
  *       `slots` must be ONEWIRE_RELEASE_PULSE: the final CC2-triggered DMA
  *       transfer feeds that value into CCR3 during the last slot, so the
@@ -222,8 +220,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  */
 __STATIC_FORCEINLINE uint8_t ow_port_feed(const uint8_t* cmd, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "ow_port_feed: slots out of range");
-        return 0;
+        return 0u;
     }
     T1.RCR = slots - 1;
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
@@ -294,12 +291,11 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
  * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS.
  *                  Out-of-range values are rejected (8-bit RCR limit).
  * @return 1 if the write was scheduled, 0 if `slots` is out of range (nothing
- *         is scheduled; the reject path also traps with assert in debug builds).
+ *         is scheduled).
  */
 __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const uint8_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "ow_port_write_slots: slots out of range");
-        return 0;
+        return 0u;
     }
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
@@ -418,12 +414,11 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
  * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES.
  *                  Out-of-range values are rejected (8-bit RCR limit: 256 slots).
  * @return 1 if the read was scheduled, 0 if `bytes` is out of range (nothing
- *         is scheduled; the reject path also traps with assert in debug builds).
+ *         is scheduled).
  */
 __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {
     if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
-        assert(0 && "ow_port_read_data: bytes out of range");
-        return 0;
+        return 0u;
     }
     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
     T1.RCR = bits - 1;

@@ -2,21 +2,16 @@
  *  test_param_guard.c - Rejected-parameter schedules
  *
  *  onewire_write_slots/read_data guard out-of-range sizes with
- *  `assert(0 && ...); return 0;`.  With NDEBUG the assert is a
- *  no-op, so this TU is built only by the release-semantics test
- *  variant (make test-ndebug*): TEST_FLAG + -DNDEBUG -DOW_
- *  TEST_PARAM_GUARD.  In the default debug build these calls would
- *  abort the process, which is exactly what the OS is compiled to
- *  do, so the file is compiled empty there (all body code sits
- *  under OW_TEST_PARAM_GUARD).
+ *  `assert(0 && ...); return 0;`, so the public reject cases are
+ *  built only by the release-semantics test variant
+ *  (make test-ndebug*).  Backend entry points are fail-soft and
+ *  reject the same ranges without assert in every build.
  *
  *  Each reject must be observable outside the library: the return
  *  value is 0 AND no timer/DMA operation may be scheduled (the
  *  shared engine stays idle, so a subsequent onewire_bus_done()
  *  poll is not fooled into waiting on a phantom transfer).
  * ============================================================ */
-
-#ifdef OW_TEST_PARAM_GUARD
 
 #include "hw_model.h"
 #include "mock_target.h"
@@ -36,6 +31,45 @@ static void assert_engine_idle(void) {
 }
 
 /* ---- rejected schedules ---- */
+
+void test_guard_port_feed_zero_rejected(void) {
+    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    TEST_ASSERT_EQUAL_UINT8(0u, ow_port_feed(&pulse, 0u));
+    assert_engine_idle();
+}
+
+void test_guard_port_feed_over_max_rejected(void) {
+    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    TEST_ASSERT_EQUAL_UINT8(0u, ow_port_feed(&pulse, (uint16_t)(ONEWIRE_MAX_SLOTS + 1u)));
+    assert_engine_idle();
+}
+
+void test_guard_port_write_slots_zero_rejected(void) {
+    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    TEST_ASSERT_EQUAL_UINT8(0u, ow_port_write_slots(&pulse, 0u));
+    assert_engine_idle();
+}
+
+void test_guard_port_write_slots_over_max_rejected(void) {
+    uint8_t pulse = ONEWIRE_ONE_PULSE;
+    TEST_ASSERT_EQUAL_UINT8(0u,
+                            ow_port_write_slots(&pulse, (uint16_t)(ONEWIRE_MAX_SLOTS + 1u)));
+    assert_engine_idle();
+}
+
+void test_guard_port_read_data_zero_rejected(void) {
+    uint8_t rx[ONEWIRE_BITS_PER_BYTE];
+    TEST_ASSERT_EQUAL_UINT8(0u, ow_port_read_data(rx, 0u));
+    assert_engine_idle();
+}
+
+void test_guard_port_read_data_over_max_rejected(void) {
+    uint8_t rx[ONEWIRE_BITS_PER_BYTE];
+    TEST_ASSERT_EQUAL_UINT8(0u, ow_port_read_data(rx, (uint8_t)(ONEWIRE_MAX_READ_BYTES + 1u)));
+    assert_engine_idle();
+}
+
+#ifdef OW_TEST_PARAM_GUARD
 
 void test_guard_write_slots_zero_rejected(void) {
     uint8_t pulse = ONEWIRE_ONE_PULSE;
@@ -64,6 +98,8 @@ void test_guard_read_data_over_max_rejected(void) {
     TEST_ASSERT_EQUAL_UINT8(0u, st);
     assert_engine_idle();
 }
+
+#endif /* OW_TEST_PARAM_GUARD */
 
 /* ---- accepted schedules still work ---- */
 
@@ -104,13 +140,19 @@ void test_guard_read_data_schedules(void) {
 /* ---- runner ---- */
 
 void run_test_param_guard(void) {
+    TEST_RUN(test_guard_port_feed_zero_rejected);
+    TEST_RUN(test_guard_port_feed_over_max_rejected);
+    TEST_RUN(test_guard_port_write_slots_zero_rejected);
+    TEST_RUN(test_guard_port_write_slots_over_max_rejected);
+    TEST_RUN(test_guard_port_read_data_zero_rejected);
+    TEST_RUN(test_guard_port_read_data_over_max_rejected);
+#ifdef OW_TEST_PARAM_GUARD
     TEST_RUN(test_guard_write_slots_zero_rejected);
     TEST_RUN(test_guard_write_slots_over_max_rejected);
     TEST_RUN(test_guard_read_data_zero_rejected);
     TEST_RUN(test_guard_read_data_over_max_rejected);
+#endif
     TEST_RUN(test_guard_write_bit_schedules);
     TEST_RUN(test_guard_write_slots_schedules);
     TEST_RUN(test_guard_read_data_schedules);
 }
-
-#endif /* OW_TEST_PARAM_GUARD */
