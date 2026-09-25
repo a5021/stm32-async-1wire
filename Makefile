@@ -359,123 +359,76 @@ $(CMSIS_CORE_DIR):
 $(CMSIS_DEVICE_DIR):
 	mkdir -p $@
 
+# Downloaded files, one entry per line: target | directory | source URL.
+# The target and its URL share a line on purpose. Adding a CMSIS device URL
+# variable one at a time made it possible to define a URL and miss the rule
+# that used it, and the result was every CI job failing on an empty URL.
+# Keep them together; the rules below are generated from this table.
 # ARM CMSIS Core headers (Apache 2.0)
-$(CMSIS_CORE_DIR)/core_cm3.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/core_cm3.h,$@)
-
-$(CMSIS_CORE_DIR)/core_cm0.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/core_cm0.h,$@)
-
-$(CMSIS_CORE_DIR)/core_cm0plus.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/core_cm0plus.h,$@)
-
-$(CMSIS_CORE_DIR)/mpu_armv7.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/mpu_armv7.h,$@)
-
-$(CMSIS_CORE_DIR)/cmsis_compiler.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/cmsis_compiler.h,$@)
-
-$(CMSIS_CORE_DIR)/cmsis_gcc.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/cmsis_gcc.h,$@)
-
-$(CMSIS_CORE_DIR)/cmsis_version.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/cmsis_version.h,$@)
-
-$(CMSIS_CORE_DIR)/core_cm4.h: | $(CMSIS_CORE_DIR)
-	$(call download_file,$(CMSIS_CORE_URL)/core_cm4.h,$@)
-
+CMSIS_DOWNLOADS_CORE = \
+  core_cm3.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm3.h \
+  core_cm0.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm0.h \
+  core_cm0plus.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm0plus.h \
+  mpu_armv7.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/mpu_armv7.h \
+  cmsis_compiler.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_compiler.h \
+  cmsis_gcc.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_gcc.h \
+  cmsis_version.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_version.h \
+  core_cm4.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm4.h
 # cmsis_device_f1 headers and sources (Apache 2.0)
-$(CMSIS_DEVICE_DIR)/stm32f1xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F1_URL)/Include/stm32f1xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32f103xb.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F1_URL)/Include/stm32f103xb.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32f1xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F1_URL)/Include/system_stm32f1xx.h,$@)
-
-# cmsis_device_f1 sources (Apache 2.0)
-$(CMSIS_DEVICE_DIR)/system_stm32f1xx.c: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F1_URL)/Source/Templates/system_stm32f1xx.c,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s,$@)
-
+CMSIS_DOWNLOADS_F1 = \
+  stm32f1xx.h|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Include/stm32f1xx.h \
+  stm32f103xb.h|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Include/stm32f103xb.h \
+  system_stm32f1xx.h|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Include/system_stm32f1xx.h \
+  system_stm32f1xx.c|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Source/Templates/system_stm32f1xx.c \
+  startup_stm32f103xb.s|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Source/Templates/gcc/startup_stm32f103xb.s
 # cmsis_device_f0 headers and sources (Apache 2.0)
-$(CMSIS_DEVICE_DIR)/stm32f0xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F0_URL)/Include/stm32f0xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32f030x6.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F0_URL)/Include/stm32f030x6.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32f0xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F0_URL)/Include/system_stm32f0xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32f0xx.c: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F0_URL)/Source/Templates/system_stm32f0xx.c,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F0_URL)/Source/Templates/gcc/startup_stm32f030x6.s,$@)
-
+CMSIS_DOWNLOADS_F0 = \
+  stm32f0xx.h|$(CMSIS_DEVICE_DIR)|$(F0_URL)/Include/stm32f0xx.h \
+  stm32f030x6.h|$(CMSIS_DEVICE_DIR)|$(F0_URL)/Include/stm32f030x6.h \
+  system_stm32f0xx.h|$(CMSIS_DEVICE_DIR)|$(F0_URL)/Include/system_stm32f0xx.h \
+  system_stm32f0xx.c|$(CMSIS_DEVICE_DIR)|$(F0_URL)/Source/Templates/system_stm32f0xx.c \
+  startup_stm32f030x6.s|$(CMSIS_DEVICE_DIR)|$(F0_URL)/Source/Templates/gcc/startup_stm32f030x6.s
 # cmsis_device_g0 headers and sources (Apache 2.0)
-$(CMSIS_DEVICE_DIR)/stm32g0xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(G0_URL)/Include/stm32g0xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32g031xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(G0_URL)/Include/stm32g031xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32g0xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(G0_URL)/Include/system_stm32g0xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32g0xx.c: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(G0_URL)/Source/Templates/system_stm32g0xx.c,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(G0_URL)/Source/Templates/gcc/startup_stm32g031xx.s,$@)
-
+CMSIS_DOWNLOADS_G0 = \
+  stm32g0xx.h|$(CMSIS_DEVICE_DIR)|$(G0_URL)/Include/stm32g0xx.h \
+  stm32g031xx.h|$(CMSIS_DEVICE_DIR)|$(G0_URL)/Include/stm32g031xx.h \
+  system_stm32g0xx.h|$(CMSIS_DEVICE_DIR)|$(G0_URL)/Include/system_stm32g0xx.h \
+  system_stm32g0xx.c|$(CMSIS_DEVICE_DIR)|$(G0_URL)/Source/Templates/system_stm32g0xx.c \
+  startup_stm32g031xx.s|$(CMSIS_DEVICE_DIR)|$(G0_URL)/Source/Templates/gcc/startup_stm32g031xx.s
 # cmsis_device_f4 headers and sources (Apache 2.0)
-$(CMSIS_DEVICE_DIR)/stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/stm32f4xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32f407xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/stm32f407xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32f401xc.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/stm32f401xc.h,$@)
-
-$(CMSIS_DEVICE_DIR)/stm32f401xe.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/stm32f401xe.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Include/system_stm32f4xx.h,$@)
-
-$(CMSIS_DEVICE_DIR)/system_stm32f4xx.c: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Source/Templates/system_stm32f4xx.c,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s,$@)
-
-$(CMSIS_DEVICE_DIR)/startup_stm32f401xe.s: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s,$@)
-
+CMSIS_DOWNLOADS_F4 = \
+  stm32f4xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f4xx.h \
+  stm32f407xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f407xx.h \
+  stm32f401xc.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xc.h \
+  stm32f401xe.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xe.h \
+  system_stm32f4xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/system_stm32f4xx.h \
+  system_stm32f4xx.c|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/system_stm32f4xx.c \
+  startup_stm32f407xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s \
+  startup_stm32f401xc.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s \
+  startup_stm32f401xe.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
-$(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL_F1),$@)
+CMSIS_DOWNLOADS_SVD = \
+  STM32F103xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F1) \
+  STM32F030.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F0) \
+  STM32G031.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G0) \
+  STM32F407.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F4) \
+  STM32F401.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F401)
 
-$(CMSIS_DEVICE_DIR)/STM32F030.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL_F0),$@)
+CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F1) \
+                 $(CMSIS_DOWNLOADS_F0) $(CMSIS_DOWNLOADS_G0) \
+                 $(CMSIS_DOWNLOADS_F4) $(CMSIS_DOWNLOADS_SVD)
 
-$(CMSIS_DEVICE_DIR)/STM32G031.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL_G0),$@)
-
-$(CMSIS_DEVICE_DIR)/STM32F407.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL_F4),$@)
-
-$(CMSIS_DEVICE_DIR)/STM32F401.svd: | $(CMSIS_DEVICE_DIR)
-	$(call download_file,$(SVD_URL_F401),$@)
+# Generate the rules. $$(call ...) rather than $(call ...), and $$@ rather
+# than $@: the body is expanded twice before the rule ever runs (once by
+# $(call), once by $(eval)), and download_file itself carries $$ escapes for
+# its own shell variables. Without the extra $ here the retry loop loses its
+# $n and every download dies on a syntax error. The two license downloads
+# below stay explicit - their targets are variables, not a path.
+define CMSIS_DOWNLOAD_RULE
+$(word 2,$(1))/$(word 1,$(1)): | $(word 2,$(1))
+	$$(call download_file,$(word 3,$(1)),$$@)
+endef
+$(foreach d,$(CMSIS_DOWNLOADS),$(eval $(call CMSIS_DOWNLOAD_RULE,$(subst |, ,$(d)))))
 
 # License download targets
 $(CMSIS_CORE_LICENSE): | $(CMSIS_CORE_DIR)
