@@ -36,56 +36,85 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-# OW_TARGET selects the MCU family: f1 (STM32F103xB, default), f0 (STM32F030x6)
-# or g0 (STM32G031xx)
+# OW_TARGET selects the MCU family: f1 (STM32F103xB, default), f0 (STM32F030x6),
+# g0 (STM32G031xx) or f4 (STM32F407xx / STM32F401 family).
 #   make                -> F1 firmware
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=g0   -> G0 firmware
+#   make OW_TARGET=f4   -> F4 firmware (default part f407xx)
+#
+# OW_CHIP selects the part *within* the family; its value is the name of a
+# chips/<part>.mk file, which carries the part identity (CMSIS device macro,
+# device header, startup file, linker script, debugger projects, SVD and the
+# default system clock). Everything shared by a whole family stays here.
+#   make OW_TARGET=f4 OW_CHIP=f401xc
+#
+# An unknown OW_TARGET or OW_CHIP is a hard error. It used to fall through to
+# the F1 branch and build the wrong part with a valid-looking binary, which is
+# worse than not building at all. Note OW_TARGET never had an explicit default:
+# the empty value silently meant "F1", which is exactly how a typo such as
+# OW_TARGET=f401-84 ended up compiling a Blue Pill.
+OW_TARGET ?= f1
+OW_KNOWN_TARGETS = f1 f0 g0 f4
+ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
+$(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
+endif
 ifeq ($(OW_TARGET),f0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s
-LDS = port/stm32f0/STM32F030X6_FLASH.ld
 MCU = -mcpu=cortex-m0 -mthumb
-DEF = -DSTM32F030x6 -DOW_PORT_TARGET_F0
-JFLASH = port/stm32f0/stm32f030f4.jflash
+PORT_DEF = OW_PORT_TARGET_F0
 else ifeq ($(OW_TARGET),g0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s
-LDS = port/stm32g0/STM32G031X6_FLASH.ld
 MCU = -mcpu=cortex-m0plus -mthumb
-DEF = -DSTM32G031xx -DOW_PORT_TARGET_G0
-JFLASH = port/stm32g0/stm32g031f6.jflash
+PORT_DEF = OW_PORT_TARGET_G0
 else ifeq ($(OW_TARGET),f4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
-ifeq ($(OW_CHIP),f401)
-# STM32F401CC (e.g. the WeAct F401 Black Pill): 256KB flash / 64KB SRAM,
-# 84MHz system-clock cap. Same port backend: TIM1/DMA2/CHSEL=6 map identically.
-# The device macro is the canonical CMSIS STM32F401xC spelling (stm32f4xx.h
-# maps it to stm32f401xc.h); STM32F401xE would need stm32f401xe.h.
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s
-LDS = port/stm32f4/STM32F401CC_FLASH.ld
-JFLASH = port/stm32f4/stm32f401cc.jflash
-DEF = -DSTM32F401xC -DOW_PORT_TARGET_F4
-# F401 default is 84MHz via 8MHz HSE+PLL (M=8,N=168,P=2); the generic F4
-# default of 168 is only valid on F405/F407-class parts. SYSCLK_MHZ still wins
-# when passed explicitly (e.g. 16 for a board without an HSE crystal).
-ifndef SYSCLK_MHZ
-DEF += -DOW_PORT_SYSCLK_MHZ=84
-endif
-else
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s
-LDS = port/stm32f4/STM32F407VGT6_FLASH.ld
-DEF = -DSTM32F407xx -DOW_PORT_TARGET_F4
-JFLASH = port/stm32f4/stm32f407vgt6.jflash
-endif
+PORT_DEF = OW_PORT_TARGET_F4
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
-ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s
-LDS = port/stm32f1/STM32F103XB_FLASH.ld
 MCU = -mcpu=cortex-m3 -mthumb
-DEF = -DSTM32F103xB -DOW_PORT_TARGET_F1
-JFLASH = port/stm32f1/stm32f103cb.jflash
+PORT_DEF = OW_PORT_TARGET_F1
+endif
+
+# Part selection: pull the part identity in from chips/<part>.mk. The default
+# part per family is the one its OW_TARGET name refers to.
+ifeq ($(OW_TARGET),f0)
+OW_CHIP ?= f030x6
+else ifeq ($(OW_TARGET),g0)
+OW_CHIP ?= g031xx
+else ifeq ($(OW_TARGET),f4)
+OW_CHIP ?= f407xx
+else
+OW_CHIP ?= f103xb
+endif
+CHIP_MK = chips/$(OW_CHIP).mk
+ifeq ($(wildcard $(CHIP_MK)),)
+$(error OW_CHIP='$(OW_CHIP)' has no $(CHIP_MK). Known parts: $(patsubst chips/%.mk,%,$(wildcard chips/*.mk)))
+endif
+include $(CHIP_MK)
+
+# A comment at the end of an assignment line leaves the whitespace in front of
+# '#' inside the value, which silently turns every path below into a name that
+# does not exist. Strip once here so a part file written that way still works.
+CHIP_DEV_DEF := $(strip $(CHIP_DEV_DEF))
+CHIP_DEVICE_HDR := $(strip $(CHIP_DEVICE_HDR))
+CHIP_STARTUP := $(strip $(CHIP_STARTUP))
+CHIP_LINKER := $(strip $(CHIP_LINKER))
+CHIP_JFLASH := $(strip $(CHIP_JFLASH))
+CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
+CHIP_SVD := $(strip $(CHIP_SVD))
+CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
+
+ASM = $(CHIP_STARTUP)
+LDS = $(CHIP_LINKER)
+JFLASH = $(CHIP_JFLASH)
+JDEBUG = $(CHIP_JDEBUG)
+DEF = $(CHIP_DEV_DEF) -D$(PORT_DEF)
+# The part's own clock default; SYSCLK_MHZ still wins when passed explicitly
+# (e.g. 16 for a board without an HSE crystal).
+ifndef SYSCLK_MHZ
+DEF += -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
 endif
 INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
@@ -257,55 +286,41 @@ SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/hea
 SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
 
 # Required external files (needed for build but not in repo)
+# The part-specific entries come from chips/<part>.mk, so download-deps fetches
+# exactly what the selected part needs instead of every part of the family.
 ifeq ($(OW_TARGET),f0)
-EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0.h \
-                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
-                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
-                $(CMSIS_CORE_DIR)/cmsis_version.h \
-                $(CMSIS_DEVICE_DIR)/stm32f0xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32f030x6.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f0xx.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f030x6.s \
-                $(CMSIS_DEVICE_DIR)/STM32F030.svd
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm0.h
+CMSIS_DEVICE_FAMILY_HDR = stm32f0xx.h
+CMSIS_SYSTEM_HDR = system_stm32f0xx.h
+CMSIS_SYSTEM_SRC = system_stm32f0xx.c
 else ifeq ($(OW_TARGET),g0)
-EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm0plus.h \
-                $(CMSIS_CORE_DIR)/mpu_armv7.h \
-                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
-                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
-                $(CMSIS_CORE_DIR)/cmsis_version.h \
-                $(CMSIS_DEVICE_DIR)/stm32g0xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32g031xx.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32g0xx.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32g031xx.s \
-                $(CMSIS_DEVICE_DIR)/STM32G031.svd
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm0plus.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv7.h
+CMSIS_DEVICE_FAMILY_HDR = stm32g0xx.h
+CMSIS_SYSTEM_HDR = system_stm32g0xx.h
+CMSIS_SYSTEM_SRC = system_stm32g0xx.c
 else ifeq ($(OW_TARGET),f4)
-EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm4.h \
-                $(CMSIS_CORE_DIR)/cmsis_compiler.h \
-                $(CMSIS_CORE_DIR)/cmsis_gcc.h \
-                $(CMSIS_CORE_DIR)/cmsis_version.h \
-                $(CMSIS_DEVICE_DIR)/stm32f4xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32f407xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32f401xc.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s \
-                $(CMSIS_DEVICE_DIR)/STM32F407.svd \
-                $(CMSIS_DEVICE_DIR)/STM32F401.svd
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h
+CMSIS_DEVICE_FAMILY_HDR = stm32f4xx.h
+CMSIS_SYSTEM_HDR = system_stm32f4xx.h
+CMSIS_SYSTEM_SRC = system_stm32f4xx.c
 else
-EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm3.h
+CMSIS_DEVICE_FAMILY_HDR = stm32f1xx.h
+CMSIS_SYSTEM_HDR = system_stm32f1xx.h
+CMSIS_SYSTEM_SRC = system_stm32f1xx.c
+endif
+EXTERNAL_DEPS = $(CMSIS_CORE_HEADERS) \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
                 $(CMSIS_CORE_DIR)/cmsis_gcc.h \
                 $(CMSIS_CORE_DIR)/cmsis_version.h \
-                $(CMSIS_DEVICE_DIR)/stm32f1xx.h \
-                $(CMSIS_DEVICE_DIR)/stm32f103xb.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f1xx.h \
-                $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c \
-                $(CMSIS_DEVICE_DIR)/startup_stm32f103xb.s \
-                $(CMSIS_DEVICE_DIR)/STM32F103xx.svd
-endif
+                $(CMSIS_DEVICE_DIR)/$(CMSIS_DEVICE_FAMILY_HDR) \
+                $(CHIP_DEVICE_HDR) \
+                $(CMSIS_DEVICE_DIR)/$(CMSIS_SYSTEM_HDR) \
+                $(CMSIS_DEVICE_DIR)/$(CMSIS_SYSTEM_SRC) \
+                $(CHIP_STARTUP) \
+                $(CHIP_SVD)
+
 
 # License files
 CMSIS_CORE_LICENSE_URL = https://raw.githubusercontent.com/ARM-software/CMSIS_5/master/LICENSE.txt
@@ -428,6 +443,9 @@ $(CMSIS_DEVICE_DIR)/stm32f407xx.h: | $(CMSIS_DEVICE_DIR)
 $(CMSIS_DEVICE_DIR)/stm32f401xc.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/stm32f401xc.h,$@)
 
+$(CMSIS_DEVICE_DIR)/stm32f401xe.h: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Include/stm32f401xe.h,$@)
+
 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.h: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Include/system_stm32f4xx.h,$@)
 
@@ -439,6 +457,9 @@ $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s: | $(CMSIS_DEVICE_DIR)
 
 $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s,$@)
+
+$(CMSIS_DEVICE_DIR)/startup_stm32f401xe.s: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s,$@)
 
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
 $(CMSIS_DEVICE_DIR)/STM32F103xx.svd: | $(CMSIS_DEVICE_DIR)
@@ -478,6 +499,78 @@ download-licenses: $(LICENSE_FILES)
 # Clean external dependencies
 clean-deps:
 	rm -rf $(CMSIS_CORE_DIR) $(CMSIS_DEVICE_DIR)
+
+# =============================================================================
+# PART MATRIX CHECKS (chips/*.mk)
+# =============================================================================
+# Each part file names three files that live in this repository (linker script,
+# J-Flash project, Ozone project) plus a CMSIS device macro and a clock. A typo
+# in any of them otherwise surfaces only at link time, or - worse - as a valid
+# binary for the wrong part. test-chips verifies the repo-side files exist and
+# the two scalars are well formed, for every part; test-chip-rejects verifies
+# that an unknown family or part is rejected instead of silently falling back.
+
+CHIP_PARTS = $(patsubst chips/%.mk,%,$(wildcard chips/*.mk))
+
+# Include the part under inspection so check-chip-one can read its variables.
+# No-op in a normal build, where CHECK_CHIP is empty. Written through a define
+# because ifeq/endif are line-oriented and $(eval) needs real newlines.
+define CHIP_CHECK_INCLUDE
+ifeq ($$(CHECK_CHIP),$(1))
+include chips/$(1).mk
+endif
+endef
+$(foreach p,$(CHIP_PARTS),$(eval $(call CHIP_CHECK_INCLUDE,$(p))))
+
+.PHONY: test-chips
+test-chips: test-chip-files test-chip-rejects
+	@echo "test-chips: OK ($(words $(CHIP_PARTS)) parts: $(CHIP_PARTS))"
+
+.PHONY: test-chip-files
+test-chip-files:
+	@fail=0; \
+	for p in $(CHIP_PARTS); do \
+	  $(MAKE) --no-print-directory CHECK_CHIP=$$p check-chip-one || fail=1; \
+	done; \
+	if [ $$fail -ne 0 ]; then echo "test-chip-files: FAILED"; exit 1; fi
+
+# Runs with exactly one part included; the recipe reports on that part alone.
+.PHONY: check-chip-one
+check-chip-one:
+	@missing=""; \
+	for f in "$(CHIP_LINKER)" "$(CHIP_JFLASH)" "$(CHIP_JDEBUG)"; do \
+	  if [ ! -f "$$f" ]; then missing="$$missing $$f"; fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+	  echo "  $(CHECK_CHIP): MISSING$$missing"; exit 1; \
+	fi; \
+	case "$(CHIP_DEV_DEF)" in \
+	  -D*) ;; \
+	  *) echo "  $(CHECK_CHIP): bad CHIP_DEV_DEF '$(CHIP_DEV_DEF)'"; exit 1;; \
+	esac; \
+	case "$(CHIP_SYSCLK_MHZ)" in \
+	  ''|*[!0-9]*) echo "  $(CHECK_CHIP): bad CHIP_SYSCLK_MHZ '$(CHIP_SYSCLK_MHZ)'"; exit 1;; \
+	esac; \
+	echo "  $(CHECK_CHIP): ok"
+
+# An unknown token must fail with a message about the token, not about some
+# unrelated prerequisite - otherwise these tests would pass for the wrong
+# reason (e.g. an empty APP tripping the APP validation first).
+.PHONY: test-chip-rejects
+test-chip-rejects:
+	@fail=0; \
+	check_rejects() { \
+	  msg=$$($(MAKE) --no-print-directory APP=1_basic $$1 2>&1 >/dev/null); \
+	  case "$$msg" in \
+	    *"$$2"*) echo "  rejected $$1";; \
+	    *) echo "  FAIL: $$1 was not rejected with '$$2'"; fail=1;; \
+	  esac; \
+	}; \
+	check_rejects OW_TARGET=f401-84 "OW_TARGET='f401-84' is not a known family"; \
+	check_rejects OW_TARGET=f9 "is not a known family"; \
+	check_rejects "OW_TARGET=f4 OW_CHIP=f401" "OW_CHIP='f401' has no chips/f401.mk"; \
+	check_rejects "OW_TARGET=f4 OW_CHIP=f999" "OW_CHIP='f999' has no chips/f999.mk"; \
+	if [ $$fail -ne 0 ]; then echo "test-chip-rejects: FAILED"; exit 1; fi
 
 # =============================================================================
 # BUILD TARGETS
@@ -671,8 +764,8 @@ $(TEST_CLOCK_F401_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -DSTM32F4 -DSTM32F401xC -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
-.PHONY: test-clocks test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
-test-clocks: test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
+.PHONY: test-clocks test-chips test-chip-files test-chip-rejects check-chip-one test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
+test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
 test-clocks-f0:

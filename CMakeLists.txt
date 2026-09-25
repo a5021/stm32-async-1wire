@@ -6,6 +6,11 @@ project(stm32_async_1wire VERSION 1.8.1 LANGUAGES C ASM)
 # ---------------------------------------------------------------------------
 set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0, f4")
 set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0 f4)
+# Part within the family, named after the chips/<part>.mk file the Makefile
+# build uses. Both build systems read the same part file, so they cannot drift
+# on the device macro, startup file, linker script or clock default.
+set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f103xb, f030x6, g031xx, f407xx, f401xc, f401xe); empty = the family's default")
+set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 
@@ -28,43 +33,112 @@ set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
 # Device-specific repo and defines
 if(OW_TARGET STREQUAL "f1")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f1.git")
-    set(CMSIS_DEVICE_DEF  "STM32F103xB")
     set(OW_PORT_DEF       "OW_PORT_TARGET_F1")
     set(MCU_FLAGS          -mcpu=cortex-m3 -mthumb)
-    set(STARTUP_ASM        "startup_stm32f103xb.s")
     set(SYSTEM_SRC         "system_stm32f1xx.c")
-    set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1/STM32F103XB_FLASH.ld")
 elseif(OW_TARGET STREQUAL "f0")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f0.git")
-    set(CMSIS_DEVICE_DEF  "STM32F030x6")
     set(OW_PORT_DEF       "OW_PORT_TARGET_F0")
     set(MCU_FLAGS          -mcpu=cortex-m0 -mthumb)
-    set(STARTUP_ASM        "startup_stm32f030x6.s")
     set(SYSTEM_SRC         "system_stm32f0xx.c")
-    set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0/STM32F030X6_FLASH.ld")
 elseif(OW_TARGET STREQUAL "g0")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g0.git")
-    set(CMSIS_DEVICE_DEF  "STM32G031xx")
     set(OW_PORT_DEF       "OW_PORT_TARGET_G0")
     set(MCU_FLAGS          -mcpu=cortex-m0plus -mthumb)
-    set(STARTUP_ASM        "startup_stm32g031xx.s")
     set(SYSTEM_SRC         "system_stm32g0xx.c")
-    set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0/STM32G031X6_FLASH.ld")
 elseif(OW_TARGET STREQUAL "f4")
-    # STM32F407VGT6 (F4DISCOVERY / MB997C). Same backend serves the F401CC
-    # family; only the chip define, startup file and linker script differ, and
-    # the Makefile build selects those with OW_CHIP=f401. The MCU flags mirror
-    # the Makefile exactly (no explicit FPU/ABI flags) so both build systems
-    # compile the port identically.
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
-    set(CMSIS_DEVICE_DEF  "STM32F407xx")
     set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
     set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(STARTUP_ASM        "startup_stm32f407xx.s")
     set(SYSTEM_SRC         "system_stm32f4xx.c")
-    set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4/STM32F407VGT6_FLASH.ld")
 else()
     message(FATAL_ERROR "OW_TARGET must be f1, f0, g0 or f4 (got: ${OW_TARGET})")
+endif()
+
+# ---------------------------------------------------------------------------
+# Part selection: read chips/<part>.mk, the same file the Makefile build uses
+# ---------------------------------------------------------------------------
+# The part carries what the *family* does not: the CMSIS device macro, the
+# startup file, the linker script and the default system clock. Reading one
+# file for both build systems is what keeps them from drifting apart — an
+# unknown part is a hard error here exactly as it is in the Makefile.
+set(OW_CHIP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/chips")
+file(GLOB _ow_chip_files "${OW_CHIP_DIR}/*.mk")
+set(OW_KNOWN_CHIPS "")
+foreach(_f IN LISTS _ow_chip_files)
+    get_filename_component(_n "${_f}" NAME_WE)
+    list(APPEND OW_KNOWN_CHIPS "${_n}")
+endforeach()
+
+if(OW_TARGET STREQUAL "f0")
+    set(_ow_default_chip f030x6)
+elseif(OW_TARGET STREQUAL "g0")
+    set(_ow_default_chip g031xx)
+elseif(OW_TARGET STREQUAL "f4")
+    set(_ow_default_chip f407xx)
+else()
+    set(_ow_default_chip f103xb)
+endif()
+if(NOT OW_CHIP)
+    set(OW_CHIP "${_ow_default_chip}")
+endif()
+if(NOT OW_CHIP IN_LIST OW_KNOWN_CHIPS)
+    message(FATAL_ERROR
+        "OW_CHIP='${OW_CHIP}' has no chips/${OW_CHIP}.mk. "
+        "Known parts: ${OW_KNOWN_CHIPS}")
+endif()
+
+# Parse the flat "NAME = value" assignments. CMake cannot include() a makefile,
+# which is why the part files are kept to plain assignments with no includes,
+# conditionals or multi-line values.
+set(CHIP_DEV_DEF "")
+set(CHIP_DEVICE_HDR "")
+set(CHIP_STARTUP "")
+set(CHIP_LINKER "")
+set(CHIP_JFLASH "")
+set(CHIP_JDEBUG "")
+set(CHIP_SVD "")
+set(CHIP_SYSCLK_MHZ "")
+file(STRINGS "${OW_CHIP_DIR}/${OW_CHIP}.mk" _ow_chip_lines)
+foreach(_line IN LISTS _ow_chip_lines)
+    if(_line MATCHES "^[ \t]*(CHIP_[A-Z_]+)[ \t]*=[ \t]*(.*)$")
+        set(_k "${CMAKE_MATCH_1}")
+        string(REGEX REPLACE "#.*$" "" _v "${CMAKE_MATCH_2}")
+        string(STRIP "${_v}" _v)
+        set(${_k} "${_v}")
+    endif()
+endforeach()
+foreach(_k CHIP_DEV_DEF CHIP_DEVICE_HDR CHIP_STARTUP CHIP_LINKER
+           CHIP_JFLASH CHIP_JDEBUG CHIP_SVD CHIP_SYSCLK_MHZ)
+    if(NOT ${_k})
+        message(FATAL_ERROR
+            "chips/${OW_CHIP}.mk does not define ${_k}; the part file and this "
+            "CMakeLists.txt have drifted apart")
+    endif()
+endforeach()
+if(NOT EXISTS "${OW_CHIP_DIR}/${OW_CHIP}.mk")
+    message(FATAL_ERROR "chips/${OW_CHIP}.mk does not exist")
+endif()
+foreach(_p "${CHIP_LINKER}" "${CHIP_JFLASH}" "${CHIP_JDEBUG}")
+    if(NOT EXISTS "${_p}")
+        message(FATAL_ERROR
+            "chips/${OW_CHIP}.mk points at a file that does not exist: ${_p}")
+    endif()
+endforeach()
+
+# Fold the part into the family-level values the rest of this file consumes.
+string(REGEX REPLACE "^-D" "" _ow_dev "${CHIP_DEV_DEF}")
+set(CMSIS_DEVICE_DEF "${_ow_dev}")
+get_filename_component(STARTUP_ASM "${CHIP_STARTUP}" NAME)
+# The part files spell repo paths relative to the repository root, which is what
+# the Makefile build wants (it runs from there). The linker resolves -T against
+# its own working directory - the build tree - so hand it an absolute path.
+get_filename_component(LINKER_SCRIPT "${CHIP_LINKER}" ABSOLUTE
+                       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+if(OW_SYSCLK_MHZ)
+    set(OW_PORT_SYSCLK_MHZ "${OW_SYSCLK_MHZ}")
+else()
+    set(OW_PORT_SYSCLK_MHZ "${CHIP_SYSCLK_MHZ}")
 endif()
 
 FetchContent_Declare(cmsis_device
@@ -118,6 +192,10 @@ function(ow_add_core_library tgt)
     target_compile_definitions(${tgt} PUBLIC
         ${CMSIS_DEVICE_DEF}
         ${OW_PORT_DEF}
+        # The part's default clock, so this build system resolves the same
+        # OW_PORT_SYSCLK_MHZ the Makefile build does instead of relying on the
+        # fallback in onewire.h.
+        OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
     )
     target_compile_options(${tgt} PUBLIC
         ${MCU_FLAGS}
@@ -197,8 +275,10 @@ install(FILES
 # Convenience: print selected target
 # ---------------------------------------------------------------------------
 message(STATUS "stm32-async-1wire: OW_TARGET=${OW_TARGET}  "
+               "OW_CHIP=${OW_CHIP}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
-               "OW_PORT_DEF=${OW_PORT_DEF}")
+               "OW_PORT_DEF=${OW_PORT_DEF}  "
+               "OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}")
 
 # ---------------------------------------------------------------------------
 # Examples (opt-in with -DOW_BUILD_EXAMPLES=ON)
@@ -223,6 +303,7 @@ if(OW_BUILD_EXAMPLES)
     target_compile_definitions(stm32_async_1wire_platform PUBLIC
         ${CMSIS_DEVICE_DEF}
         ${OW_PORT_DEF}
+        OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
     )
     target_compile_options(stm32_async_1wire_platform PUBLIC
         ${MCU_FLAGS}
