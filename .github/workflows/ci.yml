@@ -283,6 +283,20 @@ jobs:
       - name: Run static analysis (F4)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_PORT_TARGET_F4 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
 
+  part-matrix:
+    # Every chips/<part>.mk must name repository files that exist and well-formed
+    # scalars, and an unknown family or part must be rejected instead of falling
+    # through to the F1 default. Deliberately its own job and not a step in
+    # build: it needs neither the ARM toolchain nor the CMSIS download (it only
+    # checks repo-side paths and expects make to fail at parse time), so it stays
+    # fast, runs even when the build jobs are cached or skipped, and its name
+    # says which invariant broke.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check the part matrix
+        run: make test-chips
+
   build:
     runs-on: ubuntu-latest
     steps:
