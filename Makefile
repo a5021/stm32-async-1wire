@@ -503,74 +503,16 @@ clean-deps:
 # =============================================================================
 # PART MATRIX CHECKS (chips/*.mk)
 # =============================================================================
-# Each part file names three files that live in this repository (linker script,
-# J-Flash project, Ozone project) plus a CMSIS device macro and a clock. A typo
-# in any of them otherwise surfaces only at link time, or - worse - as a valid
-# binary for the wrong part. test-chips verifies the repo-side files exist and
-# the two scalars are well formed, for every part; test-chip-rejects verifies
-# that an unknown family or part is rejected instead of silently falling back.
-
-CHIP_PARTS = $(patsubst chips/%.mk,%,$(wildcard chips/*.mk))
-
-# Include the part under inspection so check-chip-one can read its variables.
-# No-op in a normal build, where CHECK_CHIP is empty. Written through a define
-# because ifeq/endif are line-oriented and $(eval) needs real newlines.
-define CHIP_CHECK_INCLUDE
-ifeq ($$(CHECK_CHIP),$(1))
-include chips/$(1).mk
-endif
-endef
-$(foreach p,$(CHIP_PARTS),$(eval $(call CHIP_CHECK_INCLUDE,$(p))))
+# Checks that every chips/<part>.mk names repository files that exist, that its
+# scalars are well formed, and that an unknown family or part is rejected
+# instead of falling through to the F1 default. The work lives in a script:
+# reading three values out of a flat file and testing them against the
+# filesystem is what a shell does well, and doing it here needed a parse-time
+# include plus an eval'd conditional plus a sub-make per part.
 
 .PHONY: test-chips
-test-chips: test-chip-files test-chip-rejects
-	@echo "test-chips: OK ($(words $(CHIP_PARTS)) parts: $(CHIP_PARTS))"
-
-.PHONY: test-chip-files
-test-chip-files:
-	@fail=0; \
-	for p in $(CHIP_PARTS); do \
-	  $(MAKE) --no-print-directory CHECK_CHIP=$$p check-chip-one || fail=1; \
-	done; \
-	if [ $$fail -ne 0 ]; then echo "test-chip-files: FAILED"; exit 1; fi
-
-# Runs with exactly one part included; the recipe reports on that part alone.
-.PHONY: check-chip-one
-check-chip-one:
-	@missing=""; \
-	for f in "$(CHIP_LINKER)" "$(CHIP_JFLASH)" "$(CHIP_JDEBUG)"; do \
-	  if [ ! -f "$$f" ]; then missing="$$missing $$f"; fi; \
-	done; \
-	if [ -n "$$missing" ]; then \
-	  echo "  $(CHECK_CHIP): MISSING$$missing"; exit 1; \
-	fi; \
-	case "$(CHIP_DEV_DEF)" in \
-	  -D*) ;; \
-	  *) echo "  $(CHECK_CHIP): bad CHIP_DEV_DEF '$(CHIP_DEV_DEF)'"; exit 1;; \
-	esac; \
-	case "$(CHIP_SYSCLK_MHZ)" in \
-	  ''|*[!0-9]*) echo "  $(CHECK_CHIP): bad CHIP_SYSCLK_MHZ '$(CHIP_SYSCLK_MHZ)'"; exit 1;; \
-	esac; \
-	echo "  $(CHECK_CHIP): ok"
-
-# An unknown token must fail with a message about the token, not about some
-# unrelated prerequisite - otherwise these tests would pass for the wrong
-# reason (e.g. an empty APP tripping the APP validation first).
-.PHONY: test-chip-rejects
-test-chip-rejects:
-	@fail=0; \
-	check_rejects() { \
-	  msg=$$($(MAKE) --no-print-directory APP=1_basic $$1 2>&1 >/dev/null); \
-	  case "$$msg" in \
-	    *"$$2"*) echo "  rejected $$1";; \
-	    *) echo "  FAIL: $$1 was not rejected with '$$2'"; fail=1;; \
-	  esac; \
-	}; \
-	check_rejects OW_TARGET=f401-84 "OW_TARGET='f401-84' is not a known family"; \
-	check_rejects OW_TARGET=f9 "is not a known family"; \
-	check_rejects "OW_TARGET=f4 OW_CHIP=f401" "OW_CHIP='f401' has no chips/f401.mk"; \
-	check_rejects "OW_TARGET=f4 OW_CHIP=f999" "OW_CHIP='f999' has no chips/f999.mk"; \
-	if [ $$fail -ne 0 ]; then echo "test-chip-rejects: FAILED"; exit 1; fi
+test-chips:
+	@sh tests/check_chips.sh
 
 # =============================================================================
 # BUILD TARGETS
@@ -771,7 +713,7 @@ $(TEST_CLOCK_F401XC_OBJ): tests/test/test_sysclk_fallback.c Makefile chips/f401x
 clock-ref-check:
 	$(MAKE) OW_TARGET=f4 OW_CHIP=f401xc $(TEST_CLOCK_F401XC_OBJ)
 
-.PHONY: test-clocks test-chips test-chip-files test-chip-rejects check-chip-one test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
+.PHONY: test-clocks test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
 test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
