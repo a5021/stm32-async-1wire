@@ -58,8 +58,8 @@ static uint8_t cmd_running = 0; // 1 while a command transaction is in flight
 /** Time between two measurement cycles in STEP_MEASURE (ms) */
 #define MEASURE_PERIOD_MS 5000u
 
-/** Deadline (app_millis()) for the next measurement cycle */
-static uint32_t next_measure_ms;
+/** app_millis() value at which the pause after the last result expires */
+static uint32_t pause_end_ms;
 
 static uint8_t scratchpad[SCRATCHPAD_BYTES]; // Scratchpad result buffer
 static uint8_t rom[DS18B20_ROM_BYTES]; // Read ROM result buffer
@@ -262,7 +262,7 @@ void ds18b20_complete(int16_t temp) {
         uart_write_int(frac); // Display fractional part
         uart_write_str(" C\r\n"); // Units
     }
-    next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
+    pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
 }
 
 /**
@@ -274,7 +274,6 @@ void ds18b20_complete(int16_t temp) {
  */
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
-    app_tick_init(1000u); // 1 ms time base for the measurement cadence
 
     uart_write_str("DS18B20 5_commands starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
@@ -304,8 +303,8 @@ int main(void) {
             }
         } else if (step == STEP_MEASURE) {
             ds18b20_poll(); // Steady state: measure the selected sensor
-            if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
-                next_measure_ms += MEASURE_PERIOD_MS;
+            if ((int32_t)(app_millis() - pause_end_ms) >= 0) {
+                pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
                 ds18b20_start_measure();
             }
         } else if (!cmd_running) {
@@ -319,6 +318,7 @@ int main(void) {
                 uart_write_str("Command demo done. Measuring selected device:\r\n");
                 // The command sequence left the bus idle: request the first
                 // measurement cycle now.
+                pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
                 ds18b20_start_measure();
             }
         }

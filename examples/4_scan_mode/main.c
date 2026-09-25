@@ -37,8 +37,8 @@ static uint8_t cfg_running = 0; // 1 while the broadcast resolution write runs
 /** Time between two simultaneous-conversion rounds (ms) */
 #define MEASURE_PERIOD_MS 5000u
 
-/** Deadline (app_millis()) for the next round */
-static uint32_t next_measure_ms;
+/** app_millis() value at which the pause after the last result expires */
+static uint32_t pause_end_ms;
 
 // Conversion resolution programmed to every sensor (broadcast) before the
 // scan: scan mode assumes a uniform resolution, so the single broadcast
@@ -109,7 +109,7 @@ void ds18b20_complete(int16_t temp) {
             uart_tx_enqueue_byte('-');
         }
         uart_write_str("\r\n");
-        next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
+        pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
     }
 }
 
@@ -122,7 +122,6 @@ void ds18b20_complete(int16_t temp) {
  */
 int main(void) {
     app_init(); // System clock, UART and LED GPIO - single setup call
-    app_tick_init(1000u); // 1 ms time base for the round cadence
 
     uart_write_str("DS18B20 4_scan_mode starting...\r\n"); // Enqueue startup message
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
@@ -153,12 +152,13 @@ int main(void) {
                 cfg_running = 0;
                 // The config write leaves the driver parked: ask for the
                 // first simultaneous-conversion round now.
+                pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
                 ds18b20_start_measure();
             }
         } else {
             ds18b20_poll(); // Advance the scan/measurement state machine
-            if ((int32_t)(app_millis() - next_measure_ms) >= 0) {
-                next_measure_ms += MEASURE_PERIOD_MS;
+            if ((int32_t)(app_millis() - pause_end_ms) >= 0) {
+                pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
                 ds18b20_start_measure();
             }
         }

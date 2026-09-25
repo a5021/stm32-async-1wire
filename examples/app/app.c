@@ -452,81 +452,56 @@ __STATIC_FORCEINLINE void hardware_init(void) {
 #endif
 }
 
+void app_time_init(void); /* defined below, with the polled millisecond clock */
+
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  */
 void app_init(void) {
     configure_system_clock();
     hardware_init();
+    app_time_init();
 }
 
-/* ---- SysTick-based millisecond clock (application time base) ----
+/* ---- Polled millisecond clock (no interrupt, no waiting) ----
  *
- * The driver measures only when the application asks it to
- * (ds18b20_start_measure()), so the cadence between measurements - and any
- * idle interval - belongs to the application. This tick is that time base:
- * the examples set a deadline in ds18b20_complete() and call
- * ds18b20_start_measure() once app_millis() reaches it, which keeps the whole
- * demo non-blocking (no delay loop, no busy-wait). SysTick runs from HCLK, so
- * the reload is derived from the configured system clock. */
+ * The driver measures only when the application asks it to, so the application
+ * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with
+ * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.
+ * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a
+ * millisecond counter, so app_millis() costs a single register read and never
+ * waits. A missed tick can only happen if the loop does not run for a whole
+ * millisecond, which is the one rule the examples follow. */
 
-static volatile uint32_t app_tick_ms;
-static uint32_t app_tick_step_ms = 1u;
-
-/**
- * @brief SysTick interrupt: advance the millisecond counter
- * @note Also the wake-up source for app_sleep_until(); the handler is
- *       deliberately empty otherwise.
- */
-void SysTick_Handler(void) { app_tick_ms += app_tick_step_ms; }
+static uint32_t app_ms;
 
 /**
- * @brief Start the millisecond time base
- * @param[in] hz Requested tick frequency in Hz (e.g. 1000 for 1 ms, 10 for 100 ms)
- * @note Call once after app_init(). A low-power demo should use a low rate
- *       (10-100 Hz) so the idle wait between measurements costs few wake-ups.
- *       The counter advances by the *real* tick period, so app_millis() stays
- *       milliseconds at any rate; rates above 1000 Hz are clamped to 1 ms per
- *       tick. SysTick reloads are 24-bit, so on a fast core a very low
- *       requested rate is clamped to the slowest tick the core can produce
- *       (16.8 ms at 168 MHz) - the millisecond counter follows whatever period
- *       is actually programmed.
+ * @brief Start the polled millisecond clock
+ * @note Called from app_init() after the system clock is configured, because
+ *       the reload is derived from that clock (1 kHz from HCLK).
  */
-void app_tick_init(uint32_t hz) {
-    uint32_t ticks = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000000u) / hz;
-    if (ticks > 0x00FFFFFFu) {
-        ticks = 0x00FFFFFFu;
-    }
-    /* Step the counter by the period the reload actually programs, not by the
-     * requested rate: a 24-bit clamp makes the tick slower than asked, and a
-     * counter that counts ticks instead of milliseconds would stretch every
-     * deadline by the same factor. period = ticks / (SYSCLK in kHz). */
-    uint32_t clock_khz = (uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u;
-    app_tick_step_ms = (ticks + clock_khz / 2u) / clock_khz;
-    if (app_tick_step_ms == 0u) {
-        app_tick_step_ms = 1u; /* > 1 kHz: count every tick as 1 ms */
-    }
-    app_tick_ms = 0;
-    SysTick_Config(ticks - 1u);
+void app_time_init(void) {
+    app_ms = 0;
+    SysTick->LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;
+    SysTick->VAL = 0;
+    /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and
+     * sets COUNTFLAG, but never enters an exception handler. */
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
 }
 
 /**
- * @brief Milliseconds since app_tick_init()
- * @return Free-running millisecond counter (wraps after ~49 days)
+ * @brief Milliseconds since app_time_init()
+ * @return Counter in ms (wraps after ~49 days)
+ * @note Non-blocking: reads the SysTick status flag and folds a wrap into the
+ *       counter. Must be called at least once per millisecond, which any
+ *       polling main loop does.
  */
-uint32_t app_millis(void) { return app_tick_ms; }
-
-/**
- * @brief Sleep in WFE until the given millisecond deadline
- * @param[in] deadline_ms Absolute app_millis() deadline
- * @note Blocking, but idle: the core waits for the SysTick event instead of
- *       spinning, so a long wait between measurements costs almost no
- *       current. Safe to call with a deadline that has already passed.
- */
-void app_sleep_until(uint32_t deadline_ms) {
-    while ((int32_t)(deadline_ms - app_tick_ms) > 0) {
-        __WFE();
+uint32_t app_millis(void) {
+    if (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) {
+        (void)SysTick->CTRL; /* reading CTRL clears COUNTFLAG */
+        app_ms++;
     }
+    return app_ms;
 }
 
 /**

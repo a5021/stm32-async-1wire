@@ -4,12 +4,13 @@
  *
  * Demonstrates the basic measurement flow of the non-blocking driver.
  * The shared platform layer (app.h/app.c) hides the UART, the clock and the
- * application time base.
+ * polled millisecond clock.
  *
- * The driver measures only when asked: it runs one conversion + read cycle per
- * ds18b20_start_measure() call and then parks. The pace between cycles is this
- * application's decision, so the demo measures every MEASURE_PERIOD_MS using
- * its own millisecond clock - no driver-side pause timer, no delay loop.
+ * The driver measures only when asked: one ds18b20_start_measure() call runs a
+ * conversion + read cycle, the result arrives in ds18b20_complete(), and the
+ * driver parks. The pause is counted from that result in the application, so
+ * this loop does nothing but poll the driver, run its own work and ask for the
+ * next cycle when the pause has passed - no delay, no interrupt.
  */
 
 #include "app.h"
@@ -17,13 +18,14 @@
 /** Time between two measurement cycles (ms) */
 #define MEASURE_PERIOD_MS 5000u
 
-/** Deadline (app_millis()) for the next measurement cycle */
-static uint32_t next_measure_ms;
+/** app_millis() value at which the pause after the last result expires */
+static uint32_t pause_end_ms;
 
 /**
  * @brief Weak implementation for DS18B20 measurement completion callback - handles result display
  * @param[in] temp Temperature value in tenths of degrees Celsius, or error code
- * @note Runs at driver IDLE: the deadline set here is what paces the next cycle.
+ * @note The conversion has finished by now, so this is where the pause to the
+ *       next cycle starts.
  */
 void ds18b20_complete(int16_t temp) {
     if (temp == DS18B20_TEMP_ERROR_NO_SENSOR) { // No sensor detected error - enqueue error message
@@ -47,7 +49,7 @@ void ds18b20_complete(int16_t temp) {
         uart_write_str(" C"); // Units
         uart_write_str("\r\n"); // And newline
     }
-    next_measure_ms = app_millis() + MEASURE_PERIOD_MS;
+    pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
 }
 
 /**
@@ -58,7 +60,6 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
 
     app_init(); // System clock, UART and LED GPIO - single setup call
-    app_tick_init(1000u); // 1 ms time base for the measurement cadence
 
     uart_write_str("DS18B20 1_basic starting...\r\n"); // Enqueue startup message
 
@@ -66,13 +67,14 @@ int main(void) {
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
+    pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
     ds18b20_start_measure(); // Request the first measurement cycle
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
 
         ds18b20_poll(); // Poll DS18B20 state machine - advances 1-Wire communication state
-        if ((int32_t)(app_millis() - next_measure_ms) >= 0) { // Deadline reached: ask for the next cycle
-            next_measure_ms += MEASURE_PERIOD_MS;
+        if ((int32_t)(app_millis() - pause_end_ms) >= 0) { // Pause expired - request the next cycle
+            pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
             ds18b20_start_measure(); // No-op unless the driver is idle
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer

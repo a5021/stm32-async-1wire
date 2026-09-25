@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Interrupt-free polled time base for the examples (`examples/app`).**
+  `app_time_init()` (called from `app_init()`) programs SysTick at 1 kHz
+  *without* `TICKINT`, and `app_millis()` reads the `COUNTFLAG` bit and folds
+  it into a counter. There is no `SysTick_Handler`, no NVIC bit and no
+  `NVIC_EnableIRQ()` call anywhere in the firmware: timekeeping costs one
+  register read and never waits, and the only rule is that the main loop runs
+  at least once per millisecond — which the *pauses between* measurement
+  cycles satisfy by construction, since each example counts its pause from
+  the result delivered in `ds18b20_complete()`.
+
 - **`ds18b20_start_measure()`: explicit, one-shot measurement cycles.** The
   driver now measures only when asked: one call requests exactly one
   `Convert T` + scratchpad-read cycle, the result arrives through
@@ -19,11 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   idempotent and ignored while a measurement cycle, a device search, a
   resolution change or a command transaction owns the bus. The 1-Wire layer
   exposes the underlying `onewire_kick()`.
-
-- **Application-side time base for the examples (`examples/app`).**
-  `app_tick_init(hz)`, `app_millis()` and `app_sleep_until(deadline_ms)`
-  (SysTick + WFE) let the demos pace their own measurement cycles without a
-  driver-side pause timer and without a blocking delay loop.
 
 - **STM32F4 backend (`port/stm32f4/ow_port_f4.h`): chip-generic across the
   STM32F407VGT6 (STM32F4DISCOVERY, MB997C) and the STM32F401CC family.** The
@@ -48,6 +53,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
 
 ### Changed
+
+- **The WFE sleep moved from the application into `ds18b20_poll()`.** With
+  `-DOW_PORT_LOW_POWER=1` the driver now blocks in `__WFE()` itself while a
+  long stage (conversion, scratchpad read, EEPROM hold-off) is in flight, so
+  the sleep is invisible to application code: `7_low_power` no longer has a
+  `low_power_poll()` helper, a `measure_in_flight` flag or any app-side
+  blocking sleep, and its main loop is now identical to `2_device_search`.
+  `ow_port_long_wait_pending()` and `ow_port_sleep_until_done()` remain
+  available for callers that want to drive the sleep themselves. UIE is still
+  used purely as a `WFE` wake-up event through `SEVONPEND` — no ISR, no NVIC
+  interrupt.
 
 - **No hidden measurement cycles: the driver starts nothing on its own.**
   Previously the driver re-armed itself through a timer update event after

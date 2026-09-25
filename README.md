@@ -202,7 +202,7 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the main loop enters `__WFE()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, and also while it waits for its own measurement interval (the app-side SysTick tick wakes the core). Without the define, the example uses the standard polling loop. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -400,25 +400,36 @@ make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=
 The one-wire driver then enables the TIM1 update **interrupt source** (UIE)
 and the `SEVONPEND` system-control bit. This is not a real interrupt: UIE is
 enabled **only** to generate a pending event that wakes `WFE()` — no ISR is
-ever installed and no `NVIC_EnableIRQ` call is made. The application main loop
-can block in `__WFE()` while a *long* 1-Wire stage is running and is woken by
-the timer's update event; the driver itself stays fully non-blocking. Stages
-treated as "long" (strictly more than 1 ms) are the temperature conversion (up to 750 ms), the scratchpad read
-(~5 ms) and an EEPROM hold-off (10 ms); the interval between measurement cycles
-is the application's own (this example sleeps in `__WFE()` until its next deadline); short
-stages (reset, commands, search reads) are still handled by standard polling.
+ever installed and no `NVIC_EnableIRQ` call is made. With the define set, the
+driver sleeps **itself** in `__WFE()` while a *long* 1-Wire stage is running and
+is woken by the timer's update event. The sleep lives entirely inside
+`ds18b20_poll()`, so the application code is byte-for-byte the same as in every
+other example: it calls `ds18b20_poll()`, does its other work, and gets control
+back when the stage is over. Stages treated as "long" (strictly more than 1 ms)
+are the temperature conversion (up to 750 ms), the scratchpad read (~5 ms) and
+an EEPROM hold-off (10 ms); the interval between measurement cycles is the
+application's own (a plain `app_millis()` deadline, see below); short stages
+(reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this example's goal is only to establish the
 mechanism and measure the CPU-time saving.
 
-> **Verified on hardware (STM32F103C8 Blue Pill).** With
-> `-DOW_PORT_LOW_POWER=1 -DOW_PARASITE_POWER=1` and six DS18B20 sensors powered
-> in parasite mode, 7_low_power found all six devices, read them in turn (*24.0 °C /
-> 85.0 °C / 23.8 °C ...*) and the core demonstrably entered `__WFE()`: a
-> temporary instrumented run printed `[WFE iters=1]` before every measurement,
-> i.e. the first `__WFE()` after arming the long stage blocked and woke exactly
-> once on the timer's update event. The sleep path keeps the driver fully
-> functional (no ISR, no `NVIC_EnableIRQ`), only the CPU stops sleeping while a
-> stage longer than 1 ms runs.
+> **No interrupt anywhere in the application.** Milliseconds come from the ARM
+> SysTick counter running at 1 kHz with its interrupt *disabled*
+> (`app_time_init()`, called from `app_init()`): no `SysTick_Handler` is
+> installed and no NVIC bit is enabled. `app_millis()` reads the `COUNTFLAG`
+> bit — set once per wrap — and folds it into a counter, so it costs one
+> register read, never waits, and needs the main loop to run at least once per
+> millisecond. Because a conversion takes hundreds of milliseconds, that rule
+> only has to hold for the *pauses* between cycles, which is exactly where the
+> application is doing its own work.
+
+> **Verified on hardware (STM32F407, 7 parasite-powered DS18B20).** With
+> `-DOW_PORT_LOW_POWER=1 -DOW_PARASITE_POWER=1`, 7_low_power found all seven
+> devices, read them in turn (*23.4 °C … 23.8 °C*) and repeated the whole round
+> with a stable 5.77–5.79 s period (one 5 s pause plus the ~0.75 s conversion
+> of the 7th sensor), with 0 CRC errors and no lost UART output. The image
+> contains no interrupt handler at all: every `*_IRQHandler`/`SysTick_Handler`
+> symbol in the ELF is a weak CMSIS alias to `Default_Handler`.
 
 Build and run:
 
@@ -739,7 +750,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing-1). |
 | `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every example with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
-| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the application can sleep during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. No ISR is installed and `NVIC_EnableIRQ` is never called; the driver itself stays non-blocking. Without this define builds are byte-identical to the original. |
+| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define builds are byte-identical to the original. |
 
 ### Flash
 
@@ -1910,7 +1921,7 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - Measurement cadence: **application-defined**. The driver measures one cycle per
   `ds18b20_start_measure()` and then parks, so it has no inter-measurement
   interval of its own; the examples pace themselves (5 s, see
-  `MEASURE_PERIOD_MS` in `examples/*/main.c`, and `app_tick_init()` in the
+  `MEASURE_PERIOD_MS` in `examples/*/main.c`, and `app_time_init()` in the
   shared app layer)
 - Precision: 0.1°C reported (API tenths; the sensor step at 12-bit is
   0.0625°C — coarser steps at lower resolutions)
