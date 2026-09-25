@@ -40,11 +40,14 @@
 /**
  * @brief SysTick rate of this demo (Hz)
  * @note Deliberately low: every tick is a wake-up, so a fast tick would undo
- *       the point of sleeping between the cycles. 10 Hz gives a ~17 ms time
- *       base on a 168 MHz core (SysTick reload is 24-bit), which is plenty to
- *       time a 5 s interval.
+ *       the point of sleeping between the cycles. At 10 Hz the core sleeps in
+ *       ~100 ms steps, which is plenty to time a 5 s interval and costs 10x
+ *       less wake-ups than a 1 kHz tick. Override from the build to trade
+ *       wake-ups against deadline resolution, e.g. EXT="-DAPP_TICK_HZ=100".
  */
+#ifndef APP_TICK_HZ
 #define APP_TICK_HZ 10u
+#endif
 
 static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8];
 static uint8_t found_count = 0;

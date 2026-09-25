@@ -471,27 +471,40 @@ void app_init(void) {
  * the reload is derived from the configured system clock. */
 
 static volatile uint32_t app_tick_ms;
+static uint32_t app_tick_step_ms = 1u;
 
 /**
  * @brief SysTick interrupt: advance the millisecond counter
  * @note Also the wake-up source for app_sleep_until(); the handler is
  *       deliberately empty otherwise.
  */
-void SysTick_Handler(void) { app_tick_ms++; }
+void SysTick_Handler(void) { app_tick_ms += app_tick_step_ms; }
 
 /**
  * @brief Start the millisecond time base
  * @param[in] hz Requested tick frequency in Hz (e.g. 1000 for 1 ms, 10 for 100 ms)
  * @note Call once after app_init(). A low-power demo should use a low rate
  *       (10-100 Hz) so the idle wait between measurements costs few wake-ups.
- *       SysTick reloads are 24-bit, so on a fast core a very low requested rate
- *       is clamped to the slowest tick the core can produce (16.8 ms at 168 MHz);
- *       the millisecond counter then simply advances in bigger steps.
+ *       The counter advances by the *real* tick period, so app_millis() stays
+ *       milliseconds at any rate; rates above 1000 Hz are clamped to 1 ms per
+ *       tick. SysTick reloads are 24-bit, so on a fast core a very low
+ *       requested rate is clamped to the slowest tick the core can produce
+ *       (16.8 ms at 168 MHz) - the millisecond counter follows whatever period
+ *       is actually programmed.
  */
 void app_tick_init(uint32_t hz) {
     uint32_t ticks = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000000u) / hz;
     if (ticks > 0x00FFFFFFu) {
         ticks = 0x00FFFFFFu;
+    }
+    /* Step the counter by the period the reload actually programs, not by the
+     * requested rate: a 24-bit clamp makes the tick slower than asked, and a
+     * counter that counts ticks instead of milliseconds would stretch every
+     * deadline by the same factor. period = ticks / (SYSCLK in kHz). */
+    uint32_t clock_khz = (uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u;
+    app_tick_step_ms = (ticks + clock_khz / 2u) / clock_khz;
+    if (app_tick_step_ms == 0u) {
+        app_tick_step_ms = 1u; /* > 1 kHz: count every tick as 1 ms */
     }
     app_tick_ms = 0;
     SysTick_Config(ticks - 1u);
