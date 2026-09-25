@@ -108,7 +108,6 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
-│   ├── onewire_internal.h  # Private pulse-level interface (ow_pulse_t, encode/write)
 │   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
@@ -128,9 +127,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 │   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
 │   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4 (F407/F401)
-│   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (256KB flash / 64KB RAM)
+│   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
+│   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
+│   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
+│   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
@@ -1021,7 +1023,9 @@ The SVD file for the selected family is downloaded by `make download-deps`
 and loaded automatically for peripheral register views in the debug
 sidebar. Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
 from either backend directory; the project resolves its SVD and ELF paths
-relative to its own location.
+relative to its own location. The F4 directory holds one project per part —
+`project.jdebug` for the F407VGT6 default and `project-f401cc.jdebug` for the
+F401CC, since each part has its own device name and SVD.
 
 **J-Link:** Connect a SEGGER J-Link debugger via SWD.  
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
@@ -1466,9 +1470,9 @@ zero, and schedules the transfer in one call, so individual bus transactions
 never need to touch slot-level pulse tables. An empty command or one longer
 than `ONEWIRE_CMD_MAX_BYTES` (13 — the longest Match ROM sequence) is rejected
 with a debug `assert` and no transfer is started. The slot-level primitives
-`onewire_encode_byte()` and the `ow_pulse_t` type are now internal
-(`inc/onewire_internal.h`); only driver-internal code and the test harness use
-them.
+`onewire_encode_byte()` and the `ow_pulse_t` type are declared in
+`inc/onewire.h` alongside the rest of the layer, but application code has no
+reason to use them: only driver-internal code and the test harness do.
 
 #### Timing
 

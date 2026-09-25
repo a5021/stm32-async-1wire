@@ -94,6 +94,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`make jprogram` had no J-Flash project for the STM32F401CC.** `JFLASH` was
+  assigned for every port except the F401 branch, so the variable expanded to
+  nothing and J-Link was invoked with an empty `-openprj`. Added
+  `port/stm32f4/stm32f401cc.jflash` (device `ST STM32F401CC`, 256 KB flash
+  range) and the matching `JFLASH` assignment. The ST-Link path
+  (`make program`) was never affected. Also corrected `RAMSize` in
+  `stm32f407vgt6.jflash`, which claimed 64 KB although the F407VGT6 has
+  128 KB of SRAM.
+
+- **The F4 backend had no SEGGER Ozone project.** `port/<mcu>/project.jdebug`
+  existed for F1, F0 and G0 and the README pointed at that path generically,
+  so F4 users had nothing to open. Added `project.jdebug` (F407VGT6) and
+  `project-f401cc.jdebug`, plus the `STM32F401.svd` download the second one
+  needs — the F4 `EXTERNAL_DEPS` list only fetched the F407 SVD.
+
+- **The README documented a header that does not exist.** The file tree and
+  the slot-level-primitives paragraph both referred to
+  `inc/onewire_internal.h`; the private interface ended up in `inc/onewire.h`
+  instead, which is where `ow_pulse_t` and `onewire_encode_byte()` are
+  declared. This was the same stale name that broke the `format` CI job. The
+  tree no longer lists the phantom file, and the paragraph now says the
+  primitives live in `onewire.h` and are simply not needed by applications.
+  The F407VGT6 entry also described 256 KB flash / 64 KB RAM instead of the
+  1 MB / 128 KB the linker script actually sets.
+
 - **The CMake build could not select the STM32F4 backend, although CI asked
   for it.** The `cmake` job matrix lists `f4`, but `CMakeLists.txt` only knew
   `f1`, `f0` and `g0`, so configuring with `-DOW_TARGET=f4` stopped at

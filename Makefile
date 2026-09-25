@@ -65,6 +65,7 @@ ifeq ($(OW_CHIP),f401)
 # maps it to stm32f401xc.h); STM32F401xE would need stm32f401xe.h.
 ASM = $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s
 LDS = port/stm32f4/STM32F401CC_FLASH.ld
+JFLASH = port/stm32f4/stm32f401cc.jflash
 DEF = -DSTM32F401xC -DOW_PORT_TARGET_F4
 # F401 default is 84MHz via 8MHz HSE+PLL (M=8,N=168,P=2); the generic F4
 # default of 168 is only valid on F405/F407-class parts. SYSCLK_MHZ still wins
@@ -253,6 +254,7 @@ SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/hea
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
 SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F407.svd
+SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
 
 # Required external files (needed for build but not in repo)
 ifeq ($(OW_TARGET),f0)
@@ -290,7 +292,8 @@ EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm4.h \
                 $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c \
                 $(CMSIS_DEVICE_DIR)/startup_stm32f407xx.s \
                 $(CMSIS_DEVICE_DIR)/startup_stm32f401xc.s \
-                $(CMSIS_DEVICE_DIR)/STM32F407.svd
+                $(CMSIS_DEVICE_DIR)/STM32F407.svd \
+                $(CMSIS_DEVICE_DIR)/STM32F401.svd
 else
 EXTERNAL_DEPS = $(CMSIS_CORE_DIR)/core_cm3.h \
                 $(CMSIS_CORE_DIR)/cmsis_compiler.h \
@@ -449,6 +452,9 @@ $(CMSIS_DEVICE_DIR)/STM32G031.svd: | $(CMSIS_DEVICE_DIR)
 
 $(CMSIS_DEVICE_DIR)/STM32F407.svd: | $(CMSIS_DEVICE_DIR)
 	$(call download_file,$(SVD_URL_F4),$@)
+
+$(CMSIS_DEVICE_DIR)/STM32F401.svd: | $(CMSIS_DEVICE_DIR)
+	$(call download_file,$(SVD_URL_F401),$@)
 
 # License download targets
 $(CMSIS_CORE_LICENSE): | $(CMSIS_CORE_DIR)
