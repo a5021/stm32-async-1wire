@@ -97,7 +97,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   STM32G031x6, STM32F407VGT6, STM32F401CC; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32F401 — 84MHz via 8MHz HSE+PLL (default, `OW_CHIP=f401`), 16MHz via internal RC or 8MHz via the HSE crystal; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32F401 — 84MHz via 8MHz HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC or 8MHz via the HSE crystal; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
 
 ## File Structure
 
@@ -133,7 +133,17 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
 │   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
+│   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
+│   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
+│   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
+├── chips/                  # Per-part build identity, one file per part
+│   ├── f103xb.mk           # CMSIS macro, startup, linker script, debugger
+│   ├── f030x6.mk           #   projects, SVD and default clock. Shared by
+│   ├── g031xx.mk           #   the Makefile and the CMake build
+│   ├── f407xx.mk           #   (OW_CHIP=<name> / -DOW_CHIP=<name>)
+│   ├── f401xc.mk           # 256KB flash / 64KB RAM
+│   └── f401xe.mk           # 512KB flash / 128KB RAM
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
@@ -223,9 +233,12 @@ make OW_TARGET=f0 APP=4_scan_mode
 make OW_TARGET=f4 APP=4_scan_mode
 
 # STM32F401CC target (F401 Black Pill, 84MHz HSE+PLL default):
-make OW_TARGET=f4 OW_CHIP=f401 APP=4_scan_mode
+make OW_TARGET=f4 OW_CHIP=f401xc APP=4_scan_mode
+
+# STM32F401xE target (512KB flash / 128KB RAM, same 84MHz default):
+make OW_TARGET=f4 OW_CHIP=f401xe APP=4_scan_mode
 # ... or on the raw internal RC (no HSE crystal needed):
-make OW_TARGET=f4 OW_CHIP=f401 SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_TARGET=f4 OW_CHIP=f401xc SYSCLK_MHZ=16 APP=4_scan_mode
 ```
 
 Notes:
@@ -368,12 +381,23 @@ the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
 port layer is chip-generic. The chip-specific parts (CMSIS device header
 `stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
 script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
-clock default) are selected with `OW_CHIP=f401`. Expected wiring matches the
+clock default) are selected with `OW_CHIP=f401xc` — all of it in
+`chips/f401xc.mk`. Expected wiring matches the
 F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams 2/4), parasite mode on the
 same 2.2 kΩ pull-up, and a console UART on the board's own TX (the `app.c`
 F4 UART paths are already board-selectable). **Not yet validated on silicon** —
 the three-frequency timing envelope (168/16/8 MHz) brackets the 84MHz default,
 but a hardware pass on a real F401 board is still required.
+
+The `xE` parts (F401CD/RD/VD/CE/RE/VE, 512KB flash / 128KB RAM) are the same
+core with twice the memory, so they share everything above and differ only in
+the memory map: `OW_CHIP=f401xe` selects `chips/f401xe.mk` with
+`STM32F401RE_FLASH.ld` (512K/128K) and the `stm32f401xe.h` /
+`startup_stm32f401xe.s` device layer. Like the xC variant it is unproven on
+hardware — no F401xE part was available. Note that the CMSIS `STM32F401xE`
+macro was already honoured by `onewire.h` before it had a linker script to go
+with it, so a hand-rolled `-DSTM32F401xE` used to link against the xC script's
+256K/64K; `make test-chips` now checks that every part's script exists.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -894,14 +918,14 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
     `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4` or
-    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401`.
+    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
     backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`), and
-    `make OW_TARGET=f4 OW_CHIP=f401` for the F401CC variant of the same backend
+    `make OW_TARGET=f4 OW_CHIP=f401xc` for the F401CC variant of the same backend
     (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`). The default
     target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via PA12 remap
     for G0).
@@ -1933,6 +1957,52 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
 ## Configuration
+
+### Part selection: families and parts
+
+Two build knobs, and the split between them is the whole point:
+
+- `OW_TARGET` picks the **family** (`f1`, `f0`, `g0`, `f4`). This is where the
+  driver code differs: the port header, the timer and DMA resources, the bus
+  pin. One `port/<family>/ow_port_<family>.h` per family.
+- `OW_CHIP` picks the **part** within the family, by naming a file in
+  `chips/`. The parts of one family share a port header — `ow_port_f4.h` has no
+  per-part conditional at all, because TIM1/DMA2 and `CHSEL=6` map identically
+  across the F4 parts. What actually differs is the CMSIS device layer, the
+  linker script (memory sizes), the debugger projects and the default clock,
+  so that is exactly what `chips/<part>.mk` holds:
+
+  | Variable | Meaning |
+  |---|---|
+  | `CHIP_DEV_DEF` | CMSIS device macro (`-DSTM32F401xE`) |
+  | `CHIP_DEVICE_HDR` | device header fetched by `make download-deps` |
+  | `CHIP_STARTUP` | startup assembly fetched by `make download-deps` |
+  | `CHIP_LINKER` | linker script — the memory map is the part's own |
+  | `CHIP_JFLASH` / `CHIP_JDEBUG` | J-Flash and SEGGER Ozone projects |
+  | `CHIP_SVD` | register view for debuggers |
+  | `CHIP_SYSCLK_MHZ` | the part's default clock, overridable via `SYSCLK_MHZ` |
+
+Both build systems read the same file, so they cannot drift on the device macro,
+startup file, linker script or clock:
+
+```sh
+make OW_TARGET=f4 OW_CHIP=f401xc APP=4_scan_mode   # Makefile
+cmake -S . -B build -DOW_TARGET=f4 -DOW_CHIP=f401xc # CMake (same chips/*.mk)
+```
+
+Parts are named after the CMSIS device macro, lowercased — `STM32F401xC`
+becomes `f401xc`, `STM32F103xB` becomes `f103xb` — so the name says which
+flash/pin-density code it is. `make test-chips` (part of `make test-clocks`)
+checks that every part's repository-side files exist and that the two scalars
+are well formed, and that an unknown family or part is **rejected** rather than
+silently falling back to the F1 default. That last part matters: an
+unrecognised `OW_TARGET` used to fall through to the F1 branch and produce a
+perfectly valid Blue Pill binary.
+
+Two rules when editing a part file: keep it to plain `NAME = value` assignments
+(no includes or conditionals — the CMake build parses it), and do not put a
+comment at the end of an assignment line, because make keeps the whitespace in
+front of `#` as part of the value and every path in it silently stops existing.
 
 ### Timing
 

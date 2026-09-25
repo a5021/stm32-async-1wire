@@ -10,6 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A per-part build matrix in `chips/<part>.mk`.** `OW_TARGET` selects the
+  family (unchanged); the new `OW_CHIP` selects the part *within* it by naming
+  a file: `f103xb`, `f030x6`, `g031xx`, `f407xx`, `f401xc`, `f401xe`. Each file
+  holds only the part identity — CMSIS device macro, device header, startup
+  file, linker script, J-Flash and Ozone projects, SVD and default clock — while
+  everything a family shares (MCU flags, the port header, the timer/DMA/pin
+  mapping) stays in the Makefile. The split is drawn where the real difference
+  is: `ow_port_f4.h` has no per-part conditional at all, because TIM1/DMA2 and
+  `CHSEL=6` map identically across the F4 parts, so a subdirectory per part
+  would have held no code. Both build systems read the same file, so the
+  Makefile and CMake cannot drift on the device macro, startup, linker script
+  or clock; CMake gains `-DOW_CHIP=` and `-DOW_SYSCLK_MHZ=` to match.
+  `make test-chips` (hooked into `make test-clocks`) verifies that every part's
+  repository-side files exist and that an unknown family or part is rejected.
+
+- **STM32F401xE support** (`OW_CHIP=f401xe`). The `xE` parts (F401CD/RD/VD/CE/
+  RE/VE) are the same core as the xC parts with 512KB flash / 128KB RAM instead
+  of 256KB / 64KB, so they share the port backend, the 84MHz clock default and
+  the app.c clock branch and differ only in the memory map: a new
+  `STM32F401RE_FLASH.ld` linker script, the `stm32f401xe.h` /
+  `startup_stm32f401xe.s` CMSIS layer, and J-Flash / Ozone projects. The linker
+  map confirms 0x80000 flash for xE against 0x40000 for xC. **Not validated on
+  hardware** — no F401xE part was available.
+
+  This also closes a silent mismatch: `inc/onewire.h` has always honoured the
+  `STM32F401xE` device macro, but the build could only produce `STM32F401xC`,
+  so a hand-rolled `-DSTM32F401xE` linked against the xC script's 256K/64K
+  memory map without a diagnostic. The header now promises a part that exists.
+
+
 - **Interrupt-free polled time base for the examples (`examples/app`).**
   `app_time_init()` (called from `app_init()`) programs SysTick at 1 kHz
   *without* `TICKINT`, and `app_millis()` reads the `COUNTFLAG` bit and folds
@@ -54,6 +84,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **An unknown `OW_TARGET` or `OW_CHIP` is a build error.** Both used to fall
+  through to the F1 branch, so a typo produced a valid-looking Blue Pill
+  binary. `OW_TARGET` never even had an explicit default — the empty value
+  silently meant F1, which is how `OW_TARGET=f401-84` came to compile a
+  Cortex-M3 image in a matrix that was supposed to be exercising F401 parts.
+  `OW_TARGET` now defaults to `f1` explicitly, and both tokens are validated
+  with an error that lists the valid values.
+
+- **`OW_CHIP=f401` is now `OW_CHIP=f401xc`.** The old name is rejected with the
+  list of known parts rather than silently aliased, following the CMSIS
+  flash-density naming (`STM32F401xC`) the part files use. Scripts that passed
+  `OW_CHIP=f401` must be updated.
+
+- **`make download-deps` fetches only the selected part's files.** The
+  `EXTERNAL_DEPS` list is now built from the part file, so an F4 build no longer
+  downloads the xC and xE device headers, startup files and SVDs when building
 - **The WFE sleep moved from the application into `ds18b20_poll()`.** With
   `-DOW_PORT_LOW_POWER=1` the driver now blocks in `__WFE()` itself while a
   long stage (conversion, scratchpad read, EEPROM hold-off) is in flight, so
