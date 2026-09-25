@@ -1,4 +1,4 @@
-# chips/f401xc.mk вЂ” STM32F401xC (F401CB/CC/RB/RC/VB/VC, e.g. WeAct F401 Black Pill)
+# chips/f401xc.mk — STM32F401xC (F401CB/CC/RB/RC/VB/VC, e.g. WeAct F401 Black Pill)
 #
 # Part identity ONLY. See chips/f103xb.mk for what does and does not belong
 # here, and for the "no trailing comment on an assignment line" rule.
