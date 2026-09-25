@@ -96,6 +96,33 @@ shows the expected multi-device CRC fail annotation (single-ROM command on a
 `OW_PORT_SYSCLK_MHZ`), `-DOW_PARASITE_POWER=1`, `-DOW_PORT_LOW_POWER=1`,
 `-DOW_STATS_ENABLE=1` (auto for `APP=6_statistics`).
 
+### Re-validated after the polled-clock rework
+
+The matrix above was first measured when the examples still paced themselves
+with an interrupt-driven tick. The time base is now the ARM SysTick counter
+read by polling `COUNTFLAG` at 1 kHz — no handler at all — and the WFE sleep
+for `-DOW_PORT_LOW_POWER=1` moved inside `ds18b20_poll()`. Both changes touch
+the low-clock rows, because `SysTick->LOAD` is derived from
+`OW_PORT_SYSCLK_MHZ` (7999 at 8 MHz, 15999 at 16 MHz) and the timer update that
+wakes the sleeping driver also scales with the clock. So the whole 6 × 3 matrix
+was re-run on the F407DISCOVERY with the same seven parasite-powered sensors
+after the rework, and still passes:
+
+| Example @ 16 MHz | @ 8 MHz |
+|---|---|
+| `2_device_search` — 7 found, 0 errors, 5.75–5.82 s rounds | 7 found, 0 errors, 5.76–5.84 s rounds |
+| `3_round_robin` — 9→12 bit cycle, 0 errors | 9→12 bit cycle, 0 errors |
+| `4_scan_mode` — 8 full rounds, 0 CRC errors | 8 full rounds, 0 CRC errors |
+| `5_commands` — parasite detected, EEPROM round-trip, CRC ok | same; Read ROM CRC fail as above |
+| `6_statistics` — 0.70–0.89 s per sensor | 0 errors |
+| `7_low_power` — WFE sleep inside the driver, 5.76–5.81 s rounds | 5.75–5.79 s rounds |
+
+The round periods are the useful cross-check: they are pinned by a 5 s
+application pause counted in polled milliseconds, so if the reload were wrong at
+a low clock the period would drift by the ratio between the nominal and the
+actual HCLK. Measured spread across 168/16/8 MHz is 5.75–5.84 s, i.e. the
+counted millisecond tracks real time at every supported frequency.
+
 ## CHSEL is a per-stream mux index
 
 DMA2 streams select their request source with their own `CHSEL` field
