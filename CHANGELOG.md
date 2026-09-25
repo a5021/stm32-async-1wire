@@ -94,6 +94,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The CMake build could not select the STM32F4 backend, although CI asked
+  for it.** The `cmake` job matrix lists `f4`, but `CMakeLists.txt` only knew
+  `f1`, `f0` and `g0`, so configuring with `-DOW_TARGET=f4` stopped at
+  `FATAL_ERROR`. The F4 target is now wired up like the other three (CMSIS
+  device repo and `STM32F407xx` define, `-mcpu=cortex-m4 -mthumb` mirroring the
+  Makefile, `system_stm32f4xx.c`, `startup_stm32f407xx.s`, the
+  `STM32F407VGT6_FLASH.ld` script), `port/stm32f4` is on the include path of
+  both library targets, and `ow_port_f4.h` ships in the install tree so
+  `ow_port.h`'s sibling quote-include resolves for installed consumers.
+  Selecting the F401CC variant remains a Makefile-only knob
+  (`OW_TARGET=f4 OW_CHIP=f401`).
+
+- **The CMake install-tree check in CI asserted a file that does not exist.**
+  The job verified `include/stm32-async-1wire/onewire_internal.h`, a leftover
+  from before the edge→pulse rename; no such file exists anywhere in the tree,
+  so the job could never pass. It now checks `ow_port_f4.h`, which is the file
+  this backend actually adds to the installed headers.
+
 - **`4_scan_mode` could report 85.0 °C for a sensor left at a different
   resolution.** Scan mode converts every sensor in parallel and waits once,
   assuming a uniform resolution, but the example never established one: a

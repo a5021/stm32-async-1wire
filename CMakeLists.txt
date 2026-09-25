@@ -4,8 +4,8 @@ project(stm32_async_1wire VERSION 1.8.1 LANGUAGES C ASM)
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0")
-set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0)
+set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, g0, f4")
+set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0 f4)
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 
@@ -50,8 +50,21 @@ elseif(OW_TARGET STREQUAL "g0")
     set(STARTUP_ASM        "startup_stm32g031xx.s")
     set(SYSTEM_SRC         "system_stm32g0xx.c")
     set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0/STM32G031X6_FLASH.ld")
+elseif(OW_TARGET STREQUAL "f4")
+    # STM32F407VGT6 (F4DISCOVERY / MB997C). Same backend serves the F401CC
+    # family; only the chip define, startup file and linker script differ, and
+    # the Makefile build selects those with OW_CHIP=f401. The MCU flags mirror
+    # the Makefile exactly (no explicit FPU/ABI flags) so both build systems
+    # compile the port identically.
+    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
+    set(CMSIS_DEVICE_DEF  "STM32F407xx")
+    set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
+    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
+    set(STARTUP_ASM        "startup_stm32f407xx.s")
+    set(SYSTEM_SRC         "system_stm32f4xx.c")
+    set(LINKER_SCRIPT      "${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4/STM32F407VGT6_FLASH.ld")
 else()
-    message(FATAL_ERROR "OW_TARGET must be f1, f0, or g0 (got: ${OW_TARGET})")
+    message(FATAL_ERROR "OW_TARGET must be f1, f0, g0 or f4 (got: ${OW_TARGET})")
 endif()
 
 FetchContent_Declare(cmsis_device
@@ -93,6 +106,7 @@ function(ow_add_core_library tgt)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4>
         $<INSTALL_INTERFACE:include/stm32-async-1wire>
         # Device/CMSIS headers are required to compile the library (ow_port.h
         # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
@@ -148,6 +162,7 @@ install(FILES
     port/stm32f1/ow_port_f1.h
     port/stm32f0/ow_port_f0.h
     port/stm32g0/ow_port_g0.h
+    port/stm32f4/ow_port_f4.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 
@@ -201,6 +216,7 @@ if(OW_BUILD_EXAMPLES)
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4
         ${CMSIS_CORE_INCLUDE}
         ${CMSIS_DEVICE_INCLUDE}
     )

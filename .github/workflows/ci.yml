@@ -374,7 +374,7 @@ jobs:
           test -f prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
           test -f prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
           test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
-          test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/onewire_internal.h
+          test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
 
   fuzz:
     runs-on: ubuntu-latest
