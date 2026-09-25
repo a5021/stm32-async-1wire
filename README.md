@@ -170,7 +170,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
-│   └── test/               # Unity-based test cases
+│   ├── test/               # Unity-based test cases
+│   └── check_chips.sh      # Part-matrix check (make test-chips)
 ├── cmake/                  # CMake toolchain
 │   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 ├── docs/                   # Documentation assets
