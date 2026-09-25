@@ -728,9 +728,9 @@ TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
 # F4/F401-family fallback compile check: always built as part of `make test`,
 # independent of the active OW_TARGET (see rule below test-clocks).
-TEST_CLOCK_F401_OBJ = $(TEST_OUT)/test_sysclk_fallback_f401.o
+TEST_CLOCK_F401XC_OBJ = $(TEST_OUT)/test_sysclk_fallback_f401xc.o
 
-test: $(TEST_EXE) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_F401_OBJ)
+test: $(TEST_EXE) $(TEST_CLOCK_OBJ) clock-ref-check
 	$(TEST_EXE)
 
 test-f0:
@@ -752,20 +752,27 @@ $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- F4/F401 fallback compile check (see test_sysclk_fallback.c) ---
-# Compile-only, built as part of every `make test` (dependency of the `test`
-# target above): verifies that selecting the F4 family together with the
-# STM32F401xC/F401xE device macro (the OW_CHIP=f401 build, or a bare
-# PlatformIO/CubeMX F401 project) resolves the F4 backend with an 84 MHz clock
-# default instead of the F405/F407 168 MHz one. Always built with the F4 port
-# include path, independent of the active OW_TARGET. Also part of
-# `test-clocks-f401`.
+# Compile-only, built as part of every `make test` (via clock-ref-check): verifies
+# that selecting the F4 family together with the STM32F401xC device macro (the
+# OW_CHIP=f401xc build, or a bare PlatformIO/CubeMX F401 project) resolves the F4
+# backend with an 84 MHz clock default instead of the F405/F407 168 MHz one. The
+# macro is taken from chips/f401xc.mk rather than repeated here, so renaming the
+# part in one place cannot leave this guard testing a macro nothing builds.
+# Deliberately does not pass -DOW_PORT_SYSCLK_MHZ: the point is to check the
+# default that onewire.h derives from the part macro alone.
 
-$(TEST_CLOCK_F401_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
-	$(HOST_CC) -c -DSTM32F4 -DSTM32F401xC -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
+$(TEST_CLOCK_F401XC_OBJ): tests/test/test_sysclk_fallback.c Makefile chips/f401xc.mk | $(TEST_OUT)
+	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
-.PHONY: test-clocks test-chips test-chip-files test-chip-rejects check-chip-one test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
-test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
+# Built in a sub-make that selects the f401xc part, so CHIP_DEV_DEF is that
+# part's macro. Recursion is what makes the part file the single source.
+.PHONY: clock-ref-check
+clock-ref-check:
+	$(MAKE) OW_TARGET=f4 OW_CHIP=f401xc $(TEST_CLOCK_F401XC_OBJ)
+
+.PHONY: test-clocks test-chips test-chip-files test-chip-rejects check-chip-one test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
+test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
 test-clocks-f0:
@@ -774,8 +781,7 @@ test-clocks-g0:
 	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
 test-clocks-f4:
 	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f4.o
-test-clocks-f401:
-	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f401.o
+test-clocks-f401xc: clock-ref-check
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
