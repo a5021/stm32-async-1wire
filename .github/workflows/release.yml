@@ -12,9 +12,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the tagged source code
       - name: Checkout Code
         uses: actions/checkout@v5
+
+      - name: Verify release metadata
+        shell: bash
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(tr -d '[:space:]' < VERSION)"
+          grep -q 'STM32_ASYNC_1WIRE_VERSION_STRING "1.8.2"' include/version.h
+          grep -q '"version": "1.8.2"' library.json
+          grep -q '^version=1.8.2' library.properties
 
       # Step 2: Cache the Arm Toolchain (Version 15.2)
       - name: Cache Arm Toolchain
@@ -137,23 +144,21 @@ jobs:
             three header-only backends (F0/F1/G0) selected at build time with
             `make OW_TARGET=f0` / `make OW_TARGET=g0`.
 
-            ## What's new in 2.0.0
+            ## What's new in 1.8.2
 
-            - **Breaking API audit**: start functions return `uint8_t`
-              (accepted/rejected); `ds18b20_busy(uint8_t action)`
-            - **`ds18b20_status_t` + `ds18b20_last_status()`**: query why a
-              start was rejected (`BUSY`, `OWNER`, `INVALID`, `EMPTY`)
-            - **`ds18b20_set_callbacks()` / `ds18b20_deinit()`**: registered
-              busy/complete handlers with user context; clean teardown
-            - **Five consumption paths**: CMake (FetchContent /
-              add_subdirectory / find_package), STM32CubeIDE, PlatformIO,
-              Arduino STM32, git submodule + plain Makefile — see
-              `INTEGRATION.md`
-            - **Layout**: `inc/` → `include/`, flat `port/`, internals in
-              `src/internal/`; `VERSION` is the single source of truth
-              enforced by a CI version-sync job
-            - **`onewire_search_stop()`**: terminate an in-flight Search ROM
-              walk mid-enumeration
+            - **Integration fixtures in CI**: CMake consumers
+              (FetchContent, add_subdirectory, and installed find_package),
+              a plain-Make consumer, and a PlatformIO Blue Pill consumer
+            - **CMake package hardening**: CMSIS discovery, actionable
+              missing-header errors, family checks, and imported-target
+              include paths
+            - **Plain-Make fragment improvements**: consumer-local object
+              output, dependency generation, and preserved user definitions
+            - **Integration documentation**: CMake, PlatformIO, and plain Make
+              are automated fixture paths; STM32CubeIDE is manual; Arduino
+              STM32 is documented best-effort/manual, not official support
+            - The five documented integration paths are not all smoke-tested;
+              only the automated fixture paths above are exercised by CI
 
             ## Download
 

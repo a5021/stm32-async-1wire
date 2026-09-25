@@ -81,4 +81,11 @@ int uart_write_int(int value);
  */
 int uart_write_hex(uint8_t b);
 
+/**
+ * @brief Report a rejected start-style driver call
+ * @param[in] operation Operation name
+ * @param[in] started Start result; non-zero produces no output
+ */
+void app_write_start_status(const char* operation, uint8_t started);
+
 #endif // APP_H

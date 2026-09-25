@@ -93,59 +93,50 @@ static void print_scratchpad(const char* label) {
  * @brief Start the command transaction for a step (prints its banner first)
  * @param[in] s Step to start
  */
-static void start_step(step_t s) {
+static uint8_t start_step(step_t s) {
     switch (s) {
     case STEP_POWER:
         uart_write_str("Read Power Supply (0xB4):\r\n");
-        ds18b20_detect_parasite();
-        break;
+        return ds18b20_detect_parasite();
     case STEP_SCRATCH_BASELINE:
         uart_write_str("Read Scratchpad (0xBE) - baseline:\r\n");
-        ds18b20_read_scratchpad(scratchpad);
-        break;
+        return ds18b20_read_scratchpad(scratchpad);
     case STEP_SET_ALARM:
         uart_write_str("Write Scratchpad (0x4E): TH=0x");
         uart_write_hex(TH_HOT);
         uart_write_str(" TL=0x");
         uart_write_hex(TL_HOT);
         uart_write_str("\r\n");
-        ds18b20_set_alarm_thresholds(TH_HOT, TL_HOT);
-        break;
+        return ds18b20_set_alarm_thresholds(TH_HOT, TL_HOT);
     case STEP_SCRATCH_AFTER_SET:
         uart_write_str("Scratchpad after threshold write:\r\n");
-        ds18b20_read_scratchpad(scratchpad);
-        break;
+        return ds18b20_read_scratchpad(scratchpad);
     case STEP_COPY:
         uart_write_str("Copy Scratchpad (0x48) -> EEPROM (10ms hold-off):\r\n");
-        ds18b20_copy_scratchpad();
-        break;
+        return ds18b20_copy_scratchpad();
     case STEP_SET_ALARM_AGAIN:
         uart_write_str("Write Scratchpad (0x4E): TH=0x");
         uart_write_hex(TH_MILD);
         uart_write_str(" TL=0x");
         uart_write_hex(TL_MILD);
         uart_write_str(" (volatile only)\r\n");
-        ds18b20_set_alarm_thresholds(TH_MILD, TL_MILD);
-        break;
+        return ds18b20_set_alarm_thresholds(TH_MILD, TL_MILD);
     case STEP_SCRATCH_AFTER_SECOND:
         uart_write_str("Scratchpad after second write:\r\n");
-        ds18b20_read_scratchpad(scratchpad);
-        break;
+        return ds18b20_read_scratchpad(scratchpad);
     case STEP_RECALL:
         uart_write_str("Recall EEPROM (0xB8) -> scratchpad (10ms hold-off):\r\n");
-        ds18b20_recall_eeprom();
-        break;
+        return ds18b20_recall_eeprom();
     case STEP_SCRATCH_AFTER_RECALL:
         uart_write_str("Scratchpad after Recall (EEPROM copy restored):\r\n");
-        ds18b20_read_scratchpad(scratchpad);
-        break;
+        return ds18b20_read_scratchpad(scratchpad);
     case STEP_READ_ROM:
         uart_write_str("Read ROM (0x33) - single-device command:\r\n");
-        ds18b20_read_rom(rom);
-        break;
+        return ds18b20_read_rom(rom);
     case STEP_MEASURE:
-        break;
+        return 1;
     }
+    return 0;
 }
 
 /**
@@ -262,11 +253,20 @@ int main(void) {
 
     uart_write_str("DS18B20 5_commands starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
-    ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
+    if (!ds18b20_init()) { // Initialize DS18B20 driver (non-blocking)
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
-    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) {
+        search_running = 1;
+    } else {
+        app_write_start_status("Device search", 0);
+    }
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
         if (search_running) {
@@ -280,8 +280,10 @@ int main(void) {
                     // Address the first sensor and run the command sequence
                     ds18b20_select(ds18b20_device_rom(0));
                     step = STEP_POWER;
-                    start_step(step);
-                    cmd_running = 1;
+                    cmd_running = start_step(step);
+                    if (!cmd_running) {
+                        app_write_start_status("Command start", 0);
+                    }
                 } else {
                     step = STEP_MEASURE;
                 }
@@ -289,8 +291,11 @@ int main(void) {
         } else if (step == STEP_MEASURE) {
             ds18b20_poll(); // Steady state: measure the selected sensor
         } else if (!cmd_running) {
-            start_step(step); // Launch the next command transaction
-            cmd_running = 1;
+            if (start_step(step)) { // Launch the next command transaction
+                cmd_running = 1;
+            } else {
+                app_write_start_status("Command start", 0);
+            }
         } else if (poll_step(step)) {
             cmd_running = 0;
             finish_step(step);

@@ -23,7 +23,8 @@
 #define DS18B20_SEARCH_MAX_DEVICES 8u
 #endif
 
-static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
+static uint8_t search_running = 0; // 1 until the non-blocking bus scan finishes
+static uint8_t scan_running = 0;
 
 /**
  * @brief Device search callback - prints the ROM in hex
@@ -97,23 +98,40 @@ int main(void) {
 
     uart_write_str("DS18B20 4_scan_mode starting...\r\n"); // Enqueue startup message
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
-    ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
+    if (!ds18b20_init()) { // Initialize DS18B20 driver (non-blocking)
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
-    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES); // Start scan
+    if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) { // Start scan
+        search_running = 1;
+    } else {
+        app_write_start_status("Device search", 0);
+    }
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
         if (search_running) {
             // Advance the non-blocking device search by one hardware operation
             if (ds18b20_search_poll()) {
                 search_running = 0;
-                uart_write_str("Found ");
-                uart_write_int(ds18b20_device_count());
-                uart_write_str(" device(s). Simultaneous conversion:\r\n");
-                ds18b20_scan_start();
+                if (ds18b20_device_count() == 0) {
+                    uart_write_str("No devices on the 1-Wire bus.\r\n");
+                } else {
+                    uart_write_str("Found ");
+                    uart_write_int(ds18b20_device_count());
+                    uart_write_str(" device(s). Simultaneous conversion:\r\n");
+                    if (ds18b20_scan_start()) {
+                        scan_running = 1;
+                    } else {
+                        app_write_start_status("Scan", 0);
+                    }
+                }
             }
-        } else {
+        } else if (scan_running) {
             ds18b20_poll(); // Advance the scan/measurement state machine
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer

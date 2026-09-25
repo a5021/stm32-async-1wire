@@ -8,7 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-09-24
+## [1.8.2] - 2026-09-24
+
+### Added
+
+- **Automated consumer integration fixtures.** CMake `add_subdirectory`,
+  FetchContent, and installed `find_package` consumers; a plain-Make consumer;
+  and a PlatformIO Blue Pill consumer. These fixtures build the library through
+  the documented public integration entry points.
+- **Integration coverage in CI.** The build workflow now exercises the CMake
+  consumer matrix, the plain-Make fragment, and the PlatformIO consumer.
+- **Consumer integration documentation.** `INTEGRATION.md` now records the
+  supported CMake, PlatformIO, and plain-Make flows alongside the CubeIDE and
+  Arduino compatibility notes.
+
+### Changed
+
+- **CMake package discovery and imported-target setup hardened.** CMSIS paths
+  are discovered with `NO_CMAKE_FIND_ROOT_PATH`, missing headers fail with an
+  actionable error, the imported target carries the selected family, and
+  consumers must use the package's configured family.
+- **Plain-Make integration fragment hardened.** Objects are built under the
+  consumer build directory by default, with dependency files generated and
+  included; user-provided definitions are preserved.
+- **PlatformIO packaging remains filtered for the published library.** The
+  metadata excludes the Makefile-only syscall stubs and internal amalgamation
+  parts.
+
+### Integration compatibility
+
+- **Automated fixtures cover three consumer classes:** CMake
+  (FetchContent/add_subdirectory/find_package), PlatformIO, and plain Make.
+- **STM32CubeIDE is documented for manual integration** with managed Makefile
+  or existing Makefile projects; it is not an automated smoke-test path in
+  this release.
+- **Arduino STM32 is documented best-effort/manual compatibility only**, not
+  an official support claim. The Library Manager metadata and build guards
+  are provided for manual evaluation, but Arduino is not an automated
+  smoke-test path here.
+- The five integration paths are therefore not all smoke-tested; only the
+  automated fixture paths above are exercised by CI.
 
 ### Breaking
 
@@ -44,10 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hardware is left as-is; prefer calling while the bus is IDLE.
 - **`onewire_search_stop()`.** Force-terminates a Search ROM / Alarm Search
   walk so the owner can release the bus mid-enumeration.
-- **Five consumption paths documented and smoke-tested** (`INTEGRATION.md`):
-  CMake FetchContent / add_subdirectory / find_package, STM32CubeIDE,
-  PlatformIO, Arduino STM32, git submodule + plain Makefile
-  (`ow-integration.mk`).
+- **Five consumption paths documented** (`INTEGRATION.md`): CMake
+  FetchContent / add_subdirectory / find_package, STM32CubeIDE (manual),
+  PlatformIO, Arduino STM32 (best-effort/manual), and git submodule + plain
+  Makefile (`ow-integration.mk`).
 - **CMake package hardening.** Pinned CMSIS/device tags, `find_path` with
   `NO_CMAKE_FIND_ROOT_PATH` for cross toolchains, PRIVATE warning flags,
   top-level guard for `OW_BUILD_EXAMPLES`, Config package
@@ -86,11 +125,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   filter.** If every id/cmp pair keeps answering `00` (all devices disagree
   and pull low), the engine re-assembles a CRC-valid ROM whose family byte
   the filter rejects, so `found` never advances and `last_discrepancy` stays
-  pinned тАФ the walk would loop forever. `onewire_search_poll()` now detects a
-  repeated leaf (the previous walk produced the identical ROM) and terminates
-  the search instead. Found both by the `fuzz_search` harness in CI
-  (`crash-99a30a39тАж`, seed `2971683640`) and locally; regression covered by
-  `test_search_hostile_all_zero_bus_terminates`.
+  pinned — the walk would loop forever. `onewire_search_poll()` now detects
+  a repeated leaf (the previous walk produced the identical ROM) and
+  terminates the search instead. Found both by the `fuzz_search` harness in
+  CI (`crash-99a30a39` — seed `2971683640`) and locally; regression covered
+  by `test_search_hostile_all_zero_bus_terminates`.
 
 ### Changed
 
@@ -103,45 +142,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `#include`s `src/ds18b20_search.c`, `src/ds18b20_txn.c`,
   `src/ds18b20_resolution.c` and `src/ds18b20_measure.c` in dependency order
   (each guarded by `DS18B20_DRIVER_BUILD`). The split is purely internal: the
-  preprocessed source and the generated machine code are unchanged, public API
-  and ABI are untouched. The Makefile test rules list the parts as
+  preprocessed source and the generated machine code are unchanged, public
+  API and ABI are untouched. The Makefile test rules list the parts as
   prerequisites and CMake marks them `HEADER_FILE_ONLY` so they stay out of
   the compiled sources.
 - **The split driver parts are now covered by CI on both axes.** The Code
   Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
   alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
   package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0 and G0 via the ARM
-  toolchain and verifies the `find_package()` install tree тАФ the CMake path
+  toolchain and verifies the `find_package()` install tree — the CMake path
   previously had no in-CI coverage despite the root `CMakeLists.txt`.
 - **Feature flags now use value-style (`#if X`) instead of presence
   (`#ifdef X`).** `OW_PORT_LOW_POWER`, `OW_DRIVE_ACTIVE` and
   `OW_STATS_ENABLE` must be passed as `=1` on the command line
   (e.g. `-DOW_PORT_LOW_POWER=1`); bare `-DOW_PORT_LOW_POWER` no longer
-  compiles correctly.  All Makefile targets, fuzz rules and the CMake
-  example block are updated accordingly.  The change is transparent for
-  `make`/`make test`/`make fuzz-all` invocations тАФ the shipped defaults
+  compiles correctly. All Makefile targets, fuzz rules and the CMake
+  example block are updated accordingly. The change is transparent for
+  `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
   and Makefile knobs already pass the right flags.
 - **Unified compile-time parasite knob.** The dual naming between the
   driver guard-band default (`OW_TIMING_PARASITE`) and the example
   application flag (`PARASITE_POWER`) is replaced by a single
-  `OW_PARASITE_POWER` value (0/1, default 0).  Passing
-  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 ┬╡s
+  `OW_PARASITE_POWER` value (0/1, default 0). Passing
+  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
   *and* causes every example to call `ds18b20_set_parasite(1)` at
-  startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
+  startup. The old flag names are removed; `-DPARASITE_POWER=1` no
   longer has any effect.
 
 ### Added
 
-- **`inc/ow_config.h` тАФ central compile-time configuration header.**
+- **`inc/ow_config.h` — central compile-time configuration header.**
   All genuinely tunable build constants are now collected in a single
   file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
   `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
   timing (`OW_PARASITE_POWER`), feature flags (`OW_PORT_LOW_POWER`,
   `OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`) and DS18B20 driver knobs
-  (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`).  Every macro
+  (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`). Every macro
   carries a `#ifndef` guard so existing `-D` overrides keep working;
   the header is the new single source of truth for defaults and
-  hardware-validated documentation.  Protocol-inherent values
+  hardware-validated documentation. Protocol-inherent values
   (`ONEWIRE_MAX_SLOTS`, `DS18B20_RES_MIN/MAX/DEFAULT`) and the
   per-family system-clock default remain in their respective headers.
   The header is added to `library.json` headers and
@@ -154,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   always returns 1 because the single-slot input is always valid, but
   propagates the status for API consistency). Debug builds still
   trap on the reject path via `assert`; with `NDEBUG` the caller
-  receives 0 instead of a silent no-op тАФ so an invalid size can never
+  receives 0 instead of a silent no-op — so an invalid size can never
   turn into an undiscovered `onewire_bus_done()` hang. The three
   underlying port-layer functions (`ow_port_feed`,
   `ow_port_write_slots`, `ow_port_read_data`) follow the same
@@ -169,13 +208,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (write, reset, read pair, read data, merged search write+read, Match-ROM
   config write, single-bit write) against one table of exact `RCR`, `CPAR`,
   `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
-  transfer accounting тАФ including the 8-bit `RCR` boundaries (write 256 slots /
-  read 32 bytes тЖТ `RCR` 255). The feed log gained an uncapped total-transfer
+  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
+  read 32 bytes — `RCR` 255). The feed log gained an uncapped total-transfer
   counter so exact transfer counts hold even beyond the 128-entry value log.
 
 - **New temporal TIM/DMA event model in the host test harness.**
   `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
-  start* ("modeled at slot start for simplicity") тАФ fine for the memory-side
+  start* ("modeled at slot start for simplicity") — fine for the memory-side
   DMA contract, but it cannot prove the *temporal* contract. The new
   `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
   physical counter position and the new `test_tim_model` tests prove that
@@ -187,23 +226,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
   `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
   -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
-  the 1-Wire standard тАФ `one` 1┬╡s, `zero` 60┬╡s, `guard` 1┬╡s,
-  `shortтЙд` 15┬╡s тЖТ 62┬╡s slot. It is experimental: a 1┬╡s read/write pulse is
-  below the values validated on hardware (a 2┬╡s pulse already broke slot
+  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
+  `short` 15µs — 62µs slot. It is experimental: a 1µs read/write pulse is
+  below the values validated on hardware (a 2µs pulse already broke slot
   decoding on an F030 at 8MHz) and is intended for electrically ideal setups
   only.
 
 ### Changed
 
 - **Example applications restructured into numbered directories.**
-  `src/demo*.c` became `examples/1_basic` тАж `examples/7_low_power`, with the
+  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
   shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
   non-blocking UART TX ring buffer, busy-LED callback).
 - **Timing preset selection moved to compile time.** The four timing values
   (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
   Makefile presets now expand directly into
-  `-DONEWIRE_ONE_PULSE=тАж -DONEWIRE_ZERO_PULSE=тАж -DONEWIRE_GUARD_BAND=тАж
-  -DONEWIRE_SHORT_PULSE_MAX=тАж`; `OW_TIMING_PARASITE` selects the wider 100┬╡s
+  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
+  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
   guard-band default on parasite-powered buses.
 - **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
   moved to `src/syscall.c`; public version macros
@@ -211,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **Breaking:** the runtime timing-profile API is removed тАФ
+- **Breaking:** the runtime timing-profile API is removed —
   `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
   `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
   `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
@@ -836,5 +875,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.6.1]: https://github.com/a5021/stm32-async-1wire/releases/tag/v1.6.1
 [1.7.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.6.1...v1.7.0
 [1.7.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.0...v1.7.1
+[1.8.2]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...v1.8.2
 [1.8.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...v1.8.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.2...HEAD

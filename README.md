@@ -724,7 +724,7 @@ Minimal `platformio.ini`:
 platform  = ststm32
 board     = bluepill_f103c8
 framework = stm32cube
-lib_deps  = a5021/stm32-async-1wire@^2.0.0
+lib_deps  = a5021/stm32-async-1wire@^1.8.2
 build_flags =
     -DOW_PORT_TARGET_F1
     ; optional:
@@ -744,8 +744,9 @@ Only `onewire.c`, `ds18b20.c` and `ow_stats.c` are compiled (`srcFilter`);
 (Makefile-only newlib stubs) are excluded. The family define may be omitted
 when the framework already defines `STM32F1` / `STM32F0` / `STM32G0`.
 
-The library is also compatible with the Arduino Library Manager (see
-`library.properties`). Full walkthroughs for every integration path:
+The library also ships Arduino Library Manager metadata and compatibility
+notes; Arduino STM32 remains a manual, best-effort path rather than an
+official support contract. Full walkthroughs for every integration path:
 [INTEGRATION.md](INTEGRATION.md).
 
 ### CMake (FetchContent)
@@ -768,7 +769,7 @@ In a downstream project:
 ```cmake
 FetchContent_Declare(stm32_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v1.8.1
+    GIT_TAG        v1.8.2
 )
 FetchContent_MakeAvailable(stm32_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)

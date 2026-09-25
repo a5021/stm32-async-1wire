@@ -46,7 +46,12 @@ int main(void) {
 
     uart_write_str("DS18B20 1_basic starting...\r\n"); // Enqueue startup message
 
-    ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
+    if (!ds18b20_init()) { // Initialize DS18B20 driver (non-blocking)
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif

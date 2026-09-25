@@ -33,7 +33,7 @@ extern void ds18b20_test_set_gap_us(uint16_t us); // [TEST] temporary hook
 static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8]; // ROMs found at startup
 static uint8_t found_count = 0; // how many devices were found
 static uint8_t select_index = 0; // index of the currently selected device
-static uint8_t search_running = 1; // 1 until the non-blocking bus scan finishes
+static uint8_t search_running = 0; // 1 until the non-blocking bus scan finishes
 
 // ======== Non-blocking resolution change (resolution demo) ========
 // After every measurement the demo queues the next resolution for the device
@@ -179,10 +179,19 @@ int main(void) {
     const uint8_t runs_per_gap = 100u;
     uint8_t gap_idx = 0;
     uint8_t run = 0;
-    ds18b20_init();
+    if (!ds18b20_init()) {
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
     uart_write_str("Search gap sweep:\r\n");
     ds18b20_test_set_gap_us(gap_table[gap_idx]);
-    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) {
+        search_running = 1;
+    } else {
+        app_write_start_status("Device search", 0);
+    }
     for (;;) {
         if (search_running) {
             if (ds18b20_search_poll()) {
@@ -205,19 +214,31 @@ int main(void) {
                     ds18b20_test_set_gap_us(gap_table[gap_idx]);
                 }
                 found_count = 0;
-                ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
-                search_running = 1;
+                if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) {
+                    search_running = 1;
+                } else {
+                    app_write_start_status("Device search", 0);
+                }
             }
         }
         uart_poll_tx(); // Poll UART transmission - feeds hardware from buffer
     }
 #else
     uart_write_str("Searching 1-Wire bus...\r\n"); // Enqueue search banner
-    ds18b20_init(); // Initialize DS18B20 driver (non-blocking)
+    if (!ds18b20_init()) { // Initialize DS18B20 driver (non-blocking)
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1); // Devices are powered over the data line
 #endif
-    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES); // Start scan
+    if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) { // Start scan
+        search_running = 1;
+    } else {
+        app_write_start_status("Device search", 0);
+    }
 
     for (;;) { // Main event loop (non-blocking, cooperative multitasking)
 
@@ -243,9 +264,12 @@ int main(void) {
             } else if (next_resolution != 0) {
                 // Ownership guard: a no-op unless the driver is IDLE and no
                 // search/resolution transaction is running.
-                ds18b20_set_resolution(next_resolution);
-                next_resolution = 0;
-                res_change_busy = 1;
+                if (ds18b20_set_resolution(next_resolution)) {
+                    next_resolution = 0;
+                    res_change_busy = 1;
+                } else {
+                    app_write_start_status("Resolution change", 0);
+                }
             } else {
                 ds18b20_poll(); // Poll DS18B20 state machine - measures devices in turn
             }

@@ -56,25 +56,18 @@ OW_1WIRE_INC := \
 	-I$(OW_1WIRE_ROOT)/include \
 	-I$(OW_1WIRE_ROOT)/port
 
-OW_1WIRE_DEFS := $(OW_1WIRE_FAMILY_DEF) $(OW_1WIRE_DEFS)
+OW_1WIRE_USER_DEFS := $(OW_1WIRE_DEFS)
+OW_1WIRE_DEFS := $(OW_1WIRE_FAMILY_DEF) $(OW_1WIRE_USER_DEFS)
 OW_1WIRE_CFLAGS ?=
 
-# Objects land next to your own — override if you prefer a dedicated dir.
-OW_1WIRE_BUILD_DIR ?= $(BUILD_DIR)
-OW_1WIRE_OBJ := $(addprefix $(OW_1WIRE_BUILD_DIR)/,$(notdir $(OW_1WIRE_SRC:.c=.o)))
-
-# VPATH so the generic %.c -> %.o rule below can find the library sources.
-VPATH += $(OW_1WIRE_ROOT)/src
+# Use the consumer build directory when supplied, otherwise stay inside the
+# checkout instead of placing objects at the filesystem root.
+OW_1WIRE_BUILD_DIR ?= $(if $(strip $(BUILD_DIR)),$(strip $(BUILD_DIR)),$(OW_1WIRE_ROOT)/build)
+OW_1WIRE_OBJ := $(patsubst $(OW_1WIRE_ROOT)/src/%.c,$(OW_1WIRE_BUILD_DIR)/%.o,$(OW_1WIRE_SRC))
 
 # --- Compile rule -------------------------------------------------------------
-# Uses your $(CC), $(CFLAGS) and $(BUILD_DIR) — the fragment adapts to the
-# including Makefile. Library-specific flags are appended, not mixed in.
-$(OW_1WIRE_BUILD_DIR)/%.o: $(OW_1WIRE_ROOT)/src/%.c | $(OW_1WIRE_BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(OW_1WIRE_INC) $(OW_1WIRE_DEFS) $(OW_1WIRE_CFLAGS) -c $< -o $@
+$(OW_1WIRE_BUILD_DIR)/%.o: $(OW_1WIRE_ROOT)/src/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(OW_1WIRE_INC) $(OW_1WIRE_DEFS) $(OW_1WIRE_CFLAGS) -MMD -MP -MF $(@:%.o=%.d) -c $< -o $@
 
-$(OW_1WIRE_BUILD_DIR):
-	mkdir -p $@
-
-# Convenience: mark the library objects as up-to-date dependencies of `all`
-# if the including Makefile wants them, or reference $(OW_1WIRE_OBJ) explicitly.
-OW_1WIRE_READY := 1
+-include $(OW_1WIRE_OBJ:.o=.d)

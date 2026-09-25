@@ -34,7 +34,7 @@
 static uint8_t found_roms[DS18B20_SEARCH_MAX_DEVICES][8];
 static uint8_t found_count = 0;
 static uint8_t select_index = 0;
-static uint8_t search_running = 1;
+static uint8_t search_running = 0;
 
 static uint8_t device_found_sink(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
@@ -120,7 +120,12 @@ int main(void) {
     app_init();
     uart_write_str("DS18B20 7_low_power (low power) starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
-    ds18b20_init();
+    if (!ds18b20_init()) {
+        app_write_start_status("Driver init", 0);
+        for (;;) {
+            uart_poll_tx();
+        }
+    }
 #if OW_PORT_LOW_POWER
     uart_write_str("OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n");
 #else
@@ -129,7 +134,11 @@ int main(void) {
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1);
 #endif
-    ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
+    if (ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES)) {
+        search_running = 1;
+    } else {
+        app_write_start_status("Device search", 0);
+    }
 
     for (;;) {
         if (search_running) {

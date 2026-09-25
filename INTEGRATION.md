@@ -1,7 +1,10 @@
 # Integrating stm32-async-1wire into an external project
 
-Five supported ways to pull the library into your firmware. Pick the row that
-matches your build system — they all compile the same three sources
+Five integration paths are documented. Automated consumer fixtures cover CMake
+(`FetchContent` / `add_subdirectory` / `find_package`), PlatformIO, and a plain
+Makefile. STM32CubeIDE is a documented manual integration path, while Arduino
+STM32 is best-effort/manual compatibility, not official support. Pick the row
+that matches your build system; they all compile the same three sources
 (`src/onewire.c`, `src/ds18b20.c`, `src/ow_stats.c`) and put `include/` +
 `port/` on the include path.
 
@@ -42,7 +45,7 @@ project(my_firmware C ASM)
 include(FetchContent)
 FetchContent_Declare(stm32_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v2.0.0          # pin a tag, not a branch
+    GIT_TAG        v1.8.2          # pin a tag, not a branch
 )
 FetchContent_MakeAvailable(stm32_1wire)
 
@@ -156,7 +159,7 @@ platform = ststm32
 board = bluepill_f103c8
 framework = stm32cube
 lib_deps =
-    https://github.com/a5021/stm32-async-1wire.git#v2.0.0
+    https://github.com/a5021/stm32-async-1wire.git#v1.8.2
 build_flags =
     -DOW_PORT_TARGET_F1
     ; optional: -DOW_STATS_ENABLE=1  -DOW_PARASITE_POWER=1
@@ -187,7 +190,9 @@ PlatformIO; only the filtered `src/` files are.
 
 ## 4. Arduino STM32
 
-`library.properties` targets Arduino Library Manager (`architectures=stm32`).
+Arduino STM32 support is documented best-effort, not official: the library ships
+`library.properties` metadata and compatibility notes, but this release does not
+claim an official Arduino support contract.
 
 ### 4a. Library Manager / manual install
 
@@ -254,6 +259,7 @@ git submodule update --init --recursive
 # --- top of your Makefile ----------------------------------------------------
 OW_1WIRE_DIR := third_party/stm32-async-1wire
 OW_TARGET     ?= f1              # f1 | f0 | g0
+BUILD_DIR    ?= build
 
 # your own flags / objects …
 CFLAGS  += -mcpu=cortex-m3 -mthumb -Os -Wall -Wextra
@@ -276,6 +282,7 @@ firmware.elf: $(APP_OBJ) $(OW_1WIRE_OBJ)
 | `OW_1WIRE_INC`  | `-I…/include -I…/port` |
 | `OW_1WIRE_DEFS` | `-DOW_PORT_TARGET_F?` (+ your `OW_1WIRE_DEFS`) |
 | `OW_1WIRE_OBJ`  | Objects built into `$(OW_1WIRE_BUILD_DIR)` (default `$(BUILD_DIR)`) |
+| `OW_1WIRE_BUILD_DIR` | Consumer object directory (default `$(BUILD_DIR)` or the library checkout's `build/`) |
 | `OW_1WIRE_CFLAGS` | Extra flags for library TUs only |
 
 Optional features are plain macros, same as the library Makefile:

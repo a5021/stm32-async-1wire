@@ -146,6 +146,33 @@ int uart_write_hex(uint8_t b) {
     return n;
 }
 
+void app_write_start_status(const char* operation, uint8_t started) {
+    if (started) {
+        return;
+    }
+    uart_write_str(operation);
+    uart_write_str(" rejected: ");
+    switch (ds18b20_last_status()) {
+    case DS18B20_STATUS_BUSY:
+        uart_write_str("busy");
+        break;
+    case DS18B20_STATUS_OWNER:
+        uart_write_str("owner active");
+        break;
+    case DS18B20_STATUS_INVALID:
+        uart_write_str("invalid argument");
+        break;
+    case DS18B20_STATUS_EMPTY:
+        uart_write_str("empty device table");
+        break;
+    case DS18B20_STATUS_OK:
+    default:
+        uart_write_str("driver not ready");
+        break;
+    }
+    uart_write_str("\r\n");
+}
+
 /* ---- ow_stats output callbacks (strong definitions) ---- */
 
 void ow_stats_putchar(char c) {

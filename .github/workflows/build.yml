@@ -75,3 +75,44 @@ jobs:
             build/*.bin
             build/*.hex
 
+      - name: Build CMake integration consumers
+        run: |
+          set -euo pipefail
+          toolchain="$GITHUB_WORKSPACE/cmake/arm-none-eabi-gcc.cmake"
+          core="$GITHUB_WORKSPACE/CMSIS/core"
+          device="$GITHUB_WORKSPACE/CMSIS/device"
+          prefix="$RUNNER_TEMP/ow-cmake-prefix"
+          cmake -S "$GITHUB_WORKSPACE" -B "$RUNNER_TEMP/ow-package" \
+            -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+            -DCMAKE_INSTALL_PREFIX="$prefix" \
+            -DOW_TARGET=f1 -DOW_FETCH_CMSIS=OFF \
+            -DOW_CMSIS_CORE_INCLUDE="$core" -DOW_CMSIS_DEVICE_INCLUDE="$device"
+          cmake --build "$RUNNER_TEMP/ow-package" --target install
+          for kind in add_subdirectory fetchcontent; do
+            cmake -S "$GITHUB_WORKSPACE/tests/integration/cmake/$kind" \
+              -B "$RUNNER_TEMP/ow-$kind" \
+              -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+              -DOW_SOURCE_DIR="$GITHUB_WORKSPACE" \
+              -DOW_CMSIS_CORE_INCLUDE="$core" -DOW_CMSIS_DEVICE_INCLUDE="$device" \
+              -DOW_TARGET=f1 -DOW_FETCH_CMSIS=OFF
+            cmake --build "$RUNNER_TEMP/ow-$kind"
+          done
+          cmake -S "$GITHUB_WORKSPACE/tests/integration/cmake/installed" \
+            -B "$RUNNER_TEMP/ow-installed" \
+            -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+            -DCMAKE_PREFIX_PATH="$prefix" \
+            -DOW_CMSIS_CORE_INCLUDE="$core" -DOW_CMSIS_DEVICE_INCLUDE="$device"
+          cmake --build "$RUNNER_TEMP/ow-installed"
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      - name: Plain Make consumer
+        run: make -C tests/integration/plain-make clean all
+      - name: Install PlatformIO
+        run: python -m pip install --user platformio
+      - name: PlatformIO bluepill consumer
+        run: python -m platformio run -d tests/integration/platformio
+
