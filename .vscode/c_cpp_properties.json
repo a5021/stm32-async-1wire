@@ -44,6 +44,36 @@
             ],
             "cStandard": "c11",
             "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32F407 (make OW_TARGET=f4)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F407xx",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32F401CC (make OW_TARGET=f4 OW_CHIP=f401xc)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F401xC",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
         }
     ],
     "version": 4

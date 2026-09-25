@@ -60,9 +60,14 @@ interrupt-free, minimal CPU usage).
 ## Build checklist
 
 ```bash
-make            # release build (must succeed with -Werror)
-make SYSCLK_MHZ=8 # 8MHz internal-RC variant
-make debug      # optional, for debugging
+make                # release build (must succeed with -Werror)
+make SYSCLK_MHZ=8   # 8MHz variant
+make debug          # optional, for debugging
+make test           # host test suite; also -f0 / -g0 / -f4
+make test-lowpower  # same suite with the -DOW_PORT_LOW_POWER=1 WFE path
+make test-ndebug    # same suite with asserts compiled out
+make test-clocks    # per-family clock-default compile checks
+make test-chips     # chips/<part>.mk part matrix (needs no toolchain)
 ```
 
 Thanks again for helping improve this driver!

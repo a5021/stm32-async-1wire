@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to PB6 (AF7). The same header drives both parts — TIM1/DMA2/CHSEL=6 map
   identically (RM0090 / RM0368) — with the chip selecting the CMSIS device
   layer, linker script and clock default: `make OW_TARGET=f4` (F407, 168MHz
-  HSE+PLL default) vs `make OW_TARGET=f4 OW_CHIP=f401` (F401CC, 84MHz
+  HSE+PLL default) vs `make OW_TARGET=f4 OW_CHIP=f401xc` (F401CC, 84MHz
   HSE+PLL default; 256KB flash / 64KB RAM, `STM32F401CC_FLASH.ld`; 84MHz
   clock-config branch in `app.c` and an 84MHz F4 library clock default). The
   host suite runs the whole test matrix (default, low-power, NDEBUG,
@@ -83,6 +83,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
 
 ### Changed
+
+- **Two build-system structures replaced by simpler ones.** The part-matrix
+  check moved out of the Makefile into `tests/check_chips.sh` — reading three
+  values out of a flat file and testing them against the filesystem needed a
+  parse-time include, an `eval`'d conditional and a sub-make per part in make;
+  the entry point is still `make test-chips`. The 37 CMSIS download rules are
+  now generated from one table of `target | directory | URL`, so a target and
+  its URL can no longer come apart — which is the failure that broke every
+  dependency-fetching CI job when the per-family URL variables were added one at
+  a time. Makefile: 994 → 888 lines.
 
 - **An unknown `OW_TARGET` or `OW_CHIP` is a build error.** Both used to fall
   through to the F1 branch, so a typo produced a valid-looking Blue Pill
@@ -175,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both library targets, and `ow_port_f4.h` ships in the install tree so
   `ow_port.h`'s sibling quote-include resolves for installed consumers.
   Selecting the F401CC variant remains a Makefile-only knob
-  (`OW_TARGET=f4 OW_CHIP=f401`).
+  (`OW_TARGET=f4 OW_CHIP=f401xc`).
 
 - **The CMake install-tree check in CI asserted a file that does not exist.**
   The job verified `include/stm32-async-1wire/onewire_internal.h`, a leftover

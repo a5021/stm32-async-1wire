@@ -129,13 +129,13 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4 (F407/F401)
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
+│   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
+│   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
 │   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
 │   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
-│   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
-│   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── chips/                  # Per-part build identity, one file per part
 │   ├── f103xb.mk           # CMSIS macro, startup, linker script, debugger
@@ -154,7 +154,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ds18b20_search.c    # (include-only part) ROM device table + search/alarm
 │   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
-│   └── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
+│   ├── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
+│   └── syscall.c           # Minimal libc stubs (_write/_sbrk/...) for bare metal
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -172,8 +173,9 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
 │   ├── test/               # Unity-based test cases
 │   └── check_chips.sh      # Part-matrix check (make test-chips)
-├── cmake/                  # CMake toolchain
-│   └── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
+├── cmake/                  # CMake package
+│   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
+│   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
 ├── docs/                   # Documentation assets
 │   ├── api/                # Doxygen-generated API reference
 │   └── screenshots/        # UART capture screenshots
@@ -291,6 +293,10 @@ Notes:
   example is currently selected by `APP`.
 
 ## Hardware Verified
+
+Captures and measurements below are from real boards unless a subsection says
+otherwise. The STM32F401 entries are the exception: that backend shares the
+F407 driver code and has not been run on an F401 board yet.
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -766,8 +772,12 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
+| `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F401 84 MHz one (`test-clocks-f1/f0/g0/f4/f401xc`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
+| `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
+| `make gccversion` | Show the detected compiler and linker versions |
 | `make help` | Show all targets |
 
 Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
@@ -804,7 +814,7 @@ CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32g0xx.h` /
     channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
     driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-    object file.) 297 tests run per backend (299 on G0, which adds two
+    object file.) 300 tests run per backend (302 on G0, which adds two
     DMAMUX request-routing tests). The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -837,7 +847,8 @@ CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32g0xx.h` /
     (`test_ow_stats`)
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive,
-8 tests) and `make test-lowpower` (full suite + low-power WFE path, 309 tests).
+8 tests), `make test-lowpower` (full suite + low-power WFE path, 312 tests)
+and `make test-ndebug` (313 tests, asserts off).
 
 ### PlatformIO
 
@@ -883,7 +894,12 @@ cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
 cmake --build build
 ```
 
-Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`.
+Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`, and
+the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4
+-DOW_CHIP=f401xc`, default per family, `-DOW_SYSCLK_MHZ=N` to override the
+part's clock). CMake reads the same `chips/<part>.mk` the Makefile build does,
+so the two cannot disagree about the device macro, startup file, linker script
+or clock.
 
 In a downstream project:
 
@@ -918,16 +934,20 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire)
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
-    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4` or
-    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc`.
+    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`,
+    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc` or `STM32F401xE` with
+    `OW_TARGET=f4 OW_CHIP=f401xe`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
-    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`), and
+    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
     `make OW_TARGET=f4 OW_CHIP=f401xc` for the F401CC variant of the same backend
-    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`). The default
+    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`) and
+    `make OW_TARGET=f4 OW_CHIP=f401xe` for the 512KB/128KB xE parts
+    (`port/stm32f4/STM32F401RE_FLASH.ld`, same 84MHz default). Each part's
+    identity lives in its own `chips/<part>.mk`. The default
     target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via PA12 remap
     for G0).
 
@@ -1027,6 +1047,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 - `Build (debug)` — `make debug`
 - `Build F0 (debug)` — `make OW_TARGET=f0 debug` (debug build for the STM32F030 target)
 - `Build G0 (debug)` — `make OW_TARGET=g0 debug` (debug build for the STM32G031 target)
+- `Build F4 (debug)` — `make OW_TARGET=f4 debug` (debug build for the STM32F4 target)
 - `Clean` — `make clean`
 - `Program (J-Link)` / `Program (ST-Link)` — flash the device
 - `Download dependencies` — `make download-deps`
@@ -1035,11 +1056,12 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 1. In the **Run and Debug** panel (`Ctrl+Shift+D`), select the debug
    configuration: **"Debug F1 (J-Link)"** / **"Debug F1 (ST-Link)"** for
-   the STM32F103 target, or **"Debug F0 (J-Link)"** /
-   **"Debug F0 (ST-Link)"** for the STM32F030 target, or **"Debug G0
-   (J-Link)"** / **"Debug G0 (ST-Link)"** for the STM32G031 target. The F0
+   the STM32F103 target, **"Debug F0 (J-Link)"** / **"Debug F0 (ST-Link)"**
+   for the STM32F030 target, **"Debug G0 (J-Link)"** / **"Debug G0
+   (ST-Link)"** for the STM32G031 target, or **"Debug F4 (J-Link)"** /
+   **"Debug F4 (ST-Link)"** for the STM32F4 target. The F0
    configurations build with `OW_TARGET=f0` automatically, the G0 ones with
-   `OW_TARGET=g0`.
+   `OW_TARGET=g0`, the F4 ones with `OW_TARGET=f4`.
 2. Open `examples/1_basic/main.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
@@ -1049,8 +1071,9 @@ and loaded automatically for peripheral register views in the debug
 sidebar. Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
 from either backend directory; the project resolves its SVD and ELF paths
 relative to its own location. The F4 directory holds one project per part —
-`project.jdebug` for the F407VGT6 default and `project-f401cc.jdebug` for the
-F401CC, since each part has its own device name and SVD.
+`project.jdebug` for the F407VGT6 default, `project-f401cc.jdebug` for the
+F401CC and `project-f401re.jdebug` for the xE parts, since each part has its
+own device name and SVD.
 
 **J-Link:** Connect a SEGGER J-Link debugger via SWD.  
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill

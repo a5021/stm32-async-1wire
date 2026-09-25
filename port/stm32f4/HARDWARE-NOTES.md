@@ -9,7 +9,7 @@ TIM1/DMA2/`CHSEL=6` topology by construction (the CHSEL note below cites RM0368
 — the F401 reference manual — and matches silicon behavior on the F407), but
 the 84MHz F401 configuration has **not yet been run on an F401 board**.
 
-## F401CC specifics (`OW_CHIP=f401`)
+## F401CC specifics (`OW_CHIP=f401xc`)
 
 The F401 needs no port-level changes — only the build/case layer: `STM32F401xC`
 CMSIS device + startup (`stm32f401xc.h` / `startup_stm32f401xc.s`), the
