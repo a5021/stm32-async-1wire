@@ -461,9 +461,12 @@ clean-deps:
 # include plus an eval'd conditional plus a sub-make per part.
 
 .PHONY: test-mocks
-# Needs the real CMSIS device headers to compare against, so fetch them
-# rather than assuming whoever called us already did.
-test-mocks: download-deps
+# Needs the real CMSIS device headers of *every* family to compare against,
+# and a plain download-deps only fetches the active OW_TARGET's. Recursing
+# per family keeps the requirement with the target instead of with every
+# caller, the way clock-ref-check does.
+test-mocks:
+	$(foreach t,$(OW_KNOWN_TARGETS),$(MAKE) OW_TARGET=$(t) download-deps &&) true
 	@sh tests/check_mock_headers.sh
 
 .PHONY: test-chips
