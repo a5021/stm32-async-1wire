@@ -217,7 +217,7 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
-| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N cycles (shipped build default 5000 via `STATS_DUMP_INTERVAL`, overridable), then streams the full report over UART as a non-blocking dump. |
+| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 
 ```bash
@@ -283,8 +283,9 @@ Notes:
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
 - `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
   (`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
-  `STATS_DUMP_INTERVAL` full rounds (source default 100; the `Makefile` and
-  CMake `6_statistics` build targets compile it with 5000) the accumulated
+  `STATS_DUMP_SWEEPS` sweeps - one sweep is one pass over every device, so a
+  batch covers `STATS_DUMP_SWEEPS * devices` measurements and yields that
+  many samples per sensor - the accumulated
   per-sensor pulse-width min/max,
   13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
   `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
@@ -409,9 +410,8 @@ with it, so a hand-rolled `-DSTM32F401xE` used to link against the xC script's
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
-module accumulates after every `STATS_DUMP_INTERVAL` full rounds (source
-default 100; the `make APP=6_statistics` Makefile target and the CMake example
-build compile it with 5000) — per-sensor pulse-width min/max, a 13-bucket
+module accumulates after every `STATS_DUMP_SWEEPS` sweeps (default 10, defined
+only in the example's source) — per-sensor pulse-width min/max, a 13-bucket
 logarithmic histogram (0–60+ µs) and error counters (CRC, presence, other),
 then streams the full report over UART. Validated on STM32G031@64MHz with
 6 × DS18B20 in parasite power mode — all six sensors detected, 0 errors, pulse
@@ -903,7 +903,7 @@ for.
 
 Add `-DOW_BUILD_EXAMPLES=ON` to build the seven example applications. They are
 built with the same per-example `UART_TX_BUF_SIZE` and, for `6_statistics`, the
-same `OW_STATS_ENABLE` + `STATS_DUMP_INTERVAL=5000` as `make APP=<ex>`, and
+same `OW_STATS_ENABLE` as `make APP=<ex>`, and
 each one also gets a `.hex` and a `.bin` next to the executable in
 `build/examples/`.
 
@@ -1875,21 +1875,29 @@ RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
 cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
 0–12, are populated).
 
-Example — dump after `STATS_DUMP_INTERVAL` full rounds (source default 100):
+Example — dump every `STATS_DUMP_SWEEPS` sweeps (default 10). A sweep is
+one pass over every sensor, so the period is a count of passes rather than
+of individual measurements, and it reads the same on a one-sensor bus as on
+a seven-sensor one:
 
 ```C
 #include "ow_stats.h"
 
-#ifndef STATS_DUMP_INTERVAL
-#define STATS_DUMP_INTERVAL 100u
+#ifndef STATS_DUMP_SWEEPS
+#define STATS_DUMP_SWEEPS 10u
 #endif
 
 static uint8_t dump_busy = 0;
+static uint32_t sweep_count = 0;
 
 void ds18b20_complete(int16_t temp) {
     // ... handle temperature reading ...
-    uint32_t cycles = ow_stats_tick();
-    if (cycles >= STATS_DUMP_INTERVAL && !dump_busy) {
+    // ... advance to the next sensor, wrapping back to index 0 ...
+    if (select_index == 0) { /* one sweep completed */
+        sweep_count++;
+    }
+    (void)ow_stats_tick(); /* keeps total_cycles a count of measurements */
+    if (sweep_count >= STATS_DUMP_SWEEPS && !dump_busy) {
         ow_stats_dump_start();
         dump_busy = 1;
     }
@@ -1919,11 +1927,14 @@ make APP=6_statistics                                  # external power (OW_STAT
 make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"            # parasite power
 ```
 
-> Note: the `6_statistics` target already injects `-DOW_STATS_ENABLE=1` plus
-> `-DSTATS_DUMP_INTERVAL=5000`, so the shipped 6_statistics dumps every 5000
-> cycles. The demo needs no inter-measurement pause: it requests the next cycle
-> as soon as the dump is done, so the conversion time itself is the cadence.
-> Override the macro via `EXT=` if you want the module default instead.
+> Note: the `6_statistics` target injects `-DOW_STATS_ENABLE=1` and nothing
+> else. The period is the example's own `STATS_DUMP_SWEEPS`, defined once in
+> `examples/6_statistics/main.c`, so it is overridable with
+> `EXT="-DSTATS_DUMP_SWEEPS=N"`. The demo needs no inter-measurement pause: it
+> requests the next cycle as soon as the dump is done, so the conversion time
+> itself is the cadence and how long a batch takes depends on how many sensors
+> are on the bus. A `---` separator marks each sweep, so the wait is visible
+> rather than silent.
 
 UART output format (compact, one sensor per line):
 

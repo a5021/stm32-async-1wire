@@ -482,9 +482,12 @@ if(OW_BUILD_EXAMPLES)
                 stm32_async_1wire
                 stm32_async_1wire_platform
             )
-            # Mirror `make APP=6_statistics`.
+            # Mirror `make APP=6_statistics`: enable the stats module only. The
+            # dump period is left to the example's own STATS_DUMP_SWEEPS default,
+            # so it stays overridable from the command line instead of being
+            # pinned to one value in two places.
             target_compile_definitions(${ex} PRIVATE
-                STATS_DUMP_INTERVAL=5000
+                OW_STATS_ENABLE=1
             )
         else()
             target_link_libraries(${ex} PRIVATE

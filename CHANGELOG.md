@@ -186,6 +186,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`6_statistics` counted its dump period in measurements while calling the
+  knob `STATS_DUMP_INTERVAL`, and shipped a value that put the first dump about
+  an hour out.** Both build systems forced `-DSTATS_DUMP_INTERVAL=5000`, and a
+  measured device takes ~0.79 s per measurement, so the example spent an hour
+  printing measurements and nothing else - it looks broken, and the plausible
+  reading of the name (5000 ms, as with every other interval constant in the
+  project, which carries its unit) is not what the code did. `override EXT +=`
+  appended the define after any value passed as `EXT=`, and the last define on
+  the command line wins, so the source default of 100 was unreachable and the
+  period could not be overridden at all.
+
+  The period is now `STATS_DUMP_SWEEPS` and is counted in sweeps - one pass
+  over every device - defaulting to 10, which on a 7-sensor parasite bus is 70
+  measurements and about a minute. The count sits outside the `found_count > 1`
+  branch, because the round-robin block never runs with a single device:
+  counting the sweep where the `---` marker is printed would have meant no
+  batch ever completed on a one-sensor bus, which the old measurement-based
+  period did deliver. Both build systems now inject `OW_STATS_ENABLE` and
+  nothing else, so the period is defined once, in the example's source, and is
+  reachable and overridable. `ow_stats_tick()` still runs per measurement, so
+  the `t=` total in the dump keeps its meaning, and the example prints the
+  period and the expected sample count at startup so the wait is checkable
+  against that total.
+
 - **Object files were not named after the selected part, so building one
   family or part after another silently reused the previous one's objects.**
   Object names carried only the app name (`build/1_basic_onewire.o`) to keep

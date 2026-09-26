@@ -24,7 +24,11 @@ endif
 # deliberately NOT set here (it is bus-hardware dependent) — pass EXT="-DOW_PARASITE_POWER=1"
 # when the 1-Wire bus is parasite-powered.
 ifeq ($(APP),6_statistics)
-override EXT += -DOW_STATS_ENABLE=1 -DSTATS_DUMP_INTERVAL=5000
+# Only OW_STATS_ENABLE is forced: the dump period (STATS_DUMP_SWEEPS) is defined
+# once, in the example's own source, so it is reachable and overridable. Forcing
+# it here with `override ... +=` also defeated any value passed as EXT=..., since
+# the appended define lands last on the command line and the last one wins.
+override EXT += -DOW_STATS_ENABLE=1
 endif
 
 # Define the name of the project target and the build directory
