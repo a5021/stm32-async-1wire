@@ -166,24 +166,15 @@ ifdef TIMING
   DEF += -DONEWIRE_SHORT_PULSE_MAX=$(word 4, $(_OW_TIMING_$(TIMING)))
 endif
 
-# Optimization flags for the compiler:
-# -Os         : Optimize for code size. This driver is polled on a millisecond
-#               cadence, so compact code matters more than raw speed. Saves
-#               ~65% flash vs the old -O3 + --param max-inline-insns-auto=480
-#               (which ballooned main() to ~9 KB by forcing massive inlining).
-# -flto       : Link Time Optimization - cross-file optimization during linking
-# -g0         : No debug information (reduces binary size, incompatible with debugging)
+# Optimization flags for the compiler. The profiles live in config/optim.mk,
+# which the CMake build reads too, so "make and cmake produce the same
+# firmware" is enforced by there being only one copy of the flags.
+include config/optim.mk
 
-OPT = -Os -flto -g0
+OPT = $(OPT_RELEASE)
 
-# Cortex-M0 / Cortex-M0+ (F0 / G0) trip a GCC 14 LTO link failure
-# ("invalid constant after fixup" in the thin-LTO partitioner) when the code
-# shape shifts; drop LTO there. Correctness is unaffected, binaries are just
-# slightly larger. Cortex-M3 (F1) keeps LTO.
-ifeq ($(OW_TARGET),f0)
-OPT := $(filter-out -flto,$(OPT))
-endif
-ifeq ($(OW_TARGET),g0)
+ifeq ($(filter $(OW_TARGET),$(OPT_NO_LTO)),)
+else
 OPT := $(filter-out -flto,$(OPT))
 endif
 
@@ -519,7 +510,7 @@ $(BUILD_DIR):
 	mkdir $@
 
 # Perform the 'debug' target, which enables debug symbols and builds the project
-debug: OPT = -Og -g3 -gdwarf
+debug: OPT = $(OPT_DEBUG)
 debug: download-deps all
 
 # Display compiler version information.

@@ -163,17 +163,53 @@ set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 # ---------------------------------------------------------------------------
 # Optimization profiles
 # ---------------------------------------------------------------------------
-# Mirror the Makefile rather than CMake's defaults, so a CMake release is the
-# same firmware the hardware was validated with: `make` uses -Os -flto -g0 and
-# `make debug` uses -Og -g3 -gdwarf. CMake's own Release is "-O3 -DNDEBUG",
-# and neither half is wanted here: -O3 is not what was measured, and NDEBUG is
-# a deliberate separate mode in this project (it changes assert() behaviour,
-# which tests/test/test_param_guard.c exists to cover).
-#
-# Cortex-M0/M0+ drops LTO: GCC 14's thin-LTO partitioner fails on that target
-# with "invalid constant after fixup". The Makefile drops it for the same
-# reason and the same two families.
-if(MCU_FLAGS MATCHES "cortex-m0")
+# Read from config/optim.mk, which the Makefile includes directly, so there is
+# exactly one copy of the flags in the repository. CMake cannot include() a
+# makefile, so the file is parsed with the same flat "NAME = value" reader the
+# chips/<part>.mk files use below: plain assignments, no includes, no
+# conditionals, no multi-line values, no trailing comments on a value line.
+set(OW_OPTIM_MK "${CMAKE_CURRENT_SOURCE_DIR}/config/optim.mk")
+if(NOT EXISTS "${OW_OPTIM_MK}")
+    message(FATAL_ERROR "optimization profiles not found: ${OW_OPTIM_MK}")
+endif()
+file(STRINGS "${OW_OPTIM_MK}" _ow_optim_lines)
+set(OPT_RELEASE "")
+set(OPT_DEBUG "")
+set(OPT_NO_LTO "")
+foreach(_line IN LISTS _ow_optim_lines)
+    if(_line MATCHES "^[ \t]*(OPT_[A-Z_]+)[ \t]*=[ \t]*(.*)$")
+        # Copy both captures out before any string() call: string(REGEX REPLACE)
+        # overwrites CMAKE_MATCH_*, so reading CMAKE_MATCH_1 afterwards would
+        # return the replace operation's (empty) match instead of the key.
+        set(_k "${CMAKE_MATCH_1}")
+        set(_v "${CMAKE_MATCH_2}")
+        string(REGEX REPLACE "#.*$" "" _v "${_v}")
+        string(STRIP "${_v}" _v)
+        set(${_k} "${_v}")
+    endif()
+endforeach()
+foreach(_k OPT_RELEASE OPT_DEBUG OPT_NO_LTO)
+    if(NOT ${_k})
+        message(FATAL_ERROR "${OW_OPTIM_MK} does not define ${_k}")
+    endif()
+endforeach()
+string(REPLACE " " ";" OPT_NO_LTO "${OPT_NO_LTO}")
+
+# LTO is not restated here: it is part of the profile, and the exclusion below
+# filters it back out with the same list the Makefile uses. Keyed by OW_TARGET
+# in both build systems; the OW_TARGET -> -mcpu mapping is 1:1 (f0 cortex-m0,
+# g0 cortex-m0plus, f1 cortex-m3, f4 cortex-m4), so keying on the family cannot
+# disagree with the architecture.
+if(OW_TARGET IN_LIST OPT_NO_LTO)
+    foreach(_p OPT_RELEASE OPT_DEBUG)
+        # Drop the token, then collapse the whitespace it leaves behind. Matching
+        # the surrounding separators as part of the pattern would eat both of
+        # them and glue the neighbouring flags together ("-Os -flto -g0" would
+        # become "-Os-g0", which the compiler reads as one unknown option).
+        string(REGEX REPLACE "-flto" "" ${_p} "${${_p}}")
+        string(REGEX REPLACE "[ \t]+" " " ${_p} "${${_p}}")
+        string(STRIP "${${_p}}" ${_p})
+    endforeach()
     set(OW_LTO_FLAGS "")
 else()
     set(OW_LTO_FLAGS "-flto")
@@ -211,10 +247,17 @@ if(OW_LTO_FLAGS AND NOT (_ow_ar_name MATCHES "gcc-ar"))
             "undefined references. Pass -DCMAKE_AR=/path/to/arm-none-eabi-gcc-ar.")
     endif()
 endif()
-set(CMAKE_C_FLAGS_RELEASE         "-Os -g0 ${OW_LTO_FLAGS}")
-set(CMAKE_C_FLAGS_DEBUG           "-Og -g3 -gdwarf")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-Os -g -gdwarf ${OW_LTO_FLAGS}")
-set(CMAKE_C_FLAGS_MINSIZEREL      "-Os -g0 ${OW_LTO_FLAGS}")
+# CMake's own defaults are not used: Release would be "-O3 -DNDEBUG", and
+# neither half is wanted here. -O3 is not what the hardware numbers were taken
+# with, and NDEBUG is a deliberate separate mode in this project (it changes
+# assert() behaviour, which tests/test/test_param_guard.c exists to cover).
+set(CMAKE_C_FLAGS_RELEASE         "${OPT_RELEASE}")
+set(CMAKE_C_FLAGS_DEBUG           "${OPT_DEBUG}")
+# RelWithDebInfo and MinSizeRel are CMake-only and unused by this project and
+# its CI; derive both from the release profile instead of inventing a third and
+# fourth flag set. RelWithDebInfo keeps the debug info its name promises.
+set(CMAKE_C_FLAGS_RELWITHDEBINFO  "${OPT_RELEASE} -g -gdwarf")
+set(CMAKE_C_FLAGS_MINSIZEREL      "${OPT_RELEASE}")
 
 # A single-config generator leaves CMAKE_BUILD_TYPE empty, and CMake then adds no
 # optimisation flags at all - the old build worked only because -Os was
