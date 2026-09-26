@@ -31,8 +31,8 @@ extern int unity_failures;
  * operation, so the failing one has to name itself in the output. */
 #define TEST_ASSERT_EQUAL_HEX32_MESSAGE(a, b, msg)                          \
     do {                                                                    \
-        if ((uint32_t)(a) != (uint32_t)(b)) {                                \
-            printf("FAIL %s:%d  %s: expected 0x%08lx, got 0x%08lx\n",      \
+        if ((uint32_t)(a) != (uint32_t)(b)) {                               \
+            printf("FAIL %s:%d  %s: expected 0x%08lx, got 0x%08lx\n",       \
                    __FILE__, __LINE__, (msg), (unsigned long)(uint32_t)(a), \
                    (unsigned long)(uint32_t)(b));                           \
             unity_failures++;                                               \
