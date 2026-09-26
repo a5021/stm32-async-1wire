@@ -11,6 +11,11 @@ set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0 f4)
 # on the device macro, startup file, linker script or clock default.
 set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f103xb, f030x6, g031xx, f407xx, f401xc, f401xe); empty = the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
+# The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
+# to every library and example, so a CMake build can select the same firmware
+# variants without CMakeLists.txt growing one option per feature.
+#   cmake -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" ...
+set(OW_EXTRA_DEFINES "" CACHE STRING "Extra definitions applied to all targets, e.g. \"-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1\"")
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 
@@ -156,6 +161,71 @@ set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
 set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
 
 # ---------------------------------------------------------------------------
+# Optimization profiles
+# ---------------------------------------------------------------------------
+# Mirror the Makefile rather than CMake's defaults, so a CMake release is the
+# same firmware the hardware was validated with: `make` uses -Os -flto -g0 and
+# `make debug` uses -Og -g3 -gdwarf. CMake's own Release is "-O3 -DNDEBUG",
+# and neither half is wanted here: -O3 is not what was measured, and NDEBUG is
+# a deliberate separate mode in this project (it changes assert() behaviour,
+# which tests/test/test_param_guard.c exists to cover).
+#
+# Cortex-M0/M0+ drops LTO: GCC 14's thin-LTO partitioner fails on that target
+# with "invalid constant after fixup". The Makefile drops it for the same
+# reason and the same two families.
+if(MCU_FLAGS MATCHES "cortex-m0")
+    set(OW_LTO_FLAGS "")
+else()
+    set(OW_LTO_FLAGS "-flto")
+endif()
+
+# LTO archives need the GCC-aware archiver: with a plain `ar` the archive index
+# has no LTO symbols, so the link fails with "undefined reference to
+# ds18b20_init" even though the archive contains it. CMake normally guesses
+# `arm-none-eabi-ar`, so point it at `arm-none-eabi-gcc-ar` when that is what is
+# available next to the compiler. Only done when LTO is actually on.
+#
+# The parentheses are required: in if(), the unary NOT binds tighter than
+# MATCHES, so `NOT CMAKE_AR MATCHES "gcc-ar"` parses as
+# `(NOT CMAKE_AR) MATCHES "gcc-ar"` and is always false.
+#
+# The comparison is on the file NAME, not the whole path: toolchains are often
+# installed under a directory like .../gcc-arm-none-eabi/current/bin/, and the
+# substring "gcc-ar" occurs in that directory name - matching the full path
+# would decide the plain archiver is already the GCC-aware one.
+get_filename_component(_ow_ar_name "${CMAKE_AR}" NAME)
+if(OW_LTO_FLAGS AND NOT (_ow_ar_name MATCHES "gcc-ar"))
+    get_filename_component(_ow_bin_dir "${CMAKE_C_COMPILER}" DIRECTORY)
+    find_program(_ow_gcc_ar NAMES arm-none-eabi-gcc-ar HINTS "${_ow_bin_dir}")
+    if(_ow_gcc_ar)
+        message(STATUS "stm32-async-1wire: using ${_ow_gcc_ar} for LTO archives (was ${CMAKE_AR})")
+        set(CMAKE_AR "${_ow_gcc_ar}")
+        find_program(_ow_gcc_ranlib NAMES arm-none-eabi-gcc-ranlib HINTS "${_ow_bin_dir}")
+        if(_ow_gcc_ranlib)
+            set(CMAKE_RANLIB "${_ow_gcc_ranlib}")
+        endif()
+    else()
+        message(WARNING
+            "LTO is enabled but arm-none-eabi-gcc-ar was not found next to "
+            "${CMAKE_C_COMPILER}; linking a static library will fail with "
+            "undefined references. Pass -DCMAKE_AR=/path/to/arm-none-eabi-gcc-ar.")
+    endif()
+endif()
+set(CMAKE_C_FLAGS_RELEASE         "-Os -g0 ${OW_LTO_FLAGS}")
+set(CMAKE_C_FLAGS_DEBUG           "-Og -g3 -gdwarf")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-Os -g -gdwarf ${OW_LTO_FLAGS}")
+set(CMAKE_C_FLAGS_MINSIZEREL      "-Os -g0 ${OW_LTO_FLAGS}")
+
+# A single-config generator leaves CMAKE_BUILD_TYPE empty, and CMake then adds no
+# optimisation flags at all - the old build worked only because -Os was
+# hardcoded into the targets. Default to Release so a bare `cmake -B build`
+# produces the same image as `make`.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    message(STATUS "stm32-async-1wire: CMAKE_BUILD_TYPE not set, defaulting to Release")
+endif()
+
+# ---------------------------------------------------------------------------
 # Library targets (code only — no startup/system, no syscall.c)
 # ---------------------------------------------------------------------------
 
@@ -196,10 +266,10 @@ function(ow_add_core_library tgt)
         # OW_PORT_SYSCLK_MHZ the Makefile build does instead of relying on the
         # fallback in onewire.h.
         OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
+        ${OW_EXTRA_DEFINES}
     )
     target_compile_options(${tgt} PUBLIC
         ${MCU_FLAGS}
-        -Os
         -Wall
         -Wextra
         -ffunction-sections
@@ -304,10 +374,10 @@ if(OW_BUILD_EXAMPLES)
         ${CMSIS_DEVICE_DEF}
         ${OW_PORT_DEF}
         OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
+        ${OW_EXTRA_DEFINES}
     )
     target_compile_options(stm32_async_1wire_platform PUBLIC
         ${MCU_FLAGS}
-        -Os
         -Wall
         -Wextra
         -ffunction-sections
@@ -344,6 +414,20 @@ if(OW_BUILD_EXAMPLES)
     set(UART_TX_SIZE_5_commands      256)
     set(UART_TX_SIZE_6_statistics    1024)
     set(UART_TX_SIZE_7_low_power     256)
+    # objcopy next to the compiler, so the .hex/.bin pair matches what `make all`
+    # produces and a programmer can be pointed at either.
+    get_filename_component(OW_TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+    find_program(OW_OBJCOPY
+        NAMES arm-none-eabi-objcopy
+        HINTS "${OW_TOOLCHAIN_BIN_DIR}"
+        DOC "Path to arm-none-eabi-objcopy, used to emit .hex/.bin per example"
+    )
+    if(NOT OW_OBJCOPY)
+        message(FATAL_ERROR
+            "arm-none-eabi-objcopy not found next to ${CMAKE_C_COMPILER}. "
+            "The example build needs it to produce .hex/.bin; pass "
+            "-DOW_OBJCOPY=/path/to/arm-none-eabi-objcopy to point at one.")
+    endif()
     foreach(ex ${EXAMPLES})
         add_executable(${ex}
             examples/${ex}/main.c
@@ -370,6 +454,21 @@ if(OW_BUILD_EXAMPLES)
         )
         target_compile_definitions(${ex} PRIVATE
             UART_TX_BUF_SIZE=${UART_TX_SIZE_${ex}}
+            ${OW_EXTRA_DEFINES}
+        )
+        # `make all` emits elf + hex + bin; mirror that so flashing does not
+        # need a manual objcopy. BYPRODUCTS keeps the files visible to ninja and
+        # to `cmake --build ... --target clean`.
+        set(OW_EXE_DIR "${CMAKE_CURRENT_BINARY_DIR}/examples")
+        add_custom_command(TARGET ${ex} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${OW_EXE_DIR}"
+            COMMAND "${OW_OBJCOPY}" -O ihex
+                    "$<TARGET_FILE:${ex}>" "${OW_EXE_DIR}/${ex}.hex"
+            COMMAND "${OW_OBJCOPY}" -O binary -S
+                    "$<TARGET_FILE:${ex}>" "${OW_EXE_DIR}/${ex}.bin"
+            BYPRODUCTS "${OW_EXE_DIR}/${ex}.hex" "${OW_EXE_DIR}/${ex}.bin"
+            COMMENT "objcopy: ${ex}.hex / ${ex}.bin"
+            VERBATIM
         )
     endforeach()
 endif()

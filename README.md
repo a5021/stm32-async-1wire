@@ -900,6 +900,34 @@ does. `build/` is ignored and `make clean` removes it; a `--prefix` at the
 repository root works too but leaves a directory that `make clean` has to glob
 for.
 
+Add `-DOW_BUILD_EXAMPLES=ON` to build the seven example applications. They are
+built with the same per-example `UART_TX_BUF_SIZE` and, for `6_statistics`, the
+same `OW_STATS_ENABLE` + `STATS_DUMP_INTERVAL=5000` as `make APP=<ex>`, and
+each one also gets a `.hex` and a `.bin` next to the executable in
+`build/examples/`.
+
+`-DOW_EXTRA_DEFINES` is the CMake counterpart of the Makefile's `EXT="..."`: it
+applies extra definitions to every library and example, so the same firmware
+variants can be selected without a dedicated option each.
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_TARGET=f4 -DOW_BUILD_EXAMPLES=ON \
+      -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" \
+      -B build .
+cmake --build build
+```
+
+`CMAKE_BUILD_TYPE` defaults to `Release` when a single-config generator leaves
+it empty, and the profiles are the Makefile's own rather than CMake's defaults:
+`Release` is `-Os -flto -g0`, `Debug` is `-Og -g3 -gdwarf`. `-flto` is dropped
+on Cortex-M0/M0+ (GCC 14's thin-LTO partitioner fails there), and when it is on
+the build points the archiver at `arm-none-eabi-gcc-ar`, because a plain `ar`
+leaves the LTO symbols out of the archive index and the link then fails with
+undefined references to the driver API. CMake's own `Release` (`-O3 -DNDEBUG`)
+is deliberately not used — `-O3` is not what the hardware numbers were taken
+with, and `NDEBUG` is a separate mode in this project.
+
 Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`, and
 the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4
 -DOW_CHIP=f401xc`, default per family, `-DOW_SYSCLK_MHZ=N` to override the

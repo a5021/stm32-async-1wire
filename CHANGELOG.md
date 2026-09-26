@@ -10,6 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The CMake build can now select the same firmware variants as the
+  Makefile.** `-DOW_EXTRA_DEFINES` is the counterpart of the Makefile's
+  `EXT="..."` and applies to every library and example, so
+  `-DOW_PARASITE_POWER=1` and `-DOW_PORT_LOW_POWER=1` no longer require a
+  dedicated option each. The `cmake` CI job builds all seven examples with
+  both defines set, which is the only coverage the CMake build had of the
+  WFE path at all. Each example also emits a `.hex` and a `.bin` next to
+  the executable, so the `make all` artefact set no longer needs a manual
+  objcopy. `CMAKE_BUILD_TYPE` defaults to `Release` on a single-config
+  generator, where CMake would otherwise add no optimisation flags at all.
+
+- **CMake uses the Makefile's optimisation profiles instead of its own.**
+  `-Os` was hardcoded into two targets, so `CMAKE_BUILD_TYPE=Debug` silently
+  produced a release binary and `-flto` was missing from every CMake build.
+  The profiles are now `Release = -Os -flto -g0` and
+  `Debug = -Og -g3 -gdwarf`, matching `make` and `make debug`; CMake's
+  default `-O3 -DNDEBUG` is not used, because `-O3` is not what the hardware
+  numbers were taken with and `NDEBUG` is a separate mode here. `-flto` is
+  dropped on Cortex-M0/M0+ as in the Makefile, and when it is on the build
+  switches the archiver to `arm-none-eabi-gcc-ar`: with a plain `ar` the
+  LTO symbols are missing from the archive index and the link fails with
+  `undefined reference to ds18b20_init`. An F4 `1_basic` built this way is
+  2896 bytes of text against 2904 from the Makefile - the same firmware to
+  within 0.3%.
 - **A per-part build matrix in `chips/<part>.mk`.** `OW_TARGET` selects the
   family (unchanged); the new `OW_CHIP` selects the part *within* it by naming
   a file: `f103xb`, `f030x6`, `g031xx`, `f407xx`, `f401xc`, `f401xe`. Each file

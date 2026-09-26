@@ -389,6 +389,28 @@ jobs:
           test -f build/prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
+      - name: Build the parasite / WFE firmware variants
+        # The build above only ever sees the default firmware. These two defines
+        # select the configurations the hardware was actually measured in, and
+        # the WFE path in particular has no other coverage under CMake - without
+        # this step -DOW_PORT_LOW_POWER=1 and -DOW_PARASITE_POWER=1 would
+        # silently rot in the CMake build.
+        run: |
+          TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
+          cmake -S . -B build/cmake-variants-${{ matrix.backend }} \
+              -DOW_TARGET=${{ matrix.backend }} \
+              -DOW_BUILD_EXAMPLES=ON \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+              -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" \
+              -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+              -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+              -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
+              -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib"
+          cmake --build build/cmake-variants-${{ matrix.backend }} -- -j"$(nproc)"
+          # The hex/bin pair is part of what this job is meant to prove.
+          test -f build/cmake-variants-${{ matrix.backend }}/examples/7_low_power.hex
+          test -f build/cmake-variants-${{ matrix.backend }}/examples/7_low_power.bin
 
   fuzz:
     runs-on: ubuntu-latest
