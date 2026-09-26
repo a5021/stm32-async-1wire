@@ -97,7 +97,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   STM32G031x6, STM32F407VGT6, STM32F401CC; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via 8MHz HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or 8MHz via the HSE crystal (`SYSCLK_MHZ=8`); STM32F401 — 84MHz via 8MHz HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC or 8MHz via the HSE crystal; STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via internal RC (`SYSCLK_MHZ=16`). The portable `OW_PORT_SYSCLK_MHZ` define carries the value to every clock-dependent setting.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168 and an 8MHz board the F407's 168MHz with M=8/N=336. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE and PLL waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
 ## File Structure
 
@@ -396,12 +396,32 @@ port layer is chip-generic. The chip-specific parts (CMSIS device header
 `stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
 script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
 clock default) are selected with `OW_CHIP=f401xc` — all of it in
-`chips/f401xc.mk`. Expected wiring matches the
-F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams 2/4), parasite mode on the
-same 2.2 kΩ pull-up, and a console UART on the board's own TX (the `app.c`
-F4 UART paths are already board-selectable). **Not yet validated on silicon** —
-the three-frequency timing envelope (168/16/8 MHz) brackets the 84MHz default,
-but a hardware pass on a real F401 board is still required.
+`chips/f401xc.mk`.
+
+**The crystal is the one thing the part cannot decide.** This board carries a
+**25 MHz** crystal, not the 8 MHz the F407DISCOVERY does, and the F4 PLL divides
+the crystal down before multiplying: `PLLM = HSE_MHZ` puts the PLL input at 1MHz
+and `PLLN = 2 × SYSCLK` sets the VCO, so 25MHz gives M=25/N=168 for the same
+84MHz that 8MHz reaches with M=8/N=168. `chips/f401xc.mk` therefore declares
+`CHIP_HSE_MHZ = 25`; every other board passes `HSE_MHZ=<n>` to the build. This
+matters more than it looks: with the divider hardcoded to 8, a 25MHz crystal
+puts 3.125MHz into a PLL input specified for 1–2MHz, the PLL never locks, and
+the old unbounded wait left the board silent with no way to tell a dead board
+from a wrong one.
+
+Expected wiring matches the F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams
+2/4), parasite mode on the same 2.2 kΩ pull-up, and the console on **PB6** —
+not PA9, because the F4 UART path is pinned to PB6 for the F4DISCOVERY, which
+carries no signal on the default PA9 USART1 pad.
+
+**Validated on silicon.** All seven examples ran on this board at the default
+84MHz: `2_device_search` 7 found / 0 errors / 24.3–24.6 °C; `3_round_robin` 8
+measurements / 0 CRC failures; `4_scan_mode` 49 / 0; `5_commands` parasite
+detected with the EEPROM round-trip intact; `6_statistics` `t=70c 0e` with `n10`
+and `e0` on all seven and a histogram totalling exactly 5040 = 70 × 72;
+`7_low_power` with the WFE path enabled, 8 measurements / 0 errors. Per-device
+cycle ~6.0 s against the F407DISCOVERY's 5.75–5.84 s, which is what pins the
+millisecond counter at 84MHz. Numbers in `port/stm32f4/HARDWARE-NOTES.md`.
 
 The `xE` parts (F401CD/RD/VD/CE/RE/VE, 512KB flash / 128KB RAM) are the same
 core with twice the memory, so they share everything above and differ only in

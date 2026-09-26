@@ -70,6 +70,17 @@ uint32_t app_millis(void);
 void configure_system_clock(void);
 #endif
 
+#if defined(DS18B20_TEST_HARNESS) && defined(OW_PORT_FAMILY_F4)
+/**
+ * @brief Whether the requested clock actually started (F4 harness surface)
+ * @note F4 reports a clock that never came up through this rather than through a
+ *       return value: changing configure_system_clock()'s signature changed
+ *       codegen in the families that cannot fail, for no benefit. 1 = running,
+ *       0 = an HSE or PLL wait timed out.
+ */
+uint8_t app_clock_ok(void);
+#endif
+
 /**
  * @brief Advance USART1 transmission by at most one byte (non-blocking)
  * @note Must be called periodically to feed the UART from the ring buffer

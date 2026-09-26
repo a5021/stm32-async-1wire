@@ -242,6 +242,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The F4 clock treated the crystal as if the part decided it.** The 84MHz branch
+  hardcoded `PLLM = 8`, which is right for the F4DISCOVERY's 8MHz crystal and wrong
+  for every F401 board with a different one - the WeAct F401 Black Pill carries 25MHz.
+  With M=8 that puts 3.125MHz into a PLL input specified for 1-2MHz, the PLL never
+  locks, and the unbounded wait on `PLLRDY` never ends. The board comes up completely
+  silent, which is indistinguishable from a dead board and from a bus fault. Nothing
+  caught it: the crystal appears nowhere in the build, no host test looks at the M
+  field, and the F4 mock lacked the 84MHz registers (`RCC_CFGR_PPRE1_DIV2`,
+  `FLASH_ACR_LATENCY_2WS`) so the 84MHz path did not even compile against it.
+
+  The crystal is now a separate knob, `HSE_MHZ=N`, because it is the *board's*
+  property while `SYSCLK_MHZ` is the application's. Aiming the PLL input at exactly
+  1MHz makes both dividers fall out - `PLLM = HSE_MHZ`, `PLLN = 2 x SYSCLK` - so an
+  8MHz crystal still produces the M=8/N=336 and M=8/N=168 the F407 was validated at,
+  unchanged, and a 25MHz board reaches the F401's 84MHz cap with M=25/N=168.
+  `chips/f401xc.mk` declares `CHIP_HSE_MHZ = 25` for the Black Pill, `chips/f401xe.mk`
+  declares 8, the header default is 8, and the command line overrides both. A
+  `_Static_assert` rejects an unreachable combination at build time.
+
+  Two silent-failure paths came with it. `SYSCLK_MHZ=8` used to select "raw HSE"
+  whatever the crystal was, so on a 25MHz board it compiled and ran with every 1-Wire
+  timing scaled by 3.125 - the worst of the three F4 clock modes to reach for when
+  lowering the frequency to be safe. It is now selected only when
+  `SYSCLK_MHZ == HSE_MHZ`, and a mismatch is a build error. And the HSE/PLL waits are
+  bounded, so a wrong `HSE_MHZ` now reports itself over the console and stops rather
+  than hanging with no output. It deliberately does *not* fall back to the HSI: `PSC`,
+  `SysTick` and the console divisor are compiled against the requested frequency, so
+  continuing would scale every timing by an unknown factor.
+
+  Regression cover, since this failed while every test was green: `test_timing` now
+  asserts the programmed `PLLM` and `PLLN` for the active clock (it previously checked
+  only the prescalers and `PSC`, which is why the M field could rot unnoticed),
+  `test_sysclk_fallback` checks the F4 PLL arithmetic and the raw-HSE guard,
+  `test_port_init_contract` derives its `psc` expectation from the configured clock
+  instead of hardcoding the 168MHz value, the mock gained the 84MHz registers, and CI
+  runs the whole F4 suite a second time at `-DOW_PORT_SYSCLK_MHZ=84 -DOW_HSE_MHZ=25`,
+  the real board's numbers, since the matrix otherwise only ever built f4 at
+  168MHz/8MHz. The 21 non-F4 firmware images are byte-for-byte unchanged.
+
 - **The f0, g0 and f4 host mocks had pin 10's MODER bit field holding pin
   11's bits.** A test asserting that the bus pin is in alternate-function
   mode was therefore asserting about PA11, on three of the four backends.

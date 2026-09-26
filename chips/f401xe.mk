@@ -7,7 +7,7 @@
 # That is the only thing separating this part from f401xc — same core, same
 # 84MHz cap, same DMA/TIM1 mapping, but twice the memory, so it needs its own
 # linker script rather than a different port. Same 84MHz clock default
-# (8MHz HSE + PLL, M=8/N=168/P=2); SYSCLK_MHZ=16 remains the no-crystal
+# HSE + PLL; SYSCLK_MHZ=16 remains the no-crystal
 # fallback and still overrides it.
 #
 # Not validated on hardware: no F401xE part was available. The CMSIS device
@@ -23,5 +23,9 @@ CHIP_LINKER = port/stm32f4/STM32F401RE_FLASH.ld
 CHIP_JFLASH = port/stm32f4/stm32f401re.jflash
 CHIP_JDEBUG = port/stm32f4/project-f401re.jdebug
 CHIP_SVD = $(CMSIS_DEVICE_DIR)/STM32F401.svd
-# 8MHz HSE + PLL (M=8, N=168, P=2)
+# 84MHz over HSE + PLL; the M divider follows CHIP_HSE_MHZ below
+# Board crystal, not part identity. Left at the common 8MHz because no xE
+# board was on hand to measure - set HSE_MHZ=<n> to match the real crystal,
+# a wrong value leaves the PLL unlocked and the app now reports it and stops.
+CHIP_HSE_MHZ = 8
 CHIP_SYSCLK_MHZ = 84

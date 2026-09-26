@@ -67,6 +67,18 @@ jobs:
         # ow_port.h, which the firmware build otherwise overrides.
         run: make test-clocks-${{ matrix.backend }}
 
+      - name: Run the F4 suite at the F401 clock and a 25MHz crystal
+        # The F401 part files default to 84MHz, and chips/f401xc.mk to a 25MHz
+        # crystal, but the host matrix only ever builds f4 at 168MHz/8MHz. That
+        # gap is how a 25MHz F401 could lose its PLLM=25 and revert to 8 with
+        # every test green: nothing outside the part file looked at the M field.
+        # This run pins M=25/N=168 through the same firmware clock path, on the
+        # real board's numbers.
+        if: matrix.backend == 'f4'
+        run: |
+          make test-f4 clean
+          make test-f4 TEST_EXTRA_FLAG="-DOW_PORT_SYSCLK_MHZ=84 -DOW_HSE_MHZ=25"
+
   coverage:
     strategy:
       fail-fast: false

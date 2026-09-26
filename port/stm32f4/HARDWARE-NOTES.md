@@ -6,20 +6,68 @@ invariants live in the code comments and in the "Required Timer Capabilities"
 section of `README.md`; this file keeps the experiments. Everything here was
 measured on the **STM32F407VGT6** (STM32F4DISCOVERY); the F401 shares the same
 TIM1/DMA2/`CHSEL=6` topology by construction (the CHSEL note below cites RM0368
-— the F401 reference manual — and matches silicon behavior on the F407), but
-the 84MHz F401 configuration has **not yet been run on an F401 board**.
+— the F401 reference manual — and matches silicon behavior on the F407).
 
 ## F401CC specifics (`OW_CHIP=f401xc`)
 
 The F401 needs no port-level changes — only the build/case layer: `STM32F401xC`
 CMSIS device + startup (`stm32f401xc.h` / `startup_stm32f401xc.s`), the
 `STM32F401CC_FLASH.ld` linker script (256KB flash / 64KB SRAM; F401 has no
-CCM), an 84MHz clock-config branch in `app.c` (8MHz HSE → PLL M=8,N=168,P=2;
-2 wait states; APB1/APB2 /2 keeps TIM1 at SYSCLK = 84MHz, so the 1µs-tick
-invariant holds), and a library clock default of 84MHz for the `STM32F401xC` /
-`STM32F401xE` device macros. The console UART paths in `app.c` now derive PCLK1/
-PCLK2 from the active prescalers, so 84MHz gets the correct 42MHz baud clocks.
-`SYSCLK_MHZ=16` (raw HSI) is the no-crystal fallback.
+CCM), an 84MHz clock-config branch in `app.c`, and a library clock default of
+84MHz for the `STM32F401xC` / `STM32F401xE` device macros. The console UART paths
+in `app.c` derive PCLK1/PCLK2 from the active prescalers, so 84MHz gets the
+correct 42MHz baud clocks. `SYSCLK_MHZ=16` (raw HSI) is the no-crystal fallback.
+
+### The crystal is a board property, not a part property
+
+The 84MHz branch used to hardcode `M=8`, which silently assumed an 8MHz crystal —
+true of the F4DISCOVERY this file is written from, false of the F401 Black Pill,
+which carries **25MHz**. With M=8 a 25MHz crystal puts 25/8 = 3.125MHz into a PLL
+input specified for 1–2MHz, the PLL never locks, and the wait on `PLLRDY` never
+ends: the board is silent, with nothing to distinguish it from a dead one.
+
+The divider is now derived instead of encoded. Aiming the PLL input at exactly 1MHz
+gives `PLLM = OW_HSE_MHZ` and `PLLN = 2 × SYSCLK`, so 8MHz still yields M=8/N=336
+at 168MHz and M=8/N=168 at 84MHz — the F407 numbers this file validated, unchanged
+— while 25MHz reaches the F401's cap with M=25/N=168. `HSE_MHZ=N` sets it;
+`chips/f401xc.mk` declares 25 for the Black Pill and `chips/f401xe.mk` 8, and the
+header default is 8.
+
+Two consequences worth keeping in mind:
+
+- A wrong `HSE_MHZ` is not a compile error, so the HSE and PLL waits are bounded and
+  the application prints the reason and stops. It does *not* fall back to the HSI —
+  `PSC`, `SysTick` and the console divisor are all compiled against the requested
+  frequency, so carrying on would scale every 1-Wire timing by an unknown factor.
+- `SYSCLK_MHZ=8` used to mean "raw HSE" whatever the crystal was, so on a 25MHz
+  board it compiled and ran with every timing scaled by 3.125. It is now selected
+  only when `SYSCLK_MHZ == HSE_MHZ`, and mismatches are a build error.
+
+#### Validated on the F401CC (WeAct F401 Black Pill, 25MHz crystal)
+
+`OW_CHIP=f401xc`, default 84MHz over the board's 25MHz crystal (`HSE_MHZ=25`,
+`M=25/N=168`), 7 × DS18B20 in parasite power on one bus on **PA10**, console on
+USART1 TX / **PB6** at 115200 8N1, flashed over SWD. Flashed with
+`EXT="-DOW_PARASITE_POWER=1"`, no other clock overrides - the 84MHz default is
+what ships.
+
+| Example | Result |
+|---|---|
+| `2_device_search` | 7 found, 0 errors, 24.3–24.6 °C |
+| `3_round_robin` | 8 measurements, 0 CRC failures |
+| `4_scan_mode` | 49 measurements, 0 CRC failures |
+| `5_commands` | parasite detected, 4 × scratchpad CRC ok, EEPROM copy/recall round-trip restored TH=0x19/TL=0x0F; the one CRC fail is the expected Read ROM with 7 devices on the bus |
+| `6_statistics` | banner `stats dump every 10 sweeps (70 samples with 7 devices)`, exactly 10 sweep markers per batch, `t=70c 0e`, `n10`/`e0` on all seven, histogram 1814+2307+919 = **5040 = 70 × 72** |
+| `7_low_power` | `OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms`, 8 measurements, 0 errors, 24.3–24.6 °C |
+
+The millisecond counter is the reason to trust the rest: `MEASURE_PERIOD_MS` is
+5000, and ~8 full per-device cycles fit in 60 s, i.e. ~6.0 s each against the
+F407DISCOVERY's 5.75–5.84 s. A wrong `SysTick->LOAD` would scale that by the clock
+ratio - 11.5 s at a 168MHz-derived reload of 84000 ticks - and it does not. So the
+1 µs tick, `PSC` and the polled `app_millis()` are all correct at 84MHz, not merely
+plausible.
+
+
 
 ## DMA direct mode and the 16-bit feed
 

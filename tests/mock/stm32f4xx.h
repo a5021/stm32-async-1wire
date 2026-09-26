@@ -163,12 +163,15 @@ extern FLASH_TypeDef mock_flash;
 #define RCC_CFGR_PPRE1_Msk (0x7UL << 10) /* APB1 prescaler field [12:10] */
 #define RCC_CFGR_PPRE1 RCC_CFGR_PPRE1_Msk
 #define RCC_CFGR_PPRE1_DIV4 0x00001400u /* HCLK/4 -> 42MHz at 168 */
+#define RCC_CFGR_PPRE1_DIV2 0x00001000u /* HCLK/2 -> 42MHz at 84 */
 #define RCC_CFGR_PPRE2_Msk (0x7UL << 13) /* APB2 prescaler field [15:13] */
 #define RCC_CFGR_PPRE2 RCC_CFGR_PPRE2_Msk
 #define RCC_CFGR_PPRE2_DIV2 0x00008000u /* HCLK/2 -> 84MHz at 168 */
 #define FLASH_ACR_PRFTEN 0x00000100u
 #define FLASH_ACR_ICEN 0x00000200u
 #define FLASH_ACR_DCEN 0x00000400u
+#define FLASH_ACR_LATENCY_2WS 0x00000002u /* 60 < HCLK <= 90MHz, covers 84 */
+#define FLASH_ACR_LATENCY_1WS 0x00000001u
 #define FLASH_ACR_LATENCY_5WS 0x00000005u
 /* MODER bit fields, matching CMSIS stm32f407xx.h: pin 10 is bits [21:20] and
  * pin 11 is bits [23:22]. The two triples used to be swapped - the names

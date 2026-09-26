@@ -110,6 +110,11 @@ CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
 CHIP_SVD := $(strip $(CHIP_SVD))
 CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
 
+# Crystal (HSE) frequency of the *board*, F4 only. Not part identity: a part
+# file may carry a default for the board it is named after, and HSE_MHZ= on the
+# command line wins for any other board.
+CHIP_HSE_MHZ := $(strip $(CHIP_HSE_MHZ))
+
 ASM = $(CHIP_STARTUP)
 LDS = $(CHIP_LINKER)
 JFLASH = $(CHIP_JFLASH)
@@ -119,6 +124,11 @@ DEF = $(CHIP_DEV_DEF) -D$(PORT_DEF)
 # (e.g. 16 for a board without an HSE crystal).
 ifndef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
+endif
+ifneq ($(CHIP_HSE_MHZ),)
+ifndef HSE_MHZ
+DEF += -DOW_HSE_MHZ=$(CHIP_HSE_MHZ)
+endif
 endif
 INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
@@ -139,6 +149,16 @@ DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 #  STM32G031 = 64MHz HSI16+PLL; e.g. SYSCLK_MHZ=16 for the raw 16MHz HSI16)
 ifdef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
+endif
+
+# Crystal frequency override for the F4 backend:
+# make HSE_MHZ=25  ->  -DOW_HSE_MHZ=25
+# Separate from SYSCLK_MHZ because the crystal belongs to the board and the
+# system clock to the application; the F4 PLL derives its M divider from it, so a
+# wrong value leaves the PLL unlocked - which the app now reports instead of
+# spinning forever.
+ifdef HSE_MHZ
+DEF += -DOW_HSE_MHZ=$(HSE_MHZ)
 endif
 
 # Optional experimental active-drive write path:
@@ -930,6 +950,7 @@ help:
 	@echo "                                    chips/<part>.mk (f103xb, f030x6, g031xx,"
 	@echo "                                    f407xx, f401xc, f401xe); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
+	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F4 only"
 	@echo "                                    default (8/16 on every family, 84 on F401; the"
 	@echo "                                    defaults are 72/48/64/168)"
 

@@ -106,15 +106,36 @@ void test_apb_prescaler_div1_for_tim1(void) {
     /* F1: TIM1 on APB2 → PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F4)
-    /* Preset the ready/status flags configure_system_clock() spin-waits on:
-     * the mock does not model hardware self-setting of HSERDY/PLLRDY/SWS. */
+    /* Preset the ready/status flags configure_system_clock() waits on: the mock
+     * does not model hardware self-setting of HSERDY/PLLRDY/SWS. */
     mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLLRDY;
     mock_rcc.CFGR = RCC_CFGR_SWS_PLL;
     configure_system_clock();
-    /* APB1 /4 = 42MHz, APB2 /2 = 84MHz (both at datasheet limits).
-     * TIM1 is on APB2: 2 × 84 = 168 = SYSCLK (1µs tick invariant). */
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* APB1 is /4 at 168MHz and /2 at 84MHz - both land PCLK1 on 42MHz - and
+     * APB2 is /2 in both, so TIM1 = 2 x PCLK2 = SYSCLK either way, which is the
+     * 1us tick invariant. Derived from the configured clock rather than
+     * hardcoded, so the 84MHz F401 host build checks its own values. */
+#if (OW_PORT_SYSCLK_MHZ) == 168
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE1_DIV4, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
+#else
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE1_DIV2, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
+#endif
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE2_DIV2, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 84
+    /* The M divider is the one field a wrong crystal breaks silently: PLLM =
+     * OW_HSE_MHZ puts the PLL input at 1MHz and PLLN = 2 x SYSCLK sets the VCO.
+     * Nothing else in the suite looks at PLLCFGR, which is how an F401 on a
+     * 25MHz crystal lost its M=25 and reverted to M=8 without a single test
+     * objecting. An 8MHz crystal still has to give M=8/N=336 at 168MHz and
+     * M=8/N=168 at 84MHz; a 25MHz board gives M=25/N=168. Field widths: PLLM
+     * is 5 bits, PLLN is 9. */
+    TEST_ASSERT_EQUAL_UINT32(OW_HSE_MHZ,
+                             (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLM_Pos) & 0x1Fu);
+    TEST_ASSERT_EQUAL_UINT32(
+        (OW_PORT_SYSCLK_MHZ) * 2u,
+        (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLN_Pos) & 0x1FFu);
+#endif
 #elif defined(OW_PORT_TARGET_F0)
     /* F0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);

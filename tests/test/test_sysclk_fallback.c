@@ -56,6 +56,31 @@
 #if OW_PORT_SYSCLK_MHZ != 168
 #error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
+
+/* The F4 PLL takes its M divider from the crystal (OW_HSE_MHZ) rather than a
+ * hardcoded 8, so one part can run on boards with different crystals: PLLM =
+ * OW_HSE_MHZ puts the PLL input at 1MHz, PLLN = 2 x SYSCLK sets the VCO. An 8MHz
+ * crystal therefore still yields M=8/N=336 at 168MHz, and a 25MHz board reaches
+ * the F401's 84MHz cap with M=25/N=168. These are the checks that would have
+ * caught the 25MHz F401 quietly reverting to M=8: nothing else in the build
+ * looks at the M field, and a wrong value is not a compile error - the PLL just
+ * never locks. */
+#if !defined(OW_HSE_MHZ)
+#error "OW_HSE_MHZ must be defined for the F4 backend (onewire.h defaults it to 8)"
+#endif
+#if (OW_HSE_MHZ) < 2 || (OW_HSE_MHZ) > 63
+#error "F4: PLLM is 5 bits (2..63); OW_HSE_MHZ outside that cannot give a 1MHz PLL input"
+#endif
+#if ((OW_PORT_SYSCLK_MHZ) * 2) < 100 || ((OW_PORT_SYSCLK_MHZ) * 2) > 432
+#error "F4: at a 1MHz PLL input the VCO equals 2*SYSCLK, which must stay in 100..432MHz"
+#endif
+/* The raw-HSE mode bypasses the PLL and runs at the crystal's own frequency, so
+ * it is only selected when the requested clock equals the crystal. Requesting 8MHz
+ * on a 25MHz board used to compile and run with every 1-Wire timing scaled by
+ * 3.125 - now a build error. */
+#if (OW_PORT_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
+#error "F4: SYSCLK_MHZ=8 selects raw HSE, which runs at the crystal: pass HSE_MHZ=8, or SYSCLK_MHZ=16 for the internal RC"
+#endif
 #endif
 #else
 #error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"

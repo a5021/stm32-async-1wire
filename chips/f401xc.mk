@@ -6,7 +6,7 @@
 # The xC suffix is the CMSIS flash/pin-density code: 256KB flash / 64KB SRAM,
 # which is why this part needs its own linker script rather than a different
 # port. The 84MHz cap comes from the part, not the board: the F401 maxes out
-# at 84MHz, so 8MHz HSE + PLL (M=8, N=168, P=2). SYSCLK_MHZ=16 is the
+# at 84MHz, reached over HSE + PLL. SYSCLK_MHZ=16 is the
 # no-crystal (HSI) fallback and still overrides it.
 
 # CMSIS device macro; selects stm32f401xc.h via stm32f4xx.h
@@ -18,5 +18,8 @@ CHIP_LINKER = port/stm32f4/STM32F401CC_FLASH.ld
 CHIP_JFLASH = port/stm32f4/stm32f401cc.jflash
 CHIP_JDEBUG = port/stm32f4/project-f401cc.jdebug
 CHIP_SVD = $(CMSIS_DEVICE_DIR)/STM32F401.svd
-# 8MHz HSE + PLL (M=8, N=168, P=2)
+# 84MHz over HSE + PLL; the M divider follows CHIP_HSE_MHZ below
+# Board crystal, not part identity. 25MHz is what the WeAct F401 Black Pill
+# carries; any other board must pass HSE_MHZ=<n> to the build.
+CHIP_HSE_MHZ = 25
 CHIP_SYSCLK_MHZ = 84

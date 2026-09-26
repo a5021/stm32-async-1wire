@@ -66,6 +66,19 @@ extern "C" {
     defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_FAMILY_F4
 #endif
+/** @brief Crystal (HSE) frequency in MHz, on F4 only.
+ *
+ *  Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
+ *  *board*, the system clock to the *application*. Conflating them is what made
+ *  the F401 default depend on whichever crystal a given board carries, and a
+ *  wrong value is not a compile error - the PLL simply never locks.
+ *
+ *  Only the F4 backend reads it. The other families reach their clock without a
+ *  user-visible M divider, so the define is left undefined there and their code
+ *  must not reference it. */
+#if defined(OW_PORT_FAMILY_F4) && !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 8
+#endif
 /** @brief System clock frequency in MHz after application clock setup.
  *  Single source of truth for the clock-dependent settings: the timer
  *  prescaler (1µs ticks) and the input-capture filter selection below
@@ -83,9 +96,9 @@ extern "C" {
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #elif defined(OW_PORT_FAMILY_F4)
 #if defined(STM32F401xC) || defined(STM32F401xE)
-#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: 8MHz HSE + PLL (M=8, N=168, P=2) */
+#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: the part's 84MHz cap, see OW_HSE_MHZ */
 #else
-#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407 (DISCOVERY): 8MHz HSE + PLL */
+#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407: HSE + PLL, see OW_HSE_MHZ */
 #endif
 #endif
 #endif
