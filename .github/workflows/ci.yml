@@ -360,7 +360,7 @@ jobs:
       - name: Cache CMSIS FetchContent dependencies
         uses: actions/cache@v5
         with:
-          path: ${{ github.workspace }}/_deps
+          path: ${{ github.workspace }}/build/_deps
           key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
       - name: Configure (OW_TARGET=${{ matrix.backend }})
         # Bare-metal: CMake's default compiler-link check hits missing
@@ -379,16 +379,16 @@ jobs:
               -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
               -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
               -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
-              -DFETCHCONTENT_BASE_DIR="${{ github.workspace }}/_deps"
+              -DFETCHCONTENT_BASE_DIR="${{ github.workspace }}/build/_deps"
       - name: Build (OW_TARGET=${{ matrix.backend }})
         run: cmake --build build/cmake-${{ matrix.backend }} -- -j"$(nproc)"
       - name: Verify install/export tree (OW_TARGET=${{ matrix.backend }})
         run: |
-          cmake --install build/cmake-${{ matrix.backend }} --prefix prefix-${{ matrix.backend }}
-          test -f prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
-          test -f prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
-          test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
-          test -f prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
+          cmake --install build/cmake-${{ matrix.backend }} --prefix build/prefix-${{ matrix.backend }}
+          test -f build/prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
+          test -f build/prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
+          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
+          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
 
   fuzz:
     runs-on: ubuntu-latest
