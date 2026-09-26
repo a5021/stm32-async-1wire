@@ -205,24 +205,30 @@ void ow_stats_tx_enqueue(char c) {
  *       reason over the console and stops.
  */
 #if defined(OW_PORT_FAMILY_F4)
+/* Set by configure_system_clock() and read by app_init(). A return value would
+ * have been the obvious channel, but changing the signature changed codegen in
+ * families that can never fail, so the state is a flag and the signature is
+ * untouched. Declared for every F4 clock, including the 16MHz HSI path, which
+ * simply never clears it. */
+static uint8_t ow_f4_clock_ok = 1u;
+
+/* The wait helper is excluded at 16MHz because that path configures nothing -
+ * the MCU is already on the HSI after reset - and so has no wait to bound, which
+ * -Werror would otherwise report as an unused function. */
+#if (OW_PORT_SYSCLK_MHZ) != 16
 /* Bounded wait for a hardware flag, for the two waits that can otherwise never
  * end. Nothing time-based is running yet - SysTick starts in app_time_init(),
  * after the clock - so this is an iteration count rather than a calibrated
  * timeout: generous enough that a real PLL always wins, small enough that a
  * wrong OW_HSE_MHZ stops the boot instead of hanging with a silent console. */
 #define OW_F4_FLAG_TIMEOUT 4000000u
-/* Set by configure_system_clock() and read by app_init(). A return value would
- * have been the obvious channel, but changing the signature changed codegen in
- * families that can never fail, so the state is a flag and the signature is
- * untouched. */
-static uint8_t ow_f4_clock_ok = 1u;
-
 static uint8_t ow_f4_wait_flag(volatile uint32_t* reg, uint32_t bit) {
     uint32_t n = OW_F4_FLAG_TIMEOUT;
     while (n && !(*reg & bit))
         n--;
     return (*reg & bit) ? 1u : 0u;
 }
+#endif
 #endif
 
 #if defined(DS18B20_TEST_HARNESS)
