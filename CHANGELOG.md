@@ -186,6 +186,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Object files were not named after the selected part, so building one
+  family or part after another silently reused the previous one's objects.**
+  Object names carried only the app name (`build/1_basic_onewire.o`) to keep
+  `APP=` invocations from sharing `app.o`, but nothing distinguished
+  `OW_TARGET=` or `OW_CHIP=`. Only the startup and system files escaped this,
+  because their basenames differ per part by nature; everything actually
+  shared - `onewire.c`, `ds18b20.c`, `main.c`, `app.c`, `ow_stats.c`,
+  `syscall.c` - collided across all six parts.
+
+  Switching targets in one build tree is ordinary usage, and the result was
+  wrong rather than refused. Building `OW_TARGET=f4 OW_CHIP=f401xc` after
+  `f407xx` produced an image byte-identical to the f407xx one: the F401CC
+  build was the F407 firmware, with the F407 168 MHz clock default and the
+  F407 flash assumptions, and the user had no way to see it. Building `f0` or
+  `g0` after `f1` failed outright with `ld: error: lto-wrapper failed` or an
+  assembler `invalid constant after fixup`, which reads like a toolchain bug
+  and points at the one freshly-named file rather than at the stale link it
+  actually was.
+
+  Object names now carry `$(OW_TARGET)_$(OW_CHIP)` as well. Verified by
+  hashing: all six parts built in one tree without `clean` in between are
+  byte-identical to the same six built from scratch, and repeated builds of
+  one part are byte-identical to each other. No documentation required a
+  `clean` between targets, and none is needed now.
 - **`chips/<part>.mk` and `ow_port.h` each carried their own system clock
   default, and nothing checked that they agreed.** `onewire.h` picks a
   default per family under `#if !defined(OW_PORT_SYSCLK_MHZ)` - 72 for F1,

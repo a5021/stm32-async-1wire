@@ -475,22 +475,35 @@ test-chips:
 all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 # Define the object files that need to be built from C and assembly source files.
-# Every object is prefixed with the app name (e.g. build/demo_app.o), because
-# the compile flags differ per app (-DUART_TX_BUF_SIZE) and shared objects like
-# app.o would otherwise be reused stale across `make APP=...` invocations.
-OBJ = $(addprefix $(BUILD_DIR)/$(APP)_,$(notdir $(SRC:.c=.o)))
+# Every object is prefixed with the app name and the selected part, because the
+# compile flags differ along both axes and a shared object name would otherwise
+# be reused stale across invocations:
+#   APP=      -DUART_TX_BUF_SIZE
+#   OW_TARGET -mcpu / -DOW_PORT_TARGET_* / -DOW_PORT_SYSCLK_MHZ
+#   OW_CHIP   -DSTM32Fxxx, the startup file, the linker script
+# The part component is not optional. With only the app prefix, `make OW_TARGET=f1`
+# followed by `make OW_TARGET=f0` reused the f1 objects: only the startup and
+# system files, whose basenames happen to differ per part, were recompiled, so
+# the f0 firmware went on to link Cortex-M3 code compiled against
+# port/stm32f1/ow_port_f1.h with a 72 MHz prescaler - the two families' bit-slot
+# timings differ by that factor. It showed up as a confusing assembler failure
+# ("invalid constant after fixup") on the one freshly-named file rather than as
+# the stale link it actually was, and switching families within one build tree
+# is ordinary usage, not a corner case.
+OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)
+OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
-OBJ += $(addprefix $(BUILD_DIR)/$(APP)_,$(notdir $(ASM:.s=.o)))
+OBJ += $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(ASM:.s=.o)))
 vpath %.s $(sort $(dir $(ASM))) # Set the search path for assembly source files
 
 # Specify how to compile a C source file into an object file
-$(BUILD_DIR)/$(APP)_%.o: %.c Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
 
 # Specify how to compile an assembly source file into an object file
-$(BUILD_DIR)/$(APP)_%.o: %.s Makefile | $(BUILD_DIR)
-	$(AS) -c $(FLAG) $(OPT) $(EXT) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(APP)_$(notdir $(<:.s=.lst)) $< -o $@
+$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
+	$(AS) -c $(FLAG) $(OPT) $(EXT) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_$(notdir $(<:.s=.lst)) $< -o $@
 
 # Specify how to build the final executable file
 $(BUILD_DIR)/$(TARGET).elf: $(OBJ) Makefile
@@ -618,7 +631,6 @@ TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test test-f0 test-g0 test-f4
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1)))
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
 # F4/F401-family fallback compile check: always built as part of `make test`,
@@ -627,14 +639,42 @@ TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),
 test: $(TEST_EXE) $(TEST_CLOCK_OBJ) clock-ref-check
 	$(TEST_EXE)
 
-test-f0:
-	$(MAKE) OW_TARGET=f0 test
+# --- Per-family wrappers, generated ---------------------------------------
+# Every variant is written once for the active OW_TARGET and reached from
+# another family through a generated test-<variant>-<family> wrapper, so the set
+# of families a variant is checked on is OW_KNOWN_TARGETS in one place instead of
+# a hand-maintained list per variant. These were 15 near-identical rules that
+# had already drifted: test-f1 was missing (f1 being the default, only bare
+# `make test` covered it), and each variant listed its own three families, so
+# adding one meant editing four places. test-clocks is generated too, but builds
+# a compile-check object rather than delegating to a variant target.
+# Variant SUFFIXES, not target names: "base" stands for the plain `test` target.
+# Suffixes are what let a single function name both a variant's target and its
+# wrapper, so the two can never disagree about how a variant is called. Note that
+# an empty list element is not usable as the sentinel - `""` in a Make variable
+# is two quote characters, not an empty string.
+OW_TEST_VARIANTS = base lowpower active ndebug
 
-test-g0:
-	$(MAKE) OW_TARGET=g0 test
+ow_variant_target = $(if $(filter base,$(1)),test,test-$(1))
+ow_wrapper_name = $(call ow_variant_target,$(1))-$(2)
 
-test-f4:
-	$(MAKE) OW_TARGET=f4 test
+define OWRULE_TEST_VARIANT
+$(call ow_wrapper_name,$(1),$(2)):
+	$$(MAKE) OW_TARGET=$(2) $(call ow_variant_target,$(1))
+endef
+
+define OWRULE_TEST_CLOCKS
+test-clocks-$(1):
+	$$(MAKE) OW_TARGET=$(1) $(TEST_OUT)/test_sysclk_fallback_$(1).o
+endef
+
+OW_TEST_WRAPPERS = $(foreach v,$(OW_TEST_VARIANTS),\
+                     $(foreach f,$(OW_KNOWN_TARGETS),$(call ow_wrapper_name,$(v),$(f)))) \
+                   $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f))
+.PHONY: $(OW_TEST_WRAPPERS)
+$(foreach v,$(OW_TEST_VARIANTS),\
+   $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_VARIANT,$(v),$(f)))))
+$(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 
 # --- Family-macro fallback compile check (see test_sysclk_fallback.c) ---
 # Compile-only: verifies that selecting a family through the raw family macro
@@ -676,16 +716,8 @@ $(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Make
 clock-ref-check:
 	$(foreach c,$(F401_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
 
-.PHONY: test-clocks test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
-test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 clock-ref-check
-test-clocks-f1:
-	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
-test-clocks-f0:
-	$(MAKE) OW_TARGET=f0 $(TEST_OUT)/test_sysclk_fallback_f0.o
-test-clocks-g0:
-	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
-test-clocks-f4:
-	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f4.o
+.PHONY: test-clocks test-chips
+test-clocks: test-chips $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
 # Both F401 parts, via the list above; kept as a target so the aggregate and
 # `make test` reach the same check by a name a reader can find.
 test-clocks-f401: clock-ref-check
@@ -694,18 +726,9 @@ test-clocks-f401: clock-ref-check
 # Compiles the SAME suite with the low-power path enabled so the
 # __WFE()-related code (SEVONPEND, ow_long_pending, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
-.PHONY: test-lowpower test-lowpower-f0 test-lowpower-g0 test-lowpower-f4
+.PHONY: test-lowpower
 test-lowpower: $(TEST_LP_EXE)
 	$(TEST_LP_EXE)
-
-test-lowpower-f0:
-	$(MAKE) OW_TARGET=f0 test-lowpower
-
-test-lowpower-g0:
-	$(MAKE) OW_TARGET=g0 test-lowpower
-
-test-lowpower-f4:
-	$(MAKE) OW_TARGET=f4 test-lowpower
 
 # src/ds18b20.c is an amalgamated translation unit: the search / txn /
 # resolution / measurement code lives in these include-only parts (guarded by
@@ -738,18 +761,9 @@ TEST_ACTIVE_SRC = \
 TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE=1
 TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test-active test-active-f0 test-active-g0 test-active-f4
+.PHONY: test-active
 test-active: $(TEST_ACTIVE_EXE)
 	$(TEST_ACTIVE_EXE)
-
-test-active-f0:
-	$(MAKE) OW_TARGET=f0 test-active
-
-test-active-g0:
-	$(MAKE) OW_TARGET=g0 test-active
-
-test-active-f4:
-	$(MAKE) OW_TARGET=f4 test-active
 
 $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
@@ -764,18 +778,9 @@ TEST_NG_FLAG = $(TEST_FLAG) -DNDEBUG -DOW_TEST_PARAM_GUARD
 TEST_NG_SRC  = $(TEST_SRC) $(TEST_DIR)/test_param_guard.c
 TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
-.PHONY: test-ndebug test-ndebug-f0 test-ndebug-g0 test-ndebug-f4
+.PHONY: test-ndebug
 test-ndebug: $(TEST_NG_EXE)
 	$(TEST_NG_EXE)
-
-test-ndebug-f0:
-	$(MAKE) OW_TARGET=f0 test-ndebug
-
-test-ndebug-g0:
-	$(MAKE) OW_TARGET=g0 test-ndebug
-
-test-ndebug-f4:
-	$(MAKE) OW_TARGET=f4 test-ndebug
 
 $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
