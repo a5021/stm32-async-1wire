@@ -360,6 +360,9 @@ jobs:
           test -f build/prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
+          # ow_port_f0/f1/g0.h include the shared TIM1/DMA1 core, so a
+          # package without it would hand consumers a broken header.
+          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_tim_dma.h
       - name: Build the parasite / WFE firmware variants
         # The build above only ever sees the default firmware. These two defines
         # select the configurations the hardware was actually measured in, and

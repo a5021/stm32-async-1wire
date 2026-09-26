@@ -116,7 +116,7 @@ DEF = $(CHIP_DEV_DEF) -D$(PORT_DEF)
 ifndef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -638,7 +638,7 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
+TEST_INC  = -Iinc -Iexamples/app -Iport/common $(TEST_PORT_INC) -I$(TEST_MOCK)
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
@@ -720,7 +720,7 @@ F401_CLOCK_OBJS = $(foreach c,$(F401_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallb
 # the right part's macro. The chips/f401%.mk prerequisite rebuilds the object
 # when the part file changes.
 $(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Makefile chips/f401%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
 # Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
