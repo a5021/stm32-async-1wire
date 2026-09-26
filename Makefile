@@ -461,7 +461,9 @@ clean-deps:
 # include plus an eval'd conditional plus a sub-make per part.
 
 .PHONY: test-mocks
-test-mocks:
+# Needs the real CMSIS device headers to compare against, so fetch them
+# rather than assuming whoever called us already did.
+test-mocks: download-deps
 	@sh tests/check_mock_headers.sh
 
 .PHONY: test-chips
