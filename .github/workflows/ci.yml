@@ -268,6 +268,13 @@ jobs:
       - name: Check the part matrix
         run: make test-chips
 
+      - name: Check the host mocks against the real CMSIS headers
+        # Without this the mock-vs-CMSIS drift guard only runs locally: the
+        # per-family clock check above calls test-clocks-<family>, which builds
+        # one object and never reaches test-clocks, where test-mocks hangs.
+        # Both belong here - static checks over the repo, not per-family builds.
+        run: make test-mocks
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -360,6 +367,9 @@ jobs:
           test -f build/prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_f4.h
+          # ow_port_f0/f1/g0.h include the shared TIM1/DMA1 core, so a
+          # package without it would hand consumers a broken header.
+          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_tim_dma.h
       - name: Build the parasite / WFE firmware variants
         # The build above only ever sees the default firmware. These two defines
         # select the configurations the hardware was actually measured in, and

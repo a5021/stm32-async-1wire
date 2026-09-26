@@ -116,7 +116,7 @@ DEF = $(CHIP_DEV_DEF) -D$(PORT_DEF)
 ifndef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32g0 -Iport/stm32f4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -460,6 +460,15 @@ clean-deps:
 # filesystem is what a shell does well, and doing it here needed a parse-time
 # include plus an eval'd conditional plus a sub-make per part.
 
+.PHONY: test-mocks
+# Needs the real CMSIS device headers of *every* family to compare against,
+# and a plain download-deps only fetches the active OW_TARGET's. Recursing
+# per family keeps the requirement with the target instead of with every
+# caller, the way clock-ref-check does.
+test-mocks:
+	$(foreach t,$(OW_KNOWN_TARGETS),$(MAKE) OW_TARGET=$(t) download-deps &&) true
+	@sh tests/check_mock_headers.sh
+
 .PHONY: test-chips
 test-chips:
 	@sh tests/check_chips.sh
@@ -577,6 +586,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_dmamux.c \
             $(TEST_DIR)/test_dma.c \
             $(TEST_DIR)/test_dma_contract.c \
+            $(TEST_DIR)/test_port_init_contract.c \
             $(TEST_DIR)/test_ow_stats.c \
             $(TEST_DIR)/test_rcr_limits.c \
             $(TEST_DIR)/test_tim_model.c \
@@ -621,11 +631,19 @@ TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
+# Hook for defines only the host suite should see, the counterpart of EXT
+# for the firmware build. It is how the port setup contract tables were
+# generated: `make test TEST_EXTRA_FLAG=-DOW_PORT_INIT_CAPTURE` makes the
+# contract test print what each backend programs instead of asserting, so
+# the expectations are the backends' real behaviour rather than my
+# reading of them. Empty by default, so the normal suite is unaffected.
+TEST_EXTRA_FLAG ?=
+
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -Iexamples/app $(TEST_PORT_INC) -I$(TEST_MOCK)
+TEST_INC  = -Iinc -Iexamples/app -Iport/common $(TEST_PORT_INC) -I$(TEST_MOCK)
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
@@ -707,7 +725,7 @@ F401_CLOCK_OBJS = $(foreach c,$(F401_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallb
 # the right part's macro. The chips/f401%.mk prerequisite rebuilds the object
 # when the part file changes.
 $(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Makefile chips/f401%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
 # Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
@@ -717,7 +735,7 @@ clock-ref-check:
 	$(foreach c,$(F401_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
-test-clocks: test-chips $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
+test-clocks: test-chips test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
 # Both F401 parts, via the list above; kept as a target so the aggregate and
 # `make test` reach the same check by a name a reader can find.
 test-clocks-f401: clock-ref-check
@@ -796,7 +814,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Itests/mock \
+               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz

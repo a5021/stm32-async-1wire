@@ -1,449 +1,81 @@
-/**
- * @file ow_port_f1.h
- * @brief STM32F1 backend: TIM1 (advanced) + DMA1 (channels 3/4) + PA10
+/* ============================================================
+ *  ow_port_f1.h - STM32F1 backend
  *
- * Header-only static inline implementation of the ow_port_* interface for the
- * STM32F103. The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain
- * alternate function, default AFIO mapping); CH4 captures in indirect mode on
- * the same pin (CC4S routes IC4 to TI3) and its DMA request (CC4DE) moves CCR4
- * captures to memory, while the end-of-slot marker on channel 2 — a plain
- * compare at ONE+ZERO µs whose pin is unused (PA9 belongs to USART1 TX) —
- * feeds CCR3 from a precomputed pulse buffer through its own DMA request
- * (CC2DE). TIM1 runs in one-pulse mode (OPM) with the repetition counter
- * (RCR) batching N slots into a single update event (UIF).
- *
- * The channel roles and DMA channels are identical to the STM32F0 backend
- * (see ow_port_f0.h); only the prescaler and the GPIO pin configuration
- * differ. The fixed DMA request routing of this family (no DMA_CSELR mux)
- * assigns TIM1_CC2 to channel 3 and TIM1_CH4 to channel 4 — both mappings
- * confirmed empirically on the target; USART1_TX shares channel 4's request
- * line but the driver's UART output runs without DMA.
- */
+ *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
+ *  F0 and G0 and lives in port/common/ow_port_tim_dma.h; what is left here is
+ *  the part that is genuinely an F103: which clocks to gate, and how PA10 is
+ *  put into alternate-function open-drain mode.
+ * ============================================================ */
 
 #ifndef OW_PORT_F1_H
 #define OW_PORT_F1_H
 
 #include "onewire.h"
 #include "ow_bits.h"
+#include "ow_port.h"
 #include "stm32f1xx.h"
 
-/* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
- *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
+/* @brief Gate GPIOA, TIM1 and DMA1.
  *
- *  INVARIANT: TIM1 clock must equal SYSCLK — the APB prescaler feeding
- *  TIM1 must be /1.  STM32 rule: if APB prescaler != 1, TIM clock
- *  doubles to 2 × PCLK, breaking every µs-based timing constant.
- *
- *  F1: TIM1 is on APB2.  configure_system_clock() sets PPRE1=/2 but
- *  PPRE2 stays /1, so TIM1 clock = PCLK2 = SYSCLK = 72MHz.  ✓
- *  (PPRE1 /2 affects TIM2/3/4, USART2/3, I2C — not used here.)
- *
- *  Test: tests/test_timing.c::test_apb_prescaler_div1_for_tim1() */
-#define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
-_Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
-               "TIM prescaler exceeds 16-bit PSC register width");
+ *  F1 puts IOPAEN and TIM1EN in APB2ENR and DMA1EN in AHBENR; F0 uses the same
+ *  two registers but names the bits GPIOAEN/DMAEN, and G0 uses IOPENR/APBENR2
+ *  with a read-back to settle the APB clock before its first SYSCFG access.
+ */
+#define OW_PORT_ENABLE_BUS_CLOCKS()                \
+    do {                                           \
+        RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN); \
+        RC.AHBENR |= RCC_AHBENR(DMA1EN);           \
+    } while (0)
 
-/* @brief DMA channel assignment (fixed request map, RM0008 table 78):
- *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
- *       channel 4 carries the CC4 capture request and drains CCR4. */
+/* @brief PA10: alternate function, open-drain, 2 MHz (TIM1_CH3, default map).
+ *
+ *  F1 is the odd one out here: it has the legacy GPIO_CRH configuration field
+ *  rather than the modern MODER/OTYPER/AFR split that F0 and G0 use, which is
+ *  why this is a macro and not shared code.  The whole MODE10/CNF10 field is
+ *  cleared first so the pin is configured correctly even if it was previously
+ *  set to another mode.
+ */
+#define OW_PORT_CONFIG_BUS_PIN()                       \
+    do {                                               \
+        PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) | \
+                 GPIO_CRH(MODE10_1, CNF10_0, CNF10_1); \
+    } while (0)
+
+/* @brief Toggle the bus pin between open-drain and push-pull.
+ *
+ *  Rewrites the whole CNF10 field: CNF=10 is AF push-pull, CNF=11 is AF
+ *  open-drain.  Masking the full field rather than toggling one bit makes the
+ *  result independent of the previous CNF state.  Push-pull is only used by the
+ *  experimental active-drive write path (OW_DRIVE_ACTIVE); the slave has to be
+ *  able to pull the line LOW while the master reads, so every read and reset
+ *  phase returns to open-drain.
+ */
+#define OW_PORT_SET_PIN_MODE(push_pull)                           \
+    do {                                                          \
+        PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10) |                     \
+                 (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10); \
+    } while (0)
+
+/* @brief DMA request routing.
+ *
+ *  F1 has a fixed request map with no DMAMUX, so TIM1_CC2 -> channel 3 and
+ *  CH4 -> channel 4 need no programming.  (Both mappings were confirmed
+ *  empirically at board bring-up; USART1_TX shares channel 4's request line,
+ *  which is harmless because the driver's UART output runs without DMA.)
+ *  G0 does need these - see ow_port_g0.h.
+ */
+#define OW_PORT_ROUTE_CAPTURE() \
+    do {                        \
+    } while (0)
+#define OW_PORT_ROUTE_FEED() \
+    do {                     \
+    } while (0)
+
+/* @brief DMA channel assignment (fixed request map, verified on target):
+ *       feed rides TIM1_CC2 -> channel 3, capture rides CH4 -> channel 4. */
 #define OW_PORT_DMA_FEED D13
 #define OW_PORT_DMA_CAPTURE D14
 
-/* @brief DMA channel control bits for 16-bit capture: MINC | PSIZE_0 | EN */
-#define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
-
-/**
- * @brief Force a timer update event, leaving UIF set
- * @note Explicit start: EGR=UG with no SR clear, so the owner (measurement
- *       state machine) sees UIF set and advances on its next poll. Nothing
- *       calls this implicitly: after init and after every finished operation
- *       the timer stays idle until the application requests the next one.
- */
-__STATIC_FORCEINLINE void ow_port_kick(void) {
-    T1.EGR = TIM_EGR(UG);
-    __DSB();
-}
-
-/**
- * @brief Force a timer update event and clear the update flag
- * @note Re-arm: reloads ARR/RCR/CCR preloads and clears UIF so the freshly
- *       scheduled operation has a clean completion flag.
- */
-__STATIC_FORCEINLINE void ow_port_update_event(void) {
-    T1.EGR = TIM_EGR(UG);
-    __DSB();
-    T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
-}
-
-/**
- * @brief Enable clocks, configure the timer prescaler and PA10 open-drain AF
- */
-__STATIC_FORCEINLINE void ow_port_init(void) {
-    RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN);
-    RC.AHBENR |= RCC_AHBENR(DMA1EN);
-    T1.PSC = OW_PORT_TIM_PRESCALER;
-    T1.BDTR = TIM_BDTR(MOE);
-    /* PA10: alternate function open-drain, 2MHz (TIM1_CH3, default map).
-     * Clear the whole MODE10/CNF10 field first so the pin is configured
-     * correctly even if it was previously set to another mode. */
-    PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) | GPIO_CRH(MODE10_1, CNF10_0, CNF10_1);
-}
-
-#if OW_PORT_LOW_POWER
-/** @brief Set while a hardware stage longer than 1 ms is running. */
-extern uint8_t ow_long_pending; /* defined in onewire.c, shared across TUs */
-#endif
-
-/**
- * @brief Non-blocking completion check for the scheduled operation
- * @return 1 if finished (update flag set and cleared), 0 while still running
- */
-__STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
-    if (T1.SR & TIM_SR(UIF)) {
-        /* No software bus release needed: every operation returns the line to
-         * idle HIGH in hardware. DMA-fed writes (ow_port_feed,
-         * ow_port_write_then_read) append ONEWIRE_RELEASE_PULSE to the CCR3
-         * feed, and the direct-write/capture operations (reset, read, single
-         * slot) use an OC3PE preload of ONEWIRE_RELEASE_PULSE — both applied
-         * exactly when the one-pulse timer stops. */
-#if OW_PORT_LOW_POWER
-        /* The update event both interrupts the low-power WFE sleep and, via
-         * SEVONPEND, raises an NVIC pending bit. UIE also latches a pending
-         * bit at every ow_port_update_event() re-arm (EGR=UG). Clear the
-         * pending flag here so the next __WFE() truly sleeps; otherwise the
-         * pending bit would make __WFE() return immediately forever (silent
-         * degradation back to a busy-loop). */
-        NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
-        ow_long_pending = 0;
-#endif
-        T1.SR = 0;
-        return 1u;
-    }
-    return 0u;
-}
-
-#if OW_PORT_LOW_POWER
-/**
- * @brief Whether the currently scheduled operation is a "long" stage (> 1 ms)
- * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
- *         inter-cycle pause) is in flight, 0 otherwise
- * @note A low-power application checks this, then calls
- *       ow_port_sleep_until_done() when it is set, instead of busy-polling.
- */
-__STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
-    return ow_long_pending;
-}
-
-/**
- * @brief Block in WFE until the scheduled long stage completes
- * @note Only the update event wakes the core (SEVONPEND, no ISR). Valid only
- *       while a long stage (> 1 ms) is running; the pending bit is cleared in
- *       ow_port_bus_done().
- */
-__STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
-    /* Prepare for sleep: clear any stale NVIC pending bit so a leftover
-     * event cannot wake the very first WFE (silent busy-loop degradation).
-     * A fresh pending bit will be latched by the timer's update when the
-     * long stage completes. */
-    NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
-    /* Re-arm the event: SEV sets the event register, the first WFE returns
-     * immediately and clears it, so the second WFE in the loop truly sleeps
-     * until a new event arrives. */
-    __SEV();
-    __WFE();
-    while (!(T1.SR & TIM_SR(UIF))) {
-        __WFE(); /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */
-    }
-    /* Consume the wake-up event so the next sleep starts from a clean state. */
-    NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
-}
-#endif
-
-/**
- * @brief Set the bus pin drive mode (open-drain vs push-pull)
- * @param[in] push_pull 1 selects alternate-function push-pull (master actively
- *        drives both bus levels), 0 selects alternate-function open-drain
- *        (master drives LOW only, releasing HIGH to the external pull-up).
- * @note Used by the parasite strong-pull-up and, when OW_DRIVE_ACTIVE is
- *       defined, by the active-drive write path. The pin never leaves
- *       alternate-function (TIM1_CH3); only the output-stage topology changes.
- */
-__STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {
-    /* Rewrite the whole CNF10 field: CNF=10 is AF push-pull, CNF=11 is AF
-     * open-drain. Masking the full field (not just toggling one bit) makes the
-     * result independent of the previous CNF state. */
-    PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10) | (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10);
-}
-
-/**
- * @brief Configure timer and DMA for a capture operation
- * @param[out] dst Destination buffer for captured data
- * @param[in] count Number of transfers
- * @param[in] width DMA transfer width: 8 for 8-bit, 16 for 16-bit
- */
-__STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, uint16_t width) {
-#if OW_DRIVE_ACTIVE
-    ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
-#endif
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
-    T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, UIE);
-    if ((uint32_t)count * (ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) > 1000u) {
-        ow_long_pending = 1; /* e.g. a 72-slot scratchpad read (~5 ms) */
-    }
-#else
-    T1.DIER = TIM_DIER(CC4DE);
-#endif
-    ow_port_update_event();
-    T1.CCR3 = 0;
-    OW_PORT_DMA_CAPTURE.CCR = 0;
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)dst;
-    OW_PORT_DMA_CAPTURE.CNDTR = count;
-    OW_PORT_DMA_CAPTURE.CCR = OW_PORT_DMA_CCR_CAPTURE | ((width == 16) ? DMA_CCR_MSIZE_0 : 0);
-    T1.CR1 = TIM_CR1(OPM, CEN);
-}
-
-/**
- * @brief Transmit a command sequence of arbitrary length using DMA
- * @param[in] cmd Pointer to command sequence in pulse duration format
- * @param[in] slots Number of bit slots (bits) to transmit, 1..ONEWIRE_MAX_SLOTS.
- *                  Out-of-range values are rejected: TIM1 RCR is 8-bit
- *                  (RCR = slots - 1).
- * @return 1 if the feed was scheduled, 0 if `slots` is out of range (nothing
- *         is scheduled).
- * @note The buffer must hold `slots + 1` entries and the entry at index
- *       `slots` must be ONEWIRE_RELEASE_PULSE: the final CC2-triggered DMA
- *       transfer feeds that value into CCR3 during the last slot, so the
- *       one-pulse timer stops with the line already released to idle HIGH
- *       (hardware bus release — no software CCR3 write needed afterwards).
- */
-__STATIC_FORCEINLINE uint8_t ow_port_feed(const uint8_t* cmd, uint16_t slots) {
-    if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        return 0u;
-    }
-    T1.RCR = slots - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
-    T1.CCR3 = cmd[0];
-    T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
-    T1.CCER = TIM_CCER(CC3E);
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(CC2DE, UIE);
-#else
-    T1.DIER = TIM_DIER(CC2DE);
-#endif
-    ow_port_update_event();
-    OW_PORT_DMA_FEED.CCR = 0;
-    OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
-    OW_PORT_DMA_FEED.CMAR = (uint32_t)&cmd[1];
-    OW_PORT_DMA_FEED.CNDTR = slots; /* Feed slots 2..N, then the ONEWIRE_RELEASE_PULSE (bus release) */
-    OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
-    T1.CR1 = TIM_CR1(OPM, CEN);
-    return 1;
-}
-
-/**
- * @brief Start a hardware-timed wait (conversion wait / inter-cycle pause)
- * @param[in] arr Auto-reload value (one timer period in µs)
- * @param[in] rcr Repetition counter (number of periods - 1)
- */
-__STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
-    T1.ARR = arr;
-    T1.RCR = rcr;
-#if OW_PORT_LOW_POWER
-    if ((uint32_t)(rcr + 1u) * arr > 1000u) {
-        ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off / pause */
-        /* Enable the update interrupt so the pending bit wakes __WFE() via
-         * SEVONPEND. ow_port_capture() already sets UIE for the long scratchpad
-         * read stage, but start_timer() must too, else WFE sleeps forever. */
-        T1.DIER |= TIM_DIER(UIE);
-    }
-#endif
-    ow_port_update_event();
-    T1.CR1 = TIM_CR1(OPM, CEN);
-}
-
-/**
- * @brief Schedule a 1-Wire bus reset with presence capture
- * @param[out] reset_pulses Buffer for the captured reset + presence pulse
- *                          durations (2 x 16-bit)
- */
-__STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
-    T1.RCR = 0;
-    T1.ARR = OW_PORT_RESET_TIMEOUT;
-    T1.CCR3 = OW_PORT_RESET_PULSE_DURATION;
-    /* Clear the capture buffer: only reset_pulses[0] (master release) is always
-     * written by the DMA, so a no-presence reset would otherwise leave a stale
-     * reset_pulses[1] from a previous presence reset and onewire_present() would
-     * report a false device. Zeroing makes a single-capture reset report "no
-     * device". */
-    reset_pulses[0] = 0;
-    reset_pulses[1] = 0;
-    ow_port_capture(reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);
-}
-
-/**
- * @brief Schedule a write of `slots` bit slots
- * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
- *                   entry at index `slots` must be ONEWIRE_RELEASE_PULSE
- *                   (hardware bus release)
- * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS.
- *                  Out-of-range values are rejected (8-bit RCR limit).
- * @return 1 if the write was scheduled, 0 if `slots` is out of range (nothing
- *         is scheduled).
- */
-__STATIC_FORCEINLINE uint8_t ow_port_write_slots(const uint8_t* pulses, uint16_t slots) {
-    if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        return 0u;
-    }
-#if OW_DRIVE_ACTIVE
-    ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
-#endif
-    if (slots == 1) {
-        /* Single slot: no DMA needed, avoids a zero-length DMA transaction */
-        T1.RCR = 0; /* Single slot, no repetition */
-        T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-        T1.CCR3 = pulses[0]; /* Pulse duration encodes the bit */
-        /* OC3PE plus a ONEWIRE_RELEASE_PULSE preload release the bus at the
-         * terminal update event, exactly when the one-pulse timer stops
-         * (hardware bus release). */
-        T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE);
-        T1.CCER = TIM_CCER(CC3E);
-#if OW_PORT_LOW_POWER
-        T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
-#else
-        T1.DIER = 0; /* No DMA for a single bit slot */
-#endif
-        ow_port_update_event();
-        T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Preload release pulse -> line idles HIGH when the timer stops */
-        T1.CR1 = TIM_CR1(OPM, CEN);
-        return 1;
-    }
-    return ow_port_feed(pulses, slots);
-}
-
-/**
- * @brief Schedule a two-slot read of a Search ROM id/cmp bit pair
- * @param[out] pair_pulses Buffer for the captured pulse durations (2 x 16-bit)
- */
-__STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
-    T1.RCR = 1; /* Two read slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-    T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
-    T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, UIE);
-#else
-    T1.DIER = TIM_DIER(CC4DE);
-#endif
-    ow_port_update_event();
-    T1.CCR3 = 0; /* Clear the output-compare value (CCR4 capture is independent) */
-    OW_PORT_DMA_CAPTURE.CCR = 0;
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pair_pulses;
-    OW_PORT_DMA_CAPTURE.CNDTR = 2;
-    OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
-    T1.CR1 = TIM_CR1(OPM, CEN);
-}
-
-/**
- * @brief Schedule a merged single-slot write followed by a two-slot read pair
- * @param[in] bit Direction bit to write in slot 1 (0 or 1)
- * @param[in] pulse3 Buffer for the three captured slots (write-slot capture,
- *                   id pulse, cmp pulse)
- * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ ONEWIRE_RELEASE_PULSE)
- */
-__STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* pulse3,
-                                                  const uint8_t* read_pulse) {
-#if OW_DRIVE_ACTIVE
-    ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
-#endif
-    const uint8_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
-    T1.RCR = 2; /* Three slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-    /* Arm the direction pulse first. The bus was released idle-high by
-     * ow_port_bus_done(), so this write produces the single clean falling edge
-     * the devices re-sync their slot timer to. Holding it from the top instead
-     * of arming it right before CEN means the CC4 capture is armed while the
-     * bus is low, so the open-drain RC rise can never be mistaken for a slot
-     * edge. */
-    T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
-    T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
-    /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
-    T1.CCER = TIM_CCER(CC3E, CC4E); /* Enable both channels */
-    /* Disconnect DMA requests while re-arming the channels, then re-connect
-     * them only after the timer flags are clean and just before starting.
-     * (The end-of-slot CC2 compare event of the previous merged operation can
-     * leave a pending request that fires the reload DMA immediately on re-arm,
-     * overwriting the freshly written direction pulse in CCR3.) */
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
-#else
-    T1.DIER = 0;
-#endif
-    ow_port_update_event();
-    /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer */
-    OW_PORT_DMA_CAPTURE.CCR = 0;
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pulse3;
-    OW_PORT_DMA_CAPTURE.CNDTR = 3;
-    OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
-    /* Feed DMA: reload CCR3 with the read pulse for slots 2-3, then write
-     * ONEWIRE_RELEASE_PULSE during slot 3 so the one-pulse timer stops with
-     * the line released to idle HIGH (hardware bus release). */
-    OW_PORT_DMA_FEED.CCR = 0;
-    OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
-    OW_PORT_DMA_FEED.CMAR = (uint32_t)read_pulse;
-    OW_PORT_DMA_FEED.CNDTR = 3;
-    OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
-#else
-    T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */
-#endif
-    T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
-    T1.CR1 = TIM_CR1(OPM, CEN);
-}
-
-/**
- * @brief Schedule a read of `bytes` bytes from the bus
- * @param[out] dst Buffer for the captured pulse durations (bytes x 8 x 8-bit)
- * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES.
- *                  Out-of-range values are rejected (8-bit RCR limit: 256 slots).
- * @return 1 if the read was scheduled, 0 if `bytes` is out of range (nothing
- *         is scheduled).
- */
-__STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {
-    if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
-        return 0u;
-    }
-    const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
-    T1.RCR = bits - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
-    T1.CCR3 = ONEWIRE_ONE_PULSE;
-    ow_port_capture(dst, bits, 8);
-    return 1;
-}
-
-/**
- * @brief Engage or release the parasite-power strong pull-up on the bus
- * @param[in] on 1 drives the bus line HIGH actively, 0 releases it again
- * @note The pin stays in alternate-function mode (TIM1_CH3) at all times.
- *       Engaged: CNF10 toggles from 11 (AF open-drain) to 10 (AF push-pull)
- *       so the AF output stage drives the line HIGH actively, sourcing the
- *       current parasite devices need during temperature conversion and EEPROM
- *       programming windows.  Released: CNF10 restores 11, the AF output
- *       goes inactive (PWM mode 2 with the counter stopped at zero) so the
- *       pin floats HIGH via the external pull-up.  No BSRR or MODE10 writes
- *       needed: the timer is stopped (OPM) during the window, the output is
- *       inactive, and ODR is irrelevant in AF mode.
- */
-__STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
-    ow_port_set_pin_mode(on);
-}
+#include "ow_port_tim_dma.h"
 
 #endif /* OW_PORT_F1_H */

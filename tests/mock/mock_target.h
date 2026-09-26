@@ -46,4 +46,44 @@
 #define MOCK_DMA_CAP_EN DMA_CCR_EN
 #define MOCK_DMA_CAP_MSIZE_0 DMA_CCR_MSIZE_0
 #endif
+
+/* --- bus pin state, family-neutral ------------------------------------------
+ * The bus pin is PA10 on every family, but the CMSIS fields that say "alternate
+ * function" and "open-drain" are spelled three different ways: F1 configures
+ * the pin through the legacy CRH CNF10 field, G0's CMSIS drops the R (MODE10,
+ * not MODER10), and F0/F4 use MODER10 with OTYPER for the output stage.
+ *
+ * A test that only wants to know which state the pin is in should ask through
+ * these three. test_parasite.c, test_active_drive.c and test_state_machine.c
+ * each carried its own copy of the spelling, and a fourth copy is what made the
+ * mocks' wrong MODER10 bit field invisible - the same word in a test file reads
+ * as deliberate, where a wrong value in a mock does not.
+ *
+ * MOCK_PIN_AT_MAX_SPEED is the F1 CRH MODE10 field; the other families have an
+ * equivalent two-bit speed field in OSPEEDR, so a test asking about drive
+ * strength should read that field itself - the value the driver programs is
+ * pinned per family by test_port_init_contract.c. */
+#if defined(OW_PORT_TARGET_F1)
+#define MOCK_PIN_IS_AF() (((mock_gpioa.CRH & GPIO_CRH_CNF10_1) != 0u))
+#define MOCK_PIN_IS_OD() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) != 0u))
+#define MOCK_PIN_IS_PP() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) == 0u))
+#define MOCK_PIN_AT_MAX_SPEED() (((mock_gpioa.CRH & GPIO_CRH_MODE10) == GPIO_CRH_MODE10_1))
+#else
+#if defined(OW_PORT_TARGET_G0)
+#define MOCK_PIN_MODER GPIO_MODER_MODE10
+#define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
+#define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0
+#define MOCK_PIN_OTYPE GPIO_OTYPER_OT10
+#else
+#define MOCK_PIN_MODER GPIO_MODER_MODER10
+#define MOCK_PIN_MODE_AF GPIO_MODER_MODER10_1
+#define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODER10_0
+#define MOCK_PIN_OTYPE GPIO_OTYPER_OT_10
+#endif
+/* mode 0b10 is alternate function, which is what the timer needs on the pin */
+#define MOCK_PIN_IS_AF() (((mock_gpioa.MODER & MOCK_PIN_MODE_AF) != 0u) && \
+                          ((mock_gpioa.MODER & MOCK_PIN_MODE_AF_0) == 0u))
+#define MOCK_PIN_IS_OD() (((mock_gpioa.OTYPER & MOCK_PIN_OTYPE) != 0u))
+#define MOCK_PIN_IS_PP() (((mock_gpioa.OTYPER & MOCK_PIN_OTYPE) == 0u))
+#endif
 #endif /* MOCK_TARGET_H */

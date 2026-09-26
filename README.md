@@ -110,23 +110,25 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
 │   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
+│   ├── common/            # TIM1+DMA1 core shared by the F0/F1/G0 backends
+│   │   └── ow_port_tim_dma.h  # 16 ow_port_* functions: slot timing, capture, feed
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f1.h    # Register-level ow_port_* implementation for STM32F1
+│   │   ├── ow_port_f1.h    # F1 descriptor: clock gates + legacy-CRH pin setup
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
 │   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
 │   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f0.h    # Register-level ow_port_* implementation for STM32F0
+│   │   ├── ow_port_f0.h    # F0 descriptor: clock gates + MODER/AFR pin setup
 │   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 │   │   ├── stm32f030f4.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
 │   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
-│   │   ├── ow_port_g0.h    # Register-level ow_port_* implementation for STM32G0
+│   │   ├── ow_port_g0.h    # G0 descriptor: + SYSCFG pad remap and DMAMUX routing
 │   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 │   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
-│   │   ├── ow_port_f4.h    # Register-level ow_port_* implementation for STM32F4 (F407/F401)
+│   │   ├── ow_port_f4.h    # STM32F4: self-contained (DMA2 streams + CHSEL, LA marker)
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
@@ -137,6 +139,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
 │   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
+├── config/                # Build settings shared by both build systems
+│   └── optim.mk            # Optimisation profiles + the no-LTO family list
 ├── chips/                  # Per-part build identity, one file per part
 │   ├── f103xb.mk           # CMSIS macro, startup, linker script, debugger
 │   ├── f030x6.mk           #   projects, SVD and default clock. Shared by
@@ -172,7 +176,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
 │   ├── test/               # Unity-based test cases
-│   └── check_chips.sh      # Part-matrix check (make test-chips)
+│   ├── check_chips.sh      # Part-matrix check (make test-chips)
+│   └── check_mock_headers.sh  # Mocks vs real CMSIS macros (make test-mocks)
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template

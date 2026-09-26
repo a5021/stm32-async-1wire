@@ -15,6 +15,7 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
+#include "port_setup_probe.h"
 #include "unity.h"
 #include <string.h>
 
@@ -771,68 +772,32 @@ void test_state_machine_reselect_in_callback(void) {
  *  Test: ds18b20_init() configures clocks, prescaler and GPIO
  * -----------------------------------------------------------*/
 void test_state_machine_init_configures_registers(void) {
+    /* What ds18b20_init() must do is leave the port exactly as ow_port_init()
+     * left it. The values themselves are pinned per family by
+     * test_port_init_contract.c, which asserts them as exact register contents
+     * rather than as bit tests, so duplicating four families' worth of clock,
+     * prescaler and GPIO field spellings here only gave the same coverage a
+     * second, weaker time. What this file is actually for is the link: that the
+     * driver's init reaches the port init at all, which nothing else checks. */
+    port_setup_t ref;
+    port_setup_t got;
+
+    hw_reset_all();
+    ow_port_init();
+    ref = port_setup_snapshot();
+
     hw_reset_all();
     ds18b20_init();
+    got = port_setup_snapshot();
 
-#if defined(OW_PORT_TARGET_G0)
-    TEST_ASSERT_BITS_HIGH(RCC_APBENR2_TIM1EN | RCC_APBENR2_SYSCFGEN, mock_rcc.APBENR2);
-    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
-    TEST_ASSERT_BITS_HIGH(RCC_IOPENR_GPIOAEN, mock_rcc.IOPENR);
-    /* PA10 lives on the PA12 pad via SYSCFG remap on this package */
-    TEST_ASSERT_BITS_HIGH(SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP,
-                          mock_syscfg.CFGR1);
-    TEST_ASSERT_EQUAL_UINT32(63, mock_tim1.PSC); /* 64MHz/64 = 1MHz -> 1us */
-    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    /* Bus pin logical PA10: AF mode (MODE10_1), open-drain, AF2 in AFRH */
-    TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODE10_1, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_LOW(GPIO_MODER_MODE10_0, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT10, mock_gpioa.OTYPER);
-    TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
-                             mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
-    /* Logical PA10 bus-pin drive strength */
-    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos,
-                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEED10);
-#elif defined(OW_PORT_TARGET_F0)
-    TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
-    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_GPIOAEN | RCC_AHBENR_DMAEN, mock_rcc.AHBENR);
-    TEST_ASSERT_EQUAL_UINT32(47, mock_tim1.PSC); /* 48MHz/48 = 1MHz -> 1us */
-    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    /* Bus pin PA10: AF mode (MODER10_1), open-drain, AF2 in AFRH */
-    TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODER10_1, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_LOW(GPIO_MODER_MODER10_0, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT_10, mock_gpioa.OTYPER);
-    TEST_ASSERT_EQUAL_UINT32(2u << GPIO_AFRH_AFSEL10_Pos,
-                             mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
-    /* PA10 bus-pin drive strength */
-    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEEDR10_Pos,
-                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEEDR10);
-#elif defined(OW_PORT_TARGET_F4)
-    TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
-    TEST_ASSERT_BITS_HIGH(RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_DMA2EN, mock_rcc.AHB1ENR);
-    TEST_ASSERT_EQUAL_UINT32(167, mock_tim1.PSC); /* 168MHz/168 = 1MHz -> 1us */
-    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    /* Bus pin PA10: AF mode (MODER10_1), open-drain, AF1 in AFRH */
-    TEST_ASSERT_BITS_HIGH(GPIO_MODER_MODER10_1, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_LOW(GPIO_MODER_MODER10_0, mock_gpioa.MODER);
-    TEST_ASSERT_BITS_HIGH(GPIO_OTYPER_OT_10, mock_gpioa.OTYPER);
-    TEST_ASSERT_EQUAL_UINT32(1u << GPIO_AFRH_AFSEL10_Pos,
-                             mock_gpioa.AFR[1] & GPIO_AFRH_AFSEL10);
-    /* PA10 very-high speed (OW_BUS_DRIVE=MAX by default): the AF push-pull
-     * strong pull-up must source a whole parasite fleet during broadcast
-     * conversion, not one device. */
-    TEST_ASSERT_EQUAL_UINT32((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos,
-                             mock_gpioa.OSPEEDR & GPIO_OSPEEDR_OSPEED10);
-#else
-    TEST_ASSERT_BITS_HIGH(RCC_APB2ENR_IOPAEN | RCC_APB2ENR_TIM1EN, mock_rcc.APB2ENR);
-    TEST_ASSERT_BITS_HIGH(RCC_AHBENR_DMA1EN, mock_rcc.AHBENR);
-    TEST_ASSERT_EQUAL_UINT32(71, mock_tim1.PSC); /* 72MHz/72 = 1MHz -> 1us */
-    TEST_ASSERT_BITS_HIGH(TIM_BDTR_MOE, mock_tim1.BDTR);
-    /* Bus pin PA10: AF mode (MODE=10 -> MODE10_1), AF open-drain (CNF=11). The
-     * init clears the whole MODE10/CNF10 field first, so MODE10_0 is LOW too. */
-    TEST_ASSERT_BITS_HIGH(GPIO_CRH_MODE10_1, mock_gpioa.CRH);
-    TEST_ASSERT_BITS_LOW(GPIO_CRH_MODE10_0, mock_gpioa.CRH);
-    TEST_ASSERT_BITS_HIGH(GPIO_CRH_CNF10, mock_gpioa.CRH & GPIO_CRH_CNF10);
-#endif
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.clk, got.clk, "clock gates");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.psc, got.psc, "TIM1 prescaler");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.bdtr, got.bdtr, "TIM1 BDTR");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.pin_mode, got.pin_mode, "bus pin mode");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.pin_otype, got.pin_otype, "bus pin output type");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.pin_af, got.pin_af, "bus pin alternate function");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.pin_speed, got.pin_speed, "bus pin drive strength");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(ref.remap, got.remap, "SYSCFG pad remap");
 }
 
 /*-------------------------------------------------------------

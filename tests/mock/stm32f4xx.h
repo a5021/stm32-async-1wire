@@ -170,12 +170,19 @@ extern FLASH_TypeDef mock_flash;
 #define FLASH_ACR_ICEN 0x00000200u
 #define FLASH_ACR_DCEN 0x00000400u
 #define FLASH_ACR_LATENCY_5WS 0x00000005u
-#define GPIO_MODER_MODER10 0x00C00000u
-#define GPIO_MODER_MODER10_0 0x00400000u
-#define GPIO_MODER_MODER10_1 0x00800000u
-#define GPIO_MODER_MODER11 0x00000C00u
-#define GPIO_MODER_MODER11_0 0x00000400u
-#define GPIO_MODER_MODER11_1 0x00000800u
+/* MODER bit fields, matching CMSIS stm32f407xx.h: pin 10 is bits [21:20] and
+ * pin 11 is bits [23:22]. The two triples used to be swapped - the names
+ * MODER10_* held pin 11's bits and MODER11_* held pin 10's - so a host test
+ * asserting "PA10 is in alternate-function mode" was asserting about PA11, and
+ * since this backend drives PA10 (bus) and PA11 (LA marker) the two uses
+ * masked each other. Verified against the CMSIS header by
+ * tests/check_mock_headers.sh. */
+#define GPIO_MODER_MODER10 0x00300000u
+#define GPIO_MODER_MODER10_0 0x00100000u
+#define GPIO_MODER_MODER10_1 0x00200000u
+#define GPIO_MODER_MODER11 0x00C00000u
+#define GPIO_MODER_MODER11_0 0x00400000u
+#define GPIO_MODER_MODER11_1 0x00800000u
 #define GPIO_OTYPER_OT_10 0x00000400u
 #define GPIO_OTYPER_OT_11 0x00000800u
 #define GPIO_OSPEEDR_OSPEED10 0x00300000u

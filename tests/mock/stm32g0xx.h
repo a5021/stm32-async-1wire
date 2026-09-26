@@ -132,11 +132,20 @@ extern USART_TypeDef mock_usart1;
 #define SYSCFG_CFGR1_PA12_RMP 0x00000010u
 #define GPIO_MODER_MODE9 0x000C0000u
 #define GPIO_MODER_MODE9_1 0x00080000u
-#define GPIO_MODER_MODE4 0x00000C00u
-#define GPIO_MODER_MODE4_0 0x00000400u
-#define GPIO_MODER_MODE10 0x00C00000u
-#define GPIO_MODER_MODE10_0 0x00400000u
-#define GPIO_MODER_MODE10_1 0x00800000u
+/* MODER bit fields. The spelling without the R (MODE10, not MODER10) is the
+ * STM32G0 CMSIS one - see CMSIS/device/stm32g031xx.h - so it is correct as a
+ * name. The *values* were not: MODE4 and MODE10 held the neighbouring pin's
+ * bits, so a host test asserting "the bus pin is in alternate-function
+ * mode" was asserting about PA11. Pin 4 is bits [9:8], pin 10 bits [21:20].
+ * Verified by tests/check_mock_headers.sh. */
+#define GPIO_MODER_MODE4 0x00000300u
+#define GPIO_MODER_MODE4_0 0x00000100u
+#define GPIO_MODER_MODE10 0x00300000u
+#define GPIO_MODER_MODE10_0 0x00100000u
+#define GPIO_MODER_MODE10_1 0x00200000u
+#define GPIO_MODER_MODE11 0x00C00000u
+#define GPIO_MODER_MODE11_0 0x00400000u
+#define GPIO_MODER_MODE11_1 0x00800000u
 #define GPIO_OTYPER_OT10 0x00000400u
 #define GPIO_OSPEEDR_OSPEED10 0x00300000u
 #define GPIO_OSPEEDR_OSPEED10_0 0x00100000u

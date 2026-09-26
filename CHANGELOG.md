@@ -108,6 +108,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The bus pin's state is asked through three macros in `mock_target.h`**
+  (`MOCK_PIN_IS_AF` / `_OD` / `_PP`) instead of each host test naming the CMSIS
+  fields itself. The pin is PA10 on every family, but the fields that say
+  "alternate function" and "open-drain" are spelled three ways - F1 uses the
+  legacy `CRH` CNF10 field, G0's CMSIS drops the R, F0 and F4 use `MODER10` with
+  `OTYPER` - and three test files each carried their own copy of that spelling.
+  A fourth copy is part of why the mocks' wrong MODER10 field went unnoticed:
+  the same expression spelled out in a test reads as deliberate, where the same
+  wrong value inside a mock does not. The roles now sit beside the 18 existing
+  `MOCK_*` macros, which is where the rest of the family knowledge already was.
+
+- **`test_state_machine.c`'s four-family `ds18b20_init()` register check is gone,
+  and with it 60 lines that repeated the setup contract.** It asserted clock
+  gates, prescaler, BDTR, pin mode, output type, AF number and drive strength
+  for each family separately, using bit tests where
+  `test_port_init_contract.c` now asserts the same fields as exact register
+  contents with the failing field named. What it did check that nothing else
+  does is the *link* - that `ds18b20_init()` reaches `ow_port_init()` and changes
+  nothing beyond it - so that is all it does now, by comparing the two snapshots
+  directly instead of restating the expected values.
+
+  One assertion genuinely moved rather than disappeared: F1's copy of the
+  strong-pull-up helper also checked the CRH MODE10 drive-strength field, which
+  the F0/G0/F4 copies never did. That asymmetry was unintentional, so the
+  contract test now captures F1's MODE10 field as `pin_speed` and pins it like
+  the other three families - the check is kept, and the file no longer implies
+  the families assert the same thing when they did not.
+
+- **The F0, F1 and G0 backends now share one TIM1/DMA1 core**
+  (`port/common/ow_port_tim_dma.h`), leaving each backend with only what is
+  genuinely its own. All three had the same sixteen `ow_port_*` functions in
+  the same order - the same bus machine, written three times because each
+  backend was done against its own reference manual and never merged.
+  Measuring the three showed the code diverging in only nine places, and all
+  of them are now five statement macros a backend defines: which clocks to
+  gate, how the bus pin is put into alternate-function open-drain (F1 still
+  uses the legacy `GPIO_CRH` field rather than `MODER`/`AFR`), how the pin
+  toggles to push-pull, and the DMAMUX routing G0 needs. F4 is deliberately
+  not included: same sixteen functions but a different DMA controller (DMA2
+  streams with a CHSEL mux), two functions of its own, and an LA marker on
+  PA11, so folding it in would mean conditionals on everything.
+
+  There is no run-time cost - it all stays `__STATIC_FORCEINLINE` and every
+  difference is resolved by the preprocessor. Checked rather than assumed:
+  the `.bin` of all seven examples for F0, G0 and F1 is byte-identical before
+  and after, which is what "moved, not rewritten" has to mean for a layer
+  whose boards are not available to re-verify on.
+
+- **`ow_port_f1.h` used `const uint8_t*` where the other three backends use
+  `const ow_pulse_t*`.** Harmless as it stood - `ow_pulse_t` *is* `uint8_t`
+  for F1 - but it hardcoded a family-specific width into four port
+  signatures, so giving F1 16-bit slots the way F4 has them would have
+  turned into a conflicting-type error far from the cause. The shared core
+  has one signature, so the question no longer arises. Confirmed no effect on
+  the generated code.
+
 - **CMake artifacts no longer land in the repository root.** The `cmake` CI job
   kept its FetchContent clones in `_deps/` and installed into
   `prefix-<backend>/`; the install tree was only partly hidden, because the
@@ -185,6 +241,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default PA10 pin (`OW_PORT_BUS_PE13` remains an option).
 
 ### Fixed
+
+- **The f0, g0 and f4 host mocks had pin 10's MODER bit field holding pin
+  11's bits.** A test asserting that the bus pin is in alternate-function
+  mode was therefore asserting about PA11, on three of the four backends.
+  The suite stayed green throughout, because the mocks are what the tests
+  check against: the driver is correct (right macro names, real values when
+  compiled for hardware), it just had no power to catch a wrong-pin or
+  wrong-mode regression. In f4 the two triples were swapped, which was worse
+  - that backend drives PA10 (bus) and PA11 (LA marker), so the two uses
+  masked each other. g0 also had pin 4's field holding pin 5's bits, under the
+  spelling `GPIO_MODER_MODE4` that the G0 CMSIS genuinely uses (F0 and F4
+  spell it `MODER10`), which is why a check keyed on the F0/F4 spelling alone
+  would have missed it. f1 was correct throughout: it configures the pin
+  through the legacy CRH field.
+
+  `tests/check_mock_headers.sh` (`make test-mocks`, and part of
+  `make test-clocks`) now compares every literal-valued macro in each mock
+  against the same macro in the real CMSIS header, using the value CMSIS
+  carries in its trailing `/*!< 0x... */` comment. It fails if a family ends
+  up comparing nothing, so it cannot quietly become vacuous, and it reports
+  the macros it could not compare rather than ignoring them. Confirmed to
+  have teeth by reverting a corrected value and watching it fail.
 
 - **Object files were not named after the selected part, so building one
   family or part after another silently reused the previous one's objects.**
