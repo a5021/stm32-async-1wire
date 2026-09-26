@@ -27,6 +27,17 @@ extern int unity_failures;
 #define TEST_ASSERT_EQUAL_INT16(a, b) TEST_ASSERT_TRUE((int16_t)(a) == (int16_t)(b))
 #define TEST_ASSERT_EQUAL_STRING(a, b) \
     TEST_ASSERT_TRUE((a) != 0 && (b) != 0 && strcmp((a), (b)) == 0)
+/* 32-bit equality with a label. Register-contract tests compare many fields per
+ * operation, so the failing one has to name itself in the output. */
+#define TEST_ASSERT_EQUAL_HEX32_MESSAGE(a, b, msg)                          \
+    do {                                                                    \
+        if ((uint32_t)(a) != (uint32_t)(b)) {                                \
+            printf("FAIL %s:%d  %s: expected 0x%08lx, got 0x%08lx\n",      \
+                   __FILE__, __LINE__, (msg), (unsigned long)(uint32_t)(a), \
+                   (unsigned long)(uint32_t)(b));                           \
+            unity_failures++;                                               \
+        }                                                                   \
+    } while (0)
 #define TEST_RUN(t)               \
     do {                          \
         setUp();                  \

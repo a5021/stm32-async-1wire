@@ -1,0 +1,24 @@
+# Line endings are pinned where the toolchain cares, so a Windows checkout with
+# core.autocrlf=true cannot change what gets built.
+#
+# tests/*.sh are run by sh, and a CRLF in a shell script is not cosmetic: sh
+# reads the \r as part of the command, so `set -e` becomes `set -e<CR>` and the
+# script dies with a usage error. tests/check_chips.sh had exactly that fate
+# locally, and only escaped notice because whichever sh happened to be first on
+# PATH tolerated it. LF is pinned here so the script is the same file on every
+# platform.
+*.sh text eol=lf
+
+# The Makefile is read by make, which tolerates CRLF, and it is edited on
+# Windows; keep the native endings rather than fighting the working tree.
+Makefile text eol=crlf
+CMakeLists.txt text eol=lf
+
+# Sources and headers: normalise to LF in the repository, accept either on
+# checkout. Keeps diffs free of end-of-line noise across platforms.
+*.c   text
+*.h   text
+*.mk  text
+*.md  text
+*.yml text
+*.cmake text
