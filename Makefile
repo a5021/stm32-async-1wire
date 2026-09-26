@@ -300,7 +300,11 @@ CMSIS_DEVICE_FAMILY_HDR = stm32g0xx.h
 CMSIS_SYSTEM_HDR = system_stm32g0xx.h
 CMSIS_SYSTEM_SRC = system_stm32g0xx.c
 else ifeq ($(OW_TARGET),f4)
-CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h
+# core_cm4.h includes mpu_armv7.h unconditionally (every Cortex-M4 has an MPU),
+# so the F4 build fails on a cold cache without it. core_cm3.h/core_cm0.h reach
+# it only behind __MPU_PRESENT, which the F1 and F0 parts do not define.
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv7.h
 CMSIS_DEVICE_FAMILY_HDR = stm32f4xx.h
 CMSIS_SYSTEM_HDR = system_stm32f4xx.h
 CMSIS_SYSTEM_SRC = system_stm32f4xx.c
@@ -449,9 +453,11 @@ download-deps: check-deps
 download-licenses: $(LICENSE_FILES)
 	@echo "All license files downloaded"
 
-# Clean external dependencies
+# Downloaded third-party trees: the Makefile CMSIS headers, and the CMake
+# FetchContent clones. Deliberately not in 'clean' - dropping the FetchContent
+# cache would cost a re-clone on the next cmake configure.
 clean-deps:
-	rm -rf $(CMSIS_CORE_DIR) $(CMSIS_DEVICE_DIR)
+	rm -rf $(CMSIS_CORE_DIR) $(CMSIS_DEVICE_DIR) _deps
 
 # =============================================================================
 # PART MATRIX CHECKS (chips/*.mk)
@@ -528,10 +534,13 @@ program: $(BUILD_DIR)/$(TARGET).hex
 jprogram: $(BUILD_DIR)/$(TARGET).hex
 	$(JLINK) $(JLINK_FLAGS)
 
-# Clean the build directory by removing all object files, dependency files, binaries, and map files
+# Build artifacts, plus anything a CMake install left outside build/ (the
+# ci.yml cmake job installs under build/, a local one need not). The glob
+# matches nothing on a fresh tree and rm -f on a non-existent path exits 0,
+# so this is safe in a 'make clean && make' chain.
 .PHONY: clean
 clean:
-	rm -fR $(BUILD_DIR)
+	rm -fR $(BUILD_DIR) prefix*/
 
 # =============================================================================
 # HOST TESTS (compiled with the host toolchain, run on the build machine)
@@ -868,8 +877,8 @@ help:
 	@echo "  all             - Build project (downloads dependencies if needed) [DEFAULT]"
 	@echo "  download-deps   - Download all missing build dependencies"
 	@echo "  download-licenses - Download third-party license files to CMSIS/"
-	@echo "  clean-deps      - Remove downloaded dependencies and CMSIS/ directories"
-	@echo "  clean           - Remove build artifacts"
+	@echo "  clean-deps      - Remove downloaded dependencies (CMSIS/, CMake _deps/)"
+	@echo "  clean           - Remove build artifacts and CMake install prefixes"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -g0 / -f4)"
 	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-g0/-f4)"

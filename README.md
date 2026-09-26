@@ -723,7 +723,7 @@ repository. They are downloaded automatically at build time to
 make download-deps
 ```
 
-To remove them:
+To remove them (this also drops the CMake FetchContent clones in `_deps/`):
 
 ```bash
 make clean-deps
@@ -751,9 +751,9 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
-| `make clean` | Remove build artifacts |
+| `make clean` | Remove build artifacts, including any CMake install prefix outside `build/` |
 | `make download-deps` | Download CMSIS dependencies |
-| `make clean-deps` | Remove downloaded dependencies |
+| `make clean-deps` | Remove downloaded dependencies (`CMSIS/`, and the CMake FetchContent clones in `_deps/`) |
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
@@ -893,6 +893,12 @@ cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
       -DOW_TARGET=f1 -B build .
 cmake --build build
 ```
+
+Keep the build directory and any install prefix inside `build/`
+(`cmake --install build --prefix build/prefix`), as the `ci.yml` `cmake` job
+does. `build/` is ignored and `make clean` removes it; a `--prefix` at the
+repository root works too but leaves a directory that `make clean` has to glob
+for.
 
 Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`, and
 the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4

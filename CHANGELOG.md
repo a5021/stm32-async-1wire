@@ -84,6 +84,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CMake artifacts no longer land in the repository root.** The `cmake` CI job
+  kept its FetchContent clones in `_deps/` and installed into
+  `prefix-<backend>/`; the install tree was only partly hidden, because the
+  `*.a` rule caught the archive while the headers and the generated
+  `find_package` config showed up as untracked. Both now live under the
+  already-ignored `build/` (the cache path moved with them, so it still hits),
+  `_deps/` and `/prefix*/` are in `.gitignore` for local runs that pass an
+  explicit `--prefix`, `make clean` also removes any install prefix outside
+  `build/`, and `make clean-deps` additionally drops the FetchContent clones.
+  The FetchContent cache is deliberately not in `clean`: a rebuild should not
+  pay for a re-clone.
+
 - **Two build-system structures replaced by simpler ones.** The part-matrix
   check moved out of the Makefile into `tests/check_chips.sh` — reading three
   values out of a flat file and testing them against the filesystem needed a
@@ -149,6 +161,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default PA10 pin (`OW_PORT_BUS_PE13` remains an option).
 
 ### Fixed
+
+- **A cold-cache F4 build could not compile.** `core_cm4.h` includes
+  `mpu_armv7.h` unconditionally - every Cortex-M4 has an MPU - but the F4
+  dependency list never fetched it, so `make clean-deps && make OW_TARGET=f4`
+  died with `core_cm4.h: fatal error: mpu_armv7.h: No such file or directory`
+  on any machine that had not previously built G0 or F4. It went unnoticed
+  because the CMSIS cache in CI is keyed on the Makefile and had been warm.
+  `core_cm3.h` and `core_cm0.h` reach that header only behind `__MPU_PRESENT`,
+  which the F1 and F0 parts do not define, so only the F4 list needed the entry.
+  Verified by rebuilding f1, f0, g0, f4, f4/f401xc and f4/f401xe from an empty
+  `CMSIS/`.
 
 - **`make jprogram` had no J-Flash project for the STM32F401CC.** `JFLASH` was
   assigned for every port except the F401 branch, so the variable expanded to
