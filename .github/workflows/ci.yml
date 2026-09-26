@@ -268,6 +268,13 @@ jobs:
       - name: Check the part matrix
         run: make test-chips
 
+      - name: Check the host mocks against the real CMSIS headers
+        # Without this the mock-vs-CMSIS drift guard only runs locally: the
+        # per-family clock check above calls test-clocks-<family>, which builds
+        # one object and never reaches test-clocks, where test-mocks hangs.
+        # Both belong here - static checks over the repo, not per-family builds.
+        run: make test-mocks
+
   build:
     runs-on: ubuntu-latest
     steps:
