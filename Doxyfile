@@ -4,7 +4,7 @@
 # Project
 #---------------------------------------------------------------------------
 PROJECT_NAME           = "stm32-async-1wire"
-PROJECT_NUMBER         = 1.8.1
+PROJECT_NUMBER         = 2.0.0
 PROJECT_BRIEF          = "Non-blocking 1-Wire master for STM32 with DS18B20 temperature driver"
 OUTPUT_DIRECTORY       = docs
 

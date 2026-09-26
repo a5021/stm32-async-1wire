@@ -280,6 +280,14 @@ jobs:
       - name: Check the part matrix
         run: make test-chips
 
+      - name: Check the project version is consistent
+        # inc/ds18b20.h is the source; the CMake project(), both PlatformIO
+        # manifests, the Doxygen PROJECT_NUMBER and the README GIT_TAG example
+        # must agree, and CHANGELOG.md must carry a dated section for the version
+        # being released. v1.8.1 shipped with no [1.8.1] section at all because
+        # nothing checked for one.
+        run: make test-version
+
       - name: Check the host mocks against the real CMSIS headers
         # Without this the mock-vs-CMSIS drift guard only runs locally: the
         # per-family clock check above calls test-clocks-<family>, which builds

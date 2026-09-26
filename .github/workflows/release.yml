@@ -51,10 +51,14 @@ jobs:
         run: make download-deps
 
       # Step 6: Build the full firmware matrix.
-      # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem | EXT.
+      # One row per published variant: APP | OW_TARGET | SYSCLK_MHZ | output stem | EXT | OW_CHIP
       # A "-" target means the default (F1); F1 keeps its historical artifact
       # names without the target infix, F0 artifacts carry "_f0_". An empty EXT
       # builds the default configuration; "lowpower" adds -DOW_PORT_LOW_POWER=1.
+      # OW_CHIP selects a part inside the F4 family and is empty elsewhere:
+      # f407xx runs at its 168MHz default, f401xc at the F401 84MHz cap off the
+      # 25MHz crystal of the WeAct F401 Black Pill. `read` leaves a missing
+      # trailing field empty, so the rows above need no OW_CHIP column.
       - name: Build Firmware Matrix
         run: |
           set -euo pipefail
@@ -99,14 +103,41 @@ jobs:
             "6_statistics|g0|-|ds18b20_6_statistics_g0_64mhz|"
             "5_commands|g0|16|ds18b20_5_commands_g0_16mhz|"
             "6_statistics|g0|16|ds18b20_6_statistics_g0_16mhz|"
+            "1_basic|f4|-|ds18b20_1_basic_f407xx_168mhz||f407xx"
+            "2_device_search|f4|-|ds18b20_2_device_search_f407xx_168mhz||f407xx"
+            "3_round_robin|f4|-|ds18b20_3_round_robin_f407xx_168mhz||f407xx"
+            "4_scan_mode|f4|-|ds18b20_4_scan_mode_f407xx_168mhz||f407xx"
+            "1_basic|f4|16|ds18b20_1_basic_f407xx_16mhz||f407xx"
+            "2_device_search|f4|16|ds18b20_2_device_search_f407xx_16mhz||f407xx"
+            "3_round_robin|f4|16|ds18b20_3_round_robin_f407xx_16mhz||f407xx"
+            "4_scan_mode|f4|16|ds18b20_4_scan_mode_f407xx_16mhz||f407xx"
+            "5_commands|f4|-|ds18b20_5_commands_f407xx_168mhz||f407xx"
+            "6_statistics|f4|-|ds18b20_6_statistics_f407xx_168mhz||f407xx"
+            "5_commands|f4|16|ds18b20_5_commands_f407xx_16mhz||f407xx"
+            "6_statistics|f4|16|ds18b20_6_statistics_f407xx_16mhz||f407xx"
+            "7_low_power|f4|-|ds18b20_7_low_power_lp_f407xx_168mhz|lowpower|f407xx"
+            "1_basic|f4|-|ds18b20_1_basic_f401xc_84mhz||f401xc"
+            "2_device_search|f4|-|ds18b20_2_device_search_f401xc_84mhz||f401xc"
+            "3_round_robin|f4|-|ds18b20_3_round_robin_f401xc_84mhz||f401xc"
+            "4_scan_mode|f4|-|ds18b20_4_scan_mode_f401xc_84mhz||f401xc"
+            "1_basic|f4|16|ds18b20_1_basic_f401xc_16mhz||f401xc"
+            "2_device_search|f4|16|ds18b20_2_device_search_f401xc_16mhz||f401xc"
+            "3_round_robin|f4|16|ds18b20_3_round_robin_f401xc_16mhz||f401xc"
+            "4_scan_mode|f4|16|ds18b20_4_scan_mode_f401xc_16mhz||f401xc"
+            "5_commands|f4|-|ds18b20_5_commands_f401xc_84mhz||f401xc"
+            "6_statistics|f4|-|ds18b20_6_statistics_f401xc_84mhz||f401xc"
+            "5_commands|f4|16|ds18b20_5_commands_f401xc_16mhz||f401xc"
+            "6_statistics|f4|16|ds18b20_6_statistics_f401xc_16mhz||f401xc"
+            "7_low_power|f4|-|ds18b20_7_low_power_lp_f401xc_84mhz|lowpower|f401xc"
           )
           for row in "${matrix[@]}"; do
-            IFS='|' read -r app target sysclk out ext <<< "$row"
+            IFS='|' read -r app target sysclk out ext chip <<< "$row"
             flags=""
             [ "$target" != "-" ] && flags="$flags OW_TARGET=$target"
             [ "$sysclk" != "-" ] && flags="$flags SYSCLK_MHZ=$sysclk"
             [ "$ext" = "lowpower" ] && flags="$flags EXT=-DOW_PORT_LOW_POWER=1"
-            echo "::group::build $out (APP=$app OW_TARGET=$target SYSCLK_MHZ=$sysclk EXT=$ext)"
+            [ -n "$chip" ] && flags="$flags OW_CHIP=$chip"
+            echo "::group::build $out (APP=$app OW_TARGET=$target OW_CHIP=${chip:--} SYSCLK_MHZ=$sysclk EXT=$ext)"
             make clean
             make APP=$app $flags
             for e in elf hex bin; do
@@ -137,16 +168,50 @@ jobs:
             three header-only backends (F0/F1/G0) selected at build time with
             `make OW_TARGET=f0` / `make OW_TARGET=g0`.
 
-            ## What's new in 1.8.1
+            ## What's new in 2.0.0
 
-            - **Restructured examples**: demo files renamed to numbered
-              directories (`1_basic`, `2_device_search`, `3_round_robin`,
-              `4_scan_mode`, `5_commands`, `6_statistics`, `7_low_power`)
-            - **CMake install targets**: `find_package(stm32_async_1wire)` support
-            - **Version macros**: `STM32_ASYNC_1WIRE_VERSION_MAJOR/MINOR/PATCH`
-            - **C++ compatibility**: `extern "C"` guards on all public headers
-            - **Renamed `macro.h` → `ow_bits.h`**: avoids newlib name conflict
-            - **Doxygen API docs**: auto-deployed to gh-pages via CI
+            Four breaking changes on the public surface, and the F4 backend that
+            makes them worth a major version:
+
+            - **Byte-oriented write API**: `onewire_write_slots()` and
+              `onewire_encode_byte()` are replaced by `onewire_write_command()` and
+              `onewire_write_command_byte()`. Commands are encoded synchronously into
+              an internal pulse buffer and the transfer is scheduled in one call.
+            - **Unified parasite knob**: `PARASITE_POWER` and `OW_TIMING_PARASITE` are
+              gone, replaced by a single `OW_PARASITE_POWER=0/1` that both widens the
+              driver guard band and tells the examples to call
+              `ds18b20_set_parasite(1)`.
+            - **`STATS_DUMP_INTERVAL` → `STATS_DUMP_SWEEPS`**: the statistics period is
+              counted in sweeps (one pass over every device) rather than
+              measurements, and is defined once in the example's source instead of
+              being forced by both build systems.
+            - **`OW_CHIP=f401` → `OW_CHIP=f401xc`**: the part is named by its CMSIS
+              flash-density code, and `f401xe` joins it.
+
+            New in this release:
+
+            - **STM32F4 backend** (`port/stm32f4/ow_port_f4.h`), chip-generic across
+              the STM32F407VGT6 (F4DISCOVERY, 168MHz) and the STM32F401CC (WeAct F401
+              Black Pill, 84MHz off its 25MHz crystal) - the same TIM1/DMA2/`CHSEL=6`
+              topology and the same `port/common/ow_port_tim_dma.h` core that the F0,
+              F1 and G0 backends now share. All seven examples were run on both
+              boards, the F401CC at its 84MHz default.
+            - **`HSE_MHZ=N`**: the crystal is a board property, not a part one, so the
+              F4 PLL takes its input divider from it instead of assuming 8MHz. A wrong
+              value is no longer silent - the waits are bounded and the application says
+              so.
+            - **Per-part build matrix** in `chips/<part>.mk`, and an unknown
+              `OW_TARGET`/`OW_CHIP` is a build error rather than a silent fall-through
+              to the F1 default.
+            - **No hidden measurement cycles**: the driver starts nothing on its own;
+              `ds18b20_start_measure()` is the explicit, one-shot request, and the
+              inter-measurement pause left the library.
+            - **`inc/ow_config.h`**: one compile-time configuration header.
+            - **`config/optim.mk`**, shared by the Makefile and CMake so both build the
+              same firmware with the same warning and optimisation flags.
+
+            See `CHANGELOG.md` for the full list; the `1.8.1` section there is
+            reconstructed from its commits, since that release shipped without one.
 
             ## Download
 
@@ -161,6 +226,10 @@ jobs:
             | STM32F030x6 | 8MHz HSI | `ds18b20_1_basic_f0_8mhz`, …`2_device_search_f0_8mhz`, …`3_round_robin_f0_8mhz`, …`4_scan_mode_f0_8mhz`, `ds18b20_5_commands_f0_8mhz`, `ds18b20_6_statistics_f0_8mhz` |
             | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_1_basic_g0_64mhz`, …`2_device_search_g0_64mhz`, …`3_round_robin_g0_64mhz`, …`4_scan_mode_g0_64mhz`, `ds18b20_5_commands_g0_64mhz`, `ds18b20_6_statistics_g0_64mhz`, `ds18b20_7_low_power_lp_g0_64mhz` |
             | STM32G031x6 | 16MHz HSI16 (bus on PA12 pad via remap) | `ds18b20_1_basic_g0_16mhz`, …`2_device_search_g0_16mhz`, …`3_round_robin_g0_16mhz`, …`4_scan_mode_g0_16mhz`, `ds18b20_5_commands_g0_16mhz`, `ds18b20_6_statistics_g0_16mhz` |
+            | STM32F407VGT6 (F4DISCOVERY) | 168MHz (8MHz HSE+PLL, default) | `ds18b20_1_basic_f407xx_168mhz`, …`2_device_search_f407xx_168mhz` |
+            | STM32F407VGT6 | 16MHz HSI (no crystal) | `ds18b20_1_basic_f407xx_16mhz`, …`2_device_search_f407xx_16mhz` |
+            | STM32F401xC (WeAct F401 Black Pill) | 84MHz (25MHz HSE+PLL, default) | `ds18b20_1_basic_f401xc_84mhz`, …`2_device_search_f401xc_84mhz` |
+            | STM32F401xC | 16MHz HSI (no crystal) | `ds18b20_1_basic_f401xc_16mhz`, …`2_device_search_f401xc_16mhz` |
 
             Examples: `1_basic` — single sensor via Skip ROM; `2_device_search` — device
             search + per-device polling (one Convert T per sensor); `3_round_robin` —

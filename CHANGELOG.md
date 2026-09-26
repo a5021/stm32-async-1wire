@@ -8,6 +8,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.8.1] - 2026-09-13
+
+Restored from the commits in `v1.8.0..v1.8.1`: this release was tagged
+without a section here, and its changes had drifted into the section below.
+
+### Added
+
+- **Doxygen configuration and CI-deployed API documentation.** `Doxyfile` is
+  committed and the `api-docs` workflow publishes the generated docs to
+  `gh-pages` on every push.
+- **libFuzzer harnesses for the Search ROM and resolution state machines,**
+  plus a device-table overflow case for a search that finds more ROMs than
+  the scan table holds.
+
+
+- **Formalised per-operation DMA register contract table in the host
+  tests.** New `test_dma_contract` drives every scheduleable hardware operation
+  (write, reset, read pair, read data, merged search write+read, Match-ROM
+  config write, single-bit write) against one table of exact `RCR`, `CPAR`,
+  `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
+  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
+  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
+  counter so exact transfer counts hold even beyond the 128-entry value log.
+
+- **New temporal TIM/DMA event model in the host test harness.**
+  `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
+  start* ("modeled at slot start for simplicity") — fine for the memory-side
+  DMA contract, but it cannot prove the *temporal* contract. The new
+  `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
+  physical counter position and the new `test_tim_model` tests prove that
+  CCR3(slot N) stays in effect for the whole of slot N, the reload happens
+  only after the CC2 compare (never at the slot start), the trailing
+  bus-release zero is applied only after the last slot, and CC4 captures fire
+  at the pulse-edge counter position.
+
+- **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
+  `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
+  -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
+  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
+  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
+  below the values validated on hardware (a 2µs pulse already broke slot
+  decoding on an F030 at 8MHz) and is intended for electrically ideal setups
+  only.
+
+### Changed
+
+- **The `edge` terminology was renamed to `pulse` throughout the 1-Wire layer.**
+  `onewire_reset()`, `onewire_present()`, `onewire_read_pair()` and
+  `onewire_pair_bits()` keep the same signatures - only the parameter and
+  internal symbol names changed, so callers are unaffected.
+- **Backend selection is unified behind a single `OW_PORT_FAMILY_*` token** for
+  all four families, so the F0/F1/G0 headers no longer each guess the family
+  independently.
+
+
+- **Example applications restructured into numbered directories.**
+  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
+  shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
+  non-blocking UART TX ring buffer, busy-LED callback).
+
+- **Timing preset selection moved to compile time.** The four timing values
+  (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
+  Makefile presets now expand directly into
+  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
+  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
+  guard-band default on parasite-powered buses.
+
+- **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
+  moved to `src/syscall.c`; public version macros
+  `STM32_ASYNC_1WIRE_VERSION_*` (`1.8.1`) and C++ guards added to the headers.
+
+### Removed
+
+- **Breaking:** the runtime timing-profile API is removed —
+  `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
+  `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
+  `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
+  Changed), which is how they were always used on the target.
+- `tests/fuzz/fuzz_timing` harness removed with the runtime profile API;
+  Search ROM and resolution state-machine harnesses (`fuzz_search`,
+  `fuzz_resolution`) added.
+
+### Fixed
+
+- **STM32G031 flash latency matched its own comment.** The configured wait
+  states and the documented 2-wait-state requirement were out of step.
+- **`src/ow_stats.c` no longer depends on `app.h`;** it includes `onewire.h`
+  for the `OW_PORT_FAMILY_*` macros it actually needs, and the examples are
+  clang-format clean.
+
+
+- **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
+  renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
+  `5_commands`, `6_statistics` instead of `3_manual_read`, `4_nonblocking`,
+  `5_interrupt_driven`, `6_crc_performance`) and each example now links the
+  shared `examples/app/app.c` platform layer with the same per-example define
+  set as `make APP=<ex>` (`UART_TX_BUF_SIZE`, and for `6_statistics`
+  `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US`/`STATS_DUMP_INTERVAL`).
+
+- **Search ROM could livelock on a hostile/broken bus under the family
+  filter.** If every id/cmp pair keeps answering `00` (all devices disagree
+  and pull low), the engine re-assembles a CRC-valid ROM whose family byte
+  the filter rejects, so `found` never advances and `last_discrepancy` stays
+  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
+  repeated leaf (the previous walk produced the identical ROM) and terminates
+  the search instead. Found both by the `fuzz_search` harness in CI
+  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
+  `test_search_hostile_all_zero_bus_terminates`.
+
+## [2.0.0] - 2026-09-26
+
+416 commits since v1.8.1, and four breaking changes on the public surface:
+the write API is byte-oriented, the parasite knob is unified, the statistics
+period is counted in sweeps rather than measurements, and the F401 part is
+selected as `f401xc`. The F4 backend and the F401CC are new and validated on
+hardware; the build system gained a per-part matrix and a separate knob for
+the board's crystal frequency.
+
 ### Added
 
 - **The CMake build can now select the same firmware variants as the
@@ -34,6 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `undefined reference to ds18b20_init`. An F4 `1_basic` built this way is
   2896 bytes of text against 2904 from the Makefile - the same firmware to
   within 0.3%.
+
 - **A per-part build matrix in `chips/<part>.mk`.** `OW_TARGET` selects the
   family (unchanged); the new `OW_CHIP` selects the part *within* it by naming
   a file: `f103xb`, `f030x6`, `g031xx`, `f407xx`, `f401xc`, `f401xe`. Each file
@@ -62,7 +182,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `STM32F401xE` device macro, but the build could only produce `STM32F401xC`,
   so a hand-rolled `-DSTM32F401xE` linked against the xC script's 256K/64K
   memory map without a diagnostic. The header now promises a part that exists.
-
 
 - **Interrupt-free polled time base for the examples (`examples/app`).**
   `app_time_init()` (called from `app_init()`) programs SysTick at 1 kHz
@@ -105,6 +224,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — `OSPEEDR` on F0/F4/G0, CRH `MODE` bits on F1. A stronger pad sources more
   current into the bus capacitance, which matters for the parasite strong
   pull-up; `inc/ow_config.h` documents the trade-off (EMI / power).
+
+- **`inc/ow_config.h` — central compile-time configuration header.**
+  All genuinely tunable build constants are now collected in a single
+  file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
+  `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
+  timing (`OW_PARASITE_POWER`), feature flags (`OW_PORT_LOW_POWER`,
+  `OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`) and DS18B20 driver knobs
+  (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`).  Every macro
+  carries a `#ifndef` guard so existing `-D` overrides keep working;
+  the header is the new single source of truth for defaults and
+  hardware-validated documentation.  Protocol-inherent values
+  (`ONEWIRE_MAX_SLOTS`, `DS18B20_RES_MIN/MAX/DEFAULT`) and the
+  per-family system-clock default remain in their respective headers.
+  The header is added to `library.json` headers and
+  `library.properties` includes.
+
+- **The scheduling API now reports rejected parameter ranges instead of
+  silently dropping them.** `onewire_write_slots()` and
+  `onewire_read_data()` return `uint8_t`: 1 if the operation was
+  scheduled, 0 if the size argument is out of range and nothing was
+  started. `onewire_write_bit()` gains the same return type (it
+  always returns 1 because the single-slot input is always valid, but
+  propagates the status for API consistency). Debug builds still
+  trap on the reject path via `assert`; with `NDEBUG` the caller
+  receives 0 instead of a silent no-op — so an invalid size can never
+  turn into an undiscovered `onewire_bus_done()` hang. The three
+  underlying port-layer functions (`ow_port_feed`,
+  `ow_port_write_slots`, `ow_port_read_data`) follow the same
+  contract on all four backends (F0/F1/G0/F4). Tested by a new
+  `make test-ndebug*` build that compiles the suite with `-DNDEBUG`
+  (see `tests/test/test_param_guard.c`).
 
 ### Changed
 
@@ -202,6 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`make download-deps` fetches only the selected part's files.** The
   `EXTERNAL_DEPS` list is now built from the part file, so an F4 build no longer
   downloads the xC and xE device headers, startup files and SVDs when building
+
 - **The WFE sleep moved from the application into `ds18b20_poll()`.** With
   `-DOW_PORT_LOW_POWER=1` the driver now blocks in `__WFE()` itself while a
   long stage (conversion, scratchpad read, EEPROM hold-off) is in flight, so
@@ -239,6 +390,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   USART1-to-ST-LINK route on the STM32F4DISCOVERY; the optional
   `-DOW_UART_USART3` (PB10) path remains available. The bus stays on the
   default PA10 pin (`OW_PORT_BUS_PE13` remains an option).
+
+- **`src/ds18b20.c` was reorganized into four include-only functional
+  modules.** The driver grew to 1459 lines with the search, transaction,
+  resolution and measurement state machines sharing a single file, so the
+  per-module private state (`dev_roms`/`dev_count`, `txn_ctx`/`detect_buf`,
+  `res_ctx`, `conv_cmd`/`read_cmd`) was hard to follow. The file is now an
+  amalgamated translation unit: it keeps the shared `ctx`/`txn_ctx` statics
+  and `#include`s `src/ds18b20_search.c`, `src/ds18b20_txn.c`,
+  `src/ds18b20_resolution.c` and `src/ds18b20_measure.c` in dependency order
+  (each guarded by `DS18B20_DRIVER_BUILD`). The split is purely internal: the
+  preprocessed source and the generated machine code are unchanged, public API
+  and ABI are untouched. The Makefile test rules list the parts as
+  prerequisites and CMake marks them `HEADER_FILE_ONLY` so they stay out of
+  the compiled sources.
+
+- **The split driver parts are now covered by CI on both axes.** The Code
+  Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
+  alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
+  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0, G0 and F4 via the ARM
+  toolchain and verifies the `find_package()` install tree — the CMake path
+  previously had no in-CI coverage despite the root `CMakeLists.txt`.
+
+- **Feature flags now use value-style (`#if X`) instead of presence
+  (`#ifdef X`).** `OW_PORT_LOW_POWER`, `OW_DRIVE_ACTIVE` and
+  `OW_STATS_ENABLE` must be passed as `=1` on the command line
+  (e.g. `-DOW_PORT_LOW_POWER=1`); bare `-DOW_PORT_LOW_POWER` no longer
+  compiles correctly.  All Makefile targets, fuzz rules and the CMake
+  example block are updated accordingly.  The change is transparent for
+  `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
+  and Makefile knobs already pass the right flags.
+
+- **Unified compile-time parasite knob.** The dual naming between the
+  driver guard-band default (`OW_TIMING_PARASITE`) and the example
+  application flag (`PARASITE_POWER`) is replaced by a single
+  `OW_PARASITE_POWER` value (0/1, default 0).  Passing
+  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
+  *and* causes every example to call `ds18b20_set_parasite(1)` at
+   startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
+   longer has any effect.
+
+- **Public 1-Wire write API is now byte-oriented.** `onewire_write_slots()`
+  and `onewire_encode_byte()` are replaced on the public surface by
+  `onewire_write_command(const uint8_t *bytes, uint8_t nbytes)` and
+  `onewire_write_command_byte(uint8_t byte)` (`inc/onewire.h`): the command
+  bytes are encoded synchronously (MSB-first wire order, LSB-first bit
+  order) into an internal pulse buffer, the trailing bus-release zero is
+  appended there, and the transfer is scheduled in a single call. An empty
+  command or one longer than `ONEWIRE_CMD_MAX_BYTES` (13) is rejected
+  without starting a transfer. The slot-level encoder and the `ow_pulse_t`
+  type move to the new internal header `inc/onewire_internal.h`, used only
+  by the driver and the test harness. The DS18B20 driver
+  (`addr_bytes`/`txn_ctx.bytes`/`res_ctx.bytes`), the test accessors and the
+  DMA-contract/param-guard tests are updated accordingly; externally the
+  encoded pulse stream and timing are unchanged.
+
+- **STM32F4 backend is now covered by the host-test harness.** New
+  `tests/mock/stm32f4xx.h` (TIM1/DMA2/GPIO/RCC/USART register model) plus an
+  F4 dispatch in `tests/mock/mock_target.h` / `tests/mock/hw_model.c` let the
+  entire suite run against the F4 backend, including the low-power WFE path.
+  The F1/F4 register differences are hidden behind `MOCK_DMA_*` macros and a
+  `DMA_SxCR`/`DMA_CCR` union alias. Pulse buffers are typed `ow_pulse_t`
+  throughout, so the F4 16-bit feed width (direct mode, `MSIZE=16`) and the
+  8-bit direct-mode capture width are exercised by the same tests. New
+  Makefile targets `test-f4`, `test-lowpower-f4`, `test-ndebug-f4`,
+  `test-active-f4` and `test-clocks-f4` mirror the per-family targets.
+
+- **CMake gained the STM32F4 target.** `-DOW_TARGET=f4` selects the
+  `cmsis_device_f4` headers (`STM32F407xx`, Cortex-M4), the
+  `port/stm32f4/STM32F407VGT6_FLASH.ld` linker script, and ships
+  `port/stm32f4/ow_port_f4.h` in the install set.
 
 ### Fixed
 
@@ -351,6 +572,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   byte-identical to the same six built from scratch, and repeated builds of
   one part are byte-identical to each other. No documentation required a
   `clean` between targets, and none is needed now.
+
 - **`chips/<part>.mk` and `ow_port.h` each carried their own system clock
   default, and nothing checked that they agreed.** `onewire.h` picks a
   default per family under `#if !defined(OW_PORT_SYSCLK_MHZ)` - 72 for F1,
@@ -374,6 +596,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written, but only `f401xc` was ever built through it, so that branch was
   dead. Both F401 parts are now enumerated in one list (`F401_CLOCK_CHECKS`),
   which also means a future F401 variant cannot ship without a guard.
+
 - **`ow_bits.h` was missing from the PlatformIO `headers` list.** Every
   `ow_port_<family>.h` includes it for the register-address macros, and CMake
   installs it, so it was public by every measure except `library.json` -
@@ -381,6 +604,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package got no completions for `D11`..`D17`, `A1`, `A2` and the rest. Its
   include guard was also still `OW_MACRO_H`, left over from the
   `macro.h` rename.
+
 - **A cold-cache F4 build could not compile.** `core_cm4.h` includes
   `mpu_armv7.h` unconditionally - every Cortex-M4 has an MPU - but the F4
   dependency list never fetched it, so `make clean-deps && make OW_TARGET=f4`
@@ -445,27 +669,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`ds18b20_set_resolution()`) before scanning. Diagnosed on hardware with a
   logic analyzer on the bus pin.
 
-- **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
-  renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
-  `5_commands`, `6_statistics` instead of `3_manual_read`, `4_nonblocking`,
-  `5_interrupt_driven`, `6_crc_performance`) and each example now links the
-  shared `examples/app/app.c` platform layer with the same per-example define
-  set as `make APP=<ex>` (`UART_TX_BUF_SIZE`, and for `6_statistics`
-  `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US`/`STATS_DUMP_INTERVAL`).
 - **CMake install package was incomplete and the library did not compile in
   plain CMake builds.** The `stm32_async_1wire` target now gets the CMSIS and
   device include dirs (`BUILD_INTERFACE`-scoped so install exports stay
   clean), and install ships the backend headers and `ow_bits.h` alongside
   `ow_port.h`.
-- **Search ROM could livelock on a hostile/broken bus under the family
-  filter.** If every id/cmp pair keeps answering `00` (all devices disagree
-  and pull low), the engine re-assembles a CRC-valid ROM whose family byte
-  the filter rejects, so `found` never advances and `last_discrepancy` stays
-  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
-  repeated leaf (the previous walk produced the identical ROM) and terminates
-  the search instead. Found both by the `fuzz_search` harness in CI
-  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
-  `test_search_hostile_all_zero_bus_terminates`.
+
 - **STM32F4 low-power build did not compile (`-DOW_PORT_LOW_POWER=1`).**
   The TIM1 update-IRQ mapping in `inc/onewire.h` tested the raw target macros
   (`OW_PORT_TARGET_F0`/`OW_PORT_TARGET_G0`) instead of `OW_PORT_FAMILY_*`, so
@@ -473,167 +682,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the F4 vector is `TIM1_UP_TIM10_IRQn`). The mapping now keys off
   `OW_PORT_FAMILY_*` and covers F0/G0/F1/F4, with a hard `#error` for any
   unhandled family.
+
 - **`src/ow_stats.c` failed to build on STM32F4 with `OW_STATS_ENABLE=1`.**
   Its device-header chain handled G0/F0/F1 but fell through to `stm32f1xx.h`
   for F4; it now includes `stm32f4xx.h` under `OW_PORT_FAMILY_F4`.
-
-### Changed
-
-- **`src/ds18b20.c` was reorganized into four include-only functional
-  modules.** The driver grew to 1459 lines with the search, transaction,
-  resolution and measurement state machines sharing a single file, so the
-  per-module private state (`dev_roms`/`dev_count`, `txn_ctx`/`detect_buf`,
-  `res_ctx`, `conv_cmd`/`read_cmd`) was hard to follow. The file is now an
-  amalgamated translation unit: it keeps the shared `ctx`/`txn_ctx` statics
-  and `#include`s `src/ds18b20_search.c`, `src/ds18b20_txn.c`,
-  `src/ds18b20_resolution.c` and `src/ds18b20_measure.c` in dependency order
-  (each guarded by `DS18B20_DRIVER_BUILD`). The split is purely internal: the
-  preprocessed source and the generated machine code are unchanged, public API
-  and ABI are untouched. The Makefile test rules list the parts as
-  prerequisites and CMake marks them `HEADER_FILE_ONLY` so they stay out of
-  the compiled sources.
-- **The split driver parts are now covered by CI on both axes.** The Code
-  Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
-  alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
-  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0, G0 and F4 via the ARM
-  toolchain and verifies the `find_package()` install tree — the CMake path
-  previously had no in-CI coverage despite the root `CMakeLists.txt`.
-- **Feature flags now use value-style (`#if X`) instead of presence
-  (`#ifdef X`).** `OW_PORT_LOW_POWER`, `OW_DRIVE_ACTIVE` and
-  `OW_STATS_ENABLE` must be passed as `=1` on the command line
-  (e.g. `-DOW_PORT_LOW_POWER=1`); bare `-DOW_PORT_LOW_POWER` no longer
-  compiles correctly.  All Makefile targets, fuzz rules and the CMake
-  example block are updated accordingly.  The change is transparent for
-  `make`/`make test`/`make fuzz-all` invocations — the shipped defaults
-  and Makefile knobs already pass the right flags.
-- **Unified compile-time parasite knob.** The dual naming between the
-  driver guard-band default (`OW_TIMING_PARASITE`) and the example
-  application flag (`PARASITE_POWER`) is replaced by a single
-  `OW_PARASITE_POWER` value (0/1, default 0).  Passing
-  `-DOW_PARASITE_POWER=1` now raises the default guard band to 100 µs
-  *and* causes every example to call `ds18b20_set_parasite(1)` at
-   startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
-   longer has any effect.
-- **Public 1-Wire write API is now byte-oriented.** `onewire_write_slots()`
-  and `onewire_encode_byte()` are replaced on the public surface by
-  `onewire_write_command(const uint8_t *bytes, uint8_t nbytes)` and
-  `onewire_write_command_byte(uint8_t byte)` (`inc/onewire.h`): the command
-  bytes are encoded synchronously (MSB-first wire order, LSB-first bit
-  order) into an internal pulse buffer, the trailing bus-release zero is
-  appended there, and the transfer is scheduled in a single call. An empty
-  command or one longer than `ONEWIRE_CMD_MAX_BYTES` (13) is rejected
-  without starting a transfer. The slot-level encoder and the `ow_pulse_t`
-  type move to the new internal header `inc/onewire_internal.h`, used only
-  by the driver and the test harness. The DS18B20 driver
-  (`addr_bytes`/`txn_ctx.bytes`/`res_ctx.bytes`), the test accessors and the
-  DMA-contract/param-guard tests are updated accordingly; externally the
-  encoded pulse stream and timing are unchanged.
-- **STM32F4 backend is now covered by the host-test harness.** New
-  `tests/mock/stm32f4xx.h` (TIM1/DMA2/GPIO/RCC/USART register model) plus an
-  F4 dispatch in `tests/mock/mock_target.h` / `tests/mock/hw_model.c` let the
-  entire suite run against the F4 backend, including the low-power WFE path.
-  The F1/F4 register differences are hidden behind `MOCK_DMA_*` macros and a
-  `DMA_SxCR`/`DMA_CCR` union alias. Pulse buffers are typed `ow_pulse_t`
-  throughout, so the F4 16-bit feed width (direct mode, `MSIZE=16`) and the
-  8-bit direct-mode capture width are exercised by the same tests. New
-  Makefile targets `test-f4`, `test-lowpower-f4`, `test-ndebug-f4`,
-  `test-active-f4` and `test-clocks-f4` mirror the per-family targets.
-- **CMake gained the STM32F4 target.** `-DOW_TARGET=f4` selects the
-  `cmsis_device_f4` headers (`STM32F407xx`, Cortex-M4), the
-  `port/stm32f4/STM32F407VGT6_FLASH.ld` linker script, and ships
-  `port/stm32f4/ow_port_f4.h` in the install set.
-
-### Added
-
-- **`inc/ow_config.h` — central compile-time configuration header.**
-  All genuinely tunable build constants are now collected in a single
-  file: bit-slot timing (`ONEWIRE_ONE_PULSE`, `ONEWIRE_ZERO_PULSE`,
-  `ONEWIRE_GUARD_BAND`, `ONEWIRE_SHORT_PULSE_MAX`), parasite bus
-  timing (`OW_PARASITE_POWER`), feature flags (`OW_PORT_LOW_POWER`,
-  `OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`) and DS18B20 driver knobs
-  (`DS18B20_MAX_DEVICES`, `DS18B20_CYCLE_PAUSE_US`).  Every macro
-  carries a `#ifndef` guard so existing `-D` overrides keep working;
-  the header is the new single source of truth for defaults and
-  hardware-validated documentation.  Protocol-inherent values
-  (`ONEWIRE_MAX_SLOTS`, `DS18B20_RES_MIN/MAX/DEFAULT`) and the
-  per-family system-clock default remain in their respective headers.
-  The header is added to `library.json` headers and
-  `library.properties` includes.
-- **The scheduling API now reports rejected parameter ranges instead of
-  silently dropping them.** `onewire_write_slots()` and
-  `onewire_read_data()` return `uint8_t`: 1 if the operation was
-  scheduled, 0 if the size argument is out of range and nothing was
-  started. `onewire_write_bit()` gains the same return type (it
-  always returns 1 because the single-slot input is always valid, but
-  propagates the status for API consistency). Debug builds still
-  trap on the reject path via `assert`; with `NDEBUG` the caller
-  receives 0 instead of a silent no-op — so an invalid size can never
-  turn into an undiscovered `onewire_bus_done()` hang. The three
-  underlying port-layer functions (`ow_port_feed`,
-  `ow_port_write_slots`, `ow_port_read_data`) follow the same
-  contract on all four backends (F0/F1/G0/F4). Tested by a new
-  `make test-ndebug*` build that compiles the suite with `-DNDEBUG`
-  (see `tests/test/test_param_guard.c`).
-
-### Added
-
-- **Formalised per-operation DMA register contract table in the host
-  tests.** New `test_dma_contract` drives every scheduleable hardware operation
-  (write, reset, read pair, read data, merged search write+read, Match-ROM
-  config write, single-bit write) against one table of exact `RCR`, `CPAR`,
-  `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
-  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
-  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
-  counter so exact transfer counts hold even beyond the 128-entry value log.
-
-- **New temporal TIM/DMA event model in the host test harness.**
-  `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
-  start* ("modeled at slot start for simplicity") — fine for the memory-side
-  DMA contract, but it cannot prove the *temporal* contract. The new
-  `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
-  physical counter position and the new `test_tim_model` tests prove that
-  CCR3(slot N) stays in effect for the whole of slot N, the reload happens
-  only after the CC2 compare (never at the slot start), the trailing
-  bus-release zero is applied only after the last slot, and CC4 captures fire
-  at the pulse-edge counter position.
-
-- **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
-  `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
-  -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
-  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
-  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
-  below the values validated on hardware (a 2µs pulse already broke slot
-  decoding on an F030 at 8MHz) and is intended for electrically ideal setups
-  only.
-
-### Changed
-
-- **Example applications restructured into numbered directories.**
-  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
-  shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
-  non-blocking UART TX ring buffer, busy-LED callback).
-- **Timing preset selection moved to compile time.** The four timing values
-  (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
-  Makefile presets now expand directly into
-  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
-  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
-  guard-band default on parasite-powered buses.
-- **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
-  moved to `src/syscall.c`; public version macros
-  `STM32_ASYNC_1WIRE_VERSION_*` (`1.8.1`) and C++ guards added to the headers.
-
-### Removed
-
-- **Breaking:** the runtime timing-profile API is removed —
-  `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
-  `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
-  `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
-  Changed), which is how they were always used on the target.
-- `tests/fuzz/fuzz_timing` harness removed with the runtime profile API;
-  Search ROM and resolution state-machine harnesses (`fuzz_search`,
-  `fuzz_resolution`) added.
-
-### Fixed
 
 - **Public write/read API limited to the 8-bit `TIM1.RCR` capacity.**
   `onewire_write_slots()` now accepts at most `ONEWIRE_MAX_SLOTS` (256) slots
@@ -1250,4 +1302,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.7.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.6.1...v1.7.0
 [1.7.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.0...v1.7.1
 [1.8.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...v1.8.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...HEAD
+[1.8.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...v1.8.1
+[2.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.1...v2.0.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...HEAD

@@ -497,6 +497,13 @@ test-mocks:
 test-chips:
 	@sh tests/check_chips.sh
 
+# --- Project version consistency (see tests/check_version.sh) ---
+# The version is declared in eight places; inc/ds18b20.h is the source the
+# others are compared against. Also requires CHANGELOG.md to carry a dated
+# section for it, which is the check whose absence let v1.8.1 ship untitled.
+test-version:
+	@sh tests/check_version.sh
+
 # =============================================================================
 # BUILD TARGETS
 # =============================================================================
