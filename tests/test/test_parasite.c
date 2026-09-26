@@ -34,103 +34,31 @@ void spy_reset(void); /* defined in test_state_machine.c */
  *  Register-state helpers (per family)
  * -----------------------------------------------------------*/
 
-#if defined(OW_PORT_TARGET_G0)
-
-/* PA10 in timer-driven AF open-drain mode (post-init baseline). */
+/* PA10 in timer-driven AF open-drain mode (post-init baseline). The pin's
+ * fields are spelled three different ways by the three CMSIS families, so
+ * the state is asked through mock_target.h rather than repeated here - three
+ * copies of the same expression is what let the mocks' wrong MODER10 field go
+ * unnoticed (see tests/check_mock_headers.sh). */
 static uint8_t pu_idle_af_od(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
-           (mock_gpioa.OTYPER & GPIO_OTYPER_OT10);
+    return (uint8_t)(MOCK_PIN_IS_AF() && MOCK_PIN_IS_OD());
 }
 
 /* PA10 in AF mode with push-pull output type (strong pull-up engaged). */
 static uint8_t pu_engaged(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODE10_1) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODE10_0) &&
-           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT10);
+    return (uint8_t)(MOCK_PIN_IS_AF() && MOCK_PIN_IS_PP());
 }
 
 static void pu_assert_af_mode(void) {
-    TEST_ASSERT_TRUE(mock_gpioa.MODER & GPIO_MODER_MODE10_1);
-    TEST_ASSERT_FALSE(mock_gpioa.MODER & GPIO_MODER_MODE10_0);
+    TEST_ASSERT_TRUE(MOCK_PIN_IS_AF());
 }
 
-#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
-
-/* PA10 in timer-driven AF open-drain mode (post-init baseline). */
-static uint8_t pu_idle_af_od(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODER10_1) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODER10_0) &&
-           (mock_gpioa.OTYPER & GPIO_OTYPER_OT_10);
-}
-
-/* PA10 in AF mode with push-pull output type (strong pull-up engaged). */
-static uint8_t pu_engaged(void) {
-    return (mock_gpioa.MODER & GPIO_MODER_MODER10_1) &&
-           !(mock_gpioa.MODER & GPIO_MODER_MODER10_0) &&
-           !(mock_gpioa.OTYPER & GPIO_OTYPER_OT_10);
-}
-
-static void pu_assert_af_mode(void) {
-    TEST_ASSERT_TRUE(mock_gpioa.MODER & GPIO_MODER_MODER10_1);
-    TEST_ASSERT_FALSE(mock_gpioa.MODER & GPIO_MODER_MODER10_0);
-}
-
-#else /* OW_PORT_TARGET_F1 */
-
-static uint8_t pu_idle_af_od(void) {
-    return (mock_gpioa.CRH & (GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1)) ==
-           (GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1);
-}
-
-/* PA10 in AF push-pull mode (CNF=10: AF PP, strong pull-up engaged). */
-static uint8_t pu_engaged(void) {
-    return !(mock_gpioa.CRH & GPIO_CRH_CNF10_0) &&
-           (mock_gpioa.CRH & GPIO_CRH_CNF10_1) &&
-           (mock_gpioa.CRH & GPIO_CRH_MODE10_1);
-}
-
-static void pu_assert_af_mode(void) {
-    TEST_ASSERT_TRUE(mock_gpioa.CRH & GPIO_CRH_MODE10_1);
-}
-
-#endif
-
-/* Snapshot / compare of every bus-pin configuration register the
- * strong pull-up touches; used for the "flag off -> registers stay
- * bit-identical" regressions.  MODER is not included for F0/G0 because
- * the OTYPER-only approach never touches it. */
-#if defined(OW_PORT_TARGET_G0)
-
-typedef struct {
-    uint32_t otyper;
-} pu_regs_t;
-
-static pu_regs_t pu_snapshot(void) {
-    pu_regs_t r = {mock_gpioa.OTYPER};
-    return r;
-}
-
-static void pu_assert_unchanged(pu_regs_t before) {
-    TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
-}
-
-#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
-
-typedef struct {
-    uint32_t otyper;
-} pu_regs_t;
-
-static pu_regs_t pu_snapshot(void) {
-    pu_regs_t r = {mock_gpioa.OTYPER};
-    return r;
-}
-
-static void pu_assert_unchanged(pu_regs_t before) {
-    TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
-}
-
-#else /* OW_PORT_TARGET_F1 */
+/* Snapshot / compare of the bus-pin configuration register the strong pull-up
+ * touches; used for the "flag off -> registers stay bit-identical" regressions.
+ * MODER is not part of this: the pin mode is never touched, only the output stage.
+ * Which register that stage lives in does differ - OTYPER on every family that
+ * has one, a field of CRH on F1 - and this used to be three branches, two of them
+ * with identical bodies. */
+#if defined(OW_PORT_TARGET_F1)
 
 typedef struct {
     uint32_t crh;
@@ -143,6 +71,21 @@ static pu_regs_t pu_snapshot(void) {
 
 static void pu_assert_unchanged(pu_regs_t before) {
     TEST_ASSERT_EQUAL_UINT32(before.crh, mock_gpioa.CRH);
+}
+
+#else
+
+typedef struct {
+    uint32_t otyper;
+} pu_regs_t;
+
+static pu_regs_t pu_snapshot(void) {
+    pu_regs_t r = {mock_gpioa.OTYPER};
+    return r;
+}
+
+static void pu_assert_unchanged(pu_regs_t before) {
+    TEST_ASSERT_EQUAL_UINT32(before.otyper, mock_gpioa.OTYPER);
 }
 
 #endif

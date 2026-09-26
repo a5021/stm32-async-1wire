@@ -12,23 +12,15 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "hw_model.h"
+#include "mock_target.h"
 #include "onewire.h"
 #include "ow_port.h"
 #include "unity.h"
 
-/* Per-family pin-mode observation helpers. The driver toggles the GPIO
- * output-stage topology (CNF10 on F1, OTYPER on F0/G0); these read the
- * resulting register bit directly from the mock. */
-#if defined(OW_PORT_TARGET_G0)
-#define PIN_IS_PP() ((GPIOA->OTYPER & GPIO_OTYPER_OT10) == 0u)
-#define PIN_IS_OD() ((GPIOA->OTYPER & GPIO_OTYPER_OT10) != 0u)
-#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F4)
-#define PIN_IS_PP() ((GPIOA->OTYPER & GPIO_OTYPER_OT_10) == 0u)
-#define PIN_IS_OD() ((GPIOA->OTYPER & GPIO_OTYPER_OT_10) != 0u)
-#else /* OW_PORT_TARGET_F1 */
-#define PIN_IS_PP() ((GPIOA->CRH & GPIO_CRH_CNF10_0) == 0u)
-#define PIN_IS_OD() ((GPIOA->CRH & GPIO_CRH_CNF10_0) != 0u)
-#endif
+/* The driver toggles the GPIO output-stage topology; which register field
+ * carries that is family-specific, so ask through mock_target.h. */
+#define PIN_IS_PP() MOCK_PIN_IS_PP()
+#define PIN_IS_OD() MOCK_PIN_IS_OD()
 
 /* A trivial 8-slot command buffer of '1' bits (value irrelevant for the
  * pin-mode assertion; only the fact that it is a write transaction matters). */
