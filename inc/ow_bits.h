@@ -1,5 +1,5 @@
-#ifndef OW_MACRO_H
-#define OW_MACRO_H
+#ifndef OW_BITS_H
+#define OW_BITS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -304,4 +304,4 @@ extern "C" {
 }
 #endif
 
-#endif /* OW_MACRO_H */
+#endif /* OW_BITS_H */

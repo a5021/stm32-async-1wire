@@ -183,9 +183,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
 │   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md
-├── CMSIS/                  # Build-time dependencies (gitignored)
+├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
 │   └── device/             # STM32 device headers and startup (F1/F0/G0/F4) + SVD
+├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
 │   ├── launch.json         # Debug configuration (F5, J-Link / ST-Link)

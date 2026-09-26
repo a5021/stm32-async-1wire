@@ -186,6 +186,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ow_bits.h` was missing from the PlatformIO `headers` list.** Every
+  `ow_port_<family>.h` includes it for the register-address macros, and CMake
+  installs it, so it was public by every measure except `library.json` -
+  which is what the IDE indexes for autocompletion. Consumers of the PlatformIO
+  package got no completions for `D11`..`D17`, `A1`, `A2` and the rest. Its
+  include guard was also still `OW_MACRO_H`, left over from the
+  `macro.h` rename.
 - **A cold-cache F4 build could not compile.** `core_cm4.h` includes
   `mpu_armv7.h` unconditionally - every Cortex-M4 has an MPU - but the F4
   dependency list never fetched it, so `make clean-deps && make OW_TARGET=f4`
