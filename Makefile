@@ -622,8 +622,7 @@ TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1)))
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
 # F4/F401-family fallback compile check: always built as part of `make test`,
-# independent of the active OW_TARGET (see rule below test-clocks).
-TEST_CLOCK_F401XC_OBJ = $(TEST_OUT)/test_sysclk_fallback_f401xc.o
+# independent of the active OW_TARGET (see F401_CLOCK_CHECKS below).
 
 test: $(TEST_EXE) $(TEST_CLOCK_OBJ) clock-ref-check
 	$(TEST_EXE)
@@ -644,30 +643,41 @@ test-f4:
 # test. Runs as part of every test build so the two can never drift.
 
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
-	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- F4/F401 fallback compile check (see test_sysclk_fallback.c) ---
 # Compile-only, built as part of every `make test` (via clock-ref-check): verifies
-# that selecting the F4 family together with the STM32F401xC device macro (the
-# OW_CHIP=f401xc build, or a bare PlatformIO/CubeMX F401 project) resolves the F4
-# backend with an 84 MHz clock default instead of the F405/F407 168 MHz one. The
-# macro is taken from chips/f401xc.mk rather than repeated here, so renaming the
-# part in one place cannot leave this guard testing a macro nothing builds.
-# Deliberately does not pass -DOW_PORT_SYSCLK_MHZ: the point is to check the
-# default that onewire.h derives from the part macro alone.
+# that selecting the F4 family together with an STM32F401 device macro (the
+# OW_CHIP=f401xc / f401xe build, or a bare PlatformIO/CubeMX F401 project)
+# resolves the F4 backend with an 84 MHz clock default instead of the F405/F407
+# 168 MHz one. The macro is taken from chips/<chip>.mk rather than repeated
+# here, so renaming the part in one place cannot leave this guard testing a
+# macro nothing builds. Deliberately does not pass -DOW_PORT_SYSCLK_MHZ: the
+# point is to check the default that onewire.h derives from the part macro alone.
+#
+# Both F401 parts are checked because they are two part files with two defaults.
+# Enumerating them in one list keeps a newly added F401 variant from silently
+# shipping without a guard - the xE part was checked for nothing at all until
+# this was generalised from the single f401xc entry it started as.
+F401_CLOCK_CHECKS = f401xc f401xe
+F401_CLOCK_OBJS = $(foreach c,$(F401_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallback_$(c).o)
 
-$(TEST_CLOCK_F401XC_OBJ): tests/test/test_sysclk_fallback.c Makefile chips/f401xc.mk | $(TEST_OUT)
-	$(HOST_CC) -c -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
+# The stem of the target is the part, so one pattern rule serves every F401
+# variant; the sub-make below selects OW_CHIP, which is what makes CHIP_DEV_DEF
+# the right part's macro. The chips/f401%.mk prerequisite rebuilds the object
+# when the part file changes.
+$(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Makefile chips/f401%.mk | $(TEST_OUT)
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
-# Built in a sub-make that selects the f401xc part, so CHIP_DEV_DEF is that
-# part's macro. Recursion is what makes the part file the single source.
+# Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
+# that part's macro. Recursion is what makes the part file the single source.
 .PHONY: clock-ref-check
 clock-ref-check:
-	$(MAKE) OW_TARGET=f4 OW_CHIP=f401xc $(TEST_CLOCK_F401XC_OBJ)
+	$(foreach c,$(F401_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
 
-.PHONY: test-clocks test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
-test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401xc
+.PHONY: test-clocks test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 test-clocks-f401
+test-clocks: test-chips test-clocks-f1 test-clocks-f0 test-clocks-g0 test-clocks-f4 clock-ref-check
 test-clocks-f1:
 	$(MAKE) OW_TARGET=f1 $(TEST_OUT)/test_sysclk_fallback_f1.o
 test-clocks-f0:
@@ -676,7 +686,9 @@ test-clocks-g0:
 	$(MAKE) OW_TARGET=g0 $(TEST_OUT)/test_sysclk_fallback_g0.o
 test-clocks-f4:
 	$(MAKE) OW_TARGET=f4 $(TEST_OUT)/test_sysclk_fallback_f4.o
-test-clocks-f401xc: clock-ref-check
+# Both F401 parts, via the list above; kept as a target so the aggregate and
+# `make test` reach the same check by a name a reader can find.
+test-clocks-f401: clock-ref-check
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the

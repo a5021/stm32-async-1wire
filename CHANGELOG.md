@@ -186,6 +186,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`chips/<part>.mk` and `ow_port.h` each carried their own system clock
+  default, and nothing checked that they agreed.** `onewire.h` picks a
+  default per family under `#if !defined(OW_PORT_SYSCLK_MHZ)` - 72 for F1,
+  48 for F0, 64 for G0, 84 for the F401 parts, 168 for F407 - and every part
+  file separately declares `CHIP_SYSCLK_MHZ`, which the build passes as
+  `-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)`. That define is precisely the
+  header's `!defined()` guard, so on a Make or CMake firmware the header
+  cascade is bypassed entirely and the part file alone decides, while
+  `test_sysclk_fallback.c` deliberately omits the define to check the
+  cascade that only a PlatformIO or CubeMX build ever sees. Nothing connected
+  the two. Setting `CHIP_SYSCLK_MHZ = 168` in `chips/f401xe.mk` compiled the
+  firmware against a 168 MHz timer prescaler on a part that runs at 84 MHz -
+  every 1-Wire slot half as long as intended, so the sensors would have read
+  nonsense - and `make test` for all four families, `clock-ref-check` and
+  `test-chips` all still passed. The build now passes the part file's value to
+  the check as `OW_CHIP_SYSCLK_MHZ` and the check compares it against the
+  header default, so the mutation fails the build for every family.
+
+- **The `STM32F401xE` branch of the clock-default check was never compiled.**
+  `test_sysclk_fallback.c` has handled `STM32F401xE` since the check was
+  written, but only `f401xc` was ever built through it, so that branch was
+  dead. Both F401 parts are now enumerated in one list (`F401_CLOCK_CHECKS`),
+  which also means a future F401 variant cannot ship without a guard.
 - **`ow_bits.h` was missing from the PlatformIO `headers` list.** Every
   `ow_port_<family>.h` includes it for the register-address macros, and CMake
   installs it, so it was public by every measure except `library.json` -

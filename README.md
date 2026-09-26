@@ -774,7 +774,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F401 84 MHz one (`test-clocks-f1/f0/g0/f4/f401xc`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F401 84 MHz ones (`test-clocks-f1/f0/g0/f4/f401`, the last covering both `f401xc` and `f401xe`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
