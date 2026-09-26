@@ -96,7 +96,7 @@ $(document).ready(function(){initNavTree('group__DS18B20__Resolution.html',''); 
 </div><!--header-->
 <div class="contents">
 
-<p>Change the temperature conversion resolution (9..12 bit) between measurement cycles. The sensor answers Convert T (0x44) after 93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms (12 bit); this driver waits exactly as long as the configured resolution requires and hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> when the change is complete.  
+<p>Change the temperature conversion resolution (9..12 bit) between measurement cycles. The sensor answers Convert T (0x44) after 93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms (12 bit); this driver waits exactly as long as the configured resolution requires and parks until the application starts the next measurement cycle.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
@@ -112,7 +112,7 @@ Functions</h2></td></tr>
 <tr class="separator:gad50cd32de1568a34b13944eb30160b77"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Change the temperature conversion resolution (9..12 bit) between measurement cycles. The sensor answers Convert T (0x44) after 93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms (12 bit); this driver waits exactly as long as the configured resolution requires and hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> when the change is complete. </p>
+<p>Change the temperature conversion resolution (9..12 bit) between measurement cycles. The sensor answers Convert T (0x44) after 93.75ms (9 bit) / 187.5ms (10 bit) / 375ms (11 bit) / 750ms (12 bit); this driver waits exactly as long as the configured resolution requires and parks until the application starts the next measurement cycle. </p>
 <p>The configuration is written to the volatile scratchpad (Write Scratchpad 0x4E): it takes effect immediately and is not persisted to the EEPROM. Alarm trigger registers TH/TL are reset to 0x00 (disabled). </p>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="gad50cd32de1568a34b13944eb30160b77" name="gad50cd32de1568a34b13944eb30160b77"></a>
@@ -160,7 +160,7 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>Out-of-range values are ignored. The change is scheduled only between measurement cycles and only while the device search is idle; otherwise it is ignored. While running, it owns TIM1/DMA; poll it with <a class="el" href="group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b" title="Advance the non-blocking resolution change by one hardware operation.">ds18b20_set_resolution_poll()</a> until it reports completion, then call <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> again to resume measuring with the new resolution. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Out-of-range values are ignored. The change is scheduled only between measurement cycles and only while the device search is idle; otherwise it is ignored. While running, it owns TIM1/DMA; poll it with <a class="el" href="group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b" title="Advance the non-blocking resolution change by one hardware operation.">ds18b20_set_resolution_poll()</a> until it reports completion, then call <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> to measure with the new resolution. </dd></dl>
 
 </div>
 </div>

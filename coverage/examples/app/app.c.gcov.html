@@ -31,27 +31,27 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.6&nbsp;%</td>
-            <td class="headerCovTableEntry">68</td>
-            <td class="headerCovTableEntry">65</td>
+            <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
+            <td class="headerCovTableEntry">80</td>
+            <td class="headerCovTableEntry">77</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-24 17:24:35</td>
+            <td class="headerValue">2026-09-26 12:43:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">90.9&nbsp;%</td>
+            <td class="headerCovTableEntryHi">91.7&nbsp;%</td>
+            <td class="headerCovTableEntry">12</td>
             <td class="headerCovTableEntry">11</td>
-            <td class="headerCovTableEntry">10</td>
           </tr>
           <tr>
             <td></td>
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">78.6&nbsp;%</td>
-            <td class="headerCovTableEntry">28</td>
-            <td class="headerCovTableEntry">22</td>
+            <td class="headerCovTableEntryLo">73.5&nbsp;%</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">25</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -79,358 +79,548 @@
 <span id="L8"><span class="lineNum">       8</span>                 :             : #include &quot;stm32f0xx.h&quot;</span>
 <span id="L9"><span class="lineNum">       9</span>                 :             : #elif defined(OW_PORT_FAMILY_G0)</span>
 <span id="L10"><span class="lineNum">      10</span>                 :             : #include &quot;stm32g0xx.h&quot;</span>
-<span id="L11"><span class="lineNum">      11</span>                 :             : #else</span>
-<span id="L12"><span class="lineNum">      12</span>                 :             : #include &quot;stm32f1xx.h&quot;</span>
-<span id="L13"><span class="lineNum">      13</span>                 :             : #endif</span>
-<span id="L14"><span class="lineNum">      14</span>                 :             : </span>
-<span id="L15"><span class="lineNum">      15</span>                 :             : // ======== USART1 TX ring buffer ========</span>
-<span id="L16"><span class="lineNum">      16</span>                 :             : static uint32_t uart_tx_head = 0; // write index - points to next free slot</span>
-<span id="L17"><span class="lineNum">      17</span>                 :             : static uint32_t uart_tx_tail = 0; // read index - points to oldest data</span>
-<span id="L18"><span class="lineNum">      18</span>                 :             : static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transmission</span>
-<span id="L19"><span class="lineNum">      19</span>                 :             : </span>
-<span id="L20"><span class="lineNum">      20</span>                 :             : /**</span>
-<span id="L21"><span class="lineNum">      21</span>                 :             :  * @brief Advance USART1 transmission by at most one byte (non-blocking)</span>
-<span id="L22"><span class="lineNum">      22</span>                 :             :  * @note Must be called periodically to feed the UART from the ring buffer</span>
-<span id="L23"><span class="lineNum">      23</span>                 :             :  */</span>
-<span id="L24"><span class="lineNum">      24</span>                 :<span class="tlaGNC tlaBgGNC">        1410 : void uart_poll_tx(void) {</span></span>
-<span id="L25"><span class="lineNum">      25</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L26"><span class="lineNum">      26</span>                 :             :     // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR</span>
-<span id="L27"><span class="lineNum">      27</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE_TXFNF) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
-<span id="L28"><span class="lineNum">      28</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
-<span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
-<span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;TDR = b;</span></span>
-<span id="L31"><span class="lineNum">      31</span>                 :             :     }</span>
-<span id="L32"><span class="lineNum">      32</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
-<span id="L33"><span class="lineNum">      33</span>                 :             :     // F0 unified USART naming: TXE lives in ISR, data goes to TDR</span>
-<span id="L34"><span class="lineNum">      34</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
-<span id="L35"><span class="lineNum">      35</span>                 :             :         // Get byte from buffer at tail position</span>
-<span id="L36"><span class="lineNum">      36</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
-<span id="L37"><span class="lineNum">      37</span>                 :             :         // Advance tail pointer with wrap-around</span>
-<span id="L38"><span class="lineNum">      38</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
-<span id="L39"><span class="lineNum">      39</span>                 :             :         // Write byte to UART data register for transmission</span>
-<span id="L40"><span class="lineNum">      40</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;TDR = b;</span></span>
-<span id="L41"><span class="lineNum">      41</span>                 :             :     }</span>
-<span id="L42"><span class="lineNum">      42</span>                 :             : #else</span>
-<span id="L43"><span class="lineNum">      43</span>                 :             :     // Check if UART is ready to transmit (TXE flag set) and buffer not empty</span>
-<span id="L44"><span class="lineNum">      44</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;SR &amp; USART_SR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
-<span id="L45"><span class="lineNum">      45</span>                 :             :         // Get byte from buffer at tail position</span>
-<span id="L46"><span class="lineNum">      46</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
-<span id="L47"><span class="lineNum">      47</span>                 :             :         // Advance tail pointer with wrap-around</span>
-<span id="L48"><span class="lineNum">      48</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
-<span id="L49"><span class="lineNum">      49</span>                 :             :         // Write byte to UART data register for transmission</span>
-<span id="L50"><span class="lineNum">      50</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;DR = b;</span></span>
-<span id="L51"><span class="lineNum">      51</span>                 :             :     }</span>
-<span id="L52"><span class="lineNum">      52</span>                 :             : #endif</span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">        1410 : }</span></span>
-<span id="L54"><span class="lineNum">      54</span>                 :             : </span>
-<span id="L55"><span class="lineNum">      55</span>                 :             : /**</span>
-<span id="L56"><span class="lineNum">      56</span>                 :             :  * @brief Block until every enqueued byte has been transmitted</span>
-<span id="L57"><span class="lineNum">      57</span>                 :             :  * @note Blocking, intended for diagnostic/blocking code paths only; the</span>
-<span id="L58"><span class="lineNum">      58</span>                 :             :  *       demos keep the non-blocking uart_poll_tx() discipline.</span>
-<span id="L59"><span class="lineNum">      59</span>                 :             :  */</span>
-<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">          54 : void uart_flush(void) {</span></span>
-<span id="L61"><span class="lineNum">      61</span>         [<span class="tlaGBC" title="Branch 0 was taken 1212 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 54 times"> + </span>]:<span class="tlaGNC">        1266 :     while (uart_tx_tail != uart_tx_head) {</span></span>
-<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">        1212 :         uart_poll_tx();</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :             :     }</span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">          54 : }</span></span>
+<span id="L11"><span class="lineNum">      11</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L12"><span class="lineNum">      12</span>                 :             : #include &quot;stm32f4xx.h&quot;</span>
+<span id="L13"><span class="lineNum">      13</span>                 :             : #else</span>
+<span id="L14"><span class="lineNum">      14</span>                 :             : #include &quot;stm32f1xx.h&quot;</span>
+<span id="L15"><span class="lineNum">      15</span>                 :             : #endif</span>
+<span id="L16"><span class="lineNum">      16</span>                 :             : </span>
+<span id="L17"><span class="lineNum">      17</span>                 :             : // ======== USART1 TX ring buffer ========</span>
+<span id="L18"><span class="lineNum">      18</span>                 :             : static uint32_t uart_tx_head = 0; // write index - points to next free slot</span>
+<span id="L19"><span class="lineNum">      19</span>                 :             : static uint32_t uart_tx_tail = 0; // read index - points to oldest data</span>
+<span id="L20"><span class="lineNum">      20</span>                 :             : static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transmission</span>
+<span id="L21"><span class="lineNum">      21</span>                 :             : </span>
+<span id="L22"><span class="lineNum">      22</span>                 :             : /**</span>
+<span id="L23"><span class="lineNum">      23</span>                 :             :  * @brief Advance USART1 transmission by at most one byte (non-blocking)</span>
+<span id="L24"><span class="lineNum">      24</span>                 :             :  * @note Must be called periodically to feed the UART from the ring buffer</span>
+<span id="L25"><span class="lineNum">      25</span>                 :             :  */</span>
+<span id="L26"><span class="lineNum">      26</span>                 :<span class="tlaGNC tlaBgGNC">        1880 : void uart_poll_tx(void) {</span></span>
+<span id="L27"><span class="lineNum">      27</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L28"><span class="lineNum">      28</span>                 :             :     // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR</span>
+<span id="L29"><span class="lineNum">      29</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE_TXFNF) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
+<span id="L30"><span class="lineNum">      30</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
+<span id="L31"><span class="lineNum">      31</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
+<span id="L32"><span class="lineNum">      32</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;TDR = b;</span></span>
+<span id="L33"><span class="lineNum">      33</span>                 :             :     }</span>
+<span id="L34"><span class="lineNum">      34</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
+<span id="L35"><span class="lineNum">      35</span>                 :             :     // F0 unified USART naming: TXE lives in ISR, data goes to TDR</span>
+<span id="L36"><span class="lineNum">      36</span>   [<span class="tlaGBC" title="Branch 0 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 470 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         470 :     if ((USART1-&gt;ISR &amp; USART_ISR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
+<span id="L37"><span class="lineNum">      37</span>                 :             :         // Get byte from buffer at tail position</span>
+<span id="L38"><span class="lineNum">      38</span>                 :<span class="tlaGNC">         470 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
+<span id="L39"><span class="lineNum">      39</span>                 :             :         // Advance tail pointer with wrap-around</span>
+<span id="L40"><span class="lineNum">      40</span>                 :<span class="tlaGNC">         470 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
+<span id="L41"><span class="lineNum">      41</span>                 :             :         // Write byte to UART data register for transmission</span>
+<span id="L42"><span class="lineNum">      42</span>                 :<span class="tlaGNC">         470 :         USART1-&gt;TDR = b;</span></span>
+<span id="L43"><span class="lineNum">      43</span>                 :             :     }</span>
+<span id="L44"><span class="lineNum">      44</span>                 :             : #else</span>
+<span id="L45"><span class="lineNum">      45</span>                 :             :     // Check if UART is ready to transmit (TXE flag set) and buffer not empty.</span>
+<span id="L46"><span class="lineNum">      46</span>                 :             :     // Optional OW_UART_USART3 selects USART3/PB10 instead of USART1 (TX on PB6).</span>
+<span id="L47"><span class="lineNum">      47</span>                 :             : #if defined(OW_UART_USART3)</span>
+<span id="L48"><span class="lineNum">      48</span>                 :             :     if ((USART3-&gt;SR &amp; USART_SR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span>
+<span id="L49"><span class="lineNum">      49</span>                 :             :         uint8_t b = uart_tx_buf[uart_tx_tail];</span>
+<span id="L50"><span class="lineNum">      50</span>                 :             :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span>
+<span id="L51"><span class="lineNum">      51</span>                 :             :         USART3-&gt;DR = b;</span>
+<span id="L52"><span class="lineNum">      52</span>                 :             :     }</span>
+<span id="L53"><span class="lineNum">      53</span>                 :             : #else</span>
+<span id="L54"><span class="lineNum">      54</span>   [<span class="tlaGBC" title="Branch 0 was taken 940 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 940 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         940 :     if ((USART1-&gt;SR &amp; USART_SR_TXE) &amp;&amp; (uart_tx_tail != uart_tx_head)) {</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :             :         // Get byte from buffer at tail position</span>
+<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">         940 :         uint8_t b = uart_tx_buf[uart_tx_tail];</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :             :         // Advance tail pointer with wrap-around</span>
+<span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">         940 :         uart_tx_tail = (uart_tx_tail + 1u) &amp; UART_TX_IDX_MASK;</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :             :         // Write byte to UART data register for transmission</span>
+<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         940 :         USART1-&gt;DR = b;</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :             :     }</span>
+<span id="L62"><span class="lineNum">      62</span>                 :             : #endif</span>
+<span id="L63"><span class="lineNum">      63</span>                 :             : #endif</span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">        1880 : }</span></span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : </span>
 <span id="L66"><span class="lineNum">      66</span>                 :             : /**</span>
-<span id="L67"><span class="lineNum">      67</span>                 :             :  * @brief Enqueue a single byte into the UART transmit buffer (non-blocking)</span>
-<span id="L68"><span class="lineNum">      68</span>                 :             :  * @param[in] b Byte to enqueue</span>
-<span id="L69"><span class="lineNum">      69</span>                 :             :  * @return 1 if enqueued, 0 if the buffer is full (byte dropped)</span>
-<span id="L70"><span class="lineNum">      70</span>                 :             :  * @note Never blocks: when the buffer is full the byte is dropped so the</span>
-<span id="L71"><span class="lineNum">      71</span>                 :             :  *       caller's code path stays non-blocking.</span>
-<span id="L72"><span class="lineNum">      72</span>                 :             :  */</span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">        1428 : int uart_tx_enqueue_byte(int b) {</span></span>
-<span id="L74"><span class="lineNum">      74</span>                 :<span class="tlaGNC">        1428 :     uint32_t head = uart_tx_head;</span></span>
-<span id="L75"><span class="lineNum">      75</span>                 :             :     // Calculate next head position with wrap-around using power-of-two mask</span>
-<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">        1428 :     uint32_t next = (head + 1u) &amp; UART_TX_IDX_MASK;</span></span>
-<span id="L77"><span class="lineNum">      77</span>         [<span class="tlaGBC" title="Branch 0 was taken 1410 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">        1428 :     if (next != uart_tx_tail) { // Room is available</span></span>
-<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">        1410 :         uart_tx_buf[head] = (uint8_t)b; // Store byte at current head position</span></span>
-<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">        1410 :         uart_tx_head = next; // Update head pointer</span></span>
-<span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaGNC">        1410 :         return 1;</span></span>
-<span id="L81"><span class="lineNum">      81</span>                 :             :     }</span>
-<span id="L82"><span class="lineNum">      82</span>                 :<span class="tlaGNC">          18 :     return 0; // Buffer full - drop the byte to stay non-blocking</span></span>
-<span id="L83"><span class="lineNum">      83</span>                 :             : }</span>
-<span id="L84"><span class="lineNum">      84</span>                 :             : </span>
-<span id="L85"><span class="lineNum">      85</span>                 :             : /**</span>
-<span id="L86"><span class="lineNum">      86</span>                 :             :  * @brief Enqueue an entire null-terminated string (non-blocking)</span>
-<span id="L87"><span class="lineNum">      87</span>                 :             :  * @param[in] s Null-terminated string to enqueue</span>
-<span id="L88"><span class="lineNum">      88</span>                 :             :  * @return Number of characters actually enqueued (may be less than strlen)</span>
-<span id="L89"><span class="lineNum">      89</span>                 :             :  */</span>
-<span id="L90"><span class="lineNum">      90</span>                 :<span class="tlaGNC">         144 : int uart_write_str(const char* s) {</span></span>
-<span id="L91"><span class="lineNum">      91</span>                 :<span class="tlaGNC">         144 :     const char* start = s;</span></span>
-<span id="L92"><span class="lineNum">      92</span>         [<span class="tlaGBC" title="Branch 0 was taken 456 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 138 times"> + </span>]:<span class="tlaGNC">         594 :     while (*s) {</span></span>
-<span id="L93"><span class="lineNum">      93</span>         [<span class="tlaGBC" title="Branch 0 was taken 450 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">         456 :         if (uart_tx_enqueue_byte(*s)) {</span></span>
-<span id="L94"><span class="lineNum">      94</span>                 :<span class="tlaGNC">         450 :             s++;</span></span>
-<span id="L95"><span class="lineNum">      95</span>                 :             :         } else {</span>
-<span id="L96"><span class="lineNum">      96</span>                 :<span class="tlaGNC">           6 :             break; // Buffer full - stop to stay non-blocking</span></span>
-<span id="L97"><span class="lineNum">      97</span>                 :             :         }</span>
-<span id="L98"><span class="lineNum">      98</span>                 :             :     }</span>
-<span id="L99"><span class="lineNum">      99</span>                 :<span class="tlaGNC">         144 :     return (int)(s - start);</span></span>
-<span id="L100"><span class="lineNum">     100</span>                 :             : }</span>
-<span id="L101"><span class="lineNum">     101</span>                 :             : </span>
-<span id="L102"><span class="lineNum">     102</span>                 :             : /**</span>
-<span id="L103"><span class="lineNum">     103</span>                 :             :  * @brief Convert integer to string and enqueue for UART transmission</span>
-<span id="L104"><span class="lineNum">     104</span>                 :             :  * @param[in] value Integer value to convert and transmit</span>
-<span id="L105"><span class="lineNum">     105</span>                 :             :  * @return Number of characters enqueued</span>
-<span id="L106"><span class="lineNum">     106</span>                 :             :  * @note Buffer holds 12 chars, enough for the full int32 range (-2147483648)</span>
-<span id="L107"><span class="lineNum">     107</span>                 :             :  */</span>
-<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">          84 : int uart_write_int(int value) {</span></span>
-<span id="L109"><span class="lineNum">     109</span>                 :             :     char buf[12]; // enough for -2147483648 and '\0'</span>
-<span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">          84 :     char* p = buf + sizeof(buf) - 1;</span></span>
-<span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">          84 :     *p = '\0';</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :             :  * @brief Block until every enqueued byte has been transmitted</span>
+<span id="L68"><span class="lineNum">      68</span>                 :             :  * @note Blocking, intended for diagnostic/blocking code paths only; the</span>
+<span id="L69"><span class="lineNum">      69</span>                 :             :  *       demos keep the non-blocking uart_poll_tx() discipline.</span>
+<span id="L70"><span class="lineNum">      70</span>                 :             :  */</span>
+<span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">          72 : void uart_flush(void) {</span></span>
+<span id="L72"><span class="lineNum">      72</span>         [<span class="tlaGBC" title="Branch 0 was taken 1616 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 72 times"> + </span>]:<span class="tlaGNC">        1688 :     while (uart_tx_tail != uart_tx_head) {</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">        1616 :         uart_poll_tx();</span></span>
+<span id="L74"><span class="lineNum">      74</span>                 :             :     }</span>
+<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">          72 : }</span></span>
+<span id="L76"><span class="lineNum">      76</span>                 :             : </span>
+<span id="L77"><span class="lineNum">      77</span>                 :             : /**</span>
+<span id="L78"><span class="lineNum">      78</span>                 :             :  * @brief Enqueue a single byte into the UART transmit buffer (non-blocking)</span>
+<span id="L79"><span class="lineNum">      79</span>                 :             :  * @param[in] b Byte to enqueue</span>
+<span id="L80"><span class="lineNum">      80</span>                 :             :  * @return 1 if enqueued, 0 if the buffer is full (byte dropped)</span>
+<span id="L81"><span class="lineNum">      81</span>                 :             :  * @note Never blocks: when the buffer is full the byte is dropped so the</span>
+<span id="L82"><span class="lineNum">      82</span>                 :             :  *       caller's code path stays non-blocking.</span>
+<span id="L83"><span class="lineNum">      83</span>                 :             :  */</span>
+<span id="L84"><span class="lineNum">      84</span>                 :<span class="tlaGNC">        1904 : int uart_tx_enqueue_byte(int b) {</span></span>
+<span id="L85"><span class="lineNum">      85</span>                 :<span class="tlaGNC">        1904 :     uint32_t head = uart_tx_head;</span></span>
+<span id="L86"><span class="lineNum">      86</span>                 :             :     // Calculate next head position with wrap-around using power-of-two mask</span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">        1904 :     uint32_t next = (head + 1u) &amp; UART_TX_IDX_MASK;</span></span>
+<span id="L88"><span class="lineNum">      88</span>         [<span class="tlaGBC" title="Branch 0 was taken 1880 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 24 times"> + </span>]:<span class="tlaGNC">        1904 :     if (next != uart_tx_tail) { // Room is available</span></span>
+<span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">        1880 :         uart_tx_buf[head] = (uint8_t)b; // Store byte at current head position</span></span>
+<span id="L90"><span class="lineNum">      90</span>                 :<span class="tlaGNC">        1880 :         uart_tx_head = next; // Update head pointer</span></span>
+<span id="L91"><span class="lineNum">      91</span>                 :<span class="tlaGNC">        1880 :         return 1;</span></span>
+<span id="L92"><span class="lineNum">      92</span>                 :             :     }</span>
+<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">          24 :     return 0; // Buffer full - drop the byte to stay non-blocking</span></span>
+<span id="L94"><span class="lineNum">      94</span>                 :             : }</span>
+<span id="L95"><span class="lineNum">      95</span>                 :             : </span>
+<span id="L96"><span class="lineNum">      96</span>                 :             : /**</span>
+<span id="L97"><span class="lineNum">      97</span>                 :             :  * @brief Enqueue an entire null-terminated string (non-blocking)</span>
+<span id="L98"><span class="lineNum">      98</span>                 :             :  * @param[in] s Null-terminated string to enqueue</span>
+<span id="L99"><span class="lineNum">      99</span>                 :             :  * @return Number of characters actually enqueued (may be less than strlen)</span>
+<span id="L100"><span class="lineNum">     100</span>                 :             :  */</span>
+<span id="L101"><span class="lineNum">     101</span>                 :<span class="tlaGNC">         192 : int uart_write_str(const char* s) {</span></span>
+<span id="L102"><span class="lineNum">     102</span>                 :<span class="tlaGNC">         192 :     const char* start = s;</span></span>
+<span id="L103"><span class="lineNum">     103</span>         [<span class="tlaGBC" title="Branch 0 was taken 608 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 184 times"> + </span>]:<span class="tlaGNC">         792 :     while (*s) {</span></span>
+<span id="L104"><span class="lineNum">     104</span>         [<span class="tlaGBC" title="Branch 0 was taken 600 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">         608 :         if (uart_tx_enqueue_byte(*s)) {</span></span>
+<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">         600 :             s++;</span></span>
+<span id="L106"><span class="lineNum">     106</span>                 :             :         } else {</span>
+<span id="L107"><span class="lineNum">     107</span>                 :<span class="tlaGNC">           8 :             break; // Buffer full - stop to stay non-blocking</span></span>
+<span id="L108"><span class="lineNum">     108</span>                 :             :         }</span>
+<span id="L109"><span class="lineNum">     109</span>                 :             :     }</span>
+<span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">         192 :     return (int)(s - start);</span></span>
+<span id="L111"><span class="lineNum">     111</span>                 :             : }</span>
 <span id="L112"><span class="lineNum">     112</span>                 :             : </span>
-<span id="L113"><span class="lineNum">     113</span>         [<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 78 times"> + </span>]:<span class="tlaGNC">          84 :     if (value == 0) { // Special case for zero</span></span>
-<span id="L114"><span class="lineNum">     114</span>                 :<span class="tlaGNC">           6 :         *(--p) = '0';</span></span>
-<span id="L115"><span class="lineNum">     115</span>                 :             :     } else {</span>
-<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">          78 :         int is_negative = 0;</span></span>
-<span id="L117"><span class="lineNum">     117</span>                 :             :         unsigned int uvalue;</span>
-<span id="L118"><span class="lineNum">     118</span>                 :             : </span>
-<span id="L119"><span class="lineNum">     119</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          78 :         if (value &lt; 0) { // Handle negative numbers</span></span>
-<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          12 :             is_negative = 1;</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          12 :             uvalue = (unsigned int)-(value + 1) + 1;</span></span>
-<span id="L122"><span class="lineNum">     122</span>                 :             :         } else {</span>
-<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">          66 :             uvalue = (unsigned int)value;</span></span>
-<span id="L124"><span class="lineNum">     124</span>                 :             :         }</span>
-<span id="L125"><span class="lineNum">     125</span>                 :             : </span>
-<span id="L126"><span class="lineNum">     126</span>                 :             :         do { // Convert digits from least significant to most significant</span>
-<span id="L127"><span class="lineNum">     127</span>                 :<span class="tlaGNC">         216 :             *(--p) = '0' + (uvalue % 10);</span></span>
-<span id="L128"><span class="lineNum">     128</span>                 :<span class="tlaGNC">         216 :             uvalue /= 10;</span></span>
-<span id="L129"><span class="lineNum">     129</span>         [<span class="tlaGBC" title="Branch 0 was taken 138 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 78 times"> + </span>]:<span class="tlaGNC">         216 :         } while (uvalue);</span></span>
-<span id="L130"><span class="lineNum">     130</span>                 :             : </span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="Branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          78 :         if (is_negative) *(--p) = '-'; // Add negative sign if needed</span></span>
-<span id="L132"><span class="lineNum">     132</span>                 :             :     }</span>
-<span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">          84 :     return uart_write_str(p);</span></span>
-<span id="L134"><span class="lineNum">     134</span>                 :             : }</span>
-<span id="L135"><span class="lineNum">     135</span>                 :             : </span>
-<span id="L136"><span class="lineNum">     136</span>                 :             : /**</span>
-<span id="L137"><span class="lineNum">     137</span>                 :             :  * @brief Enqueue one byte as two uppercase hexadecimal digits (non-blocking)</span>
-<span id="L138"><span class="lineNum">     138</span>                 :             :  * @param[in] b Byte to convert and transmit</span>
-<span id="L139"><span class="lineNum">     139</span>                 :             :  * @return Number of characters actually enqueued (0, 1 or 2)</span>
-<span id="L140"><span class="lineNum">     140</span>                 :             :  */</span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          54 : int uart_write_hex(uint8_t b) {</span></span>
-<span id="L142"><span class="lineNum">     142</span>                 :             :     static const char hex[] = &quot;0123456789ABCDEF&quot;;</span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">          54 :     int n = 0;</span></span>
-<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">          54 :     n += uart_tx_enqueue_byte(hex[(b &gt;&gt; 4) &amp; 0x0F]);</span></span>
-<span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">          54 :     n += uart_tx_enqueue_byte(hex[b &amp; 0x0F]);</span></span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          54 :     return n;</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :             : }</span>
-<span id="L148"><span class="lineNum">     148</span>                 :             : </span>
-<span id="L149"><span class="lineNum">     149</span>                 :             : /* ---- ow_stats output callbacks (strong definitions) ---- */</span>
-<span id="L150"><span class="lineNum">     150</span>                 :             : </span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaUNC tlaBgUNC">           0 : void ow_stats_putchar(char c) {</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaUNC">           0 :     uart_tx_enqueue_byte((int)c);</span></span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaUNC">           0 : }</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :             : </span>
-<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC tlaBgGNC">          48 : void ow_stats_puts(const char* s) {</span></span>
-<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">          48 :     uart_write_str(s);</span></span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">          48 : }</span></span>
-<span id="L158"><span class="lineNum">     158</span>                 :             : </span>
-<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">          54 : void ow_stats_print_int(int32_t v) {</span></span>
-<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">          54 :     uart_write_int((int)v);</span></span>
-<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">          54 : }</span></span>
-<span id="L162"><span class="lineNum">     162</span>                 :             : </span>
-<span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaGNC">          48 : void ow_stats_print_hex(uint8_t v) {</span></span>
-<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaGNC">          48 :     uart_write_hex(v);</span></span>
-<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">          48 : }</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :             : </span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">          90 : void ow_stats_tx_enqueue(char c) {</span></span>
-<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          90 :     uart_tx_enqueue_byte((int)c);</span></span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          90 : }</span></span>
-<span id="L170"><span class="lineNum">     170</span>                 :             : </span>
-<span id="L171"><span class="lineNum">     171</span>                 :             : #if !defined(DS18B20_TEST_HARNESS)</span>
-<span id="L172"><span class="lineNum">     172</span>                 :             : /* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register</span>
-<span id="L173"><span class="lineNum">     173</span>                 :             :  *-level access.  Excluded from the host test build, which only exercises the</span>
-<span id="L174"><span class="lineNum">     174</span>                 :             :  * non-blocking UART ring buffer above. */</span>
-<span id="L175"><span class="lineNum">     175</span>                 :             : </span>
-<span id="L176"><span class="lineNum">     176</span>                 :             : /**</span>
-<span id="L177"><span class="lineNum">     177</span>                 :             :  * @brief Configure system clock</span>
-<span id="L178"><span class="lineNum">     178</span>                 :             :  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).</span>
-<span id="L179"><span class="lineNum">     179</span>                 :             :  *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             :  *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz. G031x6 has no HSE:</span>
-<span id="L181"><span class="lineNum">     181</span>                 :             :  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.</span>
-<span id="L182"><span class="lineNum">     182</span>                 :             :  */</span>
-<span id="L183"><span class="lineNum">     183</span>                 :             : __STATIC_FORCEINLINE void configure_system_clock(void) {</span>
-<span id="L184"><span class="lineNum">     184</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L185"><span class="lineNum">     185</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 64</span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :     // HSI16 is on and stable right after reset. PLL source must be selected</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :     // explicitly: on this family PLLSRC=00 means &quot;no clock sent to the PLL&quot;,</span>
-<span id="L188"><span class="lineNum">     188</span>                 :             :     // HSI16 encodes as 10 (RCC_PLLCFGR_PLLSRC_HSI). M(=1) xN(=8) R(=2) then</span>
-<span id="L189"><span class="lineNum">     189</span>                 :             :     // gives 64MHz; PLLREN enables the PLLR output the SYSCLK mux uses.</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSI | RCC_PLLCFGR_PLLN_3 |</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :                    RCC_PLLCFGR_PLLR_0 | RCC_PLLCFGR_PLLREN;</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
-<span id="L194"><span class="lineNum">     194</span>                 :             :         ;</span>
-<span id="L195"><span class="lineNum">     195</span>                 :             :     // Flash latency: 2 wait states above 48MHz (RM0444)</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1;</span>
-<span id="L197"><span class="lineNum">     197</span>                 :             :     // Switch system clock to PLLRCLK</span>
-<span id="L198"><span class="lineNum">     198</span>                 :             :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~RCC_CFGR_SW) | RCC_CFGR_SW_PLLRCLK;</span>
-<span id="L199"><span class="lineNum">     199</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLLRCLK)</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             :         ;</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 16</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :     // Raw HSI16: the MCU already runs on the internal 16MHz RC after reset —</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :     // nothing to configure</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             : #else</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for G0: use 64 (HSI16+PLL) or 16 (raw HSI16)&quot;</span>
-<span id="L206"><span class="lineNum">     206</span>                 :             : #endif</span>
-<span id="L207"><span class="lineNum">     207</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
-<span id="L208"><span class="lineNum">     208</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 48</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             :     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier</span>
-<span id="L210"><span class="lineNum">     210</span>                 :             :     // before enabling the PLL so it locks on a valid clock (per RM0360).</span>
-<span id="L211"><span class="lineNum">     211</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLMUL12;</span>
-<span id="L212"><span class="lineNum">     212</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
-<span id="L213"><span class="lineNum">     213</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
-<span id="L214"><span class="lineNum">     214</span>                 :             :         ;</span>
-<span id="L215"><span class="lineNum">     215</span>                 :             :     // Flash latency for 48MHz operation (1 wait state)</span>
-<span id="L216"><span class="lineNum">     216</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY;</span>
-<span id="L217"><span class="lineNum">     217</span>                 :             :     // Switch system clock to PLL</span>
-<span id="L218"><span class="lineNum">     218</span>                 :             :     RCC-&gt;CFGR |= RCC_CFGR_SW_PLL;</span>
-<span id="L219"><span class="lineNum">     219</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)</span>
-<span id="L220"><span class="lineNum">     220</span>                 :             :         ;</span>
-<span id="L221"><span class="lineNum">     221</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 8</span>
-<span id="L222"><span class="lineNum">     222</span>                 :             :     // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —</span>
-<span id="L223"><span class="lineNum">     223</span>                 :             :     // nothing to configure</span>
-<span id="L224"><span class="lineNum">     224</span>                 :             : #else</span>
-<span id="L225"><span class="lineNum">     225</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for F0: use 48 (HSI+PLL) or 8 (raw HSI)&quot;</span>
-<span id="L226"><span class="lineNum">     226</span>                 :             : #endif</span>
-<span id="L227"><span class="lineNum">     227</span>                 :             : #else /* F1 */</span>
-<span id="L228"><span class="lineNum">     228</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 72</span>
-<span id="L229"><span class="lineNum">     229</span>                 :             :     // Enable HSI and HSE oscillators</span>
-<span id="L230"><span class="lineNum">     230</span>                 :             :     RCC-&gt;CR = RCC_CR_HSION | RCC_CR_HSEON;</span>
-<span id="L231"><span class="lineNum">     231</span>                 :             :     // Wait for HSE to stabilize - HSERDY is the hardware stabilization</span>
-<span id="L232"><span class="lineNum">     232</span>                 :             :     // indicator, so no fixed delay is required</span>
-<span id="L233"><span class="lineNum">     233</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_HSERDY))</span>
-<span id="L234"><span class="lineNum">     234</span>                 :             :         ;</span>
-<span id="L235"><span class="lineNum">     235</span>                 :             :     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2</span>
-<span id="L236"><span class="lineNum">     236</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2;</span>
-<span id="L237"><span class="lineNum">     237</span>                 :             :     // Enable PLL only after HSE is confirmed stable, so the PLL locks on a</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :     // valid clock (per RM0008: HSE must be ready before enabling the PLL)</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
-<span id="L240"><span class="lineNum">     240</span>                 :             :     // Wait for the PLL to lock</span>
-<span id="L241"><span class="lineNum">     241</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
-<span id="L242"><span class="lineNum">     242</span>                 :             :         ;</span>
-<span id="L243"><span class="lineNum">     243</span>                 :             :     // Configure flash latency for 72MHz operation</span>
-<span id="L244"><span class="lineNum">     244</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY_2;</span>
-<span id="L245"><span class="lineNum">     245</span>                 :             :     // Switch system clock to PLL</span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_SW_PLL;</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :     // Wait for system clock switch to PLL</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS_PLL) != RCC_CFGR_SWS_PLL)</span>
-<span id="L249"><span class="lineNum">     249</span>                 :             :         ;</span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :     // Disable HSI oscillator</span>
-<span id="L251"><span class="lineNum">     251</span>                 :             :     RCC-&gt;CR &amp;= ~RCC_CR_HSION;</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 8</span>
-<span id="L253"><span class="lineNum">     253</span>                 :             :     // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —</span>
-<span id="L254"><span class="lineNum">     254</span>                 :             :     // nothing to configure</span>
-<span id="L255"><span class="lineNum">     255</span>                 :             : #else</span>
-<span id="L256"><span class="lineNum">     256</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for F1: use 72 (HSE+PLL) or 8 (raw HSI)&quot;</span>
-<span id="L257"><span class="lineNum">     257</span>                 :             : #endif</span>
-<span id="L258"><span class="lineNum">     258</span>                 :             : #endif</span>
-<span id="L259"><span class="lineNum">     259</span>                 :             : }</span>
-<span id="L260"><span class="lineNum">     260</span>                 :             : </span>
-<span id="L261"><span class="lineNum">     261</span>                 :             : /**</span>
-<span id="L262"><span class="lineNum">     262</span>                 :             :  * @brief Initialize microcontroller peripherals for UART communication and LED control</span>
-<span id="L263"><span class="lineNum">     263</span>                 :             :  * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART</span>
-<span id="L264"><span class="lineNum">     264</span>                 :             :  *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6). G0: UART TX on</span>
-<span id="L265"><span class="lineNum">     265</span>                 :             :  *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),</span>
-<span id="L266"><span class="lineNum">     266</span>                 :             :  *       LED on PA4 (no PC13 bonded out on TSSOP20).</span>
-<span id="L267"><span class="lineNum">     267</span>                 :             :  */</span>
-<span id="L268"><span class="lineNum">     268</span>                 :             : __STATIC_FORCEINLINE void hardware_init(void) {</span>
-<span id="L269"><span class="lineNum">     269</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
-<span id="L270"><span class="lineNum">     270</span>                 :             :     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)</span>
-<span id="L271"><span class="lineNum">     271</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L272"><span class="lineNum">     272</span>                 :             :     RCC-&gt;IOPENR |= RCC_IOPENR_GPIOAEN;</span>
-<span id="L273"><span class="lineNum">     273</span>                 :             :     RCC-&gt;APBENR2 |= RCC_APBENR2_USART1EN;</span>
-<span id="L274"><span class="lineNum">     274</span>                 :             : #else</span>
-<span id="L275"><span class="lineNum">     275</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN;</span>
-<span id="L276"><span class="lineNum">     276</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
-<span id="L277"><span class="lineNum">     277</span>                 :             : #endif</span>
-<span id="L278"><span class="lineNum">     278</span>                 :             : </span>
-<span id="L279"><span class="lineNum">     279</span>                 :             :     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1</span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)</span>
-<span id="L281"><span class="lineNum">     281</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L282"><span class="lineNum">     282</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;</span>
-<span id="L283"><span class="lineNum">     283</span>                 :             : #else</span>
-<span id="L284"><span class="lineNum">     284</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
-<span id="L285"><span class="lineNum">     285</span>                 :             : #endif</span>
-<span id="L286"><span class="lineNum">     286</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (1u &lt;&lt; GPIO_AFRH_AFSEL9_Pos);</span>
-<span id="L287"><span class="lineNum">     287</span>                 :             : </span>
-<span id="L288"><span class="lineNum">     288</span>                 :             :     // Configure PA4 as general purpose output for LED control</span>
-<span id="L289"><span class="lineNum">     289</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             : #else</span>
-<span id="L292"><span class="lineNum">     292</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;</span>
-<span id="L293"><span class="lineNum">     293</span>                 :             : #endif</span>
-<span id="L294"><span class="lineNum">     294</span>                 :             : </span>
-<span id="L295"><span class="lineNum">     295</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
-<span id="L296"><span class="lineNum">     296</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK</span>
-<span id="L297"><span class="lineNum">     297</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L298"><span class="lineNum">     298</span>                 :             : #else</span>
-<span id="L299"><span class="lineNum">     299</span>                 :             :     // Enable clock for GPIOA, USART1, and GPIOC peripherals</span>
-<span id="L300"><span class="lineNum">     300</span>                 :             :     RCC-&gt;APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);</span>
-<span id="L301"><span class="lineNum">     301</span>                 :             : </span>
-<span id="L302"><span class="lineNum">     302</span>                 :             :     // Configure PA9 as alternate function push-pull output, 2MHz speed</span>
-<span id="L303"><span class="lineNum">     303</span>                 :             :     // Clear existing configuration bits</span>
-<span id="L304"><span class="lineNum">     304</span>                 :             :     GPIOA-&gt;CRH &amp;= ~(GPIO_CRH_MODE9 | GPIO_CRH_CNF9);</span>
-<span id="L305"><span class="lineNum">     305</span>                 :             :     // Set alternate function push-pull output mode, 2MHz speed</span>
-<span id="L306"><span class="lineNum">     306</span>                 :             :     GPIOA-&gt;CRH |= (GPIO_CRH_MODE9_1 | GPIO_CRH_CNF9_1);</span>
-<span id="L307"><span class="lineNum">     307</span>                 :             : </span>
-<span id="L308"><span class="lineNum">     308</span>                 :             :     // Configure PC13 as general purpose output, 2MHz speed for LED control</span>
-<span id="L309"><span class="lineNum">     309</span>                 :             :     GPIOC-&gt;CRH &amp;= ~(GPIO_CRH_MODE13 | GPIO_CRH_CNF13);</span>
-<span id="L310"><span class="lineNum">     310</span>                 :             :     GPIOC-&gt;CRH |= GPIO_CRH_MODE13_1;</span>
-<span id="L311"><span class="lineNum">     311</span>                 :             : </span>
-<span id="L312"><span class="lineNum">     312</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
-<span id="L313"><span class="lineNum">     313</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK</span>
-<span id="L314"><span class="lineNum">     314</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : #endif</span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : }</span>
-<span id="L317"><span class="lineNum">     317</span>                 :             : </span>
-<span id="L318"><span class="lineNum">     318</span>                 :             : /**</span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :  * @brief Initialize system clock, USART1 TX and the busy LED GPIO</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :  */</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             : void app_init(void) {</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             :     configure_system_clock();</span>
-<span id="L323"><span class="lineNum">     323</span>                 :             :     hardware_init();</span>
-<span id="L324"><span class="lineNum">     324</span>                 :             : }</span>
-<span id="L325"><span class="lineNum">     325</span>                 :             : </span>
-<span id="L326"><span class="lineNum">     326</span>                 :             : /**</span>
-<span id="L327"><span class="lineNum">     327</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
-<span id="L328"><span class="lineNum">     328</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
-<span id="L331"><span class="lineNum">     331</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
-<span id="L332"><span class="lineNum">     332</span>                 :             :  */</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             : void ds18b20_busy(unsigned action) {</span>
-<span id="L334"><span class="lineNum">     334</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             :     if (action) {</span>
-<span id="L336"><span class="lineNum">     336</span>                 :             :         // Turn LED on (PA4 low)</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             : #else</span>
-<span id="L340"><span class="lineNum">     340</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
-<span id="L341"><span class="lineNum">     341</span>                 :             : #endif</span>
-<span id="L342"><span class="lineNum">     342</span>                 :             :     } else {</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             :         // Turn LED off (PA4 high)</span>
-<span id="L344"><span class="lineNum">     344</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L345"><span class="lineNum">     345</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
-<span id="L346"><span class="lineNum">     346</span>                 :             : #else</span>
-<span id="L347"><span class="lineNum">     347</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
-<span id="L348"><span class="lineNum">     348</span>                 :             : #endif</span>
-<span id="L349"><span class="lineNum">     349</span>                 :             :     }</span>
-<span id="L350"><span class="lineNum">     350</span>                 :             : #else</span>
-<span id="L351"><span class="lineNum">     351</span>                 :             :     if (action) {</span>
-<span id="L352"><span class="lineNum">     352</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
-<span id="L353"><span class="lineNum">     353</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
-<span id="L354"><span class="lineNum">     354</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
-<span id="L355"><span class="lineNum">     355</span>                 :             :     } else {</span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :         // Turn LED off (PC13 high)</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
-<span id="L359"><span class="lineNum">     359</span>                 :             :     }</span>
-<span id="L360"><span class="lineNum">     360</span>                 :             : #endif</span>
-<span id="L361"><span class="lineNum">     361</span>                 :             : }</span>
-<span id="L362"><span class="lineNum">     362</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
+<span id="L113"><span class="lineNum">     113</span>                 :             : /**</span>
+<span id="L114"><span class="lineNum">     114</span>                 :             :  * @brief Convert integer to string and enqueue for UART transmission</span>
+<span id="L115"><span class="lineNum">     115</span>                 :             :  * @param[in] value Integer value to convert and transmit</span>
+<span id="L116"><span class="lineNum">     116</span>                 :             :  * @return Number of characters enqueued</span>
+<span id="L117"><span class="lineNum">     117</span>                 :             :  * @note Buffer holds 12 chars, enough for the full int32 range (-2147483648)</span>
+<span id="L118"><span class="lineNum">     118</span>                 :             :  */</span>
+<span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">         112 : int uart_write_int(int value) {</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 :             :     char buf[12]; // enough for -2147483648 and '\0'</span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">         112 :     char* p = buf + sizeof(buf) - 1;</span></span>
+<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         112 :     *p = '\0';</span></span>
+<span id="L123"><span class="lineNum">     123</span>                 :             : </span>
+<span id="L124"><span class="lineNum">     124</span>         [<span class="tlaGBC" title="Branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 104 times"> + </span>]:<span class="tlaGNC">         112 :     if (value == 0) { // Special case for zero</span></span>
+<span id="L125"><span class="lineNum">     125</span>                 :<span class="tlaGNC">           8 :         *(--p) = '0';</span></span>
+<span id="L126"><span class="lineNum">     126</span>                 :             :     } else {</span>
+<span id="L127"><span class="lineNum">     127</span>                 :<span class="tlaGNC">         104 :         int is_negative = 0;</span></span>
+<span id="L128"><span class="lineNum">     128</span>                 :             :         unsigned int uvalue;</span>
+<span id="L129"><span class="lineNum">     129</span>                 :             : </span>
+<span id="L130"><span class="lineNum">     130</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 88 times"> + </span>]:<span class="tlaGNC">         104 :         if (value &lt; 0) { // Handle negative numbers</span></span>
+<span id="L131"><span class="lineNum">     131</span>                 :<span class="tlaGNC">          16 :             is_negative = 1;</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">          16 :             uvalue = (unsigned int)-(value + 1) + 1;</span></span>
+<span id="L133"><span class="lineNum">     133</span>                 :             :         } else {</span>
+<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">          88 :             uvalue = (unsigned int)value;</span></span>
+<span id="L135"><span class="lineNum">     135</span>                 :             :         }</span>
+<span id="L136"><span class="lineNum">     136</span>                 :             : </span>
+<span id="L137"><span class="lineNum">     137</span>                 :             :         do { // Convert digits from least significant to most significant</span>
+<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">         288 :             *(--p) = '0' + (uvalue % 10);</span></span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         288 :             uvalue /= 10;</span></span>
+<span id="L140"><span class="lineNum">     140</span>         [<span class="tlaGBC" title="Branch 0 was taken 184 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 104 times"> + </span>]:<span class="tlaGNC">         288 :         } while (uvalue);</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :             : </span>
+<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 88 times"> + </span>]:<span class="tlaGNC">         104 :         if (is_negative) *(--p) = '-'; // Add negative sign if needed</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :             :     }</span>
+<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">         112 :     return uart_write_str(p);</span></span>
+<span id="L145"><span class="lineNum">     145</span>                 :             : }</span>
+<span id="L146"><span class="lineNum">     146</span>                 :             : </span>
+<span id="L147"><span class="lineNum">     147</span>                 :             : /**</span>
+<span id="L148"><span class="lineNum">     148</span>                 :             :  * @brief Enqueue one byte as two uppercase hexadecimal digits (non-blocking)</span>
+<span id="L149"><span class="lineNum">     149</span>                 :             :  * @param[in] b Byte to convert and transmit</span>
+<span id="L150"><span class="lineNum">     150</span>                 :             :  * @return Number of characters actually enqueued (0, 1 or 2)</span>
+<span id="L151"><span class="lineNum">     151</span>                 :             :  */</span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">          72 : int uart_write_hex(uint8_t b) {</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :             :     static const char hex[] = &quot;0123456789ABCDEF&quot;;</span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">          72 :     int n = 0;</span></span>
+<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">          72 :     n += uart_tx_enqueue_byte(hex[(b &gt;&gt; 4) &amp; 0x0F]);</span></span>
+<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">          72 :     n += uart_tx_enqueue_byte(hex[b &amp; 0x0F]);</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">          72 :     return n;</span></span>
+<span id="L158"><span class="lineNum">     158</span>                 :             : }</span>
+<span id="L159"><span class="lineNum">     159</span>                 :             : </span>
+<span id="L160"><span class="lineNum">     160</span>                 :             : /* ---- ow_stats output callbacks (strong definitions) ---- */</span>
+<span id="L161"><span class="lineNum">     161</span>                 :             : </span>
+<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaUNC tlaBgUNC">           0 : void ow_stats_putchar(char c) {</span></span>
+<span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaUNC">           0 :     uart_tx_enqueue_byte((int)c);</span></span>
+<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaUNC">           0 : }</span></span>
+<span id="L165"><span class="lineNum">     165</span>                 :             : </span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC tlaBgGNC">          64 : void ow_stats_puts(const char* s) {</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">          64 :     uart_write_str(s);</span></span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          64 : }</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :             : </span>
+<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">          72 : void ow_stats_print_int(int32_t v) {</span></span>
+<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">          72 :     uart_write_int((int)v);</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">          72 : }</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :             : </span>
+<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">          64 : void ow_stats_print_hex(uint8_t v) {</span></span>
+<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">          64 :     uart_write_hex(v);</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">          64 : }</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :             : </span>
+<span id="L178"><span class="lineNum">     178</span>                 :<span class="tlaGNC">         120 : void ow_stats_tx_enqueue(char c) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         120 :     uart_tx_enqueue_byte((int)c);</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         120 : }</span></span>
+<span id="L181"><span class="lineNum">     181</span>                 :             : </span>
+<span id="L182"><span class="lineNum">     182</span>                 :             : /* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register</span>
+<span id="L183"><span class="lineNum">     183</span>                 :             :  *-level access.  Excluded from the host test build, which only exercises the</span>
+<span id="L184"><span class="lineNum">     184</span>                 :             :  * non-blocking UART ring buffer above — except configure_system_clock(),</span>
+<span id="L185"><span class="lineNum">     185</span>                 :             :  * which the F4 harness compiles (and test_timing drives) against the RCC</span>
+<span id="L186"><span class="lineNum">     186</span>                 :             :  * and FLASH mocks. hardware_init/app_init/ds18b20_busy stay target-only. */</span>
+<span id="L187"><span class="lineNum">     187</span>                 :             : </span>
+<span id="L188"><span class="lineNum">     188</span>                 :             : #if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4)</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             : /**</span>
+<span id="L190"><span class="lineNum">     190</span>                 :             :  * @brief Configure system clock</span>
+<span id="L191"><span class="lineNum">     191</span>                 :             :  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).</span>
+<span id="L192"><span class="lineNum">     192</span>                 :             :  *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             :  *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz. G031x6 has no HSE:</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             :  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.</span>
+<span id="L195"><span class="lineNum">     195</span>                 :             :  *       F407 (STM32F4DISCOVERY): 168MHz via 8MHz HSE + PLL (M=8, N=336,</span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :  *       P=2), raw HSI at 16MHz, or raw HSE at 8MHz.</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :  *       F401 (84MHz cap): 84MHz via 8MHz HSE + PLL (M=8, N=168, P=2),</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             :  *       raw HSI at 16MHz, or raw HSE at 8MHz.</span>
+<span id="L199"><span class="lineNum">     199</span>                 :             :  */</span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">           2 : void configure_system_clock(void) {</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 64</span>
+<span id="L203"><span class="lineNum">     203</span>                 :             :     // HSI16 is on and stable right after reset. PLL source must be selected</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             :     // explicitly: on this family PLLSRC=00 means &quot;no clock sent to the PLL&quot;,</span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :     // HSI16 encodes as 10 (RCC_PLLCFGR_PLLSRC_HSI). M(=1) xN(=8) R(=2) then</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             :     // gives 64MHz; PLLREN enables the PLLR output the SYSCLK mux uses.</span>
+<span id="L207"><span class="lineNum">     207</span>                 :             :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSI | RCC_PLLCFGR_PLLN_3 |</span>
+<span id="L208"><span class="lineNum">     208</span>                 :             :                    RCC_PLLCFGR_PLLR_0 | RCC_PLLCFGR_PLLREN;</span>
+<span id="L209"><span class="lineNum">     209</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
+<span id="L210"><span class="lineNum">     210</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             :         ;</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :     // Flash latency: 2 wait states above 48MHz (RM0444)</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1;</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             :     // Switch system clock to PLLRCLK</span>
+<span id="L215"><span class="lineNum">     215</span>                 :             :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~RCC_CFGR_SW) | RCC_CFGR_SW_PLLRCLK;</span>
+<span id="L216"><span class="lineNum">     216</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLLRCLK)</span>
+<span id="L217"><span class="lineNum">     217</span>                 :             :         ;</span>
+<span id="L218"><span class="lineNum">     218</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 16</span>
+<span id="L219"><span class="lineNum">     219</span>                 :             :     // Raw HSI16: the MCU already runs on the internal 16MHz RC after reset —</span>
+<span id="L220"><span class="lineNum">     220</span>                 :             :     // nothing to configure</span>
+<span id="L221"><span class="lineNum">     221</span>                 :             : #else</span>
+<span id="L222"><span class="lineNum">     222</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for G0: use 64 (HSI16+PLL) or 16 (raw HSI16)&quot;</span>
+<span id="L223"><span class="lineNum">     223</span>                 :             : #endif</span>
+<span id="L224"><span class="lineNum">     224</span>                 :             : #elif defined(OW_PORT_FAMILY_F0)</span>
+<span id="L225"><span class="lineNum">     225</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 48</span>
+<span id="L226"><span class="lineNum">     226</span>                 :             :     // PLL input is HSI/2 = 4MHz; x12 gives 48MHz. Configure the multiplier</span>
+<span id="L227"><span class="lineNum">     227</span>                 :             :     // before enabling the PLL so it locks on a valid clock (per RM0360).</span>
+<span id="L228"><span class="lineNum">     228</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLMUL12;</span>
+<span id="L229"><span class="lineNum">     229</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
+<span id="L230"><span class="lineNum">     230</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
+<span id="L231"><span class="lineNum">     231</span>                 :             :         ;</span>
+<span id="L232"><span class="lineNum">     232</span>                 :             :     // Flash latency for 48MHz operation (1 wait state)</span>
+<span id="L233"><span class="lineNum">     233</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY;</span>
+<span id="L234"><span class="lineNum">     234</span>                 :             :     // Switch system clock to PLL</span>
+<span id="L235"><span class="lineNum">     235</span>                 :             :     RCC-&gt;CFGR |= RCC_CFGR_SW_PLL;</span>
+<span id="L236"><span class="lineNum">     236</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)</span>
+<span id="L237"><span class="lineNum">     237</span>                 :             :         ;</span>
+<span id="L238"><span class="lineNum">     238</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 8</span>
+<span id="L239"><span class="lineNum">     239</span>                 :             :     // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —</span>
+<span id="L240"><span class="lineNum">     240</span>                 :             :     // nothing to configure</span>
+<span id="L241"><span class="lineNum">     241</span>                 :             : #else</span>
+<span id="L242"><span class="lineNum">     242</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for F0: use 48 (HSI+PLL) or 8 (raw HSI)&quot;</span>
+<span id="L243"><span class="lineNum">     243</span>                 :             : #endif</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 168</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :     // STM32F4DISCOVERY (MB997C): HSE = 8MHz crystal -&gt; PLL.</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :     //   PLL input = 8/8 = 1MHz (valid 1-2MHz), VCO = 1 * 336 = 336MHz</span>
+<span id="L248"><span class="lineNum">     248</span>                 :             :     //   (valid 100-432MHz), SYSCLK = 336/2 = 168MHz, USB = 336/7 = 48MHz.</span>
+<span id="L249"><span class="lineNum">     249</span>                 :             :     // Q=7 feeds USB (unused here) but keeps the tree CubeMX-canonical.</span>
+<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CR |= RCC_CR_HSEON;</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :             :     // Wait for HSE to stabilize - HSERDY is the hardware stabilization</span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :     // indicator, so no fixed delay is required</span>
+<span id="L253"><span class="lineNum">     253</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :     while (!(RCC-&gt;CR &amp; RCC_CR_HSERDY))</span></span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :         ;</span>
+<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (8u &lt;&lt; RCC_PLLCFGR_PLLM_Pos) |</span></span>
+<span id="L256"><span class="lineNum">     256</span>                 :             :                    (336u &lt;&lt; RCC_PLLCFGR_PLLN_Pos) | (0u &lt;&lt; RCC_PLLCFGR_PLLP_Pos) |</span>
+<span id="L257"><span class="lineNum">     257</span>                 :             :                    (7u &lt;&lt; RCC_PLLCFGR_PLLQ_Pos);</span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CR |= RCC_CR_PLLON;</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :             :     // Wait for the PLL to lock</span>
+<span id="L260"><span class="lineNum">     260</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :             :         ;</span>
+<span id="L262"><span class="lineNum">     262</span>                 :             :     // Flash latency: 5 wait states for 150 &lt; HCLK &lt;= 168MHz (RM0090).</span>
+<span id="L263"><span class="lineNum">     263</span>                 :             :     // 168MHz is the max without over-drive, so over-drive is not enabled.</span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">           2 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :             :                  FLASH_ACR_LATENCY_5WS;</span>
+<span id="L266"><span class="lineNum">     266</span>                 :             :     // APB1 /4 = 42MHz, APB2 /2 = 84MHz (both at their datasheet limits). TIM1</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             :     // is on APB2: with a prescaler != 1 the timer clock is doubled, so</span>
+<span id="L268"><span class="lineNum">     268</span>                 :             :     // TIM1 = 2 * 84 = 168MHz = SYSCLK (the ow_port 1us-tick invariant).</span>
+<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~(RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2)) |</span></span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">           2 :                 RCC_CFGR_PPRE1_DIV4 | RCC_CFGR_PPRE2_DIV2;</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :             :     // Switch system clock to PLL</span>
+<span id="L272"><span class="lineNum">     272</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;</span></span>
+<span id="L273"><span class="lineNum">     273</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)</span></span>
+<span id="L274"><span class="lineNum">     274</span>                 :             :         ;</span>
+<span id="L275"><span class="lineNum">     275</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 84</span>
+<span id="L276"><span class="lineNum">     276</span>                 :             :     // STM32F401 (84MHz cap): HSE = 8MHz crystal -&gt; PLL.</span>
+<span id="L277"><span class="lineNum">     277</span>                 :             :     //   PLL input = 8/8 = 1MHz (valid 1-2MHz), VCO = 1 * 168 = 168MHz</span>
+<span id="L278"><span class="lineNum">     278</span>                 :             :     //   (valid 100-432MHz), SYSCLK = 168/2 = 84MHz.</span>
+<span id="L279"><span class="lineNum">     279</span>                 :             :     RCC-&gt;CR |= RCC_CR_HSEON;</span>
+<span id="L280"><span class="lineNum">     280</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_HSERDY))</span>
+<span id="L281"><span class="lineNum">     281</span>                 :             :         ;</span>
+<span id="L282"><span class="lineNum">     282</span>                 :             :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (8u &lt;&lt; RCC_PLLCFGR_PLLM_Pos) |</span>
+<span id="L283"><span class="lineNum">     283</span>                 :             :                    (168u &lt;&lt; RCC_PLLCFGR_PLLN_Pos) | (0u &lt;&lt; RCC_PLLCFGR_PLLP_Pos) |</span>
+<span id="L284"><span class="lineNum">     284</span>                 :             :                    (7u &lt;&lt; RCC_PLLCFGR_PLLQ_Pos);</span>
+<span id="L285"><span class="lineNum">     285</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
+<span id="L286"><span class="lineNum">     286</span>                 :             :     // Wait for the PLL to lock</span>
+<span id="L287"><span class="lineNum">     287</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
+<span id="L288"><span class="lineNum">     288</span>                 :             :         ;</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :     // Flash latency: 2 wait states for 48 &lt; HCLK &lt;= 84MHz (RM0368).</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :                  FLASH_ACR_LATENCY_2WS;</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :     // APB1 /2 = 42MHz, APB2 /2 = 42MHz (both at their datasheet limits). TIM1</span>
+<span id="L293"><span class="lineNum">     293</span>                 :             :     // is on APB2: with a prescaler != 1 the timer clock is doubled, so</span>
+<span id="L294"><span class="lineNum">     294</span>                 :             :     // TIM1 = 2 * 42 = 84MHz = SYSCLK (the ow_port 1us-tick invariant).</span>
+<span id="L295"><span class="lineNum">     295</span>                 :             :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~(RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2)) |</span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :                 RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV2;</span>
+<span id="L297"><span class="lineNum">     297</span>                 :             :     // Switch system clock to PLL</span>
+<span id="L298"><span class="lineNum">     298</span>                 :             :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;</span>
+<span id="L299"><span class="lineNum">     299</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)</span>
+<span id="L300"><span class="lineNum">     300</span>                 :             :         ;</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 16</span>
+<span id="L302"><span class="lineNum">     302</span>                 :             :     // Raw HSI: the MCU already runs on the internal 16MHz RC after reset —</span>
+<span id="L303"><span class="lineNum">     303</span>                 :             :     // nothing to configure (APB2 stays /1, so TIM1 = HSI = 16MHz)</span>
+<span id="L304"><span class="lineNum">     304</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 8</span>
+<span id="L305"><span class="lineNum">     305</span>                 :             :     // Raw HSE: run SYSCLK directly from the 8MHz crystal, no PLL, so the core</span>
+<span id="L306"><span class="lineNum">     306</span>                 :             :     // clock is the crystal itself and PCLK2 = 8MHz.</span>
+<span id="L307"><span class="lineNum">     307</span>                 :             :     RCC-&gt;CR |= RCC_CR_HSEON;</span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_HSERDY))</span>
+<span id="L309"><span class="lineNum">     309</span>                 :             :         ;</span>
+<span id="L310"><span class="lineNum">     310</span>                 :             :     // Flash latency: 0 wait states (&lt;= 30MHz); caches on for deterministic timing.</span>
+<span id="L311"><span class="lineNum">     311</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;</span>
+<span id="L312"><span class="lineNum">     312</span>                 :             :     // APB1/APB2 stay /1, so TIM1 = SYSCLK = HSE = 8MHz.</span>
+<span id="L313"><span class="lineNum">     313</span>                 :             :     RCC-&gt;CFGR = (RCC-&gt;CFGR &amp; ~RCC_CFGR_SW) | RCC_CFGR_SW_HSE;</span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE)</span>
+<span id="L315"><span class="lineNum">     315</span>                 :             :         ;</span>
+<span id="L316"><span class="lineNum">     316</span>                 :             : #else</span>
+<span id="L317"><span class="lineNum">     317</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 (8MHz HSE+PLL, F405/F407), 84 (8MHz HSE+PLL, F401), 16 (raw HSI) or 8 (raw HSE)&quot;</span>
+<span id="L318"><span class="lineNum">     318</span>                 :             : #endif</span>
+<span id="L319"><span class="lineNum">     319</span>                 :             : #else /* F1 */</span>
+<span id="L320"><span class="lineNum">     320</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 72</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :     // Enable HSI and HSE oscillators</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             :     RCC-&gt;CR = RCC_CR_HSION | RCC_CR_HSEON;</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :     // Wait for HSE to stabilize - HSERDY is the hardware stabilization</span>
+<span id="L324"><span class="lineNum">     324</span>                 :             :     // indicator, so no fixed delay is required</span>
+<span id="L325"><span class="lineNum">     325</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_HSERDY))</span>
+<span id="L326"><span class="lineNum">     326</span>                 :             :         ;</span>
+<span id="L327"><span class="lineNum">     327</span>                 :             :     // Configure PLL: HSE source, multiply by 9, APB1 prescaler /2</span>
+<span id="L328"><span class="lineNum">     328</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2;</span>
+<span id="L329"><span class="lineNum">     329</span>                 :             :     // Enable PLL only after HSE is confirmed stable, so the PLL locks on a</span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :     // valid clock (per RM0008: HSE must be ready before enabling the PLL)</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             :     RCC-&gt;CR |= RCC_CR_PLLON;</span>
+<span id="L332"><span class="lineNum">     332</span>                 :             :     // Wait for the PLL to lock</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             :     while (!(RCC-&gt;CR &amp; RCC_CR_PLLRDY))</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :         ;</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             :     // Configure flash latency for 72MHz operation</span>
+<span id="L336"><span class="lineNum">     336</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY_2;</span>
+<span id="L337"><span class="lineNum">     337</span>                 :             :     // Switch system clock to PLL</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             :     RCC-&gt;CFGR = RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL9 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_SW_PLL;</span>
+<span id="L339"><span class="lineNum">     339</span>                 :             :     // Wait for system clock switch to PLL</span>
+<span id="L340"><span class="lineNum">     340</span>                 :             :     while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS_PLL) != RCC_CFGR_SWS_PLL)</span>
+<span id="L341"><span class="lineNum">     341</span>                 :             :         ;</span>
+<span id="L342"><span class="lineNum">     342</span>                 :             :     // Disable HSI oscillator</span>
+<span id="L343"><span class="lineNum">     343</span>                 :             :     RCC-&gt;CR &amp;= ~RCC_CR_HSION;</span>
+<span id="L344"><span class="lineNum">     344</span>                 :             : #elif (OW_PORT_SYSCLK_MHZ) == 8</span>
+<span id="L345"><span class="lineNum">     345</span>                 :             :     // Raw HSI: the MCU already runs on the internal 8MHz RC after reset —</span>
+<span id="L346"><span class="lineNum">     346</span>                 :             :     // nothing to configure</span>
+<span id="L347"><span class="lineNum">     347</span>                 :             : #else</span>
+<span id="L348"><span class="lineNum">     348</span>                 :             : #error &quot;Unsupported OW_PORT_SYSCLK_MHZ for F1: use 72 (HSE+PLL) or 8 (raw HSI)&quot;</span>
+<span id="L349"><span class="lineNum">     349</span>                 :             : #endif</span>
+<span id="L350"><span class="lineNum">     350</span>                 :             : #endif</span>
+<span id="L351"><span class="lineNum">     351</span>                 :<span class="tlaGNC">           2 : }</span></span>
+<span id="L352"><span class="lineNum">     352</span>                 :             : #endif /* !DS18B20_TEST_HARNESS || OW_PORT_FAMILY_F4 */</span>
+<span id="L353"><span class="lineNum">     353</span>                 :             : </span>
+<span id="L354"><span class="lineNum">     354</span>                 :             : #if !defined(DS18B20_TEST_HARNESS)</span>
+<span id="L355"><span class="lineNum">     355</span>                 :             : /**</span>
+<span id="L356"><span class="lineNum">     356</span>                 :             :  * @brief Initialize microcontroller peripherals for UART communication and LED control</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             :  * @note F1: USART1 TX on PA9 (AF push-pull), LED on PC13. F0: same PA9 UART</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             :  *       via MODER/AFR, LED on PA4 (no GPIOC on F030x6). G0: UART TX on</span>
+<span id="L359"><span class="lineNum">     359</span>                 :             :  *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),</span>
+<span id="L360"><span class="lineNum">     360</span>                 :             :  *       LED on PA4 (no PC13 bonded out on TSSOP20). F4: USART1 TX on PB6</span>
+<span id="L361"><span class="lineNum">     361</span>                 :             :  *       (AF7; the F4DISCOVERY has no USART1-to-ST-LINK route on PA9), LED on</span>
+<span id="L362"><span class="lineNum">     362</span>                 :             :  *       PD12, with an optional OW_UART_USART3 path on PB10.</span>
+<span id="L363"><span class="lineNum">     363</span>                 :             :  */</span>
+<span id="L364"><span class="lineNum">     364</span>                 :             : __STATIC_FORCEINLINE void hardware_init(void) {</span>
+<span id="L365"><span class="lineNum">     365</span>                 :             : #if defined(OW_PORT_FAMILY_F4)</span>
+<span id="L366"><span class="lineNum">     366</span>                 :             :     // Enable AHB1 GPIOA/GPIOD/GPIOB and APB2 USART1 clocks (GPIOA/DMA2/TIM1 clock is</span>
+<span id="L367"><span class="lineNum">     367</span>                 :             :     // enabled by ow_port_init())</span>
+<span id="L368"><span class="lineNum">     368</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;</span>
+<span id="L369"><span class="lineNum">     369</span>                 :             : </span>
+<span id="L370"><span class="lineNum">     370</span>                 :             :     // APB bus clocks for the console UART, derived from the active clock</span>
+<span id="L371"><span class="lineNum">     371</span>                 :             :     // config (see configure_system_clock): 168MHz -&gt; APB1 /4 = 42, APB2 /2</span>
+<span id="L372"><span class="lineNum">     372</span>                 :             :     // = 84; 84MHz -&gt; APB1 /2 = 42, APB2 /2 = 42; raw 16/8MHz -&gt; APB1/APB2 /1</span>
+<span id="L373"><span class="lineNum">     373</span>                 :             :     // = SYSCLK.</span>
+<span id="L374"><span class="lineNum">     374</span>                 :             : #define OW_PORT_PCLK1_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 42 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \</span>
+<span id="L375"><span class="lineNum">     375</span>                 :             :                                                                                          : (OW_PORT_SYSCLK_MHZ))</span>
+<span id="L376"><span class="lineNum">     376</span>                 :             : #define OW_PORT_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 84 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \</span>
+<span id="L377"><span class="lineNum">     377</span>                 :             :                                                                                          : (OW_PORT_SYSCLK_MHZ))</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             : </span>
+<span id="L379"><span class="lineNum">     379</span>                 :             :     // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -&gt; LED -&gt; GND)</span>
+<span id="L380"><span class="lineNum">     380</span>                 :             :     GPIOD-&gt;MODER = (GPIOD-&gt;MODER &amp; ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;</span>
+<span id="L381"><span class="lineNum">     381</span>                 :             : </span>
+<span id="L382"><span class="lineNum">     382</span>                 :             :     // Optional OW_UART_USART3 selects USART3 TX on PB10 (AF7) instead of</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             :     // USART1 on PB6 (the STM32F4DISCOVERY has no USART1-to-ST-LINK route).</span>
+<span id="L384"><span class="lineNum">     384</span>                 :             :     // USART3 is on APB1.</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             : #if defined(OW_UART_USART3)</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOBEN;</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             :     RCC-&gt;APB1ENR |= RCC_APB1ENR_USART3EN;</span>
+<span id="L388"><span class="lineNum">     388</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;</span>
+<span id="L389"><span class="lineNum">     389</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_10;</span>
+<span id="L390"><span class="lineNum">     390</span>                 :             :     GPIOB-&gt;AFR[1] = (GPIOB-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL10) | (7u &lt;&lt; GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */</span>
+<span id="L391"><span class="lineNum">     391</span>                 :             :     // PCLK1: APB1 /4 at 168MHz (42MHz), /2 at 84MHz (42MHz), /1 otherwise.</span>
+<span id="L392"><span class="lineNum">     392</span>                 :             :     USART3-&gt;BRR = USART_BRR_CALC((OW_PORT_PCLK1_MHZ) * 1000000u, 115200);</span>
+<span id="L393"><span class="lineNum">     393</span>                 :             :     USART3-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only</span>
+<span id="L394"><span class="lineNum">     394</span>                 :             : #else</span>
+<span id="L395"><span class="lineNum">     395</span>                 :             :     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).</span>
+<span id="L396"><span class="lineNum">     396</span>                 :             :     // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console</span>
+<span id="L397"><span class="lineNum">     397</span>                 :             :     // rides USART1 on PB6 (AF7); PA9 stays free.</span>
+<span id="L398"><span class="lineNum">     398</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
+<span id="L399"><span class="lineNum">     399</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;</span>
+<span id="L400"><span class="lineNum">     400</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_6;</span>
+<span id="L401"><span class="lineNum">     401</span>                 :             :     GPIOB-&gt;AFR[0] = (GPIOB-&gt;AFR[0] &amp; ~GPIO_AFRL_AFSEL6) | (7u &lt;&lt; GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */</span>
+<span id="L402"><span class="lineNum">     402</span>                 :             :     // USART1 is on APB2: /2 at 168MHz (84MHz) and at 84MHz (42MHz), /1 otherwise.</span>
+<span id="L403"><span class="lineNum">     403</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_PCLK2_MHZ) * 1000000u, 115200);</span>
+<span id="L404"><span class="lineNum">     404</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L405"><span class="lineNum">     405</span>                 :             : #endif</span>
+<span id="L406"><span class="lineNum">     406</span>                 :             : #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
+<span id="L407"><span class="lineNum">     407</span>                 :             :     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)</span>
+<span id="L408"><span class="lineNum">     408</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L409"><span class="lineNum">     409</span>                 :             :     RCC-&gt;IOPENR |= RCC_IOPENR_GPIOAEN;</span>
+<span id="L410"><span class="lineNum">     410</span>                 :             :     RCC-&gt;APBENR2 |= RCC_APBENR2_USART1EN;</span>
+<span id="L411"><span class="lineNum">     411</span>                 :             : #else</span>
+<span id="L412"><span class="lineNum">     412</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN;</span>
+<span id="L413"><span class="lineNum">     413</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
+<span id="L414"><span class="lineNum">     414</span>                 :             : #endif</span>
+<span id="L415"><span class="lineNum">     415</span>                 :             : </span>
+<span id="L416"><span class="lineNum">     416</span>                 :             :     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1</span>
+<span id="L417"><span class="lineNum">     417</span>                 :             :     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)</span>
+<span id="L418"><span class="lineNum">     418</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L419"><span class="lineNum">     419</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;</span>
+<span id="L420"><span class="lineNum">     420</span>                 :             : #else</span>
+<span id="L421"><span class="lineNum">     421</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
+<span id="L422"><span class="lineNum">     422</span>                 :             : #endif</span>
+<span id="L423"><span class="lineNum">     423</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (1u &lt;&lt; GPIO_AFRH_AFSEL9_Pos);</span>
+<span id="L424"><span class="lineNum">     424</span>                 :             : </span>
+<span id="L425"><span class="lineNum">     425</span>                 :             :     // Configure PA4 as general purpose output for LED control</span>
+<span id="L426"><span class="lineNum">     426</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L427"><span class="lineNum">     427</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;</span>
+<span id="L428"><span class="lineNum">     428</span>                 :             : #else</span>
+<span id="L429"><span class="lineNum">     429</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;</span>
+<span id="L430"><span class="lineNum">     430</span>                 :             : #endif</span>
+<span id="L431"><span class="lineNum">     431</span>                 :             : </span>
+<span id="L432"><span class="lineNum">     432</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
+<span id="L433"><span class="lineNum">     433</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK</span>
+<span id="L434"><span class="lineNum">     434</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L435"><span class="lineNum">     435</span>                 :             : #else</span>
+<span id="L436"><span class="lineNum">     436</span>                 :             :     // Enable clock for GPIOA, USART1, and GPIOC peripherals</span>
+<span id="L437"><span class="lineNum">     437</span>                 :             :     RCC-&gt;APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);</span>
+<span id="L438"><span class="lineNum">     438</span>                 :             : </span>
+<span id="L439"><span class="lineNum">     439</span>                 :             :     // Configure PA9 as alternate function push-pull output, 2MHz speed</span>
+<span id="L440"><span class="lineNum">     440</span>                 :             :     // Clear existing configuration bits</span>
+<span id="L441"><span class="lineNum">     441</span>                 :             :     GPIOA-&gt;CRH &amp;= ~(GPIO_CRH_MODE9 | GPIO_CRH_CNF9);</span>
+<span id="L442"><span class="lineNum">     442</span>                 :             :     // Set alternate function push-pull output mode, 2MHz speed</span>
+<span id="L443"><span class="lineNum">     443</span>                 :             :     GPIOA-&gt;CRH |= (GPIO_CRH_MODE9_1 | GPIO_CRH_CNF9_1);</span>
+<span id="L444"><span class="lineNum">     444</span>                 :             : </span>
+<span id="L445"><span class="lineNum">     445</span>                 :             :     // Configure PC13 as general purpose output, 2MHz speed for LED control</span>
+<span id="L446"><span class="lineNum">     446</span>                 :             :     GPIOC-&gt;CRH &amp;= ~(GPIO_CRH_MODE13 | GPIO_CRH_CNF13);</span>
+<span id="L447"><span class="lineNum">     447</span>                 :             :     GPIOC-&gt;CRH |= GPIO_CRH_MODE13_1;</span>
+<span id="L448"><span class="lineNum">     448</span>                 :             : </span>
+<span id="L449"><span class="lineNum">     449</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
+<span id="L450"><span class="lineNum">     450</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK</span>
+<span id="L451"><span class="lineNum">     451</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L452"><span class="lineNum">     452</span>                 :             : #endif</span>
+<span id="L453"><span class="lineNum">     453</span>                 :             : }</span>
+<span id="L454"><span class="lineNum">     454</span>                 :             : </span>
+<span id="L455"><span class="lineNum">     455</span>                 :             : void app_time_init(void); /* defined below, with the polled millisecond clock */</span>
+<span id="L456"><span class="lineNum">     456</span>                 :             : </span>
+<span id="L457"><span class="lineNum">     457</span>                 :             : /**</span>
+<span id="L458"><span class="lineNum">     458</span>                 :             :  * @brief Initialize system clock, USART1 TX and the busy LED GPIO</span>
+<span id="L459"><span class="lineNum">     459</span>                 :             :  */</span>
+<span id="L460"><span class="lineNum">     460</span>                 :             : void app_init(void) {</span>
+<span id="L461"><span class="lineNum">     461</span>                 :             :     configure_system_clock();</span>
+<span id="L462"><span class="lineNum">     462</span>                 :             :     hardware_init();</span>
+<span id="L463"><span class="lineNum">     463</span>                 :             :     app_time_init();</span>
+<span id="L464"><span class="lineNum">     464</span>                 :             : }</span>
+<span id="L465"><span class="lineNum">     465</span>                 :             : </span>
+<span id="L466"><span class="lineNum">     466</span>                 :             : /* ---- Polled millisecond clock (no interrupt, no waiting) ----</span>
+<span id="L467"><span class="lineNum">     467</span>                 :             :  *</span>
+<span id="L468"><span class="lineNum">     468</span>                 :             :  * The driver measures only when the application asks it to, so the application</span>
+<span id="L469"><span class="lineNum">     469</span>                 :             :  * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with</span>
+<span id="L470"><span class="lineNum">     470</span>                 :             :  * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.</span>
+<span id="L471"><span class="lineNum">     471</span>                 :             :  * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a</span>
+<span id="L472"><span class="lineNum">     472</span>                 :             :  * millisecond counter, so app_millis() costs a single register read and never</span>
+<span id="L473"><span class="lineNum">     473</span>                 :             :  * waits. A missed tick can only happen if the loop does not run for a whole</span>
+<span id="L474"><span class="lineNum">     474</span>                 :             :  * millisecond, which is the one rule the examples follow. */</span>
+<span id="L475"><span class="lineNum">     475</span>                 :             : </span>
+<span id="L476"><span class="lineNum">     476</span>                 :             : static uint32_t app_ms;</span>
+<span id="L477"><span class="lineNum">     477</span>                 :             : </span>
+<span id="L478"><span class="lineNum">     478</span>                 :             : /**</span>
+<span id="L479"><span class="lineNum">     479</span>                 :             :  * @brief Start the polled millisecond clock</span>
+<span id="L480"><span class="lineNum">     480</span>                 :             :  * @note Called from app_init() after the system clock is configured, because</span>
+<span id="L481"><span class="lineNum">     481</span>                 :             :  *       the reload is derived from that clock (1 kHz from HCLK).</span>
+<span id="L482"><span class="lineNum">     482</span>                 :             :  */</span>
+<span id="L483"><span class="lineNum">     483</span>                 :             : void app_time_init(void) {</span>
+<span id="L484"><span class="lineNum">     484</span>                 :             :     app_ms = 0;</span>
+<span id="L485"><span class="lineNum">     485</span>                 :             :     SysTick-&gt;LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;</span>
+<span id="L486"><span class="lineNum">     486</span>                 :             :     SysTick-&gt;VAL = 0;</span>
+<span id="L487"><span class="lineNum">     487</span>                 :             :     /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and</span>
+<span id="L488"><span class="lineNum">     488</span>                 :             :      * sets COUNTFLAG, but never enters an exception handler. */</span>
+<span id="L489"><span class="lineNum">     489</span>                 :             :     SysTick-&gt;CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;</span>
+<span id="L490"><span class="lineNum">     490</span>                 :             : }</span>
+<span id="L491"><span class="lineNum">     491</span>                 :             : </span>
+<span id="L492"><span class="lineNum">     492</span>                 :             : /**</span>
+<span id="L493"><span class="lineNum">     493</span>                 :             :  * @brief Milliseconds since app_time_init()</span>
+<span id="L494"><span class="lineNum">     494</span>                 :             :  * @return Counter in ms (wraps after ~49 days)</span>
+<span id="L495"><span class="lineNum">     495</span>                 :             :  * @note Non-blocking: reads the SysTick status flag and folds a wrap into the</span>
+<span id="L496"><span class="lineNum">     496</span>                 :             :  *       counter. Must be called at least once per millisecond, which any</span>
+<span id="L497"><span class="lineNum">     497</span>                 :             :  *       polling main loop does.</span>
+<span id="L498"><span class="lineNum">     498</span>                 :             :  */</span>
+<span id="L499"><span class="lineNum">     499</span>                 :             : uint32_t app_millis(void) {</span>
+<span id="L500"><span class="lineNum">     500</span>                 :             :     if (SysTick-&gt;CTRL &amp; SysTick_CTRL_COUNTFLAG_Msk) {</span>
+<span id="L501"><span class="lineNum">     501</span>                 :             :         (void)SysTick-&gt;CTRL; /* reading CTRL clears COUNTFLAG */</span>
+<span id="L502"><span class="lineNum">     502</span>                 :             :         app_ms++;</span>
+<span id="L503"><span class="lineNum">     503</span>                 :             :     }</span>
+<span id="L504"><span class="lineNum">     504</span>                 :             :     return app_ms;</span>
+<span id="L505"><span class="lineNum">     505</span>                 :             : }</span>
+<span id="L506"><span class="lineNum">     506</span>                 :             : </span>
+<span id="L507"><span class="lineNum">     507</span>                 :             : /**</span>
+<span id="L508"><span class="lineNum">     508</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
+<span id="L509"><span class="lineNum">     509</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
+<span id="L510"><span class="lineNum">     510</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
+<span id="L511"><span class="lineNum">     511</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
+<span id="L512"><span class="lineNum">     512</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
+<span id="L513"><span class="lineNum">     513</span>                 :             :  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).</span>
+<span id="L514"><span class="lineNum">     514</span>                 :             :  */</span>
+<span id="L515"><span class="lineNum">     515</span>                 :             : void ds18b20_busy(unsigned action) {</span>
+<span id="L516"><span class="lineNum">     516</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
+<span id="L517"><span class="lineNum">     517</span>                 :             :     if (action) {</span>
+<span id="L518"><span class="lineNum">     518</span>                 :             :         // Turn LED on (PA4 low)</span>
+<span id="L519"><span class="lineNum">     519</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L520"><span class="lineNum">     520</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
+<span id="L521"><span class="lineNum">     521</span>                 :             : #else</span>
+<span id="L522"><span class="lineNum">     522</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
+<span id="L523"><span class="lineNum">     523</span>                 :             : #endif</span>
+<span id="L524"><span class="lineNum">     524</span>                 :             :     } else {</span>
+<span id="L525"><span class="lineNum">     525</span>                 :             :         // Turn LED off (PA4 high)</span>
+<span id="L526"><span class="lineNum">     526</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L527"><span class="lineNum">     527</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
+<span id="L528"><span class="lineNum">     528</span>                 :             : #else</span>
+<span id="L529"><span class="lineNum">     529</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
+<span id="L530"><span class="lineNum">     530</span>                 :             : #endif</span>
+<span id="L531"><span class="lineNum">     531</span>                 :             :     }</span>
+<span id="L532"><span class="lineNum">     532</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L533"><span class="lineNum">     533</span>                 :             :     if (action) {</span>
+<span id="L534"><span class="lineNum">     534</span>                 :             :         // Turn LED on (PD12 high)</span>
+<span id="L535"><span class="lineNum">     535</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BS12;</span>
+<span id="L536"><span class="lineNum">     536</span>                 :             :     } else {</span>
+<span id="L537"><span class="lineNum">     537</span>                 :             :         // Turn LED off (PD12 low)</span>
+<span id="L538"><span class="lineNum">     538</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BR12;</span>
+<span id="L539"><span class="lineNum">     539</span>                 :             :     }</span>
+<span id="L540"><span class="lineNum">     540</span>                 :             : #else</span>
+<span id="L541"><span class="lineNum">     541</span>                 :             :     if (action) {</span>
+<span id="L542"><span class="lineNum">     542</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
+<span id="L543"><span class="lineNum">     543</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
+<span id="L544"><span class="lineNum">     544</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
+<span id="L545"><span class="lineNum">     545</span>                 :             :     } else {</span>
+<span id="L546"><span class="lineNum">     546</span>                 :             :         // Turn LED off (PC13 high)</span>
+<span id="L547"><span class="lineNum">     547</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
+<span id="L548"><span class="lineNum">     548</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
+<span id="L549"><span class="lineNum">     549</span>                 :             :     }</span>
+<span id="L550"><span class="lineNum">     550</span>                 :             : #endif</span>
+<span id="L551"><span class="lineNum">     551</span>                 :             : }</span>
+<span id="L552"><span class="lineNum">     552</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
         </pre>
               </td>
             </tr>

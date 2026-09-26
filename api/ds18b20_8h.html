@@ -291,6 +291,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ga6eeebb1626eae6a6be3d73fdcf65f970" id="r_ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970">ds18b20_poll</a> (void)</td></tr>
 <tr class="memdesc:ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the state machine (non-blocking)  <br /></td></tr>
 <tr class="separator:ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaf391cdf53a783173fef0085f19ab6b5a" id="r_gaf391cdf53a783173fef0085f19ab6b5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a">ds18b20_start_measure</a> (void)</td></tr>
+<tr class="memdesc:gaf391cdf53a783173fef0085f19ab6b5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Start one measurement cycle (non-blocking)  <br /></td></tr>
+<tr class="separator:gaf391cdf53a783173fef0085f19ab6b5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2e416838ae0cf8fc9a5973cf647da75f" id="r_ga2e416838ae0cf8fc9a5973cf647da75f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f">ds18b20_select</a> (const uint8_t *rom)</td></tr>
 <tr class="memdesc:ga2e416838ae0cf8fc9a5973cf647da75f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Select which DS18B20 device to measure by its ROM address.  <br /></td></tr>
 <tr class="separator:ga2e416838ae0cf8fc9a5973cf647da75f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -312,10 +315,13 @@ Functions</h2></td></tr>
 <li>Weak function callbacks for customization</li>
 <li>Built-in non-blocking device search (ds18b20_search_*) for multi-sensor buses, with zero busy-waits</li>
 </ul>
+<p>Measurement model: the driver measures when it is asked to. It runs exactly one conversion + scratchpad-read cycle per <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> call, reports the result through <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a> and then parks at DS18B20_ST_IDLE. It never starts a cycle on its own, so the measurement cadence, the retry policy and any idle interval belong to the application.</p>
 <p>Usage:</p><ol type="1">
 <li>Call <a class="el" href="group__DS18B20__Exported__Functions.html#ga8494d131cb527f11ebe787fd18d08bc1" title="Initialize DS18B20 driver hardware and peripherals.">ds18b20_init()</a> once at startup</li>
-<li>Call <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> repeatedly from main loop</li>
-<li>(Optional) Run the non-blocking device search (ds18b20_search_*) before starting poll(); the search helper hands back to poll() automatically</li>
+<li>Call <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> to request a measurement cycle</li>
+<li>Call <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> repeatedly from main loop until <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a> reports the result</li>
+<li>Repeat steps 2-3 at whatever rate the application wants to measure</li>
+<li>(Optional) Run the non-blocking device search (ds18b20_search_*) to get the ROM addresses to pass to <a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f" title="Select which DS18B20 device to measure by its ROM address.">ds18b20_select()</a> before measuring</li>
 <li>Implement weak callbacks <a class="el" href="group__DS18B20__Exported__Functions.html#ga5dbe17cf39bea12578eeab800338851c" title="Busy indicator callback (weak)">ds18b20_busy()</a> and <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a> to handle status indication and temperature results </li>
 </ol>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
@@ -392,7 +398,7 @@ Functions</h2></td></tr>
 
 <p>DS18B20 driver state machine states. </p>
 <table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a4676a2c5c222f42799abdcda5649c2abaf7b1766f6508749206ec370cb6130203" name="a4676a2c5c222f42799abdcda5649c2abaf7b1766f6508749206ec370cb6130203"></a>DS18B20_ST_IDLE&#160;</td><td class="fielddoc"><p>Initial state, falls through to START </p>
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a4676a2c5c222f42799abdcda5649c2abaf7b1766f6508749206ec370cb6130203" name="a4676a2c5c222f42799abdcda5649c2abaf7b1766f6508749206ec370cb6130203"></a>DS18B20_ST_IDLE&#160;</td><td class="fielddoc"><p>Parked between cycles; <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> leaves it </p>
 </td></tr>
 <tr><td class="fieldname"><a id="a4676a2c5c222f42799abdcda5649c2aba19988d407b2a7f9a6afc607621099ade" name="a4676a2c5c222f42799abdcda5649c2aba19988d407b2a7f9a6afc607621099ade"></a>DS18B20_ST_START&#160;</td><td class="fielddoc"><p>Begin measurement, reset bus </p>
 </td></tr>

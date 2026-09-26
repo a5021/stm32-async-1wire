@@ -107,6 +107,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ga6eeebb1626eae6a6be3d73fdcf65f970" id="r_ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970">ds18b20_poll</a> (void)</td></tr>
 <tr class="memdesc:ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the state machine (non-blocking)  <br /></td></tr>
 <tr class="separator:ga6eeebb1626eae6a6be3d73fdcf65f970"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaf391cdf53a783173fef0085f19ab6b5a" id="r_gaf391cdf53a783173fef0085f19ab6b5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a">ds18b20_start_measure</a> (void)</td></tr>
+<tr class="memdesc:gaf391cdf53a783173fef0085f19ab6b5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Start one measurement cycle (non-blocking)  <br /></td></tr>
+<tr class="separator:gaf391cdf53a783173fef0085f19ab6b5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2e416838ae0cf8fc9a5973cf647da75f" id="r_ga2e416838ae0cf8fc9a5973cf647da75f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f">ds18b20_select</a> (const uint8_t *rom)</td></tr>
 <tr class="memdesc:ga2e416838ae0cf8fc9a5973cf647da75f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Select which DS18B20 device to measure by its ROM address.  <br /></td></tr>
 <tr class="separator:ga2e416838ae0cf8fc9a5973cf647da75f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -247,7 +250,7 @@ Functions</h2></td></tr>
 
 <p>Advance the state machine (non-blocking) </p>
 <dl class="section note"><dt>Note</dt><dd>Call periodically from main loop</dd></dl>
-<p>This function implements the core non-blocking state machine that manages the 1-Wire communication protocol with the DS18B20 sensor. It uses hardware timer and DMA to handle timing-critical operations without software delays. </p>
+<p>This function implements the core non-blocking state machine that manages the 1-Wire communication protocol with the DS18B20 sensor. It uses hardware timer and DMA to handle timing-critical operations without software delays. At DS18B20_ST_IDLE it does nothing until <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> requests a cycle. </p>
 
 </div>
 </div>
@@ -276,7 +279,30 @@ Functions</h2></td></tr>
 </dl>
 <dl class="section note"><dt>Note</dt><dd>With a non-NULL address, the state machine sends Match ROM (0x55) plus the device address before each command, so only that device responds. Pass NULL to keep the legacy single-sensor Skip ROM behaviour. To measure a specific device, pass its ROM address (e.g., from a bus search) to <a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f" title="Select which DS18B20 device to measure by its ROM address.">ds18b20_select()</a>. </dd>
 <dd>
-The selection is applied only when no bus transaction is in flight (driver IDLE). Calls made mid-cycle are ignored, including from the per-device scan callback, which the driver invokes at DS18B20_ST_DECODE mid-round: a select() there is rejected and the scan round continues. To switch out of scan mode, call <a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f" title="Select which DS18B20 device to measure by its ROM address.">ds18b20_select()</a> from <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a> in single-device mode (the callback runs at IDLE) or between measurement rounds (at IDLE). </dd></dl>
+The selection is applied only when no bus transaction is in flight (driver IDLE). Calls made mid-cycle are ignored, including from the per-device scan callback, which the driver invokes at DS18B20_ST_DECODE mid-round: a select() there is rejected and the scan round continues. To switch out of scan mode, call <a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f" title="Select which DS18B20 device to measure by its ROM address.">ds18b20_select()</a> from <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a> in single-device mode (the callback runs at IDLE) or while the driver is parked between measurement cycles. </dd></dl>
+
+</div>
+</div>
+<a id="gaf391cdf53a783173fef0085f19ab6b5a" name="gaf391cdf53a783173fef0085f19ab6b5a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaf391cdf53a783173fef0085f19ab6b5a">&#9670;&#160;</a></span>ds18b20_start_measure()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void ds18b20_start_measure </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Start one measurement cycle (non-blocking) </p>
+<dl class="section note"><dt>Note</dt><dd>Schedules the first bus operation of a single conversion + scratchpad-read cycle on the currently selected device (every discovered device in scan mode); <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> then advances it and the result is reported through <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak)">ds18b20_complete()</a>. When the cycle finishes the driver parks at DS18B20_ST_IDLE and waits for the next request, so the measurement cadence is entirely the application's decision - the driver itself starts no cycle and retries nothing on its own. </dd>
+<dd>
+Ignored (no-op) while a measurement cycle, a device search, a resolution change or a command transaction owns the bus. </dd></dl>
 
 </div>
 </div>

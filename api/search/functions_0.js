@@ -33,5 +33,6 @@ var searchData=
   ['ds18b20_5fset_5falarm_5fthresholds_5fpoll_30',['ds18b20_set_alarm_thresholds_poll',['../group__DS18B20__Commands.html#ga0aecbb12bcb25a6a10d96826e808073f',1,'ds18b20.h']]],
   ['ds18b20_5fset_5fparasite_31',['ds18b20_set_parasite',['../group__DS18B20__Commands.html#gad7c2f89875e93751c76f66e65e665dc7',1,'ds18b20.h']]],
   ['ds18b20_5fset_5fresolution_32',['ds18b20_set_resolution',['../group__DS18B20__Resolution.html#ga5e990e80de3e8c63e633a3963c56942e',1,'ds18b20.h']]],
-  ['ds18b20_5fset_5fresolution_5fpoll_33',['ds18b20_set_resolution_poll',['../group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b',1,'ds18b20.h']]]
+  ['ds18b20_5fset_5fresolution_5fpoll_33',['ds18b20_set_resolution_poll',['../group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b',1,'ds18b20.h']]],
+  ['ds18b20_5fstart_5fmeasure_34',['ds18b20_start_measure',['../group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a',1,'ds18b20.h']]]
 ];

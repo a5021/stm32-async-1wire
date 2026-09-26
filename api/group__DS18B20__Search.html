@@ -97,7 +97,7 @@ $(document).ready(function(){initNavTree('group__DS18B20__Search.html',''); init
 </div><!--header-->
 <div class="contents">
 
-<p>Maxim Search ROM (0xF0) state machine, driven from the main loop like the measurement state machine. It filters by family code, validates the CRC and reports each found DS18B20 via a callback. When the search finishes it hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a>.  
+<p>Maxim Search ROM (0xF0) state machine, driven from the main loop like the measurement state machine. It filters by family code, validates the CRC and reports each found DS18B20 via a callback. When the search finishes the driver stays idle until the application requests the next operation (<a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a>, a new search or a command).  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
@@ -119,7 +119,7 @@ Functions</h2></td></tr>
 <tr class="separator:ga4e085086bf6a65cb65c1ed19fa1d3f37"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Maxim Search ROM (0xF0) state machine, driven from the main loop like the measurement state machine. It filters by family code, validates the CRC and reports each found DS18B20 via a callback. When the search finishes it hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a>. </p>
+<p>Maxim Search ROM (0xF0) state machine, driven from the main loop like the measurement state machine. It filters by family code, validates the CRC and reports each found DS18B20 via a callback. When the search finishes the driver stays idle until the application requests the next operation (<a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a>, a new search or a command). </p>
 <h2 class="groupheader">Typedef Documentation</h2>
 <a id="ga732cc9db6d703785867b46e466a0b4bb" name="ga732cc9db6d703785867b46e466a0b4bb"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga732cc9db6d703785867b46e466a0b4bb">&#9670;&#160;</a></span>ds18b20_search_sink_t</h2>

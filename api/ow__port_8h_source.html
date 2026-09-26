@@ -109,63 +109,79 @@ $(document).ready(function(){initNavTree('ow__port_8h_source.html',''); initResi
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span> </div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">/* --- 1-Wire reset timeslot geometry (microseconds), shared by all backends.</span></div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment"> *     The &#39;1&#39;/&#39;0&#39; bit-slot durations live in onewire.h (ONEWIRE_ONE_PULSE,</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment"> *     The &#39;1&#39;/&#39;0&#39; bit-slot durations live in ow_config.h (ONEWIRE_ONE_PULSE,</span></div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment"> *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). --- */</span></div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="ow__port_8h.html#aa18f9f11d231ba5cdc1674c70d1dca0c">   29</a></span><span class="preprocessor">#define OW_PORT_RESET_PULSE_DURATION 480u</span></div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno"><a class="line" href="ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78">   30</a></span><span class="preprocessor">#define OW_PORT_RESET_TIMEOUT 960u</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="ow__port_8h.html#a629ce7673dff00062857559a77d2a2a5">   31</a></span><span class="preprocessor">#define OW_PORT_CAPTURE_BUF_SIZE 2u</span></div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment">/* onewire.h supplies OW_PORT_SYSCLK_MHZ (used for the timer prescaler and</span></div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment"> * the IC4F selection below) plus the fixed bit-slot durations; including it</span></div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment"> * here keeps this header self-contained regardless of TU include order. */</span></div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="preprocessor">#include &quot;<a class="code" href="onewire_8h.html">onewire.h</a>&quot;</span></div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span><span class="comment">/* The byte-read capture path (ow_port_read_data, width==8) stores CCR4&#39;s</span></div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><span class="comment"> * least-significant byte via MSIZE=8.  This is lossless only while every</span></div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span><span class="comment"> * slot capture stays below 256 µs; the counter runs 0..ARR, so the maximum</span></div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment"> * capture value is ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE +</span></div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment"> * ONEWIRE_GUARD_BAND.  Enforce this globally across all backends. */</span></div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="keyword">_Static_assert</span>((<a class="code hl_define" href="ow__config_8h.html#aa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a> + <a class="code hl_define" href="ow__config_8h.html#a404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a> + <a class="code hl_define" href="ow__config_8h.html#ac5ba21c930f7b725a5d54d2d4b67031f">ONEWIRE_GUARD_BAND</a>) &lt; 256u,</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>               <span class="stringliteral">&quot;8-bit read capture (MSIZE=8) would truncate slot durations&quot;</span>);</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">/* --- CH4 input-capture digital filter (IC4F), one standard for every clock.</span></div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment"> *     Keep the filter time T_f = N × T_sample as close to ~500ns as the</span></div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment"> *     discrete IC4F table allows for the configured clock: that rejects</span></div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment"> *     sub-µs bus glitches while adding well under 1µs to read-slot captures</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment"> *     — negligible against the ONEWIRE_SHORT_PULSE_MAX decode window (an</span></div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment"> *     IC4F sweep on STM32F030@8MHz decoded cleanly from fCK_INT N=2 all the</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment"> *     way to fDTS/4 N=8):</span></div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="comment"> *       ≤ 8MHz   fCK_INT, N=4    T_f ≈ 500ns @ 8MHz</span></div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment"> *       ≤16MHz   fCK_INT, N=8    T_f ≈ 500ns @ 16MHz</span></div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment"> *       &gt;16MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz</span></div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment"> *     Backends feed the macro into TIM_CCMR2(...) unchanged. --- */</span></div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="preprocessor">#if (OW_PORT_SYSCLK_MHZ) &lt;= 8</span></div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno"><a class="line" href="ow__port_8h.html#a7b8657fa128b88cf57cd22477f3c67d7">   58</a></span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_1 </span><span class="comment">/* fCK_INT, N=4 */</span><span class="preprocessor"></span></div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="preprocessor">#elif (OW_PORT_SYSCLK_MHZ) &lt;= 16</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 </span><span class="comment">/* fCK_INT, N=8 */</span><span class="preprocessor"></span></div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 </span><span class="comment">/* fDTS/4, N=8 */</span><span class="preprocessor"></span></div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span> </div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment">/* --- Backend selection: onewire.h resolves OW_PORT_FAMILY_* from either the</span></div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment"> *     OW_PORT_TARGET_* knob or the PlatformIO / STM32CubeMX family macro</span></div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment"> *     (STM32F1/F0/G0); a single chain keeps the default clock (onewire.h) and</span></div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment"> *     the backend in sync. Add new families in both places, never here alone. */</span></div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F1)</span></div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">#include &quot;ow_port_f1.h&quot;</span></div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F0)</span></div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="preprocessor">#include &quot;ow_port_f0.h&quot;</span></div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="preprocessor">#error &quot;ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0 or OW_PORT_TARGET_G0, or a family macro such as STM32F1/STM32F0/STM32G0)&quot;</span></div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>}</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment"> * the IC4F selection below), the bit-slot durations come from ow_config.h, and</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment"> * it defines ow_pulse_t for the backend signatures.  Including it here keeps</span></div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment"> * this header self-contained regardless of TU include order. */</span></div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="preprocessor">#include &quot;<a class="code" href="onewire_8h.html">onewire.h</a>&quot;</span></div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><span class="comment">/* The byte-read capture path (ow_port_read_data, width==8) stores CCR4&#39;s</span></div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span><span class="comment"> * least-significant byte via MSIZE=8.  This is lossless only while every</span></div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment"> * slot capture stays below 256 µs; the counter runs 0..ARR, so the maximum</span></div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment"> * capture value is ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE +</span></div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment"> * ONEWIRE_GUARD_BAND.  Enforce this globally across all backends. */</span></div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="keyword">_Static_assert</span>((<a class="code hl_define" href="ow__config_8h.html#aa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a> + <a class="code hl_define" href="ow__config_8h.html#a404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a> + <a class="code hl_define" href="ow__config_8h.html#ac5ba21c930f7b725a5d54d2d4b67031f">ONEWIRE_GUARD_BAND</a>) &lt; 256u,</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>               <span class="stringliteral">&quot;8-bit read capture (MSIZE=8) would truncate slot durations&quot;</span>);</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">/* --- CH4 input-capture digital filter (IC4F), one standard for every clock.</span></div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment"> *     Keep the filter time T_f = N × T_sample as close to ~500ns as the</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment"> *     discrete IC4F table allows for the configured clock: that rejects</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment"> *     sub-µs bus glitches while adding well under 1µs to read-slot captures</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment"> *     — negligible against the ONEWIRE_SHORT_PULSE_MAX decode window (an</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment"> *     IC4F sweep on STM32F030@8MHz decoded cleanly from fCK_INT N=2 all the</span></div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="comment"> *     way to fDTS/4 N=8):</span></div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment"> *       ≤ 8MHz   fCK_INT, N=4    T_f ≈ 500ns @ 8MHz</span></div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment"> *       ≤16MHz   fCK_INT, N=8    T_f ≈ 500ns @ 16MHz</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment"> *       ≤72MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz</span></div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="comment"> *       &gt;72MHz   fDTS/8,  N=6    T_f ≈ 571ns @ 84MHz</span></div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span><span class="comment"> *     (fDTS/4,N=8 on 84MHz would give 381ns — below the 444..667ns T_f range</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment"> *     shared by every other port; fDTS/8,N=6 restores it.)</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment"> *     Backends feed the macro into TIM_CCMR2(...) unchanged.</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment"> *     The default can be overridden from the build (-DOW_PORT_IC4F_ARGS=...)</span></div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment"> *     to sweep the filter on a bench; the exact ICxF encoding is family</span></div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment"> *     specific (F4/TIM1 fDTS table from STM32Cube LL, e.g. fDTS/4,N=8 =</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment"> *     IC4F_0,IC4F_1,IC4F_2 vs. fDTS/8,N=6 = IC4F_3). --- */</span></div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="preprocessor">#ifndef OW_PORT_IC4F_ARGS</span></div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="preprocessor">#if (OW_PORT_SYSCLK_MHZ) &lt;= 8</span></div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno"><a class="line" href="ow__port_8h.html#a7b8657fa128b88cf57cd22477f3c67d7">   67</a></span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_1 </span><span class="comment">/* fCK_INT, N=4 */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="preprocessor">#elif (OW_PORT_SYSCLK_MHZ) &lt;= 16</span></div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 </span><span class="comment">/* fCK_INT, N=8 */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">#elif (OW_PORT_SYSCLK_MHZ) &lt;= 72</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 </span><span class="comment">/* fDTS/4, N=8 */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="preprocessor">#define OW_PORT_IC4F_ARGS IC4F_3 </span><span class="comment">/* fDTS/8, N=6 */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> </div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="comment">/* --- Backend selection: onewire.h resolves OW_PORT_FAMILY_* from either the</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="comment"> *     OW_PORT_TARGET_* knob or the PlatformIO / STM32CubeMX family macro</span></div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="comment"> *     (STM32F1/F0/G0/F4, plus the concrete F4 device spellings</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment"> *     STM32F407xx / STM32F401xC / STM32F401xE); a single chain keeps the</span></div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="comment"> *     default clock (onewire.h) and the backend in sync. Add new families in</span></div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment"> *     both places, never here alone. */</span></div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F1)</span></div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="preprocessor">#include &quot;ow_port_f1.h&quot;</span></div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F0)</span></div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="preprocessor">#include &quot;ow_port_f0.h&quot;</span></div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="preprocessor">#include &quot;ow_port_f4.h&quot;</span></div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="preprocessor">#error &quot;ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)&quot;</span></div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>}</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aonewire_8h_html"><div class="ttname"><a href="onewire_8h.html">onewire.h</a></div><div class="ttdoc">Universal non-blocking 1-Wire bus layer for STM32.</div></div>
 <div class="ttc" id="aow__config_8h_html_a404da404453e7f30870bd891c1792139"><div class="ttname"><a href="ow__config_8h.html#a404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ZERO_PULSE</div><div class="ttdoc">Duration of a '0' bit write pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:81</div></div>
 <div class="ttc" id="aow__config_8h_html_aa6a4d6398a7d8069affba9f78d5e2c6e"><div class="ttname"><a href="ow__config_8h.html#aa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ONE_PULSE</div><div class="ttdoc">Duration of a '1' bit write/read pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:76</div></div>

@@ -96,7 +96,7 @@ $(document).ready(function(){initNavTree('group__DS18B20__Commands.html',''); in
 </div><!--header-->
 <div class="contents">
 
-<p>Infrequent DS18B20 commands driven with the same non-blocking discipline as the device search and the resolution change: every command owns TIM1/DMA while it runs (reset -&gt; presence -&gt; write -&gt; read | wait) and hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> when done.  
+<p>Infrequent DS18B20 commands driven with the same non-blocking discipline as the device search and the resolution change: every command owns TIM1/DMA while it runs (reset -&gt; presence -&gt; write -&gt; read | wait) and leaves the bus idle when done.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
@@ -148,8 +148,8 @@ Functions</h2></td></tr>
 <tr class="separator:gaefd00808d8238459307a1e532a1c9d71"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Infrequent DS18B20 commands driven with the same non-blocking discipline as the device search and the resolution change: every command owns TIM1/DMA while it runs (reset -&gt; presence -&gt; write -&gt; read | wait) and hands the timer back to <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> when done. </p>
-<p>Each command is a start/poll pair; poll until it returns 1, then resume calling <a class="el" href="group__DS18B20__Exported__Functions.html#ga6eeebb1626eae6a6be3d73fdcf65f970" title="Advance the state machine (non-blocking)">ds18b20_poll()</a> for measurements. Commands are ignored mid-cycle, while a device search or a resolution change runs, or while another command transaction is still running. Result buffers passed to the read commands must stay valid until the transaction finishes. </p>
+<p>Infrequent DS18B20 commands driven with the same non-blocking discipline as the device search and the resolution change: every command owns TIM1/DMA while it runs (reset -&gt; presence -&gt; write -&gt; read | wait) and leaves the bus idle when done. </p>
+<p>Each command is a start/poll pair; poll until it returns 1, then call <a class="el" href="group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a" title="Start one measurement cycle (non-blocking)">ds18b20_start_measure()</a> to measure again. Commands are ignored mid-cycle, while a device search or a resolution change runs, or while another command transaction is still running. Result buffers passed to the read commands must stay valid until the transaction finishes. </p>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ga7c78f33c0c274e68a79ddb2350d67e6e" name="ga7c78f33c0c274e68a79ddb2350d67e6e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga7c78f33c0c274e68a79ddb2350d67e6e">&#9670;&#160;</a></span>ds18b20_copy_scratchpad()</h2>

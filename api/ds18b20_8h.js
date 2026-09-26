@@ -67,5 +67,6 @@ var ds18b20_8h =
     [ "ds18b20_set_alarm_thresholds_poll", "group__DS18B20__Commands.html#ga0aecbb12bcb25a6a10d96826e808073f", null ],
     [ "ds18b20_set_parasite", "group__DS18B20__Commands.html#gad7c2f89875e93751c76f66e65e665dc7", null ],
     [ "ds18b20_set_resolution", "group__DS18B20__Resolution.html#ga5e990e80de3e8c63e633a3963c56942e", null ],
-    [ "ds18b20_set_resolution_poll", "group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b", null ]
+    [ "ds18b20_set_resolution_poll", "group__DS18B20__Resolution.html#ga596a75f00d590ea457986286dd5ee84b", null ],
+    [ "ds18b20_start_measure", "group__DS18B20__Exported__Functions.html#gaf391cdf53a783173fef0085f19ab6b5a", null ]
 ];
