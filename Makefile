@@ -809,7 +809,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Itests/mock \
+               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz
