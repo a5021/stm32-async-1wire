@@ -40,62 +40,10 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "ow_port.h"
+#include "port_setup_probe.h"
 #include "unity.h"
 
 #include <stdio.h>
-
-/* One flat view of the setup state, so the table is written once against a
- * family-independent shape instead of four times against register names that
- * only exist on some of them. */
-typedef struct {
-    uint32_t clk; /* GPIOA + TIM1 + DMA clock gates, packed */
-    uint32_t psc; /* TIM1 prescaler */
-    uint32_t bdtr; /* TIM1 BDTR */
-    uint32_t pin_mode; /* CRH on F1, MODER elsewhere */
-    uint32_t pin_otype; /* OTYPER where the family has one, else 0 */
-    uint32_t pin_af; /* AFR[1] where the family has one, else 0 */
-    uint32_t pin_speed; /* OSPEEDR where the family has one, else 0 */
-    uint32_t remap; /* SYSCFG pad remap where the family has one, else 0 */
-} port_setup_t;
-
-static port_setup_t snapshot(void) {
-    port_setup_t s;
-    s.clk = 0u;
-    s.psc = (uint32_t)mock_tim1.PSC;
-    s.bdtr = (uint32_t)mock_tim1.BDTR;
-    s.pin_mode = 0u;
-    s.pin_otype = 0u;
-    s.pin_af = 0u;
-    s.pin_speed = 0u;
-    s.remap = 0u;
-
-#if defined(OW_PORT_FAMILY_F1)
-    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
-    s.pin_mode = (uint32_t)mock_gpioa.CRH;
-#elif defined(OW_PORT_FAMILY_F0)
-    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
-    s.pin_mode = (uint32_t)mock_gpioa.MODER;
-    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
-    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
-    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#elif defined(OW_PORT_FAMILY_G0)
-    s.clk = (uint32_t)mock_rcc.APBENR2 |
-            ((uint32_t)mock_rcc.IOPENR << 16) |
-            ((uint32_t)mock_rcc.AHBENR << 32);
-    s.pin_mode = (uint32_t)mock_gpioa.MODER;
-    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
-    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
-    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-    s.remap = (uint32_t)mock_syscfg.CFGR1;
-#else /* OW_PORT_FAMILY_F4 */
-    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHB1ENR << 16);
-    s.pin_mode = (uint32_t)mock_gpioa.MODER;
-    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
-    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
-    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#endif
-    return s;
-}
 
 typedef enum { SETUP_INIT,
                SETUP_PUSH_PULL,
@@ -120,9 +68,9 @@ typedef struct {
  * (alternate-function open-drain) after init, and CNF10 = 0b10 (AF push-pull)
  * in push-pull mode. */
 static const setup_row_t k_setup[] = {
-    {"init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u},
-    {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0u, 0u},
-    {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u},
+    {"init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
+    {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0x00000200u, 0u},
+    {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
 };
 #elif defined(OW_PORT_FAMILY_F0)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
@@ -153,6 +101,47 @@ static const setup_row_t k_setup[] = {
 };
 #endif
 
+port_setup_t port_setup_snapshot(void) {
+
+    port_setup_t s;
+    s.clk = 0u;
+    s.psc = (uint32_t)mock_tim1.PSC;
+    s.bdtr = (uint32_t)mock_tim1.BDTR;
+    s.pin_mode = 0u;
+    s.pin_otype = 0u;
+    s.pin_af = 0u;
+    s.pin_speed = 0u;
+    s.remap = 0u;
+
+#if defined(OW_PORT_FAMILY_F1)
+    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
+    s.pin_mode = (uint32_t)mock_gpioa.CRH;
+    s.pin_speed = (uint32_t)mock_gpioa.CRH & GPIO_CRH_MODE10;
+#elif defined(OW_PORT_FAMILY_F0)
+    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#elif defined(OW_PORT_FAMILY_G0)
+    s.clk = (uint32_t)mock_rcc.APBENR2 |
+            ((uint32_t)mock_rcc.IOPENR << 16) |
+            ((uint32_t)mock_rcc.AHBENR << 32);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+    s.remap = (uint32_t)mock_syscfg.CFGR1;
+#else /* OW_PORT_FAMILY_F4 */
+    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHB1ENR << 16);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#endif
+    return s;
+}
+
 static void apply(setup_variant_t v) {
     hw_reset_all();
     ow_port_init();
@@ -168,7 +157,7 @@ static void check(setup_variant_t v) {
     port_setup_t s;
 
     apply(v);
-    s = snapshot();
+    s = port_setup_snapshot();
 
     TEST_ASSERT_EQUAL_HEX32_MESSAGE(row->clk, s.clk, "clock gates");
     TEST_ASSERT_EQUAL_HEX32_MESSAGE(row->psc, s.psc, "TIM1 prescaler");
@@ -200,7 +189,7 @@ static void capture(void) {
     for (uint32_t i = 0u; i < 3u; i++) {
         port_setup_t s;
         apply((setup_variant_t)i);
-        s = snapshot();
+        s = port_setup_snapshot();
         printf("CAPTURE %-11s clk=0x%08lx psc=0x%04lx bdtr=0x%04lx mode=0x%08lx "
                "otype=0x%08lx af=0x%08lx speed=0x%08lx remap=0x%08lx\n",
                tags[i], (unsigned long)s.clk, (unsigned long)s.psc, (unsigned long)s.bdtr,

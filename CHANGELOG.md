@@ -108,6 +108,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The bus pin's state is asked through three macros in `mock_target.h`**
+  (`MOCK_PIN_IS_AF` / `_OD` / `_PP`) instead of each host test naming the CMSIS
+  fields itself. The pin is PA10 on every family, but the fields that say
+  "alternate function" and "open-drain" are spelled three ways - F1 uses the
+  legacy `CRH` CNF10 field, G0's CMSIS drops the R, F0 and F4 use `MODER10` with
+  `OTYPER` - and three test files each carried their own copy of that spelling.
+  A fourth copy is part of why the mocks' wrong MODER10 field went unnoticed:
+  the same expression spelled out in a test reads as deliberate, where the same
+  wrong value inside a mock does not. The roles now sit beside the 18 existing
+  `MOCK_*` macros, which is where the rest of the family knowledge already was.
+
+- **`test_state_machine.c`'s four-family `ds18b20_init()` register check is gone,
+  and with it 60 lines that repeated the setup contract.** It asserted clock
+  gates, prescaler, BDTR, pin mode, output type, AF number and drive strength
+  for each family separately, using bit tests where
+  `test_port_init_contract.c` now asserts the same fields as exact register
+  contents with the failing field named. What it did check that nothing else
+  does is the *link* - that `ds18b20_init()` reaches `ow_port_init()` and changes
+  nothing beyond it - so that is all it does now, by comparing the two snapshots
+  directly instead of restating the expected values.
+
+  One assertion genuinely moved rather than disappeared: F1's copy of the
+  strong-pull-up helper also checked the CRH MODE10 drive-strength field, which
+  the F0/G0/F4 copies never did. That asymmetry was unintentional, so the
+  contract test now captures F1's MODE10 field as `pin_speed` and pins it like
+  the other three families - the check is kept, and the file no longer implies
+  the families assert the same thing when they did not.
+
 - **The F0, F1 and G0 backends now share one TIM1/DMA1 core**
   (`port/common/ow_port_tim_dma.h`), leaving each backend with only what is
   genuinely its own. All three had the same sixteen `ow_port_*` functions in
