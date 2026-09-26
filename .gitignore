@@ -63,6 +63,11 @@ dkms.conf
 build/
 cmake-build*/
 
+# CMake FetchContent and install artifacts. The ci.yml cmake job keeps these
+# under build/, but a local run with an explicit --prefix does not.
+_deps/
+/prefix*/
+
 # Build artifacts
 inline_report.txt
 jflash.log
