@@ -11,8 +11,8 @@
 #define OW_PORT_F1_H
 
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_bits.h"
+#include "ow_port.h"
 #include "stm32f1xx.h"
 
 /* @brief Gate GPIOA, TIM1 and DMA1.
@@ -21,10 +21,10 @@
  *  two registers but names the bits GPIOAEN/DMAEN, and G0 uses IOPENR/APBENR2
  *  with a read-back to settle the APB clock before its first SYSCFG access.
  */
-#define OW_PORT_ENABLE_BUS_CLOCKS()      \
-    do {                                  \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                \
+    do {                                           \
         RC.APB2ENR |= RCC_APB2ENR(IOPAEN, TIM1EN); \
-        RC.AHBENR |= RCC_AHBENR(DMA1EN);  \
+        RC.AHBENR |= RCC_AHBENR(DMA1EN);           \
     } while (0)
 
 /* @brief PA10: alternate function, open-drain, 2 MHz (TIM1_CH3, default map).
@@ -35,10 +35,10 @@
  *  cleared first so the pin is configured correctly even if it was previously
  *  set to another mode.
  */
-#define OW_PORT_CONFIG_BUS_PIN()                                          \
-    do {                                                                  \
-        PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) |                    \
-                 GPIO_CRH(MODE10_1, CNF10_0, CNF10_1);                    \
+#define OW_PORT_CONFIG_BUS_PIN()                       \
+    do {                                               \
+        PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) | \
+                 GPIO_CRH(MODE10_1, CNF10_0, CNF10_1); \
     } while (0)
 
 /* @brief Toggle the bus pin between open-drain and push-pull.
@@ -50,10 +50,10 @@
  *  able to pull the line LOW while the master reads, so every read and reset
  *  phase returns to open-drain.
  */
-#define OW_PORT_SET_PIN_MODE(push_pull)   \
-    do {                                  \
-        PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10) | \
-                 (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10);         \
+#define OW_PORT_SET_PIN_MODE(push_pull)                           \
+    do {                                                          \
+        PA.CRH = (PA.CRH & ~GPIO_CRH_CNF10) |                     \
+                 (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10); \
     } while (0)
 
 /* @brief DMA request routing.

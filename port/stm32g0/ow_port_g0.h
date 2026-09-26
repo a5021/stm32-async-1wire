@@ -12,8 +12,8 @@
 #define OW_PORT_G0_H
 
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_bits.h"
+#include "ow_port.h"
 #include "stm32g0xx.h"
 
 /* @brief Gate DMA1, GPIOA, SYSCFG and TIM1, then remap the bus pads.
@@ -27,13 +27,13 @@
  *  PA12_RMP make the PA11/PA12 pads operate as PA9/PA10 (RM0444 section 8.1.1),
  *  so everything below that says "logical PA10" is physical PA12.
  */
-#define OW_PORT_ENABLE_BUS_CLOCKS()      \
-    do {                                  \
-        RC.AHBENR |= RCC_AHBENR_DMA1EN;   \
-        RC.IOPENR |= RCC_IOPENR_GPIOAEN;  \
-        RC.APBENR2 |= RCC_APBENR2_SYSCFGEN | RCC_APBENR2_TIM1EN; \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                                 \
+    do {                                                                            \
+        RC.AHBENR |= RCC_AHBENR_DMA1EN;                                             \
+        RC.IOPENR |= RCC_IOPENR_GPIOAEN;                                            \
+        RC.APBENR2 |= RCC_APBENR2_SYSCFGEN | RCC_APBENR2_TIM1EN;                    \
         (void)RC.APBENR2; /* settle the APB clock before the SYSCFG access below */ \
-        SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP; \
+        SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP;             \
     } while (0)
 
 /* @brief Logical PA10: alternate function, open-drain, AF2 (TIM1_CH3).
@@ -42,14 +42,14 @@
  *  spells the MODER fields without the R (MODE10, not MODER10) and drops the
  *  _R infix in OTYPER/OSPEEDR.  The values are the same pins.
  */
-#define OW_PORT_CONFIG_BUS_PIN()                                    \
-    do {                                                            \
-        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1; \
-        PA.OTYPER |= GPIO_OTYPER_OT10;                             \
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1;             \
+        PA.OTYPER |= GPIO_OTYPER_OT10;                                                \
         PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos); \
-        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */ \
-        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |       \
-                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos); \
+        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */           \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
     } while (0)
 
 /* @brief Toggle the bus pin between open-drain and push-pull.
@@ -58,13 +58,13 @@
  *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
  *  master reads, so every read and reset phase returns to open-drain.
  */
-#define OW_PORT_SET_PIN_MODE(push_pull)      \
-    do {                                     \
-        if (push_pull) {                     \
-            PA.OTYPER &= ~GPIO_OTYPER_OT10;  /* OD -> PP (strong HIGH) */ \
-        } else {                             \
-            PA.OTYPER |= GPIO_OTYPER_OT10;   /* PP -> OD (release) */ \
-        }                                    \
+#define OW_PORT_SET_PIN_MODE(push_pull)                                  \
+    do {                                                                 \
+        if (push_pull) {                                                 \
+            PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                         \
+            PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */      \
+        }                                                                \
     } while (0)
 
 /* @brief DMAMUX request selectors (RM0444 Table 42).
@@ -78,13 +78,13 @@
 #define OW_PORT_DMAMUX_REQ_TIM1_CC2 21u
 #define OW_PORT_DMAMUX_REQ_TIM1_CH4 23u
 
-#define OW_PORT_ROUTE_CAPTURE()                                          \
-    do {                                                                \
-        DMAMUX1_Channel3->CCR = OW_PORT_DMAMUX_REQ_TIM1_CH4;            \
+#define OW_PORT_ROUTE_CAPTURE()                              \
+    do {                                                     \
+        DMAMUX1_Channel3->CCR = OW_PORT_DMAMUX_REQ_TIM1_CH4; \
     } while (0)
-#define OW_PORT_ROUTE_FEED()                                            \
-    do {                                                                \
-        DMAMUX1_Channel2->CCR = OW_PORT_DMAMUX_REQ_TIM1_CC2;            \
+#define OW_PORT_ROUTE_FEED()                                 \
+    do {                                                     \
+        DMAMUX1_Channel2->CCR = OW_PORT_DMAMUX_REQ_TIM1_CC2; \
     } while (0)
 
 /* @brief DMA channel assignment: feed rides DMAMUX channel 2 paired with

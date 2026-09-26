@@ -11,8 +11,8 @@
 #define OW_PORT_F0_H
 
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_bits.h"
+#include "ow_port.h"
 #include "stm32f0xx.h"
 
 /* @brief Gate GPIOA, DMA1 and TIM1.
@@ -21,10 +21,10 @@
  *  IOPAEN/DMA1EN in the same pair, and G0 uses IOPENR/APBENR2 with a read-back
  *  to settle the APB clock before its first SYSCFG access.
  */
-#define OW_PORT_ENABLE_BUS_CLOCKS()          \
-    do {                                      \
+#define OW_PORT_ENABLE_BUS_CLOCKS()              \
+    do {                                         \
         RC.AHBENR |= RCC_AHBENR(GPIOAEN, DMAEN); \
-        RC.APB2ENR |= RCC_APB2ENR(TIM1EN);    \
+        RC.APB2ENR |= RCC_APB2ENR(TIM1EN);       \
     } while (0)
 
 /* @brief PA10: alternate function, open-drain, AF2 (TIM1_CH3).
@@ -34,14 +34,14 @@
  *  rather than shared code.  The whole MODE/CNF field is cleared first so the
  *  pin lands in the right mode even if something set it before us.
  */
-#define OW_PORT_CONFIG_BUS_PIN()                                    \
-    do {                                                            \
-        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1; \
-        PA.OTYPER |= GPIO_OTYPER_OT_10;                             \
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
+        PA.OTYPER |= GPIO_OTYPER_OT_10;                                               \
         PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos); \
-        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */ \
-        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEEDR10) |      \
-                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEEDR10_Pos); \
+        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */           \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEEDR10) |                         \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEEDR10_Pos);           \
     } while (0)
 
 /* @brief Toggle the bus pin between open-drain and push-pull.
@@ -50,13 +50,13 @@
  *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
  *  master reads, so every read and reset phase returns to open-drain.
  */
-#define OW_PORT_SET_PIN_MODE(push_pull)      \
-    do {                                     \
-        if (push_pull) {                     \
+#define OW_PORT_SET_PIN_MODE(push_pull)                                   \
+    do {                                                                  \
+        if (push_pull) {                                                  \
             PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */ \
-        } else {                             \
-            PA.OTYPER |= GPIO_OTYPER_OT_10;  /* PP -> OD (release) */ \
-        }                                    \
+        } else {                                                          \
+            PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */      \
+        }                                                                 \
     } while (0)
 
 /* @brief DMA request routing.

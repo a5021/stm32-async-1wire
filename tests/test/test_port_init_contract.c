@@ -37,9 +37,9 @@
  *  about the wrong pin in three of the four backends.
  * ============================================================ */
 
-#include "ow_port.h"
-#include "mock_target.h"
 #include "hw_model.h"
+#include "mock_target.h"
+#include "ow_port.h"
 #include "unity.h"
 
 #include <stdio.h>
@@ -48,14 +48,14 @@
  * family-independent shape instead of four times against register names that
  * only exist on some of them. */
 typedef struct {
-    uint32_t clk;       /* GPIOA + TIM1 + DMA clock gates, packed */
-    uint32_t psc;       /* TIM1 prescaler */
-    uint32_t bdtr;      /* TIM1 BDTR */
-    uint32_t pin_mode;  /* CRH on F1, MODER elsewhere */
+    uint32_t clk; /* GPIOA + TIM1 + DMA clock gates, packed */
+    uint32_t psc; /* TIM1 prescaler */
+    uint32_t bdtr; /* TIM1 BDTR */
+    uint32_t pin_mode; /* CRH on F1, MODER elsewhere */
     uint32_t pin_otype; /* OTYPER where the family has one, else 0 */
-    uint32_t pin_af;    /* AFR[1] where the family has one, else 0 */
+    uint32_t pin_af; /* AFR[1] where the family has one, else 0 */
     uint32_t pin_speed; /* OSPEEDR where the family has one, else 0 */
-    uint32_t remap;     /* SYSCFG pad remap where the family has one, else 0 */
+    uint32_t remap; /* SYSCFG pad remap where the family has one, else 0 */
 } port_setup_t;
 
 static port_setup_t snapshot(void) {
@@ -97,7 +97,9 @@ static port_setup_t snapshot(void) {
     return s;
 }
 
-typedef enum { SETUP_INIT, SETUP_PUSH_PULL, SETUP_OPEN_DRAIN } setup_variant_t;
+typedef enum { SETUP_INIT,
+               SETUP_PUSH_PULL,
+               SETUP_OPEN_DRAIN } setup_variant_t;
 
 typedef struct {
     const char* name;
@@ -118,36 +120,36 @@ typedef struct {
  * (alternate-function open-drain) after init, and CNF10 = 0b10 (AF push-pull)
  * in push-pull mode. */
 static const setup_row_t k_setup[] = {
-    { "init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u },
-    { "push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0u, 0u },
-    { "open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u },
+    {"init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u},
+    {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0u, 0u},
+    {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0u, 0u},
 };
 #elif defined(OW_PORT_FAMILY_F0)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x200 = AF2 for TIM1_CH3;
  * speed 0x300000 = PA10 at the fastest setting. */
 static const setup_row_t k_setup[] = {
-    { "init", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u },
-    { "push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u },
-    { "open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u },
+    {"init", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
+    {"push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u},
+    {"open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
 };
 #elif defined(OW_PORT_FAMILY_G0)
 /* As F0 for the bus pin, plus remap 0x18 = PA11_RMP | PA12_RMP: the G031 TSSOP20
  * does not bond out PA9/PA10, so the bus runs on the remapped pads. clk packs
  * APBENR2 low, IOPENR middle, AHBENR high. */
 static const setup_row_t k_setup[] = {
-    { "init", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u },
-    { "push_pull", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0x00000018u },
-    { "open_drain", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u },
+    {"init", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u},
+    {"push_pull", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0x00000018u},
+    {"open_drain", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u},
 };
 #else /* OW_PORT_FAMILY_F4 */
 /* mode additionally sets PA11 to 0b01 (output), because this backend rides the
  * LA marker on PA11. af is 0x100 = AF1 here, against AF2 on F0/G0 - that is the
  * silicon, not an inconsistency. */
 static const setup_row_t k_setup[] = {
-    { "init", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u },
-    { "push_pull", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0u, 0x00000100u, 0x00300000u, 0u },
-    { "open_drain", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u },
+    {"init", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+    {"push_pull", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0u, 0x00000100u, 0x00300000u, 0u},
+    {"open_drain", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
 };
 #endif
 
@@ -194,7 +196,7 @@ static void test_port_setup_open_drain(void) {
 /* Capture mode: print the rows instead of asserting, so the table can be
  * regenerated from a backend. Never compiled in CI. */
 static void capture(void) {
-    static const char* tags[3] = { "init", "push_pull", "open_drain" };
+    static const char* tags[3] = {"init", "push_pull", "open_drain"};
     for (uint32_t i = 0u; i < 3u; i++) {
         port_setup_t s;
         apply((setup_variant_t)i);
