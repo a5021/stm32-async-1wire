@@ -294,6 +294,7 @@ function(ow_add_core_library tgt)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/common>
         $<INSTALL_INTERFACE:include/stm32-async-1wire>
         # Device/CMSIS headers are required to compile the library (ow_port.h
         # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
@@ -354,6 +355,9 @@ install(FILES
     port/stm32f0/ow_port_f0.h
     port/stm32g0/ow_port_g0.h
     port/stm32f4/ow_port_f4.h
+    # Shared TIM1/DMA1 core: ow_port_f0.h, ow_port_f1.h and ow_port_g0.h
+    # include it, so it must be installed alongside them.
+    port/common/ow_port_tim_dma.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 

@@ -108,6 +108,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The F0, F1 and G0 backends now share one TIM1/DMA1 core**
+  (`port/common/ow_port_tim_dma.h`), leaving each backend with only what is
+  genuinely its own. All three had the same sixteen `ow_port_*` functions in
+  the same order - the same bus machine, written three times because each
+  backend was done against its own reference manual and never merged.
+  Measuring the three showed the code diverging in only nine places, and all
+  of them are now five statement macros a backend defines: which clocks to
+  gate, how the bus pin is put into alternate-function open-drain (F1 still
+  uses the legacy `GPIO_CRH` field rather than `MODER`/`AFR`), how the pin
+  toggles to push-pull, and the DMAMUX routing G0 needs. F4 is deliberately
+  not included: same sixteen functions but a different DMA controller (DMA2
+  streams with a CHSEL mux), two functions of its own, and an LA marker on
+  PA11, so folding it in would mean conditionals on everything.
+
+  There is no run-time cost - it all stays `__STATIC_FORCEINLINE` and every
+  difference is resolved by the preprocessor. Checked rather than assumed:
+  the `.bin` of all seven examples for F0, G0 and F1 is byte-identical before
+  and after, which is what "moved, not rewritten" has to mean for a layer
+  whose boards are not available to re-verify on.
+
+- **`ow_port_f1.h` used `const uint8_t*` where the other three backends use
+  `const ow_pulse_t*`.** Harmless as it stood - `ow_pulse_t` *is* `uint8_t`
+  for F1 - but it hardcoded a family-specific width into four port
+  signatures, so giving F1 16-bit slots the way F4 has them would have
+  turned into a conflicting-type error far from the cause. The shared core
+  has one signature, so the question no longer arises. Confirmed no effect on
+  the generated code.
+
 - **CMake artifacts no longer land in the repository root.** The `cmake` CI job
   kept its FetchContent clones in `_deps/` and installed into
   `prefix-<backend>/`; the install tree was only partly hidden, because the
