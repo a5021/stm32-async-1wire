@@ -460,6 +460,10 @@ clean-deps:
 # filesystem is what a shell does well, and doing it here needed a parse-time
 # include plus an eval'd conditional plus a sub-make per part.
 
+.PHONY: test-mocks
+test-mocks:
+	@sh tests/check_mock_headers.sh
+
 .PHONY: test-chips
 test-chips:
 	@sh tests/check_chips.sh
@@ -577,6 +581,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_dmamux.c \
             $(TEST_DIR)/test_dma.c \
             $(TEST_DIR)/test_dma_contract.c \
+            $(TEST_DIR)/test_port_init_contract.c \
             $(TEST_DIR)/test_ow_stats.c \
             $(TEST_DIR)/test_rcr_limits.c \
             $(TEST_DIR)/test_tim_model.c \
@@ -621,7 +626,15 @@ TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -Wall -Wextra -Wswitch-enum \
+# Hook for defines only the host suite should see, the counterpart of EXT
+# for the firmware build. It is how the port setup contract tables were
+# generated: `make test TEST_EXTRA_FLAG=-DOW_PORT_INIT_CAPTURE` makes the
+# contract test print what each backend programs instead of asserting, so
+# the expectations are the backends' real behaviour rather than my
+# reading of them. Empty by default, so the normal suite is unaffected.
+TEST_EXTRA_FLAG ?=
+
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
@@ -717,7 +730,7 @@ clock-ref-check:
 	$(foreach c,$(F401_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
-test-clocks: test-chips $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
+test-clocks: test-chips test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
 # Both F401 parts, via the list above; kept as a target so the aggregate and
 # `make test` reach the same check by a name a reader can find.
 test-clocks-f401: clock-ref-check

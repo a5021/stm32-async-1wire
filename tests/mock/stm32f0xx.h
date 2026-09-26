@@ -103,9 +103,17 @@ extern USART_TypeDef mock_usart1;
 #define RCC_AHBENR_GPIOAEN 0x00020000u
 #define RCC_AHBENR_DMAEN 0x00000001u
 #define RCC_CFGR_PPRE_Msk (0x7UL << 8) /* APB prescaler field [10:8] */
-#define GPIO_MODER_MODER10 0x00C00000u
-#define GPIO_MODER_MODER10_0 0x00400000u
-#define GPIO_MODER_MODER10_1 0x00800000u
+/* MODER bit fields, matching CMSIS stm32f030x6.h. Pin 10 occupies bits [21:20]
+ * and pin 11 bits [23:22]; these three used to hold pin 11's bits under pin
+ * 10's names, which meant a host test asserting "PA10 is in alternate-function
+ * mode" was really asserting about PA11 and could not fail on a wrong bus pin.
+ * Verified against the CMSIS header by tests/check_mock_headers.sh. */
+#define GPIO_MODER_MODER10 0x00300000u
+#define GPIO_MODER_MODER10_0 0x00100000u
+#define GPIO_MODER_MODER10_1 0x00200000u
+#define GPIO_MODER_MODER11 0x00C00000u
+#define GPIO_MODER_MODER11_0 0x00400000u
+#define GPIO_MODER_MODER11_1 0x00800000u
 #define GPIO_OTYPER_OT_10 0x00000400u
 #define GPIO_OSPEEDR_OSPEEDR10 0x00300000u
 #define GPIO_OSPEEDR_OSPEEDR10_0 0x00100000u

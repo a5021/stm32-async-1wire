@@ -50,6 +50,7 @@ extern void run_test_parasite(void);
 extern void run_test_dmamux(void);
 extern void run_test_dma(void);
 extern void run_test_dma_contract(void);
+extern void run_test_port_init_contract(void);
 extern void run_test_ow_stats(void);
 extern void run_test_rcr_limits(void);
 extern void run_test_tim_model(void);
@@ -83,6 +84,7 @@ int main(void) {
     run_test_dmamux();
     run_test_dma();
     run_test_dma_contract();
+    run_test_port_init_contract();
     run_test_ow_stats();
     run_test_rcr_limits();
     run_test_tim_model();

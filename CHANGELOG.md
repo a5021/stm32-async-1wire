@@ -186,6 +186,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The f0, g0 and f4 host mocks had pin 10's MODER bit field holding pin
+  11's bits.** A test asserting that the bus pin is in alternate-function
+  mode was therefore asserting about PA11, on three of the four backends.
+  The suite stayed green throughout, because the mocks are what the tests
+  check against: the driver is correct (right macro names, real values when
+  compiled for hardware), it just had no power to catch a wrong-pin or
+  wrong-mode regression. In f4 the two triples were swapped, which was worse
+  - that backend drives PA10 (bus) and PA11 (LA marker), so the two uses
+  masked each other. g0 also had pin 4's field holding pin 5's bits, under the
+  spelling `GPIO_MODER_MODE4` that the G0 CMSIS genuinely uses (F0 and F4
+  spell it `MODER10`), which is why a check keyed on the F0/F4 spelling alone
+  would have missed it. f1 was correct throughout: it configures the pin
+  through the legacy CRH field.
+
+  `tests/check_mock_headers.sh` (`make test-mocks`, and part of
+  `make test-clocks`) now compares every literal-valued macro in each mock
+  against the same macro in the real CMSIS header, using the value CMSIS
+  carries in its trailing `/*!< 0x... */` comment. It fails if a family ends
+  up comparing nothing, so it cannot quietly become vacuous, and it reports
+  the macros it could not compare rather than ignoring them. Confirmed to
+  have teeth by reverting a corrected value and watching it fail.
+
 - **Object files were not named after the selected part, so building one
   family or part after another silently reused the previous one's objects.**
   Object names carried only the app name (`build/1_basic_onewire.o`) to keep
