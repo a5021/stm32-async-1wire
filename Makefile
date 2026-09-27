@@ -493,8 +493,22 @@ clean-deps:
 # and a plain download-deps only fetches the active OW_TARGET's. Recursing
 # per family keeps the requirement with the target instead of with every
 # caller, the way clock-ref-check does.
+#
+# Per *part* as well as per family, because check_mock_headers.sh reads one F4
+# mock against two real F4 headers: stm32f407xx.h for the family default and
+# stm32f446xx.h for the over-drive bits, which stm32f407xx.h does not define at
+# all. Recursing per family alone leaves the F446 header unfetched, and the check
+# then fails on a clean checkout with "missing stm32f446xx.h" - which is exactly
+# what it did in CI, where nothing had ever downloaded that part. Locally it
+# passed only because the header was already sitting in CMSIS/ from earlier work.
+#
+# These are the parts the script compares against, so adding one to
+# tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
+# because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
+# - the inner reference expands before t is bound and comes out empty.
+MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 g0:g031xx f4:f407xx f4:f446xx
 test-mocks:
-	$(foreach t,$(OW_KNOWN_TARGETS),$(MAKE) OW_TARGET=$(t) download-deps &&) true
+	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
 
 .PHONY: test-chips
