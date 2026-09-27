@@ -14,7 +14,6 @@
 #include "stm32f1xx.h"
 #endif
 
-
 // ======== USART1 TX ring buffer ========
 static uint32_t uart_tx_head = 0; // write index - points to next free slot
 static uint32_t uart_tx_tail = 0; // read index - points to oldest data
@@ -317,7 +316,7 @@ void configure_system_clock(void) {
 #error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in onewire.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
 #endif
 
-/* The APB prescalers this backend programs, and the console divisor derived
+    /* The APB prescalers this backend programs, and the console divisor derived
  * from them, live in app.h (OW_F4_APB1_DIV / OW_F4_APB2_DIV /
  * OW_F4_PCLK*_MHZ / OW_F4_CONSOLE_BRR) so the host suite can assert the value.
  * See the comment there for why a per-clock table in this file was a bug
