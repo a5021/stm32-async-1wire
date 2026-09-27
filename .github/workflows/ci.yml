@@ -16,7 +16,7 @@ jobs:
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h port/stm32f4/ow_port_f4.h tests/mock/*.h tests/mock/*.c tests/test/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c port/stm32f1/ow_port_f1.h port/stm32f0/ow_port_f0.h port/stm32g0/ow_port_g0.h port/stm32f4/ow_port_f4.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c
 
   host-tests:
     strategy:
@@ -390,6 +390,61 @@ jobs:
           # ow_port_f0/f1/g0.h include the shared TIM1/DMA1 core, so a
           # package without it would hand consumers a broken header.
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_tim_dma.h
+      - name: Build the installed-package consumer (OW_TARGET=${{ matrix.backend }})
+        # The step above checks that the install tree contains certain files.
+        # This builds a downstream consumer against it, which is the only thing
+        # that proves the installed headers still compile on their own, that the
+        # exported target resolves, and that the part selection reaches the
+        # consumer: CMSIS_DEVICE_DEF, OW_PORT_TARGET_* and OW_PORT_SYSCLK_MHZ
+        # are PUBLIC on the library target, so they travel in
+        # INTERFACE_COMPILE_DEFINITIONS and ow_port.h #errors without them.
+        #
+        # The consumer supplies CMSIS itself, which is the contract the package
+        # documents: those include paths were FetchContent checkouts in this
+        # build tree and cannot be baked into an install export. Fail loudly
+        # here if the layout moves, rather than letting find_package() complain
+        # about a header it was never given.
+        run: |
+          set -euo pipefail
+          TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
+          CORE="${{ github.workspace }}/build/_deps/cmsis_core-src/CMSIS/Core/Include"
+          DEV="${{ github.workspace }}/build/_deps/cmsis_device-src/Include"
+          test -f "$CORE/cmsis_gcc.h"
+          test -n "$(ls -d "$DEV"/Include 2>/dev/null)"
+          cmake -S tests/integration/cmake/installed \
+                -B build/consumer-installed-${{ matrix.backend }} \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+                -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
+                -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
+                -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/prefix-${{ matrix.backend }}" \
+                -DOW_CMSIS_CORE_INCLUDE="$CORE" \
+                -DOW_CMSIS_DEVICE_INCLUDE="$DEV"
+          cmake --build build/consumer-installed-${{ matrix.backend }} -- -j"$(nproc)"
+      - name: Build the FetchContent consumer (OW_TARGET=${{ matrix.backend }})
+        # The other documented way in. As a subproject the library target keeps
+        # its BUILD_INTERFACE include directories, which carry the CMSIS paths,
+        # so this consumer needs no CMSIS of its own - asking it for one would
+        # test nothing. Reuses this job's CMSIS clones instead of fetching new
+        # ones. SOURCE_DIR, not GIT_REPOSITORY: the fixture must build the
+        # commit under test, not whatever a remote branch points at.
+        run: |
+          set -euo pipefail
+          TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
+          cmake -S tests/integration/cmake/fetchcontent \
+                -B build/consumer-fetchcontent-${{ matrix.backend }} \
+                -DOW_TARGET=${{ matrix.backend }} \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+                -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
+                -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
+                -DOW_SOURCE_DIR="${{ github.workspace }}" \
+                -DFETCHCONTENT_BASE_DIR="${{ github.workspace }}/build/_deps"
+          cmake --build build/consumer-fetchcontent-${{ matrix.backend }} -- -j"$(nproc)"
       - name: Build the parasite / WFE firmware variants
         # The build above only ever sees the default firmware. These two defines
         # select the configurations the hardware was actually measured in, and

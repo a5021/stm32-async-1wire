@@ -8,115 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
-## [1.8.1] - 2026-09-13
-
-Restored from the commits in `v1.8.0..v1.8.1`: this release was tagged
-without a section here, and its changes had drifted into the section below.
-
 ### Added
 
-- **Doxygen configuration and CI-deployed API documentation.** `Doxyfile` is
-  committed and the `api-docs` workflow publishes the generated docs to
-  `gh-pages` on every push.
-- **libFuzzer harnesses for the Search ROM and resolution state machines,**
-  plus a device-table overflow case for a search that finds more ROMs than
-  the scan table holds.
-
-
-- **Formalised per-operation DMA register contract table in the host
-  tests.** New `test_dma_contract` drives every scheduleable hardware operation
-  (write, reset, read pair, read data, merged search write+read, Match-ROM
-  config write, single-bit write) against one table of exact `RCR`, `CPAR`,
-  `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
-  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
-  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
-  counter so exact transfer counts hold even beyond the 128-entry value log.
-
-- **New temporal TIM/DMA event model in the host test harness.**
-  `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
-  start* ("modeled at slot start for simplicity") — fine for the memory-side
-  DMA contract, but it cannot prove the *temporal* contract. The new
-  `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
-  physical counter position and the new `test_tim_model` tests prove that
-  CCR3(slot N) stays in effect for the whole of slot N, the reload happens
-  only after the CC2 compare (never at the slot start), the trailing
-  bus-release zero is applied only after the last slot, and CC4 captures fire
-  at the pulse-edge counter position.
-
-- **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
-  `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
-  -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
-  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
-  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
-  below the values validated on hardware (a 2µs pulse already broke slot
-  decoding on an F030 at 8MHz) and is intended for electrically ideal setups
-  only.
+- **Consumer integration fixtures for both CMake integration paths,** built
+  in CI for every supported family. `tests/integration/cmake/fetchcontent`
+  builds the library as a subproject, the way the README's
+  `FetchContent_Declare` example does; `tests/integration/cmake/installed`
+  builds a downstream consumer against an install prefix with
+  `find_package`. The cmake job previously checked that the install tree
+  contained certain files, which says nothing about whether those headers
+  still compile on their own, or whether the exported target's public
+  definitions reach a consumer at all.
 
 ### Changed
 
-- **The `edge` terminology was renamed to `pulse` throughout the 1-Wire layer.**
-  `onewire_reset()`, `onewire_present()`, `onewire_read_pair()` and
-  `onewire_pair_bits()` keep the same signatures - only the parameter and
-  internal symbol names changed, so callers are unaffected.
-- **Backend selection is unified behind a single `OW_PORT_FAMILY_*` token** for
-  all four families, so the F0/F1/G0 headers no longer each guess the family
-  independently.
-
-
-- **Example applications restructured into numbered directories.**
-  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
-  shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
-  non-blocking UART TX ring buffer, busy-LED callback).
-
-- **Timing preset selection moved to compile time.** The four timing values
-  (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
-  Makefile presets now expand directly into
-  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
-  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
-  guard-band default on parasite-powered buses.
-
-- **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
-  moved to `src/syscall.c`; public version macros
-  `STM32_ASYNC_1WIRE_VERSION_*` (`1.8.1`) and C++ guards added to the headers.
-
-### Removed
-
-- **Breaking:** the runtime timing-profile API is removed —
-  `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
-  `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
-  `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
-  Changed), which is how they were always used on the target.
-- `tests/fuzz/fuzz_timing` harness removed with the runtime profile API;
-  Search ROM and resolution state-machine harnesses (`fuzz_search`,
-  `fuzz_resolution`) added.
+- **`find_package` documented as the second supported integration path,**
+  with the two consequences of consuming a fixed install tree made
+  explicit: the consumer supplies the CMSIS include paths, and the package
+  carries the part selection it was built with.
 
 ### Fixed
 
-- **STM32G031 flash latency matched its own comment.** The configured wait
-  states and the documented 2-wait-state requirement were out of step.
-- **`src/ow_stats.c` no longer depends on `app.h`;** it includes `onewire.h`
-  for the `OW_PORT_FAMILY_*` macros it actually needs, and the examples are
-  clang-format clean.
-
-
-- **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
-  renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
-  `5_commands`, `6_statistics` instead of `3_manual_read`, `4_nonblocking`,
-  `5_interrupt_driven`, `6_crc_performance`) and each example now links the
-  shared `examples/app/app.c` platform layer with the same per-example define
-  set as `make APP=<ex>` (`UART_TX_BUF_SIZE`, and for `6_statistics`
-  `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US`/`STATS_DUMP_INTERVAL`).
-
-- **Search ROM could livelock on a hostile/broken bus under the family
-  filter.** If every id/cmp pair keeps answering `00` (all devices disagree
-  and pull low), the engine re-assembles a CRC-valid ROM whose family byte
-  the filter rejects, so `found` never advances and `last_discrepancy` stays
-  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
-  repeated leaf (the previous walk produced the identical ROM) and terminates
-  the search instead. Found both by the `fuzz_search` harness in CI
-  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
-  `test_search_hostile_all_zero_bus_terminates`.
+- **`check_required_components()` was missing from the installed package
+  config,** so `find_package(stm32_async_1wire COMPONENTS bogus REQUIRED)
+  reported success instead of rejecting a component the package does not
+  have. The package is a single whole-library component.
 
 ## [2.0.0] - 2026-09-26
 
@@ -693,6 +609,115 @@ the board's crystal frequency.
   Out-of-range values (including zero) are ignored, with an `assert()` raised
   in debug builds; internal buffers are guarded by `_Static_assert`, and the
   new `test_rcr_limits` host tests cover the hardware boundary.
+
+## [1.8.1] - 2026-09-13
+
+Restored from the commits in `v1.8.0..v1.8.1`: this release was tagged
+without a section here, and its changes had drifted into the section below.
+
+### Added
+
+- **Doxygen configuration and CI-deployed API documentation.** `Doxyfile` is
+  committed and the `api-docs` workflow publishes the generated docs to
+  `gh-pages` on every push.
+- **libFuzzer harnesses for the Search ROM and resolution state machines,**
+  plus a device-table overflow case for a search that finds more ROMs than
+  the scan table holds.
+
+
+- **Formalised per-operation DMA register contract table in the host
+  tests.** New `test_dma_contract` drives every scheduleable hardware operation
+  (write, reset, read pair, read data, merged search write+read, Match-ROM
+  config write, single-bit write) against one table of exact `RCR`, `CPAR`,
+  `CMAR`, `CNDTR`, `MSIZE`/`DIR`/`MINC`, required DMA-enable bits and post-op
+  transfer accounting — including the 8-bit `RCR` boundaries (write 256 slots /
+  read 32 bytes → `RCR` 255). The feed log gained an uncapped total-transfer
+  counter so exact transfer counts hold even beyond the 128-entry value log.
+
+- **New temporal TIM/DMA event model in the host test harness.**
+  `hw_run_until_uif()` fires the CC2 feed DMA once per slot *at the slot
+  start* ("modeled at slot start for simplicity") — fine for the memory-side
+  DMA contract, but it cannot prove the *temporal* contract. The new
+  `hw_tim_step()` stepper in `tests/mock/hw_model.c` places every event at its
+  physical counter position and the new `test_tim_model` tests prove that
+  CCR3(slot N) stays in effect for the whole of slot N, the reload happens
+  only after the CC2 compare (never at the slot start), the trailing
+  bus-release zero is applied only after the last slot, and CC4 captures fire
+  at the pulse-edge counter position.
+
+- **New `TIMING=CUSTOM` compile-time preset** (Makefile; expands into
+  `-DONEWIRE_ONE_PULSE=1 -DONEWIRE_ZERO_PULSE=60 -DONEWIRE_GUARD_BAND=1
+  -DONEWIRE_SHORT_PULSE_MAX=15`). It uses the minimum slot timing allowed by
+  the 1-Wire standard — `one` 1µs, `zero` 60µs, `guard` 1µs,
+  `short≤` 15µs → 62µs slot. It is experimental: a 1µs read/write pulse is
+  below the values validated on hardware (a 2µs pulse already broke slot
+  decoding on an F030 at 8MHz) and is intended for electrically ideal setups
+  only.
+
+### Changed
+
+- **The `edge` terminology was renamed to `pulse` throughout the 1-Wire layer.**
+  `onewire_reset()`, `onewire_present()`, `onewire_read_pair()` and
+  `onewire_pair_bits()` keep the same signatures - only the parameter and
+  internal symbol names changed, so callers are unaffected.
+- **Backend selection is unified behind a single `OW_PORT_FAMILY_*` token** for
+  all four families, so the F0/F1/G0 headers no longer each guess the family
+  independently.
+
+
+- **Example applications restructured into numbered directories.**
+  `src/demo*.c` became `examples/1_basic` … `examples/7_low_power`, with the
+  shared platform layer moved to `examples/app/app.{c,h}` (`app_init()`,
+  non-blocking UART TX ring buffer, busy-LED callback).
+
+- **Timing preset selection moved to compile time.** The four timing values
+  (one/zero/guard/short pulse) are never changed at runtime, so the `TIMING=`
+  Makefile presets now expand directly into
+  `-DONEWIRE_ONE_PULSE=… -DONEWIRE_ZERO_PULSE=… -DONEWIRE_GUARD_BAND=…
+  -DONEWIRE_SHORT_PULSE_MAX=…`; `OW_TIMING_PARASITE` selects the wider 100µs
+  guard-band default on parasite-powered buses.
+
+- **`inc/macro.h` renamed to `inc/ow_bits.h`**; the newlib-nano syscall stubs
+  moved to `src/syscall.c`; public version macros
+  `STM32_ASYNC_1WIRE_VERSION_*` (`1.8.1`) and C++ guards added to the headers.
+
+### Removed
+
+- **Breaking:** the runtime timing-profile API is removed —
+  `onewire_set_timing_profile()`, `onewire_get_timing_profile()`,
+  `ow_set_parasite_guard()` and the `ONEWIRE_TIMING_PROFILE_DEFAULT` /
+  `ONEWIRE_TIMING_*` runtime enums. Timings are compile-time defines only (see
+  Changed), which is how they were always used on the target.
+- `tests/fuzz/fuzz_timing` harness removed with the runtime profile API;
+  Search ROM and resolution state-machine harnesses (`fuzz_search`,
+  `fuzz_resolution`) added.
+
+### Fixed
+
+- **STM32G031 flash latency matched its own comment.** The configured wait
+  states and the documented 2-wait-state requirement were out of step.
+- **`src/ow_stats.c` no longer depends on `app.h`;** it includes `onewire.h`
+  for the `OW_PORT_FAMILY_*` macros it actually needs, and the examples are
+  clang-format clean.
+
+
+- **CMake `OW_BUILD_EXAMPLES` referenced the old example set.** The list is
+  renamed to the real directory names (`3_round_robin`, `4_scan_mode`,
+  `5_commands`, `6_statistics` instead of `3_manual_read`, `4_nonblocking`,
+  `5_interrupt_driven`, `6_crc_performance`) and each example now links the
+  shared `examples/app/app.c` platform layer with the same per-example define
+  set as `make APP=<ex>` (`UART_TX_BUF_SIZE`, and for `6_statistics`
+  `OW_STATS_ENABLE`/`DS18B20_CYCLE_PAUSE_US`/`STATS_DUMP_INTERVAL`).
+
+- **Search ROM could livelock on a hostile/broken bus under the family
+  filter.** If every id/cmp pair keeps answering `00` (all devices disagree
+  and pull low), the engine re-assembles a CRC-valid ROM whose family byte
+  the filter rejects, so `found` never advances and `last_discrepancy` stays
+  pinned — the walk would loop forever. `onewire_search_poll()` now detects a
+  repeated leaf (the previous walk produced the identical ROM) and terminates
+  the search instead. Found both by the `fuzz_search` harness in CI
+  (`crash-99a30a39…`, seed `2971683640`) and locally; regression covered by
+  `test_search_hostile_all_zero_bus_terminates`.
 
 ## [1.8.0] - 2026-09-01
 
