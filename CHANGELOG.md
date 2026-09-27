@@ -135,6 +135,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The format job's pinned `clang-format` moves from 18.1.8 to 23.1.1.** The
+  pin itself stays — LLVM changes formatting between releases, so the check has
+  to name an exact version to be reproducible at all. What changed is which
+  version: 18.1.8 was current when the pin was added and is now several
+  releases behind, and it is not the version contributors actually have. A
+  distribution LLVM is 23.x, so a contributor following `CONTRIBUTING.md` and
+  running the local `clang-format` would hit disagreements the pinned job never
+  sees. That is not hypothetical: on the F446 work, 18.1.8 reported a
+  formatting violation in `examples/app/app.c` that 23.1.1 accepted, on the same
+  file in the same tree.
+
+  No reformatting comes with it. Both versions were run over all 87 C and header
+  files in the tree and produce byte-identical output, and consider the same 83
+  clean — so this is a version bump, not a style change, and the history shows
+  that rather than asserting it. `CONTRIBUTING.md` still names no version, which
+  is now the remaining gap: it tells a contributor to run `clang-format` without
+  saying which one CI will hold them to.
+
 - **`find_package` documented as the second supported integration path,**
   with the two consequences of consuming a fixed install tree made
   explicit: the consumer supplies the CMSIS include paths, and the package

@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install clang-format (pinned)
-        run: pip install clang-format==18.1.8
+        run: pip install clang-format==23.1.1
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
