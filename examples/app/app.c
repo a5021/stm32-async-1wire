@@ -551,7 +551,11 @@ __STATIC_FORCEINLINE void hardware_init(void) {
 #if defined(OW_UART_USART1_PA9)
     GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
     GPIOA->OTYPER &= ~GPIO_OTYPER_OT_9;
-    GPIOA->AFR[0] = (GPIOA->AFR[0] & ~GPIO_AFRL_AFSEL9) | (7u << GPIO_AFRL_AFSEL9_Pos); /* AF7 = USART1 */
+    /* PA9 is pin 9, so it is in the high half: AFRH / AFR[1]. The F4 headers
+     * define GPIO_AFRH_AFSEL9* and no GPIO_AFRL_AFSEL9 at all, which is what a
+     * build with -DOW_UART_USART1_PA9 catches immediately - the F0/G0 PA9 path
+     * below reads the same register and gets this right. */
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos); /* AF7 = USART1 */
 #else
     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).
     // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console
