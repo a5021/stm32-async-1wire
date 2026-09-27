@@ -11,7 +11,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY) and STM32F401CC (e.g. WeAct F401 Black Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for both parts — the chip selects the CMSIS device layer, linker script and clock default.
+- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clock Configuration above).
 
 ## Table of Contents
 
@@ -94,10 +94,21 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: any STM32 with a single advanced-control timer instance
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
-  STM32G031x6, STM32F407VGT6, STM32F401CC; see port backends in `port/`).
+  STM32G031x6, STM32F407VGT6, STM32F401CC, STM32F446RE; see port backends in
+  `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168 and an 8MHz board the F407's 168MHz with M=8/N=336. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE and PLL waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+
+  The 180MHz mode is the one clock on F4 that is above 168MHz, and it is a
+  different code path rather than a different number: it needs the PWR over-drive
+  sequence (`ODEN`→`ODRDY`, `ODSWEN`→`ODSWRDY`), its own flash-latency and APB
+  values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
+  on any other F4 part is rejected at compile time rather than quietly run out of
+  spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in `inc/onewire.h`.
+  APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
+  2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
+  unchanged.
 
 ## File Structure
 
@@ -132,12 +143,15 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
+│   │   ├── STM32F446RE_FLASH.ld    # Linker script, STM32F446xE (512KB flash / 128KB RAM, no CCM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
 │   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
+│   │   ├── stm32f446re.jflash      # J-Flash project file (STM32F446xE)
 │   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
 │   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
+│   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
@@ -147,7 +161,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── g031xx.mk           #   the Makefile and the CMake build
 │   ├── f407xx.mk           #   (OW_CHIP=<name> / -DOW_CHIP=<name>)
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
-│   └── f401xe.mk           # 512KB flash / 128KB RAM
+│   ├── f401xe.mk           # 512KB flash / 128KB RAM
+│   └── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
@@ -248,6 +263,12 @@ make OW_TARGET=f4 OW_CHIP=f401xc APP=4_scan_mode
 make OW_TARGET=f4 OW_CHIP=f401xe APP=4_scan_mode
 # ... or on the raw internal RC (no HSE crystal needed):
 make OW_TARGET=f4 OW_CHIP=f401xc SYSCLK_MHZ=16 APP=4_scan_mode
+
+# STM32F446RE target (WeAct F446, 180MHz HSE+PLL + over-drive default):
+make OW_TARGET=f4 OW_CHIP=f446xx APP=4_scan_mode
+# ... 16MHz on the raw internal RC, or straight off the 8MHz crystal:
+make OW_TARGET=f4 OW_CHIP=f446xx SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_TARGET=f4 OW_CHIP=f446xx HSE_MHZ=8 SYSCLK_MHZ=8 APP=4_scan_mode
 ```
 
 Notes:
@@ -302,8 +323,8 @@ Notes:
 ## Hardware Verified
 
 Captures and measurements below are from real boards unless a subsection says
-otherwise. The STM32F401 entries are the exception: that backend shares the
-F407 driver code and has not been run on an F401 board yet.
+otherwise. The STM32F401 and STM32F446 entries are the exception: those backends
+share the F407 driver code and have not been run on those boards yet.
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -376,7 +397,11 @@ Validated on an **STM32F4DISCOVERY** (MB997C, STM32F407VGT6, 8 MHz HSE):
 pair, DMA2 streams 2/4 — the feed stream runs 16-bit), with the console on
 USART1 TX / **PB6** at 115200 8N1 (AF7; the F4DISCOVERY carries no signal on
 the default PA9 USART1 pad, so the console rides the remapped PB6) through a
-USB-TTL adapter; flashed via the on-board ST-Link SWD. All seven examples
+USB-TTL adapter; flashed via the on-board ST-Link SWD. **PB6 is an
+F4DISCOVERY-specific choice, not an F4 family default** — a WeAct F4 module's
+ST-LINK VCP is on PA9, so on those boards build with
+`-DOW_UART_USART1_PA9` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`)
+or attach the USB-TTL adapter to PB6. All seven examples
 ran with valid CRCs and zero errors (including the statistics and low-power
 variants), every device reading ~24–26 °C, at the default 168 MHz PLL clock;
 the bus timing was additionally validated at `SYSCLK_MHZ=8` (raw HSE).
@@ -799,7 +824,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F401 84 MHz ones (`test-clocks-f1/f0/g0/f4/f401`, the last covering both `f401xc` and `f401xe`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f1/f0/g0/f4`, where the last covers `f401xc`, `f401xe` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
@@ -1046,7 +1071,10 @@ the install-tree file checks alone would not catch.
     `make OW_TARGET=f4 OW_CHIP=f401xc` for the F401CC variant of the same backend
     (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`) and
     `make OW_TARGET=f4 OW_CHIP=f401xe` for the 512KB/128KB xE parts
-    (`port/stm32f4/STM32F401RE_FLASH.ld`, same 84MHz default). Each part's
+    (`port/stm32f4/STM32F401RE_FLASH.ld`, same 84MHz default), and
+    `make OW_TARGET=f4 OW_CHIP=f446xx` for the STM32F446
+    (180MHz default clock with the over-drive sequence,
+    `port/stm32f4/STM32F446RE_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default
     target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via PA12 remap
     for G0).
