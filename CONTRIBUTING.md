@@ -38,12 +38,19 @@ interrupt-free, minimal CPU usage).
 2. Make your changes. Follow the existing code style:
    - 4-space indentation, K&R braces, left-aligned pointer stars
      (see `.clang-format`)
+   - Use the `clang-format` version that CI pins, listed in the `format` job of
+     [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — that job is the
+     definition of the expected version, so it is where the number is read from
+     rather than copied here. A different release can disagree about the same
+     source, which shows up as a violation CI reports on a file you never
+     touched, or as a file you formatted correctly being rejected.
    - Keep the driver non-blocking and interrupt-free
    - Register-level access only — no HAL/LL
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
    and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
 4. Run the code quality checks used in CI:
    - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/ds18b20_search.c src/ds18b20_txn.c src/ds18b20_resolution.c src/ds18b20_measure.c examples/1_basic/main.c`
+     (the full list, and the version, are in the `format` job above)
    - `cppcheck --enable=warning,style,performance,portability ...`
 5. Update the README and the [CHANGELOG](CHANGELOG.md) if your change
    affects behavior or usage.
