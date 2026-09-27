@@ -144,8 +144,9 @@ var NAVTREEINDEX0 =
 "group__ONEWIRE__Protocol.html":[0,7],
 "group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d":[0,7,3],
 "group__ONEWIRE__Protocol.html#ga203ac9e9369cd6dac73239439e7e12e1":[0,7,5],
-"group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8":[0,7,6],
+"group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8":[0,7,7],
 "group__ONEWIRE__Protocol.html#ga337412c996f5683edf6ddfcf049e73e4":[0,7,4],
+"group__ONEWIRE__Protocol.html#ga5850fbcdd8f22652bcd68b4f7c264a7a":[0,7,6],
 "group__ONEWIRE__Protocol.html#ga5f7f921694a4ec26d7073e20282d9b4c":[0,7,2],
 "group__ONEWIRE__Protocol.html#gab22d43cb4e34913349621c66b9fd2c1c":[0,7,0],
 "group__ONEWIRE__Protocol.html#gae0c96211c002f1d558a4de31f40381f2":[0,7,1],
@@ -157,7 +158,7 @@ var NAVTREEINDEX0 =
 "group__ONEWIRE__Search.html#gafda05734915d3f73f380d045973deb58":[0,10,3],
 "index.html":[],
 "onewire_8h.html":[2,0,0,1],
-"onewire_8h.html#a69429e3deefc67400166bb1da01d2f97":[2,0,0,1,26],
+"onewire_8h.html#a69429e3deefc67400166bb1da01d2f97":[2,0,0,1,27],
 "onewire_8h_source.html":[2,0,0,1],
 "ow__bits_8h.html":[2,0,0,2],
 "ow__bits_8h.html#a013c8722b459681f4a25e59a10653010":[2,0,0,2,118],
@@ -248,6 +249,5 @@ var NAVTREEINDEX0 =
 "ow__bits_8h.html#a659deca782896a07522b15c2df720941":[2,0,0,2,212],
 "ow__bits_8h.html#a66421fbfe3be527a2d764cb49029d6ae":[2,0,0,2,187],
 "ow__bits_8h.html#a665decd4b916dafb8ce00250bb393947":[2,0,0,2,40],
-"ow__bits_8h.html#a667ecdcff9c6a9e0fbb60bff3a403b29":[2,0,0,2,196],
-"ow__bits_8h.html#a66f47ab6e3cdafcb64e124f9c858dbc8":[2,0,0,2,83]
+"ow__bits_8h.html#a667ecdcff9c6a9e0fbb60bff3a403b29":[2,0,0,2,196]
 };
