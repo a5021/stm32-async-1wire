@@ -410,7 +410,10 @@ jobs:
           CORE="${{ github.workspace }}/build/_deps/cmsis_core-src/CMSIS/Core/Include"
           DEV="${{ github.workspace }}/build/_deps/cmsis_device-src/Include"
           test -f "$CORE/cmsis_gcc.h"
-          test -n "$(ls -d "$DEV"/Include 2>/dev/null)"
+          # The family header, not the part one: ow_port_<family>.h includes
+          # stm32f<family>xx.h and lets that dispatch on the part macro. DEV is
+          # already the directory that holds them.
+          test -f "$DEV/stm32${{ matrix.backend }}xx.h"
           cmake -S tests/integration/cmake/installed \
                 -B build/consumer-installed-${{ matrix.backend }} \
                 -DCMAKE_BUILD_TYPE=Release \
