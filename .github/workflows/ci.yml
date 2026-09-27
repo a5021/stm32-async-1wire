@@ -265,6 +265,12 @@ jobs:
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_PORT_TARGET_G0 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
       - name: Run static analysis (F4)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_PORT_TARGET_F4 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
+      # The F446's 180MHz branch exists in no other configuration, so the F4 pass
+      # above never sees it. cppcheck reads the real CMSIS headers, which is also
+      # what makes it the one check that proves PWR_CR_ODEN/ODSWEN and
+      # PWR_CSR_ODRDY/ODSWRDY are spelled as stm32f446xx.h spells them.
+      - name: Run static analysis (F446 at 180MHz)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F446xx -DOW_PORT_TARGET_F4 -DOW_PORT_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
 
   part-matrix:
     # Every chips/<part>.mk must name repository files that exist and well-formed
@@ -334,6 +340,37 @@ jobs:
         run: make clean && make OW_TARGET=f4
       - name: Build release (F4 backend, 16MHz HSI)
         run: make clean && make OW_TARGET=f4 SYSCLK_MHZ=16
+      # The F446's three clocks. The 180MHz default is a separate app.c branch
+      # (over-drive + its own PLL/latency/APB values), so the F4 168MHz build
+      # says nothing about it; 16MHz and the raw 8MHz crystal are the two
+      # fallbacks the part file is expected to survive. Each gets its own
+      # `make clean` so the run cannot pass on the previous clock's objects.
+      - name: Build release (F446 backend, 180MHz default)
+        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx
+      - name: Build release (F446 backend, 16MHz HSI)
+        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx SYSCLK_MHZ=16
+      - name: Build release (F446 backend, raw 8MHz HSE)
+        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx HSE_MHZ=8 SYSCLK_MHZ=8
+      # The console pin and UART are firmware-only code: hardware_init() is
+      # inside #if !defined(DS18B20_TEST_HARNESS), so no host build compiles it
+      # on any family and a break here reaches a tag unnoticed. These three
+      # configurations are all reachable from a build command line and none is
+      # built by any other job.
+      - name: Build the console-pin and USART3 variants (F4)
+        run: |
+          make clean && make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9
+          make clean && make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART3
+          make clean && make OW_TARGET=f4 OW_CHIP=f407xx EXT=-DOW_UART_USART3
+      # A clock the part cannot reach must fail the build, not ship out of spec.
+      # 180MHz is real on the F446 and over the F407's 168MHz cap.
+      - name: Reject 180MHz on a part that cannot reach it
+        run: |
+          if make OW_TARGET=f4 OW_CHIP=f407xx SYSCLK_MHZ=180 2>&1 | grep -q 'exceeds this F4 part'; then
+            echo "F407 correctly rejected 180MHz"
+          else
+            echo "::error::a 180MHz build was accepted for the F407, whose cap is 168MHz"
+            exit 1
+          fi
       - name: Build with GCC analyzer
         run: make clean && make all EXT="-fanalyzer"
         continue-on-error: true

@@ -129,6 +129,23 @@ jobs:
             "5_commands|f4|16|ds18b20_5_commands_f401xc_16mhz||f401xc"
             "6_statistics|f4|16|ds18b20_6_statistics_f401xc_16mhz||f401xc"
             "7_low_power|f4|-|ds18b20_7_low_power_lp_f401xc_84mhz|lowpower|f401xc"
+            # F446: 180MHz is the part's own default, not an override, and it is
+            # the only F4 clock that needs the over-drive sequence - so it is a
+            # distinct firmware from the f407xx 168MHz rows above, built from its
+            # own part file. The 16MHz rows are the no-crystal fallback.
+            "1_basic|f4|-|ds18b20_1_basic_f446xx_180mhz||f446xx"
+            "2_device_search|f4|-|ds18b20_2_device_search_f446xx_180mhz||f446xx"
+            "3_round_robin|f4|-|ds18b20_3_round_robin_f446xx_180mhz||f446xx"
+            "4_scan_mode|f4|-|ds18b20_4_scan_mode_f446xx_180mhz||f446xx"
+            "1_basic|f4|16|ds18b20_1_basic_f446xx_16mhz||f446xx"
+            "2_device_search|f4|16|ds18b20_2_device_search_f446xx_16mhz||f446xx"
+            "3_round_robin|f4|16|ds18b20_3_round_robin_f446xx_16mhz||f446xx"
+            "4_scan_mode|f4|16|ds18b20_4_scan_mode_f446xx_16mhz||f446xx"
+            "5_commands|f4|-|ds18b20_5_commands_f446xx_180mhz||f446xx"
+            "6_statistics|f4|-|ds18b20_6_statistics_f446xx_180mhz||f446xx"
+            "5_commands|f4|16|ds18b20_5_commands_f446xx_16mhz||f446xx"
+            "6_statistics|f4|16|ds18b20_6_statistics_f446xx_16mhz||f446xx"
+            "7_low_power|f4|-|ds18b20_7_low_power_lp_f446xx_180mhz|lowpower|f446xx"
           )
           for row in "${matrix[@]}"; do
             IFS='|' read -r app target sysclk out ext chip <<< "$row"
