@@ -41,11 +41,58 @@
 /** UART baud rate register value with rounding for accuracy */
 #define USART_BRR_CALC(PCLK, BAUD) (((PCLK) + ((BAUD) / 2)) / (BAUD))
 
+/* --- F4 APB prescalers and the console divisor derived from them -----------
+ *
+ * app.c programs RCC->CFGR from these divisors and derives the console UART
+ * divisor from the same place, so the two cannot disagree. This lives in the
+ * header rather than in app.c because the register write it feeds is inside
+ * hardware_init(), which is #if !defined(DS18B20_TEST_HARNESS) - i.e. no host
+ * build ever compiles it. Pinning the value here is what gives the F4 suite any
+ * reach over it at all.
+ *
+ * That gap was not hypothetical: the divisor used to be a per-clock ternary
+ * chain (168 ? 42 : 84 ? 42 : SYSCLK) with no 180MHz case, so the F446 fell
+ * through to the raw-HSI default and sized BRR for PCLK2 = 180MHz when the part
+ * runs 45/90. The result was a UART that worked perfectly at twice the wrong
+ * baud rate, on a clean build. The divisors are the datasheet limits, which
+ * differ per part (F407 42/84, F446 45/90) but fall out of the same /4 and /2 -
+ * which is exactly why adding a clock to app.c alone is not enough.
+ */
+#if defined(OW_PORT_FAMILY_F4)
+#if (OW_PORT_SYSCLK_MHZ) == 180 || (OW_PORT_SYSCLK_MHZ) == 168
+#define OW_F4_APB1_DIV 4u
+#define OW_F4_APB2_DIV 2u
+#elif (OW_PORT_SYSCLK_MHZ) == 84
+#define OW_F4_APB1_DIV 2u
+#define OW_F4_APB2_DIV 2u
+#else
+/* Raw HSI and raw HSE: neither programs RCC->CFGR, so both buses stay /1. */
+#define OW_F4_APB1_DIV 1u
+#define OW_F4_APB2_DIV 1u
+#endif
+/** @brief APB1 peripheral clock in MHz (USART3 console path) */
+#define OW_F4_PCLK1_MHZ ((OW_PORT_SYSCLK_MHZ) / OW_F4_APB1_DIV)
+/** @brief APB2 peripheral clock in MHz (USART1 console path) */
+#define OW_F4_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ) / OW_F4_APB2_DIV)
+/** @brief Console BRR on the default USART1/APB2 path, at 115200 baud */
+#define OW_F4_CONSOLE_BRR USART_BRR_CALC(OW_F4_PCLK2_MHZ * 1000000u, 115200)
+/** @brief Console BRR on the optional OW_UART_USART3/APB1 path */
+#define OW_F4_CONSOLE_BRR_APB1 USART_BRR_CALC(OW_F4_PCLK1_MHZ * 1000000u, 115200)
+
+/* PCLK reaches USART_BRR_CALC as integer MHz, so a clock that is not a whole
+ * multiple of its prescaler would be rounded here and quietly shift the baud
+ * rate. Every supported F4 clock divides evenly; this says so. */
+_Static_assert((OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
+                   (OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB2_DIV == 0,
+               "F4: PCLK is derived as SYSCLK/div in integer MHz, so SYSCLK must divide by both APB prescalers");
+#endif /* OW_PORT_FAMILY_F4 */
+
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  * @note One call instead of configure_system_clock() + hardware_init()
  */
 void app_init(void);
+
 
 #if !defined(DS18B20_TEST_HARNESS)
 /**

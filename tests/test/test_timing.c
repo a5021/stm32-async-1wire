@@ -110,26 +110,58 @@ void test_apb_prescaler_div1_for_tim1(void) {
      * does not model hardware self-setting of HSERDY/PLLRDY/SWS. */
     mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLLRDY;
     mock_rcc.CFGR = RCC_CFGR_SWS_PLL;
+#if (OW_PORT_SYSCLK_MHZ) == 180
+    /* The F446's 180MHz waits on two more flags, on the regulator instead of the
+     * clock tree. The mock does not model the ramp-up either, so they are
+     * preset here and the asserts below then check that the code actually
+     * *enabled* over-drive - which is the part a rewrite could silently drop,
+     * and unlike a missing bit on a GPIO that failure is out-of-spec silicon
+     * rather than a wrong pin. */
+    mock_pwr.CSR = PWR_CSR_ODRDY | PWR_CSR_ODSWRDY;
+#endif
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
-    /* APB1 is /4 at 168MHz and /2 at 84MHz - both land PCLK1 on 42MHz - and
-     * APB2 is /2 in both, so TIM1 = 2 x PCLK2 = SYSCLK either way, which is the
-     * 1us tick invariant. Derived from the configured clock rather than
-     * hardcoded, so the 84MHz F401 host build checks its own values. */
-#if (OW_PORT_SYSCLK_MHZ) == 168
+#if (OW_PORT_SYSCLK_MHZ) == 180
+    /* PWR sits on APB1, so its clock has to be on before PWR->CR is writable.
+     * Without this the two CR writes are dropped and the part runs 180MHz
+     * without over-drive - still boots, just outside its rating. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_APB1ENR_PWREN, mock_rcc.APB1ENR & RCC_APB1ENR_PWREN);
+    /* Both halves of the RM0390 §5.4.6 sequence, in order: ODEN -> ODRDY, then
+     * ODSWEN -> ODSWRDY. Checking only ODEN would pass a build that waited on
+     * ODRDY twice and never enabled over-drive switching. */
+    TEST_ASSERT_EQUAL_UINT32(PWR_CR_ODEN, mock_pwr.CR & PWR_CR_ODEN);
+    TEST_ASSERT_EQUAL_UINT32(PWR_CR_ODSWEN, mock_pwr.CR & PWR_CR_ODSWEN);
+    /* 180MHz shares the 168MHz wait-state row (5 WS) but not the APB numbers:
+     * the F446 allows APB1 = 45MHz and APB2 = 90MHz, so /4 and /2 are the same
+     * divisors the F407 uses and reach 45/90 rather than 42/84. The whole ACR is
+     * compared rather than the wait-state field alone: app.c assigns it in one
+     * write, so this also pins the prefetch and cache enables, which a masked
+     * read would have let drift. (The field mask is 3 bits on the F407 and 4 on
+     * the F446, so there is no single mask to read it with anyway.) */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                                 FLASH_ACR_LATENCY_5WS,
+                             mock_flash.ACR);
+#endif
+    /* APB1 is /4 at 168MHz and at the F446's 180MHz, and /2 at 84MHz - /4 and /2
+     * both land PCLK1 on 42MHz while 180MHz's /4 lands it on 45MHz, the F446's
+     * own limit - and APB2 is /2 in all three, so TIM1 = 2 x PCLK2 = SYSCLK
+     * either way, which is the 1us tick invariant. Derived from the configured
+     * clock rather than hardcoded, so the 84MHz F401 and 180MHz F446 host builds
+     * check their own values. */
+#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 180
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE1_DIV4, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
 #else
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE1_DIV2, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
 #endif
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_PPRE2_DIV2, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
-#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 84
+#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 84 || (OW_PORT_SYSCLK_MHZ) == 180
     /* The M divider is the one field a wrong crystal breaks silently: PLLM =
      * OW_HSE_MHZ puts the PLL input at 1MHz and PLLN = 2 x SYSCLK sets the VCO.
      * Nothing else in the suite looks at PLLCFGR, which is how an F401 on a
      * 25MHz crystal lost its M=25 and reverted to M=8 without a single test
-     * objecting. An 8MHz crystal still has to give M=8/N=336 at 168MHz and
-     * M=8/N=168 at 84MHz; a 25MHz board gives M=25/N=168. Field widths: PLLM
-     * is 5 bits, PLLN is 9. */
+     * objecting. An 8MHz crystal still has to give M=8/N=336 at 168MHz,
+     * M=8/N=168 at 84MHz and M=8/N=360 at 180MHz; a 25MHz board gives
+     * M=25/N=168. Field widths: PLLM is 5 bits, PLLN is 9. */
     TEST_ASSERT_EQUAL_UINT32(OW_HSE_MHZ,
                              (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLM_Pos) & 0x1Fu);
     TEST_ASSERT_EQUAL_UINT32(
@@ -157,6 +189,91 @@ void test_search_start_ignored_while_running(void) {
     ds18b20_test_reset_search();
 }
 
+/*-------------------------------------------------------------
+ *  The IC4F bits must be the ones the tier table in ow_port.h
+ *  documents, not merely *some* filter.
+ *
+ *  ICxF is a 4-bit ladder, so almost any wrong value still
+ *  configures a plausible-looking filter - it is just a
+ *  different time, with no error anywhere. The F446 180MHz
+ *  tier is the live example: adding IC4F_2 as well would read
+ *  as "bigger filter" but is 0b1111 = fDTS/32 N=8, i.e. 1422ns
+ *  rather than the 533ns of IC4F_0|IC4F_1|IC4F_3. So pin the
+ *  expected value per clock instead of trusting the comment.
+ *-------------------------------------------------------------*/
+void test_ic4f_matches_the_documented_tier(void) {
+    uint32_t expected;
+    hw_reset_all();
+    /* A reset goes through ow_port_capture(), which is what programs CCMR2 with
+     * the filter - so run a real operation rather than reading a register that
+     * nothing has touched. */
+    test_bus_reset();
+
+#if (OW_PORT_SYSCLK_MHZ) <= 8
+    expected = TIM_CCMR2_IC4F_1; /* fCK_INT, N=4 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 16
+    expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1; /* fCK_INT, N=8 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 72
+    expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_2; /* fDTS/4, N=8 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 168
+    expected = TIM_CCMR2_IC4F_3; /* fDTS/8, N=6 */
+#else
+    expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_3; /* fDTS/16, N=6 */
+#endif
+    TEST_ASSERT_EQUAL_UINT32(expected, mock_tim1.CCMR2 & 0xF000u);
+}
+
+#if defined(OW_PORT_TARGET_F4)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  This is the check that was missing when 180MHz was added. The
+ *  divisor was a per-clock ternary chain with no 180MHz case, so
+ *  it fell through to the raw-HSI default and sized BRR for
+ *  PCLK2 = 180MHz when the part runs 45/90: BRR came out exactly
+ *  2x too large and the console ran at ~57600 baud. A clean
+ *  compile, a working UART, and a symptom ("garbage in the
+ *  terminal") that reads like a bad cable rather than a wrong
+ *  clock.
+ *
+ *  Asserted on the value rather than on the register, because the
+ *  register write lives in hardware_init() - inside
+ *  #if !defined(DS18B20_TEST_HARNESS), so no host build has ever
+ *  compiled it on any family. That is why the arithmetic moved to
+ *  app.h: this is the only reach the host suite has over it, so the
+ *  expected numbers are spelled out here instead of being
+ *  recomputed the same way the code computes them.
+ *-------------------------------------------------------------*/
+void test_console_baud_divisor(void) {
+    uint32_t pclk2_expected;
+    uint32_t brr_expected;
+    switch ((OW_PORT_SYSCLK_MHZ)) {
+    case 180:
+        pclk2_expected = 90; /* APB2 /2 at the F446's 180MHz */
+        break;
+    case 168:
+        pclk2_expected = 84; /* APB2 /2 at the F407's 168MHz */
+        break;
+    case 84:
+        pclk2_expected = 42; /* APB2 /2 at the F401's 84MHz */
+        break;
+    default:
+        pclk2_expected = (OW_PORT_SYSCLK_MHZ); /* raw HSI/HSE: APB2 stays /1 */
+        break;
+    }
+    TEST_ASSERT_EQUAL_UINT32(pclk2_expected, (uint32_t)OW_F4_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200) with the register carrying
+     * USARTDIV = mantissa + fraction/16. */
+    brr_expected = (pclk2_expected * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_F4_CONSOLE_BRR);
+    /* Sanity on the arithmetic itself: at every supported clock the divisor
+     * must land in a sane BRR range. A SYSCLK-sized mistake gives ~1563 at
+     * 180MHz, i.e. double this. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
+}
+#endif /* OW_PORT_TARGET_F4 */
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -165,5 +282,9 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_long_wait_arr_rcr);
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
+    TEST_RUN(test_ic4f_matches_the_documented_tier);
+#if defined(OW_PORT_TARGET_F4)
+    TEST_RUN(test_console_baud_divisor);
+#endif
     TEST_RUN(test_search_start_ignored_while_running);
 }

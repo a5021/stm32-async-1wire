@@ -9,10 +9,12 @@
 # no per-part code in ow_port_f4.h — only memory sizes, the CMSIS device layer
 # and the clock default differ.
 #
-# The clock default below is 168MHz for now: it is the highest F4 clock the
-# shared backend already supported, so the part is buildable the moment it is
-# registered. 180MHz needs the PWR over-drive sequence and its own APB and
-# flash values, and moves the default when that branch lands.
+# 180MHz, not 168: the F446 is the only F4 part in the matrix that needs the
+# over-drive sequence, and app.c gives it a branch of its own. The clock layout
+# is the one ST's own RCC_ClockConfig example uses for this part (8MHz HSE,
+# M=8 N=360 P=2, APB1 /4, APB2 /2, 5 flash wait states). The APB2 prescaler of
+# /2 still doubles to 180MHz on TIM1, so the ow_port 1us-tick invariant is
+# unchanged and OW_PORT_TIM_PRESCALER stays SYSCLK_MHZ - 1.
 #
 # 512KB flash / 128KB SRAM, and no CCM: the F446 has 128KB of DMA-accessible
 # SRAM1/SRAM2 and, unlike the F405/F407, no CCM at all (checked against the
@@ -41,4 +43,4 @@ CHIP_SVD = $(CMSIS_DEVICE_DIR)/STM32F446.svd
 # Board crystal, not part identity. 8MHz is what the WeAct F446RE carries; any
 # other board must pass HSE_MHZ=<n> to the build, and the M divider follows it.
 CHIP_HSE_MHZ = 8
-CHIP_SYSCLK_MHZ = 168
+CHIP_SYSCLK_MHZ = 180

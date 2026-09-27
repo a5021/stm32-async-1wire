@@ -72,12 +72,17 @@
  *  INVARIANT: the TIM1 kernel clock must equal SYSCLK — only then does
  *  PSC = SYSCLK_MHZ - 1 produce a 1µs tick.  STM32 rule: when the APB
  *  prescaler feeding TIM1 is != 1, the timer clock doubles to 2 × PCLK;
- *  configure_system_clock() relies on that doubling at 168MHz.
+ *  configure_system_clock() relies on that doubling at 168MHz and at the
+ *  F446's 180MHz.
  *
  *  F4: TIM1 is on APB2 (RM0090 §7):
  *   - 168MHz (8MHz HSE+PLL, default): PPRE1=/4 (APB1=42MHz), PPRE2=/2
  *     (APB2=84MHz) — both at their datasheet limits — and the APB2 timer
  *     clock doubles to 2 × 84 = 168MHz = SYSCLK.  ✓
+ *   - 180MHz (STM32F446 only, HSE+PLL + over-drive): PPRE1=/4 and PPRE2=/2
+ *     again, but the F446's own limits are 45MHz and 90MHz, so it lands on
+ *     2 × 90 = 180MHz = SYSCLK.  ✓  Same divisors, different ceilings —
+ *     see app.c and HARDWARE-NOTES.md.
  *   - 16MHz (raw HSI) / 8MHz (raw HSE): both APB prescalers stay /1, so
  *     TIM1 = PCLK2 = SYSCLK directly.  ✓
  *  (PPRE1=/4 only affects APB1 peripherals — TIM2..5, USART2/3/6, I2C —

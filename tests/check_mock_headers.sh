@@ -74,8 +74,28 @@ compare() {
     while read -r name mval; do
         [ -n "$name" ] || continue
         rval=$(awk -v n="$name" -F'\t' '$1 == n { print $2; exit }' "$REAL_TBL")
+        # Optional <name>_Msk fallback. CMSIS spells a bit field three ways: the
+        # bare name is an alias of <name>_Msk, the value lives in <name>_Msk (often
+        # as "(0x1UL << <name>_Pos)" with the number in a /*!< 0x... */ comment),
+        # and the _Pos name carries the shift. Only the _Msk row therefore carries a
+        # value the extractor can read, so a mock that uses the short spelling -
+        # which is the spelling the drivers themselves use - would be skipped.
+        # Off by default: turning it on for the existing passes would silently
+        # start checking dozens of previously-unverified constants in all four
+        # families, which is a separate change with its own findings.
+        if [ -z "$rval" ] && [ -n "$4" ]; then
+            # Lower-cased: both tables are normalised with tolower(), so the
+            # lookup key has to be too or it never matches.
+            msk=$(printf '%s' "${name}_Msk" | tr 'A-Z' 'a-z')
+            rval=$(awk -v n="$msk" -F'\t' '$1 == n { print $2; exit }' "$REAL_TBL")
+        fi
         if [ -z "$rval" ]; then
             skipped=$((skipped + 1))
+            # CHECK_MOCK_VERBOSE=1 lists what was skipped. Worth having: a macro
+            # silently landing in this bucket is a constant nothing checks, and
+            # the count alone does not say which - the F446's PWR over-drive bits
+            # were exactly that case until the _Msk fallback below was added.
+            [ -n "$CHECK_MOCK_VERBOSE" ] && echo "    skipped: $name"
             continue
         fi
         compared=$((compared + 1))
@@ -101,6 +121,17 @@ compare f1 "$MOCK_DIR/stm32f1xx.h" "$CMSIS_DIR/stm32f103xb.h"
 compare f0 "$MOCK_DIR/stm32f0xx.h" "$CMSIS_DIR/stm32f030x6.h"
 compare g0 "$MOCK_DIR/stm32g0xx.h" "$CMSIS_DIR/stm32g031xx.h"
 compare f4 "$MOCK_DIR/stm32f4xx.h" "$CMSIS_DIR/stm32f407xx.h"
+# The F4 mock twice, against a second real header. One F4 mock has to serve the
+# whole family, and the over-drive bits the F446's 180MHz branch needs
+# (PWR_CR_ODEN/ODSWEN, PWR_CSR_ODRDY/ODSWRDY) are defined in stm32f446xx.h but
+# not at all in stm32f407xx.h - the F407 caps at 168MHz and never uses them. So
+# against stm32f407xx.h alone those four land in the "no comparable CMSIS value"
+# bucket, verified against nothing, which is the worst place for the constants
+# that decide whether the F446 runs 180MHz inside or outside its rating. The
+# second pass is what puts them under a real ST definition. Names the F407 header
+# lacks are skipped, which is why the F4-only and F446-only bits each get checked
+# by exactly one of the two passes.
+compare f4-446 "$MOCK_DIR/stm32f4xx.h" "$CMSIS_DIR/stm32f446xx.h" try_msk
 
 if [ "$fail" -ne 0 ]; then
     echo "  check_mock_headers: FAIL" >&2

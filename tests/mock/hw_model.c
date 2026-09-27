@@ -22,6 +22,7 @@ DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
 #if defined(OW_PORT_TARGET_F4)
 DMA_TypeDef mock_dma2; /* F4 backend only */
 FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -99,6 +100,10 @@ void hw_reset_all(void) {
 #if defined(OW_PORT_TARGET_F4)
     mock_dma2 = (DMA_TypeDef){0};
     mock_flash = (FLASH_TypeDef){0};
+    /* Over-drive starts disabled, and - unlike the real part - the ready flags
+     * start clear too, so a clock test that forgets to enable OD blocks on the
+     * first wait instead of passing by accident. */
+    mock_pwr = (PWR_TypeDef){0};
 #endif
     tim_shadow_out = 0;
     capture_source = NULL;
