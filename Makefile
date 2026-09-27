@@ -515,6 +515,13 @@ test-mocks:
 test-chips:
 	@sh tests/check_chips.sh
 
+# --- Does a build produce the firmware it was asked for? ---
+# Needs the ARM toolchain, so it cannot live in test-chips or the other
+# repo-side checks: it builds two families and compares the resulting bytes.
+.PHONY: test-elf-variant
+test-elf-variant:
+	@sh tests/check_elf_variant.sh
+
 # --- Project version consistency (see tests/check_version.sh) ---
 # The version is declared in eight places; inc/ds18b20.h is the source the
 # others are compared against. Also requires CHANGELOG.md to carry a dated
@@ -577,8 +584,29 @@ $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c Makefile | $(BUILD_DIR)
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
 	$(AS) -c $(FLAG) $(OPT) $(EXT) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_$(notdir $(<:.s=.lst)) $< -o $@
 
+# Always relink, even when nothing is older than the ELF.
+#
+# The output name is ds18b20_<APP>.elf, so it encodes the app and nothing else,
+# while $(OBJ) is stamped with the family, part and clock. Building one variant
+# and then another therefore leaves two different object lists pointing at one
+# ELF: after `make OW_TARGET=f0 APP=x` followed by `make OW_TARGET=f4
+# OW_CHIP=f446xx APP=x`, the F4 objects are all older than the F0 ELF that is
+# still sitting there, make considers the link up to date, and `make program`
+# flashes the previous build's hex. It compiles clean, passes every check, and
+# puts the wrong firmware on the board - which is how it reached hardware three
+# times in one session.
+#
+# Stamping the output name instead would fix it and break every path that names
+# the artefact: st-flash, the J-Flash project, the Ozone project and the README
+# all refer to build/ds18b20_<APP>.hex. Forcing the relink keeps those names and
+# costs one link invocation. Object-level incrementality - the part that actually
+# costs time - is unaffected: $(OBJ) is still per-variant, so a rebuild of the same
+# variant recompiles nothing.
+.PHONY: FORCE_RELINK
+FORCE_RELINK:
+
 # Specify how to build the final executable file
-$(BUILD_DIR)/$(TARGET).elf: $(OBJ) Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(OBJ) Makefile FORCE_RELINK
 	$(CC) $(OBJ) $(LDFLAGS) $(OPT) $(EXT) -o $@
 	$(SZ) $@
 

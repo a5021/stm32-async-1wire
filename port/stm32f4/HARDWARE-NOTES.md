@@ -40,22 +40,49 @@ What was checked before a board, and how:
   sequence lives in the 180MHz branch. The four values are pinned against that
   header by `tests/check_mock_headers.sh`, and `test_timing.c` asserts the whole
   sequence at register level in the 180MHz host suite.
-- **VOS left alone.** The 180MHz path does not write `PWR_CR_VOS`. The F4 CMSIS
-  header gives no `_0`/`_1` spellings for that field, so the encoding cannot be
-  written from a verified constant, and guessing it is the one way to make this
-  worse than leaving it: writing Scale 2 by mistake would cap the part at 144MHz
-  and break the very clock it is trying to enable. The reasoning for leaving it
-  is that the F407 runs 168MHz on that board with no VOS write either, and
-  168MHz already requires Scale 1 — so the family comes out of reset in Scale 1,
-  which is also what 180MHz wants. That is an inference from the F407's
-  validated behavior, not a read of the F446 datasheet, and it is the one thing
-  on this part the bench run did **not** settle: read `PWR_CR.VOS` at boot and
-  confirm Scale 1 (`VOS` = `01`). If it reads `10`, the part is in Scale 2 and
-  180MHz is out of spec even with over-drive, and the fix is a VOS write with
-  the encoding taken from RM0390 rather than guessed. The board in hand runs
-  180MHz correctly, so whatever VOS it is in is high enough — but that is an
-  observation, not a measurement of the field, and a different module could
-  differ.
+- **VOS left alone — now checked against RM0390, not inferred.** The 180MHz path
+  does not write `PWR_CR.VOS`. RM0390 (Power controller, *Bits 15:14 VOS[1:0]*)
+  gives the field in full:
+
+  | VOS[1:0] | Scale |
+  |---|---|
+  | `00` | Reserved (Scale 3 selected) |
+  | `01` | Scale 3 mode |
+  | `10` | Scale 2 mode |
+  | `11` | **Scale 1 mode (reset value)** |
+
+  So the part comes out of reset already in Scale 1, which is the scale 180MHz
+  is rated for, and nothing needs writing. Measured to match: on the F446RET6
+  `PWR_CR` reads `0x0003C000` with over-drive engaged — VOS = `0b11`, `ODEN` and
+  `ODSWEN` set — and `PWR_CSR` reads `0x00034000` with `ODRDY`, `ODSWRDY` and
+  `VOSRDY` all set.
+
+  The earlier reasoning for not writing the field was wrong and is worth
+  replacing rather than keeping: it claimed the CMSIS header gives no `_0`/`_1`
+  spelling for VOS, so the encoding would have to be guessed. That is true of
+  the F407 — VOS is one bit there — and false of this part, which defines
+  `PWR_CR_VOS_0` (`0x4000`), `PWR_CR_VOS_1` (`0x8000`), `_Msk` (`0xC000`) and
+  `_Pos`. The conclusion was right for a reason that does not hold.
+
+  Worse, the fix that reasoning invites is actively harmful, which is the real
+  reason to leave the field alone. The bit suffix is not a scale selector:
+  `PWR_CR_VOS_0` sets bit 14, giving VOS = `0b01` = **Scale 3**, the lowest
+  scale and the opposite of the one wanted. The F407's single bit reads 1 =
+  Scale 1; applying that reading to the F446's two-bit field inverts it. Tried
+  on the bench, then reverted.
+
+  If a scale change is ever needed, RM0390 constrains the sequencing: VOS "can
+  be modified only when the PLL is OFF", "the new value programmed is active
+  only when the PLL is ON", and Scale 3 is selected automatically while the PLL
+  is off. The write would belong here, before the PLL switch lower down in
+  `configure_system_clock()`.
+
+- **The over-drive order is correct, per the same manual.** RM0390, *Bit 16
+  ODEN*: "To set or reset the ODEN bit, the HSI or HSE must be selected as system
+  clock," and with ODEN set the application must wait for `ODRDY` before setting
+  `ODSWEN`. The 180MHz branch enables both while still running from HSI and
+  before the PLL switch, and waits on `ODRDY` in between — so the sequence
+  matches the requirement rather than merely happening to work.
 
 The bench checklist, in the order that would catch the most, with the outcome
 of each recorded after the dash:
@@ -141,13 +168,17 @@ of each recorded after the dash:
    before anything else, and `IC4F_2|IC4F_3` (fDTS/16 N=5, ≈444ns) is the next
    step down from the default.
 
-### Open item carried forward
+### Open item carried forward — closed
 
-`PWR_CR.VOS` was never read (see the reasoning above), so the Scale-1
-assumption behind leaving it alone is still an inference from the F407 rather
-than a measurement on this part. 180MHz runs correctly either way on the board
-in hand, but if a future F446 module misbehaves at 180 while this one does not,
-read `PWR_CR.VOS` first before suspecting the PLL.
+`PWR_CR.VOS` used to be listed here as the one thing the bench run had not
+settled, on the grounds that the scale was an inference from the F407. It is now
+measured and checked against RM0390: the F446 resets into Scale 1, which is what
+180MHz needs, and the field is correctly left unwritten. The reasoning behind the
+original entry was wrong in a way worth flagging to the next reader — the header
+*does* define `_0`/`_1`, and the write those names invite selects Scale 3. See the
+VOS bullet above.
+
+Nothing else is outstanding on this part.
 
 ### F446 example matrix — all 7 examples × 2 clocks
 

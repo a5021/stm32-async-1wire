@@ -324,6 +324,17 @@ jobs:
         run: make APP=3_round_robin
       - name: Build release (4_scan_mode)
         run: make APP=4_scan_mode
+        # The ELF is named ds18b20_<APP>.elf, so it encodes the app and nothing
+        # else, while the objects behind it carry the family, part and clock in
+        # their names. A second build of a different variant can find every object
+        # it needs already older than the ELF the first one left behind, and then
+        # link nothing at all - so `make program` flashes the previous build.
+        # Nothing warns and every other check passes. It needs the toolchain, so
+        # it belongs here rather than in the repo-side checks.
+      - name: Check that each build links its own objects
+        run: make test-elf-variant
+
+
       # Backend-specific register plumbing (e.g. the F0 GPIO BSRR bit naming)
       # only compiles into real firmware here — host suites run against mocks.
       # Smoke-build both backends and both clock branches of app.c so a

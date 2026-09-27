@@ -371,6 +371,29 @@ void configure_system_clock(void) {
      * caps at 168 and never needs OD), so a shared version would not compile
      * there. */
     RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    /* PWR_CR.VOS is deliberately not written. RM0390 (Power controller, "Bits
+     * 15:14 VOS[1:0]") gives the whole field:
+     *
+     *   00: Reserved (Scale 3 mode selected)
+     *   01: Scale 3 mode
+     *   10: Scale 2 mode
+     *   11: Scale 1 mode (reset value)
+     *
+     * The reset value is therefore already Scale 1, which is the scale 180MHz
+     * is rated for, and the part was measured coming up that way: PWR_CR read
+     * 0x0003C000 with ODEN and ODSWEN both set, i.e. VOS = 0b11.
+     *
+     * Do not "fix" this by writing PWR_CR_VOS_0. The bit suffix is not a scale
+     * selector: _0 sets bit 14, so VOS becomes 0b01, which is Scale 3 - the
+     * lowest scale, and the opposite of what is wanted here. The F407's VOS is
+     * a single bit where 1 does mean Scale 1, and carrying that reading over to
+     * the F446's two-bit field inverts it.
+     *
+     * RM0390 also constrains any future write: VOS "can be modified only when
+     * the PLL is OFF", and "the new value programmed is active only when the
+     * PLL is ON", with Scale 3 selected automatically while the PLL is off. So
+     * a scale change would have to be written here, before the PLL switch
+     * further down - not after it. */
     PWR->CR |= PWR_CR_ODEN;
     if (!ow_f4_wait_flag(&PWR->CSR, PWR_CSR_ODRDY)) {
         ow_f4_clock_ok = 0u;
