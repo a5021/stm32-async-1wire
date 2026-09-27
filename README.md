@@ -972,6 +972,46 @@ FetchContent_MakeAvailable(stm32_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
 ```
 
+This is the path to prefer: the library brings its own CMSIS through
+FetchContent, so nothing has to be downloaded or configured first. Build the
+library as a subproject, the target name is un-namespaced
+(`stm32_async_1wire`), not the `stm32_async_1wire::` form below.
+
+### CMake (`find_package`)
+
+The alternative, when you would rather consume a fixed install tree than vendor
+the sources. Install once with the same toolchain, then point `find_package` at
+the prefix:
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_TARGET=f4 -DCMAKE_BUILD_TYPE=Release -B build .
+cmake --build build
+cmake --install build --prefix build/prefix
+```
+
+```cmake
+find_package(stm32_async_1wire REQUIRED)
+target_link_libraries(your_app PRIVATE stm32_async_1wire::stm32_async_1wire)
+```
+
+Two things to know, both consequences of how a package can be built:
+
+- **The consumer provides CMSIS.** The include paths the library compiled
+  against were FetchContent checkouts inside its build tree; baking them into
+  the install export would tie the package to the machine that built it. So
+  add your own CMSIS `core` and device include directories on top of the
+  imported target — from STM32Cube, PlatformIO, or a manual checkout.
+- **The package carries its part selection.** `OW_CHIP` and `OW_TARGET` are
+  baked into the installed target as public definitions (`STM32F407xx`,
+  `OW_PORT_TARGET_F4`, `OW_PORT_SYSCLK_MHZ=168`), because `ow_port.h` picks its
+  backend from them and `#error`s without them. Build the package for the part
+  your firmware is for; there is no way to change it afterwards.
+
+Both integration paths are built by CI against this repository on every change
+for all four families (`tests/integration/cmake/`), so neither can rot the way
+the install-tree file checks alone would not catch.
+
 ### STM32CubeIDE
 
 1.  Run `make download-deps` once to fetch CMSIS headers.

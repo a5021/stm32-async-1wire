@@ -1,8 +1,23 @@
 @PACKAGE_INIT@
 
+# The target is a single whole-library component, so the only meaningful
+# component request is none. Without this call a consumer writing
+# find_package(stm32_async_1wire COMPONENTS bogus) would be told the package
+# was found and then fail later with an unrelated error, or silently link a
+# package that does not have what it asked for.
 include(CMakeFindDependencyMacro)
 
-# CMSIS headers and device files must be provided by the consumer
-# (STM32Cube, PlatformIO, or manual FetchContent).
-
+# CMSIS headers and device files are not provided by the installed package: they
+# were FetchContent checkouts in the build tree, and baking their paths into an
+# install export would tie the package to whichever machine built it. A consumer
+# supplies its own (STM32Cube, PlatformIO, or a manual checkout) on top of the
+# include directory the imported target provides. README repeats this, and
+# tests/integration/cmake/installed is the fixture that holds the contract to it.
+#
+# What the imported target *does* carry is the part selection: the device macro
+# and the OW_PORT_TARGET_* / OW_PORT_SYSCLK_MHZ definitions are PUBLIC on the
+# library target, so they arrive through INTERFACE_COMPILE_DEFINITIONS. A
+# consumer must therefore build a package for the part its own firmware is for.
 include("${CMAKE_CURRENT_LIST_DIR}/stm32_async_1wireTargets.cmake")
+
+check_required_components(stm32_async_1wire)
