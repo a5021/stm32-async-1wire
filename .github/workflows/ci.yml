@@ -285,6 +285,13 @@ jobs:
       - uses: actions/checkout@v5
       - name: Check the part matrix
         run: make test-chips
+      - name: Check the PlatformIO library manifest
+        # PlatformIO resolves consumers through library.json rather than an
+        # install tree, and nothing was reading it. This is a host-gcc check of
+        # the manifest plus the fixture's consumer TU - no PlatformIO install,
+        # no toolchain download. The gap it leaves is written down in
+        # tests/integration/platformio/platformio.ini.
+        run: make test-manifest
 
       - name: Check the project version is consistent
         # inc/ds18b20.h is the source; the CMake project(), both PlatformIO

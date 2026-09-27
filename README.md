@@ -932,6 +932,14 @@ lib_deps = symlink:///path/to/stm32-async-1wire
 The library is also compatible with the Arduino Library Manager (see
 `library.properties`).
 
+A ready-made consumer lives in `tests/integration/platformio/` — copy that
+directory as a starting point. CI does not run PlatformIO itself (it would mean
+downloading the `ststm32` platform and the STM32Cube framework for every run);
+what CI checks instead is that `library.json` is self-consistent and that the
+same consumer compiles with the include set the manifest itself declares, via
+`make test-manifest`. See the comments in `platformio.ini` for exactly what that
+does and does not cover.
+
 ### CMake (FetchContent)
 
 The root `CMakeLists.txt` provides a `stm32_async_1wire` static library
