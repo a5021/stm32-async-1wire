@@ -9,7 +9,7 @@ set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 g0 f4)
 # Part within the family, named after the chips/<part>.mk file the Makefile
 # build uses. Both build systems read the same part file, so they cannot drift
 # on the device macro, startup file, linker script or clock default.
-set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f103xb, f030x6, g031xx, f407xx, f401xc, f401xe); empty = the family's default")
+set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f103xb, f030x6, g031xx, f407xx, f401xc, f401xe, f446xx); empty = the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
 # to every library and example, so a CMake build can select the same firmware

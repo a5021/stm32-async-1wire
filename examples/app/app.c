@@ -192,12 +192,14 @@ void ow_stats_tx_enqueue(char c) {
  *       F1: 72MHz via HSE+PLL x9, or raw HSI at 8MHz. F030x6 has no HSE:
  *       48MHz via HSI/2+PLL x12, or raw HSI at 8MHz. G031x6 has no HSE:
  *       64MHz via HSI16+PLL (M=1, N=8, R=2), or raw HSI16 at 16MHz.
- *       F4: 168MHz (F405/F407) or 84MHz (the F401 cap) via HSE+PLL, raw HSI
+ *       F4: 180MHz (F446, HSE+PLL with the over-drive sequence), 168MHz
+ *       (F405/F407) or 84MHz (the F401 cap) via HSE+PLL, raw HSI
  *       at 16MHz, or raw HSE at the crystal's own frequency.
  * @note On F4 the crystal comes from OW_HSE_MHZ, a *board* property, because
  *       one part ships on boards with different crystals. A wrong value cannot
- *       be caught at compile time - the PLL simply never locks - so the two
- *       waits that can never end are bounded.
+ *       be caught at compile time - the PLL simply never locks - so the three
+ *       waits that can never end are bounded (HSERDY, PLLRDY, and the F446's
+ *       two over-drive flags).
  * @note On failure the flag is cleared and the clock tree is left untouched: the
  *       1us tick, SysTick and the console divisor are all compiled against the
  *       requested OW_PORT_SYSCLK_MHZ, so carrying on from the reset HSI would
@@ -296,13 +298,31 @@ void configure_system_clock(void) {
  *   PLLM = OW_HSE_MHZ        ->  PLL input = 1MHz
  *   PLLN = 2 * SYSCLK        ->  VCO = 2*SYSCLK, and PLLP = 2 divides it back
  *
- * An 8MHz crystal therefore lands on the historical M=8 with N=336 (168MHz) or
- * N=168 (84MHz) - the configuration the F407DISCOVERY was validated at - while a
- * 25MHz board reaches the F401's 84MHz cap with M=25/N=168. Deriving the dividers
- * beats encoding one crystal per target: the old code hardcoded M=8, so a 25MHz
- * crystal could not reach its cap at all, and the lock wait never ended.
+ * An 8MHz crystal therefore lands on the historical M=8 with N=336 (168MHz),
+ * N=168 (84MHz) or N=360 (180MHz) - the 168/336 pair is the configuration the
+ * F407DISCOVERY was validated at - while a 25MHz board reaches the F401's 84MHz
+ * cap with M=25/N=168. Deriving the dividers beats encoding one crystal per
+ * target: the old code hardcoded M=8, so a 25MHz crystal could not reach its cap
+ * at all, and the lock wait never ended.
+ *
+ * A clock the part cannot reach is rejected here rather than at runtime. The
+ * per-part ceiling lives in onewire.h (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a
+ * real frequency on the F446 and an out-of-spec one on an F407, and the two do
+ * not differ by a divisor - they differ by over-drive, flash latency and APB
+ * limits, so a build that asked for 180 on an F407 could not be made correct
+ * by scaling the PLL down.
  */
-#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 84
+#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
+#error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in onewire.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
+#endif
+
+    /* The APB prescalers this backend programs, and the console divisor derived
+ * from them, live in app.h (OW_F4_APB1_DIV / OW_F4_APB2_DIV /
+ * OW_F4_PCLK*_MHZ / OW_F4_CONSOLE_BRR) so the host suite can assert the value.
+ * See the comment there for why a per-clock table in this file was a bug
+ * waiting to happen. */
+
+#if (OW_PORT_SYSCLK_MHZ) == 168 || (OW_PORT_SYSCLK_MHZ) == 84 || (OW_PORT_SYSCLK_MHZ) == 180
 #define OW_F4_PLLM OW_HSE_MHZ
 #define OW_F4_PLLN ((OW_PORT_SYSCLK_MHZ) * 2u)
 
@@ -334,7 +354,48 @@ void configure_system_clock(void) {
         }                                                                                    \
     } while (0)
 
-#if (OW_PORT_SYSCLK_MHZ) == 168
+#if (OW_PORT_SYSCLK_MHZ) == 180
+    OW_F4_PLL_START();
+    /* Over-drive (RM0390 §5.4.6), the one thing 180MHz needs that 168 does not.
+     * Ordered like ST's own RCC_ClockConfig example: lock the PLL, turn OD on and
+     * wait for it, and only then raise the flash latency and switch SYSCLK - the
+     * core never runs fast before its wait states and voltage are right.
+     *
+     * Both waits are bounded and report through the same clock-failure flag as
+     * the PLL, because a stuck ODRDY/ODSWRDY is as fatal as an unlocked PLL:
+     * without it the 180MHz switch is out of spec. PWR sits on APB1, so its
+     * clock has to be enabled before CR can be written at all.
+     *
+     * This stays in the 180 branch rather than being hoisted into the shared PLL
+     * code on purpose: stm32f407xx.h defines none of these four bits (the F407
+     * caps at 168 and never needs OD), so a shared version would not compile
+     * there. */
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    PWR->CR |= PWR_CR_ODEN;
+    if (!ow_f4_wait_flag(&PWR->CSR, PWR_CSR_ODRDY)) {
+        ow_f4_clock_ok = 0u;
+        return;
+    }
+    /* Over-drive in the power-saving path; required by the same sequence even
+     * though this application never enters a low-power mode. */
+    PWR->CR |= PWR_CR_ODSWEN;
+    if (!ow_f4_wait_flag(&PWR->CSR, PWR_CSR_ODSWRDY)) {
+        ow_f4_clock_ok = 0u;
+        return;
+    }
+    // Flash latency: 5 wait states, the same table row as 168MHz (RM0390): the
+    // 180MHz cap moves the voltage-scale-1 limit, not the wait-state count.
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                 FLASH_ACR_LATENCY_5WS;
+    // APB1 /4 = 45MHz, APB2 /2 = 90MHz (both at the F446's datasheet limits -
+    // different numbers from the F407's 42/84, which is why this is a separate
+    // branch rather than a shared block). TIM1 is on APB2: with a prescaler != 1
+    // the timer clock is doubled, so TIM1 = 2 * 90 = 180MHz = SYSCLK (the
+    // ow_port 1us-tick invariant), which is what keeps
+    // OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
+    RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2)) |
+                RCC_CFGR_PPRE1_DIV4 | RCC_CFGR_PPRE2_DIV2;
+#elif (OW_PORT_SYSCLK_MHZ) == 168
     OW_F4_PLL_START();
     // Flash latency: 5 wait states for 150 < HCLK <= 168MHz (RM0090). 168MHz is
     // the max without over-drive, so over-drive is not enabled.
@@ -384,7 +445,7 @@ void configure_system_clock(void) {
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE)
         ;
 #else
-#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 or 84 (HSE+PLL, crystal via HSE_MHZ), 16 (raw HSI), or a value equal to HSE_MHZ (raw HSE)"
+#error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 or 84 (HSE+PLL, crystal via HSE_MHZ), 180 on an F446 (HSE+PLL+over-drive), 16 (raw HSI), or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #else /* F1 */
 #if (OW_PORT_SYSCLK_MHZ) == 72
@@ -429,7 +490,10 @@ void configure_system_clock(void) {
  *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),
  *       LED on PA4 (no PC13 bonded out on TSSOP20). F4: USART1 TX on PB6
  *       (AF7; the F4DISCOVERY has no USART1-to-ST-LINK route on PA9), LED on
- *       PD12, with an optional OW_UART_USART3 path on PB10.
+ *       PD12, with an optional OW_UART_USART3 path on PB10. The F4 console pin
+ *       is PB6 because that is where the F4DISCOVERY's ST-LINK VCP is, and it
+ *       is also where a WeAct F446RET6's CP210x VCP answers (measured); for a
+ *       board whose VCP is on PA9, build with -DOW_UART_USART1_PA9.
  */
 #if defined(OW_PORT_FAMILY_F4)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
@@ -447,14 +511,11 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // enabled by ow_port_init())
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;
 
-    // APB bus clocks for the console UART, derived from the active clock
-    // config (see configure_system_clock): 168MHz -> APB1 /4 = 42, APB2 /2
-    // = 84; 84MHz -> APB1 /2 = 42, APB2 /2 = 42; raw 16/8MHz -> APB1/APB2 /1
-    // = SYSCLK.
-#define OW_PORT_PCLK1_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 42 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \
-                                                                                         : (OW_PORT_SYSCLK_MHZ))
-#define OW_PORT_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ) == 168 ? 84 : (OW_PORT_SYSCLK_MHZ) == 84 ? 42 \
-                                                                                         : (OW_PORT_SYSCLK_MHZ))
+    // APB bus clocks for the console UART, derived from the prescalers this
+    // file programs (OW_F4_APB1_DIV/OW_F4_APB2_DIV above), not restated here:
+    // 168MHz and 180MHz -> APB1 /4, APB2 /2 (42/84 and 45/90); 84MHz -> /2, /2
+    // (42/42); raw 16/8MHz -> /1, /1 (both = SYSCLK).
+    // Test: tests/test/test_timing.c::test_console_baud_divisor()
 
     // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -> LED -> GND)
     GPIOD->MODER = (GPIOD->MODER & ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;
@@ -468,19 +529,45 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;
     GPIOB->OTYPER &= ~GPIO_OTYPER_OT_10;
     GPIOB->AFR[1] = (GPIOB->AFR[1] & ~GPIO_AFRH_AFSEL10) | (7u << GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */
-    // PCLK1: APB1 /4 at 168MHz (42MHz), /2 at 84MHz (42MHz), /1 otherwise.
-    app_set_console_baud(OW_PORT_PCLK1_MHZ);
+    // PCLK1: OW_F4_APB1_DIV at the configured SYSCLK (/4 at 168 and 180MHz,
+    // /2 at 84MHz, /1 on the raw clocks).
+    app_set_console_baud(OW_F4_PCLK1_MHZ);
     USART3->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only
+#else
+    /* USART1 TX pin. PB6 is the F4DISCOVERY default because that board routes
+     * its ST-LINK virtual COM port there; it is not a general F4 default. A
+     * WeAct F446RET6 also answers on PB6 (measured - its CP210x VCP is wired
+     * there, not on PA9), so the default works on both boards without flags.
+     *
+     * The pin stays a knob because a board that puts its VCP on PA9 would be
+     * silent, and silently so: the clock-failure banner would go out the same
+     * missing pin, so "no output" could not be told apart from "the clock never
+     * started". Hence OW_UART_USART1_PA9, default unchanged.
+     *
+     * PA9 is safe alongside the bus: ow_port_f4.h takes PA10 for TIM1_CH3 and
+     * PA11 for the logic-analyzer marker, and only PA10 would clash with a
+     * board's USART1_RX - which nothing here configures, the console is TX only.
+     */
+#if defined(OW_UART_USART1_PA9)
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
+    GPIOA->OTYPER &= ~GPIO_OTYPER_OT_9;
+    /* PA9 is pin 9, so it is in the high half: AFRH / AFR[1]. The F4 headers
+     * define GPIO_AFRH_AFSEL9* and no GPIO_AFRL_AFSEL9 at all, which is what a
+     * build with -DOW_UART_USART1_PA9 catches immediately - the F0/G0 PA9 path
+     * below reads the same register and gets this right. */
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos); /* AF7 = USART1 */
 #else
     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).
     // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console
     // rides USART1 on PB6 (AF7); PA9 stays free.
-    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;
     GPIOB->OTYPER &= ~GPIO_OTYPER_OT_6;
     GPIOB->AFR[0] = (GPIOB->AFR[0] & ~GPIO_AFRL_AFSEL6) | (7u << GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */
-    // USART1 is on APB2: /2 at 168MHz (84MHz) and at 84MHz (42MHz), /1 otherwise.
-    app_set_console_baud(OW_PORT_PCLK2_MHZ);
+#endif
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+    // USART1 is on APB2: OW_F4_APB2_DIV at the configured SYSCLK (/2 at 168,
+    // 180 and 84MHz, /1 on the raw clocks).
+    app_set_console_baud(OW_F4_PCLK2_MHZ);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #endif
 #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)

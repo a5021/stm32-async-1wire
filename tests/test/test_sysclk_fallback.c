@@ -52,19 +52,32 @@
 #if OW_PORT_SYSCLK_MHZ != 84
 #error "F4/STM32F401 family-macro selection must default to an 84 MHz system clock"
 #endif
+#elif defined(STM32F446xx)
+#if OW_PORT_SYSCLK_MHZ != 180
+#error "F4/STM32F446 family-macro selection must default to a 180 MHz system clock"
+#endif
 #else
 #if OW_PORT_SYSCLK_MHZ != 168
 #error "F4 family-macro selection must default to a 168 MHz system clock"
+#endif
+#endif
+
+/* The per-part ceiling has to agree with the default this file just checked, or
+ * the guard that rejects an out-of-range request (onewire.h
+ * OW_PORT_F4_MAX_SYSCLK_MHZ, used by app.c) would reject the part's own
+ * default. That pair is the only thing stopping a 180 MHz build for an F407. */
+#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 
 /* The F4 PLL takes its M divider from the crystal (OW_HSE_MHZ) rather than a
  * hardcoded 8, so one part can run on boards with different crystals: PLLM =
  * OW_HSE_MHZ puts the PLL input at 1MHz, PLLN = 2 x SYSCLK sets the VCO. An 8MHz
- * crystal therefore still yields M=8/N=336 at 168MHz, and a 25MHz board reaches
- * the F401's 84MHz cap with M=25/N=168. These are the checks that would have
- * caught the 25MHz F401 quietly reverting to M=8: nothing else in the build
- * looks at the M field, and a wrong value is not a compile error - the PLL just
- * never locks. */
+ * crystal therefore still yields M=8/N=336 at 168MHz, M=8/N=168 at 84MHz and
+ * M=8/N=360 at the F446's 180MHz, and a 25MHz board reaches the F401's 84MHz
+ * cap with M=25/N=168. These are the checks that would have caught the 25MHz
+ * F401 quietly reverting to M=8: nothing else in the build looks at the M field,
+ * and a wrong value is not a compile error - the PLL just never locks. */
 #if !defined(OW_HSE_MHZ)
 #error "OW_HSE_MHZ must be defined for the F4 backend (onewire.h defaults it to 8)"
 #endif
@@ -80,7 +93,6 @@
  * 3.125 - now a build error. */
 #if (OW_PORT_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
 #error "F4: SYSCLK_MHZ=8 selects raw HSE, which runs at the crystal: pass HSE_MHZ=8, or SYSCLK_MHZ=16 for the internal RC"
-#endif
 #endif
 #else
 #error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"

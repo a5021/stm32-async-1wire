@@ -38,30 +38,55 @@ extern "C" {
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
  * least-significant byte via MSIZE=8.  This is lossless only while every
- * slot capture stays below 256 µs; the counter runs 0..ARR, so the maximum
+ * slot capture stays below 256 Вµs; the counter runs 0..ARR, so the maximum
  * capture value is ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE +
  * ONEWIRE_GUARD_BAND.  Enforce this globally across all backends. */
 _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 256u,
                "8-bit read capture (MSIZE=8) would truncate slot durations");
 
 /* --- CH4 input-capture digital filter (IC4F), one standard for every clock.
- *     Keep the filter time T_f = N × T_sample as close to ~500ns as the
+ *     Keep the filter time T_f = N Г— T_sample as close to ~500ns as the
  *     discrete IC4F table allows for the configured clock: that rejects
- *     sub-µs bus glitches while adding well under 1µs to read-slot captures
- *     — negligible against the ONEWIRE_SHORT_PULSE_MAX decode window (an
+ *     sub-Вµs bus glitches while adding well under 1Вµs to read-slot captures
+ *     вЂ” negligible against the ONEWIRE_SHORT_PULSE_MAX decode window (an
  *     IC4F sweep on STM32F030@8MHz decoded cleanly from fCK_INT N=2 all the
- *     way to fDTS/4 N=8):
- *       ≤ 8MHz   fCK_INT, N=4    T_f ≈ 500ns @ 8MHz
- *       ≤16MHz   fCK_INT, N=8    T_f ≈ 500ns @ 16MHz
- *       ≤72MHz   fDTS/4,  N=8    T_f ≈ 444..667ns @ 48..72MHz
- *       >72MHz   fDTS/8,  N=6    T_f ≈ 571ns @ 84MHz
- *     (fDTS/4,N=8 on 84MHz would give 381ns — below the 444..667ns T_f range
+ *     way to fDTS/4 N=8).
+ *
+ *     The encoding is a ladder, and it is worth writing down because getting it
+ *     wrong is silent - the filter still configures, it is just a different
+ *     time. ICxF[3:0], from the RM0090 table (the same one ST's own
+ *     stm32f0xx_ll_tim.h spells out, which is where these were read from):
+ *       0000 none   0001 fCK_INT N=2  0010 fCK_INT N=4  0011 fCK_INT N=8
+ *       0100 fDTS/2 N=6   0101 fDTS/2 N=8
+ *       0110 fDTS/4 N=6   0111 fDTS/4 N=8
+ *       1000 fDTS/8 N=6   1001 fDTS/8 N=8
+ *       1010 fDTS/16 N=5  1011 fDTS/16 N=6  1100 fDTS/16 N=8
+ *       1101 fDTS/32 N=5  1110 fDTS/32 N=6  1111 fDTS/32 N=8
+ *     fDTS follows CKD, which no port here sets, so fDTS = fCK_INT = the
+ *     timer kernel clock:
+ *       в‰¤ 8MHz   fCK_INT, N=4     T_f в‰€ 500ns @ 8MHz      (ICxF_1)
+ *       в‰¤16MHz   fCK_INT, N=8     T_f в‰€ 500ns @ 16MHz     (ICxF_0|ICxF_1)
+ *       в‰¤72MHz   fDTS/4,  N=8     T_f в‰€ 444..667ns @ 48..72MHz
+ *       в‰¤168MHz  fDTS/8,  N=6     T_f в‰€ 571ns @ 84MHz     (ICxF_3)
+ *       >168MHz  fDTS/16, N=6     T_f в‰€ 533ns @ 180MHz    (ICxF_0|ICxF_1|ICxF_3)
+ *     (fDTS/4,N=8 on 84MHz would give 381ns вЂ” below the 444..667ns T_f range
  *     shared by every other port; fDTS/8,N=6 restores it.)
+ *
+ *     The 180MHz line is the STM32F446 and is arithmetic from the rule above
+ *     rather than a capture measurement, so it is the one entry here that has
+ *     not been on a bench. The ladder is what makes it necessary: carrying the
+ *     N=6 fDTS/8 choice over gives 6/22.5MHz в‰€ 267ns, further outside the
+ *     ~500ns target than 168MHz already is (286ns there, also under the band -
+ *     the fDTS/8 row was picked for 84MHz and simply undershoots above it), and
+ *     fDTS/16 N=6 is the entry that lands back in the band. 0b1111 is NOT that
+ *     one: it is fDTS/32 N=8, i.e. 1422ns, five times the 168MHz value.
+ *     Whether 533ns of filtering costs anything against the read-slot window at
+ *     this clock is a bench question - sweep it with -DOW_PORT_IC4F_ARGS=...
+ *     and record the result in port/stm32f4/HARDWARE-NOTES.md.
  *     Backends feed the macro into TIM_CCMR2(...) unchanged.
  *     The default can be overridden from the build (-DOW_PORT_IC4F_ARGS=...)
- *     to sweep the filter on a bench; the exact ICxF encoding is family
- *     specific (F4/TIM1 fDTS table from STM32Cube LL, e.g. fDTS/4,N=8 =
- *     IC4F_0,IC4F_1,IC4F_2 vs. fDTS/8,N=6 = IC4F_3). --- */
+ *     to sweep the filter on a bench.
+ *     Test: tests/test_timing.c::test_ic4f_matches_the_documented_tier() */
 #ifndef OW_PORT_IC4F_ARGS
 #if (OW_PORT_SYSCLK_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 */
@@ -69,8 +94,10 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* fCK_INT, N=8 */
 #elif (OW_PORT_SYSCLK_MHZ) <= 72
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 */
-#else
+#elif (OW_PORT_SYSCLK_MHZ) <= 168
 #define OW_PORT_IC4F_ARGS IC4F_3 /* fDTS/8, N=6 */
+#else
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* fDTS/16, N=6 */
 #endif
 #endif
 

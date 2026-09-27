@@ -95,8 +95,20 @@ typedef struct {
     volatile uint32_t CFGR;
     volatile uint32_t CIR;
     volatile uint32_t AHB1ENR;
+    volatile uint32_t APB1ENR;
     volatile uint32_t APB2ENR;
 } RCC_TypeDef;
+
+/* Power control: only the over-drive pair matters here, and only on the F446's
+ * 180MHz branch (configure_system_clock enables ODEN, waits ODRDY, enables
+ * ODSWEN, waits ODSWRDY). stm32f407xx.h defines none of those four bits - the
+ * F407 caps at 168MHz and never needs over-drive - so this type exists for the
+ * F446 clock test only, and the bit values below are taken from
+ * stm32f446xx.h (checked by tests/check_mock_headers.sh against that header). */
+typedef struct {
+    volatile uint32_t CR;
+    volatile uint32_t CSR;
+} PWR_TypeDef;
 
 /* Flash interface: only ACR is touched by configure_system_clock() latency
  * programming; the remaining registers keep the real layout for fidelity. */
@@ -132,6 +144,7 @@ extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 extern USART_TypeDef mock_usart1;
 extern FLASH_TypeDef mock_flash;
+extern PWR_TypeDef mock_pwr;
 #define TIM1 (&mock_tim1)
 #define DMA2_Stream2 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
 #define DMA2_Stream4 (&mock_dma1_ch4) /* CC4 capture -> drains CCR4 */
@@ -140,11 +153,14 @@ extern FLASH_TypeDef mock_flash;
 #define RCC (&mock_rcc)
 #define USART1 (&mock_usart1)
 #define FLASH (&mock_flash)
+#define PWR (&mock_pwr)
 
 /* --- Bit-field constants used by the driver (F4 spellings) --- */
 #define RCC_AHB1ENR_GPIOAEN 0x00000001u
 #define RCC_AHB1ENR_DMA2EN 0x00400000u
 #define RCC_APB2ENR_TIM1EN 0x00000001u
+/* PWR's APB1 clock: needed before PWR->CR is writable. */
+#define RCC_APB1ENR_PWREN 0x10000000u
 /* Clock-path constants used by configure_system_clock() under the harness
  * (RM0090 / stm32f407xx.h spellings and values). */
 #define RCC_CR_HSEON 0x00010000u
@@ -173,6 +189,20 @@ extern FLASH_TypeDef mock_flash;
 #define FLASH_ACR_LATENCY_2WS 0x00000002u /* 60 < HCLK <= 90MHz, covers 84 */
 #define FLASH_ACR_LATENCY_1WS 0x00000001u
 #define FLASH_ACR_LATENCY_5WS 0x00000005u
+/* No FLASH_ACR_LATENCY_Msk here on purpose: the field is 3 bits wide on the F407
+ * and 4 on the F446, and one F4 mock cannot be both - check_mock_headers.sh
+ * caught exactly that. Tests read the wait states back off the whole ACR instead,
+ * which needs no mask and is the stronger assertion anyway: app.c assigns ACR
+ * wholesale, so the prefetch/cache/latency combination is checked as a unit. */
+/* Over-drive bits, F446-only (RM0390 §5.4.6, stm32f446xx.h spellings): ODEN and
+ * ODSWEN in PWR_CR [17:16], their ODSWRDY/ODRDY acknowledgements in PWR_CSR
+ * [17:16]. Both are the same bit positions in the two registers, which is why the
+ * sequence has to be two steps and not one: the second waits on the *switching*
+ * ready flag, not on ODRDY again. */
+#define PWR_CR_ODEN 0x00010000u
+#define PWR_CR_ODSWEN 0x00020000u
+#define PWR_CSR_ODRDY 0x00010000u
+#define PWR_CSR_ODSWRDY 0x00020000u
 /* MODER bit fields, matching CMSIS stm32f407xx.h: pin 10 is bits [21:20] and
  * pin 11 is bits [23:22]. The two triples used to be swapped - the names
  * MODER10_* held pin 11's bits and MODER11_* held pin 10's - so a host test

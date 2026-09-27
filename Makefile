@@ -299,6 +299,7 @@ SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/hea
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
 SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F407.svd
 SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
+SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F446.svd
 
 # Required external files (needed for build but not in repo)
 # The part-specific entries come from chips/<part>.mk, so download-deps fetches
@@ -420,18 +421,21 @@ CMSIS_DOWNLOADS_F4 = \
   stm32f407xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f407xx.h \
   stm32f401xc.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xc.h \
   stm32f401xe.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xe.h \
+  stm32f446xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f446xx.h \
   system_stm32f4xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/system_stm32f4xx.h \
   system_stm32f4xx.c|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/system_stm32f4xx.c \
   startup_stm32f407xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s \
   startup_stm32f401xc.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s \
-  startup_stm32f401xe.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s
+  startup_stm32f401xe.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s \
+  startup_stm32f446xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f446xx.s
 # SVD files (debug register views for Ozone / VSCode cortex-debug)
 CMSIS_DOWNLOADS_SVD = \
   STM32F103xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F1) \
   STM32F030.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F0) \
   STM32G031.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G0) \
   STM32F407.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F4) \
-  STM32F401.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F401)
+  STM32F401.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F401) \
+  STM32F446.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F446)
 
 CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F1) \
                  $(CMSIS_DOWNLOADS_F0) $(CMSIS_DOWNLOADS_G0) \
@@ -489,8 +493,22 @@ clean-deps:
 # and a plain download-deps only fetches the active OW_TARGET's. Recursing
 # per family keeps the requirement with the target instead of with every
 # caller, the way clock-ref-check does.
+#
+# Per *part* as well as per family, because check_mock_headers.sh reads one F4
+# mock against two real F4 headers: stm32f407xx.h for the family default and
+# stm32f446xx.h for the over-drive bits, which stm32f407xx.h does not define at
+# all. Recursing per family alone leaves the F446 header unfetched, and the check
+# then fails on a clean checkout with "missing stm32f446xx.h" - which is exactly
+# what it did in CI, where nothing had ever downloaded that part. Locally it
+# passed only because the header was already sitting in CMSIS/ from earlier work.
+#
+# These are the parts the script compares against, so adding one to
+# tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
+# because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
+# - the inner reference expands before t is bound and comes out empty.
+MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 g0:g031xx f4:f407xx f4:f446xx
 test-mocks:
-	$(foreach t,$(OW_KNOWN_TARGETS),$(MAKE) OW_TARGET=$(t) download-deps &&) true
+	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
 
 .PHONY: test-chips
@@ -530,7 +548,21 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # ("invalid constant after fixup") on the one freshly-named file rather than as
 # the stale link it actually was, and switching families within one build tree
 # is ordinary usage, not a corner case.
-OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)
+#
+# The clock knobs belong in the stamp for the same reason, and harder: SYSCLK_MHZ
+# and HSE_MHZ both reach the firmware as -DOW_PORT_SYSCLK_MHZ / -DOW_HSE_MHZ, so
+# two builds of the same part that differ only in either are different firmware.
+# Without them in the name, building the 180MHz, raw-HSI 16MHz and raw-HSE 8MHz
+# variants of one part in sequence reused the first build's objects for the other
+# two, and each of those silently shipped the 180MHz prescaler, bit-slot timings
+# and console divisor. That is the most dangerous shape this bug can take: it
+# compiles clean, links, and is wrong on hardware only.
+#
+# The values are the *effective* ones (the command line, else the part default),
+# so a default build and an explicit one that agree still share objects.
+OW_EFF_SYSCLK := $(if $(SYSCLK_MHZ),$(SYSCLK_MHZ),$(CHIP_SYSCLK_MHZ))
+OW_EFF_HSE := $(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))
+OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)
 OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
@@ -676,17 +708,32 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_
             $(if $(COVERAGE),--coverage,)
 TEST_INC  = -Iinc -Iexamples/app -Iport/common $(TEST_PORT_INC) -I$(TEST_MOCK)
 
+# Extra host executables for this family, built and run alongside $(TEST_EXE).
+# Empty for every family but F4, which carries a second clock that is a
+# genuinely different code path rather than a different constant: the F446's
+# 180MHz brings the over-drive sequence and its own PLL branch, and the 168MHz
+# F407 clock has neither - stm32f407xx.h does not even define PWR_CR_ODEN. One
+# suite, two clocks, so the 180MHz asserts in test_timing.c (PWR clock, ODEN,
+# ODSWEN, 5 wait states, PLLN=360) are compiled and run at all, and so a
+# regression in that branch cannot hide behind the 168MHz build passing.
+ifneq ($(filter f4,$(OW_TARGET)),)
+TEST_F4_180_FLAG = $(TEST_FLAG) -DSTM32F446xx -DOW_PORT_SYSCLK_MHZ=180
+TEST_F4_180_EXE = $(TEST_OUT)/ds18b20_test_f4_180mhz.exe
+TEST_EXTRA_EXES = $(TEST_F4_180_EXE)
+endif
+
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))).exe
 
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1)))
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,_f1))).o
-# F4/F401-family fallback compile check: always built as part of `make test`,
-# independent of the active OW_TARGET (see F401_CLOCK_CHECKS below).
+# Per-part F4 fallback compile check: always built as part of `make test`,
+# independent of the active OW_TARGET (see F4_PART_CLOCK_CHECKS below).
 
-test: $(TEST_EXE) $(TEST_CLOCK_OBJ) clock-ref-check
+test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) clock-ref-check
 	$(TEST_EXE)
+	$(foreach x,$(TEST_EXTRA_EXES),$(x);)
 
 # --- Per-family wrappers, generated ---------------------------------------
 # Every variant is written once for the active OW_TARGET and reached from
@@ -734,28 +781,31 @@ $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
-# --- F4/F401 fallback compile check (see test_sysclk_fallback.c) ---
+# --- Per-part F4 fallback compile check (see test_sysclk_fallback.c) ---
 # Compile-only, built as part of every `make test` (via clock-ref-check): verifies
-# that selecting the F4 family together with an STM32F401 device macro (the
-# OW_CHIP=f401xc / f401xe build, or a bare PlatformIO/CubeMX F401 project)
-# resolves the F4 backend with an 84 MHz clock default instead of the F405/F407
-# 168 MHz one. The macro is taken from chips/<chip>.mk rather than repeated
+# that selecting the F4 family together with a device macro that is not the plain
+# F407 one resolves the F4 backend with *that part's* clock default - 84 MHz for
+# the STM32F401 parts, 180 MHz for the STM32F446 - instead of the 168 MHz
+# F405/F407 default. The macro is taken from chips/<chip>.mk rather than repeated
 # here, so renaming the part in one place cannot leave this guard testing a
 # macro nothing builds. Deliberately does not pass -DOW_PORT_SYSCLK_MHZ: the
 # point is to check the default that onewire.h derives from the part macro alone.
 #
-# Both F401 parts are checked because they are two part files with two defaults.
-# Enumerating them in one list keeps a newly added F401 variant from silently
-# shipping without a guard - the xE part was checked for nothing at all until
-# this was generalised from the single f401xc entry it started as.
-F401_CLOCK_CHECKS = f401xc f401xe
-F401_CLOCK_OBJS = $(foreach c,$(F401_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallback_$(c).o)
+# Every F4 part with a default of its own is listed here. Enumerating them in one
+# list keeps a newly added variant from silently shipping without a guard - the
+# xE part was checked for nothing at all until this was generalised from the
+# single f401xc entry it started as, and the F446 is the case that matters most
+# (180 MHz is a different PLL branch from 168, not just a different number).
+# f407xx is left out on purpose: 168 MHz is the family-wide fallback that
+# test_sysclk_fallback_f4.o already covers with the plain STM32F4 macro.
+F4_PART_CLOCK_CHECKS = f401xc f401xe f446xx
+F4_PART_CLOCK_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallback_$(c).o)
 
-# The stem of the target is the part, so one pattern rule serves every F401
-# variant; the sub-make below selects OW_CHIP, which is what makes CHIP_DEV_DEF
-# the right part's macro. The chips/f401%.mk prerequisite rebuilds the object
-# when the part file changes.
-$(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Makefile chips/f401%.mk | $(TEST_OUT)
+# The stem of the target is the part, so one pattern rule serves every F4 part;
+# the sub-make below selects OW_CHIP, which is what makes CHIP_DEV_DEF the right
+# part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
+# file changes.
+$(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
@@ -763,13 +813,13 @@ $(TEST_OUT)/test_sysclk_fallback_f401%.o: tests/test/test_sysclk_fallback.c Make
 # that part's macro. Recursion is what makes the part file the single source.
 .PHONY: clock-ref-check
 clock-ref-check:
-	$(foreach c,$(F401_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
+	$(foreach c,$(F4_PART_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
 test-clocks: test-chips test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
-# Both F401 parts, via the list above; kept as a target so the aggregate and
-# `make test` reach the same check by a name a reader can find.
-test-clocks-f401: clock-ref-check
+# Every per-part F4 check, via the list above; kept as a target so the aggregate
+# and `make test` reach the same check by a name a reader can find.
+test-clocks-f4: clock-ref-check
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
@@ -787,10 +837,31 @@ test-lowpower: $(TEST_LP_EXE)
 DS18B20_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
                 src/ds18b20_search.c src/ds18b20_measure.c
 
-$(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+# The headers the host suites compile against, as prerequisites. The firmware
+# build gets this from -MMD depfiles, but the host build is a single gcc call
+# producing one .exe, so there is no depfile to read - and without this, editing
+# a header leaves the executables untouched. That is not a nuisance: it produced
+# a *false pass*. Mutating the 180MHz IC4F tier in inc/ow_port.h and re-running
+# `make test` reported success, because the binary was stale; only a forced
+# rebuild failed. A test that cannot be made to run is worse than no test.
+TEST_PORT_DIR = $(patsubst -I%,%,$(TEST_PORT_INC))
+TEST_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
+            $(wildcard port/common/*.h) $(wildcard $(TEST_PORT_DIR)/*.h) \
+            $(wildcard $(TEST_MOCK)/*.h)
+
+$(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
-$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c Makefile | $(TEST_OUT)
+# The F4 suite at the F446's 180MHz. Same sources and same test_main, only the
+# device macro and the clock differ, so the suite's own expectations have to
+# hold at 180MHz as well - the bit-slot constants are µs figures and the TIM
+# model is prescaler-driven, which is exactly what should be clock-independent.
+# Kept as its own target (rather than a variable in $(TEST_EXE)) so a failure
+# names the clock it happened at.
+$(TEST_F4_180_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_F4_180_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+$(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
 
 $(TEST_OUT):
@@ -814,7 +885,7 @@ TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(if $(filter f0,$(OW_TARGET))
 test-active: $(TEST_ACTIVE_EXE)
 	$(TEST_ACTIVE_EXE)
 
-$(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c Makefile | $(TEST_OUT)
+$(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
 
 # --- Release-semantics build (-DNDEBUG + OW_TEST_PARAM_GUARD) ---
@@ -831,7 +902,7 @@ TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(if $(filter f0,$(OW_TARGET)),_f0
 test-ndebug: $(TEST_NG_EXE)
 	$(TEST_NG_EXE)
 
-$(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c Makefile | $(TEST_OUT)
+$(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
 
 # Include the dependency files generated during compilation
@@ -942,7 +1013,7 @@ help:
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-g0/-f4)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-g0/-f4)"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
-	@echo "  test-clocks     - Check the per-family clock defaults (also -f401xc)"
+	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f4)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
 	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"

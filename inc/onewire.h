@@ -79,6 +79,21 @@ extern "C" {
 #if defined(OW_PORT_FAMILY_F4) && !defined(OW_HSE_MHZ)
 #define OW_HSE_MHZ 8
 #endif
+/** @brief Highest system clock this F4 part can be clocked at, in MHz.
+ *
+ *  One fact per part, so that "can this build run that fast" is answered in the
+ *  same place as "how fast does it run by default". app.c rejects a build that
+ *  asks for more than this, which is what keeps a 180 MHz request from silently
+ *  compiling for an F407 (whose cap is 168 MHz without over-drive, and whose
+ *  flash latency and APB limits differ above it).
+ *
+ *  Defined for F4 only: the other families have a single clock ceiling each and
+ *  no per-part case, so there is nothing to express. */
+#if defined(OW_PORT_FAMILY_F4) && defined(STM32F446xx)
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
+#else
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap; the F401 parts are lower still, see below */
+#endif
 /** @brief System clock frequency in MHz after application clock setup.
  *  Single source of truth for the clock-dependent settings: the timer
  *  prescaler (1µs ticks) and the input-capture filter selection below
@@ -97,6 +112,8 @@ extern "C" {
 #elif defined(OW_PORT_FAMILY_F4)
 #if defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: the part's 84MHz cap, see OW_HSE_MHZ */
+#elif defined(STM32F446xx)
+#define OW_PORT_SYSCLK_MHZ 180 /* STM32F446: HSE + PLL + over-drive, see OW_HSE_MHZ */
 #else
 #define OW_PORT_SYSCLK_MHZ 168 /* STM32F407: HSE + PLL, see OW_HSE_MHZ */
 #endif

@@ -20,19 +20,143 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still compile on their own, or whether the exported target's public
   definitions reach a consumer at all.
 
-### Changed
-
-- **`find_package` documented as the second supported integration path,**
-  with the two consequences of consuming a fixed install tree made
-  explicit: the consumer supplies the CMSIS include paths, and the package
-  carries the part selection it was built with.
+- **STM32F446 support, as the `f446xx` part** (`OW_CHIP=f446xx`,
+  `OW_TARGET=f4`): a WeAct F446RET6 is now a build target with the real upstream
+  CMSIS header, startup file and SVD, a 512KB flash / 128KB SRAM linker script
+  (the F446 has no CCM, so its SRAM is one contiguous DMA-accessible block), and
+  J-Flash/Ozone projects. The F4 backend is reused unchanged: TIM1_CH2 on
+  DMA2_Stream2 and TIM1_CH4 on DMA2_Stream4, both at `CHSEL=6`, and PA10 as
+  AF1, all map identically on this part. **Now validated on hardware**: 180MHz
+  with over-drive, and 168/84/16/8MHz, all enumerate the seven sensors with
+  valid CRC8 and drive the 115200 console — see the F446 section of
+  `port/stm32f4/HARDWARE-NOTES.md` for the full 7-example × 2-clock matrix and
+  for how to tell a dead console from a wrong baud rate.
 
 ### Fixed
+
+- **A 180MHz clock for the F446, with the over-drive sequence it requires.**
+  This is a separate `app.c` branch, not a divisor away from the 168MHz one: the
+  PWR over-drive is enabled and waited on (`ODEN`→`ODRDY`, then
+  `ODSWEN`→`ODSWRDY`), the flash latency is set to 5 wait states and the APB
+  dividers to `/4` and `/2` before SYSCLK is switched. The APB2 `/2` still
+  doubles the timer clock to 2 × 90 = 180MHz, so the 1µs-tick invariant
+  (`PSC = SYSCLK_MHZ - 1`) and the bit-slot constants are unchanged, and the
+  existing over-drive wait bounds report a stuck `ODRDY` through the same
+  clock-failure path as an unlocked PLL instead of hanging. The layout follows
+  ST's own `RCC_ClockConfig` example for this part (8MHz HSE, M=8 N=360 P=2).
+  The F446 at 16MHz (raw HSI) and at the raw crystal frequency build from the
+  same part file.
+
+- **`OW_PORT_F4_MAX_SYSCLK_MHZ`, the per-part F4 ceiling, and a build-time
+  rejection above it.** 180MHz is a real frequency on an F446 and out of spec on
+  an F407, and the two differ by over-drive, flash latency and APB limits rather
+  than by a scale factor, so a build asking for 180MHz on an F407 cannot be
+  rescued by turning a divider down. `SYSCLK_MHZ=180 OW_CHIP=f407xx` is now a
+  compile error naming the ceiling instead of firmware that runs out of spec.
+
+- **A documented IC4F tier above 168MHz** (`fDTS/16, N=6`, ≈533ns at 180MHz).
+  The existing >72MHz tier is `fDTS/8, N=6`, which lands at 286ns at 168MHz —
+  it was chosen for 84MHz (571ns) and undershoots its own ~500ns target as the
+  clock rises, because the filter's fDTS divisor is part of the encoding. 180MHz
+  is the first clock that needs a row of its own. The full ICxF encoding table
+  is now written out in `ow_port.h` with the source it was read from (ST's own
+  `stm32f0xx_ll_tim.h`), because a wrong value here still configures a
+  plausible-looking filter and reports no error: 0b1111, the intuitive "turn on
+  every IC4F bit", is `fDTS/32 N=8` — 1422ns, not the 533ns of the intended
+  `fDTS/16 N=6`.
+
+- **`-DOW_UART_USART1_PA9` moves the F4 console off PB6.** The F4 console pin
+  was hardcoded to USART1/TX on PB6 because that is where the STM32F4DISCOVERY
+  routes its ST-LINK virtual COM port — a board-specific choice presented as a
+  family default. On a WeAct F446 the VCP is on PA9, so PB6 reaches nothing and
+  the console is silent: no output at all, and notably no clock-failure banner
+  either, since that is written to the same missing pin. The default is
+  unchanged; PA9 is safe alongside the bus because the backend uses PA10 for
+  TIM1_CH3 and PA11 for the LA marker, and the console is TX only.
+
+- **Host coverage of the 180MHz path.** The F4 host suite now also builds at
+  180MHz (`ds18b20_test_f4_180mhz.exe`) as part of `make test`, because the
+  over-drive branch exists in no other configuration and could not otherwise be
+  tested at all. `test_timing.c` asserts the PWR clock enable, both halves of the
+  over-drive sequence, the full `FLASH->ACR` and PLLM/PLLN at that clock, and
+  the mutation of skipping `ODSWEN` was confirmed to fail it. The F4 mock gained
+  the four over-drive bits, and `check_mock_headers.sh` gained a second pass
+  against `stm32f446xx.h` (with a `<name>_Msk` lookup, since CMSIS carries the
+  value on the `_Msk` row) so those constants are checked against a real ST
+  definition instead of sitting in the skipped bucket — 57 of the 65 F4 mock
+  macros are now compared, up from 19.
+
+- **Changing only `SYSCLK_MHZ` or `HSE_MHZ` reused the previous build's
+  objects.** The per-object stamp named the app, the family and the part, but
+  not the clock, so building the 180MHz, raw-HSI 16MHz and raw-HSE 8MHz
+  variants of one part in sequence compiled the first one and linked it into
+  the other two — each silently carrying the first build's prescaler, bit-slot
+  timings and console divisor. It compiled clean and was wrong on hardware only.
+  Both knobs now reach the stamp, which is what makes the three F446 clocks
+  three real builds.
+
+- **`check_mock_headers.sh` could not see a constant whose CMSIS spelling
+  carries the value on the `<name>_Msk` row**, which is the usual spelling for a
+  bit field. A mock using the short name the drivers themselves use was skipped
+  against every real header. Opt-in via the existing per-call argument, so the
+  four other families are unaffected; the F446 pass uses it. The skip list is
+  also now printable with `CHECK_MOCK_VERBOSE=1`, because a count alone does not
+  say which constants are going unchecked.
 
 - **`check_required_components()` was missing from the installed package
   config,** so `find_package(stm32_async_1wire COMPONENTS bogus REQUIRED)
   reported success instead of rejecting a component the package does not
   have. The package is a single whole-library component.
+
+- **Editing a header did not rebuild the host test executables.** The firmware
+  build tracks header dependencies through `-MMD` depfiles, but the host build
+  is a single `gcc` call producing one `.exe`, and the headers were not listed
+  as prerequisites at all. This is not a convenience issue: it produced a false
+  pass. Changing the 180MHz IC4F tier in `inc/ow_port.h` and re-running
+  `make test` reported success, because the binary was stale; only after
+  deleting it did the change fail. The headers the suites compile against are
+  now prerequisites of every host test target.
+
+- **A 180MHz F4 build programmed the console UART for twice its real bus
+  clock.** The console divisor was a per-clock ternary chain
+  (`168 ? 42 : 84 ? 42 : SYSCLK`) with no 180MHz case, so the F446 fell through
+  to the raw-HSI default and sized `BRR` for PCLK2 = 180MHz when the part runs
+  45/90MHz. The result was a UART that worked perfectly at ~57600 baud on a
+  clean build — a symptom that reads as a bad USB cable, not as a wrong clock.
+  The APB prescalers are now defined once in `app.h` and both the clock
+  configuration and the console divisor derive from them, so a clock cannot be
+  added to one without the other. Two structural notes come with it: the
+  register write itself is inside `hardware_init()`, which is
+  `#if !defined(DS18B20_TEST_HARNESS)`, so **no host build on any family has
+  ever compiled it** — which is why the arithmetic moved into a header the
+  harness can reach, and why the test pins the expected divisor value rather
+  than the register; and the optional `OW_UART_USART3` path is still built by
+  no job on any family, which is now at least compile-checked for the F446.
+
+### Changed
+
+- **The format job's pinned `clang-format` moves from 18.1.8 to 23.1.1.** The
+  pin itself stays — LLVM changes formatting between releases, so the check has
+  to name an exact version to be reproducible at all. What changed is which
+  version: 18.1.8 was current when the pin was added and is now several
+  releases behind, and it is not the version contributors actually have. A
+  distribution LLVM is 23.x, so a contributor following `CONTRIBUTING.md` and
+  running the local `clang-format` would hit disagreements the pinned job never
+  sees. That is not hypothetical: on the F446 work, 18.1.8 reported a
+  formatting violation in `examples/app/app.c` that 23.1.1 accepted, on the same
+  file in the same tree.
+
+  No reformatting comes with it. Both versions were run over all 87 C and header
+  files in the tree and produce byte-identical output, and consider the same 83
+  clean — so this is a version bump, not a style change, and the history shows
+  that rather than asserting it. `CONTRIBUTING.md` still names no version, which
+  is now the remaining gap: it tells a contributor to run `clang-format` without
+  saying which one CI will hold them to.
+
+- **`find_package` documented as the second supported integration path,**
+  with the two consequences of consuming a fixed install tree made
+  explicit: the consumer supplies the CMSIS include paths, and the package
+  carries the part selection it was built with.
 
 ## [2.0.0] - 2026-09-26
 
