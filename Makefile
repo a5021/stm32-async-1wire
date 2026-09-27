@@ -522,6 +522,14 @@ test-chips:
 test-elf-variant:
 	@sh tests/check_elf_variant.sh
 
+# --- PlatformIO manifest (see tests/check_library_manifest.sh) ---
+# PlatformIO has no install tree to check, so library.json is the whole
+# contract, and nothing was reading it. Needs python3 and host gcc, both
+# present on a stock runner.
+.PHONY: test-manifest
+test-manifest:
+	@sh tests/check_library_manifest.sh
+
 # --- Project version consistency (see tests/check_version.sh) ---
 # The version is declared in eight places; inc/ds18b20.h is the source the
 # others are compared against. Also requires CHANGELOG.md to carry a dated
