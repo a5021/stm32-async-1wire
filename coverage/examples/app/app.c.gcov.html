@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-27 19:12:29</td>
+            <td class="headerValue">2026-09-28 04:44:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
@@ -762,95 +762,119 @@
 <span id="L691"><span class="lineNum">     691</span>                 :             :     if (!ow_f4_clock_ok)</span>
 <span id="L692"><span class="lineNum">     692</span>                 :             :         app_stop_on_clock_failure();</span>
 <span id="L693"><span class="lineNum">     693</span>                 :             : #endif</span>
-<span id="L694"><span class="lineNum">     694</span>                 :             : }</span>
-<span id="L695"><span class="lineNum">     695</span>                 :             : </span>
-<span id="L696"><span class="lineNum">     696</span>                 :             : /* ---- Polled millisecond clock (no interrupt, no waiting) ----</span>
-<span id="L697"><span class="lineNum">     697</span>                 :             :  *</span>
-<span id="L698"><span class="lineNum">     698</span>                 :             :  * The driver measures only when the application asks it to, so the application</span>
-<span id="L699"><span class="lineNum">     699</span>                 :             :  * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with</span>
-<span id="L700"><span class="lineNum">     700</span>                 :             :  * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.</span>
-<span id="L701"><span class="lineNum">     701</span>                 :             :  * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a</span>
-<span id="L702"><span class="lineNum">     702</span>                 :             :  * millisecond counter, so app_millis() costs a single register read and never</span>
-<span id="L703"><span class="lineNum">     703</span>                 :             :  * waits. A missed tick can only happen if the loop does not run for a whole</span>
-<span id="L704"><span class="lineNum">     704</span>                 :             :  * millisecond, which is the one rule the examples follow. */</span>
-<span id="L705"><span class="lineNum">     705</span>                 :             : </span>
-<span id="L706"><span class="lineNum">     706</span>                 :             : static uint32_t app_ms;</span>
-<span id="L707"><span class="lineNum">     707</span>                 :             : </span>
-<span id="L708"><span class="lineNum">     708</span>                 :             : /**</span>
-<span id="L709"><span class="lineNum">     709</span>                 :             :  * @brief Start the polled millisecond clock</span>
-<span id="L710"><span class="lineNum">     710</span>                 :             :  * @note Called from app_init() after the system clock is configured, because</span>
-<span id="L711"><span class="lineNum">     711</span>                 :             :  *       the reload is derived from that clock (1 kHz from HCLK).</span>
-<span id="L712"><span class="lineNum">     712</span>                 :             :  */</span>
-<span id="L713"><span class="lineNum">     713</span>                 :             : void app_time_init(void) {</span>
-<span id="L714"><span class="lineNum">     714</span>                 :             :     app_ms = 0;</span>
-<span id="L715"><span class="lineNum">     715</span>                 :             :     SysTick-&gt;LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;</span>
-<span id="L716"><span class="lineNum">     716</span>                 :             :     SysTick-&gt;VAL = 0;</span>
-<span id="L717"><span class="lineNum">     717</span>                 :             :     /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and</span>
-<span id="L718"><span class="lineNum">     718</span>                 :             :      * sets COUNTFLAG, but never enters an exception handler. */</span>
-<span id="L719"><span class="lineNum">     719</span>                 :             :     SysTick-&gt;CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;</span>
-<span id="L720"><span class="lineNum">     720</span>                 :             : }</span>
-<span id="L721"><span class="lineNum">     721</span>                 :             : </span>
-<span id="L722"><span class="lineNum">     722</span>                 :             : /**</span>
-<span id="L723"><span class="lineNum">     723</span>                 :             :  * @brief Milliseconds since app_time_init()</span>
-<span id="L724"><span class="lineNum">     724</span>                 :             :  * @return Counter in ms (wraps after ~49 days)</span>
-<span id="L725"><span class="lineNum">     725</span>                 :             :  * @note Non-blocking: reads the SysTick status flag and folds a wrap into the</span>
-<span id="L726"><span class="lineNum">     726</span>                 :             :  *       counter. Must be called at least once per millisecond, which any</span>
-<span id="L727"><span class="lineNum">     727</span>                 :             :  *       polling main loop does.</span>
-<span id="L728"><span class="lineNum">     728</span>                 :             :  */</span>
-<span id="L729"><span class="lineNum">     729</span>                 :             : uint32_t app_millis(void) {</span>
-<span id="L730"><span class="lineNum">     730</span>                 :             :     if (SysTick-&gt;CTRL &amp; SysTick_CTRL_COUNTFLAG_Msk) {</span>
-<span id="L731"><span class="lineNum">     731</span>                 :             :         (void)SysTick-&gt;CTRL; /* reading CTRL clears COUNTFLAG */</span>
-<span id="L732"><span class="lineNum">     732</span>                 :             :         app_ms++;</span>
-<span id="L733"><span class="lineNum">     733</span>                 :             :     }</span>
-<span id="L734"><span class="lineNum">     734</span>                 :             :     return app_ms;</span>
-<span id="L735"><span class="lineNum">     735</span>                 :             : }</span>
-<span id="L736"><span class="lineNum">     736</span>                 :             : </span>
-<span id="L737"><span class="lineNum">     737</span>                 :             : /**</span>
-<span id="L738"><span class="lineNum">     738</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
-<span id="L739"><span class="lineNum">     739</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
-<span id="L740"><span class="lineNum">     740</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
-<span id="L741"><span class="lineNum">     741</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
-<span id="L742"><span class="lineNum">     742</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
-<span id="L743"><span class="lineNum">     743</span>                 :             :  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).</span>
-<span id="L744"><span class="lineNum">     744</span>                 :             :  */</span>
-<span id="L745"><span class="lineNum">     745</span>                 :             : void ds18b20_busy(unsigned action) {</span>
-<span id="L746"><span class="lineNum">     746</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
-<span id="L747"><span class="lineNum">     747</span>                 :             :     if (action) {</span>
-<span id="L748"><span class="lineNum">     748</span>                 :             :         // Turn LED on (PA4 low)</span>
-<span id="L749"><span class="lineNum">     749</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L750"><span class="lineNum">     750</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
-<span id="L751"><span class="lineNum">     751</span>                 :             : #else</span>
-<span id="L752"><span class="lineNum">     752</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
-<span id="L753"><span class="lineNum">     753</span>                 :             : #endif</span>
-<span id="L754"><span class="lineNum">     754</span>                 :             :     } else {</span>
-<span id="L755"><span class="lineNum">     755</span>                 :             :         // Turn LED off (PA4 high)</span>
-<span id="L756"><span class="lineNum">     756</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L757"><span class="lineNum">     757</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
-<span id="L758"><span class="lineNum">     758</span>                 :             : #else</span>
-<span id="L759"><span class="lineNum">     759</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
-<span id="L760"><span class="lineNum">     760</span>                 :             : #endif</span>
-<span id="L761"><span class="lineNum">     761</span>                 :             :     }</span>
-<span id="L762"><span class="lineNum">     762</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
-<span id="L763"><span class="lineNum">     763</span>                 :             :     if (action) {</span>
-<span id="L764"><span class="lineNum">     764</span>                 :             :         // Turn LED on (PD12 high)</span>
-<span id="L765"><span class="lineNum">     765</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BS12;</span>
-<span id="L766"><span class="lineNum">     766</span>                 :             :     } else {</span>
-<span id="L767"><span class="lineNum">     767</span>                 :             :         // Turn LED off (PD12 low)</span>
-<span id="L768"><span class="lineNum">     768</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BR12;</span>
-<span id="L769"><span class="lineNum">     769</span>                 :             :     }</span>
-<span id="L770"><span class="lineNum">     770</span>                 :             : #else</span>
+<span id="L694"><span class="lineNum">     694</span>                 :             :     /* Let the bus settle before the application's first transaction.</span>
+<span id="L695"><span class="lineNum">     695</span>                 :             :      *</span>
+<span id="L696"><span class="lineNum">     696</span>                 :             :      * Measured on a WeAct F446RET6 with 7 DS18B20 in parasite power: the first</span>
+<span id="L697"><span class="lineNum">     697</span>                 :             :      * search after a reset finds nothing, and every later one finds all seven.</span>
+<span id="L698"><span class="lineNum">     698</span>                 :             :      * A logic analyzer shows the bus is correct on the failing boot - 480.81us</span>
+<span id="L699"><span class="lineNum">     699</span>                 :             :      * reset pulses, 115.38us responses, nominal slots - so this is not bus</span>
+<span id="L700"><span class="lineNum">     700</span>                 :             :      * timing and not a firmware bug. It tracks how long the sensors have been</span>
+<span id="L701"><span class="lineNum">     701</span>                 :             :      * idle: after a programming cycle or a long idle they do not answer the</span>
+<span id="L702"><span class="lineNum">     702</span>                 :             :      * first reset.</span>
+<span id="L703"><span class="lineNum">     703</span>                 :             :      *</span>
+<span id="L704"><span class="lineNum">     704</span>                 :             :      * Bracketed by measurement, not chosen: 5ms failed 5 of 5 first boots, 50ms</span>
+<span id="L705"><span class="lineNum">     705</span>                 :             :      * passed 2 of 3, 200ms passed 3 of 3, and 400ms and 1000ms were also clean.</span>
+<span id="L706"><span class="lineNum">     706</span>                 :             :      * 200ms is the smallest value with margin, and it costs nothing at boot.</span>
+<span id="L707"><span class="lineNum">     707</span>                 :             :      *</span>
+<span id="L708"><span class="lineNum">     708</span>                 :             :      * This lives in the example harness rather than the driver on purpose: it is</span>
+<span id="L709"><span class="lineNum">     709</span>                 :             :      * a power-on settling concern of this wiring, and baking a 200ms wait into</span>
+<span id="L710"><span class="lineNum">     710</span>                 :             :      * the library would tax every user of a normally powered bus. Nothing on the</span>
+<span id="L711"><span class="lineNum">     711</span>                 :             :      * bus is touched before the application's first transaction, so settling here</span>
+<span id="L712"><span class="lineNum">     712</span>                 :             :      * settles before that transaction. */</span>
+<span id="L713"><span class="lineNum">     713</span>                 :             :     {</span>
+<span id="L714"><span class="lineNum">     714</span>                 :             :         uint32_t settle = app_millis();</span>
+<span id="L715"><span class="lineNum">     715</span>                 :             :         while ((app_millis() - settle) &lt; 200u) {</span>
+<span id="L716"><span class="lineNum">     716</span>                 :             :         }</span>
+<span id="L717"><span class="lineNum">     717</span>                 :             :     }</span>
+<span id="L718"><span class="lineNum">     718</span>                 :             : }</span>
+<span id="L719"><span class="lineNum">     719</span>                 :             : </span>
+<span id="L720"><span class="lineNum">     720</span>                 :             : /* ---- Polled millisecond clock (no interrupt, no waiting) ----</span>
+<span id="L721"><span class="lineNum">     721</span>                 :             :  *</span>
+<span id="L722"><span class="lineNum">     722</span>                 :             :  * The driver measures only when the application asks it to, so the application</span>
+<span id="L723"><span class="lineNum">     723</span>                 :             :  * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with</span>
+<span id="L724"><span class="lineNum">     724</span>                 :             :  * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.</span>
+<span id="L725"><span class="lineNum">     725</span>                 :             :  * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a</span>
+<span id="L726"><span class="lineNum">     726</span>                 :             :  * millisecond counter, so app_millis() costs a single register read and never</span>
+<span id="L727"><span class="lineNum">     727</span>                 :             :  * waits. A missed tick can only happen if the loop does not run for a whole</span>
+<span id="L728"><span class="lineNum">     728</span>                 :             :  * millisecond, which is the one rule the examples follow. */</span>
+<span id="L729"><span class="lineNum">     729</span>                 :             : </span>
+<span id="L730"><span class="lineNum">     730</span>                 :             : static uint32_t app_ms;</span>
+<span id="L731"><span class="lineNum">     731</span>                 :             : </span>
+<span id="L732"><span class="lineNum">     732</span>                 :             : /**</span>
+<span id="L733"><span class="lineNum">     733</span>                 :             :  * @brief Start the polled millisecond clock</span>
+<span id="L734"><span class="lineNum">     734</span>                 :             :  * @note Called from app_init() after the system clock is configured, because</span>
+<span id="L735"><span class="lineNum">     735</span>                 :             :  *       the reload is derived from that clock (1 kHz from HCLK).</span>
+<span id="L736"><span class="lineNum">     736</span>                 :             :  */</span>
+<span id="L737"><span class="lineNum">     737</span>                 :             : void app_time_init(void) {</span>
+<span id="L738"><span class="lineNum">     738</span>                 :             :     app_ms = 0;</span>
+<span id="L739"><span class="lineNum">     739</span>                 :             :     SysTick-&gt;LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;</span>
+<span id="L740"><span class="lineNum">     740</span>                 :             :     SysTick-&gt;VAL = 0;</span>
+<span id="L741"><span class="lineNum">     741</span>                 :             :     /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and</span>
+<span id="L742"><span class="lineNum">     742</span>                 :             :      * sets COUNTFLAG, but never enters an exception handler. */</span>
+<span id="L743"><span class="lineNum">     743</span>                 :             :     SysTick-&gt;CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;</span>
+<span id="L744"><span class="lineNum">     744</span>                 :             : }</span>
+<span id="L745"><span class="lineNum">     745</span>                 :             : </span>
+<span id="L746"><span class="lineNum">     746</span>                 :             : /**</span>
+<span id="L747"><span class="lineNum">     747</span>                 :             :  * @brief Milliseconds since app_time_init()</span>
+<span id="L748"><span class="lineNum">     748</span>                 :             :  * @return Counter in ms (wraps after ~49 days)</span>
+<span id="L749"><span class="lineNum">     749</span>                 :             :  * @note Non-blocking: reads the SysTick status flag and folds a wrap into the</span>
+<span id="L750"><span class="lineNum">     750</span>                 :             :  *       counter. Must be called at least once per millisecond, which any</span>
+<span id="L751"><span class="lineNum">     751</span>                 :             :  *       polling main loop does.</span>
+<span id="L752"><span class="lineNum">     752</span>                 :             :  */</span>
+<span id="L753"><span class="lineNum">     753</span>                 :             : uint32_t app_millis(void) {</span>
+<span id="L754"><span class="lineNum">     754</span>                 :             :     if (SysTick-&gt;CTRL &amp; SysTick_CTRL_COUNTFLAG_Msk) {</span>
+<span id="L755"><span class="lineNum">     755</span>                 :             :         (void)SysTick-&gt;CTRL; /* reading CTRL clears COUNTFLAG */</span>
+<span id="L756"><span class="lineNum">     756</span>                 :             :         app_ms++;</span>
+<span id="L757"><span class="lineNum">     757</span>                 :             :     }</span>
+<span id="L758"><span class="lineNum">     758</span>                 :             :     return app_ms;</span>
+<span id="L759"><span class="lineNum">     759</span>                 :             : }</span>
+<span id="L760"><span class="lineNum">     760</span>                 :             : </span>
+<span id="L761"><span class="lineNum">     761</span>                 :             : /**</span>
+<span id="L762"><span class="lineNum">     762</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
+<span id="L763"><span class="lineNum">     763</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
+<span id="L764"><span class="lineNum">     764</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
+<span id="L765"><span class="lineNum">     765</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
+<span id="L766"><span class="lineNum">     766</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
+<span id="L767"><span class="lineNum">     767</span>                 :             :  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).</span>
+<span id="L768"><span class="lineNum">     768</span>                 :             :  */</span>
+<span id="L769"><span class="lineNum">     769</span>                 :             : void ds18b20_busy(unsigned action) {</span>
+<span id="L770"><span class="lineNum">     770</span>                 :             : #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
 <span id="L771"><span class="lineNum">     771</span>                 :             :     if (action) {</span>
-<span id="L772"><span class="lineNum">     772</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
-<span id="L773"><span class="lineNum">     773</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
-<span id="L774"><span class="lineNum">     774</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
-<span id="L775"><span class="lineNum">     775</span>                 :             :     } else {</span>
-<span id="L776"><span class="lineNum">     776</span>                 :             :         // Turn LED off (PC13 high)</span>
-<span id="L777"><span class="lineNum">     777</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
-<span id="L778"><span class="lineNum">     778</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
-<span id="L779"><span class="lineNum">     779</span>                 :             :     }</span>
-<span id="L780"><span class="lineNum">     780</span>                 :             : #endif</span>
-<span id="L781"><span class="lineNum">     781</span>                 :             : }</span>
-<span id="L782"><span class="lineNum">     782</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
+<span id="L772"><span class="lineNum">     772</span>                 :             :         // Turn LED on (PA4 low)</span>
+<span id="L773"><span class="lineNum">     773</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L774"><span class="lineNum">     774</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
+<span id="L775"><span class="lineNum">     775</span>                 :             : #else</span>
+<span id="L776"><span class="lineNum">     776</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
+<span id="L777"><span class="lineNum">     777</span>                 :             : #endif</span>
+<span id="L778"><span class="lineNum">     778</span>                 :             :     } else {</span>
+<span id="L779"><span class="lineNum">     779</span>                 :             :         // Turn LED off (PA4 high)</span>
+<span id="L780"><span class="lineNum">     780</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L781"><span class="lineNum">     781</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
+<span id="L782"><span class="lineNum">     782</span>                 :             : #else</span>
+<span id="L783"><span class="lineNum">     783</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
+<span id="L784"><span class="lineNum">     784</span>                 :             : #endif</span>
+<span id="L785"><span class="lineNum">     785</span>                 :             :     }</span>
+<span id="L786"><span class="lineNum">     786</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L787"><span class="lineNum">     787</span>                 :             :     if (action) {</span>
+<span id="L788"><span class="lineNum">     788</span>                 :             :         // Turn LED on (PD12 high)</span>
+<span id="L789"><span class="lineNum">     789</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BS12;</span>
+<span id="L790"><span class="lineNum">     790</span>                 :             :     } else {</span>
+<span id="L791"><span class="lineNum">     791</span>                 :             :         // Turn LED off (PD12 low)</span>
+<span id="L792"><span class="lineNum">     792</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BR12;</span>
+<span id="L793"><span class="lineNum">     793</span>                 :             :     }</span>
+<span id="L794"><span class="lineNum">     794</span>                 :             : #else</span>
+<span id="L795"><span class="lineNum">     795</span>                 :             :     if (action) {</span>
+<span id="L796"><span class="lineNum">     796</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
+<span id="L797"><span class="lineNum">     797</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
+<span id="L798"><span class="lineNum">     798</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
+<span id="L799"><span class="lineNum">     799</span>                 :             :     } else {</span>
+<span id="L800"><span class="lineNum">     800</span>                 :             :         // Turn LED off (PC13 high)</span>
+<span id="L801"><span class="lineNum">     801</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
+<span id="L802"><span class="lineNum">     802</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
+<span id="L803"><span class="lineNum">     803</span>                 :             :     }</span>
+<span id="L804"><span class="lineNum">     804</span>                 :             : #endif</span>
+<span id="L805"><span class="lineNum">     805</span>                 :             : }</span>
+<span id="L806"><span class="lineNum">     806</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
         </pre>
               </td>
             </tr>
