@@ -691,6 +691,30 @@ void app_init(void) {
     if (!ow_f4_clock_ok)
         app_stop_on_clock_failure();
 #endif
+    /* Let the bus settle before the application's first transaction.
+     *
+     * Measured on a WeAct F446RET6 with 7 DS18B20 in parasite power: the first
+     * search after a reset finds nothing, and every later one finds all seven.
+     * A logic analyzer shows the bus is correct on the failing boot - 480.81us
+     * reset pulses, 115.38us responses, nominal slots - so this is not bus
+     * timing and not a firmware bug. It tracks how long the sensors have been
+     * idle: after a programming cycle or a long idle they do not answer the
+     * first reset.
+     *
+     * Bracketed by measurement, not chosen: 5ms failed 5 of 5 first boots, 50ms
+     * passed 2 of 3, 200ms passed 3 of 3, and 400ms and 1000ms were also clean.
+     * 200ms is the smallest value with margin, and it costs nothing at boot.
+     *
+     * This lives in the example harness rather than the driver on purpose: it is
+     * a power-on settling concern of this wiring, and baking a 200ms wait into
+     * the library would tax every user of a normally powered bus. Nothing on the
+     * bus is touched before the application's first transaction, so settling here
+     * settles before that transaction. */
+    {
+        uint32_t settle = app_millis();
+        while ((app_millis() - settle) < 200u) {
+        }
+    }
 }
 
 /* ---- Polled millisecond clock (no interrupt, no waiting) ----

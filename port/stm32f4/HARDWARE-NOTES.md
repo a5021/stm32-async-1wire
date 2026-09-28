@@ -183,40 +183,100 @@ Nothing else is outstanding on this part.
 ### F446 example matrix — all 7 examples × 2 clocks
 
 Every example built (`-Os -flto`, release default) and flashed to the WeAct
-F446RET6's 7 parasite-powered DS18B20s, at the two extremes of the range: raw
-HSI and HSE+PLL+over-drive.
+F446RET6's 7 parasite-powered DS18B20s, at the two extremes of the range. Each
+measurement is the **first boot after programming** — the second boot is
+useless as a test here, and using it is what previously made 180MHz look broken
+when it is not (see the settling note below).
 
 | Example (parasite) | 16 MHz (raw HSI) | 180 MHz (HSE+PLL+OD) |
 |---|---|---|
-| `1_basic` | CRC fail ×5 — **expected**, see below | same |
-| `2_device_search` | Found 7, 5 valid reads, 23.9–24.3 °C | same |
-| `3_round_robin` (9→12 bit cycle) | Found 7, 5 valid reads | same |
-| `4_scan_mode` (broadcast Convert T) | Found 7, 35 valid reads | same |
-| `5_commands` (parasite detect, scratchpad/EEPROM) | parasite detected, CRC ok, Read ROM CRC fail as below | same |
-| `6_statistics` (round-robin + stats) | Found 7, 31 valid reads | same |
-| `7_low_power` (WFE sleep, `OW_PORT_LOW_POWER=1`) | Found 7, 5 valid reads | same |
+| `1_basic` | CRC fail ×8 — **expected**, see below | same |
+| `2_device_search` | 958 B, found 7, 8 valid reads | 882 B, found 7, 8 valid reads |
+| `3_round_robin` | 1434 B, found 7, 9 valid reads | 1423 B, found 7, 9 valid reads |
+| `4_scan_mode` | 2766 B, found 7, 56 valid reads | 2766 B, found 7, 56 valid reads |
+| `5_commands` | 1581 B, found 7, parasite detected | 1505 B, found 7, parasite detected |
+| `6_statistics` | 2523 B, found 7, 56 valid reads | 2547 B, found 7, 56 valid reads |
+| `7_low_power` | 1118 B, found 7, 8 valid reads | 1118 B, found 7, 8 valid reads |
 
-Console output was **byte-identical between the two clocks** — 170 / 369 / 656
-/ 1525 / 1111 / 1281 / 396 bytes for `1_basic` … `7_low_power` — with no
-clock-failure banner and no bad CRC anywhere. That equality is the useful
-result: an 11.25× clock ratio producing identical byte counts and identical
-valid reads is the observable form of the 1 µs-tick invariant holding across
-the range.
+No clock-failure banner and no bad CRC on either clock. Temperatures 23.2–23.5 °C.
 
-Two lines above are correct behavior on a 7-sensor bus, not defects:
+`1_basic` and the `0x33` Read ROM in `5_commands` both report CRC failures on a
+7-sensor bus, and both are correct: Skip ROM and Read ROM are single-device
+commands, so all seven answer at once. Neither is a defect, and the driver
+annotates the second one itself.
 
-- `1_basic` uses Skip ROM, where all seven devices answer simultaneously, so
-  the merged read always fails its CRC. Any single-device example is invalid on
-  this bus; use the search-based ones.
-- `5_commands`' Read ROM (`0x33`) is likewise a single-ROM command and reports
-  `CRC fail (valid only with one device on the bus)`, which the driver
-  annotates itself.
+### The bus needs a settling period after power-on
 
-`5_commands` is the broadest functional pass of the set: Read Power Supply
-returned `parasite` (confirms the bus wiring from the sensor's own answer, not
-just from a build flag), and scratchpad read / write / copy-to-EEPROM / recall
-all round-tripped with `CRC ok`, showing 12-bit resolution (`0x0C`) and TH/TL
-thresholds correctly restored from EEPROM.
+**This is the finding that mattered most on this part, and it is not a clock
+issue.** The first search after a reset found nothing while every later one found
+all seven — a fault that looked like 168/180MHz being unreliable and was not:
+8/16/84MHz were solid, 168 and 180 failed intermittently, which reads exactly
+like a clock problem.
+
+Two measurements killed that reading:
+
+- One flash, six consecutive resets: **only the first failed**, five passed. So
+  the clock is fine and the bus is fine; something about the *first* boot is not.
+- A logic analyzer on PA10 during the failing boot: reset pulses 480.81 µs,
+  31 sensor responses at 115.38 µs, slots at 5.50 / 29.19 / 60.00 µs. **The bus is
+  electrically correct and the sensors do answer** — the state machine simply
+  fails to decode a first transaction that follows a long idle.
+
+It tracks idle time, not frequency, which is what parasite power predicts. The
+fix is a bounded settle before the application's first transaction, bracketed
+rather than guessed:
+
+| settle | first boots finding all 7 |
+|---|---|
+| 5 ms | 0/5 |
+| 50 ms | 2/3 |
+| 200 ms | 3/3 |
+| 400 ms | 2/2 |
+| 1000 ms | 3/3 |
+
+200 ms is the smallest value with margin. It lives in `app_init()` in the example
+harness, not in the driver: it is a settling concern of this wiring, and baking a
+200 ms wait into the library would tax every user of a normally powered bus.
+
+### 1-Wire timing is identical on the two clocks
+
+Measured with a logic analyzer at 16 Msps, warmed boot, on PA10:
+
+| feature | 16 MHz | 180 MHz |
+|---|---|---|
+| reset pulse | 479.88 µs | 480.75 µs |
+| sensor response | 115.38 µs | 115.38 µs |
+| slot A (n=697) | 5.50 µs | 5.56 µs |
+| slot B (n=509) | 29.31 µs | 29.31 µs |
+| slot C (n=426) | 60.38 µs | 60.56 µs |
+| total low pulses | 1652 | 1652 |
+
+This is the 1 µs-tick invariant confirmed on **real** 180 MHz, and it needed
+re-measuring: the earlier comparison in this file was taken while the build had
+the stale-ELF defect, so both columns were the same binary. Anyone re-measuring
+should note that 1-Wire slot widths are deliberately *not* scaled by the clock —
+`PSC = SYSCLK_MHZ - 1` makes the tick 1 µs at every supported frequency.
+
+### IC4F: the tier table was misread, and it is not what limits this part
+
+The ICxF ladder in `inc/ow_port.h` was transcribed wrong and the entries do not
+mean what the comments claimed. ICxF is a 4-bit ladder whose N only reaches 5, so
+the documented "N=6" and "N=8" values do not exist, and the values actually
+written decode to `fCK_INT/16 N=1`, `fCK_INT/4 N=1`, `fCK_INT/4 N=2`,
+`fCK_INT/32 N=3` and — for the >168MHz tier — `fCK_INT/4 N=3`, a *shorter*
+window than the 168MHz entry rather than the longer one the comment claimed.
+
+That defect was worth chasing here because 180MHz was failing, and it was **not**
+the cause: forcing the 168MHz value (`-DOW_PORT_IC4F_ARGS=IC4F_3`) at 180MHz
+failed identically, and so did the default. Both fail for the settling reason
+above. The current >168MHz value now runs the whole matrix on this bus, which is
+more than the old comment could claim, so it stays — with the correction
+recorded rather than quietly applied.
+
+The useful consequence: the "~500ns filter" framing in that comment is fiction.
+At 180MHz the ladder's finest window is `fCK_INT/16` ≈ 5.6 ns, and no encoding
+reaches 500 ns.
+
 
 ## F401CC specifics (`OW_CHIP=f401xc`)
 
