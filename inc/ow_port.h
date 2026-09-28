@@ -121,12 +121,14 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #include "ow_port_f1.h"
 #elif defined(OW_PORT_FAMILY_F0)
 #include "ow_port_f0.h"
+#elif defined(OW_PORT_FAMILY_F3)
+#include "ow_port_f3.h"
 #elif defined(OW_PORT_FAMILY_G0)
 #include "ow_port_g0.h"
 #elif defined(OW_PORT_FAMILY_F4)
 #include "ow_port_f4.h"
 #else
-#error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)"
+#error "ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)"
 #endif
 
 #ifdef __cplusplus

@@ -87,7 +87,7 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */

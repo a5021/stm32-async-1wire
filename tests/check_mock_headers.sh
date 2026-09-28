@@ -119,6 +119,7 @@ compare() {
 
 compare f1 "$MOCK_DIR/stm32f1xx.h" "$CMSIS_DIR/stm32f103xb.h"
 compare f0 "$MOCK_DIR/stm32f0xx.h" "$CMSIS_DIR/stm32f030x6.h"
+compare f3 "$MOCK_DIR/stm32f3xx.h" "$CMSIS_DIR/stm32f303xc.h"
 compare g0 "$MOCK_DIR/stm32g0xx.h" "$CMSIS_DIR/stm32g031xx.h"
 compare f4 "$MOCK_DIR/stm32f4xx.h" "$CMSIS_DIR/stm32f407xx.h"
 # The F4 mock twice, against a second real header. One F4 mock has to serve the

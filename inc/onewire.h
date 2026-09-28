@@ -48,8 +48,8 @@ extern "C" {
 #define ONEWIRE_RELEASE_PULSE 0u
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
- *  (STM32F1, STM32F0, STM32G0) that PlatformIO / STM32CubeMX define on their
- *  own; for the F4 family the concrete device spellings (STM32F407xx /
+ *  (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on
+ *  their own; for the F4 family the concrete device spellings (STM32F407xx /
  *  STM32F401xC/STM32F401xE) are accepted too. ow_port.h picks the backend and app.c the
  *  device header/clock config from the token — never from the individual
  *  spellings — so the backend and the clock default cannot drift. To add a
@@ -60,23 +60,27 @@ extern "C" {
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
 #define OW_PORT_FAMILY_F0
+#elif defined(OW_PORT_TARGET_F3) || defined(STM32F3)
+#define OW_PORT_FAMILY_F3
 #elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
 #define OW_PORT_FAMILY_G0
 #elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) || \
     defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_FAMILY_F4
 #endif
-/** @brief Crystal (HSE) frequency in MHz, on F4 only.
+/** @brief External (HSE) frequency in MHz, on F4 and F3.
  *
  *  Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
  *  *board*, the system clock to the *application*. Conflating them is what made
  *  the F401 default depend on whichever crystal a given board carries, and a
  *  wrong value is not a compile error - the PLL simply never locks.
  *
- *  Only the F4 backend reads it. The other families reach their clock without a
- *  user-visible M divider, so the define is left undefined there and their code
- *  must not reference it. */
-#if defined(OW_PORT_FAMILY_F4) && !defined(OW_HSE_MHZ)
+ *  Read by the F4 backend (as the PLL's M divider) and by the F3 backend (as
+ *  the input the 72MHz PLL multiplies by 9, since this family has no HSI16 and
+ *  so cannot reach its ceiling from the internal RC). The other families reach
+ *  their clock without a user-visible external oscillator, so the define is
+ *  left undefined there and their code must not reference it. */
+#if (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)) && !defined(OW_HSE_MHZ)
 #define OW_HSE_MHZ 8
 #endif
 /** @brief Highest system clock this F4 part can be clocked at, in MHz.
@@ -107,6 +111,8 @@ extern "C" {
 #define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
 #elif defined(OW_PORT_FAMILY_F0)
 #define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
+#elif defined(OW_PORT_FAMILY_F3)
+#define OW_PORT_SYSCLK_MHZ 72 /* STM32F303: the part's 72MHz ceiling, HSE/PREDIV + PLL x9 */
 #elif defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
 #elif defined(OW_PORT_FAMILY_F4)
@@ -123,6 +129,8 @@ extern "C" {
 #if OW_PORT_LOW_POWER
 #if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
+#elif defined(OW_PORT_FAMILY_F3)
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
 #elif defined(OW_PORT_FAMILY_F4)
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
 #elif defined(OW_PORT_FAMILY_F1)

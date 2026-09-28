@@ -1,33 +1,36 @@
 /* ============================================================
- *  ow_port_tim_dma.h - the TIM1 + DMA1 core shared by F0, F1 and G0
+ *  ow_port_tim_dma.h - the TIM1 + DMA1 core shared by F0, F1, F3 and G0
  *
- *  The 1-Wire bus on all three of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all four of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
  *  marker that triggers the feed DMA into CCR3.  Those 16 functions are one
- *  piece of code, not three that happen to look alike - they were three,
- *  because each backend was written against its own reference manual and then
- *  never merged.
+ *  piece of code, not four that happen to look alike - they were four, because
+ *  each backend was written against its own reference manual and then never
+ *  merged.
  *
- *  What actually differs between the three is five statements, all of them
- *  register pokes in ow_port_init() and ow_port_set_pin_mode() plus the DMA
- *  request routing G0 needs.  Those are the five macros a family header
- *  defines; everything else lives here.
+ *  What actually differs between them is five statements, all of them register
+ *  pokes in ow_port_init() and ow_port_set_pin_mode() plus the DMA request
+ *  routing G0 needs.  Those are the five macros a family header defines;
+ *  everything else lives here.
  *
  *  A family header that includes this must, before the include:
  *
  *    - include onewire.h, ow_port.h, ow_bits.h and its own device header
- *      (ow_bits.h supplies the T1/PA/RC/D1/D13/D14 aliases this uses, and
+ *      (ow_bits.h supplies the T1/PA/RC/D1x aliases this uses, and
  *      onewire.h supplies OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn);
- *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE (both are D13/D14 on
- *      every one of these three);
+ *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE, which are the DMA
+ *      channels that carry TIM1's CC2 (feed) and CH4 (capture) requests on
+ *      that family.  They are D13/D14 on F0 and F1, D12/D13 on F3 - read the
+ *      family header's assignment against its reference manual, it is the one
+ *      thing here that is not interchangeable;
  *    - define the five statement macros below.
  *
  *  There is no run-time cost to the factoring: everything stays
  *  __STATIC_FORCEINLINE and every difference is resolved by the preprocessor,
  *  so a family's object code is what it was before the split.  That is checked,
- *  not assumed - the .bin of every example for all three families is
- *  byte-identical before and after.
+ *  not assumed - the .bin of every example for the families already sharing
+ *  this core is byte-identical before and after the split that introduced it.
  *
  *  F4 is deliberately NOT here.  It has the same 16 functions in the same order
  *  but a different DMA controller (DMA2 streams with a CHSEL mux instead of

@@ -2,11 +2,13 @@
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (OW_PORT_TARGET_F0 / OW_PORT_TARGET_F1 /
- * OW_PORT_TARGET_G0). */
+ * OW_PORT_TARGET_F3 / OW_PORT_TARGET_G0 / OW_PORT_TARGET_F4). */
 #if defined(OW_PORT_TARGET_F4)
 #include "stm32f4xx.h"
 #elif defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
+#elif defined(OW_PORT_TARGET_F3)
+#include "stm32f3xx.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "stm32g0xx.h"
 #else

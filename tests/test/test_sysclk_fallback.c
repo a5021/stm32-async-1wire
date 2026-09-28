@@ -47,6 +47,27 @@
 #if OW_PORT_SYSCLK_MHZ != 64
 #error "G0 family-macro selection must default to a 64 MHz system clock"
 #endif
+#elif defined(OW_PORT_FAMILY_F3)
+#if OW_PORT_SYSCLK_MHZ != 72
+#error "F3 family-macro selection must default to a 72 MHz system clock"
+#endif
+/* The F3 default is the part's 72MHz ceiling, and unlike F0/G0 it is not
+ * reachable from the internal RC: this family has HSI (8MHz) and no HSI16, and
+ * PLLSRC offers only HSI/2 or HSE/PREDIV with PLLMUL topping out at 16, so
+ * 4 x 16 = 64MHz is all HSI can make. Reaching 72 means HSE x 9 with PREDIV = 1.
+ *
+ * The clock default is checked against the ceiling in app.c by simply not
+ * offering the unreachable values: the F3 branch is a cascade of exactly 8, 64
+ * and 72 with an #error for anything else, so the 64MHz internal ceiling cannot
+ * be requested as the part's maximum and cannot silently become the default
+ * either. The PLL input is the board's external clock, so OW_HSE_MHZ has to be
+ * defined for the same reason it is on F4. */
+#ifndef OW_HSE_MHZ
+#error "OW_HSE_MHZ must be defined for the F3 backend (onewire.h defaults it to 8)"
+#endif
+#if (OW_HSE_MHZ) != 8
+#error "F3: 72MHz is HSE x PLLMUL9, so the board oscillator must be 8MHz; the HSI-only ceiling is 64MHz (SYSCLK_MHZ=64)"
+#endif
 #elif defined(OW_PORT_FAMILY_F4)
 #if defined(STM32F401xC) || defined(STM32F401xE)
 #if OW_PORT_SYSCLK_MHZ != 84

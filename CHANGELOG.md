@@ -10,6 +10,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **STM32F3 support, as the `f303xc` part** (`OW_TARGET=f3`, `OW_CHIP=f303xc`):
+  the STM32F3-DISCOVERY (MB1035B, an STM32F303VC) is a build target, with the
+  real upstream CMSIS header, startup file and SVD, a 256KB flash / 32KB SRAM
+  linker script, and J-Flash/Ozone projects. The F3 backend is a new
+  `port/stm32f3/ow_port_f3.h` of the same shape as the G0 one — five statement
+  macros over the shared core in `port/common/ow_port_tim_dma.h`, which is
+  **unchanged**, so F3 joins the F0/F1/G0 branch rather than extending it.
+
+  Three things about this family are worth recording, because each was wrong in
+  an intermediate draft of this work and each fails *silently* if got wrong:
+
+  - **The DMA channels are not the F0/F1 ones.** RM0316 Table 78 puts TIM1's
+    requests at ch1=CH1, **ch2=CH2**, **ch3=CH4**, ch4=TRIG, ch5=COM, ch6=UP,
+    ch7=CH3 — so the CC2 feed rides channel **2** and the CH4 capture channel
+    **3**, one lower than on F0/F1. Copying the F0 pair makes the feed DMA never
+    fire and every capture read back empty. Verified against the reference
+    manual rather than inferred, and the table is quoted in the backend.
+  - **Three GPIO macro names differ from every other backend here.** The drive
+    strength field is `GPIO_OSPEEDER_` — with an E; this header defines no
+    `GPIO_OSPEEDR_*` at all. The alternate-function fields are named by their
+    *position* in `AFR` (`AFRH_AFRH0..7`), so PA10 is `GPIO_AFRH_AFRH2` and
+    there is no `GPIO_AFRH_AFSEL10` to write. And the family has no `RCC_AHB2ENR`
+    at all: the GPIO ports and DMA1 share `AHBENR`.
+  - **It has no HSI16, and its PLL is not the F4 shape.** `PLLSRC` offers only
+    `HSI/2` (4MHz) or `HSE/PREDIV`, `PLLMUL` runs 2..16 and there is no `PLLN`
+    at all, so **64MHz is the internal-RC ceiling** and the part's 72MHz ceiling
+    is reachable only from the external oscillator. PREDIV=1 is its reset value,
+    so the 72MHz path writes no `CFGR2`. `PWR_CR.VOS` does not exist on this
+    family, so the error that cost a day on the F446 cannot be made here.
+
+  Three supported clocks, all three separate `app.c` branches: **8MHz** (raw
+  HSI — `RCC_CFGR.SW=00` selects HSI undivided, the /2 only feeds the PLL),
+  **64MHz** (HSI/2 × PLLMUL16) and **72MHz** (HSE × PLLMUL9, read in bypass
+  mode because the F3-DISCOVERY's 8MHz is the ST-LINK's MCO square wave, not a
+  crystal). Anything else is a build error rather than a mis-timed firmware. As
+  on F4, the two waits that can never end are bounded and report through a
+  clock-failure banner that names the F3-specific fix — keep the ST-LINK attached,
+  or ask for 64/8MHz. APB1 is /2 for the 36MHz limit and APB2 stays /1, so the
+  1µs-tick invariant holds on all three.
+
+  Also: the LED is **PE8 and active high** — all eight indicators on MB1035B are
+  on GPIOE, per ST's own BSP header, and `BSP_LED_On` writes `GPIO_PIN_SET`,
+  the opposite of F1's PC13 and F0's PA4. The console is USART1_TX on **PA9
+  (AF7)**, which the F3-DISCOVERY leaves to an external USB-UART.
+
+  Regression cover: the F3 mock is compared against the real
+  `stm32f303xc.h` by `tests/check_mock_headers.sh`; a new row in
+  `test_port_init_contract` pins the setup registers; and
+  `test_port_f3_ic4psc_is_no_prescaler` asserts the F3-only `IC4PSC` capture
+  prescaler in `CCMR2[11:10]` — absent on F4 — stays 0, since a non-zero value
+  would divide the filter clock without changing any slot timing the other tests
+  check, leaving it silently wrong.
+
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
   builds the library as a subproject, the way the README's
@@ -134,6 +187,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no job on any family, which is now at least compile-checked for the F446.
 
 ### Changed
+
+- **`port/common/ow_port_tim_dma.h` no longer claims its two DMA channels are
+  `D13`/`D14` on every family that uses it.** That was true of F0, F1 and G0 and
+  is now false of F3, where the CC2 feed is channel 2 and the CH4 capture channel
+  3. The header now says the channel pair is per-family and must be read from
+  that backend's assignment against its reference manual — which is the one thing
+  in the interface that is genuinely not interchangeable, and the one whose
+  mistake is silent. The shared core's **code** is unchanged; F3 plugs into the
+  same sixteen functions without a line being added to them.
+
+- **The F4 clock-failure flag and its bounded-wait helper are no longer
+  F4-prefixed**, since F3 needs the same two: `ow_f4_clock_ok` and
+  `ow_f4_wait_flag` are `ow_clock_ok` and `ow_wait_flag`, guarded by
+  `OW_PORT_FAMILY_F4 || OW_PORT_FAMILY_F3`. The helper is still excluded for the
+  clock that configures nothing — 16MHz on F4, 8MHz on F3 — because
+  `-Werror=unused-function` is the only thing that notices. The failure banner
+  gained an F3 variant, because the fix is not the same one: on F3 the
+  unreachability is structural (no HSI16, PLLMUL ≤ 16), so the message names the
+  64MHz internal ceiling and the ST-LINK's MCO signal rather than `HSE_MHZ`.
+
+- **`src/ow_stats.c` gained an F3 branch in its device-header dispatch.** It had
+  its own copy of the per-family `#include` chain, separate from the one in
+  `app.c`, and fell through to `stm32f1xx.h` for anything unrecognised. That is
+  why only `6_statistics` failed to build: it is the only example that compiles
+  `ow_stats.c` with `OW_STATS_ENABLE`. Worth recording because the failure mode
+  is a confusing `#error` out of an unrelated family header, and there are three
+  more copies of the same chain in the tree.
 
 - **The format job's pinned `clang-format` moves from 18.1.8 to 23.1.1.** The
   pin itself stays — LLVM changes formatting between releases, so the check has

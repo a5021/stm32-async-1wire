@@ -44,10 +44,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   TIM1/DMA; the DS18B20 driver is built on it, and other 1-Wire slaves
   (DS2413, DS2431, ...) can reuse it as-is — see
   [1-Wire Layer (shared)](#1-wire-layer-shared).
-- Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
-  header-only backends for STM32F1, STM32F0, STM32G0 and STM32F4, all on the
-  shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` /
-  `make OW_TARGET=g0` / `make OW_TARGET=f4` (F1 is the default).
+  - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
+    header-only backends for STM32F1, STM32F0, STM32F3, STM32G0 and STM32F4, all
+    on the shared CH3/CH4 scheme. Select at build time with `make OW_TARGET=f0` /
+    `make OW_TARGET=f3` / `make OW_TARGET=g0` / `make OW_TARGET=f4` (F1 is the
+    default).
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -252,6 +253,14 @@ make debug APP=3_round_robin                  # debug build of 3_round_robin (fo
 
 # STM32F030 target (same examples, bus on PA10):
 make OW_TARGET=f0 APP=4_scan_mode
+
+# STM32F303VC target (F3-DISCOVERY / MB1035B, bus on PA10, console on PA9):
+# 72MHz is the default and needs the board's 8MHz external clock, which the
+# ST-LINK drives onto OSC_IN and which is read in bypass mode. This family has
+# no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach.
+make OW_TARGET=f3 APP=4_scan_mode
+make OW_TARGET=f3 SYSCLK_MHZ=64 APP=4_scan_mode   # HSI/2 + PLL, no external clock
+make OW_TARGET=f3 SYSCLK_MHZ=8  APP=4_scan_mode   # raw HSI, nothing configured
 
 # STM32F407 target (same examples, bus on PA10):
 make OW_TARGET=f4 APP=4_scan_mode
@@ -987,7 +996,7 @@ undefined references to the driver API. CMake's own `Release` (`-O3 -DNDEBUG`)
 is deliberately not used — `-O3` is not what the hardware numbers were taken
 with, and `NDEBUG` is a separate mode in this project.
 
-Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `g0`, or `f4`, and
+Select the MCU family with `-DOW_TARGET=f1` (default), `f0`, `f3`, `g0`, or `f4`, and
 the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4
 -DOW_CHIP=f401xc`, default per family, `-DOW_SYSCLK_MHZ=N` to override the
 part's clock). CMake reads the same `chips/<part>.mk` the Makefile build does,
@@ -1042,7 +1051,7 @@ Two things to know, both consequences of how a package can be built:
   your firmware is for; there is no way to change it afterwards.
 
 Both integration paths are built by CI against this repository on every change
-for all four families (`tests/integration/cmake/`), so neither can rot the way
+for all five families (`tests/integration/cmake/`), so neither can rot the way
 the install-tree file checks alone would not catch.
 
 ### STM32CubeIDE
@@ -1067,12 +1076,15 @@ the install-tree file checks alone would not catch.
 
 -   **MCU Flags:** `STM32F103xB` (Cortex-M3) by default; `STM32F030x6`
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
-    `OW_TARGET=g0`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`,
+    `OW_TARGET=g0`; `STM32F303xC` (Cortex-M4) with `OW_TARGET=f3`;
+    `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`,
     `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc` or `STM32F401xE` with
     `OW_TARGET=f4 OW_CHIP=f401xe`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
+    `make OW_TARGET=f3` for the STM32F3 backend (72MHz default clock,
+    `port/stm32f3/STM32F303XC_FLASH.ld`),
     `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`), `make OW_TARGET=f4` for the STM32F4
     backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
@@ -1370,29 +1382,41 @@ are identical across all families.
 
 #### 4. Clocking invariant
 
-The APB prescaler feeding the timer **must be /1**.  STM32 timers double
-their clock when the APB prescaler is >1 (`timer clock = 2 × PCLK`), which
-would break every µs-based timing constant in the driver.  All four
-supported families satisfy this by construction: F1 and F4 keep PPRE2=/1
-(TIM1 is on APB2), F0 and G0 have a single APB bus at /1.
-
-#### 5. GPIO
-
-The bus pin must support alternate-function open-drain (for normal bus
-operation) and runtime switching to alternate-function push-pull (for
-parasite-power strong pull-up and the optional active-drive write path).
-The pin never leaves alternate function — only the output-stage topology
-changes.
-
-#### Supported families (same scheme, different prescaler and pin config)
-
-| Family | Timer | Bus pin | DMA routing | Notes |
-|---|---|---|---|---|
-| STM32F1 | TIM1 | PA10 (default AFIO) | Fixed: CC2→DMA1 ch3 (feeds CCR3), CH4→DMA1 ch4 | APB2=/1 by default |
-| STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
-| STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
-| STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
-
+  The APB prescaler feeding the timer **must be /1**.  STM32 timers double
+  their clock when the APB prescaler is >1 (`timer clock = 2 × PCLK`), which
+  would break every µs-based timing constant in the driver.  All five
+  supported families satisfy this by construction: F1 and F4 keep PPRE2=/1
+  (TIM1 is on APB2), F0 and G0 have a single APB bus at /1, and F3 puts APB2 at
+  /1 while taking APB1 down to /2 for the 36 MHz limit.
+  
+  #### 5. GPIO
+  
+  The bus pin must support alternate-function open-drain (for normal bus
+  operation) and runtime switching to alternate-function push-pull (for
+  parasite-power strong pull-up and the optional active-drive write path).
+  The pin never leaves alternate function — only the output-stage topology
+  changes.
+  
+  #### Supported families (same scheme, different prescaler and pin config)
+  
+  | Family | Timer | Bus pin | DMA routing | Notes |
+  |---|---|---|---|---|
+  | STM32F1 | TIM1 | PA10 (default AFIO) | Fixed: CC2→DMA1 ch3 (feeds CCR3), CH4→DMA1 ch4 | APB2=/1 by default |
+  | STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
+  | STM32F3 | TIM1 | PA10 (AF6) | Fixed, one channel lower: CC2→DMA1 **ch2**, CH4→DMA1 **ch3** | RM0316 Table 78; channel 3 also carries USART1_TX, harmless because no UART byte moves by DMA |
+  | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
+  | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
+  
+  The DMA column is the one thing here that is **not** interchangeable between
+  families, and getting it wrong is silent: on a family whose CC2/CH4 requests sit
+  on different channels, the feed DMA never fires and captures read back empty
+  rather than misreporting. Each backend's channel pair is read out of its own
+  reference manual and recorded in the assignment's comment.
+  
+  Three of the five backends (`ow_port_f0.h`, `ow_port_f1.h`, `ow_port_f3.h`,
+  `ow_port_g0.h`) share one TIM1/DMA1 core in `port/common/`; F4 keeps its own
+  because DMA2 streams carry a per-stream `CHSEL` mux.
+  
 #### Bus Electrical Model
 
 - **Open-drain bus.** PA10 is configured as an alternate-function **open-drain**
