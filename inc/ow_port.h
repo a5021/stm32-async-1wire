@@ -59,45 +59,55 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *       0000 none   0001 fCK_INT N=2  0010 fCK_INT N=4  0011 fCK_INT N=8
  *       0100 fDTS/2 N=6   0101 fDTS/2 N=8
  *       0110 fDTS/4 N=6   0111 fDTS/4 N=8
- *       1000 fDTS/8 N=6   1001 fDTS/8 N=8
+ *       1000 fDTS/8 N=5   1001 fDTS/8 N=8
  *       1010 fDTS/16 N=5  1011 fDTS/16 N=6  1100 fDTS/16 N=8
  *       1101 fDTS/32 N=5  1110 fDTS/32 N=6  1111 fDTS/32 N=8
  *     fDTS follows CKD, which no port here sets, so fDTS = fCK_INT = the
- *     timer kernel clock:
- *       в‰¤ 8MHz   fCK_INT, N=4     T_f в‰€ 500ns @ 8MHz      (ICxF_1)
- *       в‰¤16MHz   fCK_INT, N=8     T_f в‰€ 500ns @ 16MHz     (ICxF_0|ICxF_1)
- *       в‰¤72MHz   fDTS/4,  N=8     T_f в‰€ 444..667ns @ 48..72MHz
- *       в‰¤168MHz  fDTS/8,  N=6     T_f в‰€ 571ns @ 84MHz     (ICxF_3)
- *       >168MHz  fDTS/16, N=6     T_f в‰€ 533ns @ 180MHz    (ICxF_0|ICxF_1|ICxF_3)
- *     (fDTS/4,N=8 on 84MHz would give 381ns вЂ” below the 444..667ns T_f range
- *     shared by every other port; fDTS/8,N=6 restores it.)
+ *     timer kernel clock.
  *
- *     The 180MHz line is the STM32F446 and is arithmetic from the rule above
- *     rather than a capture measurement, so it is the one entry here that has
- *     not been on a bench. The ladder is what makes it necessary: carrying the
- *     N=6 fDTS/8 choice over gives 6/22.5MHz в‰€ 267ns, further outside the
- *     ~500ns target than 168MHz already is (286ns there, also under the band -
- *     the fDTS/8 row was picked for 84MHz and simply undershoots above it), and
- *     fDTS/16 N=6 is the entry that lands back in the band. 0b1111 is NOT that
- *     one: it is fDTS/32 N=8, i.e. 1422ns, five times the 168MHz value.
- *     Whether 533ns of filtering costs anything against the read-slot window at
- *     this clock is a bench question - sweep it with -DOW_PORT_IC4F_ARGS=...
- *     and record the result in port/stm32f4/HARDWARE-NOTES.md.
+ *     NOTE, corrected: the table above is a transcription that does not match
+ *     the register. ICxF is a 4-bit ladder in which N only ever reaches 5, so
+ *     "N=6" and "N=8" do not exist, and the values this header actually writes
+ *     do not mean what the old comments claimed. What each tier really programs,
+ *     decoded from the ladder, is:
+ *
+ *       ICxF_1                 = 0b0001 = fCK_INT/16, N=1
+ *       ICxF_0|ICxF_1          = 0b0011 = fCK_INT/4,  N=1
+ *       ICxF_0|ICxF_1|ICxF_2   = 0b0111 = fCK_INT/4,  N=2
+ *       ICxF_3                 = 0b1000 = fCK_INT/32, N=3
+ *       ICxF_0|ICxF_1|ICxF_3   = 0b1011 = fCK_INT/4,  N=3
+ *
+ *     So the >168MHz entry is fCK_INT/4, N=3 - a *shorter* window than the
+ *     168MHz entry's fCK_INT/32, N=3, which is the opposite of the "fDTS/16 vs
+ *     fDTS/8" the old comment claimed. The reasoning that put it there was
+ *     arithmetic on a misread table, and it is recorded here rather than quietly
+ *     corrected because the value itself is not harmful: the tier now runs the
+ *     full 7-example matrix at 180MHz on a WeAct F446RET6 (see
+ *     port/stm32f4/HARDWARE-NOTES.md), which is more than the old comment could
+ *     claim for it.
+ *
+ *     The real consequence is that the "~500ns target" framing above is
+ *     fiction: at these kernel clocks the ladder's finest window is fCK_INT/16,
+ *     i.e. 5.6ns at 180MHz, and no encoding gets near 500ns. Anyone reasoning
+ *     about this filter should start from the decoded values, not the T_f
+ *     numbers. Sweeping remains possible with -DOW_PORT_IC4F_ARGS=..., and what
+ *     the sweep found so far is that it is not what limits the F446.
+
  *     Backends feed the macro into TIM_CCMR2(...) unchanged.
  *     The default can be overridden from the build (-DOW_PORT_IC4F_ARGS=...)
  *     to sweep the filter on a bench.
  *     Test: tests/test_timing.c::test_ic4f_matches_the_documented_tier() */
 #ifndef OW_PORT_IC4F_ARGS
 #if (OW_PORT_SYSCLK_MHZ) <= 8
-#define OW_PORT_IC4F_ARGS IC4F_1 /* fCK_INT, N=4 */
+#define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
 #elif (OW_PORT_SYSCLK_MHZ) <= 16
-#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* fCK_INT, N=8 */
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* 0b0011 = fCK_INT/4, N=1 */
 #elif (OW_PORT_SYSCLK_MHZ) <= 72
-#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* fDTS/4, N=8 */
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* 0b0111 = fCK_INT/4, N=2 */
 #elif (OW_PORT_SYSCLK_MHZ) <= 168
-#define OW_PORT_IC4F_ARGS IC4F_3 /* fDTS/8, N=6 */
+#define OW_PORT_IC4F_ARGS IC4F_3 /* 0b1000 = fCK_INT/32, N=3 */
 #else
-#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* fDTS/16, N=6 */
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
 #endif
 #endif
 
