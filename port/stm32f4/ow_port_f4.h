@@ -120,13 +120,13 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * fast core the next operation starts within ~1us of UIF, while the previous
  * transfer's trailing sample is still in flight; reprogramming CR at that
  * moment aborts it. Bounded so a stuck stream cannot hang the bus. */
-#define OW_PORT_DMA_WAIT_IDLE(st)                                            \
-    do {                                                                     \
-        for (uint32_t w = 0u; w < 1000u; w++) {                              \
-            if (!((st).CR & DMA_SxCR_EN) || ((st).NDTR == 0u)) {              \
-                break;                                                       \
-            }                                                                \
-        }                                                                    \
+#define OW_PORT_DMA_WAIT_IDLE(st)                                \
+    do {                                                         \
+        for (uint32_t w = 0u; w < 1000u; w++) {                  \
+            if (!((st).CR & DMA_SxCR_EN) || ((st).NDTR == 0u)) { \
+                break;                                           \
+            }                                                    \
+        }                                                        \
     } while (0)
 
 /* @brief Disable a DMA stream and retire all its status flags before re-arm
