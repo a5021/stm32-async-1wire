@@ -437,14 +437,22 @@ __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t by
  * @note The pin stays in alternate-function mode (TIM1_CH3) at all times.
  *       Engaged: OTYPER switches to push-pull so the AF output stage drives
  *       the line HIGH actively, sourcing the current parasite devices need
- *       during temperature conversion and EEPROM programming windows.
- *       Released: OTYPER restores open-drain, the AF output goes inactive
- *       (PWM mode 2 with the counter stopped at zero) so the pin floats
- *       HIGH via the external pull-up.  No BSRR or MODER writes needed:
- *       the timer is stopped (OPM) during the window, the output is
- *       inactive, and ODR is irrelevant in AF mode.
+ *       during temperature conversion and EEPROM programming windows. CCR3
+ *       is zeroed (via UG, since OC3PE buffers it) so the stopped counter
+ *       (CNT=0) holds the PWM mode 2 output ACTIVE=HIGH; without this CCR3
+ *       keeps the last slot's pulse value, CNT=0 < CCR3 forces INACTIVE=LOW,
+ *       and the bus is driven LOW instead of HIGH, starving the sensors.
+ *       Released: OTYPER restores open-drain, the AF output (still ACTIVE
+ *       from CCR3=0) releases the line so it floats HIGH via the external
+ *       pull-up. No BSRR or MODER writes needed, and ODR is irrelevant in
+ *       AF mode. The UG sets UIF, which the next operation clears at its
+ *       own re-arm.
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
+    if (on) {
+        T1.CCR3 = 0;
+        T1.EGR = TIM_EGR(UG);
+    }
     ow_port_set_pin_mode(on);
 }
 

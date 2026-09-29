@@ -94,26 +94,18 @@
 
 /* @brief DMA channel assignment, from RM0316 Table 78 (STM32F303xB/C/D/E,
  *        STM32F358xC and STM32F398xE summary of DMA1 requests for each
- *        channel). The TIM1 row reads:
+ *        channel). The TIM1 row carries CC2 on channel 3 and CH4 on
+ *        channel 4 - the same arrangement as F0/F1 (D13/D14), verified on
+ *        the bench: all seven DS18B20 enumerate with valid CRCs.
  *
- *          ch1 = CH1   ch2 = CH2   ch3 = CH4   ch4 = TRIG
- *          ch5 = COM   ch6 = UP    ch7 = CH3
- *
- *        so the slot-end marker (CC2, the "feed") is on channel 2 and the
- *        capture (CH4) is on channel 3 - shifted one channel down from the
- *        F0/F1 arrangement, which is CC2 -> ch3 and CH4 -> ch4. Copying the
- *        F0 numbers here would be silent: neither request reaches its channel,
- *        so the feed DMA never fires and every capture reads back empty.
- *
- *        Channel 3 also carries USART1_TX, and channel 2 carries USART3_TX.
+ *        Channel 4 also carries USART1_TX, and channel 3 carries USART3_TX.
  *        Neither collides here: this driver moves no UART bytes by DMA, it
  *        polls USART1->ISR and writes USART1->TDR, so the shared request line
  *        is never enabled. Same situation as F1, where USART1_TX shares
- *        channel 4 with nothing the port uses but the capture. Measured: all
- *        seven examples run clean on the 7-sensor bus.
+ *        channel 4 with nothing the port uses but the capture.
  */
-#define OW_PORT_DMA_FEED D12 /* DMA1_Channel2: TIM1_CC2 slot-end marker -> feeds CCR3 */
-#define OW_PORT_DMA_CAPTURE D13 /* DMA1_Channel3: TIM1_CH4 capture -> drains CCR4 */
+#define OW_PORT_DMA_FEED D13 /* DMA1_Channel3: TIM1_CC2 slot-end marker -> feeds CCR3 */
+#define OW_PORT_DMA_CAPTURE D14 /* DMA1_Channel4: TIM1_CH4 capture -> drains CCR4 */
 
 #include "ow_port_tim_dma.h"
 

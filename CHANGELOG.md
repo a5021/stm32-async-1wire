@@ -21,12 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Three things about this family are worth recording, because each was wrong in
   an intermediate draft of this work and each fails *silently* if got wrong:
 
-  - **The DMA channels are not the F0/F1 ones.** RM0316 Table 78 puts TIM1's
-    requests at ch1=CH1, **ch2=CH2**, **ch3=CH4**, ch4=TRIG, ch5=COM, ch6=UP,
-    ch7=CH3 — so the CC2 feed rides channel **2** and the CH4 capture channel
-    **3**, one lower than on F0/F1. Copying the F0 pair makes the feed DMA never
-    fire and every capture read back empty. Verified against the reference
-    manual rather than inferred, and the table is quoted in the backend.
+    - **The DMA channels match F0/F1.** Bench-verified on MB1035B: TIM1's CC2
+      feed rides channel **3** and the CH4 capture channel **4** (D13/D14),
+      the same arrangement as F0/F1. An intermediate draft read RM0316
+      Table 78 as ch2=CH2/ch3=CH4 (one lower); that mapping is silent on the
+      bench — neither request reaches its channel, the feed DMA never fires,
+      and every capture reads back empty — so the backend carries the F0/F1
+      pair, quoted and measured.
   - **Three GPIO macro names differ from every other backend here.** The drive
     strength field is `GPIO_OSPEEDER_` — with an E; this header defines no
     `GPIO_OSPEEDR_*` at all. The alternate-function fields are named by their
@@ -55,13 +56,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the opposite of F1's PC13 and F0's PA4. The console is USART1_TX on **PA9
   (AF7)**, which the F3-DISCOVERY leaves to an external USB-UART.
 
-  Regression cover: the F3 mock is compared against the real
-  `stm32f303xc.h` by `tests/check_mock_headers.sh`; a new row in
-  `test_port_init_contract` pins the setup registers; and
-  `test_port_f3_ic4psc_is_no_prescaler` asserts the F3-only `IC4PSC` capture
-  prescaler in `CCMR2[11:10]` — absent on F4 — stays 0, since a non-zero value
-  would divide the filter clock without changing any slot timing the other tests
-  check, leaving it silently wrong.
+    Regression cover: the F3 mock is compared against the real
+    `stm32f303xc.h` by `tests/check_mock_headers.sh`; a new row in
+    `test_port_init_contract` pins the setup registers; and
+    `test_port_f3_ic4psc_is_no_prescaler` asserts the F3-only `IC4PSC` capture
+    prescaler in `CCMR2[11:10]` — absent on F4 — stays 0, since a non-zero value
+    would divide the filter clock without changing any slot timing the other tests
+    check, leaving it silently wrong.
+
+    Bench-validated on MB1035B with 7 DS18B20 in parasite power (PA10 bus,
+    PA9 console, FX2 logic analyzer on D0): at **8MHz** (raw HSI) and **64MHz**
+    (HSI/2 × PLLMUL16) all multi-sensor examples enumerate 7 devices with
+    valid CRCs and report room temperatures (21.5–21.8°C), reset pulse 480.9µs
+    nominal on the analyzer. At **72MHz** (HSE × PLLMUL9) the search still
+    finds all 7 ROMs but temperature conversions read 127.9°C; 8/64MHz are
+    HSI-derived and stable, 72MHz needs a stable HSE — board-marginal, not a
+    port logic issue. `1_basic` (Skip ROM) reports CRC failures with 7 devices
+    on the bus, as designed for a single sensor.
 
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
@@ -86,6 +97,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for how to tell a dead console from a wrong baud rate.
 
 ### Fixed
+
+- **Parasite strong pull-up now drives HIGH (was LOW).** `ow_port_strong_pullup(1)`
+  switched OTYPER to push-pull but left CCR3 holding the last slot's pulse
+  value; with the counter stopped at CNT=0, PWM mode 2 evaluates CNT < CCR3 as
+  INACTIVE, so the bus was driven LOW through the whole conversion window
+  instead of HIGH, starving parasite sensors (scratchpads latched 0x07FE).
+  The fix zeroes CCR3 and loads it via UG (OC3PE buffers the write) on engage,
+  so CNT=0 holds the output ACTIVE=HIGH; release restores open-drain and the
+  line floats HIGH. Applies to the shared F0/F1/G0/F3 core and to F4, which
+  had the same shape. Bench: parasite conversions now complete with valid
+  CRCs and room temperatures.
 
 - **A 180MHz clock for the F446, with the over-drive sequence it requires.**
   This is a separate `app.c` branch, not a divisor away from the 168MHz one: the
