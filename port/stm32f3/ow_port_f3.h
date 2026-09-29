@@ -15,8 +15,39 @@
 
 #include "onewire.h"
 #include "ow_bits.h"
-#include "ow_port.h"
 #include "stm32f3xx.h"
+
+/* ------------------------------------------------------------------
+ *  Per-family facts owned by this port.  onewire.h delegates them here so the
+ *  core headers carry no family knowledge; the token chain in onewire.h is the
+ *  only other place a family appears.
+ *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
+ *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
+ *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
+ *    Capture-side durations are always uint16_t.
+ *  - OW_PORT_SYSCLK_MHZ: this family's default system clock; the timer
+ *    prescaler and the IC4F ladder derive from it.  -DOW_PORT_SYSCLK_MHZ=N
+ *    overrides it; validate any change against every supported clock (app.c).
+ *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL input
+ *    (this family has no HSI16, so the 72MHz PLL multiplies the crystal by 9).
+ *    Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
+ *    *board*, the system clock to the *application*.
+ *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
+typedef uint8_t ow_pulse_t;
+
+#if !defined(OW_PORT_SYSCLK_MHZ)
+#define OW_PORT_SYSCLK_MHZ 72 /* STM32F303: the part's 72MHz ceiling, HSE/PREDIV + PLL x9 */
+#endif
+
+#if !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 8
+#endif
+
+#if OW_PORT_LOW_POWER
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
+#endif
+
+#include "ow_port.h"
 
 /* @brief Gate GPIOA, GPIOE, DMA1 and TIM1.
  *

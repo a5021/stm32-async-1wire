@@ -13,10 +13,12 @@
 
 #include "ow_port.h"
 
-/* The clock default has two sources: the #if cascade in onewire.h above, and
+/* The clock default has two sources: the #if cascade in the family headers
+ * (ow_port_f0/f1/f3/g0/f4.h) above, and
  * CHIP_SYSCLK_MHZ in the chips/<part>.mk the build selects. They are not
  * connected: the build passes -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the
- * firmware command line, which is exactly the #if !defined() guard in onewire.h,
+ * firmware command line, which is exactly the #if !defined() guard in the
+ * family headers,
  * so on a Make/CMake firmware the header cascade is bypassed and the part file
  * alone decides. Meanwhile this file deliberately omits that define so it can
  * check the cascade the PlatformIO / CubeMX path gets.
@@ -63,7 +65,7 @@
  * either. The PLL input is the board's external clock, so OW_HSE_MHZ has to be
  * defined for the same reason it is on F4. */
 #ifndef OW_HSE_MHZ
-#error "OW_HSE_MHZ must be defined for the F3 backend (onewire.h defaults it to 8)"
+#error "OW_HSE_MHZ must be defined for the F3 backend (ow_port_f3.h defaults it to 8)"
 #endif
 #if (OW_HSE_MHZ) != 8
 #error "F3: 72MHz is HSE x PLLMUL9, so the board oscillator must be 8MHz; the HSI-only ceiling is 64MHz (SYSCLK_MHZ=64)"
@@ -84,8 +86,8 @@
 #endif
 
 /* The per-part ceiling has to agree with the default this file just checked, or
- * the guard that rejects an out-of-range request (onewire.h
- * OW_PORT_F4_MAX_SYSCLK_MHZ, used by app.c) would reject the part's own
+ * the guard that rejects an out-of-range request (OW_PORT_F4_MAX_SYSCLK_MHZ,
+ * owned by ow_port_f4.h, used by app.c) would reject the part's own
  * default. That pair is the only thing stopping a 180 MHz build for an F407. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
@@ -100,7 +102,7 @@
  * F401 quietly reverting to M=8: nothing else in the build looks at the M field,
  * and a wrong value is not a compile error - the PLL just never locks. */
 #if !defined(OW_HSE_MHZ)
-#error "OW_HSE_MHZ must be defined for the F4 backend (onewire.h defaults it to 8)"
+#error "OW_HSE_MHZ must be defined for the F4 backend (ow_port_f4.h defaults it to 8)"
 #endif
 #if (OW_HSE_MHZ) < 2 || (OW_HSE_MHZ) > 63
 #error "F4: PLLM is 5 bits (2..63); OW_HSE_MHZ outside that cannot give a 1MHz PLL input"

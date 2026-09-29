@@ -16,15 +16,20 @@
  *
  *  A family header that includes this must, before the include:
  *
- *    - include onewire.h, ow_port.h, ow_bits.h and its own device header
- *      (ow_bits.h supplies the T1/PA/RC/D1x aliases this uses, and
- *      onewire.h supplies OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn);
+ *    - include onewire.h (which pulls in the same backend), ow_bits.h and its
+ *      own device header: ow_bits.h supplies the T1/PA/RC/D1x aliases this
+ *      uses, and the family facts block up in the headers supplies ow_pulse_t,
+ *      OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn;
  *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE, which are the DMA
  *      channels that carry TIM1's CC2 (feed) and CH4 (capture) requests on
  *      that family.  They are D13/D14 on F0 and F1, D12/D13 on F3 - read the
  *      family header's assignment against its reference manual, it is the one
  *      thing here that is not interchangeable;
- *    - define the five statement macros below.
+ *    - define the five statement macros listed below.  Every one of them is a
+ *      hard requirement, not a convention, and each is checked with a #error
+ *      directly after the include guard, so a family header that forgets one
+ *      fails with the missing macro's name instead of a failure deep inside a
+ *      pokes.
  *
  *  There is no run-time cost to the factoring: everything stays
  *  __STATIC_FORCEINLINE and every difference is resolved by the preprocessor,
@@ -41,6 +46,72 @@
 
 #ifndef OW_PORT_TIM_DMA_H
 #define OW_PORT_TIM_DMA_H
+
+/* The core is only usable inside a family header that declared its pin/timer/
+ * DMA plumbing first.  Each of the five statements below is a hard requirement
+ * on that ordering; the DMA channels are checked too, because a family header
+ * that forgets them compiles and then does nothing on the wire. */
+#ifndef OW_PORT_DMA_FEED
+#error "ow_port_tim_dma.h: define OW_PORT_DMA_FEED (the DMA channel for the TIM1_CC2 slot-end marker / CCR3 feed) before including this core"
+#endif
+#ifndef OW_PORT_DMA_CAPTURE
+#error "ow_port_tim_dma.h: define OW_PORT_DMA_CAPTURE (the DMA channel for the TIM1_CH4 capture) before including this core"
+#endif
+#ifndef OW_PORT_ENABLE_BUS_CLOCKS
+#error "ow_port_tim_dma.h: define OW_PORT_ENABLE_BUS_CLOCKS() before including this core"
+#endif
+#ifndef OW_PORT_CONFIG_BUS_PIN
+#error "ow_port_tim_dma.h: define OW_PORT_CONFIG_BUS_PIN() before including this core"
+#endif
+#ifndef OW_PORT_SET_PIN_MODE
+#error "ow_port_tim_dma.h: define OW_PORT_SET_PIN_MODE(push_pull) before including this core"
+#endif
+#ifndef OW_PORT_ROUTE_CAPTURE
+#error "ow_port_tim_dma.h: define OW_PORT_ROUTE_CAPTURE() before including this core"
+#endif
+#ifndef OW_PORT_ROUTE_FEED
+#error "ow_port_tim_dma.h: define OW_PORT_ROUTE_FEED() before including this core"
+#endif
+
+/* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
+ *     living here because the shared core is the one place all four families
+ *     that use it are processed.  The F4 backend carries an identical copy (it
+ *     does not include this core); keep the two in sync.
+ *
+ *     ICxF is a 4-bit ladder.  The values this port actually programs, decoded
+ *     from the RM0090 table (the same one ST's stm32f0xx_ll_tim.h spells out),
+ *     are:
+ *
+ *       ICxF_1                 = 0b0001 = fCK_INT/16, N=1
+ *       ICxF_0|ICxF_1          = 0b0011 = fCK_INT/4,  N=1
+ *       ICxF_0|ICxF_1|ICxF_2   = 0b0111 = fCK_INT/4,  N=2
+ *       ICxF_3                 = 0b1000 = fCK_INT/32, N=3
+ *       ICxF_0|ICxF_1|ICxF_3   = 0b1011 = fCK_INT/4,  N=3
+ *
+ *     So the >168MHz entry is fCK_INT/4 N=3, a *shorter* window than the
+ *     168MHz entry's fCK_INT/32 N=3.  That is deliberate and was validated at
+ *     180MHz on the full 7-example matrix (see port/stm32f4/HARDWARE-NOTES.md).
+ *     A "~500ns target" does not exist at these kernel clocks: the ladder's
+ *     finest window is fCK_INT/16 (5.6ns at 180MHz), so reasoning should start
+ *     from the decoded values.
+ *
+ *     Backends feed the macro into TIM_CCMR2(...) unchanged.  The default can
+ *     be overridden from the build (-DOW_PORT_IC4F_ARGS=...) to sweep the
+ *     filter on a bench.
+ *     Test: tests/test_timing.c::test_ic4f_matches_the_documented_tier() */
+#ifndef OW_PORT_IC4F_ARGS
+#if (OW_PORT_SYSCLK_MHZ) <= 8
+#define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 16
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* 0b0011 = fCK_INT/4, N=1 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 72
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* 0b0111 = fCK_INT/4, N=2 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 168
+#define OW_PORT_IC4F_ARGS IC4F_3 /* 0b1000 = fCK_INT/32, N=3 */
+#else
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
+#endif
+#endif
 
 /* Prescaler for 1 us resolution: PSC = SYSCLK / 1MHz - 1, from the shared
  * OW_PORT_SYSCLK_MHZ.  INVARIANT: TIM1's clock must equal SYSCLK - the APB

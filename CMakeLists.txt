@@ -316,7 +316,7 @@ function(ow_add_core_library tgt)
         ${OW_PORT_DEF}
         # The part's default clock, so this build system resolves the same
         # OW_PORT_SYSCLK_MHZ the Makefile build does instead of relying on the
-        # fallback in onewire.h.
+        # fallback in the family headers.
         OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
         ${OW_EXTRA_DEFINES}
     )
@@ -357,8 +357,12 @@ install(FILES
     inc/ow_stats.h
     inc/ow_config.h
     inc/ow_bits.h  # included by every ow_port_<family>.h backend
-    # ow_port.h selects its backend with sibling quote-includes
+    # onewire.h selects its backend with sibling quote-includes
     # (#include "ow_port_f1.h"), so the backends must ship alongside it.
+    # Build-tree consumers must therefore add the port dirs to their include
+    # path (this target exports them via BUILD_INTERFACE; the Makefile adds -I
+    # for every port dir), and the flattened install above is why the includes
+    # cannot be spelled "port/stm32f1/..." here.
     port/stm32f1/ow_port_f1.h
     port/stm32f0/ow_port_f0.h
     port/stm32f3/ow_port_f3.h
