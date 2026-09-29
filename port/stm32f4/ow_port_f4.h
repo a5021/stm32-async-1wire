@@ -116,6 +116,19 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  *       must be a matching halfword (ow_pulse_t) buffer. */
 #define OW_PORT_DMA_CR_FEED DMA_SxCR(DIR_0, MINC, PL_1, PSIZE_0)
 
+/* Spin (bounded) until a DMA stream is idle before reprogramming it. On a
+ * fast core the next operation starts within ~1us of UIF, while the previous
+ * transfer's trailing sample is still in flight; reprogramming CR at that
+ * moment aborts it. Bounded so a stuck stream cannot hang the bus. */
+#define OW_PORT_DMA_WAIT_IDLE(st)                                            \
+    do {                                                                     \
+        for (uint32_t w = 0u; w < 1000u; w++) {                              \
+            if (!((st).CR & DMA_SxCR_EN) || ((st).NDTR == 0u)) {              \
+                break;                                                       \
+            }                                                                \
+        }                                                                    \
+    } while (0)
+
 /* @brief Disable a DMA stream and retire all its status flags before re-arm
  * @note Non-blocking. Both call sites only ever pass Stream2 (feed) or
  *       Stream4 (capture); the flag register is derived from the pointer.
@@ -154,6 +167,10 @@ __STATIC_FORCEINLINE void ow_port_kick(void) {
  *       processed before SR=0 clears UIF.
  */
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
+    /* Do not reprogram DMA while the previous transfer is still draining.
+     * See OW_PORT_DMA_WAIT_IDLE. */
+    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_FEED);
+    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_CAPTURE);
     T1.EGR = TIM_EGR(UG);
     (void)T1.SR; /* flush posted APB writes to TIM1 so UG sets UIF before SR=0 */
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */

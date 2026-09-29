@@ -65,14 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     check, leaving it silently wrong.
 
     Bench-validated on MB1035B with 7 DS18B20 in parasite power (PA10 bus,
-    PA9 console, FX2 logic analyzer on D0): at **8MHz** (raw HSI) and **64MHz**
-    (HSI/2 × PLLMUL16) all multi-sensor examples enumerate 7 devices with
-    valid CRCs and report room temperatures (21.5–21.8°C), reset pulse 480.9µs
-    nominal on the analyzer. At **72MHz** (HSE × PLLMUL9) the search still
-    finds all 7 ROMs but temperature conversions read 127.9°C; 8/64MHz are
-    HSI-derived and stable, 72MHz needs a stable HSE — board-marginal, not a
-    port logic issue. `1_basic` (Skip ROM) reports CRC failures with 7 devices
-    on the bus, as designed for a single sensor.
+    PA9 console, FX2 logic analyzer on D0): at **8MHz** (raw HSI), **64MHz**
+    (HSI/2 × PLLMUL16) and **72MHz** (HSE × PLLMUL9) all multi-sensor examples
+    enumerate 7 devices with valid CRCs and report room temperatures
+    (22.6–22.8°C), reset pulse 480.9µs nominal on the analyzer.
+    `1_basic` (Skip ROM) reports CRC failures with 7 devices on the bus, as
+    designed for a single sensor.
 
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
@@ -108,6 +106,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line floats HIGH. Applies to the shared F0/F1/G0/F3 core and to F4, which
   had the same shape. Bench: parasite conversions now complete with valid
   CRCs and room temperatures.
+
+- **DMA completion wait before reprogramming (was UIF-only race).**
+  `ow_port_bus_done()` reported done on the timer update flag while the DMA
+  was still moving the trailing sample; on a fast core the next operation
+  reprogrammed DMA within ~1us and aborted it, losing bytes. Symptom:
+  back-to-back multi-device sequences read stale scratchpads (127.9°C) at
+  72MHz while spaced single-device reads worked, and 8/64MHz (slower cores)
+  never tripped it. The fix waits — bounded, in `ow_port_update_event()`
+  before any DMA reprogram — until each channel is disabled or drained.
+  Mock flows (UIF without arming DMA) fall through immediately, so host
+  suites are unaffected. Applies to the shared core and to F4.
 
 - **A 180MHz clock for the F446, with the over-drive sequence it requires.**
   This is a separate `app.c` branch, not a divisor away from the 168MHz one: the
