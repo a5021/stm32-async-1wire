@@ -56,21 +56,6 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 /* DMA control bits for 16-bit capture: MINC | PSIZE_0 | EN */
 #define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 
-/* Spin (bounded) until a DMA channel is idle before reprogramming it. On a
- * fast core the next operation starts within ~1us of UIF, while the previous
- * transfer's trailing sample is still in flight; reprogramming CCR at that
- * moment aborts it. Waiting for EN-clear or CNDTR-drain fixes back-to-back
- * multi-device sequences. Bounded so a stuck channel cannot hang the bus;
- * mock flows (EN set with no running transfer) fall through immediately. */
-#define OW_PORT_DMA_WAIT_IDLE(ch)                                            \
-    do {                                                                     \
-        for (uint32_t w = 0u; w < 1000u; w++) {                              \
-            if (!((ch).CCR & DMA_CCR_EN) || ((ch).CNDTR == 0u)) {             \
-                break;                                                       \
-            }                                                                \
-        }                                                                    \
-    } while (0)
-
 /**
  * @brief Force a timer update event, leaving UIF set
  * @note Explicit start: EGR=UG with no SR clear, so the owner (measurement
@@ -89,10 +74,6 @@ __STATIC_FORCEINLINE void ow_port_kick(void) {
  *       scheduled operation has a clean completion flag.
  */
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
-    /* Do not reprogram DMA while the previous transfer is still draining.
-     * See OW_PORT_DMA_WAIT_IDLE. */
-    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_FEED);
-    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_CAPTURE);
     T1.EGR = TIM_EGR(UG);
     __DSB();
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
