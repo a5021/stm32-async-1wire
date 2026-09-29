@@ -77,11 +77,6 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
     T1.EGR = TIM_EGR(UG);
     __DSB();
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
-    /* Flush the posted APB write: EGR=UG sets UIF, and on a fast core
-     * ow_port_bus_done() can poll between UG and the SR clear above, seeing
-     * a stale UIF and reporting the operation complete before it runs. The
-     * dummy read forces the SR write to complete so UIF is reliably 0 here. */
-    (void)T1.SR;
 }
 
 /**
