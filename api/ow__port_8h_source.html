@@ -206,19 +206,21 @@ $(document).ready(function(){initNavTree('ow__port_8h_source.html',''); initResi
 <div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span><span class="preprocessor">#include &quot;ow_port_f1.h&quot;</span></div>
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F0)</span></div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span><span class="preprocessor">#include &quot;ow_port_f0.h&quot;</span></div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span><span class="preprocessor">#include &quot;ow_port_f4.h&quot;</span></div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="preprocessor">#error &quot;ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)&quot;</span></div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span> </div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>}</div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span> </div>
-<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F3)</span></div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span><span class="preprocessor">#include &quot;ow_port_f3.h&quot;</span></div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="preprocessor">#include &quot;ow_port_f4.h&quot;</span></div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span><span class="preprocessor">#error &quot;ow_port: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)&quot;</span></div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span> </div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>}</div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
+<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aonewire_8h_html"><div class="ttname"><a href="onewire_8h.html">onewire.h</a></div><div class="ttdoc">Universal non-blocking 1-Wire bus layer for STM32.</div></div>
 <div class="ttc" id="aow__config_8h_html_a404da404453e7f30870bd891c1792139"><div class="ttname"><a href="ow__config_8h.html#a404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ZERO_PULSE</div><div class="ttdoc">Duration of a '0' bit write pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:81</div></div>
 <div class="ttc" id="aow__config_8h_html_aa6a4d6398a7d8069affba9f78d5e2c6e"><div class="ttname"><a href="ow__config_8h.html#aa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ONE_PULSE</div><div class="ttdoc">Duration of a '1' bit write/read pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:76</div></div>
