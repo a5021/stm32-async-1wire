@@ -85,12 +85,10 @@ typedef struct {
     volatile uint32_t TDR;
 } USART_TypeDef;
 
-/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA1_Channel2), etc. work.
- * STM32F303 has a fixed request map and no DMAMUX, but the channels are NOT the
- * F0/F1 ones: RM0316 Table 78 puts TIM1's requests at ch1=CH1, ch2=CH2,
- * ch3=CH4, ch4=TRIG, ch5=COM, ch6=UP, ch7=CH3. So the slot-end marker (CC2)
- * that feeds CCR3 is channel 2 and the CH4 capture is channel 3 - one channel
- * lower than on F0/F1. The storage objects keep their legacy names so tests and
+/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA1_Channel3), etc. work.
+ * STM32F303 has a fixed request map and no DMAMUX. Bench-verified on MB1035B:
+ * TIM1's CC2 feed rides channel 3 and the CH4 capture channel 4 (D13/D14),
+ * the same pair as F0/F1. The storage objects keep their legacy names so tests and
  * hw_model stay target-agnostic; only the CMSIS instance they hang off differs. */
 extern TIM1_TypeDef mock_tim1;
 extern DMA1_Channel_TypeDef mock_dma1_ch4;
@@ -99,8 +97,8 @@ extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 extern USART_TypeDef mock_usart1;
 #define TIM1 (&mock_tim1)
-#define DMA1_Channel2 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
-#define DMA1_Channel3 (&mock_dma1_ch4) /* CH4 capture -> drains CCR4 */
+#define DMA1_Channel3 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
+#define DMA1_Channel4 (&mock_dma1_ch4) /* CH4 capture -> drains CCR4 */
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
 #define USART1 (&mock_usart1)
