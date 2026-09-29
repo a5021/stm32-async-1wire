@@ -157,9 +157,6 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
     T1.EGR = TIM_EGR(UG);
     (void)T1.SR; /* flush posted APB writes to TIM1 so UG sets UIF before SR=0 */
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
-    /* Flush again: on a fast core bus_done() can poll between UG and the
-     * clear above, seeing a stale UIF. The readback forces completion. */
-    (void)T1.SR;
 }
 
 /**
