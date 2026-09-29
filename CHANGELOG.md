@@ -72,6 +72,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `1_basic` (Skip ROM) reports CRC failures with 7 devices on the bus, as
     designed for a single sensor.
 
+    The full seven-example matrix was re-run to close the validation: all 21
+    cells (7 examples × 8/64/72MHz) PASS on 2026-09-29, including the parasite
+    power build of `7_low_power` with the opt-in `-DOW_PORT_LOW_POWER=1` WFE
+    sleep path, and `6_statistics` after a clean `reset run` (the first capture
+    for the cell latched one sensor at the 85.0°C power-on value in the seconds
+    before `reset run` started the fresh build — the same mechanism as
+    `4_scan_mode` below). Console logs for every cell are in
+    `docs/bench/f3-2026-09-29/`. The bench harness flashes each build and starts
+    it with OpenOCD `reset run`; the ST-LINK flasher's own reset (`ST-LINK_CLI`
+    `-HardRst -Run`) does not restart the application on this board and leaves
+    the core parked in a stale handler, so it is not used for console runs.
+
+    The physical waveform was captured again on the FX2-based logic analyzer
+    (sigrok `fx2lafw`, 16 MS/s, D0 = PA10): reset pulse 481.0–481.3 µs
+    (nominal 480 µs), presence window ≈31 µs, write-1 slots 4.9–5.6 µs
+    (nominal 5 µs) and write-0/read slots 60.0 µs (nominal 60 µs). So the
+    compiled µs tick (`PSC = SYSCLK_MHZ - 1`, 72 MHz) and the slot geometry
+    reproduce exactly on the wire. Captures and the measuring script are in
+    `docs/bench/f3-2026-09-29/la/`.
+
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
   builds the library as a subproject, the way the README's
@@ -107,16 +127,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had the same shape. Bench: parasite conversions now complete with valid
   CRCs and room temperatures.
 
-- **DMA completion wait before reprogramming (was UIF-only race).**
-  `ow_port_bus_done()` reported done on the timer update flag while the DMA
-  was still moving the trailing sample; on a fast core the next operation
-  reprogrammed DMA within ~1us and aborted it, losing bytes. Symptom:
-  back-to-back multi-device sequences read stale scratchpads (127.9°C) at
-  72MHz while spaced single-device reads worked, and 8/64MHz (slower cores)
-  never tripped it. The fix waits — bounded, in `ow_port_update_event()`
-  before any DMA reprogram — until each channel is disabled or drained.
-  Mock flows (UIF without arming DMA) fall through immediately, so host
-  suites are unaffected. Applies to the shared core and to F4.
+- **No DMA wait-loop: the never-needed bounded drain wait was removed after
+  the stale-UIF race was diagnosed.** A first attempt at the 72MHz
+  back-to-back multi-device failures (stale scratchpads reading 127.9°C
+  while spaced single-device reads worked — `ow_port_bus_done()` reported
+  done on the timer update flag while the DMA was still moving the trailing
+  sample, and the next operation reprogrammed DMA within ~1us, aborting it)
+  was a bounded DMA completion wait: spin, in `ow_port_update_event()`
+  before any DMA reprogram, until each channel's EN clears or its (C)NDTR
+  drains (~1000 iterations; mock flows with UIF and no armed DMA fall
+  through immediately). The real root cause turned out to be a stale-UIF
+  race — re-arming the timer with `EGR=UG` raises UIF a few timer cycles
+  later on a fast core, so `SR=0` right after `EGR=UG` can lose the clear,
+  and the next `ow_port_bus_done()` reports the operation complete before it
+  started — and the true fix is flushing the posted APB write into the timer
+  domain before `SR=0`: a dummy `T1.SR` readback on F4, `__DSB()` on the
+  shared core. The wait-loop therefore serves no purpose and is gone from
+  both the shared core and F4 ("UIF-only `ow_port_bus_done()` is correct");
+  the full seven-example matrix (7 × 8/64/72MHz, all PASS) above validates
+  its removal on real hardware. F4 additionally keeps its
+  `ow_port_dma_rearm()` non-blocking on purpose: a stream's EN clears only
+  at the end of a normal-mode transfer, so an EN=0 wait would block — `CR=0`
+  just requests the disable (no-op once `ow_port_bus_done()` has gated us)
+  and never waits.
 
 - **A 180MHz clock for the F446, with the over-drive sequence it requires.**
   This is a separate `app.c` branch, not a divisor away from the 168MHz one: the

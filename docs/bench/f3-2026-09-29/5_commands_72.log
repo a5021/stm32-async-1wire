@@ -1,0 +1,96 @@
+# COM5 115200 t0=21:59:14
+[   2.28] DS18B20 5_commands starting...
+[   2.28] Searching 1-Wire bus...
+[   2.31]   ROM: 28 20 78 92 07 00 00 67
+[   2.34]   ROM: 28 78 B8 AC 0B 00 00 2C
+[   2.38]   ROM: 28 64 69 AB 0B 00 00 1F
+[   2.41]   ROM: 28 FC AE AA 0B 00 00 F3
+[   2.45]   ROM: 28 C6 BB 4E 04 00 00 67
+[   2.48]   ROM: 28 7E 63 AD 0B 00 00 3F
+[   2.52]   ROM: 28 F1 39 AD 0B 00 00 D9
+[   2.52] Found 7 device(s).
+[   2.52] Read Power Supply (0xB4):
+[   2.53]   power supply: parasite
+[   2.54] Read Scratchpad (0xBE) - baseline:
+[   2.56]   73 01 00 00 7F FF 0D 10 B9  CRC ok  TH=0x00 TL=0x00  res=12bit
+[   2.57] Write Scratchpad (0x4E): TH=0x19 TL=0x0F
+[   2.58] Scratchpad after threshold write:
+[   2.61]   73 01 19 0F 7F FF 0D 10 1B  CRC ok  TH=0x19 TL=0x0F  res=12bit
+[   2.61] Copy Scratchpad (0x48) -> EEPROM (10ms hold-off):
+[   2.63]   copied to EEPROM
+[   2.63] Write Scratchpad (0x4E): TH=0x05 TL=0x02 (volatile only)
+[   2.65] Scratchpad after second write:
+[   2.68]   73 01 05 02 7F FF 0D 10 D1  CRC ok  TH=0x05 TL=0x02  res=12bit
+[   2.68] Recall EEPROM (0xB8) -> scratchpad (10ms hold-off):
+[   2.70]   EEPROM copy loaded back
+[   2.70] Scratchpad after Recall (EEPROM copy restored):
+[   2.73]   73 01 19 0F 7F FF 0D 10 1B  CRC ok  TH=0x19 TL=0x0F  res=12bit
+[   2.73] Read ROM (0x33) - single-device command:
+[   2.74]   ROM: 28 00 20 00 00 00 00 00  CRC fail (valid only with one device on the bus)
+[   2.75] Command demo done. Measuring selected device:
+[   3.53] 23.1 C
+[   4.32] 23.1 C
+[   5.11] 23.2 C
+[   5.90] 23.2 C
+[   6.69] 23.2 C
+[   7.48] 23.2 C
+[   8.27] 23.2 C
+[   9.06] 23.2 C
+[   9.85] 23.2 C
+[  10.64] 23.2 C
+[  11.43] 23.2 C
+[  12.22] 23.3 C
+[  13.01] 23.2 C
+[  13.80] 23.3 C
+[  14.59] 23.3 C
+[  15.38] 23.2 C
+[  16.17] 23.2 C
+[  16.96] 23.3 C
+[  17.75] 23.3 C
+[  18.54] 23.3 C
+[  19.33] 23.3 C
+[  20.13] 23.3 C
+[  20.92] 23.3 C
+[  21.71] 23.3 C
+[  22.50] 23.3 C
+[  23.29] 23.3 C
+[  24.08] 23.3 C
+[  24.87] 23.3 C
+[  25.66] 23.3 C
+[  26.45] 23.3 C
+[  27.24] 23.3 C
+[  28.03] 23.3 C
+[  28.82] 23.3 C
+[  29.61] 23.3 C
+[  30.40] 23.3 C
+[  31.19] 23.3 C
+[  31.98] 23.3 C
+[  32.77] 23.3 C
+[  33.56] 23.3 C
+[  34.35] 23.3 C
+[  35.14] 23.3 C
+[  35.94] 23.3 C
+[  36.73] 23.3 C
+[  37.52] 23.3 C
+[  38.31] 23.3 C
+[  39.10] 23.3 C
+[  39.89] 23.3 C
+[  40.68] 23.3 C
+[  41.47] 23.3 C
+[  42.26] 23.3 C
+[  43.05] 23.3 C
+[  43.84] 23.3 C
+[  44.63] 23.3 C
+[  45.42] 23.3 C
+[  46.21] 23.3 C
+[  47.00] 23.3 C
+[  47.79] 23.3 C
+[  48.58] 23.3 C
+[  49.37] 23.3 C
+[  50.16] 23.3 C
+[  50.95] 23.3 C
+[  51.74] 23.3 C
+[  52.54] 23.3 C
+[  53.33] 23.3 C
+[  54.12] 23.3 C
+[  54.91] 23.3 C
