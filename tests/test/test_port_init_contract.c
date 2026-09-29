@@ -81,6 +81,25 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u},
     {"open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
 };
+#elif defined(OW_PORT_FAMILY_F3)
+/* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
+ * open-drain, cleared for push-pull; af 0x600 = AF6 for TIM1_CH3, which lives
+ * in AFRH_AFRH2 (bits [11:8]) - the F3 header names these fields by their
+ * position rather than by pin, so there is no AFSEL10 to write at all; speed
+ * 0x300000 = PA10 at the fastest setting, through the GPIO_OSPEEDER_ field
+ * (with the E - this header has no GPIO_OSPEEDR_* at all).
+ * clk packs AHBENR low and APB2ENR high - the reverse of the F0/F4 packing,
+ * and it has to be: on this family the GPIO gates live in AHBENR at bits 17..21
+ * (GPIOEEN is bit 21), so AHBENR does not fit the 16 bits the high half has.
+ * The two halves do not collide either, because the APB2ENR bits in use
+ * (TIM1EN is bit 11, USART1EN bit 14) land at 27 and 30 when shifted up. This
+ * family has no AHB2ENR, so the GPIO ports and DMA1 are gated from one register.
+ * GPIOE is gated here too, for the board's LED. */
+static const setup_row_t k_setup[] = {
+    {"init", 0x08220001u, 0x0047u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
+    {"push_pull", 0x08220001u, 0x0047u, 0x8000u, 0x00200000u, 0u, 0x00000600u, 0x00300000u, 0u},
+    {"open_drain", 0x08220001u, 0x0047u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
+};
 #elif defined(OW_PORT_FAMILY_G0)
 /* As F0 for the bus pin, plus remap 0x18 = PA11_RMP | PA12_RMP: the G031 TSSOP20
  * does not bond out PA9/PA10, so the bus runs on the remapped pads. clk packs
@@ -119,6 +138,18 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_speed = (uint32_t)mock_gpioa.CRH & GPIO_CRH_MODE10;
 #elif defined(OW_PORT_FAMILY_F0)
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#elif defined(OW_PORT_FAMILY_F3)
+    /* AHBENR low, APB2ENR high - the reverse of the F0/F4 packing, and it has
+     * to be: on this family the GPIO gates live in AHBENR at bits 17..21
+     * (GPIOEEN is bit 21), so AHBENR needs 22 bits and the low half of this
+     * 32-bit field is the only side they fit in. F0 and F4 get away with
+     * putting AHBENR in the high half because their highest bit there is 17,
+     * which still fits in 16. */
+    s.clk = (uint32_t)mock_rcc.AHBENR | ((uint32_t)mock_rcc.APB2ENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
@@ -187,6 +218,28 @@ static void test_port_setup_open_drain(void) {
     check(SETUP_OPEN_DRAIN);
 }
 
+#if defined(OW_PORT_FAMILY_F3)
+/* The F3 TIM1 has an IC4PSC capture prescaler in CCMR2 bits [11:10] that F4 does
+ * not have - on F4 those bits are reserved. The shared core assigns the whole
+ * register and passes no IC4PSC bit, so it lands at 0, which is "no prescaler"
+ * and therefore leaves the IC4F tier arithmetic in inc/ow_port.h exactly as
+ * valid here as on the other families.
+ *
+ * This is asserted rather than assumed because nothing else would notice: a
+ * non-zero IC4PSC divides the *filter* clock without changing any of the
+ * capture or slot timing this file and the DMA contract tables do check, so the
+ * filter would silently run at a different rate than the tier claims. It is the
+ * same class of silent-register problem as the IC4F ladder itself. */
+static void test_port_f3_ic4psc_is_no_prescaler(void) {
+    hw_reset_all();
+    ow_port_init();
+    /* A reset goes through ow_port_capture(), which is what programs CCMR2. */
+    ow_port_capture((volatile void*)(uintptr_t)mock_feed_ch.CMAR, 1u, 16u);
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(0u, mock_tim1.CCMR2 & TIM_CCMR2_IC4PSC,
+                                    "F3: IC4PSC must stay 0 (no capture prescaler)");
+}
+#endif
+
 #if defined(OW_PORT_INIT_CAPTURE)
 /* Capture mode: print the rows instead of asserting, so the table can be
  * regenerated from a backend. Never compiled in CI. */
@@ -213,4 +266,7 @@ void run_test_port_init_contract(void) {
     TEST_RUN(test_port_setup_after_init);
     TEST_RUN(test_port_setup_push_pull);
     TEST_RUN(test_port_setup_open_drain);
+#if defined(OW_PORT_FAMILY_F3)
+    TEST_RUN(test_port_f3_ic4psc_is_no_prescaler);
+#endif
 }

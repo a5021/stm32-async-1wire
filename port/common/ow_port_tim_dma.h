@@ -1,33 +1,36 @@
 /* ============================================================
- *  ow_port_tim_dma.h - the TIM1 + DMA1 core shared by F0, F1 and G0
+ *  ow_port_tim_dma.h - the TIM1 + DMA1 core shared by F0, F1, F3 and G0
  *
- *  The 1-Wire bus on all three of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all four of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
  *  marker that triggers the feed DMA into CCR3.  Those 16 functions are one
- *  piece of code, not three that happen to look alike - they were three,
- *  because each backend was written against its own reference manual and then
- *  never merged.
+ *  piece of code, not four that happen to look alike - they were four, because
+ *  each backend was written against its own reference manual and then never
+ *  merged.
  *
- *  What actually differs between the three is five statements, all of them
- *  register pokes in ow_port_init() and ow_port_set_pin_mode() plus the DMA
- *  request routing G0 needs.  Those are the five macros a family header
- *  defines; everything else lives here.
+ *  What actually differs between them is five statements, all of them register
+ *  pokes in ow_port_init() and ow_port_set_pin_mode() plus the DMA request
+ *  routing G0 needs.  Those are the five macros a family header defines;
+ *  everything else lives here.
  *
  *  A family header that includes this must, before the include:
  *
  *    - include onewire.h, ow_port.h, ow_bits.h and its own device header
- *      (ow_bits.h supplies the T1/PA/RC/D1/D13/D14 aliases this uses, and
+ *      (ow_bits.h supplies the T1/PA/RC/D1x aliases this uses, and
  *      onewire.h supplies OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn);
- *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE (both are D13/D14 on
- *      every one of these three);
+ *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE, which are the DMA
+ *      channels that carry TIM1's CC2 (feed) and CH4 (capture) requests on
+ *      that family.  They are D13/D14 on F0 and F1, D12/D13 on F3 - read the
+ *      family header's assignment against its reference manual, it is the one
+ *      thing here that is not interchangeable;
  *    - define the five statement macros below.
  *
  *  There is no run-time cost to the factoring: everything stays
  *  __STATIC_FORCEINLINE and every difference is resolved by the preprocessor,
  *  so a family's object code is what it was before the split.  That is checked,
- *  not assumed - the .bin of every example for all three families is
- *  byte-identical before and after.
+ *  not assumed - the .bin of every example for the families already sharing
+ *  this core is byte-identical before and after the split that introduced it.
  *
  *  F4 is deliberately NOT here.  It has the same 16 functions in the same order
  *  but a different DMA controller (DMA2 streams with a CHSEL mux instead of
@@ -53,6 +56,21 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 /* DMA control bits for 16-bit capture: MINC | PSIZE_0 | EN */
 #define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 
+/* Spin (bounded) until a DMA channel is idle before reprogramming it. On a
+ * fast core the next operation starts within ~1us of UIF, while the previous
+ * transfer's trailing sample is still in flight; reprogramming CCR at that
+ * moment aborts it. Waiting for EN-clear or CNDTR-drain fixes back-to-back
+ * multi-device sequences. Bounded so a stuck channel cannot hang the bus;
+ * mock flows (EN set with no running transfer) fall through immediately. */
+#define OW_PORT_DMA_WAIT_IDLE(ch)                                            \
+    do {                                                                     \
+        for (uint32_t w = 0u; w < 1000u; w++) {                              \
+            if (!((ch).CCR & DMA_CCR_EN) || ((ch).CNDTR == 0u)) {             \
+                break;                                                       \
+            }                                                                \
+        }                                                                    \
+    } while (0)
+
 /**
  * @brief Force a timer update event, leaving UIF set
  * @note Explicit start: EGR=UG with no SR clear, so the owner (measurement
@@ -71,6 +89,10 @@ __STATIC_FORCEINLINE void ow_port_kick(void) {
  *       scheduled operation has a clean completion flag.
  */
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
+    /* Do not reprogram DMA while the previous transfer is still draining.
+     * See OW_PORT_DMA_WAIT_IDLE. */
+    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_FEED);
+    OW_PORT_DMA_WAIT_IDLE(OW_PORT_DMA_CAPTURE);
     T1.EGR = TIM_EGR(UG);
     __DSB();
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
@@ -434,14 +456,22 @@ __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t by
  * @note The pin stays in alternate-function mode (TIM1_CH3) at all times.
  *       Engaged: OTYPER switches to push-pull so the AF output stage drives
  *       the line HIGH actively, sourcing the current parasite devices need
- *       during temperature conversion and EEPROM programming windows.
- *       Released: OTYPER restores open-drain, the AF output goes inactive
- *       (PWM mode 2 with the counter stopped at zero) so the pin floats
- *       HIGH via the external pull-up.  No BSRR or MODER writes needed:
- *       the timer is stopped (OPM) during the window, the output is
- *       inactive, and ODR is irrelevant in AF mode.
+ *       during temperature conversion and EEPROM programming windows. CCR3
+ *       is zeroed (via UG, since OC3PE buffers it) so the stopped counter
+ *       (CNT=0) holds the PWM mode 2 output ACTIVE=HIGH; without this CCR3
+ *       keeps the last slot's pulse value, CNT=0 < CCR3 forces INACTIVE=LOW,
+ *       and the bus is driven LOW instead of HIGH, starving the sensors.
+ *       Released: OTYPER restores open-drain, the AF output (still ACTIVE
+ *       from CCR3=0) releases the line so it floats HIGH via the external
+ *       pull-up. No BSRR or MODER writes needed, and ODR is irrelevant in
+ *       AF mode. The UG sets UIF, which the next operation clears at its
+ *       own re-arm.
  */
 __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
+    if (on) {
+        T1.CCR3 = 0;
+        T1.EGR = TIM_EGR(UG);
+    }
     ow_port_set_pin_mode(on);
 }
 

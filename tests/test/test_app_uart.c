@@ -13,6 +13,8 @@
 #include "stm32f4xx.h"
 #elif defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
+#elif defined(OW_PORT_TARGET_F3)
+#include "stm32f3xx.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "stm32g0xx.h"
 #else
@@ -26,7 +28,9 @@
 #define TXE_BIT USART_ISR_TXE_TXFNF
 #define TX_SR ISR
 #define TX_DR TDR
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3)
+/* F0 and F3 both use the modern USART registers: the TXE flag is plain
+ * USART_ISR_TXE and data goes to TDR. F3 has no TXFNF - unlike G0. */
 #define TXE_BIT USART_ISR_TXE
 #define TX_SR ISR
 #define TX_DR TDR

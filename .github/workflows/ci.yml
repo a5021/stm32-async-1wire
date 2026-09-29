@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0, f4]
+        backend: [f1, f0, f3, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -40,6 +40,7 @@ jobs:
         run: |
           make download-deps
           make OW_TARGET=f0 download-deps
+          make OW_TARGET=f3 download-deps
           make OW_TARGET=g0 download-deps
           make OW_TARGET=f4 download-deps
       # One step for all sixteen configurations: the family comes from the job
@@ -83,7 +84,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0, f4]
+        backend: [f1, f0, f3, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -93,6 +94,7 @@ jobs:
         run: |
           make download-deps
           make OW_TARGET=f0 download-deps
+          make OW_TARGET=f3 download-deps
           make OW_TARGET=g0 download-deps
           make OW_TARGET=f4 download-deps
       - name: Build and run host tests with coverage
@@ -256,6 +258,7 @@ jobs:
       - name: Download CMSIS dependencies
         run: |
           make download-deps
+          make OW_TARGET=f3 download-deps
           make OW_TARGET=f4 download-deps
       - name: Run static analysis (F1)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F103xB -DOW_PORT_TARGET_F1 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
@@ -263,6 +266,14 @@ jobs:
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F030x6 -DOW_PORT_TARGET_F0 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
       - name: Run static analysis (G0)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_PORT_TARGET_G0 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
+      # The F3 PLL branch is a genuinely different code path from every other
+      # family's: it drives PLLSRC/PLLMUL out of CFGR rather than a dedicated
+      # PLLCFGR, has no PLLN, and its 72MHz default is the only one that cannot
+      # be reached from the internal RC. cppcheck reads the real stm32f303xc.h,
+      # which is what proves the F3 spellings it depends on actually exist -
+      # GPIO_OSPEEDER_* (with the E) and GPIO_AFRH_AFRH2 for PA10 among them.
+      - name: Run static analysis (F3 at 72MHz)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F303xC -DOW_PORT_TARGET_F3 -DOW_PORT_SYSCLK_MHZ=72 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
       - name: Run static analysis (F4)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_PORT_TARGET_F4 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
       # The F446's 180MHz branch exists in no other configuration, so the F4 pass
@@ -324,6 +335,7 @@ jobs:
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           make download-deps
+          make OW_TARGET=f3 download-deps
           make OW_TARGET=f4 download-deps
       - name: Build release (1_basic)
         run: make
@@ -354,6 +366,31 @@ jobs:
         run: make clean && make OW_TARGET=g0
       - name: Build release (G0 backend, 16MHz RC)
         run: make clean && make OW_TARGET=g0 SYSCLK_MHZ=16
+      # The F3's three clocks, and all three are separate app.c branches: 8MHz
+      # is raw HSI (nothing configured), 64MHz is HSI/2 + PLLMUL16, and 72MHz is
+      # HSE-bypass + PLLMUL9. The 64MHz build is the one that proves the HSI
+      # path independently of the external oscillator, and 8MHz is the one that
+      # must compile with the bounded-wait helper excluded (it has no wait to
+      # bound, and -Werror would catch a helper left unused). Each gets its own
+      # `make clean` so a run cannot pass on the previous clock's objects.
+      - name: Build release (F3 backend, 72MHz default)
+        run: make clean && make OW_TARGET=f3
+      - name: Build release (F3 backend, 64MHz HSI PLL)
+        run: make clean && make OW_TARGET=f3 SYSCLK_MHZ=64
+      - name: Build release (F3 backend, 8MHz raw HSI)
+        run: make clean && make OW_TARGET=f3 SYSCLK_MHZ=8
+      # A clock this family cannot reach must be a build error, not a silently
+      # mis-timed firmware. 16MHz is a real STM32F3 frequency in general but not
+      # one this clock tree can produce: HSI/2 x PLLMUL tops out at 64MHz, and
+      # 8/16 is not an integer multiple of any PLLMUL in 2..16.
+      - name: Reject an unreachable F3 clock
+        run: |
+          if make OW_TARGET=f3 SYSCLK_MHZ=16 2>&1 | grep -q 'Unsupported OW_PORT_SYSCLK_MHZ for F3'; then
+            echo "F3 correctly rejected 16MHz"
+          else
+            echo "::error::a 16MHz F3 build was accepted; the supported set is 8, 64 and 72"
+            exit 1
+          fi
       - name: Build release (F4 backend)
         run: make clean && make OW_TARGET=f4
       - name: Build release (F4 backend, 16MHz HSI)
@@ -404,7 +441,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f1, f0, g0, f4]
+        backend: [f1, f0, f3, g0, f4]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
