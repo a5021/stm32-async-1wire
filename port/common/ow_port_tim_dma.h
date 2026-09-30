@@ -113,6 +113,22 @@
 #endif
 #endif
 
+/* OC3 output-compare preload (OC3PE) knob, see ow_port.h for the rationale.
+ * Or-ed into the CCMR2 mask on the write/capture paths that rely on it
+ * (capture, read_pair, single-slot write); the DMA-fed paths leave it off.
+ * The default (1 = preload on) is identical to the historical hard-coded
+ * behaviour; override with -DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1 to sweep it on
+ * a bench. OW_PORT_OC3PE_ARGS is the single bit value contributed to the
+ * mask. */
+#ifndef OW_PORT_OC3PE
+#define OW_PORT_OC3PE 1
+#endif
+#if OW_PORT_OC3PE
+#define OW_PORT_OC3PE_ARGS TIM_CCMR2_OC3PE
+#else
+#define OW_PORT_OC3PE_ARGS 0
+#endif
+
 /* Prescaler for 1 us resolution: PSC = SYSCLK / 1MHz - 1, from the shared
  * OW_PORT_SYSCLK_MHZ.  INVARIANT: TIM1's clock must equal SYSCLK - the APB
  * prescaler feeding TIM1 must be /1, because on STM32 a prescaler != 1
@@ -253,7 +269,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
 #endif
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
+    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
@@ -379,7 +395,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
         /* OC3PE plus a ONEWIRE_RELEASE_PULSE preload release the bus at the
          * terminal update event, exactly when the one-pulse timer stops
          * (hardware bus release). */
-        T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE);
+        T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2) | OW_PORT_OC3PE_ARGS;
         T1.CCER = TIM_CCER(CC3E);
 #if OW_PORT_LOW_POWER
         T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
@@ -402,7 +418,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.RCR = 1; /* Two read slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
+    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);

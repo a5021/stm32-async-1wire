@@ -57,6 +57,24 @@ extern "C" {
 _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 256u,
                "8-bit read capture (MSIZE=8) would truncate slot durations");
 
+/* --- OC3 output-compare preload (OC3PE) knob ---
+ * The preload bit in TIM_CCMR2 keeps the active CCR3 stable through a slot:
+ * with OC3PE the value written before CEN only enters the output at the
+ * terminal update event, which is the "line released to idle HIGH in
+ * hardware" guarantee (see README, "Bus Idle Behaviour"). The write/capture
+ * paths that rely on it (capture, read_pair, single-slot write) gate the bit
+ * behind this flag so a bench can sweep OC3PE on/off with
+ * -DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1 without editing code. The DMA-fed paths
+ * (feed, write_then_read) leave it off unconditionally: their reload must act
+ * immediately, which preload would break.
+ *
+ * Default 1 (preload on) identical to the historical hard-coded behaviour.
+ *
+ * OW_PORT_OC3PE_ARGS (the CCMR2 bit value OR-ed into the mask at the affected
+ * call sites) derives from it, defined where it is used: ow_port_tim_dma.h
+ * for F0/F1/F3/G0 and ow_port_f4.h for F4, by the same #ifndef pattern as
+ * OW_PORT_IC4F_ARGS. */
+
 /* --- CH4 input-capture digital filter (IC4F) ladder moved out ---
  * The clock -> ICxF selection now lives where it is used, so it runs before
  * any backend body that feeds TIM_CCMR2(..., OW_PORT_IC4F_ARGS) is reached no

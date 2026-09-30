@@ -252,6 +252,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The OC3 output-compare preload bit (`OC3PE`) is now a sweepable knob.**
+  The write/capture paths that rely on it — `ow_port_capture`, `ow_port_read_pair`
+  and the single-slot branch of `ow_port_write_slots` — OR `OW_PORT_OC3PE_ARGS`
+  into their `TIM_CCMR2` mask. The bit defaults on, so the machine code is
+  unchanged and the hardware bus release at the terminal update event still
+  works exactly as before; the DMA-fed paths (`ow_port_feed`, merged
+  `ow_port_write_then_read`) keep OC3PE off. A bench can now flip it with
+  `-DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1` to measure how much the preload matters.
+  Defined in `ow_port_tim_dma.h` (F0/F1/F3/G0) and `ow_port_f4.h` (F4), which
+  `ow_port.h` documents.
+
 - **`port/common/ow_port_tim_dma.h` no longer claims its two DMA channels are
   `D13`/`D14` on every family that uses it.** That was true of F0, F1 and G0 and
   is now false of F3, where the CC2 feed is channel 2 and the CH4 capture channel
