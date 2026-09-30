@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-30 17:11:25</td>
+            <td class="headerValue">2026-09-30 17:34:31</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
@@ -686,352 +686,376 @@
 <span id="L615"><span class="lineNum">     615</span>                 :             :  *       OW_UART_USART3 path on PB10. The F4 console pin is PB6 because that is</span>
 <span id="L616"><span class="lineNum">     616</span>                 :             :  *       where the F4DISCOVERY's ST-LINK VCP is, and it is also where a WeAct</span>
 <span id="L617"><span class="lineNum">     617</span>                 :             :  *       F446RET6's CP210x VCP answers (measured); for a board whose VCP is on</span>
-<span id="L618"><span class="lineNum">     618</span>                 :             :  *       PA9, build with -DOW_UART_USART1_PA9.</span>
-<span id="L619"><span class="lineNum">     619</span>                 :             :  */</span>
-<span id="L620"><span class="lineNum">     620</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
-<span id="L621"><span class="lineNum">     621</span>                 :             : __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {</span>
-<span id="L622"><span class="lineNum">     622</span>                 :             : #if defined(OW_UART_USART3)</span>
-<span id="L623"><span class="lineNum">     623</span>                 :             :     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */</span>
-<span id="L624"><span class="lineNum">     624</span>                 :             :     USART3-&gt;BRR = USART_BRR_CALC(pclk_mhz * 1000000u, 115200);</span>
-<span id="L625"><span class="lineNum">     625</span>                 :             : #else</span>
-<span id="L626"><span class="lineNum">     626</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC(pclk_mhz * 1000000u, 115200);</span>
-<span id="L627"><span class="lineNum">     627</span>                 :             : #endif</span>
-<span id="L628"><span class="lineNum">     628</span>                 :             : }</span>
-<span id="L629"><span class="lineNum">     629</span>                 :             : #endif</span>
-<span id="L630"><span class="lineNum">     630</span>                 :             : </span>
-<span id="L631"><span class="lineNum">     631</span>                 :             : __STATIC_FORCEINLINE void hardware_init(void) {</span>
-<span id="L632"><span class="lineNum">     632</span>                 :             : #if defined(OW_PORT_FAMILY_F4)</span>
-<span id="L633"><span class="lineNum">     633</span>                 :             :     // Enable AHB1 GPIOA/GPIOD/GPIOB and APB2 USART1 clocks (GPIOA/DMA2/TIM1 clock is</span>
-<span id="L634"><span class="lineNum">     634</span>                 :             :     // enabled by ow_port_init())</span>
-<span id="L635"><span class="lineNum">     635</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;</span>
-<span id="L636"><span class="lineNum">     636</span>                 :             : </span>
-<span id="L637"><span class="lineNum">     637</span>                 :             :     // APB bus clocks for the console UART, derived from the prescalers this</span>
-<span id="L638"><span class="lineNum">     638</span>                 :             :     // file programs (OW_F4_APB1_DIV/OW_F4_APB2_DIV above), not restated here:</span>
-<span id="L639"><span class="lineNum">     639</span>                 :             :     // 168MHz and 180MHz -&gt; APB1 /4, APB2 /2 (42/84 and 45/90); 84MHz -&gt; /2, /2</span>
-<span id="L640"><span class="lineNum">     640</span>                 :             :     // (42/42); raw 16/8MHz -&gt; /1, /1 (both = SYSCLK).</span>
-<span id="L641"><span class="lineNum">     641</span>                 :             :     // Test: tests/test/test_timing.c::test_console_baud_divisor()</span>
-<span id="L642"><span class="lineNum">     642</span>                 :             : </span>
-<span id="L643"><span class="lineNum">     643</span>                 :             :     // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -&gt; LED -&gt; GND)</span>
-<span id="L644"><span class="lineNum">     644</span>                 :             :     GPIOD-&gt;MODER = (GPIOD-&gt;MODER &amp; ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;</span>
-<span id="L645"><span class="lineNum">     645</span>                 :             : </span>
-<span id="L646"><span class="lineNum">     646</span>                 :             :     // Optional OW_UART_USART3 selects USART3 TX on PB10 (AF7) instead of</span>
-<span id="L647"><span class="lineNum">     647</span>                 :             :     // USART1 on PB6 (the STM32F4DISCOVERY has no USART1-to-ST-LINK route).</span>
-<span id="L648"><span class="lineNum">     648</span>                 :             :     // USART3 is on APB1.</span>
-<span id="L649"><span class="lineNum">     649</span>                 :             : #if defined(OW_UART_USART3)</span>
-<span id="L650"><span class="lineNum">     650</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOBEN;</span>
-<span id="L651"><span class="lineNum">     651</span>                 :             :     RCC-&gt;APB1ENR |= RCC_APB1ENR_USART3EN;</span>
-<span id="L652"><span class="lineNum">     652</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;</span>
-<span id="L653"><span class="lineNum">     653</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_10;</span>
-<span id="L654"><span class="lineNum">     654</span>                 :             :     GPIOB-&gt;AFR[1] = (GPIOB-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL10) | (7u &lt;&lt; GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */</span>
-<span id="L655"><span class="lineNum">     655</span>                 :             :     // PCLK1: OW_F4_APB1_DIV at the configured SYSCLK (/4 at 168 and 180MHz,</span>
-<span id="L656"><span class="lineNum">     656</span>                 :             :     // /2 at 84MHz, /1 on the raw clocks).</span>
-<span id="L657"><span class="lineNum">     657</span>                 :             :     app_set_console_baud(OW_F4_PCLK1_MHZ);</span>
-<span id="L658"><span class="lineNum">     658</span>                 :             :     USART3-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only</span>
-<span id="L659"><span class="lineNum">     659</span>                 :             : #else</span>
-<span id="L660"><span class="lineNum">     660</span>                 :             :     /* USART1 TX pin. PB6 is the F4DISCOVERY default because that board routes</span>
-<span id="L661"><span class="lineNum">     661</span>                 :             :      * its ST-LINK virtual COM port there; it is not a general F4 default. A</span>
-<span id="L662"><span class="lineNum">     662</span>                 :             :      * WeAct F446RET6 also answers on PB6 (measured - its CP210x VCP is wired</span>
-<span id="L663"><span class="lineNum">     663</span>                 :             :      * there, not on PA9), so the default works on both boards without flags.</span>
-<span id="L664"><span class="lineNum">     664</span>                 :             :      *</span>
-<span id="L665"><span class="lineNum">     665</span>                 :             :      * The pin stays a knob because a board that puts its VCP on PA9 would be</span>
-<span id="L666"><span class="lineNum">     666</span>                 :             :      * silent, and silently so: the clock-failure banner would go out the same</span>
-<span id="L667"><span class="lineNum">     667</span>                 :             :      * missing pin, so &quot;no output&quot; could not be told apart from &quot;the clock never</span>
-<span id="L668"><span class="lineNum">     668</span>                 :             :      * started&quot;. Hence OW_UART_USART1_PA9, default unchanged.</span>
-<span id="L669"><span class="lineNum">     669</span>                 :             :      *</span>
-<span id="L670"><span class="lineNum">     670</span>                 :             :      * PA9 is safe alongside the bus: ow_port_f4.h takes PA10 for TIM1_CH3 and</span>
-<span id="L671"><span class="lineNum">     671</span>                 :             :      * PA11 for the logic-analyzer marker, and only PA10 would clash with a</span>
-<span id="L672"><span class="lineNum">     672</span>                 :             :      * board's USART1_RX - which nothing here configures, the console is TX only.</span>
-<span id="L673"><span class="lineNum">     673</span>                 :             :      */</span>
-<span id="L674"><span class="lineNum">     674</span>                 :             : #if defined(OW_UART_USART1_PA9)</span>
-<span id="L675"><span class="lineNum">     675</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
-<span id="L676"><span class="lineNum">     676</span>                 :             :     GPIOA-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_9;</span>
-<span id="L677"><span class="lineNum">     677</span>                 :             :     /* PA9 is pin 9, so it is in the high half: AFRH / AFR[1]. The F4 headers</span>
-<span id="L678"><span class="lineNum">     678</span>                 :             :      * define GPIO_AFRH_AFSEL9* and no GPIO_AFRL_AFSEL9 at all, which is what a</span>
-<span id="L679"><span class="lineNum">     679</span>                 :             :      * build with -DOW_UART_USART1_PA9 catches immediately - the F0/G0 PA9 path</span>
-<span id="L680"><span class="lineNum">     680</span>                 :             :      * below reads the same register and gets this right. */</span>
-<span id="L681"><span class="lineNum">     681</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (7u &lt;&lt; GPIO_AFRH_AFSEL9_Pos); /* AF7 = USART1 */</span>
-<span id="L682"><span class="lineNum">     682</span>                 :             : #else</span>
-<span id="L683"><span class="lineNum">     683</span>                 :             :     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).</span>
-<span id="L684"><span class="lineNum">     684</span>                 :             :     // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console</span>
-<span id="L685"><span class="lineNum">     685</span>                 :             :     // rides USART1 on PB6 (AF7); PA9 stays free.</span>
-<span id="L686"><span class="lineNum">     686</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;</span>
-<span id="L687"><span class="lineNum">     687</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_6;</span>
-<span id="L688"><span class="lineNum">     688</span>                 :             :     GPIOB-&gt;AFR[0] = (GPIOB-&gt;AFR[0] &amp; ~GPIO_AFRL_AFSEL6) | (7u &lt;&lt; GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */</span>
-<span id="L689"><span class="lineNum">     689</span>                 :             : #endif</span>
-<span id="L690"><span class="lineNum">     690</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
-<span id="L691"><span class="lineNum">     691</span>                 :             :     // USART1 is on APB2: OW_F4_APB2_DIV at the configured SYSCLK (/2 at 168,</span>
-<span id="L692"><span class="lineNum">     692</span>                 :             :     // 180 and 84MHz, /1 on the raw clocks).</span>
-<span id="L693"><span class="lineNum">     693</span>                 :             :     app_set_console_baud(OW_F4_PCLK2_MHZ);</span>
-<span id="L694"><span class="lineNum">     694</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L695"><span class="lineNum">     695</span>                 :             : #endif</span>
-<span id="L696"><span class="lineNum">     696</span>                 :             : #elif defined(OW_PORT_FAMILY_F3)</span>
-<span id="L697"><span class="lineNum">     697</span>                 :             :     /* Console on PA9, LED on PE8 - the STM32F3-DISCOVERY (MB1035B).</span>
-<span id="L698"><span class="lineNum">     698</span>                 :             :      *</span>
-<span id="L699"><span class="lineNum">     699</span>                 :             :      * PA9 is the natural choice here: USART1_TX is AF7 on this pin, and it</span>
-<span id="L700"><span class="lineNum">     700</span>                 :             :      * sits next to PA10 without touching it, so the bus and the console share</span>
-<span id="L701"><span class="lineNum">     701</span>                 :             :      * the port. (The F4 backend needs the -DOW_UART_USART1_PA9 equivalent</span>
-<span id="L702"><span class="lineNum">     702</span>                 :             :      * because its board routes the VCP to PB6 instead; this board's ST-LINK</span>
-<span id="L703"><span class="lineNum">     703</span>                 :             :      * VCP is on PA2/PA3, so an external USB-UART on PA9 is what this pin is</span>
-<span id="L704"><span class="lineNum">     704</span>                 :             :      * for, and that is how the F3 numbers were taken.)</span>
-<span id="L705"><span class="lineNum">     705</span>                 :             :      *</span>
-<span id="L706"><span class="lineNum">     706</span>                 :             :      * LED: all eight indicators on MB1035B are on GPIOE, PE8..PE15, per ST's</span>
-<span id="L707"><span class="lineNum">     707</span>                 :             :      * own BSP header. PE8 is LED4 (blue). Active high, which is the opposite of</span>
-<span id="L708"><span class="lineNum">     708</span>                 :             :      * F1's PC13 and F0's assumed PA4 - ST's BSP_LED_On writes GPIO_PIN_SET here</span>
-<span id="L709"><span class="lineNum">     709</span>                 :             :      * - so the polarity in ds18b20_busy() is the other way round from those.</span>
-<span id="L710"><span class="lineNum">     710</span>                 :             :      */</span>
-<span id="L711"><span class="lineNum">     711</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOEEN;</span>
-<span id="L712"><span class="lineNum">     712</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
-<span id="L713"><span class="lineNum">     713</span>                 :             : </span>
-<span id="L714"><span class="lineNum">     714</span>                 :             :     // PA9: alternate function push-pull, AF7 = USART1_TX. Pin 9 is in the high</span>
-<span id="L715"><span class="lineNum">     715</span>                 :             :     // half of AFR, so AFR[1] field 1 - named AFRH_AFRH1 on this family, which</span>
-<span id="L716"><span class="lineNum">     716</span>                 :             :     // has no AFRH_AFSEL* macros at all.</span>
-<span id="L717"><span class="lineNum">     717</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
-<span id="L718"><span class="lineNum">     718</span>                 :             :     GPIOA-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_9;</span>
-<span id="L719"><span class="lineNum">     719</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFRH1) | (7u &lt;&lt; GPIO_AFRH_AFRH1_Pos);</span>
-<span id="L720"><span class="lineNum">     720</span>                 :             : </span>
-<span id="L721"><span class="lineNum">     721</span>                 :             :     // PE8: plain push-pull output for the busy LED, active high.</span>
-<span id="L722"><span class="lineNum">     722</span>                 :             :     GPIOE-&gt;MODER = (GPIOE-&gt;MODER &amp; ~GPIO_MODER_MODER8) | GPIO_MODER_MODER8_0;</span>
-<span id="L723"><span class="lineNum">     723</span>                 :             :     GPIOE-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_8;</span>
-<span id="L724"><span class="lineNum">     724</span>                 :             : </span>
-<span id="L725"><span class="lineNum">     725</span>                 :             :     // USART1 is on APB2, which this backend leaves at /1 at every supported</span>
-<span id="L726"><span class="lineNum">     726</span>                 :             :     // clock (8, 64, 72) - see configure_system_clock() - so PCLK2 = SYSCLK and</span>
-<span id="L727"><span class="lineNum">     727</span>                 :             :     // the divisor needs no separate clock variable.</span>
-<span id="L728"><span class="lineNum">     728</span>                 :             :     app_set_console_baud(OW_PORT_SYSCLK_MHZ);</span>
-<span id="L729"><span class="lineNum">     729</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L730"><span class="lineNum">     730</span>                 :             : #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
-<span id="L731"><span class="lineNum">     731</span>                 :             :     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)</span>
-<span id="L732"><span class="lineNum">     732</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L733"><span class="lineNum">     733</span>                 :             :     RCC-&gt;IOPENR |= RCC_IOPENR_GPIOAEN;</span>
-<span id="L734"><span class="lineNum">     734</span>                 :             :     RCC-&gt;APBENR2 |= RCC_APBENR2_USART1EN;</span>
-<span id="L735"><span class="lineNum">     735</span>                 :             : #else</span>
-<span id="L736"><span class="lineNum">     736</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN;</span>
-<span id="L737"><span class="lineNum">     737</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
-<span id="L738"><span class="lineNum">     738</span>                 :             : #endif</span>
-<span id="L739"><span class="lineNum">     739</span>                 :             : </span>
-<span id="L740"><span class="lineNum">     740</span>                 :             :     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1</span>
-<span id="L741"><span class="lineNum">     741</span>                 :             :     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)</span>
-<span id="L742"><span class="lineNum">     742</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L743"><span class="lineNum">     743</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;</span>
-<span id="L744"><span class="lineNum">     744</span>                 :             : #else</span>
-<span id="L745"><span class="lineNum">     745</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
-<span id="L746"><span class="lineNum">     746</span>                 :             : #endif</span>
-<span id="L747"><span class="lineNum">     747</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (1u &lt;&lt; GPIO_AFRH_AFSEL9_Pos);</span>
-<span id="L748"><span class="lineNum">     748</span>                 :             : </span>
-<span id="L749"><span class="lineNum">     749</span>                 :             :     // Configure PA4 as general purpose output for LED control</span>
-<span id="L750"><span class="lineNum">     750</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L751"><span class="lineNum">     751</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;</span>
-<span id="L752"><span class="lineNum">     752</span>                 :             : #else</span>
-<span id="L753"><span class="lineNum">     753</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;</span>
-<span id="L754"><span class="lineNum">     754</span>                 :             : #endif</span>
-<span id="L755"><span class="lineNum">     755</span>                 :             : </span>
-<span id="L756"><span class="lineNum">     756</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
-<span id="L757"><span class="lineNum">     757</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK</span>
-<span id="L758"><span class="lineNum">     758</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L759"><span class="lineNum">     759</span>                 :             : #else</span>
-<span id="L760"><span class="lineNum">     760</span>                 :             :     // Enable clock for GPIOA, USART1, and GPIOC peripherals</span>
-<span id="L761"><span class="lineNum">     761</span>                 :             :     RCC-&gt;APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);</span>
-<span id="L762"><span class="lineNum">     762</span>                 :             : </span>
-<span id="L763"><span class="lineNum">     763</span>                 :             :     // Configure PA9 as alternate function push-pull output, 2MHz speed</span>
-<span id="L764"><span class="lineNum">     764</span>                 :             :     // Clear existing configuration bits</span>
-<span id="L765"><span class="lineNum">     765</span>                 :             :     GPIOA-&gt;CRH &amp;= ~(GPIO_CRH_MODE9 | GPIO_CRH_CNF9);</span>
-<span id="L766"><span class="lineNum">     766</span>                 :             :     // Set alternate function push-pull output mode, 2MHz speed</span>
-<span id="L767"><span class="lineNum">     767</span>                 :             :     GPIOA-&gt;CRH |= (GPIO_CRH_MODE9_1 | GPIO_CRH_CNF9_1);</span>
+<span id="L618"><span class="lineNum">     618</span>                 :             :  *       PA9, build with -DOW_UART_USART1_PA9. The F4 busy LED defaults to PD12</span>
+<span id="L619"><span class="lineNum">     619</span>                 :             :  *       (LD4 green on the F4DISCOVERY, active high); a board whose LED is on</span>
+<span id="L620"><span class="lineNum">     620</span>                 :             :  *       PB2 - the WeAct F446RET6 bench has it there, labelled &quot;B2&quot; on the</span>
+<span id="L621"><span class="lineNum">     621</span>                 :             :  *       silkscreen, active high (per the WeAct schematic) - opts in with</span>
+<span id="L622"><span class="lineNum">     622</span>                 :             :  *       -DOW_F4_LED_PB2.</span>
+<span id="L623"><span class="lineNum">     623</span>                 :             :  */</span>
+<span id="L624"><span class="lineNum">     624</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
+<span id="L625"><span class="lineNum">     625</span>                 :             : __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {</span>
+<span id="L626"><span class="lineNum">     626</span>                 :             : #if defined(OW_UART_USART3)</span>
+<span id="L627"><span class="lineNum">     627</span>                 :             :     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */</span>
+<span id="L628"><span class="lineNum">     628</span>                 :             :     USART3-&gt;BRR = USART_BRR_CALC(pclk_mhz * 1000000u, 115200);</span>
+<span id="L629"><span class="lineNum">     629</span>                 :             : #else</span>
+<span id="L630"><span class="lineNum">     630</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC(pclk_mhz * 1000000u, 115200);</span>
+<span id="L631"><span class="lineNum">     631</span>                 :             : #endif</span>
+<span id="L632"><span class="lineNum">     632</span>                 :             : }</span>
+<span id="L633"><span class="lineNum">     633</span>                 :             : #endif</span>
+<span id="L634"><span class="lineNum">     634</span>                 :             : </span>
+<span id="L635"><span class="lineNum">     635</span>                 :             : __STATIC_FORCEINLINE void hardware_init(void) {</span>
+<span id="L636"><span class="lineNum">     636</span>                 :             : #if defined(OW_PORT_FAMILY_F4)</span>
+<span id="L637"><span class="lineNum">     637</span>                 :             :     // Enable AHB1 GPIOA/GPIOD/GPIOB and APB2 USART1 clocks (GPIOA/DMA2/TIM1 clock is</span>
+<span id="L638"><span class="lineNum">     638</span>                 :             :     // enabled by ow_port_init())</span>
+<span id="L639"><span class="lineNum">     639</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIODEN | RCC_AHB1ENR_GPIOBEN;</span>
+<span id="L640"><span class="lineNum">     640</span>                 :             : </span>
+<span id="L641"><span class="lineNum">     641</span>                 :             :     // APB bus clocks for the console UART, derived from the prescalers this</span>
+<span id="L642"><span class="lineNum">     642</span>                 :             :     // file programs (OW_F4_APB1_DIV/OW_F4_APB2_DIV above), not restated here:</span>
+<span id="L643"><span class="lineNum">     643</span>                 :             :     // 168MHz and 180MHz -&gt; APB1 /4, APB2 /2 (42/84 and 45/90); 84MHz -&gt; /2, /2</span>
+<span id="L644"><span class="lineNum">     644</span>                 :             :     // (42/42); raw 16/8MHz -&gt; /1, /1 (both = SYSCLK).</span>
+<span id="L645"><span class="lineNum">     645</span>                 :             :     // Test: tests/test/test_timing.c::test_console_baud_divisor()</span>
+<span id="L646"><span class="lineNum">     646</span>                 :             : </span>
+<span id="L647"><span class="lineNum">     647</span>                 :             :     // F4 busy LED. Default (F4DISCOVERY): LD4 (green) on PD12, active high</span>
+<span id="L648"><span class="lineNum">     648</span>                 :             :     // (pin -&gt; LED -&gt; GND). With -DOW_F4_LED_PB2 the bench WeAct F446RET6's</span>
+<span id="L649"><span class="lineNum">     649</span>                 :             :     // B2 LED is used instead (silkscreen &quot;B2&quot; = PB2, active high per the</span>
+<span id="L650"><span class="lineNum">     650</span>                 :             :     // manufacturer): no extra port clock is needed because GPIOB is already</span>
+<span id="L651"><span class="lineNum">     651</span>                 :             :     // enabled for the PB6 console pin.</span>
+<span id="L652"><span class="lineNum">     652</span>                 :             : #if defined(OW_F4_LED_PB2)</span>
+<span id="L653"><span class="lineNum">     653</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER2) | GPIO_MODER_MODER2_0;</span>
+<span id="L654"><span class="lineNum">     654</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_2;</span>
+<span id="L655"><span class="lineNum">     655</span>                 :             : #else</span>
+<span id="L656"><span class="lineNum">     656</span>                 :             :     GPIOD-&gt;MODER = (GPIOD-&gt;MODER &amp; ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;</span>
+<span id="L657"><span class="lineNum">     657</span>                 :             : #endif</span>
+<span id="L658"><span class="lineNum">     658</span>                 :             : </span>
+<span id="L659"><span class="lineNum">     659</span>                 :             :     // Optional OW_UART_USART3 selects USART3 TX on PB10 (AF7) instead of</span>
+<span id="L660"><span class="lineNum">     660</span>                 :             :     // USART1 on PB6 (the STM32F4DISCOVERY has no USART1-to-ST-LINK route).</span>
+<span id="L661"><span class="lineNum">     661</span>                 :             :     // USART3 is on APB1.</span>
+<span id="L662"><span class="lineNum">     662</span>                 :             : #if defined(OW_UART_USART3)</span>
+<span id="L663"><span class="lineNum">     663</span>                 :             :     RCC-&gt;AHB1ENR |= RCC_AHB1ENR_GPIOBEN;</span>
+<span id="L664"><span class="lineNum">     664</span>                 :             :     RCC-&gt;APB1ENR |= RCC_APB1ENR_USART3EN;</span>
+<span id="L665"><span class="lineNum">     665</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;</span>
+<span id="L666"><span class="lineNum">     666</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_10;</span>
+<span id="L667"><span class="lineNum">     667</span>                 :             :     GPIOB-&gt;AFR[1] = (GPIOB-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL10) | (7u &lt;&lt; GPIO_AFRH_AFSEL10_Pos); /* AF7 = USART3 */</span>
+<span id="L668"><span class="lineNum">     668</span>                 :             :     // PCLK1: OW_F4_APB1_DIV at the configured SYSCLK (/4 at 168 and 180MHz,</span>
+<span id="L669"><span class="lineNum">     669</span>                 :             :     // /2 at 84MHz, /1 on the raw clocks).</span>
+<span id="L670"><span class="lineNum">     670</span>                 :             :     app_set_console_baud(OW_F4_PCLK1_MHZ);</span>
+<span id="L671"><span class="lineNum">     671</span>                 :             :     USART3-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART3; TX enable only</span>
+<span id="L672"><span class="lineNum">     672</span>                 :             : #else</span>
+<span id="L673"><span class="lineNum">     673</span>                 :             :     /* USART1 TX pin. PB6 is the F4DISCOVERY default because that board routes</span>
+<span id="L674"><span class="lineNum">     674</span>                 :             :      * its ST-LINK virtual COM port there; it is not a general F4 default. A</span>
+<span id="L675"><span class="lineNum">     675</span>                 :             :      * WeAct F446RET6 also answers on PB6 (measured - its CP210x VCP is wired</span>
+<span id="L676"><span class="lineNum">     676</span>                 :             :      * there, not on PA9), so the default works on both boards without flags.</span>
+<span id="L677"><span class="lineNum">     677</span>                 :             :      *</span>
+<span id="L678"><span class="lineNum">     678</span>                 :             :      * The pin stays a knob because a board that puts its VCP on PA9 would be</span>
+<span id="L679"><span class="lineNum">     679</span>                 :             :      * silent, and silently so: the clock-failure banner would go out the same</span>
+<span id="L680"><span class="lineNum">     680</span>                 :             :      * missing pin, so &quot;no output&quot; could not be told apart from &quot;the clock never</span>
+<span id="L681"><span class="lineNum">     681</span>                 :             :      * started&quot;. Hence OW_UART_USART1_PA9, default unchanged.</span>
+<span id="L682"><span class="lineNum">     682</span>                 :             :      *</span>
+<span id="L683"><span class="lineNum">     683</span>                 :             :      * PA9 is safe alongside the bus: ow_port_f4.h takes PA10 for TIM1_CH3 and</span>
+<span id="L684"><span class="lineNum">     684</span>                 :             :      * PA11 for the logic-analyzer marker, and only PA10 would clash with a</span>
+<span id="L685"><span class="lineNum">     685</span>                 :             :      * board's USART1_RX - which nothing here configures, the console is TX only.</span>
+<span id="L686"><span class="lineNum">     686</span>                 :             :      */</span>
+<span id="L687"><span class="lineNum">     687</span>                 :             : #if defined(OW_UART_USART1_PA9)</span>
+<span id="L688"><span class="lineNum">     688</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
+<span id="L689"><span class="lineNum">     689</span>                 :             :     GPIOA-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_9;</span>
+<span id="L690"><span class="lineNum">     690</span>                 :             :     /* PA9 is pin 9, so it is in the high half: AFRH / AFR[1]. The F4 headers</span>
+<span id="L691"><span class="lineNum">     691</span>                 :             :      * define GPIO_AFRH_AFSEL9* and no GPIO_AFRL_AFSEL9 at all, which is what a</span>
+<span id="L692"><span class="lineNum">     692</span>                 :             :      * build with -DOW_UART_USART1_PA9 catches immediately - the F0/G0 PA9 path</span>
+<span id="L693"><span class="lineNum">     693</span>                 :             :      * below reads the same register and gets this right. */</span>
+<span id="L694"><span class="lineNum">     694</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (7u &lt;&lt; GPIO_AFRH_AFSEL9_Pos); /* AF7 = USART1 */</span>
+<span id="L695"><span class="lineNum">     695</span>                 :             : #else</span>
+<span id="L696"><span class="lineNum">     696</span>                 :             :     // Configure PB6 as alternate function push-pull output (AF7 = USART1_TX).</span>
+<span id="L697"><span class="lineNum">     697</span>                 :             :     // The F4DISCOVERY has no USART1-to-ST-LINK route on PA9, so the console</span>
+<span id="L698"><span class="lineNum">     698</span>                 :             :     // rides USART1 on PB6 (AF7); PA9 stays free.</span>
+<span id="L699"><span class="lineNum">     699</span>                 :             :     GPIOB-&gt;MODER = (GPIOB-&gt;MODER &amp; ~GPIO_MODER_MODER6) | GPIO_MODER_MODER6_1;</span>
+<span id="L700"><span class="lineNum">     700</span>                 :             :     GPIOB-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_6;</span>
+<span id="L701"><span class="lineNum">     701</span>                 :             :     GPIOB-&gt;AFR[0] = (GPIOB-&gt;AFR[0] &amp; ~GPIO_AFRL_AFSEL6) | (7u &lt;&lt; GPIO_AFRL_AFSEL6_Pos); /* AF7 = USART1 */</span>
+<span id="L702"><span class="lineNum">     702</span>                 :             : #endif</span>
+<span id="L703"><span class="lineNum">     703</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
+<span id="L704"><span class="lineNum">     704</span>                 :             :     // USART1 is on APB2: OW_F4_APB2_DIV at the configured SYSCLK (/2 at 168,</span>
+<span id="L705"><span class="lineNum">     705</span>                 :             :     // 180 and 84MHz, /1 on the raw clocks).</span>
+<span id="L706"><span class="lineNum">     706</span>                 :             :     app_set_console_baud(OW_F4_PCLK2_MHZ);</span>
+<span id="L707"><span class="lineNum">     707</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L708"><span class="lineNum">     708</span>                 :             : #endif</span>
+<span id="L709"><span class="lineNum">     709</span>                 :             : #elif defined(OW_PORT_FAMILY_F3)</span>
+<span id="L710"><span class="lineNum">     710</span>                 :             :     /* Console on PA9, LED on PE8 - the STM32F3-DISCOVERY (MB1035B).</span>
+<span id="L711"><span class="lineNum">     711</span>                 :             :      *</span>
+<span id="L712"><span class="lineNum">     712</span>                 :             :      * PA9 is the natural choice here: USART1_TX is AF7 on this pin, and it</span>
+<span id="L713"><span class="lineNum">     713</span>                 :             :      * sits next to PA10 without touching it, so the bus and the console share</span>
+<span id="L714"><span class="lineNum">     714</span>                 :             :      * the port. (The F4 backend needs the -DOW_UART_USART1_PA9 equivalent</span>
+<span id="L715"><span class="lineNum">     715</span>                 :             :      * because its board routes the VCP to PB6 instead; this board's ST-LINK</span>
+<span id="L716"><span class="lineNum">     716</span>                 :             :      * VCP is on PA2/PA3, so an external USB-UART on PA9 is what this pin is</span>
+<span id="L717"><span class="lineNum">     717</span>                 :             :      * for, and that is how the F3 numbers were taken.)</span>
+<span id="L718"><span class="lineNum">     718</span>                 :             :      *</span>
+<span id="L719"><span class="lineNum">     719</span>                 :             :      * LED: all eight indicators on MB1035B are on GPIOE, PE8..PE15, per ST's</span>
+<span id="L720"><span class="lineNum">     720</span>                 :             :      * own BSP header. PE8 is LED4 (blue). Active high, which is the opposite of</span>
+<span id="L721"><span class="lineNum">     721</span>                 :             :      * F1's PC13 and F0's assumed PA4 - ST's BSP_LED_On writes GPIO_PIN_SET here</span>
+<span id="L722"><span class="lineNum">     722</span>                 :             :      * - so the polarity in ds18b20_busy() is the other way round from those.</span>
+<span id="L723"><span class="lineNum">     723</span>                 :             :      */</span>
+<span id="L724"><span class="lineNum">     724</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOEEN;</span>
+<span id="L725"><span class="lineNum">     725</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
+<span id="L726"><span class="lineNum">     726</span>                 :             : </span>
+<span id="L727"><span class="lineNum">     727</span>                 :             :     // PA9: alternate function push-pull, AF7 = USART1_TX. Pin 9 is in the high</span>
+<span id="L728"><span class="lineNum">     728</span>                 :             :     // half of AFR, so AFR[1] field 1 - named AFRH_AFRH1 on this family, which</span>
+<span id="L729"><span class="lineNum">     729</span>                 :             :     // has no AFRH_AFSEL* macros at all.</span>
+<span id="L730"><span class="lineNum">     730</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
+<span id="L731"><span class="lineNum">     731</span>                 :             :     GPIOA-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_9;</span>
+<span id="L732"><span class="lineNum">     732</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFRH1) | (7u &lt;&lt; GPIO_AFRH_AFRH1_Pos);</span>
+<span id="L733"><span class="lineNum">     733</span>                 :             : </span>
+<span id="L734"><span class="lineNum">     734</span>                 :             :     // PE8: plain push-pull output for the busy LED, active high.</span>
+<span id="L735"><span class="lineNum">     735</span>                 :             :     GPIOE-&gt;MODER = (GPIOE-&gt;MODER &amp; ~GPIO_MODER_MODER8) | GPIO_MODER_MODER8_0;</span>
+<span id="L736"><span class="lineNum">     736</span>                 :             :     GPIOE-&gt;OTYPER &amp;= ~GPIO_OTYPER_OT_8;</span>
+<span id="L737"><span class="lineNum">     737</span>                 :             : </span>
+<span id="L738"><span class="lineNum">     738</span>                 :             :     // USART1 is on APB2, which this backend leaves at /1 at every supported</span>
+<span id="L739"><span class="lineNum">     739</span>                 :             :     // clock (8, 64, 72) - see configure_system_clock() - so PCLK2 = SYSCLK and</span>
+<span id="L740"><span class="lineNum">     740</span>                 :             :     // the divisor needs no separate clock variable.</span>
+<span id="L741"><span class="lineNum">     741</span>                 :             :     app_set_console_baud(OW_PORT_SYSCLK_MHZ);</span>
+<span id="L742"><span class="lineNum">     742</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L743"><span class="lineNum">     743</span>                 :             : #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
+<span id="L744"><span class="lineNum">     744</span>                 :             :     // Enable clock for GPIOA and USART1 (G0: GPIO on IOPENR, USART1 on APBENR2)</span>
+<span id="L745"><span class="lineNum">     745</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L746"><span class="lineNum">     746</span>                 :             :     RCC-&gt;IOPENR |= RCC_IOPENR_GPIOAEN;</span>
+<span id="L747"><span class="lineNum">     747</span>                 :             :     RCC-&gt;APBENR2 |= RCC_APBENR2_USART1EN;</span>
+<span id="L748"><span class="lineNum">     748</span>                 :             : #else</span>
+<span id="L749"><span class="lineNum">     749</span>                 :             :     RCC-&gt;AHBENR |= RCC_AHBENR_GPIOAEN;</span>
+<span id="L750"><span class="lineNum">     750</span>                 :             :     RCC-&gt;APB2ENR |= RCC_APB2ENR_USART1EN;</span>
+<span id="L751"><span class="lineNum">     751</span>                 :             : #endif</span>
+<span id="L752"><span class="lineNum">     752</span>                 :             : </span>
+<span id="L753"><span class="lineNum">     753</span>                 :             :     // Configure PA9 as alternate function push-pull output (F0: AF1, G0: AF1</span>
+<span id="L754"><span class="lineNum">     754</span>                 :             :     // = USART1_TX; on G0 the signal lands on the PA11 pad via SYSCFG remap)</span>
+<span id="L755"><span class="lineNum">     755</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L756"><span class="lineNum">     756</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;</span>
+<span id="L757"><span class="lineNum">     757</span>                 :             : #else</span>
+<span id="L758"><span class="lineNum">     758</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;</span>
+<span id="L759"><span class="lineNum">     759</span>                 :             : #endif</span>
+<span id="L760"><span class="lineNum">     760</span>                 :             :     GPIOA-&gt;AFR[1] = (GPIOA-&gt;AFR[1] &amp; ~GPIO_AFRH_AFSEL9) | (1u &lt;&lt; GPIO_AFRH_AFSEL9_Pos);</span>
+<span id="L761"><span class="lineNum">     761</span>                 :             : </span>
+<span id="L762"><span class="lineNum">     762</span>                 :             :     // Configure PA4 as general purpose output for LED control</span>
+<span id="L763"><span class="lineNum">     763</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L764"><span class="lineNum">     764</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODE4) | GPIO_MODER_MODE4_0;</span>
+<span id="L765"><span class="lineNum">     765</span>                 :             : #else</span>
+<span id="L766"><span class="lineNum">     766</span>                 :             :     GPIOA-&gt;MODER = (GPIOA-&gt;MODER &amp; ~GPIO_MODER_MODER4) | GPIO_MODER_MODER4_0;</span>
+<span id="L767"><span class="lineNum">     767</span>                 :             : #endif</span>
 <span id="L768"><span class="lineNum">     768</span>                 :             : </span>
-<span id="L769"><span class="lineNum">     769</span>                 :             :     // Configure PC13 as general purpose output, 2MHz speed for LED control</span>
-<span id="L770"><span class="lineNum">     770</span>                 :             :     GPIOC-&gt;CRH &amp;= ~(GPIO_CRH_MODE13 | GPIO_CRH_CNF13);</span>
-<span id="L771"><span class="lineNum">     771</span>                 :             :     GPIOC-&gt;CRH |= GPIO_CRH_MODE13_1;</span>
-<span id="L772"><span class="lineNum">     772</span>                 :             : </span>
-<span id="L773"><span class="lineNum">     773</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
-<span id="L774"><span class="lineNum">     774</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK</span>
-<span id="L775"><span class="lineNum">     775</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
-<span id="L776"><span class="lineNum">     776</span>                 :             : #endif</span>
-<span id="L777"><span class="lineNum">     777</span>                 :             : }</span>
-<span id="L778"><span class="lineNum">     778</span>                 :             : </span>
-<span id="L779"><span class="lineNum">     779</span>                 :             : void app_time_init(void); /* defined below, with the polled millisecond clock */</span>
-<span id="L780"><span class="lineNum">     780</span>                 :             : </span>
-<span id="L781"><span class="lineNum">     781</span>                 :             : /**</span>
-<span id="L782"><span class="lineNum">     782</span>                 :             :  * @brief Initialize system clock, USART1 TX and the busy LED GPIO</span>
-<span id="L783"><span class="lineNum">     783</span>                 :             :  */</span>
-<span id="L784"><span class="lineNum">     784</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
-<span id="L785"><span class="lineNum">     785</span>                 :             : /**</span>
-<span id="L786"><span class="lineNum">     786</span>                 :             :  * @brief Report a clock that never started, then stop.</span>
-<span id="L787"><span class="lineNum">     787</span>                 :             :  * @note Called with the console already up so the reason can be printed, which is</span>
-<span id="L788"><span class="lineNum">     788</span>                 :             :  *       the whole point: an unbounded PLL wait used to leave the board looking</span>
-<span id="L789"><span class="lineNum">     789</span>                 :             :  *       dead with no output at all. The clock tree is deliberately left alone -</span>
-<span id="L790"><span class="lineNum">     790</span>                 :             :  *       the 1us tick, SysTick and the console divisor are all compiled against</span>
-<span id="L791"><span class="lineNum">     791</span>                 :             :  *       the requested OW_PORT_SYSCLK_MHZ, so carrying on from the reset</span>
-<span id="L792"><span class="lineNum">     792</span>                 :             :  *       oscillator would scale every 1-Wire timing by an unknown factor.</span>
-<span id="L793"><span class="lineNum">     793</span>                 :             :  *       Stopping, and naming the knob to fix, is the honest outcome.</span>
-<span id="L794"><span class="lineNum">     794</span>                 :             :  */</span>
-<span id="L795"><span class="lineNum">     795</span>                 :             : static void app_stop_on_clock_failure(void) {</span>
-<span id="L796"><span class="lineNum">     796</span>                 :             : #if defined(OW_PORT_FAMILY_F3)</span>
-<span id="L797"><span class="lineNum">     797</span>                 :             :     /* The F3 default cannot come from the internal RC at all: with PLLMUL</span>
-<span id="L798"><span class="lineNum">     798</span>                 :             :      * topping out at 16 on a 4MHz HSI/2 input, 64MHz is the internal ceiling</span>
-<span id="L799"><span class="lineNum">     799</span>                 :             :      * and 72MHz needs the external oscillator. On the F3-DISCOVERY that is the</span>
-<span id="L800"><span class="lineNum">     800</span>                 :             :      * ST-LINK's MCO square wave, so the one-line fix is to keep the ST-LINK</span>
-<span id="L801"><span class="lineNum">     801</span>                 :             :      * attached - or to ask for a clock the internal RC can actually make. */</span>
-<span id="L802"><span class="lineNum">     802</span>                 :             :     static const char msg[] =</span>
-<span id="L803"><span class="lineNum">     803</span>                 :             :         &quot;\r\nFATAL: the system clock did not start.\r\n&quot;</span>
-<span id="L804"><span class="lineNum">     804</span>                 :             :         &quot;  The external oscillator never reported ready, so the requested\r\n&quot;</span>
-<span id="L805"><span class="lineNum">     805</span>                 :             :         &quot;  clock is not running. At 72MHz the F3 PLL needs the board's 8MHz\r\n&quot;</span>
-<span id="L806"><span class="lineNum">     806</span>                 :             :         &quot;  external clock, which on the F3-DISCOVERY is driven by the ST-LINK\r\n&quot;</span>
-<span id="L807"><span class="lineNum">     807</span>                 :             :         &quot;  and is read in bypass mode: keep the ST-LINK connected, or build\r\n&quot;</span>
-<span id="L808"><span class="lineNum">     808</span>                 :             :         &quot;  with SYSCLK_MHZ=64 (HSI/2+PLL, the internal ceiling) or\r\n&quot;</span>
-<span id="L809"><span class="lineNum">     809</span>                 :             :         &quot;  SYSCLK_MHZ=8 (raw HSI).\r\n&quot;</span>
-<span id="L810"><span class="lineNum">     810</span>                 :             :         &quot;  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n&quot;</span>
-<span id="L811"><span class="lineNum">     811</span>                 :             :         &quot;  so the bus could not be timed correctly from here.\r\n&quot;;</span>
-<span id="L812"><span class="lineNum">     812</span>                 :             : #else</span>
-<span id="L813"><span class="lineNum">     813</span>                 :             :     static const char msg[] =</span>
-<span id="L814"><span class="lineNum">     814</span>                 :             :         &quot;\r\nFATAL: the system clock did not start.\r\n&quot;</span>
-<span id="L815"><span class="lineNum">     815</span>                 :             :         &quot;  HSE or the PLL never reported ready, so the requested clock is not\r\n&quot;</span>
-<span id="L816"><span class="lineNum">     816</span>                 :             :         &quot;  running. On F4 the PLL input is derived from HSE_MHZ: if that does not\r\n&quot;</span>
-<span id="L817"><span class="lineNum">     817</span>                 :             :         &quot;  match the crystal on this board the PLL cannot lock. Rebuild with the\r\n&quot;</span>
-<span id="L818"><span class="lineNum">     818</span>                 :             :         &quot;  real crystal, or run from the internal RC with SYSCLK_MHZ=16.\r\n&quot;</span>
-<span id="L819"><span class="lineNum">     819</span>                 :             :         &quot;  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n&quot;</span>
-<span id="L820"><span class="lineNum">     820</span>                 :             :         &quot;  so the bus could not be timed correctly from here.\r\n&quot;;</span>
-<span id="L821"><span class="lineNum">     821</span>                 :             : #endif</span>
-<span id="L822"><span class="lineNum">     822</span>                 :             :     /* The divisor is for the reset oscillator, not the clock that was asked for. */</span>
-<span id="L823"><span class="lineNum">     823</span>                 :             :     app_set_console_baud(16u);</span>
-<span id="L824"><span class="lineNum">     824</span>                 :             :     uint32_t guard = 4000000u;</span>
-<span id="L825"><span class="lineNum">     825</span>                 :             :     const char* p = msg;</span>
-<span id="L826"><span class="lineNum">     826</span>                 :             :     while (*p &amp;&amp; guard) {</span>
-<span id="L827"><span class="lineNum">     827</span>                 :             :         int n = uart_write_str(p);</span>
-<span id="L828"><span class="lineNum">     828</span>                 :             :         if (n &gt; 0)</span>
-<span id="L829"><span class="lineNum">     829</span>                 :             :             p += n;</span>
-<span id="L830"><span class="lineNum">     830</span>                 :             :         uart_poll_tx();</span>
-<span id="L831"><span class="lineNum">     831</span>                 :             :         guard--;</span>
-<span id="L832"><span class="lineNum">     832</span>                 :             :     }</span>
-<span id="L833"><span class="lineNum">     833</span>                 :             :     for (;;)</span>
-<span id="L834"><span class="lineNum">     834</span>                 :             :         uart_poll_tx();</span>
-<span id="L835"><span class="lineNum">     835</span>                 :             : }</span>
-<span id="L836"><span class="lineNum">     836</span>                 :             : #endif</span>
-<span id="L837"><span class="lineNum">     837</span>                 :             : </span>
-<span id="L838"><span class="lineNum">     838</span>                 :             : void app_init(void) {</span>
-<span id="L839"><span class="lineNum">     839</span>                 :             :     configure_system_clock();</span>
-<span id="L840"><span class="lineNum">     840</span>                 :             :     hardware_init();</span>
-<span id="L841"><span class="lineNum">     841</span>                 :             :     app_time_init();</span>
-<span id="L842"><span class="lineNum">     842</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
-<span id="L843"><span class="lineNum">     843</span>                 :             :     if (!ow_clock_ok)</span>
-<span id="L844"><span class="lineNum">     844</span>                 :             :         app_stop_on_clock_failure();</span>
-<span id="L845"><span class="lineNum">     845</span>                 :             : #endif</span>
-<span id="L846"><span class="lineNum">     846</span>                 :             :     /* Let the bus settle before the application's first transaction.</span>
-<span id="L847"><span class="lineNum">     847</span>                 :             :      *</span>
-<span id="L848"><span class="lineNum">     848</span>                 :             :      * Measured on a WeAct F446RET6 with 7 DS18B20 in parasite power: the first</span>
-<span id="L849"><span class="lineNum">     849</span>                 :             :      * search after a reset finds nothing, and every later one finds all seven.</span>
-<span id="L850"><span class="lineNum">     850</span>                 :             :      * A logic analyzer shows the bus is correct on the failing boot - 480.81us</span>
-<span id="L851"><span class="lineNum">     851</span>                 :             :      * reset pulses, 115.38us responses, nominal slots - so this is not bus</span>
-<span id="L852"><span class="lineNum">     852</span>                 :             :      * timing and not a firmware bug. It tracks how long the sensors have been</span>
-<span id="L853"><span class="lineNum">     853</span>                 :             :      * idle: after a programming cycle or a long idle they do not answer the</span>
-<span id="L854"><span class="lineNum">     854</span>                 :             :      * first reset.</span>
-<span id="L855"><span class="lineNum">     855</span>                 :             :      *</span>
-<span id="L856"><span class="lineNum">     856</span>                 :             :      * Bracketed by measurement, not chosen: 5ms failed 5 of 5 first boots, 50ms</span>
-<span id="L857"><span class="lineNum">     857</span>                 :             :      * passed 2 of 3, 200ms passed 3 of 3, and 400ms and 1000ms were also clean.</span>
-<span id="L858"><span class="lineNum">     858</span>                 :             :      * 200ms is the smallest value with margin, and it costs nothing at boot.</span>
-<span id="L859"><span class="lineNum">     859</span>                 :             :      *</span>
-<span id="L860"><span class="lineNum">     860</span>                 :             :      * This lives in the example harness rather than the driver on purpose: it is</span>
-<span id="L861"><span class="lineNum">     861</span>                 :             :      * a power-on settling concern of this wiring, and baking a 200ms wait into</span>
-<span id="L862"><span class="lineNum">     862</span>                 :             :      * the library would tax every user of a normally powered bus. Nothing on the</span>
-<span id="L863"><span class="lineNum">     863</span>                 :             :      * bus is touched before the application's first transaction, so settling here</span>
-<span id="L864"><span class="lineNum">     864</span>                 :             :      * settles before that transaction. */</span>
-<span id="L865"><span class="lineNum">     865</span>                 :             :     {</span>
-<span id="L866"><span class="lineNum">     866</span>                 :             :         uint32_t settle = app_millis();</span>
-<span id="L867"><span class="lineNum">     867</span>                 :             :         while ((app_millis() - settle) &lt; 200u) {</span>
-<span id="L868"><span class="lineNum">     868</span>                 :             :         }</span>
-<span id="L869"><span class="lineNum">     869</span>                 :             :     }</span>
-<span id="L870"><span class="lineNum">     870</span>                 :             : }</span>
-<span id="L871"><span class="lineNum">     871</span>                 :             : </span>
-<span id="L872"><span class="lineNum">     872</span>                 :             : /* ---- Polled millisecond clock (no interrupt, no waiting) ----</span>
-<span id="L873"><span class="lineNum">     873</span>                 :             :  *</span>
-<span id="L874"><span class="lineNum">     874</span>                 :             :  * The driver measures only when the application asks it to, so the application</span>
-<span id="L875"><span class="lineNum">     875</span>                 :             :  * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with</span>
-<span id="L876"><span class="lineNum">     876</span>                 :             :  * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.</span>
-<span id="L877"><span class="lineNum">     877</span>                 :             :  * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a</span>
-<span id="L878"><span class="lineNum">     878</span>                 :             :  * millisecond counter, so app_millis() costs a single register read and never</span>
-<span id="L879"><span class="lineNum">     879</span>                 :             :  * waits. A missed tick can only happen if the loop does not run for a whole</span>
-<span id="L880"><span class="lineNum">     880</span>                 :             :  * millisecond, which is the one rule the examples follow. */</span>
-<span id="L881"><span class="lineNum">     881</span>                 :             : </span>
-<span id="L882"><span class="lineNum">     882</span>                 :             : static uint32_t app_ms;</span>
-<span id="L883"><span class="lineNum">     883</span>                 :             : </span>
-<span id="L884"><span class="lineNum">     884</span>                 :             : /**</span>
-<span id="L885"><span class="lineNum">     885</span>                 :             :  * @brief Start the polled millisecond clock</span>
-<span id="L886"><span class="lineNum">     886</span>                 :             :  * @note Called from app_init() after the system clock is configured, because</span>
-<span id="L887"><span class="lineNum">     887</span>                 :             :  *       the reload is derived from that clock (1 kHz from HCLK).</span>
-<span id="L888"><span class="lineNum">     888</span>                 :             :  */</span>
-<span id="L889"><span class="lineNum">     889</span>                 :             : void app_time_init(void) {</span>
-<span id="L890"><span class="lineNum">     890</span>                 :             :     app_ms = 0;</span>
-<span id="L891"><span class="lineNum">     891</span>                 :             :     SysTick-&gt;LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;</span>
-<span id="L892"><span class="lineNum">     892</span>                 :             :     SysTick-&gt;VAL = 0;</span>
-<span id="L893"><span class="lineNum">     893</span>                 :             :     /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and</span>
-<span id="L894"><span class="lineNum">     894</span>                 :             :      * sets COUNTFLAG, but never enters an exception handler. */</span>
-<span id="L895"><span class="lineNum">     895</span>                 :             :     SysTick-&gt;CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;</span>
-<span id="L896"><span class="lineNum">     896</span>                 :             : }</span>
-<span id="L897"><span class="lineNum">     897</span>                 :             : </span>
-<span id="L898"><span class="lineNum">     898</span>                 :             : /**</span>
-<span id="L899"><span class="lineNum">     899</span>                 :             :  * @brief Milliseconds since app_time_init()</span>
-<span id="L900"><span class="lineNum">     900</span>                 :             :  * @return Counter in ms (wraps after ~49 days)</span>
-<span id="L901"><span class="lineNum">     901</span>                 :             :  * @note Non-blocking: reads the SysTick status flag and folds a wrap into the</span>
-<span id="L902"><span class="lineNum">     902</span>                 :             :  *       counter. Must be called at least once per millisecond, which any</span>
-<span id="L903"><span class="lineNum">     903</span>                 :             :  *       polling main loop does.</span>
-<span id="L904"><span class="lineNum">     904</span>                 :             :  */</span>
-<span id="L905"><span class="lineNum">     905</span>                 :             : uint32_t app_millis(void) {</span>
-<span id="L906"><span class="lineNum">     906</span>                 :             :     if (SysTick-&gt;CTRL &amp; SysTick_CTRL_COUNTFLAG_Msk) {</span>
-<span id="L907"><span class="lineNum">     907</span>                 :             :         (void)SysTick-&gt;CTRL; /* reading CTRL clears COUNTFLAG */</span>
-<span id="L908"><span class="lineNum">     908</span>                 :             :         app_ms++;</span>
-<span id="L909"><span class="lineNum">     909</span>                 :             :     }</span>
-<span id="L910"><span class="lineNum">     910</span>                 :             :     return app_ms;</span>
-<span id="L911"><span class="lineNum">     911</span>                 :             : }</span>
-<span id="L912"><span class="lineNum">     912</span>                 :             : </span>
-<span id="L913"><span class="lineNum">     913</span>                 :             : /**</span>
-<span id="L914"><span class="lineNum">     914</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
-<span id="L915"><span class="lineNum">     915</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
-<span id="L916"><span class="lineNum">     916</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
-<span id="L917"><span class="lineNum">     917</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
-<span id="L918"><span class="lineNum">     918</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
-<span id="L919"><span class="lineNum">     919</span>                 :             :  *       F3: LED on PE8 (active high - the STM32F3-DISCOVERY's indicators are</span>
-<span id="L920"><span class="lineNum">     920</span>                 :             :  *       active high, so this is the opposite of F1 and F0).</span>
-<span id="L921"><span class="lineNum">     921</span>                 :             :  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).</span>
-<span id="L922"><span class="lineNum">     922</span>                 :             :  */</span>
-<span id="L923"><span class="lineNum">     923</span>                 :             : void ds18b20_busy(unsigned action) {</span>
-<span id="L924"><span class="lineNum">     924</span>                 :             : #if defined(OW_PORT_FAMILY_F3)</span>
-<span id="L925"><span class="lineNum">     925</span>                 :             :     // PE8 is active high on the F3-DISCOVERY, so &quot;busy&quot; is a set, not a reset.</span>
-<span id="L926"><span class="lineNum">     926</span>                 :             :     GPIOE-&gt;BSRR = action ? GPIO_BSRR_BS_8 : GPIO_BSRR_BR_8;</span>
-<span id="L927"><span class="lineNum">     927</span>                 :             : #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
-<span id="L928"><span class="lineNum">     928</span>                 :             :     if (action) {</span>
-<span id="L929"><span class="lineNum">     929</span>                 :             :         // Turn LED on (PA4 low)</span>
-<span id="L930"><span class="lineNum">     930</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L931"><span class="lineNum">     931</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
-<span id="L932"><span class="lineNum">     932</span>                 :             : #else</span>
-<span id="L933"><span class="lineNum">     933</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
-<span id="L934"><span class="lineNum">     934</span>                 :             : #endif</span>
-<span id="L935"><span class="lineNum">     935</span>                 :             :     } else {</span>
-<span id="L936"><span class="lineNum">     936</span>                 :             :         // Turn LED off (PA4 high)</span>
-<span id="L937"><span class="lineNum">     937</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
-<span id="L938"><span class="lineNum">     938</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
-<span id="L939"><span class="lineNum">     939</span>                 :             : #else</span>
-<span id="L940"><span class="lineNum">     940</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
-<span id="L941"><span class="lineNum">     941</span>                 :             : #endif</span>
-<span id="L942"><span class="lineNum">     942</span>                 :             :     }</span>
-<span id="L943"><span class="lineNum">     943</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
-<span id="L944"><span class="lineNum">     944</span>                 :             :     if (action) {</span>
-<span id="L945"><span class="lineNum">     945</span>                 :             :         // Turn LED on (PD12 high)</span>
-<span id="L946"><span class="lineNum">     946</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BS12;</span>
-<span id="L947"><span class="lineNum">     947</span>                 :             :     } else {</span>
-<span id="L948"><span class="lineNum">     948</span>                 :             :         // Turn LED off (PD12 low)</span>
-<span id="L949"><span class="lineNum">     949</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BR12;</span>
-<span id="L950"><span class="lineNum">     950</span>                 :             :     }</span>
-<span id="L951"><span class="lineNum">     951</span>                 :             : #else</span>
-<span id="L952"><span class="lineNum">     952</span>                 :             :     if (action) {</span>
-<span id="L953"><span class="lineNum">     953</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
-<span id="L954"><span class="lineNum">     954</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
-<span id="L955"><span class="lineNum">     955</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
-<span id="L956"><span class="lineNum">     956</span>                 :             :     } else {</span>
-<span id="L957"><span class="lineNum">     957</span>                 :             :         // Turn LED off (PC13 high)</span>
-<span id="L958"><span class="lineNum">     958</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
-<span id="L959"><span class="lineNum">     959</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
-<span id="L960"><span class="lineNum">     960</span>                 :             :     }</span>
-<span id="L961"><span class="lineNum">     961</span>                 :             : #endif</span>
-<span id="L962"><span class="lineNum">     962</span>                 :             : }</span>
-<span id="L963"><span class="lineNum">     963</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
+<span id="L769"><span class="lineNum">     769</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
+<span id="L770"><span class="lineNum">     770</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK</span>
+<span id="L771"><span class="lineNum">     771</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L772"><span class="lineNum">     772</span>                 :             : #else</span>
+<span id="L773"><span class="lineNum">     773</span>                 :             :     // Enable clock for GPIOA, USART1, and GPIOC peripherals</span>
+<span id="L774"><span class="lineNum">     774</span>                 :             :     RCC-&gt;APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);</span>
+<span id="L775"><span class="lineNum">     775</span>                 :             : </span>
+<span id="L776"><span class="lineNum">     776</span>                 :             :     // Configure PA9 as alternate function push-pull output, 2MHz speed</span>
+<span id="L777"><span class="lineNum">     777</span>                 :             :     // Clear existing configuration bits</span>
+<span id="L778"><span class="lineNum">     778</span>                 :             :     GPIOA-&gt;CRH &amp;= ~(GPIO_CRH_MODE9 | GPIO_CRH_CNF9);</span>
+<span id="L779"><span class="lineNum">     779</span>                 :             :     // Set alternate function push-pull output mode, 2MHz speed</span>
+<span id="L780"><span class="lineNum">     780</span>                 :             :     GPIOA-&gt;CRH |= (GPIO_CRH_MODE9_1 | GPIO_CRH_CNF9_1);</span>
+<span id="L781"><span class="lineNum">     781</span>                 :             : </span>
+<span id="L782"><span class="lineNum">     782</span>                 :             :     // Configure PC13 as general purpose output, 2MHz speed for LED control</span>
+<span id="L783"><span class="lineNum">     783</span>                 :             :     GPIOC-&gt;CRH &amp;= ~(GPIO_CRH_MODE13 | GPIO_CRH_CNF13);</span>
+<span id="L784"><span class="lineNum">     784</span>                 :             :     GPIOC-&gt;CRH |= GPIO_CRH_MODE13_1;</span>
+<span id="L785"><span class="lineNum">     785</span>                 :             : </span>
+<span id="L786"><span class="lineNum">     786</span>                 :             :     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only</span>
+<span id="L787"><span class="lineNum">     787</span>                 :             :     USART1-&gt;BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK2 = SYSCLK</span>
+<span id="L788"><span class="lineNum">     788</span>                 :             :     USART1-&gt;CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only</span>
+<span id="L789"><span class="lineNum">     789</span>                 :             : #endif</span>
+<span id="L790"><span class="lineNum">     790</span>                 :             : }</span>
+<span id="L791"><span class="lineNum">     791</span>                 :             : </span>
+<span id="L792"><span class="lineNum">     792</span>                 :             : void app_time_init(void); /* defined below, with the polled millisecond clock */</span>
+<span id="L793"><span class="lineNum">     793</span>                 :             : </span>
+<span id="L794"><span class="lineNum">     794</span>                 :             : /**</span>
+<span id="L795"><span class="lineNum">     795</span>                 :             :  * @brief Initialize system clock, USART1 TX and the busy LED GPIO</span>
+<span id="L796"><span class="lineNum">     796</span>                 :             :  */</span>
+<span id="L797"><span class="lineNum">     797</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
+<span id="L798"><span class="lineNum">     798</span>                 :             : /**</span>
+<span id="L799"><span class="lineNum">     799</span>                 :             :  * @brief Report a clock that never started, then stop.</span>
+<span id="L800"><span class="lineNum">     800</span>                 :             :  * @note Called with the console already up so the reason can be printed, which is</span>
+<span id="L801"><span class="lineNum">     801</span>                 :             :  *       the whole point: an unbounded PLL wait used to leave the board looking</span>
+<span id="L802"><span class="lineNum">     802</span>                 :             :  *       dead with no output at all. The clock tree is deliberately left alone -</span>
+<span id="L803"><span class="lineNum">     803</span>                 :             :  *       the 1us tick, SysTick and the console divisor are all compiled against</span>
+<span id="L804"><span class="lineNum">     804</span>                 :             :  *       the requested OW_PORT_SYSCLK_MHZ, so carrying on from the reset</span>
+<span id="L805"><span class="lineNum">     805</span>                 :             :  *       oscillator would scale every 1-Wire timing by an unknown factor.</span>
+<span id="L806"><span class="lineNum">     806</span>                 :             :  *       Stopping, and naming the knob to fix, is the honest outcome.</span>
+<span id="L807"><span class="lineNum">     807</span>                 :             :  */</span>
+<span id="L808"><span class="lineNum">     808</span>                 :             : static void app_stop_on_clock_failure(void) {</span>
+<span id="L809"><span class="lineNum">     809</span>                 :             : #if defined(OW_PORT_FAMILY_F3)</span>
+<span id="L810"><span class="lineNum">     810</span>                 :             :     /* The F3 default cannot come from the internal RC at all: with PLLMUL</span>
+<span id="L811"><span class="lineNum">     811</span>                 :             :      * topping out at 16 on a 4MHz HSI/2 input, 64MHz is the internal ceiling</span>
+<span id="L812"><span class="lineNum">     812</span>                 :             :      * and 72MHz needs the external oscillator. On the F3-DISCOVERY that is the</span>
+<span id="L813"><span class="lineNum">     813</span>                 :             :      * ST-LINK's MCO square wave, so the one-line fix is to keep the ST-LINK</span>
+<span id="L814"><span class="lineNum">     814</span>                 :             :      * attached - or to ask for a clock the internal RC can actually make. */</span>
+<span id="L815"><span class="lineNum">     815</span>                 :             :     static const char msg[] =</span>
+<span id="L816"><span class="lineNum">     816</span>                 :             :         &quot;\r\nFATAL: the system clock did not start.\r\n&quot;</span>
+<span id="L817"><span class="lineNum">     817</span>                 :             :         &quot;  The external oscillator never reported ready, so the requested\r\n&quot;</span>
+<span id="L818"><span class="lineNum">     818</span>                 :             :         &quot;  clock is not running. At 72MHz the F3 PLL needs the board's 8MHz\r\n&quot;</span>
+<span id="L819"><span class="lineNum">     819</span>                 :             :         &quot;  external clock, which on the F3-DISCOVERY is driven by the ST-LINK\r\n&quot;</span>
+<span id="L820"><span class="lineNum">     820</span>                 :             :         &quot;  and is read in bypass mode: keep the ST-LINK connected, or build\r\n&quot;</span>
+<span id="L821"><span class="lineNum">     821</span>                 :             :         &quot;  with SYSCLK_MHZ=64 (HSI/2+PLL, the internal ceiling) or\r\n&quot;</span>
+<span id="L822"><span class="lineNum">     822</span>                 :             :         &quot;  SYSCLK_MHZ=8 (raw HSI).\r\n&quot;</span>
+<span id="L823"><span class="lineNum">     823</span>                 :             :         &quot;  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n&quot;</span>
+<span id="L824"><span class="lineNum">     824</span>                 :             :         &quot;  so the bus could not be timed correctly from here.\r\n&quot;;</span>
+<span id="L825"><span class="lineNum">     825</span>                 :             : #else</span>
+<span id="L826"><span class="lineNum">     826</span>                 :             :     static const char msg[] =</span>
+<span id="L827"><span class="lineNum">     827</span>                 :             :         &quot;\r\nFATAL: the system clock did not start.\r\n&quot;</span>
+<span id="L828"><span class="lineNum">     828</span>                 :             :         &quot;  HSE or the PLL never reported ready, so the requested clock is not\r\n&quot;</span>
+<span id="L829"><span class="lineNum">     829</span>                 :             :         &quot;  running. On F4 the PLL input is derived from HSE_MHZ: if that does not\r\n&quot;</span>
+<span id="L830"><span class="lineNum">     830</span>                 :             :         &quot;  match the crystal on this board the PLL cannot lock. Rebuild with the\r\n&quot;</span>
+<span id="L831"><span class="lineNum">     831</span>                 :             :         &quot;  real crystal, or run from the internal RC with SYSCLK_MHZ=16.\r\n&quot;</span>
+<span id="L832"><span class="lineNum">     832</span>                 :             :         &quot;  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n&quot;</span>
+<span id="L833"><span class="lineNum">     833</span>                 :             :         &quot;  so the bus could not be timed correctly from here.\r\n&quot;;</span>
+<span id="L834"><span class="lineNum">     834</span>                 :             : #endif</span>
+<span id="L835"><span class="lineNum">     835</span>                 :             :     /* The divisor is for the reset oscillator, not the clock that was asked for. */</span>
+<span id="L836"><span class="lineNum">     836</span>                 :             :     app_set_console_baud(16u);</span>
+<span id="L837"><span class="lineNum">     837</span>                 :             :     uint32_t guard = 4000000u;</span>
+<span id="L838"><span class="lineNum">     838</span>                 :             :     const char* p = msg;</span>
+<span id="L839"><span class="lineNum">     839</span>                 :             :     while (*p &amp;&amp; guard) {</span>
+<span id="L840"><span class="lineNum">     840</span>                 :             :         int n = uart_write_str(p);</span>
+<span id="L841"><span class="lineNum">     841</span>                 :             :         if (n &gt; 0)</span>
+<span id="L842"><span class="lineNum">     842</span>                 :             :             p += n;</span>
+<span id="L843"><span class="lineNum">     843</span>                 :             :         uart_poll_tx();</span>
+<span id="L844"><span class="lineNum">     844</span>                 :             :         guard--;</span>
+<span id="L845"><span class="lineNum">     845</span>                 :             :     }</span>
+<span id="L846"><span class="lineNum">     846</span>                 :             :     for (;;)</span>
+<span id="L847"><span class="lineNum">     847</span>                 :             :         uart_poll_tx();</span>
+<span id="L848"><span class="lineNum">     848</span>                 :             : }</span>
+<span id="L849"><span class="lineNum">     849</span>                 :             : #endif</span>
+<span id="L850"><span class="lineNum">     850</span>                 :             : </span>
+<span id="L851"><span class="lineNum">     851</span>                 :             : void app_init(void) {</span>
+<span id="L852"><span class="lineNum">     852</span>                 :             :     configure_system_clock();</span>
+<span id="L853"><span class="lineNum">     853</span>                 :             :     hardware_init();</span>
+<span id="L854"><span class="lineNum">     854</span>                 :             :     app_time_init();</span>
+<span id="L855"><span class="lineNum">     855</span>                 :             : #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)</span>
+<span id="L856"><span class="lineNum">     856</span>                 :             :     if (!ow_clock_ok)</span>
+<span id="L857"><span class="lineNum">     857</span>                 :             :         app_stop_on_clock_failure();</span>
+<span id="L858"><span class="lineNum">     858</span>                 :             : #endif</span>
+<span id="L859"><span class="lineNum">     859</span>                 :             :     /* Let the bus settle before the application's first transaction.</span>
+<span id="L860"><span class="lineNum">     860</span>                 :             :      *</span>
+<span id="L861"><span class="lineNum">     861</span>                 :             :      * Measured on a WeAct F446RET6 with 7 DS18B20 in parasite power: the first</span>
+<span id="L862"><span class="lineNum">     862</span>                 :             :      * search after a reset finds nothing, and every later one finds all seven.</span>
+<span id="L863"><span class="lineNum">     863</span>                 :             :      * A logic analyzer shows the bus is correct on the failing boot - 480.81us</span>
+<span id="L864"><span class="lineNum">     864</span>                 :             :      * reset pulses, 115.38us responses, nominal slots - so this is not bus</span>
+<span id="L865"><span class="lineNum">     865</span>                 :             :      * timing and not a firmware bug. It tracks how long the sensors have been</span>
+<span id="L866"><span class="lineNum">     866</span>                 :             :      * idle: after a programming cycle or a long idle they do not answer the</span>
+<span id="L867"><span class="lineNum">     867</span>                 :             :      * first reset.</span>
+<span id="L868"><span class="lineNum">     868</span>                 :             :      *</span>
+<span id="L869"><span class="lineNum">     869</span>                 :             :      * Bracketed by measurement, not chosen: 5ms failed 5 of 5 first boots, 50ms</span>
+<span id="L870"><span class="lineNum">     870</span>                 :             :      * passed 2 of 3, 200ms passed 3 of 3, and 400ms and 1000ms were also clean.</span>
+<span id="L871"><span class="lineNum">     871</span>                 :             :      * 200ms is the smallest value with margin, and it costs nothing at boot.</span>
+<span id="L872"><span class="lineNum">     872</span>                 :             :      *</span>
+<span id="L873"><span class="lineNum">     873</span>                 :             :      * This lives in the example harness rather than the driver on purpose: it is</span>
+<span id="L874"><span class="lineNum">     874</span>                 :             :      * a power-on settling concern of this wiring, and baking a 200ms wait into</span>
+<span id="L875"><span class="lineNum">     875</span>                 :             :      * the library would tax every user of a normally powered bus. Nothing on the</span>
+<span id="L876"><span class="lineNum">     876</span>                 :             :      * bus is touched before the application's first transaction, so settling here</span>
+<span id="L877"><span class="lineNum">     877</span>                 :             :      * settles before that transaction. */</span>
+<span id="L878"><span class="lineNum">     878</span>                 :             :     {</span>
+<span id="L879"><span class="lineNum">     879</span>                 :             :         uint32_t settle = app_millis();</span>
+<span id="L880"><span class="lineNum">     880</span>                 :             :         while ((app_millis() - settle) &lt; 200u) {</span>
+<span id="L881"><span class="lineNum">     881</span>                 :             :         }</span>
+<span id="L882"><span class="lineNum">     882</span>                 :             :     }</span>
+<span id="L883"><span class="lineNum">     883</span>                 :             : }</span>
+<span id="L884"><span class="lineNum">     884</span>                 :             : </span>
+<span id="L885"><span class="lineNum">     885</span>                 :             : /* ---- Polled millisecond clock (no interrupt, no waiting) ----</span>
+<span id="L886"><span class="lineNum">     886</span>                 :             :  *</span>
+<span id="L887"><span class="lineNum">     887</span>                 :             :  * The driver measures only when the application asks it to, so the application</span>
+<span id="L888"><span class="lineNum">     888</span>                 :             :  * owns the cadence. The clock is the ARM SysTick counter running at 1 kHz with</span>
+<span id="L889"><span class="lineNum">     889</span>                 :             :  * its interrupt *disabled*: no handler is installed and no NVIC bit is enabled.</span>
+<span id="L890"><span class="lineNum">     890</span>                 :             :  * The main loop just reads COUNTFLAG - set once per wrap - and folds it into a</span>
+<span id="L891"><span class="lineNum">     891</span>                 :             :  * millisecond counter, so app_millis() costs a single register read and never</span>
+<span id="L892"><span class="lineNum">     892</span>                 :             :  * waits. A missed tick can only happen if the loop does not run for a whole</span>
+<span id="L893"><span class="lineNum">     893</span>                 :             :  * millisecond, which is the one rule the examples follow. */</span>
+<span id="L894"><span class="lineNum">     894</span>                 :             : </span>
+<span id="L895"><span class="lineNum">     895</span>                 :             : static uint32_t app_ms;</span>
+<span id="L896"><span class="lineNum">     896</span>                 :             : </span>
+<span id="L897"><span class="lineNum">     897</span>                 :             : /**</span>
+<span id="L898"><span class="lineNum">     898</span>                 :             :  * @brief Start the polled millisecond clock</span>
+<span id="L899"><span class="lineNum">     899</span>                 :             :  * @note Called from app_init() after the system clock is configured, because</span>
+<span id="L900"><span class="lineNum">     900</span>                 :             :  *       the reload is derived from that clock (1 kHz from HCLK).</span>
+<span id="L901"><span class="lineNum">     901</span>                 :             :  */</span>
+<span id="L902"><span class="lineNum">     902</span>                 :             : void app_time_init(void) {</span>
+<span id="L903"><span class="lineNum">     903</span>                 :             :     app_ms = 0;</span>
+<span id="L904"><span class="lineNum">     904</span>                 :             :     SysTick-&gt;LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;</span>
+<span id="L905"><span class="lineNum">     905</span>                 :             :     SysTick-&gt;VAL = 0;</span>
+<span id="L906"><span class="lineNum">     906</span>                 :             :     /* CLKSOURCE | ENABLE, deliberately without TICKINT: the counter runs and</span>
+<span id="L907"><span class="lineNum">     907</span>                 :             :      * sets COUNTFLAG, but never enters an exception handler. */</span>
+<span id="L908"><span class="lineNum">     908</span>                 :             :     SysTick-&gt;CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;</span>
+<span id="L909"><span class="lineNum">     909</span>                 :             : }</span>
+<span id="L910"><span class="lineNum">     910</span>                 :             : </span>
+<span id="L911"><span class="lineNum">     911</span>                 :             : /**</span>
+<span id="L912"><span class="lineNum">     912</span>                 :             :  * @brief Milliseconds since app_time_init()</span>
+<span id="L913"><span class="lineNum">     913</span>                 :             :  * @return Counter in ms (wraps after ~49 days)</span>
+<span id="L914"><span class="lineNum">     914</span>                 :             :  * @note Non-blocking: reads the SysTick status flag and folds a wrap into the</span>
+<span id="L915"><span class="lineNum">     915</span>                 :             :  *       counter. Must be called at least once per millisecond, which any</span>
+<span id="L916"><span class="lineNum">     916</span>                 :             :  *       polling main loop does.</span>
+<span id="L917"><span class="lineNum">     917</span>                 :             :  */</span>
+<span id="L918"><span class="lineNum">     918</span>                 :             : uint32_t app_millis(void) {</span>
+<span id="L919"><span class="lineNum">     919</span>                 :             :     if (SysTick-&gt;CTRL &amp; SysTick_CTRL_COUNTFLAG_Msk) {</span>
+<span id="L920"><span class="lineNum">     920</span>                 :             :         (void)SysTick-&gt;CTRL; /* reading CTRL clears COUNTFLAG */</span>
+<span id="L921"><span class="lineNum">     921</span>                 :             :         app_ms++;</span>
+<span id="L922"><span class="lineNum">     922</span>                 :             :     }</span>
+<span id="L923"><span class="lineNum">     923</span>                 :             :     return app_ms;</span>
+<span id="L924"><span class="lineNum">     924</span>                 :             : }</span>
+<span id="L925"><span class="lineNum">     925</span>                 :             : </span>
+<span id="L926"><span class="lineNum">     926</span>                 :             : /**</span>
+<span id="L927"><span class="lineNum">     927</span>                 :             :  * @brief Busy indicator - toggles LED during measurement</span>
+<span id="L928"><span class="lineNum">     928</span>                 :             :  * @param[in] action 0 = idle, non-zero = busy</span>
+<span id="L929"><span class="lineNum">     929</span>                 :             :  * @note Non-blocking LED control using atomic BSRR register operations.</span>
+<span id="L930"><span class="lineNum">     930</span>                 :             :  *       Strong definition overrides the weak one in the DS18B20 driver.</span>
+<span id="L931"><span class="lineNum">     931</span>                 :             :  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).</span>
+<span id="L932"><span class="lineNum">     932</span>                 :             :  *       F3: LED on PE8 (active high - the STM32F3-DISCOVERY's indicators are</span>
+<span id="L933"><span class="lineNum">     933</span>                 :             :  *       active high, so this is the opposite of F1 and F0).</span>
+<span id="L934"><span class="lineNum">     934</span>                 :             :  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high). F4 with</span>
+<span id="L935"><span class="lineNum">     935</span>                 :             :  *       -DOW_F4_LED_PB2: the WeAct F446RET6 bench LED on PB2 (active high).</span>
+<span id="L936"><span class="lineNum">     936</span>                 :             :  */</span>
+<span id="L937"><span class="lineNum">     937</span>                 :             : void ds18b20_busy(unsigned action) {</span>
+<span id="L938"><span class="lineNum">     938</span>                 :             : #if defined(OW_PORT_FAMILY_F3)</span>
+<span id="L939"><span class="lineNum">     939</span>                 :             :     // PE8 is active high on the F3-DISCOVERY, so &quot;busy&quot; is a set, not a reset.</span>
+<span id="L940"><span class="lineNum">     940</span>                 :             :     GPIOE-&gt;BSRR = action ? GPIO_BSRR_BS_8 : GPIO_BSRR_BR_8;</span>
+<span id="L941"><span class="lineNum">     941</span>                 :             : #elif defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)</span>
+<span id="L942"><span class="lineNum">     942</span>                 :             :     if (action) {</span>
+<span id="L943"><span class="lineNum">     943</span>                 :             :         // Turn LED on (PA4 low)</span>
+<span id="L944"><span class="lineNum">     944</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L945"><span class="lineNum">     945</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR4;</span>
+<span id="L946"><span class="lineNum">     946</span>                 :             : #else</span>
+<span id="L947"><span class="lineNum">     947</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BR_4;</span>
+<span id="L948"><span class="lineNum">     948</span>                 :             : #endif</span>
+<span id="L949"><span class="lineNum">     949</span>                 :             :     } else {</span>
+<span id="L950"><span class="lineNum">     950</span>                 :             :         // Turn LED off (PA4 high)</span>
+<span id="L951"><span class="lineNum">     951</span>                 :             : #if defined(OW_PORT_FAMILY_G0)</span>
+<span id="L952"><span class="lineNum">     952</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS4;</span>
+<span id="L953"><span class="lineNum">     953</span>                 :             : #else</span>
+<span id="L954"><span class="lineNum">     954</span>                 :             :         GPIOA-&gt;BSRR = GPIO_BSRR_BS_4;</span>
+<span id="L955"><span class="lineNum">     955</span>                 :             : #endif</span>
+<span id="L956"><span class="lineNum">     956</span>                 :             :     }</span>
+<span id="L957"><span class="lineNum">     957</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L958"><span class="lineNum">     958</span>                 :             : #if defined(OW_F4_LED_PB2)</span>
+<span id="L959"><span class="lineNum">     959</span>                 :             :     // PB2 is active high on the WeAct bench board (per its schematic), the</span>
+<span id="L960"><span class="lineNum">     960</span>                 :             :     // same polarity as the F4DISCOVERY's PD12, so &quot;busy&quot; is a set.</span>
+<span id="L961"><span class="lineNum">     961</span>                 :             :     if (action) {</span>
+<span id="L962"><span class="lineNum">     962</span>                 :             :         GPIOB-&gt;BSRR = GPIO_BSRR_BS2;</span>
+<span id="L963"><span class="lineNum">     963</span>                 :             :     } else {</span>
+<span id="L964"><span class="lineNum">     964</span>                 :             :         GPIOB-&gt;BSRR = GPIO_BSRR_BR2;</span>
+<span id="L965"><span class="lineNum">     965</span>                 :             :     }</span>
+<span id="L966"><span class="lineNum">     966</span>                 :             : #else</span>
+<span id="L967"><span class="lineNum">     967</span>                 :             :     if (action) {</span>
+<span id="L968"><span class="lineNum">     968</span>                 :             :         // Turn LED on (PD12 high)</span>
+<span id="L969"><span class="lineNum">     969</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BS12;</span>
+<span id="L970"><span class="lineNum">     970</span>                 :             :     } else {</span>
+<span id="L971"><span class="lineNum">     971</span>                 :             :         // Turn LED off (PD12 low)</span>
+<span id="L972"><span class="lineNum">     972</span>                 :             :         GPIOD-&gt;BSRR = GPIO_BSRR_BR12;</span>
+<span id="L973"><span class="lineNum">     973</span>                 :             :     }</span>
+<span id="L974"><span class="lineNum">     974</span>                 :             : #endif</span>
+<span id="L975"><span class="lineNum">     975</span>                 :             : #else</span>
+<span id="L976"><span class="lineNum">     976</span>                 :             :     if (action) {</span>
+<span id="L977"><span class="lineNum">     977</span>                 :             :         // Turn LED on (PC13 low due to pull-up LED configuration)</span>
+<span id="L978"><span class="lineNum">     978</span>                 :             :         // BSRR BR register: atomic bit reset operation</span>
+<span id="L979"><span class="lineNum">     979</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BR13;</span>
+<span id="L980"><span class="lineNum">     980</span>                 :             :     } else {</span>
+<span id="L981"><span class="lineNum">     981</span>                 :             :         // Turn LED off (PC13 high)</span>
+<span id="L982"><span class="lineNum">     982</span>                 :             :         // BSRR BS register: atomic bit set operation</span>
+<span id="L983"><span class="lineNum">     983</span>                 :             :         GPIOC-&gt;BSRR = GPIO_BSRR_BS13;</span>
+<span id="L984"><span class="lineNum">     984</span>                 :             :     }</span>
+<span id="L985"><span class="lineNum">     985</span>                 :             : #endif</span>
+<span id="L986"><span class="lineNum">     986</span>                 :             : }</span>
+<span id="L987"><span class="lineNum">     987</span>                 :             : #endif /* !DS18B20_TEST_HARNESS */</span>
         </pre>
               </td>
             </tr>
