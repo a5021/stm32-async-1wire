@@ -603,7 +603,15 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # so a default build and an explicit one that agree still share objects.
 OW_EFF_SYSCLK := $(if $(SYSCLK_MHZ),$(SYSCLK_MHZ),$(CHIP_SYSCLK_MHZ))
 OW_EFF_HSE := $(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))
-OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)
+# EXT is a per-build knob (-D... user flags) that reaches every translation
+# unit, so it belongs in the stamp for the very reason the comment above gives
+# for the clock knobs: two builds of the same part that differ only in EXT are
+# different firmware, and without EXT in the object name rebuilding one after
+# the other silently reuses the first build's objects. Sanitise the flag list
+# into a filename-safe tag (spaces -> underscores).
+OW_EFF_EXT := $(strip $(EXT))
+OW_EXT_TAG := $(subst $(space),_,$(OW_EFF_EXT))
+OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))
 OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 

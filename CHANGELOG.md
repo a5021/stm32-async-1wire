@@ -116,6 +116,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`EXT` (the `-D...` user flags) is now folded into the object-name stamp.**
+  The stamp tracked the target, chip and clock knobs but not `EXT`, so
+  rebuilding one target with a different `-D` flag silently reused the previous
+  build's objects — it compiled clean, linked, and was wrong on hardware only,
+  the exact failure the stamp comment warns about. Measured while sweeping the
+  OC3PE knob on the F446RET6 bench: a "OC3PE=1" rebuild after an OC3PE=0 flash
+  still shipped the OC3PE=0 machine code. The Makefile now appends a sanitised
+  `EXT` to `OBJ_STAMP` so each flag set gets its own objects.
+
 - **Parasite strong pull-up now drives HIGH (was LOW).** `ow_port_strong_pullup(1)`
   switched OTYPER to push-pull but left CCR3 holding the last slot's pulse
   value; with the counter stopped at CNT=0, PWM mode 2 evaluates CNT < CCR3 as
@@ -262,6 +271,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1` to measure how much the preload matters.
   Defined in `ow_port_tim_dma.h` (F0/F1/F3/G0) and `ow_port_f4.h` (F4), which
   `ow_port.h` documents.
+
+- **F446RET6 bench: the OC3PE sweep is done** (`docs/bench/f4-2026-09-30/`).
+  With the preload on (the default, CCMR2 mask `0xB278`) `2_device_search`
+  reads all seven parasite-powered DS18B20 at ~21.0-21.3 C with valid CRC.
+  With `-DOW_PORT_OC3PE=0` (mask `0xB270`) the bus-releasing preload is gone:
+  the measurement state machine parks in `CONVERT`, the timer stops with
+  `SR=0x0F` (UIF left unconsumed), and the console stays silent — OC3PE is
+  load-bearing on F4 and stays on by default. The "CRC check failed" line that
+  `1_basic` shows on this bench is Skip-ROM broadcast contention across the
+  seven sensors, not a driver defect. Every sweep image was disassembled to
+  confirm the `TIM_CCMR2` immediate, not just compiled.
 
 - **`port/common/ow_port_tim_dma.h` no longer claims its two DMA channels are
   `D13`/`D14` on every family that uses it.** That was true of F0, F1 and G0 and

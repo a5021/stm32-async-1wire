@@ -1,0 +1,19 @@
+2_device_search on F446RET6, 7x DS18B20 parasite, OC3PE=1 (CCMR2 mask 0xB278).
+Build: make APP=2_device_search OW_TARGET=f4 OW_CHIP=f446xx EXT="-DOW_PARASITE_POWER=1"
+Flash: openocd program ... verify reset exit (Verified OK). No CRC errors.
+
+28 C6 BB 4E 04 00 00 67: 21.0 C
+28 7E 63 AD 0B 00 00 3F: 21.3 C
+28 F1 39 AD 0B 00 00 D9: 21.2 C
+--------------------------------
+28 20 78 92 07 00 00 67: 21.1 C
+28 78 B8 AC 0B 00 00 2C: 21.3 C
+28 64 69 AB 0B 00 00 1F: 21.3 C
+28 FC AE AA 0B 00 00 F3: 21.3 C
+28 C6 BB 4E 04 00 00 67: 21.0 C
+28 7E 63 AD 0B 00 00 3F: 21.3 C
+28 F1 39 AD 0B 00 00 D9: 21.2 C
+--------------------------------
+28 20 78 92 07 00 00 67: 21.1 C
+28 78 B8 AC 0B 00 00 2C: 21.3 C
+28 64 69 AB 0B 00 00 1F: 21.3 C

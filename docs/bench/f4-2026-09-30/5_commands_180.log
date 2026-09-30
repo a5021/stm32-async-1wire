@@ -1,0 +1,95 @@
+# COM5 115200 t0=19:28:13
+[   0.06] 28 20 78 92 07 00 00 67: 22.4 C
+[   0.08] 28 78 B8 AC 0B 00 00 2C: 22.6 C
+[   0.11] 28 64 69 AB 0B 00 00 1F: 22.6 C
+[   0.14] 28 FC AE AA 0B 00 00 F3: 22.7 C
+[   0.17] 28 C6 BB 4E 04 00 00 67: 22.1 C
+[   0.19] 28 7E 63 AD 0B 00 00 3F: 22.7 C
+[   0.22] 28 F1 39 AD 0B 00 00 D9: 22.6 C
+[   0.23] -------------------------------
+[   1.00] 28 20 78 92 07 00 00 67: 22.4 C
+[   1.03] 28 78 B8 AC 0B 00 00 2C: 22.6 C
+[   1.06] 28 64 69 AB 0B 00 00 1F: 22.6 C
+[   1.09] 28 FC AE AA 0B 00 00 F3: 22.7 C
+[   1.11] 28 C6 BB 4E 04 00 00 67: 22.1 C
+[   1.14] 28 7E 63 AD 0B 00 00 3F: 22.7 C
+[   1.17] 28 F1 39 AD 0B 00 00 D9: 22.6 C
+[   1.17] -------------------------------
+[   1.95] 28 20 78 92 07 00 00 67: 22.4 C
+[   1.98] 28 78 B8 AC 0B 00 00 2C: 22.6 C
+[   2.01] 28 64 69 AB 0B 00 00 1F: 22.6 C
+[   2.96] DS18B20 5_commands starting...
+[   2.96] Searching 1-Wire bus...
+[   2.99]   ROM: 28 20 78 92 07 00 00 67
+[   3.03]   ROM: 28 78 B8 AC 0B 00 00 2C
+[   3.06]   ROM: 28 64 69 AB 0B 00 00 1F
+[   3.10]   ROM: 28 FC AE AA 0B 00 00 F3
+[   3.14]   ROM: 28 C6 BB 4E 04 00 00 67
+[   3.17]   ROM: 28 7E 63 AD 0B 00 00 3F
+[   3.21]   ROM: 28 F1 39 AD 0B 00 00 D9
+[   3.21] Found 7 device(s).
+[   3.21] Read Power Supply (0xB4):
+[   3.22]   power supply: parasite
+[   3.23] Read Scratchpad (0xBE) - baseline:
+[   3.25]   67 01 00 00 7F FF 09 10 C3  CRC ok  TH=0x00 TL=0x00  res=12bit
+[   3.26] Write Scratchpad (0x4E): TH=0x19 TL=0x0F
+[   3.27] Scratchpad after threshold write:
+[   3.30]   67 01 19 0F 7F FF 09 10 61  CRC ok  TH=0x19 TL=0x0F  res=12bit
+[   3.31] Copy Scratchpad (0x48) -> EEPROM (10ms hold-off):
+[   3.32]   copied to EEPROM
+[   3.33] Write Scratchpad (0x4E): TH=0x05 TL=0x02 (volatile only)
+[   3.34] Scratchpad after second write:
+[   3.37]   67 01 05 02 7F FF 09 10 AB  CRC ok  TH=0x05 TL=0x02  res=12bit
+[   3.38] Recall EEPROM (0xB8) -> scratchpad (10ms hold-off):
+[   3.39]   EEPROM copy loaded back
+[   3.40] Scratchpad after Recall (EEPROM copy restored):
+[   3.42]   67 01 19 0F 7F FF 09 10 61  CRC ok  TH=0x19 TL=0x0F  res=12bit
+[   3.43] Read ROM (0x33) - single-device command:
+[   3.44]   ROM: 28 00 20 00 00 00 00 00  CRC fail (valid only with one device on the bus)
+[   3.44] Command demo done. Measuring selected device:
+[   4.22] 22.4 C
+[   5.01] 22.4 C
+[   5.81] 22.4 C
+[   6.60] 22.4 C
+[   7.39] 22.4 C
+[   8.18] 22.5 C
+[   8.97] 22.5 C
+[   9.76] 22.4 C
+[  10.55] 22.5 C
+[  11.34] 22.5 C
+[  12.13] 22.4 C
+[  12.92] 22.5 C
+[  13.71] 22.5 C
+[  14.50] 22.5 C
+[  15.30] 22.5 C
+[  16.09] 22.5 C
+[  16.88] 22.5 C
+[  17.67] 22.5 C
+[  18.46] 22.5 C
+[  19.25] 22.5 C
+[  20.04] 22.5 C
+[  20.83] 22.4 C
+[  21.62] 22.5 C
+[  22.41] 22.5 C
+[  23.20] 22.5 C
+[  24.00] 22.5 C
+[  24.79] 22.5 C
+[  25.58] 22.5 C
+[  26.37] 22.5 C
+[  27.16] 22.5 C
+[  27.95] 22.5 C
+[  28.74] 22.5 C
+[  29.53] 22.5 C
+[  30.32] 22.5 C
+[  31.11] 22.5 C
+[  31.90] 22.5 C
+[  32.69] 22.5 C
+[  33.49] 22.5 C
+[  34.28] 22.5 C
+[  35.07] 22.5 C
+[  35.86] 22.5 C
+[  36.65] 22.5 C
+[  37.44] 22.5 C
+[  38.23] 22.5 C
+[  39.02] 22.5 C
+[  39.81] 22.5 C
