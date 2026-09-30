@@ -5,7 +5,5 @@ var group__ONEWIRE__Protocol =
     [ "ONEWIRE_MAX_SLOTS", "group__ONEWIRE__Protocol.html#ga5f7f921694a4ec26d7073e20282d9b4c", null ],
     [ "ONEWIRE_RELEASE_PULSE", "group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d", null ],
     [ "ONEWIRE_ROM_BITS", "group__ONEWIRE__Protocol.html#ga337412c996f5683edf6ddfcf049e73e4", null ],
-    [ "ONEWIRE_ROM_BYTES", "group__ONEWIRE__Protocol.html#ga203ac9e9369cd6dac73239439e7e12e1", null ],
-    [ "OW_PORT_F4_MAX_SYSCLK_MHZ", "group__ONEWIRE__Protocol.html#ga5850fbcdd8f22652bcd68b4f7c264a7a", null ],
-    [ "OW_PORT_SYSCLK_MHZ", "group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8", null ]
+    [ "ONEWIRE_ROM_BYTES", "group__ONEWIRE__Protocol.html#ga203ac9e9369cd6dac73239439e7e12e1", null ]
 ];

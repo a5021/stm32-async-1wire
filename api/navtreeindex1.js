@@ -1,8 +1,5 @@
 var NAVTREEINDEX1 =
 {
-"ow__bits_8h.html#a66f47ab6e3cdafcb64e124f9c858dbc8":[2,0,0,2,83],
-"ow__bits_8h.html#a690d30e9ad3647835c243368b36d4c41":[2,0,0,2,164],
-"ow__bits_8h.html#a6967c3abb43e5916a2947ad9476849cd":[2,0,0,2,204],
 "ow__bits_8h.html#a6c2e35fdcd9091ccada629895fa1d034":[2,0,0,2,87],
 "ow__bits_8h.html#a6c4ee038cb682907a25bef28d1b41306":[2,0,0,2,168],
 "ow__bits_8h.html#a6cfae9dfb7641bd66886d874f222174d":[2,0,0,2,13],
@@ -147,9 +144,9 @@ var NAVTREEINDEX1 =
 "ow__config_8h.html#ac9acff48ab5c0d41bc1ed88afe58f80d":[2,0,0,3,9],
 "ow__config_8h_source.html":[2,0,0,3],
 "ow__port_8h.html":[2,0,0,4],
+"ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547":[2,0,0,4,1],
 "ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78":[2,0,0,4,3],
 "ow__port_8h.html#a629ce7673dff00062857559a77d2a2a5":[2,0,0,4,0],
-"ow__port_8h.html#a7b8657fa128b88cf57cd22477f3c67d7":[2,0,0,4,1],
 "ow__port_8h.html#aa18f9f11d231ba5cdc1674c70d1dca0c":[2,0,0,4,2],
 "ow__port_8h_source.html":[2,0,0,4],
 "ow__stats_8h.html":[2,0,0,5],

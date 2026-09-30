@@ -95,6 +95,9 @@ $(document).ready(function(){initNavTree('group__ONEWIRE__Init.html',''); initRe
   <div class="headertitle"><div class="title">Init</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on their own; for the F4 family the concrete device spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too. The token is the single point of family selection: it picks the port backend (included below), app.c takes the device header and clock configuration from it, and the per-family facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ / OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ live in the port headers, not here, so the backend and its defaults cannot drift. To add a family, extend this chain and the #include branch below, add the app.c config, and a case in tests/test/test_sysclk_fallback.c.  
+<a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
@@ -103,7 +106,9 @@ Functions</h2></td></tr>
 <tr class="separator:gac6a21039977d29da711c6b094c87bf3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). </p>
+<p>Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on their own; for the F4 family the concrete device spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too. The token is the single point of family selection: it picks the port backend (included below), app.c takes the device header and clock configuration from it, and the per-family facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ / OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ live in the port headers, not here, so the backend and its defaults cannot drift. To add a family, extend this chain and the #include branch below, add the app.c config, and a case in tests/test/test_sysclk_fallback.c. </p>
+<p>Pull in the selected port backend.</p>
+<p>The backend is included here (not duplicated in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>) so there is one chain and one #include branch to maintain, and so the per-family facts the backend defines are visible wherever this header is: ow_pulse_t (used by the prototypes below) and the clock defaults (used by app.c and the host tests). Keep the branches in the same order as the chain above. </p>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="gac6a21039977d29da711c6b094c87bf3e" name="gac6a21039977d29da711c6b094c87bf3e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gac6a21039977d29da711c6b094c87bf3e">&#9670;&#160;</a></span>onewire_init()</h2>

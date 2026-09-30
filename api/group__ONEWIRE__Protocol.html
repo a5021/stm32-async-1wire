@@ -116,12 +116,6 @@ Macros</h2></td></tr>
 <tr class="memitem:ga0eee31a89c949c98e6341537d9f5564d" id="r_ga0eee31a89c949c98e6341537d9f5564d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d">ONEWIRE_RELEASE_PULSE</a>&#160;&#160;&#160;0u</td></tr>
 <tr class="memdesc:ga0eee31a89c949c98e6341537d9f5564d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Value that releases the bus (idle HIGH) at the end of a multi-slot write or merged write+read operation.  <br /></td></tr>
 <tr class="separator:ga0eee31a89c949c98e6341537d9f5564d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga5850fbcdd8f22652bcd68b4f7c264a7a" id="r_ga5850fbcdd8f22652bcd68b4f7c264a7a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga5850fbcdd8f22652bcd68b4f7c264a7a">OW_PORT_F4_MAX_SYSCLK_MHZ</a>&#160;&#160;&#160;168 /* F405/F407 cap; the F401 parts are lower still, see below */</td></tr>
-<tr class="memdesc:ga5850fbcdd8f22652bcd68b4f7c264a7a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on their own; for the F4 family the concrete device spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too. <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a> picks the backend and app.c the device header/clock config from the token — never from the individual spellings — so the backend and the clock default cannot drift. To add a family, extend this chain (token and default clock together in one branch), then add the #include branch in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>, the app.c config, and a case in tests/test/test_sysclk_fallback.c.  <br /></td></tr>
-<tr class="separator:ga5850fbcdd8f22652bcd68b4f7c264a7a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga2e42e9ed164a7e728308c2c89bd181d8" id="r_ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga2e42e9ed164a7e728308c2c89bd181d8">OW_PORT_SYSCLK_MHZ</a>&#160;&#160;&#160;72 /* STM32F103: HSE + PLL x9 */</td></tr>
-<tr class="memdesc:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">System clock frequency in MHz after application clock setup. Single source of truth for the clock-dependent settings: the timer prescaler (1µs ticks) and the input-capture filter selection below derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends) are fixed constants validated on every supported clock. Family defaults are provided per OW_PORT_FAMILY_* above; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the clock sources available per family).  <br /></td></tr>
-<tr class="separator:ga2e42e9ed164a7e728308c2c89bd181d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Macro Definition Documentation</h2>
@@ -219,44 +213,6 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Bytes in a device ROM address. </p>
-
-</div>
-</div>
-<a id="ga5850fbcdd8f22652bcd68b4f7c264a7a" name="ga5850fbcdd8f22652bcd68b4f7c264a7a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga5850fbcdd8f22652bcd68b4f7c264a7a">&#9670;&#160;</a></span>OW_PORT_F4_MAX_SYSCLK_MHZ</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_PORT_F4_MAX_SYSCLK_MHZ&#160;&#160;&#160;168 /* F405/F407 cap; the F401 parts are lower still, see below */</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Family selection: a single OW_PORT_FAMILY_* token resolved from either the explicit OW_PORT_TARGET_* knob or the family macros (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on their own; for the F4 family the concrete device spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too. <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a> picks the backend and app.c the device header/clock config from the token — never from the individual spellings — so the backend and the clock default cannot drift. To add a family, extend this chain (token and default clock together in one branch), then add the #include branch in <a class="el" href="ow__port_8h.html" title="Platform port layer for the non-blocking 1-Wire engine.">ow_port.h</a>, the app.c config, and a case in tests/test/test_sysclk_fallback.c. </p>
-<p>External (HSE) frequency in MHz, on F4 and F3.</p>
-<p>Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the <em>board</em>, the system clock to the <em>application</em>. Conflating them is what made the F401 default depend on whichever crystal a given board carries, and a wrong value is not a compile error - the PLL simply never locks.</p>
-<p>Read by the F4 backend (as the PLL's M divider) and by the F3 backend (as the input the 72MHz PLL multiplies by 9, since this family has no HSI16 and so cannot reach its ceiling from the internal RC). The other families reach their clock without a user-visible external oscillator, so the define is left undefined there and their code must not reference it.</p>
-<p>Highest system clock this F4 part can be clocked at, in MHz.</p>
-<p>One fact per part, so that "can this build run that fast" is answered in the same place as "how fast does it run by default". app.c rejects a build that asks for more than this, which is what keeps a 180 MHz request from silently compiling for an F407 (whose cap is 168 MHz without over-drive, and whose flash latency and APB limits differ above it).</p>
-<p>Defined for F4 only: the other families have a single clock ceiling each and no per-part case, so there is nothing to express. </p>
-
-</div>
-</div>
-<a id="ga2e42e9ed164a7e728308c2c89bd181d8" name="ga2e42e9ed164a7e728308c2c89bd181d8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga2e42e9ed164a7e728308c2c89bd181d8">&#9670;&#160;</a></span>OW_PORT_SYSCLK_MHZ</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_PORT_SYSCLK_MHZ&#160;&#160;&#160;72 /* STM32F103: HSE + PLL x9 */</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>System clock frequency in MHz after application clock setup. Single source of truth for the clock-dependent settings: the timer prescaler (1µs ticks) and the input-capture filter selection below derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends) are fixed constants validated on every supported clock. Family defaults are provided per OW_PORT_FAMILY_* above; override via -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the clock sources available per family). </p>
 
 </div>
 </div>

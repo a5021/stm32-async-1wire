@@ -1,6 +1,5 @@
 var group__ONEWIRE__Bus =
 [
-    [ "ow_pulse_t", "group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd", null ],
     [ "onewire_bus_done", "group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119", null ],
     [ "onewire_decode_pulses", "group__ONEWIRE__Bus.html#gaf14e5828e2e6861d21282ec2d7ff5e59", null ],
     [ "onewire_encode_byte", "group__ONEWIRE__Bus.html#ga06272cb3dec951525fdd5a2505b76137", null ],

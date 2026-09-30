@@ -91,7 +91,6 @@ $(document).ready(function(){initNavTree('group__ONEWIRE__Bus.html',''); initRes
 
 <div class="header">
   <div class="summary">
-<a href="#typedef-members">Typedefs</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">Non-Blocking 1-Wire Bus Primitives</div></div>
 </div><!--header-->
@@ -100,12 +99,6 @@ $(document).ready(function(){initNavTree('group__ONEWIRE__Bus.html',''); initRes
 <p>Each primitive schedules exactly one hardware-timed operation on TIM1/DMA and returns immediately. Poll <a class="el" href="group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> to learn when the operation finished, then decode the result.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
-Typedefs</h2></td></tr>
-<tr class="memitem:ga35b3e90dbfdcc12fdb0c11f4af9647dd" id="r_ga35b3e90dbfdcc12fdb0c11f4af9647dd"><td class="memItemLeft" align="right" valign="top">typedef uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a></td></tr>
-<tr class="memdesc:ga35b3e90dbfdcc12fdb0c11f4af9647dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">One bit-slot write-pulse duration in the native width of the active port.  <br /></td></tr>
-<tr class="separator:ga35b3e90dbfdcc12fdb0c11f4af9647dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:ga6444d57ed7d563863ebc77a7cfd4c119" id="r_ga6444d57ed7d563863ebc77a7cfd4c119"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119">onewire_bus_done</a> (void)</td></tr>
@@ -117,7 +110,7 @@ Functions</h2></td></tr>
 <tr class="memitem:gae76cb2b2c181c622060c225f4b5a2c01" id="r_gae76cb2b2c181c622060c225f4b5a2c01"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gae76cb2b2c181c622060c225f4b5a2c01">onewire_present</a> (const volatile uint16_t *pulses)</td></tr>
 <tr class="memdesc:gae76cb2b2c181c622060c225f4b5a2c01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode the presence pulse captured by <a class="el" href="group__ONEWIRE__Bus.html#gabdd1e47fc5997a0806b9294560d2cf3d" title="Schedule a 1-Wire bus reset (presence pulse captured via DMA)">onewire_reset()</a>  <br /></td></tr>
 <tr class="separator:gae76cb2b2c181c622060c225f4b5a2c01"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gadab2aae443ef53a94d25e54bf0e62c50" id="r_gadab2aae443ef53a94d25e54bf0e62c50"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gadab2aae443ef53a94d25e54bf0e62c50">onewire_write_slots</a> (const <a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *pulses, uint16_t slots)</td></tr>
+<tr class="memitem:gadab2aae443ef53a94d25e54bf0e62c50" id="r_gadab2aae443ef53a94d25e54bf0e62c50"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gadab2aae443ef53a94d25e54bf0e62c50">onewire_write_slots</a> (const ow_pulse_t *pulses, uint16_t slots)</td></tr>
 <tr class="memdesc:gadab2aae443ef53a94d25e54bf0e62c50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a write of <code>slots</code> bit slots.  <br /></td></tr>
 <tr class="separator:gadab2aae443ef53a94d25e54bf0e62c50"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gade3a544265373c0eddbc68ca76a3de91" id="r_gade3a544265373c0eddbc68ca76a3de91"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gade3a544265373c0eddbc68ca76a3de91">onewire_write_bit</a> (uint8_t bit)</td></tr>
@@ -138,7 +131,7 @@ Functions</h2></td></tr>
 <tr class="memitem:gaf14e5828e2e6861d21282ec2d7ff5e59" id="r_gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#gaf14e5828e2e6861d21282ec2d7ff5e59">onewire_decode_pulses</a> (uint8_t *dst, const volatile uint8_t *pulse, uint8_t nbytes)</td></tr>
 <tr class="memdesc:gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode captured pulse durations into data bytes (LSB-first bits)  <br /></td></tr>
 <tr class="separator:gaf14e5828e2e6861d21282ec2d7ff5e59"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga06272cb3dec951525fdd5a2505b76137" id="r_ga06272cb3dec951525fdd5a2505b76137"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga06272cb3dec951525fdd5a2505b76137">onewire_encode_byte</a> (<a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *out, uint8_t byte)</td></tr>
+<tr class="memitem:ga06272cb3dec951525fdd5a2505b76137" id="r_ga06272cb3dec951525fdd5a2505b76137"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga06272cb3dec951525fdd5a2505b76137">onewire_encode_byte</a> (ow_pulse_t *out, uint8_t byte)</td></tr>
 <tr class="memdesc:ga06272cb3dec951525fdd5a2505b76137"><td class="mdescLeft">&#160;</td><td class="mdescRight">Encode a byte into write-pulse durations.  <br /></td></tr>
 <tr class="separator:ga06272cb3dec951525fdd5a2505b76137"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga3636e095b3e9da367c6346efe1cbaa88" id="r_ga3636e095b3e9da367c6346efe1cbaa88"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Bus.html#ga3636e095b3e9da367c6346efe1cbaa88">onewire_start_timer</a> (uint16_t arr, uint8_t rcr)</td></tr>
@@ -153,24 +146,6 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Each primitive schedules exactly one hardware-timed operation on TIM1/DMA and returns immediately. Poll <a class="el" href="group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> to learn when the operation finished, then decode the result. </p>
-<h2 class="groupheader">Typedef Documentation</h2>
-<a id="ga35b3e90dbfdcc12fdb0c11f4af9647dd" name="ga35b3e90dbfdcc12fdb0c11f4af9647dd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga35b3e90dbfdcc12fdb0c11f4af9647dd">&#9670;&#160;</a></span>ow_pulse_t</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">typedef uint8_t <a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>One bit-slot write-pulse duration in the native width of the active port. </p>
-<dl class="section note"><dt>Note</dt><dd>Family sized on purpose: the STM32F4 backend feeds CCR3 in DMA direct mode, so a feed entry is a 16-bit halfword there (zero-copy, CNDTR == slots), while every other supported port latches 8-bit entries. Measured (capture-side) durations are always uint16_t. </dd></dl>
-
-</div>
-</div>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ga6444d57ed7d563863ebc77a7cfd4c119" name="ga6444d57ed7d563863ebc77a7cfd4c119"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga6444d57ed7d563863ebc77a7cfd4c119">&#9670;&#160;</a></span>onewire_bus_done()</h2>
@@ -247,7 +222,7 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname">void onewire_encode_byte </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *&#160;</td>
+          <td class="paramtype">ow_pulse_t *&#160;</td>
           <td class="paramname"><em>out</em>, </td>
         </tr>
         <tr>
@@ -561,7 +536,7 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname">uint8_t onewire_write_slots </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="group__ONEWIRE__Bus.html#ga35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *&#160;</td>
+          <td class="paramtype">const ow_pulse_t *&#160;</td>
           <td class="paramname"><em>pulses</em>, </td>
         </tr>
         <tr>
