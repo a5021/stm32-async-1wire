@@ -283,6 +283,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   seven sensors, not a driver defect. Every sweep image was disassembled to
   confirm the `TIM_CCMR2` immediate, not just compiled.
 
+- **F4 busy LED is now board-selectable: `-DOW_F4_LED_PB2`.** The default stays
+  LD4 green on PD12 (STM32F4DISCOVERY, active high). The bench WeAct F446RET6
+  puts its LED on PB2 instead — the "B2" silk is right under the part — so a
+  build for that board passes `-DOW_F4_LED_PB2` and the app configures PB2 as
+  push-pull output (no extra port clock: GPIOB is already on for the PB6
+  console). Polarity is active high on both boards (PB2 per the WeAct
+  schematic; PC13 on that board is the user button, not an LED). Mirrors the
+  `-DOW_UART_USART1_PA9` board-knob pattern.
+
 - **`port/common/ow_port_tim_dma.h` no longer claims its two DMA channels are
   `D13`/`D14` on every family that uses it.** That was true of F0, F1 and G0 and
   is now false of F3, where the CC2 feed is channel 2 and the CH4 capture channel
