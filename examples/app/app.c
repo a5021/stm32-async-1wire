@@ -615,7 +615,11 @@ void configure_system_clock(void) {
  *       OW_UART_USART3 path on PB10. The F4 console pin is PB6 because that is
  *       where the F4DISCOVERY's ST-LINK VCP is, and it is also where a WeAct
  *       F446RET6's CP210x VCP answers (measured); for a board whose VCP is on
- *       PA9, build with -DOW_UART_USART1_PA9.
+ *       PA9, build with -DOW_UART_USART1_PA9. The F4 busy LED defaults to PD12
+ *       (LD4 green on the F4DISCOVERY, active high); a board whose LED is on
+ *       PB2 - the WeAct F446RET6 bench has it there, labelled "B2" on the
+ *       silkscreen, active high (per the WeAct schematic) - opts in with
+ *       -DOW_F4_LED_PB2.
  */
 #if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
@@ -640,8 +644,17 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // (42/42); raw 16/8MHz -> /1, /1 (both = SYSCLK).
     // Test: tests/test/test_timing.c::test_console_baud_divisor()
 
-    // STM32F4DISCOVERY: LD4 (green) on PD12, active high (pin -> LED -> GND)
+    // F4 busy LED. Default (F4DISCOVERY): LD4 (green) on PD12, active high
+    // (pin -> LED -> GND). With -DOW_F4_LED_PB2 the bench WeAct F446RET6's
+    // B2 LED is used instead (silkscreen "B2" = PB2, active high per the
+    // manufacturer): no extra port clock is needed because GPIOB is already
+    // enabled for the PB6 console pin.
+#if defined(OW_F4_LED_PB2)
+    GPIOB->MODER = (GPIOB->MODER & ~GPIO_MODER_MODER2) | GPIO_MODER_MODER2_0;
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_2;
+#else
     GPIOD->MODER = (GPIOD->MODER & ~GPIO_MODER_MODER12) | GPIO_MODER_MODER12_0;
+#endif
 
     // Optional OW_UART_USART3 selects USART3 TX on PB10 (AF7) instead of
     // USART1 on PB6 (the STM32F4DISCOVERY has no USART1-to-ST-LINK route).
@@ -918,7 +931,8 @@ uint32_t app_millis(void) {
  *       F1: LED on PC13 (active low). F0: LED on PA4 (active low assumed).
  *       F3: LED on PE8 (active high - the STM32F3-DISCOVERY's indicators are
  *       active high, so this is the opposite of F1 and F0).
- *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high).
+ *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high). F4 with
+ *       -DOW_F4_LED_PB2: the WeAct F446RET6 bench LED on PB2 (active high).
  */
 void ds18b20_busy(unsigned action) {
 #if defined(OW_PORT_FAMILY_F3)
@@ -941,6 +955,15 @@ void ds18b20_busy(unsigned action) {
 #endif
     }
 #elif defined(OW_PORT_FAMILY_F4)
+#if defined(OW_F4_LED_PB2)
+    // PB2 is active high on the WeAct bench board (per its schematic), the
+    // same polarity as the F4DISCOVERY's PD12, so "busy" is a set.
+    if (action) {
+        GPIOB->BSRR = GPIO_BSRR_BS2;
+    } else {
+        GPIOB->BSRR = GPIO_BSRR_BR2;
+    }
+#else
     if (action) {
         // Turn LED on (PD12 high)
         GPIOD->BSRR = GPIO_BSRR_BS12;
@@ -948,6 +971,7 @@ void ds18b20_busy(unsigned action) {
         // Turn LED off (PD12 low)
         GPIOD->BSRR = GPIO_BSRR_BR12;
     }
+#endif
 #else
     if (action) {
         // Turn LED on (PC13 low due to pull-up LED configuration)
