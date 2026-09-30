@@ -323,14 +323,14 @@ void configure_system_clock(void) {
  * at all, and the lock wait never ended.
  *
  * A clock the part cannot reach is rejected here rather than at runtime. The
- * per-part ceiling lives in onewire.h (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a
+ * per-part ceiling lives in ow_port_f4.h (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a
  * real frequency on the F446 and an out-of-spec one on an F407, and the two do
  * not differ by a divisor - they differ by over-drive, flash latency and APB
  * limits, so a build that asked for 180 on an F407 could not be made correct
  * by scaling the PLL down.
  */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
-#error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in onewire.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
+#error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in ow_port_f4.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
 #endif
 
     /* The APB prescalers this backend programs, and the console divisor derived

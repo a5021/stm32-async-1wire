@@ -50,12 +50,14 @@ extern "C" {
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on
  *  their own; for the F4 family the concrete device spellings (STM32F407xx /
- *  STM32F401xC/STM32F401xE) are accepted too. ow_port.h picks the backend and app.c the
- *  device header/clock config from the token — never from the individual
- *  spellings — so the backend and the clock default cannot drift. To add a
- *  family, extend this chain (token and default clock together in one branch),
- *  then add the \#include branch in ow_port.h, the app.c config, and a case in
- *  tests/test/test_sysclk_fallback.c. */
+ *  STM32F401xC/STM32F401xE) are accepted too. The token is the single point of
+ *  family selection: it picks the port backend (included below), app.c takes
+ *  the device header and clock configuration from it, and the per-family
+ *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
+ *  OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ
+ *  live in the port headers, not here, so the backend and its defaults cannot
+ *  drift. To add a family, extend this chain and the \#include branch below,
+ *  add the app.c config, and a case in tests/test/test_sysclk_fallback.c. */
 #if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
@@ -68,76 +70,26 @@ extern "C" {
     defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_FAMILY_F4
 #endif
-/** @brief External (HSE) frequency in MHz, on F4 and F3.
+
+/** @brief Pull in the selected port backend.
  *
- *  Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
- *  *board*, the system clock to the *application*. Conflating them is what made
- *  the F401 default depend on whichever crystal a given board carries, and a
- *  wrong value is not a compile error - the PLL simply never locks.
- *
- *  Read by the F4 backend (as the PLL's M divider) and by the F3 backend (as
- *  the input the 72MHz PLL multiplies by 9, since this family has no HSI16 and
- *  so cannot reach its ceiling from the internal RC). The other families reach
- *  their clock without a user-visible external oscillator, so the define is
- *  left undefined there and their code must not reference it. */
-#if (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)) && !defined(OW_HSE_MHZ)
-#define OW_HSE_MHZ 8
-#endif
-/** @brief Highest system clock this F4 part can be clocked at, in MHz.
- *
- *  One fact per part, so that "can this build run that fast" is answered in the
- *  same place as "how fast does it run by default". app.c rejects a build that
- *  asks for more than this, which is what keeps a 180 MHz request from silently
- *  compiling for an F407 (whose cap is 168 MHz without over-drive, and whose
- *  flash latency and APB limits differ above it).
- *
- *  Defined for F4 only: the other families have a single clock ceiling each and
- *  no per-part case, so there is nothing to express. */
-#if defined(OW_PORT_FAMILY_F4) && defined(STM32F446xx)
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
-#else
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap; the F401 parts are lower still, see below */
-#endif
-/** @brief System clock frequency in MHz after application clock setup.
- *  Single source of truth for the clock-dependent settings: the timer
- *  prescaler (1µs ticks) and the input-capture filter selection below
- *  derive from it; the bit-slot durations (ONEWIRE_ONE_PULSE and friends)
- *  are fixed constants validated on every supported clock. Family defaults
- *  are provided per OW_PORT_FAMILY_* above; override via
- *  -DOWN_PORT_SYSCLK_MHZ=N (see app.c for the clock sources available
- *  per family). */
-#if !defined(OW_PORT_SYSCLK_MHZ)
+ *  The backend is included here (not duplicated in ow_port.h) so there is one
+ *  chain and one \#include branch to maintain, and so the per-family facts the
+ *  backend defines are visible wherever this header is: ow_pulse_t (used by the
+ *  prototypes below) and the clock defaults (used by app.c and the host tests).
+ *  Keep the branches in the same order as the chain above. */
 #if defined(OW_PORT_FAMILY_F1)
-#define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
+#include "ow_port_f1.h"
 #elif defined(OW_PORT_FAMILY_F0)
-#define OW_PORT_SYSCLK_MHZ 48 /* STM32F030: HSI/2 + PLL x12 */
+#include "ow_port_f0.h"
 #elif defined(OW_PORT_FAMILY_F3)
-#define OW_PORT_SYSCLK_MHZ 72 /* STM32F303: the part's 72MHz ceiling, HSE/PREDIV + PLL x9 */
+#include "ow_port_f3.h"
 #elif defined(OW_PORT_FAMILY_G0)
-#define OW_PORT_SYSCLK_MHZ 64 /* STM32G031: HSI16 + PLL */
+#include "ow_port_g0.h"
 #elif defined(OW_PORT_FAMILY_F4)
-#if defined(STM32F401xC) || defined(STM32F401xE)
-#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: the part's 84MHz cap, see OW_HSE_MHZ */
-#elif defined(STM32F446xx)
-#define OW_PORT_SYSCLK_MHZ 180 /* STM32F446: HSE + PLL + over-drive, see OW_HSE_MHZ */
+#include "ow_port_f4.h"
 #else
-#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407: HSE + PLL, see OW_HSE_MHZ */
-#endif
-#endif
-#endif
-/** IRQ number used by the low-power WFE path (OW_PORT_LOW_POWER=1). */
-#if OW_PORT_LOW_POWER
-#if defined(OW_PORT_FAMILY_F0) || defined(OW_PORT_FAMILY_G0)
-#define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
-#elif defined(OW_PORT_FAMILY_F3)
-#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
-#elif defined(OW_PORT_FAMILY_F4)
-#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
-#elif defined(OW_PORT_FAMILY_F1)
-#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
-#else
-#error "OW_PORT_LOW_POWER: no TIM1 update IRQ mapping for this family"
-#endif
+#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)"
 #endif
 
 /** @} */
@@ -179,19 +131,6 @@ void onewire_init(void);
  * @return 1 if finished (update flag cleared), 0 while still running
  */
 uint8_t onewire_bus_done(void);
-
-/**
- * @brief One bit-slot write-pulse duration in the native width of the active port
- * @note Family sized on purpose: the STM32F4 backend feeds CCR3 in DMA
- *       direct mode, so a feed entry is a 16-bit halfword there (zero-copy,
- *       CNDTR == slots), while every other supported port latches 8-bit
- *       entries. Measured (capture-side) durations are always uint16_t.
- */
-#if defined(OW_PORT_FAMILY_F4)
-typedef uint16_t ow_pulse_t;
-#else
-typedef uint8_t ow_pulse_t;
-#endif
 
 /**
  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)

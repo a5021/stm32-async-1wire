@@ -35,7 +35,91 @@
 #include "ow_bits.h"
 #include "stm32f4xx.h"
 
-#include <assert.h>
+/* ------------------------------------------------------------------
+ *  Per-family facts owned by this port.  onewire.h delegates them here so the
+ *  core headers carry no family knowledge; the token chain in onewire.h is the
+ *  only other place a family appears.
+ *  - ow_pulse_t: 16-bit feed entry.  The F4 backend feeds CCR3 in DMA direct
+ *    mode, where the memory-transfer width is forced to PSIZE, so a feed entry
+ *    is a 16-bit halfword here (zero-copy, CNDTR == slots); every other
+ *    backend latches 8-bit entries.  Capture-side durations are always uint16_t.
+ *  - OW_PORT_SYSCLK_MHZ: this family's default system clock, one fact per
+ *    concrete part; the timer prescaler and the IC4F ladder derive from it.
+ *    -DOW_PORT_SYSCLK_MHZ=N overrides it; validate any change against every
+ *    supported clock (app.c).
+ *  - OW_PORT_F4_MAX_SYSCLK_MHZ: the highest clock this part can take.  app.c
+ *    rejects a build that asks for more, so a 180MHz request cannot silently
+ *    compile for an F407 (whose cap is 168MHz without over-drive, and whose
+ *    flash latency and APB limits differ above it).
+ *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL's M
+ *    divider.  Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal
+ *    belongs to the *board*, the system clock to the *application*.  A wrong
+ *    value is not a compile error - the PLL simply never locks.
+ *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
+typedef uint16_t ow_pulse_t;
+
+#if !defined(OW_PORT_SYSCLK_MHZ)
+#if defined(STM32F401xC) || defined(STM32F401xE)
+#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: the part's 84MHz cap, see OW_HSE_MHZ */
+#elif defined(STM32F446xx)
+#define OW_PORT_SYSCLK_MHZ 180 /* STM32F446: HSE + PLL + over-drive, see OW_HSE_MHZ */
+#else
+#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407: HSE + PLL, see OW_HSE_MHZ */
+#endif
+#endif
+
+#if !defined(OW_PORT_F4_MAX_SYSCLK_MHZ)
+#if defined(STM32F446xx)
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
+#else
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap; the F401 parts are lower still, see below */
+#endif
+#endif
+
+#if !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 8
+#endif
+
+#if OW_PORT_LOW_POWER
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
+#endif
+
+/* --- CH4 input-capture digital filter (IC4F) selection (see the identical
+ *     copy with the full ladder discussion in port/common/ow_port_tim_dma.h).
+ *     Defined here, not in ow_port.h, so it is in scope before any body that
+ *     feeds TIM_CCMR2(..., OW_PORT_IC4F_ARGS) is reached in every include
+ *     order (ow_port.h, onewire.h or this header first). */
+#ifndef OW_PORT_IC4F_ARGS
+#if (OW_PORT_SYSCLK_MHZ) <= 8
+#define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 16
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* 0b0011 = fCK_INT/4, N=1 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 72
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* 0b0111 = fCK_INT/4, N=2 */
+#elif (OW_PORT_SYSCLK_MHZ) <= 168
+#define OW_PORT_IC4F_ARGS IC4F_3 /* 0b1000 = fCK_INT/32, N=3 */
+#else
+#define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
+#endif
+#endif
+
+/* OC3 output-compare preload (OC3PE) knob, see ow_port.h for the rationale.
+ * Or-ed into the CCMR2 mask on the write/capture paths that rely on it
+ * (capture, read_pair, single-slot write); the DMA-fed paths leave it off.
+ * The default (1 = preload on) is identical to the historical hard-coded
+ * behaviour; override with -DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1 to sweep it on
+ * a bench. OW_PORT_OC3PE_ARGS is the single bit value contributed to the
+ * mask. */
+#ifndef OW_PORT_OC3PE
+#define OW_PORT_OC3PE 1
+#endif
+#if OW_PORT_OC3PE
+#define OW_PORT_OC3PE_ARGS TIM_CCMR2_OC3PE
+#else
+#define OW_PORT_OC3PE_ARGS 0
+#endif
+
+#include "ow_port.h"
 
 /* ------------------------------------------------------------------
  *  1-Wire bus pin selection (TIM1_CH3 output + IC4 capture via TI3).
@@ -67,7 +151,7 @@
 #endif
 
 /* @brief Timer prescaler for 1µs resolution (PSC = SYSCLK / 1MHz - 1),
- *       derived from the shared OW_PORT_SYSCLK_MHZ knob in onewire.h.
+ *       derived from the OW_PORT_SYSCLK_MHZ default owned by this port header.
  *
  *  INVARIANT: the TIM1 kernel clock must equal SYSCLK — only then does
  *  PSC = SYSCLK_MHZ - 1 produce a 1µs tick.  STM32 rule: when the APB
@@ -209,7 +293,8 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
     if (T1.SR & TIM_SR(UIF)) {
         /* No software bus release needed: every operation returns the line to
          * idle HIGH in hardware. DMA-fed writes (ow_port_feed,
-         * ow_port_write_then_read) append a trailing 0 to the CCR3 feed, and
+         * ow_port_write_then_read) append a trailing ONEWIRE_RELEASE_PULSE to the
+         * CCR3 feed, and
          * the direct-write/capture operations (reset, read, single slot) use
          * an OC3PE preload of 0 — both applied exactly when the one-pulse
          * timer stops. */
@@ -293,7 +378,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
 #endif
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
+    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
@@ -304,7 +389,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
     T1.DIER = TIM_DIER(CC4DE);
 #endif
     ow_port_update_event();
-    T1.CCR3 = 0;
+    T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* OC3PE preload zero: line released HIGH when the timer stops */
     ow_port_dma_rearm(DMA2_Stream4);
     OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4;
     OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)dst;
@@ -320,11 +405,11 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  * @brief Transmit a command sequence of arbitrary length using DMA
  * @param[in] cmd Pointer to command sequence in pulse duration format
  * @param[in] slots Number of bit slots (bits) to transmit, 1..ONEWIRE_MAX_SLOTS (256).
- * @return 1 if the write was scheduled, 0 if `slots` is out of range. In debug
- *         builds the reject path also traps with an assert.
+ * @return 1 if the write was scheduled, 0 if `slots` is out of range.
  * @note The buffer must hold `slots + 1` entries and the entry at index
- *       `slots` must be 0: the final CC2-triggered DMA transfer feeds that
- *       trailing 0 into CCR3 during the last slot, so the one-pulse timer
+ *       `slots` must be ONEWIRE_RELEASE_PULSE (0): the final CC2-triggered DMA
+ *       transfer feeds that trailing ONEWIRE_RELEASE_PULSE into CCR3 during the
+ *       last slot, so the one-pulse timer
  *       stops with the line already released to idle HIGH (hardware bus
  *       release — no software CCR3 write needed afterwards).
  * @note Non-blocking: a single timer pass (RCR = slots - 1) reloads CCR3 from
@@ -334,7 +419,6 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
  */
 __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "ow_port_feed: slots out of range");
         return 0;
     }
     T1.RCR = slots - 1;
@@ -353,7 +437,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
     ow_port_dma_rearm(DMA2_Stream2);
     OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3;
     OW_PORT_DMA_FEED.M0AR = (uint32_t)&cmd[1];
-    OW_PORT_DMA_FEED.NDTR = slots; /* Feed slots 2..N, then the trailing 0 (bus release) */
+    OW_PORT_DMA_FEED.NDTR = slots; /* Feed slots 2..N, then the trailing ONEWIRE_RELEASE_PULSE (bus release) */
     OW_PORT_DMA_FEED.CR = OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN);
     /* Re-connect the slot-end reload, then re-arm the first slot last so a
      * stale CC2 request can never clobber it before the timer has started. */
@@ -410,15 +494,14 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
 /**
  * @brief Schedule a write of `slots` bit slots
  * @param[in] pulses Pulse buffer (one entry per slot); for `slots > 1` the
- *                   entry at index `slots` must be 0 (hardware bus release)
+ *                   entry at index `slots` must be ONEWIRE_RELEASE_PULSE (0,
+ *                   hardware bus release)
  * @param[in] slots Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS (256).
- * @return 1 if the write was scheduled, 0 if `slots` is out of range. In debug
- *         builds the reject path also traps with an assert.
+ * @return 1 if the write was scheduled, 0 if `slots` is out of range.
  */
 __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "ow_port_write_slots: slots out of range");
-        return 0;
+        return 0; /* reject: slots out of range */
     }
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */
@@ -430,7 +513,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
         T1.CCR3 = pulses[0]; /* Pulse duration encodes the bit */
         /* OC3PE plus a preload zero release the bus at the terminal update
          * event, exactly when the one-pulse timer stops (hardware bus release). */
-        T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE);
+        T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2) | OW_PORT_OC3PE_ARGS;
         T1.CCER = TIM_CCER(CC3E);
 #if OW_PORT_LOW_POWER
         T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
@@ -438,7 +521,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
         T1.DIER = 0; /* No DMA for a single bit slot */
 #endif
         ow_port_update_event();
-        T1.CCR3 = 0; /* Preload 0 -> line idles HIGH when the timer stops */
+        T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Preload 0 -> line idles HIGH when the timer stops */
         T1.CR1 = TIM_CR1(OPM, CEN);
         return 1u;
     }
@@ -453,7 +536,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.RCR = 1; /* Two read slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, OC3PE, CC4S_1, OW_PORT_IC4F_ARGS);
+    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
@@ -461,7 +544,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.DIER = TIM_DIER(CC4DE);
 #endif
     ow_port_update_event();
-    T1.CCR3 = 0; /* Clear the output-compare value (CCR4 capture is independent) */
+    T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* OC3PE preload zero: release at the stop (CCR4 capture is independent) */
     ow_port_dma_rearm(DMA2_Stream4);
     OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4;
     OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)pair_pulses;
@@ -476,11 +559,12 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
  * @param[in] pulse3 Buffer for the three captured slots (write-slot capture,
  *                   id pulse, cmp pulse)
- * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing 0)
+ * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing ONEWIRE_RELEASE_PULSE)
  * @note Single timer pass (RCR=2, three slots) with two DMA2 streams armed
  *       together. The CC2 slot-end marker (Stream2; CCR2 = ONE+ZERO, frozen
  *       output) reloads CCR3 from read_pulse —
- *       ONEWIRE_ONE_PULSE for slots 2-3, then 0 during slot 3 so the one-pulse
+ *       ONEWIRE_ONE_PULSE for slots 2-3, then ONEWIRE_RELEASE_PULSE during slot
+ *       3 so the one-pulse
  *       timer stops with the line released to idle HIGH — while CC4 (Stream4)
  *       captures the write-slot pulse plus the id/cmp pair into pulse3[0..2].
  *       OC3PE is off so the reload is immediate. DMA requests stay disconnected
@@ -520,7 +604,8 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_CAPTURE.CR = OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL |
                              DMA_SxCR(MSIZE_0, EN);
     /* Feed stream: halfword-width reloads of CCR3 — read pulse for slots 2-3,
-     * then the trailing 0 during slot 3 so the OPM stop hands the line back
+     * then the trailing ONEWIRE_RELEASE_PULSE during slot 3 so the OPM stop
+     * hands the line back
      * idle HIGH (hardware bus release); fed zero-copy from read_pulse. */
     OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3;
     OW_PORT_DMA_FEED.M0AR = (uint32_t)read_pulse;
@@ -545,13 +630,11 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
  * @brief Schedule a read of `bytes` bytes from the bus
  * @param[out] dst Buffer for the captured pulse durations (bytes x 8 x 8-bit)
  * @param[in] bytes Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES (32).
- * @return 1 if the read was scheduled, 0 if `bytes` is out of range. In debug
- *         builds the reject path also traps with an assert.
+ * @return 1 if the read was scheduled, 0 if `bytes` is out of range.
  */
 __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {
     if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
-        assert(0 && "ow_port_read_data: bytes out of range");
-        return 0;
+        return 0; /* reject: bytes out of range */
     }
     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
     T1.RCR = bits - 1;

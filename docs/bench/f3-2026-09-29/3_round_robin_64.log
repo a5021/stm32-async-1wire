@@ -1,0 +1,40 @@
+# COM5 115200 t0=22:17:53
+[   3.20] DS18B20 3_round_robin starting...
+[   3.21] Searching 1-Wire bus...
+[   3.24]   ROM: 28 20 78 92 07 00 00 67
+[   3.27]   ROM: 28 78 B8 AC 0B 00 00 2C
+[   3.31]   ROM: 28 64 69 AB 0B 00 00 1F
+[   3.34]   ROM: 28 FC AE AA 0B 00 00 F3
+[   3.38]   ROM: 28 C6 BB 4E 04 00 00 67
+[   3.41]   ROM: 28 7E 63 AD 0B 00 00 3F
+[   3.45]   ROM: 28 F1 39 AD 0B 00 00 D9
+[   3.45] Found 7 device(s).
+[   3.45] Measuring devices in turn.
+[   4.24] 28 20 78 92 07 00 00 67: 23.1 C
+[   4.24]   next resolution: 10 bit
+[   4.25]   resolution applied: 10 bit
+[   9.48] 28 78 B8 AC 0B 00 00 2C: 23.5 C
+[   9.48]   next resolution: 11 bit
+[   9.50]   resolution applied: 11 bit
+[  14.91] 28 64 69 AB 0B 00 00 1F: 23.4 C
+[  14.91]   next resolution: 12 bit
+[  14.92]   resolution applied: 12 bit
+[  20.71] 28 FC AE AA 0B 00 00 F3: 23.4 C
+[  20.71]   next resolution: 9 bit
+[  20.73]   resolution applied: 9 bit
+[  25.86] 28 C6 BB 4E 04 00 00 67: 23.5 C
+[  25.86]   next resolution: 10 bit
+[  25.88]   resolution applied: 10 bit
+[  31.10] 28 7E 63 AD 0B 00 00 3F: 23.5 C
+[  31.10]   next resolution: 11 bit
+[  31.12]   resolution applied: 11 bit
+[  36.53] 28 F1 39 AD 0B 00 00 D9: 23.4 C
+[  36.53] -------------------------------
+[  36.53]   next resolution: 12 bit
+[  36.55]   resolution applied: 12 bit
+[  42.33] 28 20 78 92 07 00 00 67: 23.1 C
+[  42.33]   next resolution: 9 bit
+[  42.35]   resolution applied: 9 bit
+[  47.48] 28 78 B8 AC 0B 00 00 2C: 23.5 C
+[  47.48]   next resolution: 10 bit
+[  47.50]   resolution applied: 10 bit

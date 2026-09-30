@@ -72,6 +72,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `1_basic` (Skip ROM) reports CRC failures with 7 devices on the bus, as
     designed for a single sensor.
 
+    The full seven-example matrix was re-run to close the validation: all 21
+    cells (7 examples × 8/64/72MHz) PASS on 2026-09-29, including the parasite
+    power build of `7_low_power` with the opt-in `-DOW_PORT_LOW_POWER=1` WFE
+    sleep path, and `6_statistics` after a clean `reset run` (the first capture
+    for the cell latched one sensor at the 85.0°C power-on value in the seconds
+    before `reset run` started the fresh build — the same mechanism as
+    `4_scan_mode` below). Console logs for every cell are in
+    `docs/bench/f3-2026-09-29/`. The bench harness flashes each build and starts
+    it with OpenOCD `reset run`; the ST-LINK flasher's own reset (`ST-LINK_CLI`
+    `-HardRst -Run`) does not restart the application on this board and leaves
+    the core parked in a stale handler, so it is not used for console runs.
+
+    The physical waveform was captured again on the FX2-based logic analyzer
+    (sigrok `fx2lafw`, 16 MS/s, D0 = PA10): reset pulse 481.0–481.3 µs
+    (nominal 480 µs), presence window ≈31 µs, write-1 slots 4.9–5.6 µs
+    (nominal 5 µs) and write-0/read slots 60.0 µs (nominal 60 µs). So the
+    compiled µs tick (`PSC = SYSCLK_MHZ - 1`, 72 MHz) and the slot geometry
+    reproduce exactly on the wire. Captures and the measuring script are in
+    `docs/bench/f3-2026-09-29/la/`.
+
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
   builds the library as a subproject, the way the README's
@@ -96,6 +116,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`EXT` (the `-D...` user flags) is now folded into the object-name stamp.**
+  The stamp tracked the target, chip and clock knobs but not `EXT`, so
+  rebuilding one target with a different `-D` flag silently reused the previous
+  build's objects — it compiled clean, linked, and was wrong on hardware only,
+  the exact failure the stamp comment warns about. Measured while sweeping the
+  OC3PE knob on the F446RET6 bench: a "OC3PE=1" rebuild after an OC3PE=0 flash
+  still shipped the OC3PE=0 machine code. The Makefile now appends a sanitised
+  `EXT` to `OBJ_STAMP` so each flag set gets its own objects.
+
 - **Parasite strong pull-up now drives HIGH (was LOW).** `ow_port_strong_pullup(1)`
   switched OTYPER to push-pull but left CCR3 holding the last slot's pulse
   value; with the counter stopped at CNT=0, PWM mode 2 evaluates CNT < CCR3 as
@@ -107,16 +136,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had the same shape. Bench: parasite conversions now complete with valid
   CRCs and room temperatures.
 
-- **DMA completion wait before reprogramming (was UIF-only race).**
-  `ow_port_bus_done()` reported done on the timer update flag while the DMA
-  was still moving the trailing sample; on a fast core the next operation
-  reprogrammed DMA within ~1us and aborted it, losing bytes. Symptom:
-  back-to-back multi-device sequences read stale scratchpads (127.9°C) at
-  72MHz while spaced single-device reads worked, and 8/64MHz (slower cores)
-  never tripped it. The fix waits — bounded, in `ow_port_update_event()`
-  before any DMA reprogram — until each channel is disabled or drained.
-  Mock flows (UIF without arming DMA) fall through immediately, so host
-  suites are unaffected. Applies to the shared core and to F4.
+- **No DMA wait-loop: the never-needed bounded drain wait was removed after
+  the stale-UIF race was diagnosed.** A first attempt at the 72MHz
+  back-to-back multi-device failures (stale scratchpads reading 127.9°C
+  while spaced single-device reads worked — `ow_port_bus_done()` reported
+  done on the timer update flag while the DMA was still moving the trailing
+  sample, and the next operation reprogrammed DMA within ~1us, aborting it)
+  was a bounded DMA completion wait: spin, in `ow_port_update_event()`
+  before any DMA reprogram, until each channel's EN clears or its (C)NDTR
+  drains (~1000 iterations; mock flows with UIF and no armed DMA fall
+  through immediately). The real root cause turned out to be a stale-UIF
+  race — re-arming the timer with `EGR=UG` raises UIF a few timer cycles
+  later on a fast core, so `SR=0` right after `EGR=UG` can lose the clear,
+  and the next `ow_port_bus_done()` reports the operation complete before it
+  started — and the true fix is flushing the posted APB write into the timer
+  domain before `SR=0`: a dummy `T1.SR` readback on F4, `__DSB()` on the
+  shared core. The wait-loop therefore serves no purpose and is gone from
+  both the shared core and F4 ("UIF-only `ow_port_bus_done()` is correct");
+  the full seven-example matrix (7 × 8/64/72MHz, all PASS) above validates
+  its removal on real hardware. F4 additionally keeps its
+  `ow_port_dma_rearm()` non-blocking on purpose: a stream's EN clears only
+  at the end of a normal-mode transfer, so an EN=0 wait would block — `CR=0`
+  just requests the disable (no-op once `ow_port_bus_done()` has gated us)
+  and never waits.
 
 - **A 180MHz clock for the F446, with the over-drive sequence it requires.**
   This is a separate `app.c` branch, not a divisor away from the 168MHz one: the
@@ -218,6 +260,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no job on any family, which is now at least compile-checked for the F446.
 
 ### Changed
+
+- **The OC3 output-compare preload bit (`OC3PE`) is now a sweepable knob.**
+  The write/capture paths that rely on it — `ow_port_capture`, `ow_port_read_pair`
+  and the single-slot branch of `ow_port_write_slots` — OR `OW_PORT_OC3PE_ARGS`
+  into their `TIM_CCMR2` mask. The bit defaults on, so the machine code is
+  unchanged and the hardware bus release at the terminal update event still
+  works exactly as before; the DMA-fed paths (`ow_port_feed`, merged
+  `ow_port_write_then_read`) keep OC3PE off. A bench can now flip it with
+  `-DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1` to measure how much the preload matters.
+  Defined in `ow_port_tim_dma.h` (F0/F1/F3/G0) and `ow_port_f4.h` (F4), which
+  `ow_port.h` documents.
+
+- **F446RET6 bench: the OC3PE sweep is done** (`docs/bench/f4-2026-09-30/`).
+  With the preload on (the default, CCMR2 mask `0xB278`) `2_device_search`
+  reads all seven parasite-powered DS18B20 at ~21.0-21.3 C with valid CRC.
+  With `-DOW_PORT_OC3PE=0` (mask `0xB270`) the bus-releasing preload is gone:
+  the measurement state machine parks in `CONVERT`, the timer stops with
+  `SR=0x0F` (UIF left unconsumed), and the console stays silent — OC3PE is
+  load-bearing on F4 and stays on by default. The "CRC check failed" line that
+  `1_basic` shows on this bench is Skip-ROM broadcast contention across the
+  seven sensors, not a driver defect. Every sweep image was disassembled to
+  confirm the `TIM_CCMR2` immediate, not just compiled.
 
 - **`port/common/ow_port_tim_dma.h` no longer claims its two DMA channels are
   `D13`/`D14` on every family that uses it.** That was true of F0, F1 and G0 and
