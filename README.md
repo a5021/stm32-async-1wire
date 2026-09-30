@@ -6,10 +6,11 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Four backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Five backends ship today:
 
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `port/stm32f3/ow_port_f3.h` — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F1/F0 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
 - `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clock Configuration above).
 
@@ -95,11 +96,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Microcontroller: any STM32 with a single advanced-control timer instance
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
-  STM32G031x6, STM32F407VGT6, STM32F401CC, STM32F446RE; see port backends in
-  `port/`).
+  STM32F303VC, STM32G031x6, STM32F407VGT6, STM32F401CC, STM32F401xE,
+  STM32F446RE; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
   The 180MHz mode is the one clock on F4 that is above 168MHz, and it is a
   different code path rather than a different number: it needs the PWR over-drive
@@ -122,7 +123,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
 │   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
-│   ├── common/            # TIM1+DMA1 core shared by the F0/F1/G0 backends
+│   ├── common/            # TIM1+DMA1 core shared by the F0/F1/F3/G0 backends
 │   │   └── ow_port_tim_dma.h  # 16 ow_port_* functions: slot timing, capture, feed
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   ├── ow_port_f1.h    # F1 descriptor: clock gates + legacy-CRH pin setup
@@ -134,6 +135,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 │   │   ├── stm32f030f4.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
+│   ├── stm32f3/            # STM32F3: TIM1 + DMA1 + PA10 (header-only static inline)
+│   │   ├── ow_port_f3.h    # F3 descriptor: clock gates + MODER/AFR pin setup
+│   │   ├── STM32F303XC_FLASH.ld  # Linker script, STM32F303xC (256KB flash / 32KB RAM)
+│   │   ├── stm32f303vc.jflash    # J-Flash project file (STM32F303VC)
+│   │   └── project-f303vc.jdebug # SEGGER Ozone project (STM32F303VC, SWD)
 │   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
 │   │   ├── ow_port_g0.h    # G0 descriptor: + SYSCFG pad remap and DMAMUX routing
 │   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
@@ -161,6 +167,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── f030x6.mk           #   projects, SVD and default clock. Shared by
 │   ├── g031xx.mk           #   the Makefile and the CMake build
 │   ├── f407xx.mk           #   (OW_CHIP=<name> / -DOW_CHIP=<name>)
+│   ├── f303xc.mk           # 256KB flash / 32KB RAM (F3-DISCOVERY, 72MHz default)
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
 │   ├── f401xe.mk           # 512KB flash / 128KB RAM
 │   └── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
@@ -199,14 +206,15 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
 ├── docs/                   # Documentation assets
 │   ├── api/                # Doxygen-generated API reference
-│   └── screenshots/        # UART capture screenshots
+│   ├── screenshots/        # UART capture screenshots
+│   └── bench/              # Lab logs: raw captures + validation matrices (F3, F4)
 ├── .github/                # GitHub configuration
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
 │   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 device headers and startup (F1/F0/G0/F4) + SVD
+│   └── device/             # STM32 device headers and startup (F1/F0/F3/G0/F4) + SVD
 ├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
@@ -332,8 +340,7 @@ Notes:
 ## Hardware Verified
 
 Captures and measurements below are from real boards unless a subsection says
-otherwise. The STM32F401 and STM32F446 entries are the exception: those backends
-share the F407 driver code and have not been run on those boards yet.
+otherwise.
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -386,6 +393,22 @@ again carried 8 × DS18B20; all rounds complete with valid CRCs and no errors:
 | `4_scan_mode` — same | HSI 8MHz | all 8 devices found, 56 readings, 0 errors |
 | `5_commands` — command transactions validator | both clocks | all checks pass (power supply, TH/TL write, Copy/Recall EEPROM round-trip, expected multi-device Read ROM CRC failure) |
 
+### STM32F303VC (F3-DISCOVERY / MB1035B)
+
+Validated on an **STM32F3-DISCOVERY** (MB1035B, STM32F303VC, 256KB flash /
+32KB SRAM): 7 × DS18B20 in parasite power mode on one 1-Wire bus on **PA10**
+(TIM1 CH3/CH4 pair, DMA1 channels 3/4 — the same fixed pair as F1/F0, see the
+Supported-families table), console on USART1 TX / **PA9** (default mapping) at
+115200 8N1, flashed via ST-Link SWD. The 21-run matrix in
+`docs/bench/f3-2026-09-29/` (7 examples × 3 clocks: 72MHz HSE-bypass+PLL,
+64MHz HSI/2+PLL, 8MHz raw HSI) is **21/21 PASS** with zero CRC or timeout
+errors: all seven bench ROMs enumerated in the search-based examples and every
+reading valid (~23.2–23.4 °C). `1_basic` shows the expected Skip-ROM broadcast
+"CRC check failed" on all three clocks (single-sensor app on a 7-device bus,
+same accepted behaviour as the other families). Logic-analyzer captures of the
+slot waveforms are in `docs/bench/f3-2026-09-29/la/` (`f3_cap1.srzip`,
+`f3_cap4.srzip`, with the `ow_la_analyze.py` decoder).
+
 ### STM32G031F6P6 (WeAct TSSOP20 board)
 
 Validated on a WeAct STM32G031F6P6 minimum board: 6 × DS18B20 in parasite
@@ -407,8 +430,10 @@ pair, DMA2 streams 2/4 — the feed stream runs 16-bit), with the console on
 USART1 TX / **PB6** at 115200 8N1 (AF7; the F4DISCOVERY carries no signal on
 the default PA9 USART1 pad, so the console rides the remapped PB6) through a
 USB-TTL adapter; flashed via the on-board ST-Link SWD. **PB6 is an
-F4DISCOVERY-specific choice, not an F4 family default** — a WeAct F4 module's
-ST-LINK VCP is on PA9, so on those boards build with
+F4DISCOVERY-specific choice, not an F4 family default** — a WeAct F446RET6
+answers with its CP210x VCP on **PB6** too (measured, not the PA9 the silkscreen
+implies), so the default build works on both boards with no flag. For an F4
+board whose console really is on PA9, build with
 `-DOW_UART_USART1_PA9` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`)
 or attach the USB-TTL adapter to PB6. All seven examples
 ran with valid CRCs and zero errors (including the statistics and low-power
@@ -466,6 +491,24 @@ hardware — no F401xE part was available. Note that the CMSIS `STM32F401xE`
 macro was already honoured by `onewire.h` before it had a linker script to go
 with it, so a hand-rolled `-DSTM32F401xE` used to link against the xC script's
 256K/64K; `make test-chips` now checks that every part's script exists.
+
+### STM32F446RE (WeAct F446RET6)
+
+Validated on a **WeAct STM32F446RET6** (ST-LINK V2J45S7, STM32F446 Rev A,
+512KB flash): 7 × DS18B20 in parasite power mode on one 1-Wire bus on **PA10**
+(TIM1 CH3/CH4 pair, same DMA2 streams 2/4 topology as the F407), console on
+USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
+default build needs no UART flag), flashed via OpenOCD over the on-board
+ST-Link. The 35-run frequency matrix in `docs/bench/f4-2026-09-30/` (7 examples
+× 5 clocks: 180MHz HSE+PLL+over-drive default, 168MHz, 84MHz, 16MHz raw HSI,
+8MHz raw HSE) is **35/35 PASS**: every image validated on flash, all seven
+bench ROMs enumerated in the search-based examples, valid CRC8 temperatures
+(~21.1–21.3 °C at 180MHz), no lockups, and the expected single-sensor
+Skip-ROM "CRC check failed" on `1_basic` at every clock. The same bench swept
+the OC3PE knob (see Configuration → Timing): the default `-DOW_PORT_OC3PE=1`
+is load-bearing (measurement stalls and the console goes silent with `=0`),
+and it doubles as the hardware validation of the `-DOW_F4_LED_PB2` busy-LED
+build (PB2, active high; PC13 on this board is the user button, not an LED).
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -617,6 +660,23 @@ single device, 2.2 kΩ for a parasite-powered multi-drop fleet (fed from a
 dedicated supply; see the `4_scan_mode` note). The board's 8 MHz HSE drives
 the default 168 MHz PLL clock.
 
+### STM32F446RE (WeAct F446RET6)
+
+The F446 backend is hardware-validated over its full clock range (see the
+F446 entry in Hardware Verified). Bench wiring on this board:
+
+| Pin  | Function            | Notes                              |
+|------|---------------------|------------------------------------|
+| PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1 (same topology as the F407) |
+| PB6  | USART1 TX (115200)  | AF7; the on-board CP210x VCP answers here on the default build |
+| PB2  | Busy LED (optional) | Active high; silkscreen "B2". Select with `-DOW_F4_LED_PB2` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_F4_LED_PB2`) |
+| PA13/PA14 | SWDIO/SWCLK    | On-board ST-Link SWD programming            |
+
+Important: the board's user button is on **PC13** (pull-up to VCC, not an LED),
+and the bus pull-up for a parasite-powered fleet is 2.2 kΩ fed from a dedicated
+supply, as on the F407. The F446 bench uses the same 8 MHz crystal and reaches
+180MHz only through the PWR over-drive sequence (see Clock Configuration above).
+
 ## Quick Start
 
 ### 1. Include the Driver
@@ -635,7 +695,8 @@ the default 168 MHz PLL clock.
 Before `ds18b20_init()`, the driver must know the system-clock frequency: the
 TIM1 prescaler that generates the 1-Wire timing derives from
 `OW_PORT_SYSCLK_MHZ`. Each backend has a built-in default (72 on STM32F1,
-48 on STM32F0, 64 on STM32G0), and the examples enable that clock in their
+48 on STM32F0, 72 on STM32F3, 64 on STM32G0, 168 on STM32F4), and the
+examples enable that clock in their
 `app_init()`. If your firmware runs the MCU at a different frequency, provide
 it explicitly — e.g. `-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build.
 
@@ -708,14 +769,18 @@ See `examples/1_basic/main.c` for a complete single-sensor setup and
 
 Both callbacks are optional. Default weak implementations are provided by the
 driver, and `examples/app/app.c` supplies per-MCU defaults: `ds18b20_busy()`
-drives the onboard LED (F1: PC13, F0/G0: PA4) and `ds18b20_complete()` formats
+drives the onboard LED (F1: PC13; F0/G0: PA4; F3: PE8; F4: PD12, or PB2 with
+`-DOW_F4_LED_PB2` on a WeAct F446RET6) and `ds18b20_complete()` formats
 and prints the result.
 
 > **The callback example below is STM32F1-specific** (Blue Pill onboard LED on
 > PC13, active-low). Pin and polarity differ per MCU — see
 > [Hardware Connections](#hardware-connections): F1 uses PC13 active-low;
-> F0/G0 use PA4 active-low. On F0/G0 the same logic targets `GPIOA` instead
-> of `GPIOC`.
+> F0/G0 use PA4 active-low; F3 uses PE8 **active-high** (LED4 blue on the
+> F3-DISCOVERY); F4 uses PD12 **active-high** (LD4 green on the F4DISCOVERY),
+> or PB2 active-high with `-DOW_F4_LED_PB2` (the WeAct F446RET6's B2 LED —
+> PC13 is that board's user button, not an LED). On F0/G0 the same logic
+> targets `GPIOA` instead of `GPIOC`.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
@@ -775,7 +840,7 @@ void ds18b20_complete(int16_t temp) {
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F1/F0/G0/F4) are not stored in the
+ARM CMSIS core headers and STM32 device files (F1/F0/F3/G0/F4) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -817,23 +882,27 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
+| `make test-f3` | Build and run host tests against the STM32F3 backend mock |
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-f4` | Build and run host tests against the STM32F4 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
+| `make test-active-f3` | Same as above against the STM32F3 backend mock |
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
 | `make test-active-f4` | Same as above against the STM32F4 backend mock |
 | `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER=1` (WFE path, F1) |
 | `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
+| `make test-lowpower-f3` | Same as above against the STM32F3 backend mock |
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
 | `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard` |
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
+| `make test-ndebug-f3` | Same as above against the STM32F3 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f1/f0/g0/f4`, where the last covers `f401xc`, `f401xe` and `f446xx`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f1/f0/f3/g0/f4`, where the last covers `f401xc`, `f401xe` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
@@ -862,6 +931,7 @@ hardware required:
 ```bash
 make test        # host tests against the STM32F1 backend mock
 make test-f0     # same suite against the STM32F0 backend mock
+make test-f3     # same suite against the STM32F3 backend mock
 make test-g0     # same suite against the STM32G0 backend mock
 make test-f4     # same suite against the STM32F4 backend mock
 ```
@@ -869,13 +939,16 @@ make test-f4     # same suite against the STM32F4 backend mock
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
-CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32g0xx.h` /
-`stm32f4xx.h`) — each suite runs the full driver against its own backend's
-    channel/DMA wiring. (The driver itself is an amalgamated translation unit
+CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32f3xx.h` /
+`stm32g0xx.h` / `stm32f4xx.h`) — each suite runs the full driver against its own
+backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
     driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-    object file.) 300 tests run per backend (302 on G0, which adds two
-    DMAMUX request-routing tests). The suite covers:
+    object file.) The base suite runs 304 tests against the F1/F0 mocks, 305
+    against the F3 and F4 backends (the F4 target also builds and runs its
+    180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe` as an
+    extra) and 306 against G0 (which adds two DMAMUX request-routing tests).
+    The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
 -   Non-blocking device search (Search ROM, ROM CRC validation, multi-device)
@@ -906,9 +979,10 @@ CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32g0xx.h` /
 -   `ow_stats` capture and error counters plus the non-blocking dump protocol
     (`test_ow_stats`)
 
-Separate opt-in builds extend the suite: `make test-active` (active-drive,
-8 tests), `make test-lowpower` (full suite + low-power WFE path, 312 tests)
-and `make test-ndebug` (313 tests, asserts off).
+Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
+tests, every family), `make test-lowpower` (full suite + low-power WFE path,
+316 tests against F1/F0, 317 against F3/F4, 318 against G0) and
+`make test-ndebug` (317 / 318 / 319, asserts off).
 
 ### PlatformIO
 
@@ -1096,7 +1170,7 @@ the install-tree file checks alone would not catch.
     (180MHz default clock with the over-drive sequence,
     `port/stm32f4/STM32F446RE_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default
-    target is STM32F103 (bus on PA10 for F1/F0/F4, logical PA10 via PA12 remap
+    target is STM32F103 (bus on PA10 for F1/F0/F3/F4, logical PA10 via PA12 remap
     for G0).
 
 -   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
@@ -1194,6 +1268,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 - `Build (release)` — `make` (default)
 - `Build (debug)` — `make debug`
 - `Build F0 (debug)` — `make OW_TARGET=f0 debug` (debug build for the STM32F030 target)
+- `Build F3 (debug)` — `make OW_TARGET=f3 debug` (debug build for the STM32F3 target)
 - `Build G0 (debug)` — `make OW_TARGET=g0 debug` (debug build for the STM32G031 target)
 - `Build F4 (debug)` — `make OW_TARGET=f4 debug` (debug build for the STM32F4 target)
 - `Clean` — `make clean`
@@ -1205,11 +1280,13 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 1. In the **Run and Debug** panel (`Ctrl+Shift+D`), select the debug
    configuration: **"Debug F1 (J-Link)"** / **"Debug F1 (ST-Link)"** for
    the STM32F103 target, **"Debug F0 (J-Link)"** / **"Debug F0 (ST-Link)"**
-   for the STM32F030 target, **"Debug G0 (J-Link)"** / **"Debug G0
-   (ST-Link)"** for the STM32G031 target, or **"Debug F4 (J-Link)"** /
+   for the STM32F030 target, **"Debug F3 (J-Link)"** / **"Debug F3
+   (ST-Link)"** for the STM32F303 target, **"Debug G0 (J-Link)"** / **"Debug
+   G0 (ST-Link)"** for the STM32G031 target, or **"Debug F4 (J-Link)"** /
    **"Debug F4 (ST-Link)"** for the STM32F4 target. The F0
-   configurations build with `OW_TARGET=f0` automatically, the G0 ones with
-   `OW_TARGET=g0`, the F4 ones with `OW_TARGET=f4`.
+   configurations build with `OW_TARGET=f0` automatically, the F3 ones with
+   `OW_TARGET=f3`, the G0 ones with `OW_TARGET=g0`, the F4 ones with
+   `OW_TARGET=f4`.
 2. Open `examples/1_basic/main.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
@@ -1217,11 +1294,13 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 The SVD file for the selected family is downloaded by `make download-deps`
 and loaded automatically for peripheral register views in the debug
 sidebar. Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
-from either backend directory; the project resolves its SVD and ELF paths
-relative to its own location. The F4 directory holds one project per part —
-`project.jdebug` for the F407VGT6 default, `project-f401cc.jdebug` for the
-F401CC and `project-f401re.jdebug` for the xE parts, since each part has its
-own device name and SVD.
+from any backend directory; the project resolves its SVD and ELF paths
+relative to its own location. The F3 directory holds
+`project-f303vc.jdebug` for the F303VC; the F4 directory holds one project per
+part — `project.jdebug` for the F407VGT6 default, `project-f401cc.jdebug` for
+the F401CC, `project-f401re.jdebug` for the xE parts and
+`project-f446re.jdebug` for the F446, since each part has its own device name
+and SVD.
 
 **J-Link:** Connect a SEGGER J-Link debugger via SWD.  
 **ST-Link:** Connect an ST-Link programmer (built into most Blue Pill
@@ -1403,7 +1482,7 @@ are identical across all families.
   |---|---|---|---|---|
   | STM32F1 | TIM1 | PA10 (default AFIO) | Fixed: CC2→DMA1 ch3 (feeds CCR3), CH4→DMA1 ch4 | APB2=/1 by default |
   | STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
-  | STM32F3 | TIM1 | PA10 (AF6) | Fixed, one channel lower: CC2→DMA1 **ch2**, CH4→DMA1 **ch3** | RM0316 Table 78; channel 3 also carries USART1_TX, harmless because no UART byte moves by DMA |
+  | STM32F3 | TIM1 | PA10 (AF6) | Fixed, same pair as F0/F1: CC2→DMA1 **ch3**, CH4→DMA1 **ch4** | RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA |
   | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
   | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
   
@@ -1413,7 +1492,7 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-  Three of the five backends (`ow_port_f0.h`, `ow_port_f1.h`, `ow_port_f3.h`,
+  Four of the five backends (`ow_port_f0.h`, `ow_port_f1.h`, `ow_port_f3.h`,
   `ow_port_g0.h`) share one TIM1/DMA1 core in `port/common/`; F4 keeps its own
   because DMA2 streams carry a per-stream `CHSEL` mux.
   
@@ -1936,7 +2015,7 @@ the pull-up must also source the conversion current:
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
   alone: a six-device broadcast cycle completed without a single CRC error.
 - Budget ~1.5mA per simultaneously converting sensor against the pin's drive
-  capability (~25mA source on F1/F0/G0/F4) and the VOH droop across your pull-up
+  capability (~25mA source on F1/F0/F3/G0/F4) and the VOH droop across your pull-up
   arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
 - For longer buses or larger fleets add an external P-MOSFET (or a dedicated
   strong pull-up IC) as the high-side switch and treat the MCU pin as its gate
@@ -2157,7 +2236,7 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 Two build knobs, and the split between them is the whole point:
 
-- `OW_TARGET` picks the **family** (`f1`, `f0`, `g0`, `f4`). This is where the
+- `OW_TARGET` picks the **family** (`f1`, `f0`, `f3`, `g0`, `f4`). This is where the
   driver code differs: the port header, the timer and DMA resources, the bus
   pin. One `port/<family>/ow_port_<family>.h` per family.
 - `OW_CHIP` picks the **part** within the family, by naming a file in
@@ -2250,6 +2329,18 @@ a 1µs read/write pulse is **below the values validated on hardware** (a 2µs
 pulse already broke slot decoding on an F030 at 8MHz — see also the note in
 `inc/ow_config.h`). Use it only for experiments or electrically ideal setups.
 
+**OC3 output-compare preload (`OC3PE`).** The write/capture paths that must
+leave the bus idle-HIGH at the terminal update (capture, read-pair, single-slot
+write) gate the `TIM_CCMR2` preload bit behind `-DOW_PORT_OC3PE=1` (default) /
+`-DOW_PORT_OC3PE=0`. The DMA-fed paths leave it off unconditionally, because
+their reload must act immediately — preload would break it. The F446 bench
+swept both values (see `docs/bench/f4-2026-09-30/`): the default is
+**load-bearing** on hardware — with `=0` the first slot sequence never
+completes, the state machine parks in `CONVERT` and the console stays silent —
+so leave it at its default unless you are deliberately probing the preload
+behaviour. The knob exists so a bench can sweep the bit without editing code;
+see `inc/ow_port.h` for the rationale.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -2301,7 +2392,8 @@ version:
 
 1. Fork and create a feature branch (`git checkout -b fix/my-change`).
 2. Make your changes and keep the host tests green: `make test`, plus
-   `make test-f0` / `make test-g0` for the other backends.
+   `make test-f0` / `make test-f3` / `make test-g0` / `make test-f4` for
+   the other backends.
 3. Format touched sources with the repo's `.clang-format`
    (`clang-format --dry-run --Werror <files>` must pass).
 4. Open a Pull Request — CI builds every target and runs the test suite.

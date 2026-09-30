@@ -68,7 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     PA9 console, FX2 logic analyzer on D0): at **8MHz** (raw HSI), **64MHz**
     (HSI/2 × PLLMUL16) and **72MHz** (HSE × PLLMUL9) all multi-sensor examples
     enumerate 7 devices with valid CRCs and report room temperatures
-    (22.6–22.8°C), reset pulse 480.9µs nominal on the analyzer.
+    (23.2–23.4°C in `2_device_search`; the whole matrix spans 23.0–23.5°C),
+    reset pulse 480.9µs nominal on the analyzer.
     `1_basic` (Skip ROM) reports CRC failures with 7 devices on the bus, as
     designed for a single sensor.
 
@@ -114,7 +115,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `port/stm32f4/HARDWARE-NOTES.md` for the full 7-example × 2-clock matrix and
   for how to tell a dead console from a wrong baud rate.
 
+- **VSCode workspace now covers the F3 target.** `tasks.json` gains a
+  `Build F3 (debug)` task (`make OW_TARGET=f3 debug`) and `launch.json` the
+  matching **Debug F3 (J-Link)** / **Debug F3 (ST-Link)** configurations
+  (device `STM32F303VC`, `CMSIS/device/STM32F303.svd`, `target/stm32f3x.cfg`,
+  `preLaunchTask Build F3 (debug)`), so the README's VSCode section and the
+  actual workspace both list F1/F0/F3/G0/F4.
+
 ### Fixed
+
+- **README documented the F3 DMA pair one channel too low.** The
+  Supported-families table said CC2→DMA1 **ch2** / CH4→DMA1 **ch3** — the
+  intermediate-draft reading of RM0316 Table 78 that the silicon disproved.
+  The backend itself was always correct (`ow_port_f3.h` uses **ch3/ch4**, the
+  F0/F1 pair, bench-verified on MB1035B, D13/D14); the prose has been
+  corrected to match, and the F3 bullet in the backends list and the F3
+  Hardware-Verified row now carry the measured pair.
 
 - **`EXT` (the `-D...` user flags) is now folded into the object-name stamp.**
   The stamp tracked the target, chip and clock knobs but not `EXT`, so
