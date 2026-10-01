@@ -12,7 +12,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f3/ow_port_f3.h` — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F1/F0 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clock Configuration above).
+- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clock Configuration below).
 
 ## Table of Contents
 
@@ -695,7 +695,8 @@ supply, as on the F407. The F446 bench uses the same 8 MHz crystal and reaches
 Before `ds18b20_init()`, the driver must know the system-clock frequency: the
 TIM1 prescaler that generates the 1-Wire timing derives from
 `OW_PORT_SYSCLK_MHZ`. Each backend has a built-in default (72 on STM32F1,
-48 on STM32F0, 72 on STM32F3, 64 on STM32G0, 168 on STM32F4), and the
+48 on STM32F0, 72 on STM32F3, 64 on STM32G0, and on F4 the part's own
+default: 168 on F407, 84 on F401, 180 on F446), and the
 examples enable that clock in their
 `app_init()`. If your firmware runs the MCU at a different frequency, provide
 it explicitly — e.g. `-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build.
@@ -1461,12 +1462,16 @@ are identical across all families.
 
 #### 4. Clocking invariant
 
-  The APB prescaler feeding the timer **must be /1**.  STM32 timers double
-  their clock when the APB prescaler is >1 (`timer clock = 2 × PCLK`), which
-  would break every µs-based timing constant in the driver.  All five
-  supported families satisfy this by construction: F1 and F4 keep PPRE2=/1
-  (TIM1 is on APB2), F0 and G0 have a single APB bus at /1, and F3 puts APB2 at
-  /1 while taking APB1 down to /2 for the 36 MHz limit.
+  The invariant is not "APB prescaler = /1" but **"the TIM1 kernel clock equals
+  SYSCLK"**, which is what makes `PSC = SYSCLK_MHZ - 1` a 1 µs tick.  STM32
+  timers double their clock when the APB prescaler feeding them is >1
+  (`timer clock = 2 × PCLK`), so each family reaches SYSCLK its own way.  All
+  five supported families satisfy the invariant by construction: F1 keeps
+  PPRE2=/1 (TIM1 is on APB2, so TIM1 = PCLK2 = SYSCLK); F0 and G0 never touch
+  the APB prescaler, so it stays at its reset /1; F3 puts APB2 at /1 while
+  taking APB1 down to /2 for the 36 MHz limit; F4 runs PPRE2=/2 at 168, 84
+  and 180 MHz and *relies* on the doubling (84→168, 42→84, 90→180), with
+  PPRE2=/1 only on the raw-HSI and raw-HSE paths.  See `examples/app/app.c`.
   
   #### 5. GPIO
   
@@ -1611,7 +1616,7 @@ Practical consequences for RTOS use:
 The driver is safe to call from an RTOS task, but it is **not re-entrant and
 not thread-safe by itself**. All driver state is global and shared: the DS18B20
 state machine, the 1-Wire search context (`search_ctx`, in `onewire.c`), and
-the TIM1/DMA1 peripherals. There is no internal lock. The ownership guards
+the TIM1/DMA peripherals (DMA1 on F0/F1/F3/G0, DMA2 on F4). There is no internal lock. The ownership guards
 (`txn_can_start`, the `ds18b20_search_*` checks) only prevent *logical*
 conflicts within a single-threaded model — they are plain flag checks, not
 atomic across tasks.
@@ -2025,7 +2030,7 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # or 2_device_search / 4_scan_mode / 5_commands / 6_statistics
+make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # all seven examples gate ds18b20_set_parasite(1) on it
 ```
 
 ### Signal Statistics Module (`ow_stats`)
@@ -2254,6 +2259,7 @@ Two build knobs, and the split between them is the whole point:
   | `CHIP_LINKER` | linker script — the memory map is the part's own |
   | `CHIP_JFLASH` / `CHIP_JDEBUG` | J-Flash and SEGGER Ozone projects |
   | `CHIP_SVD` | register view for debuggers |
+  | `CHIP_HSE_MHZ` | the board crystal the part file is named after (F3/F4 only), overridable via `HSE_MHZ` |
   | `CHIP_SYSCLK_MHZ` | the part's default clock, overridable via `SYSCLK_MHZ` |
 
 Both build systems read the same file, so they cannot drift on the device macro,
@@ -2415,6 +2421,11 @@ For issues and questions, please open an issue on GitHub.
 
 - STM32G031 Reference Manual  
   https://www.st.com/resource/en/reference_manual/rm0444-stm32g0x1stm32g0x2-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
+
+- STM32F405/F407 Reference Manual (RM0090)
+- STM32F401 Reference Manual (RM0368)
+- STM32F446 Reference Manual (RM0390)
+- STM32F303 Reference Manual (RM0316)
 
 - 1-Wire Protocol Specification  
   https://www.analog.com/en/resources/technical-articles/1wire-communication.html
