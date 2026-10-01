@@ -167,7 +167,12 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
 }
 
 /**
- * @brief Enable clocks, configure the timer prescaler and PA10 open-drain AF
+ * @brief Enable clocks, configure the timer prescaler and the open-drain bus pin
+ * @pre Internal after-reset bootstrap only. This is not a reinit or recovery
+ *      hook and must not be called while a TIM1/DMA operation is active.
+ * @note Does not stop/reset TIM1 or the DMA channels, and does not clear stale
+ *       low-power state. The timer stays stopped: no update event is forced,
+ *       so the first operation only starts when the application requests it.
  */
 __STATIC_FORCEINLINE void ow_port_init(void) {
     OW_PORT_ENABLE_BUS_CLOCKS();

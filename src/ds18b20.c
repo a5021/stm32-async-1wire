@@ -343,10 +343,16 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
 
 /**
  * @brief Initialize DS18B20 driver - configure clocks and peripherals
+ * @pre Call exactly once after MCU reset, after the system clock is configured
+ *      and before any 1-Wire bus operation or DS18B20 driver activity.
  * @note Calls onewire_init(), which takes exclusive ownership of the shared
- *       TIM1/DMA1/GPIO resources for the lifetime of the driver (until reset),
- *       and marks the driver idle so the measurement state machine owns the
- *       timer until the application starts a device search.
+ *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset),
+ *       and parks the driver at DS18B20_ST_IDLE: nothing runs until the
+ *       application calls ds18b20_start_measure() or a search API.
+ * @warning This function is a bootstrap operation, not a reinitialization hook.
+ *          A second call is unsupported and does not fully reset the timer,
+ *          DMA, low-power or DS18B20 software state. Starting a new driver
+ *          lifecycle requires an MCU reset.
  */
 void ds18b20_init(void) {
     onewire_init();

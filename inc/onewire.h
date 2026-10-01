@@ -101,18 +101,25 @@ extern "C" {
 
 /**
  * @brief Initialize the shared 1-Wire timer/DMA/GPIO resources
- * @note Enables GPIOA/TIM1/DMA1 clocks, sets the timer prescaler for 1µs
+ * @pre Call exactly once after MCU reset, before any 1-Wire bus operation or
+ *      slave-driver activity. Initialize the system clock first when its final
+ *      frequency is not the backend default.
+ * @note Enables the timer/DMA/GPIO clocks, sets the timer prescaler for 1µs
  *       resolution, configures the bus pin as alternate-function open-drain
- *       (PA10, or the logical PA10 behind the physical PA12 pad on G0) and
- *       marks the search engine idle. Called once at startup, e.g. by the
- *       slave driver's own init.
+ *       and marks the search engine idle. The timer is left stopped: the first
+ *       operation only starts when the application requests it.
+ * @warning This is a bootstrap operation, not a reinitialization hook. A
+ *          second call is unsupported: it does not stop or reset an active
+ *          TIM1/DMA operation, clear stale timer/DMA/low-power state, or fully
+ *          reset slave-driver state. Starting a new driver lifecycle requires
+ *          an MCU reset.
  * @warning After initialization the 1-Wire layer exclusively owns TIM1, the
- *          DMA1 channels of the active backend (channel 3 feeding CCR3 and
- *          channel 4 draining CCR4), and the bus GPIO pin including its
- *          alternate-function/remap configuration. Application code, ISRs and
- *          other drivers must not configure or use these resources while the
- *          layer is in use. The library has no deinit or release API: the
- *          ownership lasts until reset.
+ *          DMA feed/capture pair of the active backend (DMA1 channels 3 and 4
+ *          on F0/F1/G0, DMA2 streams 2 and 4 on F4), and the bus GPIO pin
+ *          including its alternate-function/remap configuration. Application
+ *          code, ISRs and other drivers must not configure or use these
+ *          resources while the layer is in use. The library has no deinit or
+ *          release API: the ownership lasts until reset.
  */
 void onewire_init(void);
 
