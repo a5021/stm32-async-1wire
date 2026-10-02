@@ -107,7 +107,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   sequence (`ODEN`→`ODRDY`, `ODSWEN`→`ODSWRDY`), its own flash-latency and APB
   values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
   on any other F4 part is rejected at compile time rather than quietly run out of
-  spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in `inc/onewire.h`.
+  spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in
+  `port/stm32f4/ow_port_f4.h`.
   APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
   2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
   unchanged.
@@ -199,8 +200,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
 │   ├── test/               # Unity-based test cases
+│   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
-│   └── check_mock_headers.sh  # Mocks vs real CMSIS macros (make test-mocks)
+│   ├── check_mock_headers.sh  # Mocks vs real CMSIS macros (make test-mocks)
+│   ├── check_library_manifest.sh  # library.json vs the PIO consumer
+│   ├── check_version.sh    # Version in every declaration site (make test-version)
+│   └── check_elf_variant.sh    # Each build links its own objects
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
@@ -229,10 +234,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
+├── Doxyfile                 # API docs config (CI api-docs job)
 ├── LICENSE                 # MIT
 ├── Makefile
 ├── README.md
-└── SECURITY.md
+├── SECURITY.md
+└── .clang-format           # formatting rules (version pinned by CI)
 ```
 
 ## Examples
@@ -557,7 +564,12 @@ mechanism and measure the CPU-time saving.
 > register read, never waits, and needs the main loop to run at least once per
 > millisecond. Because a conversion takes hundreds of milliseconds, that rule
 > only has to hold for the *pauses* between cycles, which is exactly where the
-> application is doing its own work.
+> application is doing its own work. Caveat: `app_millis()` counts *observed*
+> SysTick wraps (one per read), so it under-counts whenever the loop is blocked
+> for more than a millisecond — which is precisely what `OW_PORT_LOW_POWER=1`
+> does inside `ds18b20_poll()` for up to 750 ms. In a low-power build the
+> millisecond figure is therefore valid for the pauses between cycles (where the
+> loop does spin) and deliberately excludes the conversion time.
 
 > **Verified on hardware (STM32F407, 7 parasite-powered DS18B20).** With
 > `-DOW_PORT_LOW_POWER=1 -DOW_PARASITE_POWER=1`, 7_low_power found all seven
@@ -613,6 +625,19 @@ in main loop) — fully non-blocking, no interrupts.
 
 Note: the same 4.7kΩ pull-up is required between PA10 and 3.3V.
 
+### STM32F303VC (F3-DISCOVERY / MB1035B)
+
+| Pin | Function | Notes |
+|-----|----------|-------|
+| PA10 | 1-Wire Data | TIM1_CH3, open-drain AF6 after the default AF map |
+| PA9  | USART1 TX (115200) | AF7; RX line of the USB-UART adapter (the on-board ST-LINK VCP is on PA2/PA3) |
+| PE8  | Busy LED (optional) | **Active-high** (LED4 blue) — the opposite polarity of F1/F0/G0 |
+| PA13/PA14 | SWDIO/SWCLK | ST-Link SWD programming |
+
+Note: the board's 8 MHz clock is driven onto OSC_IN by the ST-LINK (bypass
+mode, not a crystal), which is what the 72 MHz default is built against; the
+64 MHz and 8 MHz builds need no external clock.
+
 ### STM32G031F6P6 (TSSOP20)
 
 The STM32G0 backend is hardware-validated (see Hardware Verified above); the
@@ -645,8 +670,10 @@ TX remapped to PB6 (AF7); see the complete build line in Hardware Verified:
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1; also OTG_FS_ID |
+| PE13 | 1-Wire Data (optional) | alternative bus pin with `-DOW_PORT_BUS_PE13=1`; TIM1_CH3, open-drain AF1 |
 | PB6  | USART1 TX (115200)  | USART1 AF7 (remapped from PA9); RX line of the USB-UART adapter |
-| PA11 | LA marker (optional) | GPIO push-pull output; also USB OTG FS D− |
+| PD12 | Busy LED (optional) | **Active-high** (F4DISCOVERY LD4: pin → LED → GND); the F4 console is on PB6, not the F1/F0/G0 PA4 pin |
+| PA11 | LA marker (optional) | GPIO push-pull output, always configured by the F4 backend and toggled once per merged search pass; also USB OTG FS D− |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
 
 Important: the board's USB OTG FS connector is wired to the pins above —
@@ -768,11 +795,12 @@ See `examples/1_basic/main.c` for a complete single-sensor setup and
 
 ### 3. Implement Callbacks (Optional)
 
-Both callbacks are optional. Default weak implementations are provided by the
-driver, and `examples/app/app.c` supplies per-MCU defaults: `ds18b20_busy()`
-drives the onboard LED (F1: PC13; F0/G0: PA4; F3: PE8; F4: PD12, or PB2 with
-`-DOW_F4_LED_PB2` on a WeAct F446RET6) and `ds18b20_complete()` formats
-and prints the result.
+Both callbacks are optional; the driver ships empty weak implementations. The
+shared example layer `examples/app/app.c` supplies a strong `ds18b20_busy()`
+that drives the onboard LED (F1: PC13, F0/G0: PA4, F3: PE8, F4: PD12 — or PB2
+with `-DOW_F4_LED_PB2` on a WeAct F446RET6). There is no shared
+`ds18b20_complete()`: each example implements its own, because the output
+format differs.
 
 > **The callback example below is STM32F1-specific** (Blue Pill onboard LED on
 > PC13, active-low). Pin and polarity differ per MCU — see
@@ -824,6 +852,17 @@ void ds18b20_complete(int16_t temp) {
     toolchain — Clang references in this project refer to optional
     host-side tooling only (fuzz testing, `clang-format`, static analysis).
 -   **wget** (or **curl**): Required for downloading CMSIS build dependencies.
+-   **Host toolchain** for the test and lint suites: **gcc** (`make test*`,
+    `make test-mocks`, `make test-manifest`), **clang with libFuzzer**
+    (`make fuzz-all`), **cppcheck** (CI static analysis), **doxygen** (API docs),
+    **lcov** (only to turn the `.gcda` files from `COVERAGE=1` into a report — CI
+    does this step, there is no Makefile target for it), and **python3**
+    (`make test-manifest`).
+-   **cmake** ≥ 3.14: only for the CMake build path (`find_package` /
+    FetchContent); the Makefile path does not need it.
+-   **clang-format**: use the exact version CI pins (see the `format` job in
+    `.github/workflows/ci.yml`) — a different release can disagree about the same
+    source.
 -   **POSIX shell:** On Linux/macOS any shell works; on Windows the `Makefile`
     targets (including `make download-deps`) need a Linux-like environment —
     Git Bash, MSYS2 or WSL. `cmd`/PowerShell are **not** supported for builds.
@@ -849,7 +888,9 @@ repository. They are downloaded automatically at build time to
 make download-deps
 ```
 
-To remove them (this also drops the CMake FetchContent clones in `_deps/`):
+To remove them (this also drops a root-level CMake FetchContent clone directory
+`_deps/`; the `build/_deps/` tree that a normal `cmake -B build` creates is
+removed by `make clean`):
 
 ```bash
 make clean-deps
@@ -879,14 +920,14 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test` | Build and run host tests (PC toolchain) |
 | `make clean` | Remove build artifacts, including any CMake install prefix outside `build/` |
 | `make download-deps` | Download CMSIS dependencies |
-| `make clean-deps` | Remove downloaded dependencies (`CMSIS/`, and the CMake FetchContent clones in `_deps/`) |
+| `make clean-deps` | Remove downloaded dependencies (`CMSIS/`, plus a root-level `_deps/`; `build/_deps/` goes with `make clean`) |
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
 | `make test-f3` | Build and run host tests against the STM32F3 backend mock |
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-f4` | Build and run host tests against the STM32F4 backend mock |
-| `make test COVERAGE=1` | Host tests with gcov instrumentation (coverage report) |
+| `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
 | `make test-active-f3` | Same as above against the STM32F3 backend mock |
@@ -1153,8 +1194,9 @@ the install-tree file checks alone would not catch.
     (Cortex-M0) with `OW_TARGET=f0`; `STM32G031xx` (Cortex-M0+) with
     `OW_TARGET=g0`; `STM32F303xC` (Cortex-M4) with `OW_TARGET=f3`;
     `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`,
-    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc` or `STM32F401xE` with
-    `OW_TARGET=f4 OW_CHIP=f401xe`.
+    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc`, `STM32F401xE` with
+    `OW_TARGET=f4 OW_CHIP=f401xe` or `STM32F446xx` with `OW_TARGET=f4
+    OW_CHIP=f446xx`.
 
 -   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
@@ -1174,9 +1216,9 @@ the install-tree file checks alone would not catch.
     target is STM32F103 (bus on PA10 for F1/F0/F3/F4, logical PA10 via PA12 remap
     for G0).
 
--   **8MHz RC Build:** By default the firmware runs on HSE 8MHz + PLL
-    ×9 = 72MHz. Pass `SYSCLK_MHZ=8` to use the internal RC oscillator
-    (HSI) at 8MHz without an external crystal or PLL:
+-   **8MHz RC Build:** On the STM32F103 target the firmware runs on HSE 8MHz
+    + PLL ×9 = 72MHz by default. Pass `SYSCLK_MHZ=8` to use the internal RC
+    oscillator (HSI) at 8MHz without an external crystal or PLL:
 
     ```bash
     make SYSCLK_MHZ=8
@@ -1184,7 +1226,11 @@ the install-tree file checks alone would not catch.
     ```
 
     On the STM32F030 target the default clock is already HSI+PLL (48MHz);
-    there `SYSCLK_MHZ=8` selects the raw 8MHz HSI instead.
+    there `SYSCLK_MHZ=8` selects the raw 8MHz HSI instead. On the STM32F303
+    the default is the 8MHz HSE-bypass signal ×9 = 72MHz, and `SYSCLK_MHZ=8`
+    selects the raw 8MHz HSI (64MHz is the HSI ceiling there). On F4 the
+    default is HSE+PLL (168/84/180MHz per part), and `SYSCLK_MHZ=16` selects
+    the raw 16MHz HSI.
 
     The knob maps to the portable `OW_PORT_SYSCLK_MHZ` define — a single
     value in MHz that every clock-dependent setting derives from: the
@@ -1219,6 +1265,7 @@ omit or set to 0 to disable.  Old presence-only style
 | `OW_PORT_LOW_POWER` | 0 | 1 = enable opt-in WFE sleep path |
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
+| `OW_BUS_DRIVE` | 3 (`OW_BUS_DRIVE_MAX`) | Drive strength of the bus pin: 0 = `WEAK`, 1 = `MEDIUM`, 2 = `STRONG`, 3 = `MAX`. `MAX` is the default because the parasite strong pull-up sources the whole fleet from this pad; F1 has no `OSPEEDR` register, so `MAX` clamps to `STRONG` there. |
 | `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) |
 
 **Override examples**
@@ -1323,8 +1370,9 @@ protocol on embedded systems:
 
 ### Trade-offs
 
-**Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA1
-channels (the capture drain from CCR4 and the marker feed into CCR3) — that
+**Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA
+channels (the capture drain from CCR4 and the marker feed into CCR3: DMA1
+channels 3/4 on F0/F1/F3/G0, DMA2 streams 2/4 on F4) — that
 cannot be used for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
 needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
@@ -1347,8 +1395,8 @@ The 1-Wire layer uses a hybrid of several hardware features:
 
 1. Timer-Driven Sequences: TIM1 is configured in One-Pulse Mode (OPM). Each state machine step configures the timer for a specific operation (reset, write byte, read byte, wait) and starts it.
 2. DMA for Data Transfer: DMA is used in two key ways:
-   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3.
-   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4.
+   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3 on F0/F1/F3/G0 (DMAMUX request 21 on G0), or DMA2 stream 2 at `CHSEL=6` on F4.
+   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4 on F0/F1/F3/G0 (DMAMUX request 23 on G0), or DMA2 stream 4 on F4.
 3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750ms) is finished.
 4. True Zero-ISR Overhead: The ds18b20_poll() function checks this flag. When set, it clears the flag and advances the state machine to the next step. This makes the entire driver event-driven by hardware completion signals without using interrupts.
 
@@ -1372,11 +1420,12 @@ All bus-level protocol lives in `src/onewire.c` (interface in `inc/onewire.h`),
 a reusable 1-Wire master that the DS18B20 driver builds on:
 
 - `onewire_init()`, `onewire_reset()`, `onewire_present()`,
-  `onewire_write_pulses()`, `onewire_write_command()`,
+   `onewire_write_slots()`, `onewire_encode_byte()`,
    `onewire_write_bit()`, `onewire_read_pair()`, `onewire_write_then_read()`,
    `onewire_pair_bits()`, `onewire_read_data()`, `onewire_decode_pulses()`,
-   `onewire_start_timer()`, `onewire_bus_done()` — the
-  TIM1/DMA bus primitives.
+   `onewire_bit_from_pulse()`, `onewire_start_timer()`, `onewire_kick()`,
+   `onewire_strong_pullup()`, `onewire_bus_done()` — the
+   TIM1/DMA bus primitives.
 - `onewire_search_start()`, `onewire_search_poll()`,
   `onewire_search_count()`, `onewire_search_active()` — the generic Maxim
   Search ROM engine, shared by `ds18b20_search_*` and
@@ -1441,8 +1490,9 @@ capture-routing relationship:
 The indirect-capture constraint (IC4 must see TI3) is why the driver cannot
 be moved to an arbitrary pin: the chosen GPIO must be the CH3/CH4 pair's
 output/capture pin on the selected timer.  On STM32F1 this is PA10
-(default AFIO map); on STM32F0, PA10 (AF2); on STM32G0, PA12 pad remapped
-to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`.
+(default AFIO map); on STM32F0, PA10 (AF2); on STM32F3, PA10 (AF6); on
+STM32G0, the PA12 pad remapped to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`;
+on STM32F4, PA10 (AF1) or PE13 with `-DOW_PORT_BUS_PE13=1`.
 
 #### 3. DMA
 
@@ -1453,7 +1503,7 @@ Two DMA channels are required, each carrying a specific peripheral request:
 | DMA channel A | Memory → Peripheral | TIM1_CC2 (CH2 compare) | Feeds CCR3 with the next pulse width on each slot boundary (the "feed" path). |
 | DMA channel B | Peripheral → Memory | TIM1_CH4 (capture) | Drains CCR4 capture values into a memory buffer (the "capture" path). |
 
-F0/F1 have a fixed request map (no `DMA_CSELR` mux) — channel 3 = CC2,
+F0/F1/F3 have a fixed request map (no `DMA_CSELR` mux) — channel 3 = CC2,
 channel 4 = CC4, confirmed empirically.  G0 uses a DMAMUX: TIM1_CC2 = request
 21, TIM1_CH4 = request 23.  F4 uses DMA2 with the per-stream `CHSEL` field
 set to 6 (`TIM1_CH2`/`TIM1_CH4`): stream 2 = feed, stream 4 = capture.  A new
@@ -1516,8 +1566,11 @@ are identical across all families.
   (`ow_port_strong_pullup()`) is the *only* place the pin is switched to
   push-pull in the default build; it actively sources current by driving the line
   HIGH during the temperature-conversion / EEPROM-programming window — a phase
-  where the DS18B20 is silent and cannot respond on the bus. It is restored to
-  open-drain afterwards.
+  where the DS18B20 is silent and cannot respond on the bus — and also around the
+  Convert T and Read Scratchpad command writes. Deliberately, it **stays engaged
+  while the driver is parked at IDLE** so the sensor's capacitors keep charging
+  for the next cycle; it is released only where the bus has to be free (at the
+  reset pulse, at the scratchpad read and at the second reset).
 
 - **Active-drive write mode (optional).** During master-only write slots the bus
   pin may be placed in alternate-function push-pull, actively driving both HIGH
@@ -1534,7 +1587,7 @@ Explicit-start behavior
 - The driver measures **only when asked**: after `ds18b20_init()` the bus stays idle, and one `ds18b20_start_measure()` call requests exactly one conversion + scratchpad-read cycle. Afterwards the driver parks at IDLE again — it never restarts a cycle on its own, so the measurement cadence, the retry policy and any idle interval are the application's decision. Nothing else starts a conversion either: finishing a device search, a resolution change or a command transaction leaves the bus idle.
 
 - IDLE (state 0)
-  - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()`) falls through into START, which ensures the LED is off and initialises the data union.
+  - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()` via `onewire_kick()`) falls through into START, which turns the busy indicator **on** and arms the bus reset. The data union is not touched here: `capture[]`, `pulse[]` and `scratchpad[]` are three views of one union, and decoding must consume `pulse[]` before writing `scratchpad[]`.
   - Set state=1.
 
 - START (state 1)
@@ -1573,15 +1626,15 @@ Explicit-start behavior
   - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH3 emits ~5µs active-low kick at each slot start and then releases; CH4 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
 
 - DECODE (state 7)
-  - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; verify CRC; report temperature or CRC_FAIL; set state=0 (parked until the next ds18b20_start_measure()).
+  - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; reject an all-0xFF frame from an absent addressed device (`NO_SENSOR`), verify the reserved scratchpad bytes (byte 5 = 0xFF, byte 7 = 0x10), then verify CRC; report temperature or CRC_FAIL; set state=0 (parked until the next ds18b20_start_measure()).
 
 ## RTOS Integration
 
 ### Bus Idle Behaviour
 
-Verified on hardware (this driver, TIM1+DMA one-pulse bus) against the DS18B20
-datasheet. Relevant if `ds18b20_search_poll()` / `ds18b20_poll()` are called
-from an RTOS task and scheduling delays can land between 1-Wire slots:
+Relevant if `ds18b20_search_poll()` / `ds18b20_poll()` are called
+from an RTOS task and scheduling delays can land between 1-Wire slots: what the
+DS18B20 datasheet allows, what the bench measured, and what the suite covers.
 
 - **Idle-HIGH is harmless.** The datasheet states the 1-Wire bus must be left
   in the inactive (high) state when suspending a transaction and that
@@ -1589,8 +1642,14 @@ from an RTOS task and scheduling delays can land between 1-Wire slots:
   inactive (high) state during the recovery period."* The DS18B20 re-synchronises
   to the next falling edge; it has no internal timeout that expires during an
   idle-high pause.
-- **Measured:** injecting real idle-high gaps of 10 µs … 5 ms between Search ROM
-  slots finds all 5 devices in 100/100 runs at every gap size.
+- **Measured on a real bus:** injecting idle-high gaps of 10 µs … 5 ms between
+  Search ROM slots finds all 5 devices in 100/100 runs at every gap size (bench
+  experiment, quoted from the earlier hardware campaign).
+- **Reproduced in the suite:** `test_search_gap_between_slots` injects an
+  idle-high gap after every search operation through the harness injector
+  (`onewire_test_set_gap_us()`, compiled only under `DS18B20_TEST_HARNESS`) and
+  asserts the device is still found — the behavioural TIM/DMA model, not a real
+  bus.
 - **Idle-LOW > 480 µs resets all devices** (datasheet: *"if the bus is left low
   for more than 480 µs, all components on the bus will be reset"*). This is the
   only real hazard.
@@ -1645,18 +1704,19 @@ Rules for correct RTOS use:
    must be advanced by its own `*_poll()` (as in the loop above) — not by
    `ds18b20_poll()`.
 
-2. **TIM1, DMA1 (channels 3 and 4) and the bus GPIO pin are owned exclusively
-   by the driver from initialisation until reset.** No other task, ISR or
-   peripheral may configure or use them:
+2. **TIM1, the driver's DMA feed/capture pair and the bus GPIO pin are owned
+   exclusively by the driver from initialisation until reset.** No other task,
+   ISR or peripheral may configure or use them:
 
    - **TIM1** — the prescaler, pulse-generation/CCR3-feed logic and input
      capture on CCR4 are all driver-managed.
-   - **DMA1 channels 3 and 4** — fixed channel mapping on F0/F1, requested via
-     DMAMUX requests 21 (TIM1_CC2 → CCR3 feed) and 23 (TIM1_CH4 → CCR4
-     capture) on G0.
-   - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or the
-     physical PA12 pad remapped to logical PA10 on G0 (those pads must not be
-     used as plain GPIO while the driver is active).
+   - **The DMA pair** — DMA1 channels 3 (feeds CCR3) and 4 (drains CCR4) on
+     F0/F1/F3, the same two channels via DMAMUX requests 21 (TIM1_CC2) and 23
+     (TIM1_CH4) on G0, and **DMA2 streams 2 and 4 at `CHSEL=6`** on F4.
+   - **The 1-Wire data pin** — PA10 as alternate-function open-drain (PE13 with
+     `-DOW_PORT_BUS_PE13=1` on F4), or the physical PA12 pad remapped to
+     logical PA10 on G0 (those pads must not be used as plain GPIO while the
+     driver is active).
 
    The library has no deinit or release API — the exclusivity begins at
    `onewire_init()` / `ds18b20_init()` and lasts until reset. Configure any of
@@ -1665,7 +1725,10 @@ Rules for correct RTOS use:
 3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
    entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
    polling only increases latency, never causes errors (see *Bus Idle
-   Behaviour*). Two practical patterns:
+   Behaviour*). The one exception is a build with `OW_PORT_LOW_POWER=1`, where
+   that same call blocks in `WFE()` for the duration of a long stage — see
+   [Examples](#examples) (`7_low_power`, and the low-power block there). Two
+   practical patterns:
    - **Dedicated polling task:** loop `ds18b20_poll(); osDelay(1);` (or
      `vTaskDelay(1)`). This gives low latency without saturating the CPU; the
      750 ms conversion wait is a hardware timer, so the task yields during it.
@@ -1704,7 +1767,9 @@ Rules for correct RTOS use:
 ```C
 void ds18b20_init(void);
 ```
-Initialize the DS18B20 driver. Enables peripherals (GPIOA, TIM1, DMA1) and sets up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start a measurement.
+Initialize the DS18B20 driver. Enables the peripherals the backend needs (the bus
+GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0, DMA2 on F4) and sets
+up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start a measurement.
 
 ```C
 void ds18b20_start_measure(void);
@@ -1727,9 +1792,7 @@ void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
 void        onewire_reset(volatile uint16_t *reset_pulses);
 uint8_t     onewire_present(const volatile uint16_t *pulses);
-uint8_t     onewire_write_pulses(const uint8_t *pulses, uint16_t slots);
-void        onewire_write_command(const uint8_t *bytes, uint8_t nbytes);
-void        onewire_write_command_byte(uint8_t byte);
+uint8_t     onewire_write_slots(const ow_pulse_t *pulses, uint16_t slots);
 uint8_t     onewire_write_bit(uint8_t bit);
 void        onewire_read_pair(volatile uint16_t *pair_pulses);
 void        onewire_write_then_read(uint8_t bit);
@@ -1738,7 +1801,11 @@ void        onewire_pair_bits(const volatile uint16_t *pair_pulses,
 uint8_t     onewire_read_data(volatile uint8_t *dst, uint8_t bytes);
 void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
                                  uint8_t nbytes);
+void        onewire_encode_byte(ow_pulse_t *out, uint8_t byte);
+static inline uint8_t onewire_bit_from_pulse(uint16_t dur);
 void        onewire_start_timer(uint16_t arr, uint8_t rcr);
+void        onewire_kick(void);
+void        onewire_strong_pullup(uint8_t on);
 uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
 void        onewire_search_start(onewire_search_sink_t sink,
                                  uint8_t max_devices, uint8_t command,
@@ -1748,23 +1815,24 @@ uint8_t     onewire_search_count(void);
 uint8_t     onewire_search_active(void);
 ```
 
-`onewire_write_pulses()`, `onewire_write_bit()` and `onewire_read_data()`
-report whether the operation was scheduled: they return **1** on success and
-**0** when the size argument is out of range and nothing was started. Debug
-builds additionally trap the reject path with `assert`; with `NDEBUG` the
+`onewire_write_slots()` and `onewire_read_data()` report whether the operation
+was scheduled: they return **1** on success and **0** when the size argument is
+out of range and nothing was started (`slots` must be 1..256, `bytes` 1..32).
+Debug builds additionally trap the reject path with `assert`; with `NDEBUG` the
 caller observes the 0 instead of a silent no-op, so an invalid size can never
-turn into an undiscovered `onewire_bus_done()` hang.
+turn into an undiscovered `onewire_bus_done()` hang. `onewire_write_bit()` has
+no size argument and always returns 1.
 
-`onewire_write_command()` is the byte-oriented API the DS18B20 driver uses:
-it synchronously encodes the command bytes (MSB-first push wire order, LSB-first
-bit order) into an internal pulse buffer, appends the trailing bus-release
-zero, and schedules the transfer in one call, so individual bus transactions
-never need to touch slot-level pulse tables. An empty command or one longer
-than `ONEWIRE_CMD_MAX_BYTES` (13 — the longest Match ROM sequence) is rejected
-with a debug `assert` and no transfer is started. The slot-level primitives
-`onewire_encode_byte()` and the `ow_pulse_t` type are declared in
-`inc/onewire.h` alongside the rest of the layer, but application code has no
-reason to use them: only driver-internal code and the test harness do.
+There is no byte-oriented command helper: a command is encoded by the caller
+with `onewire_encode_byte()` into a slot buffer and then handed to
+`onewire_write_slots()`, so the caller owns the buffer geometry. The DS18B20
+driver builds its command slots the same way (`src/ds18b20_measure.c`,
+`src/ds18b20_txn.c`, `src/ds18b20_resolution.c`). A multi-slot write buffer must
+hold `slots + 1` entries, the last one equal to `ONEWIRE_RELEASE_PULSE` — the
+hardware bus-release sentinel, not an extra slot (a single-slot write uses a
+separate path and reads only entry 0). `onewire_encode_byte()` and the
+`ow_pulse_t` type are declared in `inc/onewire.h` alongside the rest of the
+layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0 and 16 bits on F4.
 
 #### Timing
 
@@ -1812,8 +1880,9 @@ Non-blocking Maxim Search ROM (0xF0) over the whole bus, implemented as a
 compact state machine that performs exactly one hardware operation per
 `ds18b20_search_poll()` call. `sink` is invoked once per found DS18B20 device
 with its 8-byte ROM address; `max_devices` caps the reported count. Poll
-`ds18b20_search_poll()` from the main loop until it returns 1 — it restores
-`ds18b20_poll()` state automatically. `ds18b20_search_count()` returns how many
+`ds18b20_search_poll()` from the main loop until it returns 1. The measurement
+state machine is never left IDLE, so `ds18b20_start_measure()` works immediately
+afterwards; the timer stays idle in the meantime. `ds18b20_search_count()` returns how many
 devices were found. Only devices with family code `DS18B20_FAMILY_CODE` (0x28)
 are reported. See `examples/3_round_robin/main.c`.
 
@@ -2000,14 +2069,16 @@ line. The bus pull-up then has to deliver the conversion current — about
 **1.5mA per converting sensor** — for the whole conversion window (up to
 750ms at 12-bit), which a passive resistor cannot do. The driver solves this
 by switching the bus pin to push-pull HIGH for every conversion and EEPROM
-hold-off window (`ds18b20_set_parasite(1)`), releasing it back to the passive
-pull-up before any further bus activity.
+hold-off window (`ds18b20_set_parasite(1)`). It releases the pin back to the
+passive pull-up only where the bus has to be free — the reset pulses and the
+scratchpad read — and deliberately keeps it engaged while parked at IDLE.
 
 ```C
 ds18b20_init();
 ds18b20_detect_parasite();          // query the wiring (0xCC + Read Power Supply)
 while (!ds18b20_detect_parasite_poll()) {
-    ds18b20_poll();                 // keep advancing the state machine
+    /* the transaction owns TIM1/DMA: ds18b20_poll() returns immediately by
+       design, so only ds18b20_detect_parasite_poll() advances it */
 }
 /* ds18b20_parasite_mode() now reflects the detected wiring */
 ```
@@ -2062,8 +2133,11 @@ uint32_t ow_stats_tick(void);
   buckets 0–2, 3–4, 5–6, 7–9, 10–12, 13–14, 15–19, 20–24, 25–29,
   30–39, 40–49, 50–59, 60+ µs) and per-sensor min/max pulse counters.  Called
   automatically from `ds18b20.c` when `OW_STATS_ENABLE=1` is set.
-- `ow_stats_count_error()` — record a CRC mismatch, missing presence pulse
-  or other error event.  Called automatically from `ds18b20.c`.
+- `ow_stats_count_error()` — record an error event: a CRC or reserved-byte
+  mismatch, or an addressed device that answered with an all-0xFF frame
+  (reported as `NO_SENSOR`).  A device that fails the presence check after a
+  reset is reported through `ds18b20_complete()` but is **not** counted here.
+  Called automatically from the DECODE state of `ds18b20.c`.
 - `ow_stats_dump_start()` — begin a non-blocking UART dump.  Call from the
   main loop after the desired number of cycles (tracked via `ow_stats_tick()`).
 - `ow_stats_dump_poll()` — advance the dump by one line (header, sensor line,
@@ -2072,13 +2146,17 @@ uint32_t ow_stats_tick(void);
   1 when the dump is complete.
 - `ow_stats_reset()` — zero all counters and the histogram, keep the sensor
   ROM table.  Call after `ow_stats_dump_poll()` returns 1.
-- `ow_stats_tick()` — increment the cycle counter; returns the new value.
+- `ow_stats_tick()` — increment the cycle counter; returns the new value.  The
+  module never increments it by itself: `t=` in a dump line is whatever the
+  application counts with this call (the `6_statistics` demo ticks once per
+  reported measurement, so there it is a count of measurements, not of dumps).
 
 The dump also needs five weak output hooks the application provides as strong
 definitions: `ow_stats_putchar()`, `ow_stats_puts()`, `ow_stats_print_int()`,
 `ow_stats_print_hex()` and `ow_stats_tx_enqueue()`.  Defaults in `ow_stats.c`
-are no-ops, so without them the dump stays silent; `examples/6_statistics`
-implements them on top of the UART TX ring buffer.
+are no-ops, so without them the dump stays silent; the shared example layer
+`examples/app/app.c` (linked into every example) implements them on top of the
+UART TX ring buffer.
 
 RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
 cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
@@ -2159,8 +2237,8 @@ h:2=3304 8=2023 9=1873
 t=100c 0e
 ```
 
-Fields per sensor line: `ROM:min-max n=count e=errors` (errors = CRC + no
-presence + other combined).  Histogram shows only non-empty buckets;
+Fields per sensor line: `ROM:min-max n=count e=errors` (errors = CRC +
+no-sensor + other combined).  Histogram shows only non-empty buckets;
 `h:B=count` where B is the bucket index.  Total line: `t=Nc Ee` where N =
 cycle count, E = total error count.
 
@@ -2228,7 +2306,9 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - Measurement cadence: **application-defined**. The driver measures one cycle per
   `ds18b20_start_measure()` and then parks, so it has no inter-measurement
   interval of its own; the examples pace themselves (5 s, see
-  `MEASURE_PERIOD_MS` in `examples/*/main.c`, and `app_time_init()` in the
+  `MEASURE_PERIOD_MS` in `examples/*/main.c` — except `6_statistics`, which runs
+  with no time base at all and paces itself with the conversion time — and
+  `app_time_init()` in the
   shared app layer)
 - Precision: 0.1°C reported (API tenths; the sensor step at 12-bit is
   0.0625°C — coarser steps at lower resolutions)
@@ -2319,7 +2399,10 @@ The Makefile presets set all four values at once (`make TIMING=SLOW`):
 | ROBUST     | 10µs | 110µs | 30µs   | 18µs    | 150µs|
 | CUSTOM     | 1µs  | 60µs  | 1µs    | 15µs    | 62µs |
 
-SLOW / ROBUST trade conversion throughput for timing margin and are intended for
+SLOW / ROBUST widen the bit slot (118 µs / 150 µs instead of 70 µs), which trades
+**protocol throughput** — every command and every bit read costs proportionally
+more time — for timing margin. They do **not** change the conversion wait: that
+is fixed by the resolution alone (93.75 ms … 750 ms). They are intended for
 long wiring, parasite buses or electrically noisy setups.
 
 On a parasite-powered bus the strong-pullup release must not clip the sensor's
@@ -2401,7 +2484,10 @@ version:
    `make test-f0` / `make test-f3` / `make test-g0` / `make test-f4` for
    the other backends.
 3. Format touched sources with the repo's `.clang-format`
-   (`clang-format --dry-run --Werror <files>` must pass).
+   (`clang-format --dry-run --Werror <files>` must pass), using the
+   `clang-format` version CI pins — see the `format` job in
+   `.github/workflows/ci.yml`, which is the source of truth; a different
+   release can disagree about the same source.
 4. Open a Pull Request — CI builds every target and runs the test suite.
 
 ## Support
