@@ -50,11 +50,12 @@ static void set_read_bytes(const uint8_t* data, uint8_t len) {
 }
 
 /* Run the currently scheduled hardware operation to completion. Read ops
- * (more than the 2 reset captures) use the byte-stream capture source; every
- * other op keeps the capture source the test configured. */
+   (more than the 2 reset captures) use the byte-stream capture source; every
+   other op keeps the capture source the test configured. */
 static void run_current_op(void) {
     if (mock_tim1.CR1 & TIM_CR1_CEN) {
-        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > 2) {
+        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) &&
+            mock_dma1_ch4.CNDTR > 2) {
             hw_set_capture_source(rom_read_capture);
         }
         TEST_ASSERT_TRUE(hw_run_until_uif(256));

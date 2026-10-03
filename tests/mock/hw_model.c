@@ -29,6 +29,7 @@ static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;
 static hw_ccr3_feed_log_t feed_log;
 static uint32_t op_capture_count;
+static uint32_t capture_edges; /* 0 = unlimited (historical model behaviour) */
 
 /* --- truncated 32-bit DMA address -> real host pointer table ---
  * The mock models what the silicon sees: CMAR/CPAR are 32-bit registers, so
@@ -107,6 +108,7 @@ void hw_reset_all(void) {
 #endif
     tim_shadow_out = 0;
     capture_source = NULL;
+    capture_edges = 0;
     feed_log.count = 0;
     feed_log.total = 0;
     op_capture_count = 0;
@@ -114,6 +116,8 @@ void hw_reset_all(void) {
 }
 
 void hw_set_capture_source(hw_capture_fn fn) { capture_source = fn; }
+
+void hw_set_capture_edges(uint32_t n) { capture_edges = n; }
 
 const hw_ccr3_feed_log_t* hw_ccr3_feed_log(void) { return &feed_log; }
 
@@ -196,7 +200,7 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     if (slots > max_slots) {
         slots = max_slots;
     }
-    /* captures per slot: ceil(CNDTR / slots) — e.g. reset = 2 in 1 slot. */
+    /* captures per slot: ceil(CNDTR / slots) - e.g. reset = 2 in 1 slot. */
     uint32_t cps = 0;
     if ((t->DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
         MOCK_DMA_CAP.CNDTR > 0) {
@@ -211,9 +215,16 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
         if (t->DIER & MOCK_TIM_FEED_DE) {
             dma16_transfer();
         }
-        /* Capture event -> capture value + capture DMA to memory. */
+        /* Capture event -> capture value + capture DMA to memory. When a
+         * capture-edge limit is set, stop before the limit is exceeded *without*
+         * performing the extra transfers: the DMA counter then never drains and
+         * EN stays latched, the real-silicon underrun state (see the note on
+         * hw_set_capture_edges). */
         if (t->DIER & MOCK_TIM_CAP_DE) {
             for (uint32_t c = 0; c < cps; c++) {
+                if (capture_edges != 0u && op_capture_count >= capture_edges) {
+                    break;
+                }
                 uint16_t cap = capture_source ? capture_source(op_capture_count) : 0u;
                 MOCK_TIM_CAP_CCR = cap;
                 dma13_transfer();
@@ -330,6 +341,9 @@ static void hw_tim_do_feed(void) {
 static uint32_t hw_tim_next_capture_tick(void) {
     if (!g_tim.cap_en || g_tim.cap_done >= g_tim.cap_total) {
         return UINT32_MAX;
+    }
+    if (capture_edges != 0u && g_tim.cap_done >= capture_edges) {
+        return UINT32_MAX; /* edge limit: no further captures, channel stays armed */
     }
     uint32_t cap_end = (g_tim.period + 1u) * g_tim.cps;
     if (cap_end > g_tim.cap_total) {

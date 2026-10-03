@@ -25,8 +25,8 @@
  *           mismatch (now guarded by test_sysclk_fallback.c) visible: a wrong
  *           clock shows up here as a wrong prescaler.
  *    mode - F1 uses the legacy GPIO_CRH_MODE10/CNF10 field, the others the
- *           modern MODER two-bit field. F4 additionally puts PA11 into output
- *           mode in the same call, because its LA marker rides PA11.
+ *           modern MODER two-bit field. PA11 is left untouched for the
+ *           application on every family.
  *    af   - the alternate function number for TIM1_CH3 on the bus pin. It is
  *           genuinely 2 on F0/G0 and 1 on F4; that is silicon, not a typo.
  *    remap- G0 only: PA11_RMP | PA12_RMP, because the TSSOP20 does not bond
@@ -110,13 +110,12 @@ static const setup_row_t k_setup[] = {
     {"open_drain", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u},
 };
 #else /* OW_PORT_FAMILY_F4 */
-/* mode additionally sets PA11 to 0b01 (output), because this backend rides the
- * LA marker on PA11. af is 0x100 = AF1 here, against AF2 on F0/G0 - that is the
- * silicon, not an inconsistency. */
+/* mode is PA10 = 0b10 in MODER (alternate function); af is 0x100 = AF1 here,
+ * against AF2 on F0/G0 - that is the silicon, not an inconsistency. */
 static const setup_row_t k_setup[] = {
-    {"init", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
-    {"push_pull", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0u, 0x00000100u, 0x00300000u, 0u},
-    {"open_drain", 0x00010001u, 0x00A7u, 0x8000u, 0x00600000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+    {"init", 0x00010001u, 0x00A7u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+    {"push_pull", 0x00010001u, 0x00A7u, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
+    {"open_drain", 0x00010001u, 0x00A7u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
 };
 #endif
 

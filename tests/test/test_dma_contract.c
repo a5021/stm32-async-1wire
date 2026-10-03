@@ -376,6 +376,40 @@ static void run_contract_row(const dma_contract_row_t* row) {
     TEST_ASSERT_EQUAL_UINT32(row->exp_cap_xfer, hw_capture_count());
 }
 
+/* Port-unification vocabulary: pin the OW_PORT_DMA_CR_* values per target,
+ * so a wrong default or override breaks here even before any body migrates
+ * onto them.  The table above stays the end-to-end guard; this pins the
+ * discriminating bits (PSIZE present/absent on 8-bit captures, MSIZE on
+ * halfword memories, CHSEL on F4 streams). */
+void test_dma_cr_value_macros(void) {
+#if defined(OW_PORT_TARGET_F4)
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
+                   DMA_SxCR_PL_1 | (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX16);
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PL_1 |
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX8);
+    TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 & DMA_SxCR_PSIZE_0));
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
+                   DMA_SxCR_MSIZE_0 | DMA_SxCR_PL_1 |
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_TX);
+#else
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX16);
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX8);
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_TX);
+#endif
+}
+
 void test_dma_contract_table(void) {
     /* exact internal-buffer CMAR targets (addresses are runtime constants) */
     k_contracts[6].exp_feed_cmar = (uintptr_t)test_search_read_pulse_addr();
@@ -388,5 +422,6 @@ void test_dma_contract_table(void) {
 }
 
 void run_test_dma_contract(void) {
+    TEST_RUN(test_dma_cr_value_macros);
     TEST_RUN(test_dma_contract_table);
 }

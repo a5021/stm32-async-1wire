@@ -686,44 +686,6 @@ void test_search_four_devices_found(void) {
 }
 
 /*-------------------------------------------------------------
- *  An idle-HIGH gap is injected after each search operation and
- *  must not break the search: the device is still found.
- * -----------------------------------------------------------*/
-void test_search_gap_between_slots(void) {
-    uint8_t serial[7] = {0x28, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
-    memcpy(g_rom, serial, 7);
-    g_rom[7] = ds18b20_crc8(g_rom, 7);
-
-    g_found_count = 0;
-    g_wr_bit = 2;
-    hw_set_capture_source(search_capture_src);
-    ds18b20_test_set_gap_us(50);
-    ds18b20_search_start(sink, 1);
-
-    uint16_t guard = 0;
-    for (;;) {
-        if (ds18b20_search_poll()) {
-            break;
-        }
-        if (mock_tim1.CR1 & TIM_CR1_CEN) {
-            uint8_t ok = hw_run_until_uif(100);
-            TEST_ASSERT_TRUE(ok);
-        }
-        if (++guard > 500) {
-            break;
-        }
-    }
-    ds18b20_test_set_gap_us(0); /* leave the harness clean */
-    TEST_ASSERT_TRUE(guard <= 500);
-
-    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_search_count());
-    TEST_ASSERT_EQUAL_UINT8(1, g_found_count);
-    for (int i = 0; i < 8; i++) {
-        TEST_ASSERT_EQUAL_HEX8(g_rom[i], g_found_roms[0][i]);
-    }
-}
-
-/*-------------------------------------------------------------
  *  The search and the measurement state machine share TIM1/DMA.
  *  While a search runs, ds18b20_poll() must NOT react to the
  *  search's UIF or advance the measurement state machine.
@@ -1051,7 +1013,6 @@ void run_test_search(void) {
     TEST_RUN(test_search_null_sink_completes);
     TEST_RUN(test_search_rejects_bad_crc_rom);
     TEST_RUN(test_search_four_devices_found);
-    TEST_RUN(test_search_gap_between_slots);
     TEST_RUN(test_search_poll_ignored_while_search_running);
     TEST_RUN(test_search_start_reentry_ignored);
     TEST_RUN(test_search_start_blocked_mid_measurement);

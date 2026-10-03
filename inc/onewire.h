@@ -352,15 +352,6 @@ uint8_t onewire_crc8(const uint8_t* data, uint8_t len);
 
 /** @} */
 
-#ifdef DS18B20_TEST_HARNESS
-/**
- * @brief [TEST] Set the idle-HIGH gap injected between search slots
- * @param[in] us Gap duration in microseconds (0 disables the injection)
- * @note Temporary test hook for the RTOS-latency experiment only.
- */
-void onewire_test_set_gap_us(uint16_t us);
-#endif
-
 #ifdef __cplusplus
 }
 #endif

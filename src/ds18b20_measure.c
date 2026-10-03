@@ -127,7 +127,8 @@ static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
  * @param[in] next_state State to transition to on success
  */
 static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
-    if (!onewire_present(ctx.capture)) {
+    uint8_t present_ok = onewire_present(ctx.capture);
+    if (!present_ok) {
         // Return to IDLE before the callback so a re-selection from inside
         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
         ctx.current_state = DS18B20_ST_IDLE;

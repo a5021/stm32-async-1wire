@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Capture-underrun modeling and tests for the no-presence reset path.**
+  `hw_set_capture_edges()` lets the host model limit the captures taken per
+  operation (0 = unlimited, the historical behaviour); honouring it in both
+  the slot-loop and the temporal stepper leaves the capture DMA channel armed
+  mid-transfer (CNDTR/NDTR > 0, EN set) exactly as silicon does when a reset
+  gets no presence. Two tests in `test_bus_release.c` pin the contract:
+  `test_reset_absent_then_present_no_stale_capture` (absent reset → channel
+  armed → next reset recovers with 2 fresh captures, no stale accumulation,
+  `reset_pulses[1] == 0`) and `test_reset_absent_twice_in_a_row` (CNDTR never
+  accumulates). The host model has no register-access accessors and no disable
+  latency, so these document and pin the end-to-end contract but cannot
+  distinguish a fixed vs historical disarm — that enforcement is the driver
+  wait (see Fixed) plus the real-hardware bench.
+
 - **STM32F3 support, as the `f303xc` part** (`OW_TARGET=f3`, `OW_CHIP=f303xc`):
   the STM32F3-DISCOVERY (MB1035B, an STM32F303VC) is a build target, with the
   real upstream CMSIS header, startup file and SVD, a 256KB flash / 32KB SRAM
@@ -124,6 +138,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **F4 feed tail unified with the shared core order.** `ow_port_feed()` on F4
+  programmed `DIER=CC2DE` and `CCR3=cmd[0]` last (after DMA arming), while the
+  shared core programs them first; the late order guarded against a stale-CC2
+  request clobbering slot 1 that was never reproduced. Hardware bench on F446
+  (feed-heavy `5_commands` incl. 256-slot writes with LA-verified slot-1
+  widths, plus `3_round_robin` long runs, all clean) shows the common order is
+  safe on F4 silicon too. One less ordering divergence between the backends.
+
+- **F4 port behaviorally aligned with the shared core (status).** The F4
+  backend now matches the shared TIM1/DMA core in observable behavior: the
+  `T1.CR1` capture fix, the PA11/test-gap instrumentation removal above, the
+  common feed order, and the shared `(void)T1.SR` APB flush. Verified by the
+  host suite on all five backends with `-DOW_PARASITE_POWER=1` and by a
+  7-example x 5-clock (180/168/84/16/8MHz) hardware matrix on parasite power,
+  all green on re-run (first-pass drops were transient bus brown-outs, not
+  driver faults). This is behavioral alignment only: the code-level collapse
+  (shared DMA accessors, `feed`/`write_then_read` carve-outs) is deferred, and
+  the `2_device_search` stall under sequential per-device converts is a
+  parasite-power limitation, not a driver defect.
+
+- **F4 port collapsed onto the shared core (code-level).** `ow_port_f4.h` is
+  now a thin shim — family facts (clocks, pin mux, DMA stream assignment),
+  the `OW_PORT_DMA_*`/`OW_PORT_ROUTE_*`/`OW_PORT_ENABLE_BUS_CLOCKS`/
+  `OW_PORT_CONFIG_BUS_PIN` overrides, the stream `ow_port_dma_rearm()`, and
+  the `write_then_read` carve-out (UG placement + marker hook,
+  `OW_PORT_OWN_WRITE_THEN_READ`) — over `port/common/ow_port_tim_dma.h`,
+  which carries all 17 bodies with DMA1 defaults.  The unification vocabulary
+  (`OW_PORT_DMA_CR_RX16/RX8/TX`, `DISABLE_*`, `PROG_*`, `OW_PORT_DMA_EN_BIT`)
+  is pinned per target by `test_dma_cr_value_macros`; the per-operation
+  register table still asserts exact CR/CPAR/CMAR/CNDTR words.  Verified by
+  the host suite on all five backends (base + parasite flags), all-target
+  firmware builds, a disassembly triage of the DMA1 codegen (every delta maps
+  to the pre-existing EN-wait/gap-removal session changes — volatile access
+  order preserved by construction), and a hardware matrix on the unified
+  code (F446, parasite power, 180MHz + HSI 16MHz, all green; SWD confirms
+  `MODER=0xA8200000` and PA10 `OSPEEDR=MAX` unchanged).
+- **Removed test instrumentation from production paths.** The F4 backend
+  unconditionally toggled a PA11 logic-analyzer marker on every merged search
+  operation and seized PA11 as GPIO output in `ow_port_init()` — test scaffolding
+  shipped in the library with no flag. The merged pass now goes through the
+  existing opt-in `OW_PORT_MARKER_TOGGLE()` hook (no-op by default), PA11 is
+  left untouched for the application (verified `MODER=0xA8200000` on wire vs
+  `0xA8600000` before), and the `onewire_test_set_gap_us()` RTOS-gap experiment
+  (hook, `ONEWIRE_SEARCH_GAP` phase, setters, its test and the `3_round_robin`
+  gap-sweep alternate main loop) is removed end to end.
+- **Mid-exchange bus disturbance verified harmless (rig removed).** Pressing
+  the 1-Wire data line to GND for a whole scratchpad READ corrupts exactly
+  that one read: the driver reports a single `CRC check failed` and resumes
+  normal temperature readings on the very next cycle (5 of 6 bench runs; the
+  single outlier ran before sensor power was restored and did not reproduce).
+  No hang, no permanent `no sensor`. The bench rig (`OW_PORT_BENCH_MIDEX`)
+  is removed; no production code change was needed.
+- **Disturbed command write yields one stale-but-valid reading (rig removed).**
+  Pressing the data line to GND for a whole command WRITE corrupts the command,
+  so no conversion starts; the following READ then returns the untouched
+  power-on-default scratchpad (85.0 C) with a valid CRC. No error is reported,
+  no hang, normal readings resume on the next cycle. This is a protocol-level
+  limitation, not a driver defect — a consistent-but-stale scratchpad is
+  indistinguishable from a fresh one — so applications that must never act on
+  a stale value should treat a lone 85.0 C as suspect. Rig
+  (`OW_PORT_BENCH_WEX`) removed; no production code change was needed.
+- **F4 capture path now starts the timer via `T1.CR1`, not `T1.CCR1`.**
+  `ow_port_capture()` in `port/stm32f4/ow_port_f4.h` wrote the `OPM|CEN` start
+  value into `CCR1` (a compare register) instead of `CR1` (the control
+  register), so the capture timer never started: the DMA stayed armed with
+  `NDTR` pending, no update event ever fired, and `ow_port_bus_done()` never
+  returned. Every other capture/write site already used `T1.CR1`; only the
+  capture path had the typo. Found by reading the timer registers on the wire
+  (`CR1=0` while `CCR1=0x9`) and confirmed by the search hanging in
+  `onewire_bus_done()` with the bus idle.
+- **DMA disarm now waits for the EN bit to actually retire before
+  reprogramming PAR/M0AR/NDTR.** `ow_port_dma_rearm()` (F4) and the new
+  `ow_port_dma_disable()` (shared F0/F1/F3/G0 core, all five disarm sites)
+  write `CR/CCR = 0` and, if the EN readback is still set, spin (bounded)
+  until it clears. Reason: a no-presence reset arms `OW_PORT_CAPTURE_BUF_SIZE
+  = 2` capture transfers but only the master-release edge arrives, and both
+  DMA controllers clear EN only at memory-counter drain — so an absent reset
+  leaves the capture channel armed mid-transfer (`NDTR/CNDTR = 1`, EN set)
+  when the timer operation completes. The historical bare `CR/CCR = 0`
+  then reprogrammed PAR/M0AR/NDTR while EN was latched, outside the
+  RM0008/RM0091/RM0090 "Programming the DMA" flow. On every healthy path the
+  previous transfer drained, so EN is already 0 and the wait is zero
+  iterations.
+
+  This is **not** a re-introduction of the blind drain-wait removed below: that
+  one ran inside every `ow_port_update_event()` and spun unconditionally, and
+  was removed once the stale-UIF race was diagnosed. This is a
+  disable-acknowledge — it runs only when the disable write itself did not
+  already retire EN (the genuinely-stuck path). It is also deliberately *not*
+  covered by the byte-identical `.bin` gate used for the family-core
+  deduplication: an acknowledgement loop on the unhealthy path is a real code
+  change, so the `.bin` of every family differs from the previous baseline by
+  design — the gate here is the host tests plus the real-hardware bench
+  (docs/absent-presence-rearm-plan.md §4), not binary diffing.
+
 - **README documented the F3 DMA pair one channel too low.** The
   Supported-families table said CC2→DMA1 **ch2** / CH4→DMA1 **ch3** — the
   intermediate-draft reading of RM0316 Table 78 that the silicon disproved.
@@ -166,15 +275,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   later on a fast core, so `SR=0` right after `EGR=UG` can lose the clear,
   and the next `ow_port_bus_done()` reports the operation complete before it
   started — and the true fix is flushing the posted APB write into the timer
-  domain before `SR=0`: a dummy `T1.SR` readback on F4, `__DSB()` on the
-  shared core. The wait-loop therefore serves no purpose and is gone from
+  domain before `SR=0`: a dummy `T1.SR` readback (both backends now — the
+  shared core's `__DSB()` survives only in `ow_port_kick()`). The
+  *update_event* drain wait therefore serves no purpose and is gone from
   both the shared core and F4 ("UIF-only `ow_port_bus_done()` is correct");
   the full seven-example matrix (7 × 8/64/72MHz, all PASS) above validates
-  its removal on real hardware. F4 additionally keeps its
-  `ow_port_dma_rearm()` non-blocking on purpose: a stream's EN clears only
-  at the end of a normal-mode transfer, so an EN=0 wait would block — `CR=0`
-  just requests the disable (no-op once `ow_port_bus_done()` has gated us)
-  and never waits.
+  its removal on real hardware. What remains, deliberately, is a bounded EN
+  handshake in the DMA disable path (`ow_port_dma_disable()` / F4 rearm):
+  a stream's EN clears only at the end of a normal-mode transfer, so `CR=0`
+  merely requests the disable and a `guard = 1000u` spin acknowledges it —
+  zero iterations on every healthy path (previous transfer drained, EN
+  already 0), so the steady state still never waits.
 
 - **A 180MHz clock for the F446, with the over-drive sequence it requires.**
   This is a separate `app.c` branch, not a divisor away from the 168MHz one: the

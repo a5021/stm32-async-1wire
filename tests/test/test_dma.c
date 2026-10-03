@@ -493,9 +493,11 @@ void test_dma_reset_capture_geometry(void) {
                           mock_dma1_ch4.CCR);
 
     run_op();
-    TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
-    TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
-    TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, hw_capture_count());
+    /* Two edges in a timeslot that armed OW_PORT_CAPTURE_BUF_SIZE slots: the
+       transfer count is the edge count, and the residue the slot count leaves
+       behind is what the next operation's re-arm has to handle. */
+    TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE - 2u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(2u, hw_capture_count());
     TEST_ASSERT_EQUAL_UINT16(510u, capture[0]);
     TEST_ASSERT_EQUAL_UINT16(700u, capture[1]);
 }
@@ -598,7 +600,7 @@ void test_dma_match_rom_resolution_writes_104_slots(void) {
 
     /* op 1: reset - 1 slot, 2 captures */
     run_op();
-    TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, hw_capture_count());
+    TEST_ASSERT_EQUAL_UINT32(2u, hw_capture_count());
 
     /* op 2: Match-ROM config write. 13 bytes x 8 bits = 104 slots. The number
        of DMA transfers equals the number of SLOTS (104), not the number of
@@ -683,7 +685,7 @@ void test_dma_search_transfer_accounting(void) {
         if (ds18b20_search_poll()) {
             break;
         }
-        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+if (mock_tim1.CR1 & TIM_CR1_CEN) {
             const uint32_t pre_feed = mock_feed_ch.CNDTR;
             const uint32_t pre_cap = mock_dma1_ch4.CNDTR;
             const uint32_t rcr = (uint32_t)(mock_tim1.RCR & 0xFFu);

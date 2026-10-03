@@ -132,8 +132,6 @@ uint8_t ds18b20_test_get_scan_mode(void) { return ctx.scan_mode; }
 void ds18b20_test_set_scan_mode(uint8_t m) { ctx.scan_mode = m; }
 uint8_t ds18b20_test_get_scan_index(void) { return ctx.scan_index; }
 
-void ds18b20_test_set_gap_us(uint16_t us) { onewire_test_set_gap_us(us); }
-
 void ds18b20_test_reset_txn(void) {
     txn_ctx.phase = DS18B20_TXN_DONE;
     txn_ctx.command = 0;

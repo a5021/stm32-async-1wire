@@ -61,9 +61,6 @@ const ow_pulse_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (m
 const volatile uint16_t* test_search_pulse3_addr(void); /* &search_pulse3[0] (merged capture sink) */
 const ow_pulse_t* test_res_pulses_feed_addr(void); /* &res_ctx.pulses[1] (Match-ROM write feed source) */
 
-/* Idle-HIGH gap (µs) injected between search slots (0 = disabled). */
-void ds18b20_test_set_gap_us(uint16_t us);
-
 /* Reset the search context to "no search running" (finished, DONE phase). */
 void ds18b20_test_reset_search(void);
 

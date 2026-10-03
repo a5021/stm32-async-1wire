@@ -37,11 +37,18 @@
  *  not assumed - the .bin of every example for the families already sharing
  *  this core is byte-identical before and after the split that introduced it.
  *
- *  F4 is deliberately NOT here.  It has the same 16 functions in the same order
- *  but a different DMA controller (DMA2 streams with a CHSEL mux instead of
- *  fixed DMA1 channels), two extra functions of its own, and an LA marker on
- *  PA11.  Its register names do not fit the macros above without becoming
- *  conditional spaghetti, so it keeps its own backend.
+ *  F4 is not here yet.  It implements the same 17 functions in the same
+ *  order but on a different DMA controller (DMA2 streams with a CHSEL mux
+ *  instead of fixed DMA1 channels: CR/PAR/M0AR/NDTR register names, a
+ *  two-bit DIR field, per-stream LIFCR/HIFCR flag registers, and a direct
+ *  mode that forces the memory width to PSIZE).  Its register names do not
+ *  fit the macros above without becoming conditional spaghetti, so the
+ *  unification goes through accessor macros with DMA1 defaults (see the
+ *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
+ *  family-spelled registers, with init clocks/pins/drive arriving through
+ *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  The one
+ *  F4-only carve-out that stays out is ow_port_write_then_read (UG placement
+ *  relative to the DMA programming, plus the marker hook).
  * ============================================================ */
 
 #ifndef OW_PORT_TIM_DMA_H
@@ -140,8 +147,91 @@
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
                "TIM prescaler exceeds 16-bit PSC register width");
 
-/* DMA control bits for 16-bit capture: MINC | PSIZE_0 | EN */
-#define OW_PORT_DMA_CCR_CAPTURE (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
+/* DMA control-value accessors (port-unification vocabulary): the exact
+ * CR/CCR word each DMA-programming site writes, split by transfer class.
+ * Defaults are the DMA1 (channel) spelling; the F4 shim overrides all
+ * three (stream spelling + CHSEL).  Each equals the per-site expression it
+ * will replace in the body migration:
+ *  - RX16: 16-bit capture (reset/presence, read pair, merged capture);
+ *  - RX8: 8-bit capture (scratchpad reads): DMA1 keeps a 16-bit
+ *    peripheral read narrowed to 8-bit memory, while F4 direct mode forces
+ *    the memory width to PSIZE, so F4 reads CCR4 bytes (no PSIZE bit);
+ *  - TX: CCR3 reload: the memory width follows ow_pulse_t (8-bit
+ *    everywhere except F4's 16-bit halfwords), hence MSIZE_0 only on F4.
+ * Pinned per target by tests/test_dma_contract.c::test_dma_cr_value_macros. */
+#ifndef OW_PORT_DMA_CR_RX16
+#define OW_PORT_DMA_CR_RX16 (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN)
+#endif
+#ifndef OW_PORT_DMA_CR_RX8
+#define OW_PORT_DMA_CR_RX8 (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
+#endif
+#ifndef OW_PORT_DMA_CR_TX
+#define OW_PORT_DMA_CR_TX DMA_CCR(DIR, MINC, PSIZE_0, EN)
+#endif
+
+/* DMA disable + programming statement macros (port-unification vocabulary):
+ * the register-name level differs per DMA IP (DMA1 channels: CCR/CPAR/CMAR/
+ * CNDTR; F4 streams: CR/PAR/M0AR/NDTR + CHSEL inside the CR word above), so
+ * the bodies call these instead of spelling registers.  Defaults are the
+ * DMA1 form; the F4 shim overrides all four.  Pinned end to end by
+ * tests/test_dma_contract.c (per-operation CCR/CPAR/CMAR/CNDTR table). */
+#ifndef OW_PORT_DMA_EN_BIT
+#define OW_PORT_DMA_EN_BIT DMA_CCR_EN
+#endif
+#ifndef OW_PORT_DMA_DISABLE_CAPTURE
+#define OW_PORT_DMA_DISABLE_CAPTURE() ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CCR)
+#endif
+#ifndef OW_PORT_DMA_DISABLE_FEED
+#define OW_PORT_DMA_DISABLE_FEED() ow_port_dma_disable(&OW_PORT_DMA_FEED.CCR)
+#endif
+#ifndef OW_PORT_DMA_PROG_CAPTURE
+#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr) \
+    do { \
+        OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4; \
+        OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)(dst); \
+        OW_PORT_DMA_CAPTURE.CNDTR = (count); \
+        OW_PORT_DMA_CAPTURE.CCR = (cr); \
+    } while (0)
+#endif
+#ifndef OW_PORT_DMA_PROG_FEED
+#define OW_PORT_DMA_PROG_FEED(src, count, cr) \
+    do { \
+        OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3; \
+        OW_PORT_DMA_FEED.CMAR = (uint32_t)(src); \
+        OW_PORT_DMA_FEED.CNDTR = (count); \
+        OW_PORT_DMA_FEED.CCR = (cr); \
+    } while (0)
+#endif
+
+/**
+ * @brief Disable a DMA channel and wait for EN to retire before re-arm
+ * @param[in] ccr Address of the channel's CCR register (`&OW_PORT_DMA_CAPTURE.CCR`
+ *        or `&OW_PORT_DMA_FEED.CCR`)
+ * @note DMA1 clears EN by hardware only when CNDTR drains, so a capture
+ *       underrun (fewer physical bus edges than armed transfers, e.g. a
+ *       no-presence reset schedules OW_PORT_CAPTURE_BUF_SIZE=2 captures but
+ *       only the master-release edge arrives) leaves the channel armed
+ *       mid-transfer — CNDTR > 0, EN still set — when the timer operation
+ *       completes. Reprogramming PAR/CMAR/NDTR while EN is set is outside the
+ *       RM0008/RM0091 programming-model flow, so the disable is acknowledged
+ *       with a bounded wait on CCR.EN instead of the bare CCR=0 the historical
+ *       code used. On every healthy path (the previous transfer drained, EN
+ *       already 0) the wait is zero iterations. The host model cannot
+ *       distinguish this from the bare CCR=0 (no disable latency, no
+ *       register-access accessors); those tests document the contract and the
+ *       real-hardware bench proves the wait, see docs/absent-presence-rearm-plan.md.
+ *       The parameter is the CCR field rather than a channel pointer so the
+ *       core need not name the channel type (the ST headers spell it
+ *       `DMA_Channel_TypeDef`, the host mocks `DMA1_Channel_TypeDef`).
+ */
+__STATIC_FORCEINLINE void ow_port_dma_disable(volatile uint32_t* ccr) {
+    *ccr = 0; /* request disable */
+    if (*ccr & OW_PORT_DMA_EN_BIT) {
+        uint32_t guard = 1000u;
+        while ((*ccr & OW_PORT_DMA_EN_BIT) != 0u && guard-- != 0u) {
+        }
+    }
+}
 
 /**
  * @brief Force a timer update event, leaving UIF set
@@ -162,7 +252,9 @@ __STATIC_FORCEINLINE void ow_port_kick(void) {
  */
 __STATIC_FORCEINLINE void ow_port_update_event(void) {
     T1.EGR = TIM_EGR(UG);
-    __DSB();
+    (void)T1.SR; /* flush posted APB writes so UG sets UIF before SR=0 clears it
+                  * (same mechanism as the F4 backend: the read round-trips the
+                  * bus and proves the peripheral answered post-write) */
     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */
 }
 
@@ -285,13 +377,10 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
     T1.DIER = TIM_DIER(CC4DE);
 #endif
     ow_port_update_event();
-    T1.CCR3 = 0;
-    OW_PORT_DMA_CAPTURE.CCR = 0;
+    T1.CCR3 = ONEWIRE_RELEASE_PULSE;
+    OW_PORT_DMA_DISABLE_CAPTURE();
     OW_PORT_ROUTE_CAPTURE();
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)dst;
-    OW_PORT_DMA_CAPTURE.CNDTR = count;
-    OW_PORT_DMA_CAPTURE.CCR = OW_PORT_DMA_CCR_CAPTURE | ((width == 16) ? DMA_CCR_MSIZE_0 : 0);
+    OW_PORT_DMA_PROG_CAPTURE(dst, count, ((width == 16) ? OW_PORT_DMA_CR_RX16 : OW_PORT_DMA_CR_RX8));
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
@@ -325,14 +414,12 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
     T1.DIER = TIM_DIER(CC2DE);
 #endif
     ow_port_update_event();
-    OW_PORT_DMA_FEED.CCR = 0;
+    OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
-    OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
-    OW_PORT_DMA_FEED.CMAR = (uint32_t)&cmd[1];
-    OW_PORT_DMA_FEED.CNDTR = slots; /* Feed slots 2..N, then the ONEWIRE_RELEASE_PULSE (bus release) */
-    OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
+    /* Feed slots 2..N, then the ONEWIRE_RELEASE_PULSE (bus release) */
+    OW_PORT_DMA_PROG_FEED(&cmd[1], slots, OW_PORT_DMA_CR_TX);
     T1.CR1 = TIM_CR1(OPM, CEN);
-    return 1;
+    return 1u;
 }
 
 /**
@@ -410,7 +497,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
         ow_port_update_event();
         T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Preload release pulse -> line idles HIGH when the timer stops */
         T1.CR1 = TIM_CR1(OPM, CEN);
-        return 1;
+        return 1u;
     }
     return ow_port_feed(pulses, slots);
 }
@@ -431,16 +518,17 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.DIER = TIM_DIER(CC4DE);
 #endif
     ow_port_update_event();
-    T1.CCR3 = 0; /* Clear the output-compare value (CCR4 capture is independent) */
-    OW_PORT_DMA_CAPTURE.CCR = 0;
+    T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Clear the output-compare value (CCR4 capture is independent) */
+    OW_PORT_DMA_DISABLE_CAPTURE();
     OW_PORT_ROUTE_CAPTURE();
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pair_pulses;
-    OW_PORT_DMA_CAPTURE.CNDTR = 2;
-    OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
+    OW_PORT_DMA_PROG_CAPTURE(pair_pulses, 2, OW_PORT_DMA_CR_RX16);
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
+/* A backend with its own merged-pass ordering (F4: DMA programmed before UG
+ * plus the marker hook) defines OW_PORT_OWN_WRITE_THEN_READ and keeps its
+ * own version below the core include; everyone else shares this one. */
+#ifndef OW_PORT_OWN_WRITE_THEN_READ
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
@@ -453,7 +541,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif
-    const uint8_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
+    const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     T1.RCR = 2; /* Three slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
     /* Arm the direction pulse first. The bus was released idle-high by
@@ -479,7 +567,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #endif
     ow_port_update_event();
     /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer */
-    OW_PORT_DMA_CAPTURE.CCR = 0;
+    ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CCR);
     OW_PORT_ROUTE_CAPTURE();
     OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
     OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pulse3;
@@ -488,7 +576,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     /* Feed DMA: reload CCR3 with the read pulse for slots 2-3, then write
      * ONEWIRE_RELEASE_PULSE during slot 3 so the one-pulse timer stops with
      * the line released to idle HIGH (hardware bus release). */
-    OW_PORT_DMA_FEED.CCR = 0;
+    ow_port_dma_disable(&OW_PORT_DMA_FEED.CCR);
     OW_PORT_ROUTE_FEED();
     OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
     OW_PORT_DMA_FEED.CMAR = (uint32_t)read_pulse;
@@ -502,6 +590,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
+#endif /* OW_PORT_OWN_WRITE_THEN_READ */
 
 /**
  * @brief Schedule a read of `bytes` bytes from the bus
@@ -520,7 +609,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t by
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
     T1.CCR3 = ONEWIRE_ONE_PULSE;
     ow_port_capture(dst, bits, 8);
-    return 1;
+    return 1u;
 }
 
 /**

@@ -261,7 +261,11 @@ else
 endif
 
 # Set additional compiler flags for dependencies and object file generation
-FLAG += -MMD -MP -MF $(@:%.o=%.d)
+# -MP is dropped: its phony per-header targets defeat the dependency on exactly
+# the headers that need to trigger a rebuild. The explicit prerequisite lists in
+# the object rule below carry the real dependency set (see there for why the
+# depfiles cannot be trusted as generated on Windows).
+FLAG += -MMD -MF $(@:%.o=%.d)
 
 # Define linker flags
 LIB = -lc -lm -lnosys
@@ -616,11 +620,45 @@ OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
 OBJ += $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(ASM:.s=.o)))
-vpath %.s $(sort $(dir $(ASM))) # Set the search path for assembly source files
+vpath %.s $(sort $(dir $(ASM))) # Set the search path for A source files
+
+# --- Explicit dependency lists (do NOT rely on the -MMD depfiles) ---
+#
+# The depfiles this build generates end up with CRLF line endings on Windows,
+# and GNU make only honours a trailing backslash as a line continuation when
+# it is the very last byte of the line. The CR in front of the LF therefore
+# terminates the rule early, so every prerequisite the depfile lists is
+# silently dropped: -include still reads the file, but the target keeps only
+# the pattern rule's own `%.c` prerequisite.
+#
+# The failure is invisible and dangerous. `make` prints a normal compile, the
+# build is clean, and it links a stale object - editing a header or an
+# include-only driver part recompiles nothing. During the F4 rearm bench that
+# made several runs flash the previous day's firmware and produced diagnostic
+# output that could never appear in the image (the strings were absent from the
+# ELF), which sent the investigation after two wrong root causes. Linux CI does
+# not see it, the depfiles there use LF.
+#
+# So the dependencies are listed explicitly instead. Cost: one extra stat per
+# header per object, which is negligible next to the compile it may trigger.
+OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
+              $(wildcard port/common/*.h) $(wildcard port/stm32f1/*.h) \
+              $(wildcard port/stm32f0/*.h) $(wildcard port/stm32f3/*.h) \
+              $(wildcard port/stm32g0/*.h) $(wildcard port/stm32f4/*.h)
+
+# src/ds18b20.c is an umbrella translation unit: it #includes the driver parts
+# below, so editing one of them must rebuild the object. -MP gives each part a
+# phony target of its own, which would otherwise defeat the dependency even
+# where depfiles do parse.
+OW_DRIVER_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
+                  src/ds18b20_search.c src/ds18b20_measure.c
 
 # Specify how to compile a C source file into an object file
-$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c $(OW_INC_HDRS) Makefile | $(BUILD_DIR)
 	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
+
+# The umbrella unit needs the include-only parts on top of the shared list.
+$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_ds18b20.o: $(OW_DRIVER_PARTS)
 
 # Specify how to compile an assembly source file into an object file
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
@@ -646,6 +684,11 @@ $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
 # variant recompiles nothing.
 .PHONY: FORCE_RELINK
 FORCE_RELINK:
+
+# Include the depfiles gcc writes next to the objects (see FLAG).
+# NOTE: the depfiles are NOT read. gcc writes them with CRLF on Windows, which
+# breaks their continuation lines, and with -MP removed they only ever added
+# phony targets. The object rule below carries the real dependency list.
 
 # Specify how to build the final executable file
 $(BUILD_DIR)/$(TARGET).elf: $(OBJ) Makefile FORCE_RELINK
@@ -990,8 +1033,11 @@ test-ndebug: $(TEST_NG_EXE)
 $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
 
-# Include the dependency files generated during compilation
--include $(wildcard $(BUILD_DIR)/*.d)
+# Depfiles are generated but deliberately NOT included: gcc writes them with
+# CRLF on Windows, GNU make does not honour a continuation whose backslash is
+# followed by CR, so every prerequisite they list is dropped while the include
+# itself still succeeds. The object rule carries the same dependencies
+# explicitly (OW_INC_HDRS / OW_DRIVER_PARTS).
 
 # =============================================================================
 # FUZZ TARGETS (requires Clang with libFuzzer / SanitizerCoverage,

@@ -19,6 +19,24 @@ uint8_t hw_run_until_uif(uint32_t max_slots);
 typedef uint16_t (*hw_capture_fn)(uint32_t slot_index);
 void hw_set_capture_source(hw_capture_fn fn);
 
+/* Limit the number of capture transfers the model performs in one operation.
+ * 0 (the default) means unlimited: as many captures run as the DMA counter
+ * scheduled, which is the historical model behaviour. A non-zero n models the
+ * silicon closely for *underrun* scenarios: on both DMA controllers EN clears
+ * only when the memory counter drains, so an operation that produces fewer
+ * physical bus edges than the CPU armed (e.g. a no-presence reset schedules
+ * OW_PORT_CAPTURE_BUF_SIZE = 2 captures but only the master-release edge
+ * arrives) leaves the capture channel armed mid-transfer (CNDTR > 0, EN set)
+ * when the timer operation completes. Forcing the model to take at most n
+ * captures therefore leaves the channel in that exact state, so the tests can
+ * assert the register state the *next* operation's DMA re-arm sees. The
+ * historical instant-drain behaviour would falsify that state (CNDTR 0, EN 0)
+ * and mask the very gap this API exists to expose. Both bellies of the model
+ * honour it: hw_run_until_uif() skips the extra dma13_transfer() calls (never
+ * performing them), and the temporal stepper reports no further capture
+ * ticks — the register state after an underrun is identical in both. */
+void hw_set_capture_edges(uint32_t n);
+
 /* Register a buffer so the model can resolve the truncated 32-bit DMA
  * addresses the driver stores in CMAR back to real host pointers.
  * The exact address the driver stores must be registered (e.g. &cmd[1]

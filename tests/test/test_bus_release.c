@@ -250,6 +250,86 @@ void test_long_waits_keep_bus_released(void) {
 }
 
 /*-------------------------------------------------------------
+ *  Absent-presence reset -> capture underrun leaves the channel armed.
+ *
+ *  Finding (docs/absent-presence-rearm-review.md): a no-presence reset
+ *  schedules OW_PORT_CAPTURE_BUF_SIZE = 2 capture transfers, but only the
+ *  master-release edge arrives. On both DMA controllers EN clears only when
+ *  the memory counter drains, so the capture channel is left armed mid-transfer
+ *  (CNDTR = 1, EN set) when the timer operation completes. The next operation's
+ *  DMA re-arm (CR=0, then PAR/M0AR/NDTR reprogram) is therefore exactly the
+ *  "reprogram while EN is latched" case the reference manuals forbid.
+ *
+ *  Model honesty: hw_set_capture_edges(1) makes the model leave the channel in
+ *  that state instead of instantly draining the counter (see hw_model.h). The
+ *  host model has no register-access accessors and no disable latency, so the
+ *  fixed driver (bounded EN-ack wait) and the historical one (bare CR=0) are
+ *  register-indistinguishable here — this is NOT enforced by these tests, only
+ *  documented and pinned as an end-to-end contract. The actual enforcement is
+ *  code review of ow_port_dma_rearm()/ow_port_dma_disable() plus the
+ *  real-hardware bench (docs/absent-presence-rearm-plan.md §4).
+ * -----------------------------------------------------------*/
+void test_reset_absent_then_present_no_stale_capture(void) {
+    hw_set_capture_edges(1); /* no-presence reset: 1 of the armed captures happens */
+
+    hw_set_capture_source(src_reset_absent);
+    test_bus_reset();
+    complete_op(4);
+    TEST_ASSERT_FALSE(test_bus_present());
+    /* The reset underruns: OW_PORT_CAPTURE_BUF_SIZE slots were armed and only
+     * one edge arrived, so the stream ends the operation with transfers still
+     * pending and EN latched. That is exactly the state the next operation's
+     * re-arm has to cope with - ow_port_dma_rearm() acknowledges the disable
+     * before the reprogram - and it is why the buffer is wider than the two
+     * edges a timeslot produces. reset_pulses[1] was zeroed by ow_port_reset
+     * and never rewritten: a non-event, not a phantom. */
+    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+
+    /* A presence reset right after must recover on the same bus: the re-arm
+     * reprograms a fresh slot count (no stale accumulation) and decodes a real
+     * presence. */
+    hw_set_capture_edges(0); /* unlimited again: a present reset drains both captures */
+    hw_set_capture_source(src_reset_present);
+    test_bus_reset();
+    complete_op(4);
+    TEST_ASSERT_TRUE(test_bus_present());
+    TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());
+    TEST_ASSERT_EQUAL_UINT32(0u, MOCK_DMA_CAP.CNDTR);
+    assert_bus_released();
+}
+
+/*-------------------------------------------------------------
+ *  Two no-presence resets back to back: both underrun, and neither may leave a
+ *  count that accumulates across operations. ow_port_dma_rearm() reprograms the
+ *  slot count from scratch each time, so the residue is a function of this
+ *  operation alone - the harmless kind of "stale". The dangerous kind, a
+ *  reprogram while EN is still latched, is what the re-arm fix and the real
+ *  hardware bench guard against.
+ * -----------------------------------------------------------*/
+void test_reset_absent_twice_in_a_row(void) {
+    hw_set_capture_edges(1);
+    hw_set_capture_source(src_reset_absent);
+
+    test_bus_reset();
+    complete_op(4);
+    TEST_ASSERT_FALSE(test_bus_present());
+    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+
+    test_bus_reset();
+    complete_op(4);
+    TEST_ASSERT_FALSE(test_bus_present());
+    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
+    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+
+    hw_set_capture_edges(0);
+}
+
+/*-------------------------------------------------------------
  *  Run all bus-release tests
  * -----------------------------------------------------------*/
 void run_test_bus_release(void) {
@@ -262,4 +342,6 @@ void run_test_bus_release(void) {
     TEST_RUN(test_read_data_hardware_path_decode);
     TEST_RUN(test_long_waits_keep_bus_released);
     TEST_RUN(test_sequence_stays_released_between_ops);
+    TEST_RUN(test_reset_absent_then_present_no_stale_capture);
+    TEST_RUN(test_reset_absent_twice_in_a_row);
 }

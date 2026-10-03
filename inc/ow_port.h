@@ -30,20 +30,24 @@ extern "C" {
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
 
+/* Optional logic-analyzer marker hook, empty by default.  Backends that have
+ * one may define OW_PORT_MARKER_TOGGLE() to pulse a spare GPIO so a decoder
+ * can find the start of a merged operation pass.  The core never calls it, so
+ * this is a contract for the backend's own use, not a required callback.
+ * Lives above the onewire.h include on purpose: onewire.h pulls in the
+ * backend, which is included while this header's guard is already active, so
+ * anything below that include is invisible to backends (circular inclusion).
+ * A backend calling this hook needs the default defined before that point. */
+#ifndef OW_PORT_MARKER_TOGGLE
+#define OW_PORT_MARKER_TOGGLE() ((void)0)
+#endif
+
 /* The selected backend (onewire.h includes it) supplies OW_PORT_SYSCLK_MHZ
  * (used for the timer prescaler and the IC4F selection below) and ow_pulse_t
  * for the backend signatures; the bit-slot durations come from ow_config.h.
  * Including onewire.h here keeps this header self-contained regardless of the
  * TU include order. */
 #include "onewire.h"
-
-/* Optional logic-analyzer marker hook, empty by default.  Backends that have
- * one may define OW_PORT_MARKER_TOGGLE() to pulse a spare GPIO so a decoder
- * can find the start of a merged operation pass.  The core never calls it, so
- * this is a contract for the backend's own use, not a required callback. */
-#ifndef OW_PORT_MARKER_TOGGLE
-#define OW_PORT_MARKER_TOGGLE() ((void)0)
-#endif
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
  * least-significant byte via the DMA memory-store width.  How the offsets are

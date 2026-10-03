@@ -391,6 +391,34 @@ subsequent `SR=0` clear — the clear cannot lose the race. Verified in both
 `ow_port_update_event()` and `ow_port_kick()` on F407 (example
 2_device_search, 7 devices, parasite power, 168MHz).
 
+## No-presence reset leaves the capture stream armed — EN-ack now waits
+
+When a reset gets no presence, `ow_port_reset()` still arms the capture chain
+with `OW_PORT_CAPTURE_BUF_SIZE = 2` transfers (the master-release edge is
+guaranteed, a presence edge is not). The F4 DMA clears EN only at the end of a
+normal-mode transfer, so with just the one release edge arriving the stream
+stops mid-transfer: NDTR 2→1, EN still set. That state survives
+`ow_port_bus_done()`, and the *next* operation's
+`ow_port_dma_rearm()`/`ow_port_capture()` then reprogrammed M0AR/NDTR while EN
+was latched — outside the RM0090 §9.3.9 "Programming the DMA controller" flow.
+The historical CR=0 is only the disable *request*; the programming model wants
+EN read as 0 before PAR/M0AR/NDTR are rewritten.
+
+`ow_port_dma_rearm()` now acknowledges the disable: after `CR=0` it reads CR
+back and, if EN is still set, waits (bounded) until the stream retires it.
+Because on every healthy path the previous transfer drained before
+`ow_port_bus_done()` returned, EN is already 0 when this runs and the wait is
+zero iterations — no healthy-path cost. Same change on the shared core
+(`ow_port_dma_disable()`, all five disarm sites in `ow_port_tim_dma.h`) for
+F0/F1/F3/G0, where the only difference is the DMA1 semantics.
+
+The host model cannot observe the wait (flat register store, CR=0 → EN=0
+instant, no register-access accessors), so the model tests pin the end-to-end
+contract only; the wait itself is enforced by the physical bench described in
+`docs/absent-presence-rearm-plan.md` §4 (bus shorted to GND across one reset
+window, agent loop recovers to 7/7 in the same run). **Bench pending on
+F446RET6 @ 180MHz** — results appended here when run.
+
 ## Multi-frequency fleet validation (all 6 multi-sensor examples)
 
 Full hardware matrix after the URS/`__DSB()` removal: every example that

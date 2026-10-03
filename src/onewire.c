@@ -1,4 +1,4 @@
-#include "onewire.h"
+﻿#include "onewire.h"
 #include "ow_port.h"
 
 #include <assert.h>
@@ -74,9 +74,6 @@ typedef enum {
     ONEWIRE_SEARCH_WRITE_READ, /**< merged direction write + next pair read completed */
     ONEWIRE_SEARCH_WRITE_DIR, /**< final direction written; advance bit counters */
     ONEWIRE_SEARCH_DONE, /**< search finished; restore the owner state */
-#ifdef DS18B20_TEST_HARNESS
-    ONEWIRE_SEARCH_GAP /**< [TEST] timed idle-HIGH gap before the next slot */
-#endif
 } onewire_search_phase_t;
 
 /**
@@ -109,15 +106,7 @@ static onewire_search_ctx_t search_ctx;
 _Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
                "search command buffer must fit one RCR window");
 _Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
-               "search pair capture must fit one RCR window");
-
-#ifdef DS18B20_TEST_HARNESS
-/** @brief [TEST] Idle-HIGH gap (µs) inserted after every completed search
- *         operation before scheduling the next one (0 = no gap). */
-static uint16_t test_gap_us;
-/** @brief [TEST] Search phase to resume after the gap wait completes */
-static uint8_t test_gap_pending_phase;
-#endif
+                "search pair capture must fit one RCR window");
 
 /** @} */
 
@@ -136,7 +125,7 @@ void onewire_init(void) {
     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
     // event even though no ISR is enabled. Done once here; the corresponding
     // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never
-    // called — the project has no ISR vector for TIM1 at all.
+    // called вЂ” the project has no ISR vector for TIM1 at all.
     SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
 #endif
 }
@@ -339,20 +328,6 @@ uint8_t onewire_search_poll(void) {
         return 0;
     }
 
-#ifdef DS18B20_TEST_HARNESS
-    // [TEST] Inject a hardware-timed idle-HIGH gap between search slots to
-    // measure a 1-Wire slave's tolerance to a delayed next slot (RTOS scenario).
-    if (test_gap_us != 0u && search_ctx.phase != ONEWIRE_SEARCH_GAP) {
-        test_gap_pending_phase = (uint8_t)search_ctx.phase;
-        search_ctx.phase = ONEWIRE_SEARCH_GAP;
-        onewire_start_timer(test_gap_us, 0);
-        return 0;
-    }
-    if (search_ctx.phase == ONEWIRE_SEARCH_GAP) {
-        search_ctx.phase = (onewire_search_phase_t)test_gap_pending_phase;
-    }
-#endif
-
     switch (search_ctx.phase) {
     case ONEWIRE_SEARCH_RESET:
         // Reset completed: a presence pulse means at least one device is on
@@ -439,10 +414,7 @@ uint8_t onewire_search_poll(void) {
         break;
 
     case ONEWIRE_SEARCH_DONE:
-#ifdef DS18B20_TEST_HARNESS
-    case ONEWIRE_SEARCH_GAP:
-#endif
-        // DONE and GAP are handled before the switch (see above); keep as a
+        // DONE is handled before the switch (see above); keep as a
         // no-op so -Wswitch-enum stays satisfied.
         break;
 
@@ -458,7 +430,3 @@ uint8_t onewire_search_count(void) { return search_ctx.found; }
 uint8_t onewire_search_active(void) { return (uint8_t)!search_ctx.finished; }
 
 /** @} */
-
-#ifdef DS18B20_TEST_HARNESS
-void onewire_test_set_gap_us(uint16_t us) { test_gap_us = us; }
-#endif

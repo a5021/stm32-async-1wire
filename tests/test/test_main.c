@@ -22,7 +22,6 @@ void setUp(void) {
     ds18b20_test_reset_resolution();
     ds18b20_test_reset_txn();
     test_spy_reset();
-    ds18b20_test_set_gap_us(0);
     ow_stats_init();
 }
 
