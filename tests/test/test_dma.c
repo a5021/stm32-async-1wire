@@ -685,7 +685,7 @@ void test_dma_search_transfer_accounting(void) {
         if (ds18b20_search_poll()) {
             break;
         }
-if (mock_tim1.CR1 & TIM_CR1_CEN) {
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
             const uint32_t pre_feed = mock_feed_ch.CNDTR;
             const uint32_t pre_cap = mock_dma1_ch4.CNDTR;
             const uint32_t rcr = (uint32_t)(mock_tim1.RCR & 0xFFu);

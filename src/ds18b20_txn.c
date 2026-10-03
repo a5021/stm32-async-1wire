@@ -136,7 +136,7 @@ static uint8_t txn_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the command for this transaction.
         {
-uint8_t txn_present = onewire_present(ctx.capture);
+            uint8_t txn_present = onewire_present(ctx.capture);
             if (!txn_present) {
                 txn_ctx.phase = DS18B20_TXN_DONE;
                 break;

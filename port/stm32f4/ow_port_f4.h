@@ -139,13 +139,13 @@ typedef uint16_t ow_pulse_t;
 /* Statement macro spelling of the pin-mode switch (same shape as the other
  * backends' OW_PORT_SET_PIN_MODE): the shared core will call this, the
  * function below delegates to it until the body moves to the core. */
-#define OW_PORT_SET_PIN_MODE(push_pull) \
-    do { \
-        if (push_pull) { \
+#define OW_PORT_SET_PIN_MODE(push_pull)                                    \
+    do {                                                                   \
+        if (push_pull) {                                                   \
             OW_BUS_GPIO.OTYPER &= ~OW_BUS_OT; /* OD -> PP (strong HIGH) */ \
-        } else { \
-            OW_BUS_GPIO.OTYPER |= OW_BUS_OT; /* PP -> OD (release) */ \
-        } \
+        } else {                                                           \
+            OW_BUS_GPIO.OTYPER |= OW_BUS_OT; /* PP -> OD (release) */      \
+        }                                                                  \
     } while (0)
 
 /* TIM prescaler: owned by the shared core (same PSC = SYSCLK_MHZ - 1 plus
@@ -194,19 +194,19 @@ typedef uint16_t ow_pulse_t;
  * the CR word, so the core's OW_PORT_ROUTE_* stay empty no-ops here. */
 #define OW_PORT_DMA_DISABLE_CAPTURE() ow_port_dma_rearm(DMA2_Stream4)
 #define OW_PORT_DMA_DISABLE_FEED() ow_port_dma_rearm(DMA2_Stream2)
-#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr) \
-    do { \
+#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr)      \
+    do {                                              \
         OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4; \
-        OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)(dst); \
-        OW_PORT_DMA_CAPTURE.NDTR = (count); \
-        OW_PORT_DMA_CAPTURE.CR = (cr); \
+        OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)(dst);   \
+        OW_PORT_DMA_CAPTURE.NDTR = (count);           \
+        OW_PORT_DMA_CAPTURE.CR = (cr);                \
     } while (0)
-#define OW_PORT_DMA_PROG_FEED(src, count, cr) \
-    do { \
+#define OW_PORT_DMA_PROG_FEED(src, count, cr)      \
+    do {                                           \
         OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3; \
-        OW_PORT_DMA_FEED.M0AR = (uint32_t)(src); \
-        OW_PORT_DMA_FEED.NDTR = (count); \
-        OW_PORT_DMA_FEED.CR = (cr); \
+        OW_PORT_DMA_FEED.M0AR = (uint32_t)(src);   \
+        OW_PORT_DMA_FEED.NDTR = (count);           \
+        OW_PORT_DMA_FEED.CR = (cr);                \
     } while (0)
 #define OW_PORT_ROUTE_CAPTURE() ((void)0)
 #define OW_PORT_ROUTE_FEED() ((void)0)
@@ -224,18 +224,18 @@ __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream);
  * (broadcast) conversion of several devices droops the line into brown-out
  * (POR 85 C / garbage with valid CRC), while one device at a time still
  * converts fine.  Configurable via OW_BUS_DRIVE (default MAX = very-high). */
-#define OW_PORT_ENABLE_BUS_CLOCKS() \
-    do { \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                                                            \
+    do {                                                                                                       \
         RC.AHB1ENR |= RCC_BITS(AHB1ENR, DMA2EN, GPIOAEN) | OW_BUS_GPIO_CLK; /* TIM1 requests route via DMA2 */ \
-        RC.APB2ENR |= RCC_APB2ENR(TIM1EN); \
+        RC.APB2ENR |= RCC_APB2ENR(TIM1EN);                                                                     \
     } while (0)
-#define OW_PORT_CONFIG_BUS_PIN() \
-    do { \
-        OW_BUS_GPIO.MODER = (OW_BUS_GPIO.MODER & ~OW_BUS_MODER) | OW_BUS_MODER_1; \
-        OW_BUS_GPIO.OTYPER |= OW_BUS_OT; \
+#define OW_PORT_CONFIG_BUS_PIN()                                                              \
+    do {                                                                                      \
+        OW_BUS_GPIO.MODER = (OW_BUS_GPIO.MODER & ~OW_BUS_MODER) | OW_BUS_MODER_1;             \
+        OW_BUS_GPIO.OTYPER |= OW_BUS_OT;                                                      \
         OW_BUS_GPIO.AFR[1] = (OW_BUS_GPIO.AFR[1] & ~OW_BUS_AFSEL) | (1u << OW_BUS_AFSEL_Pos); \
-        OW_BUS_GPIO.OSPEEDR = (OW_BUS_GPIO.OSPEEDR & ~OW_BUS_OSPEEDR) | \
-                              ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos); \
+        OW_BUS_GPIO.OSPEEDR = (OW_BUS_GPIO.OSPEEDR & ~OW_BUS_OSPEEDR) |                       \
+                              ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos);                  \
     } while (0)
 
 /* The shared body.  This shim keeps its own merged pass (UG placement plus
@@ -282,15 +282,6 @@ __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream) {
         D2.HIFCR = DMA_HIFCR(CFEIF4, CDMEIF4, CTEIF4, CHTIF4, CTCIF4);
     }
 }
-
-
-
-
-
-
-
-
-
 
 /**
  * @brief Merge the direction-bit write with the id/cmp read pair in one pass
@@ -365,7 +356,5 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
-
-
 
 #endif /* OW_PORT_F4_H */

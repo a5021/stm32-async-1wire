@@ -167,7 +167,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the config write for the requested resolution.
         {
-uint8_t res_present = onewire_present(ctx.capture);
+            uint8_t res_present = onewire_present(ctx.capture);
             if (!res_present) {
                 res_ctx.phase = DS18B20_RES_DONE;
                 break;

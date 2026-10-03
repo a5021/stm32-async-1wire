@@ -106,7 +106,7 @@ static onewire_search_ctx_t search_ctx;
 _Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
                "search command buffer must fit one RCR window");
 _Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
-                "search pair capture must fit one RCR window");
+               "search pair capture must fit one RCR window");
 
 /** @} */
 
