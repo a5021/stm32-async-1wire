@@ -32,12 +32,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">98.6&nbsp;%</td>
-            <td class="headerCovTableEntry">142</td>
-            <td class="headerCovTableEntry">140</td>
+            <td class="headerCovTableEntry">143</td>
+            <td class="headerCovTableEntry">141</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-02 16:07:21</td>
+            <td class="headerValue">2026-10-03 20:17:32</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -207,291 +207,294 @@
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">         363 :     case DS18B20_TXN_RESET:</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :         // the bus, so send the command for this transaction.</span>
-<span id="L138"><span class="lineNum">     138</span>         [<span class="tlaGBC" title="Branch 0 was taken 77 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 286 times"> + </span>]:<span class="tlaGNC">         363 :         if (!onewire_present(ctx.capture)) {</span></span>
-<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">          77 :             txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
-<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">          77 :             break;</span></span>
-<span id="L141"><span class="lineNum">     141</span>                 :             :         }</span>
-<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 242 times"> + </span>]:<span class="tlaGNC">         286 :         if (ctx.parasite) {</span></span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">          44 :             onewire_strong_pullup(1);</span></span>
+<span id="L138"><span class="lineNum">     138</span>                 :             :         {</span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         363 : uint8_t txn_present = onewire_present(ctx.capture);</span></span>
+<span id="L140"><span class="lineNum">     140</span>         [<span class="tlaGBC" title="Branch 0 was taken 77 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 286 times"> + </span>]:<span class="tlaGNC">         363 :             if (!txn_present) {</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">          77 :                 txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">          77 :                 break;</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :             :             }</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             :         }</span>
-<span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">         286 :         onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);</span></span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">         286 :         txn_ctx.phase = DS18B20_TXN_WRITE;</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">         286 :         break;</span></span>
-<span id="L148"><span class="lineNum">     148</span>                 :             : </span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         286 :     case DS18B20_TXN_WRITE:</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :             :         // Command write completed: read the response back if the command has</span>
-<span id="L151"><span class="lineNum">     151</span>                 :             :         // one, otherwise wait the required hold-off or finish immediately.</span>
-<span id="L152"><span class="lineNum">     152</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">         286 :         if (txn_ctx.read_bytes) {</span></span>
-<span id="L153"><span class="lineNum">     153</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 121 times"> + </span>]:<span class="tlaGNC">         132 :             if (ctx.parasite) {</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">          11 :                 onewire_strong_pullup(0);</span></span>
-<span id="L155"><span class="lineNum">     155</span>                 :             :             }</span>
-<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">         132 :             onewire_read_data(ctx.pulse, txn_ctx.read_bytes);</span></span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">         132 :             txn_ctx.phase = DS18B20_TXN_READ;</span></span>
-<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">         154 :         } else if (txn_ctx.wait_us) {</span></span>
-<span id="L159"><span class="lineNum">     159</span>                 :             :             // Parasite power: Copy Scratchpad / Recall E² draw their supply</span>
-<span id="L160"><span class="lineNum">     160</span>                 :             :             // from the bus while the EEPROM programs - drive HIGH actively</span>
-<span id="L161"><span class="lineNum">     161</span>                 :             :             // for the hold-off window.</span>
-<span id="L162"><span class="lineNum">     162</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          88 :             if (ctx.parasite) {</span></span>
-<span id="L163"><span class="lineNum">     163</span>                 :<span class="tlaGNC">          22 :                 onewire_strong_pullup(1);</span></span>
-<span id="L164"><span class="lineNum">     164</span>                 :             :             }</span>
-<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">          88 :             onewire_start_timer(txn_ctx.wait_us, 0);</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">          88 :             txn_ctx.phase = DS18B20_TXN_WAIT;</span></span>
-<span id="L167"><span class="lineNum">     167</span>                 :             :         } else {</span>
-<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">          66 :             if (ctx.parasite) {</span></span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          11 :                 onewire_strong_pullup(0);</span></span>
-<span id="L170"><span class="lineNum">     170</span>                 :             :             }</span>
-<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">          66 :             txn_ctx.ok = 1;</span></span>
-<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">          66 :             txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
-<span id="L173"><span class="lineNum">     173</span>                 :             :         }</span>
-<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">         286 :         break;</span></span>
-<span id="L175"><span class="lineNum">     175</span>                 :             : </span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         132 :     case DS18B20_TXN_READ:</span></span>
-<span id="L177"><span class="lineNum">     177</span>                 :             :         // Data read completed: decode the captured pulse durations.</span>
-<span id="L178"><span class="lineNum">     178</span>                 :             :         txn_decode_read();</span>
-<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         132 :         txn_ctx.ok = 1;</span></span>
-<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         132 :         txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">         132 :         break;</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :             : </span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">          88 :     case DS18B20_TXN_WAIT:</span></span>
-<span id="L184"><span class="lineNum">     184</span>                 :             :         // Hold-off completed (Copy Scratchpad / Recall EEPROM): release the</span>
-<span id="L185"><span class="lineNum">     185</span>                 :             :         // strong pull-up unconditionally (idempotent) so a parasite flag</span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :         // cleared mid-window cannot leave the bus actively driven.</span>
-<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          88 :         onewire_strong_pullup(0);</span></span>
-<span id="L188"><span class="lineNum">     188</span>                 :<span class="tlaGNC">          88 :         txn_ctx.ok = 1;</span></span>
-<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">          88 :         txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
-<span id="L190"><span class="lineNum">     190</span>                 :<span class="tlaGNC">          88 :         break;</span></span>
-<span id="L191"><span class="lineNum">     191</span>                 :             : </span>
-<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case DS18B20_TXN_DONE:</span></span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :     default:</span>
-<span id="L194"><span class="lineNum">     194</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :             :     }</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             : </span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC tlaBgGNC">         869 :     return 0;</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :             : }</span>
+<span id="L145"><span class="lineNum">     145</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 242 times"> + </span>]:<span class="tlaGNC">         286 :         if (ctx.parasite) {</span></span>
+<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          44 :             onewire_strong_pullup(1);</span></span>
+<span id="L147"><span class="lineNum">     147</span>                 :             :         }</span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">         286 :         onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);</span></span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         286 :         txn_ctx.phase = DS18B20_TXN_WRITE;</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">         286 :         break;</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :             : </span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         286 :     case DS18B20_TXN_WRITE:</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :             :         // Command write completed: read the response back if the command has</span>
+<span id="L154"><span class="lineNum">     154</span>                 :             :         // one, otherwise wait the required hold-off or finish immediately.</span>
+<span id="L155"><span class="lineNum">     155</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">         286 :         if (txn_ctx.read_bytes) {</span></span>
+<span id="L156"><span class="lineNum">     156</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 121 times"> + </span>]:<span class="tlaGNC">         132 :             if (ctx.parasite) {</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">          11 :                 onewire_strong_pullup(0);</span></span>
+<span id="L158"><span class="lineNum">     158</span>                 :             :             }</span>
+<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">         132 :             onewire_read_data(ctx.pulse, txn_ctx.read_bytes);</span></span>
+<span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">         132 :             txn_ctx.phase = DS18B20_TXN_READ;</span></span>
+<span id="L161"><span class="lineNum">     161</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">         154 :         } else if (txn_ctx.wait_us) {</span></span>
+<span id="L162"><span class="lineNum">     162</span>                 :             :             // Parasite power: Copy Scratchpad / Recall E² draw their supply</span>
+<span id="L163"><span class="lineNum">     163</span>                 :             :             // from the bus while the EEPROM programs - drive HIGH actively</span>
+<span id="L164"><span class="lineNum">     164</span>                 :             :             // for the hold-off window.</span>
+<span id="L165"><span class="lineNum">     165</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          88 :             if (ctx.parasite) {</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">          22 :                 onewire_strong_pullup(1);</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :             :             }</span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          88 :             onewire_start_timer(txn_ctx.wait_us, 0);</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          88 :             txn_ctx.phase = DS18B20_TXN_WAIT;</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :             :         } else {</span>
+<span id="L171"><span class="lineNum">     171</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">          66 :             if (ctx.parasite) {</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">          11 :                 onewire_strong_pullup(0);</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :             :             }</span>
+<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">          66 :             txn_ctx.ok = 1;</span></span>
+<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">          66 :             txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :             :         }</span>
+<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">         286 :         break;</span></span>
+<span id="L178"><span class="lineNum">     178</span>                 :             : </span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         132 :     case DS18B20_TXN_READ:</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :         // Data read completed: decode the captured pulse durations.</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             :         txn_decode_read();</span>
+<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         132 :         txn_ctx.ok = 1;</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         132 :         txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         132 :         break;</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :             : </span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">          88 :     case DS18B20_TXN_WAIT:</span></span>
+<span id="L187"><span class="lineNum">     187</span>                 :             :         // Hold-off completed (Copy Scratchpad / Recall EEPROM): release the</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             :         // strong pull-up unconditionally (idempotent) so a parasite flag</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             :         // cleared mid-window cannot leave the bus actively driven.</span>
+<span id="L190"><span class="lineNum">     190</span>                 :<span class="tlaGNC">          88 :         onewire_strong_pullup(0);</span></span>
+<span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">          88 :         txn_ctx.ok = 1;</span></span>
+<span id="L192"><span class="lineNum">     192</span>                 :<span class="tlaGNC">          88 :         txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
+<span id="L193"><span class="lineNum">     193</span>                 :<span class="tlaGNC">          88 :         break;</span></span>
+<span id="L194"><span class="lineNum">     194</span>                 :             : </span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case DS18B20_TXN_DONE:</span></span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :     default:</span>
+<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
+<span id="L198"><span class="lineNum">     198</span>                 :             :     }</span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : </span>
-<span id="L200"><span class="lineNum">     200</span>                 :             : /**</span>
-<span id="L201"><span class="lineNum">     201</span>                 :             :  * @brief Schedule a new non-blocking command transaction</span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :  * @param[in] command DS18B20 function command byte</span>
-<span id="L203"><span class="lineNum">     203</span>                 :             :  * @param[in] out User result buffer (may be NULL; only written on success)</span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :  * @param[in] payload Up to 3 payload bytes (Write Scratchpad TH/TL/CFG)</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :  * @param[in] payload_len Number of payload bytes (0..3)</span>
-<span id="L206"><span class="lineNum">     206</span>                 :             :  * @param[in] read_bytes Bytes to read back after the command (0 = none)</span>
-<span id="L207"><span class="lineNum">     207</span>                 :             :  * @param[in] wait_us Timed hold-off after the command (0 = none)</span>
-<span id="L208"><span class="lineNum">     208</span>                 :             :  * @param[in] bare 1 to send the command without an addressing prefix</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             :  * @note Ignored unless the driver is IDLE, the device search and any</span>
-<span id="L210"><span class="lineNum">     210</span>                 :             :  *       resolution change are finished, and no transaction is already</span>
-<span id="L211"><span class="lineNum">     211</span>                 :             :  *       running. The result buffer must stay valid until the transaction</span>
-<span id="L212"><span class="lineNum">     212</span>                 :             :  *       completes (ds18b20_*_poll() reports 1).</span>
-<span id="L213"><span class="lineNum">     213</span>                 :             :  */</span>
-<span id="L214"><span class="lineNum">     214</span>         [<span class="tlaGBC" title="Branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">         583 : static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,</span></span>
-<span id="L215"><span class="lineNum">     215</span>                 :             :                       uint8_t payload_len, uint8_t read_bytes, uint16_t wait_us,</span>
-<span id="L216"><span class="lineNum">     216</span>                 :             :                       uint8_t bare) {</span>
-<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 517 times"> + </span>]:<span class="tlaGNC">         583 :     if (!txn_can_start()) {</span></span>
-<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">          66 :         return; // the timer belongs to someone else right now</span></span>
-<span id="L219"><span class="lineNum">     219</span>                 :             :     }</span>
-<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         517 :     txn_ctx.command = command;</span></span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         517 :     txn_ctx.out = out;</span></span>
-<span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">         517 :     txn_ctx.read_bytes = read_bytes;</span></span>
-<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">         517 :     txn_ctx.wait_us = wait_us;</span></span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         517 :     txn_ctx.bare = bare;</span></span>
-<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         517 :     txn_ctx.payload_len = payload_len;</span></span>
-<span id="L226"><span class="lineNum">     226</span>   [<span class="tlaGBC" title="Branch 0 was taken 363 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 517 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 363 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         880 :     for (uint8_t i = 0; i &lt; payload_len &amp;&amp; i &lt; sizeof(txn_ctx.payload); i++) {</span></span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         363 :         txn_ctx.payload[i] = payload[i];</span></span>
-<span id="L228"><span class="lineNum">     228</span>                 :             :     }</span>
-<span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaGNC">         517 :     txn_ctx.ok = 0;</span></span>
-<span id="L230"><span class="lineNum">     230</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span>]:<span class="tlaGNC">         517 :     txn_ctx.finished = 0;</span></span>
-<span id="L231"><span class="lineNum">     231</span>                 :             :     txn_build_pulses(); // Pre-build the command for the current address mode</span>
-<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC">         517 :     onewire_strong_pullup(0);</span></span>
-<span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC">         517 :     txn_ctx.phase = DS18B20_TXN_RESET;</span></span>
-<span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">         517 :     onewire_reset(ctx.capture); // Schedule the first hardware operation</span></span>
-<span id="L235"><span class="lineNum">     235</span>                 :             : }</span>
-<span id="L236"><span class="lineNum">     236</span>                 :             : </span>
-<span id="L237"><span class="lineNum">     237</span>                 :             : /**</span>
-<span id="L238"><span class="lineNum">     238</span>                 :             :  * @brief Read the 64-bit ROM of the (only) DS18B20 on the bus</span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :  * @param[in,out] rom Buffer for the 8-byte ROM (LSB first); written on success</span>
-<span id="L240"><span class="lineNum">     240</span>                 :             :  * @note Valid only when exactly one device is on the bus (datasheet Read ROM</span>
-<span id="L241"><span class="lineNum">     241</span>                 :             :  *       0x33). With several devices use the device search (ds18b20_search_*).</span>
-<span id="L242"><span class="lineNum">     242</span>                 :             :  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the</span>
-<span id="L243"><span class="lineNum">     243</span>                 :             :  *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).</span>
-<span id="L244"><span class="lineNum">     244</span>                 :             :  */</span>
-<span id="L245"><span class="lineNum">     245</span>                 :<span class="tlaGNC">         165 : void ds18b20_read_rom(uint8_t* rom) {</span></span>
-<span id="L246"><span class="lineNum">     246</span>                 :<span class="tlaGNC">         165 :     txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);</span></span>
-<span id="L247"><span class="lineNum">     247</span>                 :<span class="tlaGNC">         165 : }</span></span>
-<span id="L248"><span class="lineNum">     248</span>                 :             : </span>
-<span id="L249"><span class="lineNum">     249</span>                 :             : /**</span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :  * @brief Advance the non-blocking Read ROM transaction</span>
-<span id="L251"><span class="lineNum">     251</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
-<span id="L252"><span class="lineNum">     252</span>                 :             :  */</span>
-<span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_read_rom_poll(void) {</span></span>
-<span id="L254"><span class="lineNum">     254</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 88 times"> + </span>]:<span class="tlaGNC">         286 :     if (!txn_poll()) {</span></span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">         198 :         return 0;</span></span>
-<span id="L256"><span class="lineNum">     256</span>                 :             :     }</span>
-<span id="L257"><span class="lineNum">     257</span>   [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          88 :     if (txn_ctx.ok &amp;&amp; txn_ctx.out) {</span></span>
-<span id="L258"><span class="lineNum">     258</span>                 :             :         txn_copy_out(DS18B20_ROM_BYTES);</span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC tlaBgGNC">         869 :     return 0;</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :             : }</span>
+<span id="L202"><span class="lineNum">     202</span>                 :             : </span>
+<span id="L203"><span class="lineNum">     203</span>                 :             : /**</span>
+<span id="L204"><span class="lineNum">     204</span>                 :             :  * @brief Schedule a new non-blocking command transaction</span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :  * @param[in] command DS18B20 function command byte</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             :  * @param[in] out User result buffer (may be NULL; only written on success)</span>
+<span id="L207"><span class="lineNum">     207</span>                 :             :  * @param[in] payload Up to 3 payload bytes (Write Scratchpad TH/TL/CFG)</span>
+<span id="L208"><span class="lineNum">     208</span>                 :             :  * @param[in] payload_len Number of payload bytes (0..3)</span>
+<span id="L209"><span class="lineNum">     209</span>                 :             :  * @param[in] read_bytes Bytes to read back after the command (0 = none)</span>
+<span id="L210"><span class="lineNum">     210</span>                 :             :  * @param[in] wait_us Timed hold-off after the command (0 = none)</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             :  * @param[in] bare 1 to send the command without an addressing prefix</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :  * @note Ignored unless the driver is IDLE, the device search and any</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :  *       resolution change are finished, and no transaction is already</span>
+<span id="L214"><span class="lineNum">     214</span>                 :             :  *       running. The result buffer must stay valid until the transaction</span>
+<span id="L215"><span class="lineNum">     215</span>                 :             :  *       completes (ds18b20_*_poll() reports 1).</span>
+<span id="L216"><span class="lineNum">     216</span>                 :             :  */</span>
+<span id="L217"><span class="lineNum">     217</span>         [<span class="tlaGBC" title="Branch 0 was taken 572 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">         583 : static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,</span></span>
+<span id="L218"><span class="lineNum">     218</span>                 :             :                       uint8_t payload_len, uint8_t read_bytes, uint16_t wait_us,</span>
+<span id="L219"><span class="lineNum">     219</span>                 :             :                       uint8_t bare) {</span>
+<span id="L220"><span class="lineNum">     220</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 517 times"> + </span>]:<span class="tlaGNC">         583 :     if (!txn_can_start()) {</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">          66 :         return; // the timer belongs to someone else right now</span></span>
+<span id="L222"><span class="lineNum">     222</span>                 :             :     }</span>
+<span id="L223"><span class="lineNum">     223</span>                 :<span class="tlaGNC">         517 :     txn_ctx.command = command;</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         517 :     txn_ctx.out = out;</span></span>
+<span id="L225"><span class="lineNum">     225</span>                 :<span class="tlaGNC">         517 :     txn_ctx.read_bytes = read_bytes;</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         517 :     txn_ctx.wait_us = wait_us;</span></span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         517 :     txn_ctx.bare = bare;</span></span>
+<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         517 :     txn_ctx.payload_len = payload_len;</span></span>
+<span id="L229"><span class="lineNum">     229</span>   [<span class="tlaGBC" title="Branch 0 was taken 363 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 517 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 363 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         880 :     for (uint8_t i = 0; i &lt; payload_len &amp;&amp; i &lt; sizeof(txn_ctx.payload); i++) {</span></span>
+<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">         363 :         txn_ctx.payload[i] = payload[i];</span></span>
+<span id="L231"><span class="lineNum">     231</span>                 :             :     }</span>
+<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC">         517 :     txn_ctx.ok = 0;</span></span>
+<span id="L233"><span class="lineNum">     233</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span>]:<span class="tlaGNC">         517 :     txn_ctx.finished = 0;</span></span>
+<span id="L234"><span class="lineNum">     234</span>                 :             :     txn_build_pulses(); // Pre-build the command for the current address mode</span>
+<span id="L235"><span class="lineNum">     235</span>                 :<span class="tlaGNC">         517 :     onewire_strong_pullup(0);</span></span>
+<span id="L236"><span class="lineNum">     236</span>                 :<span class="tlaGNC">         517 :     txn_ctx.phase = DS18B20_TXN_RESET;</span></span>
+<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">         517 :     onewire_reset(ctx.capture); // Schedule the first hardware operation</span></span>
+<span id="L238"><span class="lineNum">     238</span>                 :             : }</span>
+<span id="L239"><span class="lineNum">     239</span>                 :             : </span>
+<span id="L240"><span class="lineNum">     240</span>                 :             : /**</span>
+<span id="L241"><span class="lineNum">     241</span>                 :             :  * @brief Read the 64-bit ROM of the (only) DS18B20 on the bus</span>
+<span id="L242"><span class="lineNum">     242</span>                 :             :  * @param[in,out] rom Buffer for the 8-byte ROM (LSB first); written on success</span>
+<span id="L243"><span class="lineNum">     243</span>                 :             :  * @note Valid only when exactly one device is on the bus (datasheet Read ROM</span>
+<span id="L244"><span class="lineNum">     244</span>                 :             :  *       0x33). With several devices use the device search (ds18b20_search_*).</span>
+<span id="L245"><span class="lineNum">     245</span>                 :             :  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :  *       7 leading bytes (ds18b20_crc8(rom, 7) == rom[7]).</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :  */</span>
+<span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">         165 : void ds18b20_read_rom(uint8_t* rom) {</span></span>
+<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">         165 :     txn_start(DS18B20_READ_ROM, rom, 0, 0, DS18B20_ROM_BYTES, 0, 1);</span></span>
+<span id="L250"><span class="lineNum">     250</span>                 :<span class="tlaGNC">         165 : }</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :             : </span>
+<span id="L252"><span class="lineNum">     252</span>                 :             : /**</span>
+<span id="L253"><span class="lineNum">     253</span>                 :             :  * @brief Advance the non-blocking Read ROM transaction</span>
+<span id="L254"><span class="lineNum">     254</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :  */</span>
+<span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_read_rom_poll(void) {</span></span>
+<span id="L257"><span class="lineNum">     257</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 88 times"> + </span>]:<span class="tlaGNC">         286 :     if (!txn_poll()) {</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">         198 :         return 0;</span></span>
 <span id="L259"><span class="lineNum">     259</span>                 :             :     }</span>
-<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">          88 :     return 1;</span></span>
-<span id="L261"><span class="lineNum">     261</span>                 :             : }</span>
-<span id="L262"><span class="lineNum">     262</span>                 :             : </span>
-<span id="L263"><span class="lineNum">     263</span>                 :             : /**</span>
-<span id="L264"><span class="lineNum">     264</span>                 :             :  * @brief Configure the alarm trigger thresholds TH and TL</span>
-<span id="L265"><span class="lineNum">     265</span>                 :             :  * @param[in] th High-alarm trigger value (DS18B20 8-bit threshold code)</span>
-<span id="L266"><span class="lineNum">     266</span>                 :             :  * @param[in] tl Low-alarm trigger value (DS18B20 8-bit threshold code)</span>
-<span id="L267"><span class="lineNum">     267</span>                 :             :  * @note Uses the DS18B20 8-bit sign-extended temperature code, the same</span>
-<span id="L268"><span class="lineNum">     268</span>                 :             :  *       encoding the scratchpad TH/TL bytes use; converting to/from Celsius is</span>
-<span id="L269"><span class="lineNum">     269</span>                 :             :  *       left to the application. The current conversion resolution (byte 4,</span>
-<span id="L270"><span class="lineNum">     270</span>                 :             :  *       R1/R0) is written unchanged, so the resolution is not disturbed.</span>
-<span id="L271"><span class="lineNum">     271</span>                 :             :  * @note Takes effect immediately in the scratchpad; run ds18b20_copy_scratchpad()</span>
-<span id="L272"><span class="lineNum">     272</span>                 :             :  *       afterwards to persist TH/TL/CFG to the EEPROM.</span>
-<span id="L273"><span class="lineNum">     273</span>                 :             :  */</span>
-<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         143 : void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl) {</span></span>
-<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">         143 :     const uint8_t payload[3] = {th, tl, res_config_byte(ctx.resolution)};</span></span>
-<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">         143 :     txn_start(DS18B20_WRITE_SCRATCHPAD, 0, payload, 3, 0, 0, 0);</span></span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">         143 : }</span></span>
-<span id="L278"><span class="lineNum">     278</span>                 :             : </span>
-<span id="L279"><span class="lineNum">     279</span>                 :             : /**</span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :  * @brief Advance the non-blocking alarm threshold write</span>
-<span id="L281"><span class="lineNum">     281</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
-<span id="L282"><span class="lineNum">     282</span>                 :             :  */</span>
-<span id="L283"><span class="lineNum">     283</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_set_alarm_thresholds_poll(void) { return txn_poll(); }</span></span>
-<span id="L284"><span class="lineNum">     284</span>                 :             : </span>
-<span id="L285"><span class="lineNum">     285</span>                 :             : /**</span>
-<span id="L286"><span class="lineNum">     286</span>                 :             :  * @brief Read the 9-byte scratchpad (raw; includes TH, TL and the CRC)</span>
-<span id="L287"><span class="lineNum">     287</span>                 :             :  * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,</span>
-<span id="L288"><span class="lineNum">     288</span>                 :             :  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success</span>
-<span id="L289"><span class="lineNum">     289</span>                 :             :  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the</span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :  *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             :  */</span>
-<span id="L292"><span class="lineNum">     292</span>                 :<span class="tlaGNC">          55 : void ds18b20_read_scratchpad(uint8_t* buf) {</span></span>
-<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">          55 :     txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);</span></span>
-<span id="L294"><span class="lineNum">     294</span>                 :<span class="tlaGNC">          55 : }</span></span>
-<span id="L295"><span class="lineNum">     295</span>                 :             : </span>
-<span id="L296"><span class="lineNum">     296</span>                 :             : /**</span>
-<span id="L297"><span class="lineNum">     297</span>                 :             :  * @brief Advance the non-blocking raw scratchpad read</span>
-<span id="L298"><span class="lineNum">     298</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
-<span id="L299"><span class="lineNum">     299</span>                 :             :  * @note On a valid read (CRC byte matches) the conversion resolution is</span>
-<span id="L300"><span class="lineNum">     300</span>                 :             :  *       auto-derived from the config byte (byte 4), like the measurement path.</span>
-<span id="L301"><span class="lineNum">     301</span>                 :             :  */</span>
-<span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">         253 : uint8_t ds18b20_read_scratchpad_poll(void) {</span></span>
-<span id="L303"><span class="lineNum">     303</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">         253 :     if (!txn_poll()) {</span></span>
-<span id="L304"><span class="lineNum">     304</span>                 :<span class="tlaGNC">         198 :         return 0;</span></span>
-<span id="L305"><span class="lineNum">     305</span>                 :             :     }</span>
-<span id="L306"><span class="lineNum">     306</span>   [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          55 :     if (txn_ctx.ok &amp;&amp; txn_ctx.out) {</span></span>
-<span id="L307"><span class="lineNum">     307</span>                 :             :         txn_copy_out(DS18B20_SCRATCHPAD_LEN);</span>
-<span id="L308"><span class="lineNum">     308</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          44 :         if (txn_ctx.raw[DS18B20_SCRATCHPAD_LEN - 1] ==</span></span>
-<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">          44 :             ds18b20_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {</span></span>
-<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">          33 :             ctx.resolution = DS18B20_RES_MIN + ((txn_ctx.raw[4] &gt;&gt; 5) &amp; 0x3);</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :             :         }</span>
-<span id="L312"><span class="lineNum">     312</span>                 :             :     }</span>
-<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">          55 :     return 1;</span></span>
-<span id="L314"><span class="lineNum">     314</span>                 :             : }</span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : </span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : /**</span>
-<span id="L317"><span class="lineNum">     317</span>                 :             :  * @brief Copy the scratchpad into the EEPROM (non-volatile)</span>
-<span id="L318"><span class="lineNum">     318</span>                 :             :  * @note The copy draws its supply from VDD on externally powered devices;</span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :  *       parasite-powered devices are supplied by the strong pull-up, which</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :  *       the driver engages for the t_COPY hold-off window when</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             :  *       ds18b20_set_parasite(1) is set. The driver waits the datasheet</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             :  *       t_COPY hold-off (10ms) before finishing.</span>
-<span id="L323"><span class="lineNum">     323</span>                 :             :  */</span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">          88 : void ds18b20_copy_scratchpad(void) {</span></span>
-<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">          88 :     txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);</span></span>
-<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          88 : }</span></span>
-<span id="L327"><span class="lineNum">     327</span>                 :             : </span>
-<span id="L328"><span class="lineNum">     328</span>                 :             : /**</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             :  * @brief Advance the non-blocking Copy Scratchpad transaction</span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
-<span id="L331"><span class="lineNum">     331</span>                 :             :  */</span>
-<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">         297 : uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }</span></span>
-<span id="L333"><span class="lineNum">     333</span>                 :             : </span>
-<span id="L334"><span class="lineNum">     334</span>                 :             : /**</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             :  * @brief Recall the EEPROM contents into the scratchpad</span>
-<span id="L336"><span class="lineNum">     336</span>                 :             :  * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             :  *       The driver waits the datasheet t_RECALL hold-off (10ms) before</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             :  *       finishing.</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             :  * @note After recall, the scratchpad holds the EEPROM-stored configuration</span>
-<span id="L340"><span class="lineNum">     340</span>                 :             :  *       (TH/TL/CFG, including the conversion-resolution bits). The driver's</span>
-<span id="L341"><span class="lineNum">     341</span>                 :             :  *       tracked ctx.resolution is NOT updated by this call: Recall is a</span>
-<span id="L342"><span class="lineNum">     342</span>                 :             :  *       write-only command with no data returned. If the EEPROM resolution</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             :  *       may differ from ctx.resolution, follow this with</span>
-<span id="L344"><span class="lineNum">     344</span>                 :             :  *       ds18b20_read_scratchpad() / ds18b20_read_scratchpad_poll() to</span>
-<span id="L345"><span class="lineNum">     345</span>                 :             :  *       resynchronise ctx.resolution before the next conversion.</span>
-<span id="L346"><span class="lineNum">     346</span>                 :             :  */</span>
-<span id="L347"><span class="lineNum">     347</span>                 :<span class="tlaGNC">          55 : void ds18b20_recall_eeprom(void) {</span></span>
-<span id="L348"><span class="lineNum">     348</span>                 :<span class="tlaGNC">          55 :     txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);</span></span>
-<span id="L349"><span class="lineNum">     349</span>                 :<span class="tlaGNC">          55 : }</span></span>
-<span id="L350"><span class="lineNum">     350</span>                 :             : </span>
-<span id="L351"><span class="lineNum">     351</span>                 :             : /**</span>
-<span id="L352"><span class="lineNum">     352</span>                 :             :  * @brief Advance the non-blocking Recall EEPROM transaction</span>
-<span id="L353"><span class="lineNum">     353</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
-<span id="L354"><span class="lineNum">     354</span>                 :             :  * @warning ctx.resolution is NOT updated on success. Recall is a write-only</span>
-<span id="L355"><span class="lineNum">     355</span>                 :             :  *          command; the device does not return the restored config. To keep</span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :  *          ctx.resolution in sync with a possibly-different EEPROM resolution,</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :  *          call ds18b20_read_scratchpad_poll() after this returns 1 and</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             :  *          ds18b20_last_command_ok() is set.</span>
-<span id="L359"><span class="lineNum">     359</span>                 :             :  */</span>
-<span id="L360"><span class="lineNum">     360</span>                 :<span class="tlaGNC">         187 : uint8_t ds18b20_recall_eeprom_poll(void) {</span></span>
-<span id="L361"><span class="lineNum">     361</span>         [<span class="tlaGBC" title="Branch 0 was taken 143 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">         187 :     if (!txn_poll()) {</span></span>
-<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">         143 :         return 0;</span></span>
-<span id="L363"><span class="lineNum">     363</span>                 :             :     }</span>
-<span id="L364"><span class="lineNum">     364</span>                 :             :     /* Nothing to decode: Recall returns no data, so there is no scratchpad</span>
-<span id="L365"><span class="lineNum">     365</span>                 :             :      * frame to parse here. The caller is responsible for resynchronising</span>
-<span id="L366"><span class="lineNum">     366</span>                 :             :      * ctx.resolution via ds18b20_read_scratchpad_poll() if needed. */</span>
-<span id="L367"><span class="lineNum">     367</span>                 :<span class="tlaGNC">          44 :     return 1;</span></span>
-<span id="L368"><span class="lineNum">     368</span>                 :             : }</span>
-<span id="L369"><span class="lineNum">     369</span>                 :             : </span>
-<span id="L370"><span class="lineNum">     370</span>                 :             : /**</span>
-<span id="L371"><span class="lineNum">     371</span>                 :             :  * @brief Result of the last completed command transaction</span>
-<span id="L372"><span class="lineNum">     372</span>                 :             :  * @return 1 when the last ds18b20_*_poll() finished a transaction that found</span>
-<span id="L373"><span class="lineNum">     373</span>                 :             :  *         a device present (and, for read commands, read its data back),</span>
-<span id="L374"><span class="lineNum">     374</span>                 :             :  *         0 when it aborted (e.g. no device present) or nothing ran yet</span>
-<span id="L375"><span class="lineNum">     375</span>                 :             :  */</span>
-<span id="L376"><span class="lineNum">     376</span>                 :<span class="tlaGNC">         231 : uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }</span></span>
-<span id="L377"><span class="lineNum">     377</span>                 :             : </span>
-<span id="L378"><span class="lineNum">     378</span>                 :             : /**</span>
-<span id="L379"><span class="lineNum">     379</span>                 :             :  * @brief Declare the bus as parasite-powered</span>
-<span id="L380"><span class="lineNum">     380</span>                 :             :  * @param[in] parasite 1 = devices are powered over the data line, 0 =</span>
-<span id="L381"><span class="lineNum">     381</span>                 :             :  *                     external VDD supply (default)</span>
-<span id="L382"><span class="lineNum">     382</span>                 :             :  * @note In parasite mode the driver engages the strong pull-up (bus pin</span>
-<span id="L383"><span class="lineNum">     383</span>                 :             :  *       switched to push-pull HIGH) during every temperature conversion wait</span>
-<span id="L384"><span class="lineNum">     384</span>                 :             :  *       and EEPROM programming hold-off, then releases the line again. The</span>
-<span id="L385"><span class="lineNum">     385</span>                 :             :  *       flag is read at the start of each window, so call this once after</span>
-<span id="L386"><span class="lineNum">     386</span>                 :             :  *       ds18b20_init() - or between measurement cycles - and it applies to</span>
-<span id="L387"><span class="lineNum">     387</span>                 :             :  *       all subsequent operations. The detection helper</span>
-<span id="L388"><span class="lineNum">     388</span>                 :             :  *       ds18b20_detect_parasite() reports the wiring and stores it back into</span>
-<span id="L389"><span class="lineNum">     389</span>                 :             :  *       this flag on success; this setter tells the driver how to behave.</span>
-<span id="L390"><span class="lineNum">     390</span>                 :             :  */</span>
-<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">         187 : void ds18b20_set_parasite(uint8_t parasite) {</span></span>
-<span id="L392"><span class="lineNum">     392</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">         187 :     ctx.parasite = parasite ? 1u : 0u;</span></span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">         187 : }</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :             : </span>
-<span id="L395"><span class="lineNum">     395</span>                 :             : /**</span>
-<span id="L396"><span class="lineNum">     396</span>                 :             :  * @brief Current parasite-power configuration of the driver</span>
-<span id="L397"><span class="lineNum">     397</span>                 :             :  * @return 1 when the strong pull-up will be engaged during conversion and</span>
-<span id="L398"><span class="lineNum">     398</span>                 :             :  *         EEPROM programming windows, 0 for external VDD supply</span>
-<span id="L399"><span class="lineNum">     399</span>                 :             :  */</span>
-<span id="L400"><span class="lineNum">     400</span>                 :<span class="tlaGNC">          99 : uint8_t ds18b20_parasite_mode(void) { return ctx.parasite; }</span></span>
-<span id="L401"><span class="lineNum">     401</span>                 :             : </span>
-<span id="L402"><span class="lineNum">     402</span>                 :             : /**</span>
-<span id="L403"><span class="lineNum">     403</span>                 :             :  * @brief Detect the bus wiring and configure parasite mode automatically</span>
-<span id="L404"><span class="lineNum">     404</span>                 :             :  * @note Issues a Read Power Supply command and stores the decoded answer in</span>
-<span id="L405"><span class="lineNum">     405</span>                 :             :  *       ctx.parasite on success (see ds18b20_detect_parasite_poll()).</span>
-<span id="L406"><span class="lineNum">     406</span>                 :             :  */</span>
-<span id="L407"><span class="lineNum">     407</span>                 :<span class="tlaGNC">          77 : void ds18b20_detect_parasite(void) { txn_start(DS18B20_READ_POWER_SUPPLY, &amp;detect_buf, 0, 0, 1, 0, 0); }</span></span>
-<span id="L408"><span class="lineNum">     408</span>                 :             : </span>
-<span id="L409"><span class="lineNum">     409</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_detect_parasite_poll(void) {</span></span>
-<span id="L410"><span class="lineNum">     410</span>         [<span class="tlaGBC" title="Branch 0 was taken 220 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">         286 :     if (!txn_poll()) {</span></span>
-<span id="L411"><span class="lineNum">     411</span>                 :<span class="tlaGNC">         220 :         return 0;</span></span>
-<span id="L412"><span class="lineNum">     412</span>                 :             :     }</span>
-<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">          66 :     if (txn_ctx.ok) {</span></span>
-<span id="L414"><span class="lineNum">     414</span>                 :             :         // The sensor drives one bit: 0 = parasite power, 1 = external power.</span>
-<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaGNC">          44 :         ctx.parasite = (txn_ctx.raw[0] &amp; 0x01) ? 0u : 1u;</span></span>
-<span id="L416"><span class="lineNum">     416</span>                 :             :     }</span>
-<span id="L417"><span class="lineNum">     417</span>                 :<span class="tlaGNC">          66 :     return 1;</span></span>
-<span id="L418"><span class="lineNum">     418</span>                 :             : }</span>
-<span id="L419"><span class="lineNum">     419</span>                 :             : </span>
-<span id="L420"><span class="lineNum">     420</span>                 :             : /**</span>
-<span id="L421"><span class="lineNum">     421</span>                 :             :  * @}</span>
-<span id="L422"><span class="lineNum">     422</span>                 :             :  */</span>
+<span id="L260"><span class="lineNum">     260</span>   [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          88 :     if (txn_ctx.ok &amp;&amp; txn_ctx.out) {</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :             :         txn_copy_out(DS18B20_ROM_BYTES);</span>
+<span id="L262"><span class="lineNum">     262</span>                 :             :     }</span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          88 :     return 1;</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :             : }</span>
+<span id="L265"><span class="lineNum">     265</span>                 :             : </span>
+<span id="L266"><span class="lineNum">     266</span>                 :             : /**</span>
+<span id="L267"><span class="lineNum">     267</span>                 :             :  * @brief Configure the alarm trigger thresholds TH and TL</span>
+<span id="L268"><span class="lineNum">     268</span>                 :             :  * @param[in] th High-alarm trigger value (DS18B20 8-bit threshold code)</span>
+<span id="L269"><span class="lineNum">     269</span>                 :             :  * @param[in] tl Low-alarm trigger value (DS18B20 8-bit threshold code)</span>
+<span id="L270"><span class="lineNum">     270</span>                 :             :  * @note Uses the DS18B20 8-bit sign-extended temperature code, the same</span>
+<span id="L271"><span class="lineNum">     271</span>                 :             :  *       encoding the scratchpad TH/TL bytes use; converting to/from Celsius is</span>
+<span id="L272"><span class="lineNum">     272</span>                 :             :  *       left to the application. The current conversion resolution (byte 4,</span>
+<span id="L273"><span class="lineNum">     273</span>                 :             :  *       R1/R0) is written unchanged, so the resolution is not disturbed.</span>
+<span id="L274"><span class="lineNum">     274</span>                 :             :  * @note Takes effect immediately in the scratchpad; run ds18b20_copy_scratchpad()</span>
+<span id="L275"><span class="lineNum">     275</span>                 :             :  *       afterwards to persist TH/TL/CFG to the EEPROM.</span>
+<span id="L276"><span class="lineNum">     276</span>                 :             :  */</span>
+<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">         143 : void ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl) {</span></span>
+<span id="L278"><span class="lineNum">     278</span>                 :<span class="tlaGNC">         143 :     const uint8_t payload[3] = {th, tl, res_config_byte(ctx.resolution)};</span></span>
+<span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">         143 :     txn_start(DS18B20_WRITE_SCRATCHPAD, 0, payload, 3, 0, 0, 0);</span></span>
+<span id="L280"><span class="lineNum">     280</span>                 :<span class="tlaGNC">         143 : }</span></span>
+<span id="L281"><span class="lineNum">     281</span>                 :             : </span>
+<span id="L282"><span class="lineNum">     282</span>                 :             : /**</span>
+<span id="L283"><span class="lineNum">     283</span>                 :             :  * @brief Advance the non-blocking alarm threshold write</span>
+<span id="L284"><span class="lineNum">     284</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
+<span id="L285"><span class="lineNum">     285</span>                 :             :  */</span>
+<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_set_alarm_thresholds_poll(void) { return txn_poll(); }</span></span>
+<span id="L287"><span class="lineNum">     287</span>                 :             : </span>
+<span id="L288"><span class="lineNum">     288</span>                 :             : /**</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :  * @brief Read the 9-byte scratchpad (raw; includes TH, TL and the CRC)</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             :  * @param[in,out] buf Buffer for the 9 scratchpad bytes (byte 0 = temp LSB,</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :  *                    bytes 2/3 = TH/TL, byte 8 = CRC); written on success</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :  * @note Result validity: check ds18b20_last_command_ok() or the CRC over the</span>
+<span id="L293"><span class="lineNum">     293</span>                 :             :  *       8 leading bytes (buf[8] == ds18b20_crc8(buf, 8)).</span>
+<span id="L294"><span class="lineNum">     294</span>                 :             :  */</span>
+<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">          55 : void ds18b20_read_scratchpad(uint8_t* buf) {</span></span>
+<span id="L296"><span class="lineNum">     296</span>                 :<span class="tlaGNC">          55 :     txn_start(DS18B20_READ_SCRATCHPAD, buf, 0, 0, DS18B20_SCRATCHPAD_LEN, 0, 0);</span></span>
+<span id="L297"><span class="lineNum">     297</span>                 :<span class="tlaGNC">          55 : }</span></span>
+<span id="L298"><span class="lineNum">     298</span>                 :             : </span>
+<span id="L299"><span class="lineNum">     299</span>                 :             : /**</span>
+<span id="L300"><span class="lineNum">     300</span>                 :             :  * @brief Advance the non-blocking raw scratchpad read</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
+<span id="L302"><span class="lineNum">     302</span>                 :             :  * @note On a valid read (CRC byte matches) the conversion resolution is</span>
+<span id="L303"><span class="lineNum">     303</span>                 :             :  *       auto-derived from the config byte (byte 4), like the measurement path.</span>
+<span id="L304"><span class="lineNum">     304</span>                 :             :  */</span>
+<span id="L305"><span class="lineNum">     305</span>                 :<span class="tlaGNC">         253 : uint8_t ds18b20_read_scratchpad_poll(void) {</span></span>
+<span id="L306"><span class="lineNum">     306</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">         253 :     if (!txn_poll()) {</span></span>
+<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">         198 :         return 0;</span></span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :     }</span>
+<span id="L309"><span class="lineNum">     309</span>   [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          55 :     if (txn_ctx.ok &amp;&amp; txn_ctx.out) {</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :             :         txn_copy_out(DS18B20_SCRATCHPAD_LEN);</span>
+<span id="L311"><span class="lineNum">     311</span>         [<span class="tlaGBC" title="Branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span>]:<span class="tlaGNC">          44 :         if (txn_ctx.raw[DS18B20_SCRATCHPAD_LEN - 1] ==</span></span>
+<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">          44 :             ds18b20_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">          33 :             ctx.resolution = DS18B20_RES_MIN + ((txn_ctx.raw[4] &gt;&gt; 5) &amp; 0x3);</span></span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :         }</span>
+<span id="L315"><span class="lineNum">     315</span>                 :             :     }</span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">          55 :     return 1;</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :             : }</span>
+<span id="L318"><span class="lineNum">     318</span>                 :             : </span>
+<span id="L319"><span class="lineNum">     319</span>                 :             : /**</span>
+<span id="L320"><span class="lineNum">     320</span>                 :             :  * @brief Copy the scratchpad into the EEPROM (non-volatile)</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :  * @note The copy draws its supply from VDD on externally powered devices;</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             :  *       parasite-powered devices are supplied by the strong pull-up, which</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :  *       the driver engages for the t_COPY hold-off window when</span>
+<span id="L324"><span class="lineNum">     324</span>                 :             :  *       ds18b20_set_parasite(1) is set. The driver waits the datasheet</span>
+<span id="L325"><span class="lineNum">     325</span>                 :             :  *       t_COPY hold-off (10ms) before finishing.</span>
+<span id="L326"><span class="lineNum">     326</span>                 :             :  */</span>
+<span id="L327"><span class="lineNum">     327</span>                 :<span class="tlaGNC">          88 : void ds18b20_copy_scratchpad(void) {</span></span>
+<span id="L328"><span class="lineNum">     328</span>                 :<span class="tlaGNC">          88 :     txn_start(DS18B20_COPY_SCRATCHPAD, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);</span></span>
+<span id="L329"><span class="lineNum">     329</span>                 :<span class="tlaGNC">          88 : }</span></span>
+<span id="L330"><span class="lineNum">     330</span>                 :             : </span>
+<span id="L331"><span class="lineNum">     331</span>                 :             : /**</span>
+<span id="L332"><span class="lineNum">     332</span>                 :             :  * @brief Advance the non-blocking Copy Scratchpad transaction</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :  */</span>
+<span id="L335"><span class="lineNum">     335</span>                 :<span class="tlaGNC">         297 : uint8_t ds18b20_copy_scratchpad_poll(void) { return txn_poll(); }</span></span>
+<span id="L336"><span class="lineNum">     336</span>                 :             : </span>
+<span id="L337"><span class="lineNum">     337</span>                 :             : /**</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             :  * @brief Recall the EEPROM contents into the scratchpad</span>
+<span id="L339"><span class="lineNum">     339</span>                 :             :  * @note Loads the last EEPROM copy (TH/TL/CFG) into the volatile scratchpad.</span>
+<span id="L340"><span class="lineNum">     340</span>                 :             :  *       The driver waits the datasheet t_RECALL hold-off (10ms) before</span>
+<span id="L341"><span class="lineNum">     341</span>                 :             :  *       finishing.</span>
+<span id="L342"><span class="lineNum">     342</span>                 :             :  * @note After recall, the scratchpad holds the EEPROM-stored configuration</span>
+<span id="L343"><span class="lineNum">     343</span>                 :             :  *       (TH/TL/CFG, including the conversion-resolution bits). The driver's</span>
+<span id="L344"><span class="lineNum">     344</span>                 :             :  *       tracked ctx.resolution is NOT updated by this call: Recall is a</span>
+<span id="L345"><span class="lineNum">     345</span>                 :             :  *       write-only command with no data returned. If the EEPROM resolution</span>
+<span id="L346"><span class="lineNum">     346</span>                 :             :  *       may differ from ctx.resolution, follow this with</span>
+<span id="L347"><span class="lineNum">     347</span>                 :             :  *       ds18b20_read_scratchpad() / ds18b20_read_scratchpad_poll() to</span>
+<span id="L348"><span class="lineNum">     348</span>                 :             :  *       resynchronise ctx.resolution before the next conversion.</span>
+<span id="L349"><span class="lineNum">     349</span>                 :             :  */</span>
+<span id="L350"><span class="lineNum">     350</span>                 :<span class="tlaGNC">          55 : void ds18b20_recall_eeprom(void) {</span></span>
+<span id="L351"><span class="lineNum">     351</span>                 :<span class="tlaGNC">          55 :     txn_start(DS18B20_RECALL_EEPROM, 0, 0, 0, 0, DS18B20_EEPROM_WAIT_US, 0);</span></span>
+<span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaGNC">          55 : }</span></span>
+<span id="L353"><span class="lineNum">     353</span>                 :             : </span>
+<span id="L354"><span class="lineNum">     354</span>                 :             : /**</span>
+<span id="L355"><span class="lineNum">     355</span>                 :             :  * @brief Advance the non-blocking Recall EEPROM transaction</span>
+<span id="L356"><span class="lineNum">     356</span>                 :             :  * @return 1 when finished (successfully or aborted), 0 while running</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             :  * @warning ctx.resolution is NOT updated on success. Recall is a write-only</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             :  *          command; the device does not return the restored config. To keep</span>
+<span id="L359"><span class="lineNum">     359</span>                 :             :  *          ctx.resolution in sync with a possibly-different EEPROM resolution,</span>
+<span id="L360"><span class="lineNum">     360</span>                 :             :  *          call ds18b20_read_scratchpad_poll() after this returns 1 and</span>
+<span id="L361"><span class="lineNum">     361</span>                 :             :  *          ds18b20_last_command_ok() is set.</span>
+<span id="L362"><span class="lineNum">     362</span>                 :             :  */</span>
+<span id="L363"><span class="lineNum">     363</span>                 :<span class="tlaGNC">         187 : uint8_t ds18b20_recall_eeprom_poll(void) {</span></span>
+<span id="L364"><span class="lineNum">     364</span>         [<span class="tlaGBC" title="Branch 0 was taken 143 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">         187 :     if (!txn_poll()) {</span></span>
+<span id="L365"><span class="lineNum">     365</span>                 :<span class="tlaGNC">         143 :         return 0;</span></span>
+<span id="L366"><span class="lineNum">     366</span>                 :             :     }</span>
+<span id="L367"><span class="lineNum">     367</span>                 :             :     /* Nothing to decode: Recall returns no data, so there is no scratchpad</span>
+<span id="L368"><span class="lineNum">     368</span>                 :             :      * frame to parse here. The caller is responsible for resynchronising</span>
+<span id="L369"><span class="lineNum">     369</span>                 :             :      * ctx.resolution via ds18b20_read_scratchpad_poll() if needed. */</span>
+<span id="L370"><span class="lineNum">     370</span>                 :<span class="tlaGNC">          44 :     return 1;</span></span>
+<span id="L371"><span class="lineNum">     371</span>                 :             : }</span>
+<span id="L372"><span class="lineNum">     372</span>                 :             : </span>
+<span id="L373"><span class="lineNum">     373</span>                 :             : /**</span>
+<span id="L374"><span class="lineNum">     374</span>                 :             :  * @brief Result of the last completed command transaction</span>
+<span id="L375"><span class="lineNum">     375</span>                 :             :  * @return 1 when the last ds18b20_*_poll() finished a transaction that found</span>
+<span id="L376"><span class="lineNum">     376</span>                 :             :  *         a device present (and, for read commands, read its data back),</span>
+<span id="L377"><span class="lineNum">     377</span>                 :             :  *         0 when it aborted (e.g. no device present) or nothing ran yet</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             :  */</span>
+<span id="L379"><span class="lineNum">     379</span>                 :<span class="tlaGNC">         231 : uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }</span></span>
+<span id="L380"><span class="lineNum">     380</span>                 :             : </span>
+<span id="L381"><span class="lineNum">     381</span>                 :             : /**</span>
+<span id="L382"><span class="lineNum">     382</span>                 :             :  * @brief Declare the bus as parasite-powered</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             :  * @param[in] parasite 1 = devices are powered over the data line, 0 =</span>
+<span id="L384"><span class="lineNum">     384</span>                 :             :  *                     external VDD supply (default)</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             :  * @note In parasite mode the driver engages the strong pull-up (bus pin</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             :  *       switched to push-pull HIGH) during every temperature conversion wait</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             :  *       and EEPROM programming hold-off, then releases the line again. The</span>
+<span id="L388"><span class="lineNum">     388</span>                 :             :  *       flag is read at the start of each window, so call this once after</span>
+<span id="L389"><span class="lineNum">     389</span>                 :             :  *       ds18b20_init() - or between measurement cycles - and it applies to</span>
+<span id="L390"><span class="lineNum">     390</span>                 :             :  *       all subsequent operations. The detection helper</span>
+<span id="L391"><span class="lineNum">     391</span>                 :             :  *       ds18b20_detect_parasite() reports the wiring and stores it back into</span>
+<span id="L392"><span class="lineNum">     392</span>                 :             :  *       this flag on success; this setter tells the driver how to behave.</span>
+<span id="L393"><span class="lineNum">     393</span>                 :             :  */</span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">         187 : void ds18b20_set_parasite(uint8_t parasite) {</span></span>
+<span id="L395"><span class="lineNum">     395</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 55 times"> + </span>]:<span class="tlaGNC">         187 :     ctx.parasite = parasite ? 1u : 0u;</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">         187 : }</span></span>
+<span id="L397"><span class="lineNum">     397</span>                 :             : </span>
+<span id="L398"><span class="lineNum">     398</span>                 :             : /**</span>
+<span id="L399"><span class="lineNum">     399</span>                 :             :  * @brief Current parasite-power configuration of the driver</span>
+<span id="L400"><span class="lineNum">     400</span>                 :             :  * @return 1 when the strong pull-up will be engaged during conversion and</span>
+<span id="L401"><span class="lineNum">     401</span>                 :             :  *         EEPROM programming windows, 0 for external VDD supply</span>
+<span id="L402"><span class="lineNum">     402</span>                 :             :  */</span>
+<span id="L403"><span class="lineNum">     403</span>                 :<span class="tlaGNC">          99 : uint8_t ds18b20_parasite_mode(void) { return ctx.parasite; }</span></span>
+<span id="L404"><span class="lineNum">     404</span>                 :             : </span>
+<span id="L405"><span class="lineNum">     405</span>                 :             : /**</span>
+<span id="L406"><span class="lineNum">     406</span>                 :             :  * @brief Detect the bus wiring and configure parasite mode automatically</span>
+<span id="L407"><span class="lineNum">     407</span>                 :             :  * @note Issues a Read Power Supply command and stores the decoded answer in</span>
+<span id="L408"><span class="lineNum">     408</span>                 :             :  *       ctx.parasite on success (see ds18b20_detect_parasite_poll()).</span>
+<span id="L409"><span class="lineNum">     409</span>                 :             :  */</span>
+<span id="L410"><span class="lineNum">     410</span>                 :<span class="tlaGNC">          77 : void ds18b20_detect_parasite(void) { txn_start(DS18B20_READ_POWER_SUPPLY, &amp;detect_buf, 0, 0, 1, 0, 0); }</span></span>
+<span id="L411"><span class="lineNum">     411</span>                 :             : </span>
+<span id="L412"><span class="lineNum">     412</span>                 :<span class="tlaGNC">         286 : uint8_t ds18b20_detect_parasite_poll(void) {</span></span>
+<span id="L413"><span class="lineNum">     413</span>         [<span class="tlaGBC" title="Branch 0 was taken 220 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">         286 :     if (!txn_poll()) {</span></span>
+<span id="L414"><span class="lineNum">     414</span>                 :<span class="tlaGNC">         220 :         return 0;</span></span>
+<span id="L415"><span class="lineNum">     415</span>                 :             :     }</span>
+<span id="L416"><span class="lineNum">     416</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span>]:<span class="tlaGNC">          66 :     if (txn_ctx.ok) {</span></span>
+<span id="L417"><span class="lineNum">     417</span>                 :             :         // The sensor drives one bit: 0 = parasite power, 1 = external power.</span>
+<span id="L418"><span class="lineNum">     418</span>                 :<span class="tlaGNC">          44 :         ctx.parasite = (txn_ctx.raw[0] &amp; 0x01) ? 0u : 1u;</span></span>
+<span id="L419"><span class="lineNum">     419</span>                 :             :     }</span>
+<span id="L420"><span class="lineNum">     420</span>                 :<span class="tlaGNC">          66 :     return 1;</span></span>
+<span id="L421"><span class="lineNum">     421</span>                 :             : }</span>
+<span id="L422"><span class="lineNum">     422</span>                 :             : </span>
+<span id="L423"><span class="lineNum">     423</span>                 :             : /**</span>
+<span id="L424"><span class="lineNum">     424</span>                 :             :  * @}</span>
+<span id="L425"><span class="lineNum">     425</span>                 :             :  */</span>
         </pre>
               </td>
             </tr>

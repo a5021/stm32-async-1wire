@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-02 16:07:21</td>
+            <td class="headerValue">2026-10-03 20:17:32</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -301,8 +301,8 @@
 <span id="L230"><span class="lineNum">     230</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
 <span id="L231"><span class="lineNum">     231</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
 <span id="L232"><span class="lineNum">     232</span>                 :             :  */</span>
-<span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC tlaBgGNC">       97086 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
-<span id="L234"><span class="lineNum">     234</span>         [<span class="tlaGBC" title="Branch 0 was taken 43637 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 53449 times"> + </span>]:<span class="tlaGNC">       97086 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
+<span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC tlaBgGNC">       95678 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
+<span id="L234"><span class="lineNum">     234</span>         [<span class="tlaGBC" title="Branch 0 was taken 42933 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 52745 times"> + </span>]:<span class="tlaGNC">       95678 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
 <span id="L235"><span class="lineNum">     235</span>                 :             : }</span>
 <span id="L236"><span class="lineNum">     236</span>                 :             : </span>
 <span id="L237"><span class="lineNum">     237</span>                 :             : /**</span>
@@ -423,20 +423,11 @@
 <span id="L352"><span class="lineNum">     352</span>                 :             : </span>
 <span id="L353"><span class="lineNum">     353</span>                 :             : /** @} */</span>
 <span id="L354"><span class="lineNum">     354</span>                 :             : </span>
-<span id="L355"><span class="lineNum">     355</span>                 :             : #ifdef DS18B20_TEST_HARNESS</span>
-<span id="L356"><span class="lineNum">     356</span>                 :             : /**</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :  * @brief [TEST] Set the idle-HIGH gap injected between search slots</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             :  * @param[in] us Gap duration in microseconds (0 disables the injection)</span>
-<span id="L359"><span class="lineNum">     359</span>                 :             :  * @note Temporary test hook for the RTOS-latency experiment only.</span>
-<span id="L360"><span class="lineNum">     360</span>                 :             :  */</span>
-<span id="L361"><span class="lineNum">     361</span>                 :             : void onewire_test_set_gap_us(uint16_t us);</span>
-<span id="L362"><span class="lineNum">     362</span>                 :             : #endif</span>
-<span id="L363"><span class="lineNum">     363</span>                 :             : </span>
-<span id="L364"><span class="lineNum">     364</span>                 :             : #ifdef __cplusplus</span>
-<span id="L365"><span class="lineNum">     365</span>                 :             : }</span>
-<span id="L366"><span class="lineNum">     366</span>                 :             : #endif</span>
-<span id="L367"><span class="lineNum">     367</span>                 :             : </span>
-<span id="L368"><span class="lineNum">     368</span>                 :             : #endif /* ONEWIRE_H */</span>
+<span id="L355"><span class="lineNum">     355</span>                 :             : #ifdef __cplusplus</span>
+<span id="L356"><span class="lineNum">     356</span>                 :             : }</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             : #endif</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             : </span>
+<span id="L359"><span class="lineNum">     359</span>                 :             : #endif /* ONEWIRE_H */</span>
         </pre>
               </td>
             </tr>

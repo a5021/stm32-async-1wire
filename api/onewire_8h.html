@@ -195,42 +195,11 @@ Functions</h2></td></tr>
 <tr class="memitem:gac9e2cf3aba30d3216ccbfc8cbacb1a2d" id="r_gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__CRC.html#gac9e2cf3aba30d3216ccbfc8cbacb1a2d">onewire_crc8</a> (const uint8_t *data, uint8_t len)</td></tr>
 <tr class="memdesc:gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer.  <br /></td></tr>
 <tr class="separator:gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a69429e3deefc67400166bb1da01d2f97" id="r_a69429e3deefc67400166bb1da01d2f97"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="onewire_8h.html#a69429e3deefc67400166bb1da01d2f97">onewire_test_set_gap_us</a> (uint16_t us)</td></tr>
-<tr class="memdesc:a69429e3deefc67400166bb1da01d2f97"><td class="mdescLeft">&#160;</td><td class="mdescRight">[TEST] Set the idle-HIGH gap injected between search slots  <br /></td></tr>
-<tr class="separator:a69429e3deefc67400166bb1da01d2f97"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Universal non-blocking 1-Wire bus layer for STM32. </p>
 <p>The driver (ds18b20.c) and any other 1-Wire slave driver (DS2413, DS2431, ...) are built on top of this layer. Every operation is scheduled on TIM1/DMA and completes asynchronously: callers poll <a class="el" href="group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> / <a class="el" href="group__ONEWIRE__Search.html#gafda05734915d3f73f380d045973deb58" title="Advance the non-blocking search by one hardware operation.">onewire_search_poll()</a> to advance, never wait. The layer owns TIM1, its DMA1 channels and the bus GPIO pin from <a class="el" href="group__ONEWIRE__Init.html#gac6a21039977d29da711c6b094c87bf3e" title="Initialize the shared 1-Wire timer/DMA/GPIO resources.">onewire_init()</a> until reset (see there); access the bus only through this API. </p>
-</div><h2 class="groupheader">Function Documentation</h2>
-<a id="a69429e3deefc67400166bb1da01d2f97" name="a69429e3deefc67400166bb1da01d2f97"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a69429e3deefc67400166bb1da01d2f97">&#9670;&#160;</a></span>onewire_test_set_gap_us()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void onewire_test_set_gap_us </td>
-          <td>(</td>
-          <td class="paramtype">uint16_t&#160;</td>
-          <td class="paramname"><em>us</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>[TEST] Set the idle-HIGH gap injected between search slots </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">us</td><td>Gap duration in microseconds (0 disables the injection) </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section note"><dt>Note</dt><dd>Temporary test hook for the RTOS-latency experiment only. </dd></dl>
-
-</div>
-</div>
-</div><!-- contents -->
+</div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->

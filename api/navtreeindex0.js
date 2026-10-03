@@ -155,7 +155,6 @@ var NAVTREEINDEX0 =
 "group__ONEWIRE__Search.html#gafda05734915d3f73f380d045973deb58":[0,10,3],
 "index.html":[],
 "onewire_8h.html":[2,0,0,1],
-"onewire_8h.html#a69429e3deefc67400166bb1da01d2f97":[2,0,0,1,24],
 "onewire_8h_source.html":[2,0,0,1],
 "ow__bits_8h.html":[2,0,0,2],
 "ow__bits_8h.html#a013c8722b459681f4a25e59a10653010":[2,0,0,2,118],
@@ -249,5 +248,6 @@ var NAVTREEINDEX0 =
 "ow__bits_8h.html#a667ecdcff9c6a9e0fbb60bff3a403b29":[2,0,0,2,196],
 "ow__bits_8h.html#a66f47ab6e3cdafcb64e124f9c858dbc8":[2,0,0,2,83],
 "ow__bits_8h.html#a690d30e9ad3647835c243368b36d4c41":[2,0,0,2,164],
-"ow__bits_8h.html#a6967c3abb43e5916a2947ad9476849cd":[2,0,0,2,204]
+"ow__bits_8h.html#a6967c3abb43e5916a2947ad9476849cd":[2,0,0,2,204],
+"ow__bits_8h.html#a6c2e35fdcd9091ccada629895fa1d034":[2,0,0,2,87]
 };

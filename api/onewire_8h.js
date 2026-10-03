@@ -24,7 +24,6 @@ var onewire_8h =
     [ "onewire_search_start", "group__ONEWIRE__Search.html#gae18cf21c8dcaaad99d6f39acf5837ba4", null ],
     [ "onewire_start_timer", "group__ONEWIRE__Bus.html#ga3636e095b3e9da367c6346efe1cbaa88", null ],
     [ "onewire_strong_pullup", "group__ONEWIRE__Bus.html#ga87cafeadf410d1124537563f0a956a23", null ],
-    [ "onewire_test_set_gap_us", "onewire_8h.html#a69429e3deefc67400166bb1da01d2f97", null ],
     [ "onewire_write_bit", "group__ONEWIRE__Bus.html#gade3a544265373c0eddbc68ca76a3de91", null ],
     [ "onewire_write_slots", "group__ONEWIRE__Bus.html#gadab2aae443ef53a94d25e54bf0e62c50", null ],
     [ "onewire_write_then_read", "group__ONEWIRE__Bus.html#ga9e1e6962332359811e5c8de92a04d413", null ]
