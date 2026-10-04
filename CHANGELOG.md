@@ -351,6 +351,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **F0/G0 Release firmware uses `-flto` again.** The Cortex-M0/M0+ exclusion
+  dated from a GCC 14 thin-LTO link failure (`invalid constant after fixup`);
+  a 14.2 spot-check links the current F0/G0 firmware cleanly, and Arm GNU
+  Toolchain 15.2 — now pinned for the CI firmware builds, matching the build
+  and release workflows — does too, so `OPT_NO_LTO` is empty. On `1_basic`
+  (F0 @48MHz) LTO shrinks `text` from 8316 to 3740 bytes.
+
 - **The OC3 output-compare preload bit (`OC3PE`) is now a sweepable knob.**
   The write/capture paths that rely on it — `ow_port_capture`, `ow_port_read_pair`
   and the single-slot branch of `ow_port_write_slots` — OR `OW_PORT_OC3PE_ARGS`

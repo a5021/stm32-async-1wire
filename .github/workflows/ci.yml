@@ -331,8 +331,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install ARM GCC
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Cache Arm Toolchain
+        id: cache-toolchain
+        uses: actions/cache@v5
+        with:
+          path: /opt/gcc-arm-none-eabi
+          key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
+      - name: Install Arm GNU Toolchain 15.2
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          sudo mkdir -p /opt/gcc-arm-none-eabi
+          wget -qO- https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz | sudo tar -xJv -C /opt/gcc-arm-none-eabi --strip-components=1
+      - name: Add Toolchain to PATH
+        run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
       - name: Cache CMSIS dependencies
         id: cache-deps
         uses: actions/cache@v5
@@ -453,8 +464,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install ARM GCC
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Cache Arm Toolchain
+        id: cache-toolchain
+        uses: actions/cache@v5
+        with:
+          path: /opt/gcc-arm-none-eabi
+          key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
+      - name: Install Arm GNU Toolchain 15.2
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        run: |
+          sudo mkdir -p /opt/gcc-arm-none-eabi
+          wget -qO- https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz | sudo tar -xJv -C /opt/gcc-arm-none-eabi --strip-components=1
+      - name: Add Toolchain to PATH
+        run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
       - name: Cache CMSIS FetchContent dependencies
         uses: actions/cache@v5
         with:

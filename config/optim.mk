@@ -25,9 +25,10 @@ OPT_RELEASE = -Os -flto -g0
 # -flto: stepping through optimised-but-inlined code is not debugging.
 OPT_DEBUG = -Og -g3 -gdwarf
 
-# Families that must be built without -flto. Cortex-M0 / Cortex-M0+ (F0 / G0)
-# trip a GCC 14 LTO link failure ("invalid constant after fixup" in the
-# thin-LTO partitioner) when the code shape shifts; dropping LTO there affects
-# size only, not correctness. Cortex-M3 (F1) and Cortex-M4 (F4) keep LTO.
-# Adding a family here is the only edit either build system needs.
-OPT_NO_LTO = f0 g0
+# Families that must be built without -flto. Empty today: F0/G0 were excluded
+# because Cortex-M0/M0+ tripped a GCC 14 LTO link failure ("invalid constant
+# after fixup" in the thin-LTO partitioner), but Arm GNU Toolchain 15.2 links
+# them cleanly, so the exclusion was removed. Dropping LTO affects size only,
+# not correctness. If the failure returns on another toolchain, re-add the
+# family here. Adding a family here is the only edit either build system needs.
+OPT_NO_LTO =

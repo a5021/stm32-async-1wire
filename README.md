@@ -1017,8 +1017,10 @@ cmake --build build
 
 `CMAKE_BUILD_TYPE` defaults to `Release` when a single-config generator leaves
 it empty, and the profiles are the Makefile's own rather than CMake's defaults:
-`Release` is `-Os -flto -g0`, `Debug` is `-Og -g3 -gdwarf`. `-flto` is dropped
-on Cortex-M0/M0+ (GCC 14's thin-LTO partitioner fails there), and when it is on
+`Release` is `-Os -flto -g0`, `Debug` is `-Og -g3 -gdwarf`. LTO is on for every
+family: the old Cortex-M0/M0+ exclusion (GCC 14's thin-LTO partitioner failed
+there) was removed after the F0/G0 firmware linked cleanly under Arm GNU
+Toolchain 15.2. When LTO is on
 the build points the archiver at `arm-none-eabi-gcc-ar`, because a plain `ar`
 leaves the LTO symbols out of the archive index and the link then fails with
 undefined references to the driver API. CMake's own `Release` (`-O3 -DNDEBUG`)

@@ -195,11 +195,14 @@ foreach(_line IN LISTS _ow_optim_lines)
         set(${_k} "${_v}")
     endif()
 endforeach()
-foreach(_k OPT_RELEASE OPT_DEBUG OPT_NO_LTO)
+foreach(_k OPT_RELEASE OPT_DEBUG)
     if(NOT ${_k})
         message(FATAL_ERROR "${OW_OPTIM_MK} does not define ${_k}")
     endif()
 endforeach()
+# OPT_NO_LTO is allowed to be empty: an empty list means LTO stays on for
+# every family. It keeps its initialized empty value when optim.mk leaves it
+# blank, so removing the last excluded family needs no other edit here.
 string(REPLACE " " ";" OPT_NO_LTO "${OPT_NO_LTO}")
 
 # LTO is not restated here: it is part of the profile, and the exclusion below
