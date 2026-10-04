@@ -62,6 +62,7 @@ void ds18b20_start_measure(void) {
     if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
         return; // the search, a resolution change or a command owns the timer
     }
+    ctx.current_state = DS18B20_ST_START;
     onewire_kick();
 }
 
@@ -189,8 +190,17 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
     case DS18B20_ST_IDLE:
-        // A parked driver advances only on the UIF raised by
-        // ds18b20_start_measure(); without such a request the bus stays idle.
+        // A parked driver advances on its own only for an armed scan round:
+        // ds18b20_scan_start() arms scan_mode and the first poll starts it
+        // (this keeps select-after-scan_start working: the driver is still
+        // IDLE until polled). Single cycles transition in
+        // ds18b20_start_measure() itself, so with scan_mode clear the bus
+        // stays idle here and the application's pause between rounds
+        // actually engages instead of the next round starting on the very
+        // next poll.
+        if (!ctx.scan_mode) {
+            break;
+        }
         ctx.current_state = DS18B20_ST_START;
         /* fallthrough to START state immediately */
         __attribute__((fallthrough));

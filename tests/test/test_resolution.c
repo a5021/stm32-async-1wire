@@ -296,6 +296,9 @@ void test_resolution_next_cycle_waits_short(void) {
     drive_res_change(9);
     TEST_ASSERT_EQUAL_UINT8(9, ds18b20_get_resolution());
 
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
+
     /* UIF is set by the EGR handover: run one measurement cycle up to WAIT. */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();

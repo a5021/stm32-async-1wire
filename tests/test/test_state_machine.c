@@ -45,6 +45,9 @@ void test_state_machine_first_poll_transitions_to_START(void) {
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
+
     /* Simulate UIF set (hardware operation complete) */
     mock_tim1.SR |= TIM_SR_UIF;
 
@@ -300,6 +303,9 @@ void test_state_machine_full_cycle_skip_rom(void) {
 
     /* Ensure Skip ROM mode (no device selected) */
     ds18b20_test_set_address_mode(0);
+
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
 
     /* Simulate a full measurement cycle */
     /* Step 1: IDLE -> START -> CONVERT */
@@ -604,6 +610,8 @@ void test_state_machine_search_select_measure_e2e(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
 
     /* Phase 3: full measurement cycle in Match ROM mode */
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
@@ -669,6 +677,8 @@ static int16_t ts_temp(uint16_t raw) {
 }
 
 static void ts_drive_measurement_raw(uint16_t raw) {
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
     uint8_t sd[9];
     sd[0] = (uint8_t)(raw & 0xFF);
     sd[1] = (uint8_t)((raw >> 8) & 0xFF);
@@ -810,7 +820,10 @@ void test_state_machine_busy_spy(void) {
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
-    /* IDLE -> START -> CONVERT: busy(1) at START */
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
+
+    /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_calls);
@@ -868,6 +881,9 @@ void test_state_machine_presence_fail_clears_busy(void) {
     ds18b20_init();
     ds18b20_test_reset_ctx();
 
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
+
     /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
@@ -894,6 +910,9 @@ void test_state_machine_crc_fail_mid_cycle(void) {
     spy_reset();
     ds18b20_init();
     ds18b20_test_reset_ctx();
+
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
 
     /* Full cycle with a corrupted scratchpad read */
     mock_tim1.SR |= TIM_SR_UIF;
@@ -953,6 +972,9 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     ds18b20_init();
     ds18b20_test_reset_ctx();
     ds18b20_test_set_address_mode(0);
+
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
 
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();

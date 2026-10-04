@@ -114,6 +114,8 @@ static void inject_scratchpad(void) {
 /* IDLE -> START+CONVERT -> WAIT; returns with state == CONTINUE (4),
  * i.e. right after the strong pull-up window was entered. */
 static void drive_to_wait(void) {
+    /* Explicit start request: a parked driver only advances on one. */
+    ds18b20_start_measure();
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());

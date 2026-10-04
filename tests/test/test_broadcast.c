@@ -348,6 +348,8 @@ void test_broadcast_select_clears_scan_mode(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_scan_mode());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
 
+    /* Explicit start request: single cycles no longer start on their own. */
+    ds18b20_start_measure();
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
