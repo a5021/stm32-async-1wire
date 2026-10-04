@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-04
+
 ### Added
 
 - **Capture-underrun modeling and tests for the no-presence reset path.**
@@ -286,7 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the console is silent: no output at all, and notably no clock-failure banner
   either, since that is written to the same missing pin. The default is
   unchanged; PA9 is safe alongside the bus because the backend uses PA10 for
-  TIM1_CH3 and PA11 for the LA marker, and the console is TX only.
+  TIM1_CH3 and leaves PA11 untouched, and the console is TX only.
 
 - **Host coverage of the 180MHz path.** The F4 host suite now also builds at
   180MHz (`ds18b20_test_f4_180mhz.exe`) as part of `make test`, because the
