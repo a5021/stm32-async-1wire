@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-04
+
+### Changed
+
+- **F0/G0 Release firmware uses `-flto` again.** The Cortex-M0/M0+ exclusion
+  dated from a GCC 14 thin-LTO link failure (`invalid constant after fixup`);
+  a 14.2 spot-check links the current F0/G0 firmware cleanly, and Arm GNU
+  Toolchain 15.2 — now pinned for the CI firmware builds, matching the build
+  and release workflows — does too, so `OPT_NO_LTO` is empty. On `1_basic`
+  (F0 @48MHz) LTO shrinks `text` from 8316 to 3740 bytes. Bench-validated on
+  STM32F030x6: all seven examples at 48MHz and 8MHz, parasite-powered,
+  behave exactly as the no-LTO 2.1.0 reference logs.
+
 ## [2.1.0] - 2026-10-04
 
 ### Added
@@ -350,13 +363,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no job on any family, which is now at least compile-checked for the F446.
 
 ### Changed
-
-- **F0/G0 Release firmware uses `-flto` again.** The Cortex-M0/M0+ exclusion
-  dated from a GCC 14 thin-LTO link failure (`invalid constant after fixup`);
-  a 14.2 spot-check links the current F0/G0 firmware cleanly, and Arm GNU
-  Toolchain 15.2 — now pinned for the CI firmware builds, matching the build
-  and release workflows — does too, so `OPT_NO_LTO` is empty. On `1_basic`
-  (F0 @48MHz) LTO shrinks `text` from 8316 to 3740 bytes.
 
 - **The OC3 output-compare preload bit (`OC3PE`) is now a sweepable knob.**
   The write/capture paths that rely on it — `ow_port_capture`, `ow_port_read_pair`
@@ -1724,4 +1730,5 @@ without a section here, and its changes had drifted into the section below.
 [1.8.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...v1.8.1
 [2.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.1...v2.0.0
 [2.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...v2.1.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...HEAD
+[2.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...v2.1.1
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...HEAD

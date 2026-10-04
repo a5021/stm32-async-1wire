@@ -185,6 +185,18 @@ jobs:
             three header-only backends (F0/F1/G0) selected at build time with
             `make OW_TARGET=f0` / `make OW_TARGET=g0`.
 
+            ## What's new in 2.1.1
+
+            - **LTO is back on F0/G0**: the Cortex-M0/M0+ `-flto` exclusion
+              (a GCC 14 thin-LTO link failure) is gone — the firmware links
+              cleanly under the pinned Arm GNU Toolchain 15.2, and the F0
+              bench matrix (all seven examples at 48MHz and 8MHz,
+              parasite-powered) matches the no-LTO reference logs cell for
+              cell. On `1_basic` (F030x6 @48MHz) `text` shrinks from 8316 to
+              3740 bytes.
+            - **CI firmware builds use the pinned 15.2 toolchain**, same as
+              the build and release workflows — no more unpinned GCC.
+
             ## What's new in 2.0.0
 
             Four breaking changes on the public surface, and the F4 backend that
