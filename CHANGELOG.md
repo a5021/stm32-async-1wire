@@ -1716,4 +1716,5 @@ without a section here, and its changes had drifted into the section below.
 [1.8.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.7.1...v1.8.0
 [1.8.1]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.0...v1.8.1
 [2.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.1...v2.0.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...HEAD
+[2.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...v2.1.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...HEAD

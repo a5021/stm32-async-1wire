@@ -44,9 +44,9 @@ extern "C" {
 
 /** @brief Library version (semantic versioning) */
 #define STM32_ASYNC_1WIRE_VERSION_MAJOR 2
-#define STM32_ASYNC_1WIRE_VERSION_MINOR 0
+#define STM32_ASYNC_1WIRE_VERSION_MINOR 1
 #define STM32_ASYNC_1WIRE_VERSION_PATCH 0
-#define STM32_ASYNC_1WIRE_VERSION_STRING "2.0.0"
+#define STM32_ASYNC_1WIRE_VERSION_STRING "2.1.0"
 
 /**
  * @brief DS18B20 driver state machine states
