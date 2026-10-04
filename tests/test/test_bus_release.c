@@ -267,7 +267,7 @@ void test_long_waits_keep_bus_released(void) {
  *  register-indistinguishable here — this is NOT enforced by these tests, only
  *  documented and pinned as an end-to-end contract. The actual enforcement is
  *  code review of ow_port_dma_rearm()/ow_port_dma_disable() plus the
- *  real-hardware bench (docs/absent-presence-rearm-plan.md §4).
+ *  real-hardware bench.
  * -----------------------------------------------------------*/
 void test_reset_absent_then_present_no_stale_capture(void) {
     hw_set_capture_edges(1); /* no-presence reset: 1 of the armed captures happens */

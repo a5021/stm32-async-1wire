@@ -219,7 +219,7 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  *       already 0) the wait is zero iterations. The host model cannot
  *       distinguish this from the bare CCR=0 (no disable latency, no
  *       register-access accessors); those tests document the contract and the
- *       real-hardware bench proves the wait, see docs/absent-presence-rearm-plan.md.
+ *       real-hardware bench proves the wait.
  *       The parameter is the CCR field rather than a channel pointer so the
  *       core need not name the channel type (the ST headers spell it
  *       `DMA_Channel_TypeDef`, the host mocks `DMA1_Channel_TypeDef`).

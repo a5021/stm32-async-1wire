@@ -93,3 +93,7 @@ coverage-report/
 
 # Generated API documentation
 docs/api/
+
+# Bench evidence (UART logs, logic captures, matrices): kept out of the repo
+# by decision — numbers live in CHANGELOG prose, primary data does not.
+docs/bench/

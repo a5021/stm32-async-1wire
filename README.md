@@ -210,9 +210,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
 ├── docs/                   # Documentation assets
-│   ├── api/                # Doxygen-generated API reference
-│   ├── screenshots/        # UART capture screenshots
-│   └── bench/              # Lab logs: raw captures + validation matrices (F3, F4)
+│   └── api/                # Doxygen-generated API reference
 ├── .github/                # GitHub configuration
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
 │   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates
@@ -346,59 +344,21 @@ Notes:
 
 ## Hardware Verified
 
-Captures and measurements below are from real boards unless a subsection says
-otherwise.
+The subsections below describe the boards the driver runs on (wiring, clocks,
+console). Measurement logs are deliberately not kept in the repo.
 
 ### STM32F103C8T6 (Blue Pill)
 
-The following captures were taken on real hardware: STM32F103C8T6 (Blue Pill),
-8 × DS18B20 on one 1-Wire bus (PA10), flashed via ST-Link, USART1 TX at
-115200 8N1 read through a CP2102 USB-UART adapter. The shared 1-Wire layer
-found all 8 sensors, and every measurement round reported all of them — no
-missing devices, no CRC failures.
-
-**3_round_robin — device search + round-robin + resolution cycling** (`examples/3_round_robin/main.c`):
-the startup Search ROM finds all 8 devices, then each sensor is measured in
-turn while the resolution cycles 9 → 10 → 11 → 12 bit between measurements.
-
-<p align="center">
-  <img src="docs/screenshots/3_round_robin_uart.png" alt="3_round_robin on real hardware: device search, round-robin measurement, resolution cycling" width="600">
-</p>
-
-**4_scan_mode — simultaneous multi-device conversion** (`examples/4_scan_mode/main.c`): one broadcast
-`Convert T` converts all sensors in parallel, then each is read back via
-Match ROM — 8 readings per round in device-table order.
-
-<p align="center">
-  <img src="docs/screenshots/4_scan_mode_uart.png" alt="4_scan_mode on real hardware: simultaneous multi-device conversion (scan mode)" width="600">
-</p>
-
-**5_commands — command transactions** (`examples/5_commands/main.c`): after the startup search, the
-first sensor (Match ROM) answers every non-blocking command in turn — external
-power confirmed, raw scratchpad read with CRC ok and the resolution auto-derived
-from the config byte, TH/TL written (0x19/0x0F), copied to the EEPROM, then a
-volatile write (0x05/0x02) and Recall restoring the persisted values, and the
-bare Read ROM reporting a CRC failure as expected with 8 devices on the bus
-(0x33 is single-device only).
-
-<p align="center">
-  <img src="docs/screenshots/5_commands_uart.png" alt="5_commands on real hardware: command transactions (power supply, scratchpad, TH/TL, EEPROM, Read ROM)" width="600">
-</p>
+Reference setup: STM32F103C8T6 (Blue Pill), 8 × DS18B20 on one 1-Wire bus
+(PA10), flashed via ST-Link, USART1 TX at 115200 8N1 via a CP2102 USB-UART
+adapter.
 
 ### STM32F030F4P6 (TSSOP20)
 
-The same examples were validated on an STM32F030F4P6 minimum board: the
+The same examples run on an STM32F030F4P6 minimum board: the
 1-Wire bus on **PA10** (TIM1 CH3/CH4 pair — PA8 is not bonded out in this
 package), USART1 TX on PA9, busy LED on PA4, flashed via ST-Link SWD. The bus
-again carried 8 × DS18B20; all rounds complete with valid CRCs and no errors:
-
-| Test | Clock | Result |
-|------|-------|--------|
-| `3_round_robin` — search + round-robin + resolution cycling | HSI+PLL 48MHz | 163 samples / 7+ sensors, 0 CRC or timeout errors |
-| `3_round_robin` — same | HSI 8MHz | 161 samples, 0 errors |
-| `4_scan_mode` — simultaneous conversion scan | HSI+PLL 48MHz | all 8 devices found, 56 readings (7 × 8), 0 errors |
-| `4_scan_mode` — same | HSI 8MHz | all 8 devices found, 56 readings, 0 errors |
-| `5_commands` — command transactions validator | both clocks | all checks pass (power supply, TH/TL write, Copy/Recall EEPROM round-trip, expected multi-device Read ROM CRC failure) |
+carries 8 × DS18B20.
 
 ### STM32F303VC (F3-DISCOVERY / MB1035B)
 
@@ -406,28 +366,17 @@ Validated on an **STM32F3-DISCOVERY** (MB1035B, STM32F303VC, 256KB flash /
 32KB SRAM): 7 × DS18B20 in parasite power mode on one 1-Wire bus on **PA10**
 (TIM1 CH3/CH4 pair, DMA1 channels 3/4 — the same fixed pair as F1/F0, see the
 Supported-families table), console on USART1 TX / **PA9** (default mapping) at
-115200 8N1, flashed via ST-Link SWD. The 21-run matrix in
-`docs/bench/f3-2026-09-29/` (7 examples × 3 clocks: 72MHz HSE-bypass+PLL,
-64MHz HSI/2+PLL, 8MHz raw HSI) is **21/21 PASS** with zero CRC or timeout
-errors: all seven bench ROMs enumerated in the search-based examples and every
-reading valid (~23.2–23.4 °C). `1_basic` shows the expected Skip-ROM broadcast
-"CRC check failed" on all three clocks (single-sensor app on a 7-device bus,
-same accepted behaviour as the other families). Logic-analyzer captures of the
-slot waveforms are in `docs/bench/f3-2026-09-29/la/` (`f3_cap1.srzip`,
-`f3_cap4.srzip`, with the `ow_la_analyze.py` decoder).
+115200 8N1, flashed via ST-Link SWD.
 
 ### STM32G031F6P6 (WeAct TSSOP20 board)
 
 Validated on a WeAct STM32G031F6P6 minimum board: 6 × DS18B20 in parasite
 power mode on one 1-Wire bus (logical PA10 on the physical PA12 pad), USART1
-TX on logical PA9 (physical PA11), flashed via ST-Link SWD. `4_scan_mode`
-(simultaneous conversion scan) runs with every device reported each round,
-valid CRCs and zero errors at both supported clocks — the default 64MHz
-(HSI16+PLL) and the raw-HSI16 `SYSCLK_MHZ=16` build, which exercises the
-slow-clock timing path natively. The bus pads are reachable only through the
-SYSCFG remap described in Hardware Connections below; the USB-C connector of
-this board is wired to PA11/PA12 and must stay unplugged while the driver
-owns the bus.
+TX on logical PA9 (physical PA11), flashed via ST-Link SWD. Builds: the
+default 64MHz (HSI16+PLL) and the raw-HSI16 `SYSCLK_MHZ=16` build. The bus pads
+are reachable only through the SYSCFG remap described in Hardware Connections
+below; the USB-C connector of this board is wired to PA11/PA12 and must stay
+unplugged while the driver owns the bus.
 
 ### STM32F407VGT6 (STM32F4DISCOVERY)
 
@@ -442,16 +391,9 @@ answers with its CP210x VCP on **PB6** too (measured, not the PA9 the silkscreen
 implies), so the default build works on both boards with no flag. For an F4
 board whose console really is on PA9, build with
 `-DOW_UART_USART1_PA9` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`)
-or attach the USB-TTL adapter to PB6. All seven examples
-ran with valid CRCs and zero errors (including the statistics and low-power
-variants), every device reading ~24–26 °C, at the default 168 MHz PLL clock;
-the bus timing was additionally validated at `SYSCLK_MHZ=8` (raw HSE).
-The fleet is fed through a **2.2 kΩ** pull-up from a dedicated supply: with a
-weak supply (USB adapter power) broadcast conversion droops the line, which
-is what the `4_scan_mode` note above describes. `SYSCLK_MHZ=16` selects raw
-HSI. The F4-specific DMA topology and timing choices are documented in
-`port/stm32f4/HARDWARE-NOTES.md` (including the full 3-frequency × 6-example
-validation matrix for this board).
+or attach the USB-TTL adapter to PB6. `SYSCLK_MHZ=16` selects raw HSI.
+The F4-specific DMA topology and timing choices are documented in
+`port/stm32f4/HARDWARE-NOTES.md`.
 
 ### STM32F401CC (F401 Black Pill)
 
@@ -480,15 +422,6 @@ Expected wiring matches the F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams
 not PA9, because the F4 UART path is pinned to PB6 for the F4DISCOVERY, which
 carries no signal on the default PA9 USART1 pad.
 
-**Validated on silicon.** All seven examples ran on this board at the default
-84MHz: `2_device_search` 7 found / 0 errors / 24.3–24.6 °C; `3_round_robin` 8
-measurements / 0 CRC failures; `4_scan_mode` 49 / 0; `5_commands` parasite
-detected with the EEPROM round-trip intact; `6_statistics` `t=70c 0e` with `n10`
-and `e0` on all seven and a histogram totalling exactly 5040 = 70 × 72;
-`7_low_power` with the WFE path enabled, 8 measurements / 0 errors. Per-device
-cycle ~6.0 s against the F407DISCOVERY's 5.75–5.84 s, which is what pins the
-millisecond counter at 84MHz. Numbers in `port/stm32f4/HARDWARE-NOTES.md`.
-
 The `xE` parts (F401CD/RD/VD/CE/RE/VE, 512KB flash / 128KB RAM) are the same
 core with twice the memory, so they share everything above and differ only in
 the memory map: `OW_CHIP=f401xe` selects `chips/f401xe.mk` with
@@ -506,25 +439,14 @@ Validated on a **WeAct STM32F446RET6** (ST-LINK V2J45S7, STM32F446 Rev A,
 (TIM1 CH3/CH4 pair, same DMA2 streams 2/4 topology as the F407), console on
 USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
 default build needs no UART flag), flashed via OpenOCD over the on-board
-ST-Link. The 35-run frequency matrix in `docs/bench/f4-2026-09-30/` (7 examples
-× 5 clocks: 180MHz HSE+PLL+over-drive default, 168MHz, 84MHz, 16MHz raw HSI,
-8MHz raw HSE) is **35/35 PASS**: every image validated on flash, all seven
-bench ROMs enumerated in the search-based examples, valid CRC8 temperatures
-(~21.1–21.3 °C at 180MHz), no lockups, and the expected single-sensor
-Skip-ROM "CRC check failed" on `1_basic` at every clock. The same bench swept
-the OC3PE knob (see Configuration → Timing): the default `-DOW_PORT_OC3PE=1`
-is load-bearing (measurement stalls and the console goes silent with `=0`),
-and it doubles as the hardware validation of the `-DOW_F4_LED_PB2` busy-LED
-build (PB2, active high; PC13 on this board is the user button, not an LED).
+ST-Link.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
 module accumulates after every `STATS_DUMP_SWEEPS` sweeps (default 10, defined
 only in the example's source) — per-sensor pulse-width min/max, a 13-bucket
 logarithmic histogram (0–60+ µs) and error counters (CRC, presence, other),
-then streams the full report over UART. Validated on STM32G031@64MHz with
-6 × DS18B20 in parasite power mode — all six sensors detected, 0 errors, pulse
-widths 5–32 µs, histogram buckets populated across the normal decode range.
+then streams the full report over UART.
 
 Build and run:
 
@@ -570,14 +492,6 @@ mechanism and measure the CPU-time saving.
 > does inside `ds18b20_poll()` for up to 750 ms. In a low-power build the
 > millisecond figure is therefore valid for the pauses between cycles (where the
 > loop does spin) and deliberately excludes the conversion time.
-
-> **Verified on hardware (STM32F407, 7 parasite-powered DS18B20).** With
-> `-DOW_PORT_LOW_POWER=1 -DOW_PARASITE_POWER=1`, 7_low_power found all seven
-> devices, read them in turn (*23.4 °C … 23.8 °C*) and repeated the whole round
-> with a stable 5.77–5.79 s period (one 5 s pause plus the ~0.75 s conversion
-> of the 7th sensor), with 0 CRC errors and no lost UART output. The image
-> contains no interrupt handler at all: every `*_IRQHandler`/`SysTick_Handler`
-> symbol in the ELF is a weak CMSIS alias to `Default_Handler`.
 
 Build and run:
 
@@ -2418,13 +2332,9 @@ pulse already broke slot decoding on an F030 at 8MHz — see also the note in
 leave the bus idle-HIGH at the terminal update (capture, read-pair, single-slot
 write) gate the `TIM_CCMR2` preload bit behind `-DOW_PORT_OC3PE=1` (default) /
 `-DOW_PORT_OC3PE=0`. The DMA-fed paths leave it off unconditionally, because
-their reload must act immediately — preload would break it. The F446 bench
-swept both values (see `docs/bench/f4-2026-09-30/`): the default is
-**load-bearing** on hardware — with `=0` the first slot sequence never
-completes, the state machine parks in `CONVERT` and the console stays silent —
-so leave it at its default unless you are deliberately probing the preload
-behaviour. The knob exists so a bench can sweep the bit without editing code;
-see `inc/ow_port.h` for the rationale.
+their reload must act immediately — preload would break it. The knob exists so
+a bench can sweep the bit without editing code; see `inc/ow_port.h` for the
+rationale.
 
 ## Troubleshooting
 

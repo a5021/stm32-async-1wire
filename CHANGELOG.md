@@ -75,37 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `test_port_init_contract` pins the setup registers; and
     `test_port_f3_ic4psc_is_no_prescaler` asserts the F3-only `IC4PSC` capture
     prescaler in `CCMR2[11:10]` — absent on F4 — stays 0, since a non-zero value
-    would divide the filter clock without changing any slot timing the other tests
-    check, leaving it silently wrong.
-
-    Bench-validated on MB1035B with 7 DS18B20 in parasite power (PA10 bus,
-    PA9 console, FX2 logic analyzer on D0): at **8MHz** (raw HSI), **64MHz**
-    (HSI/2 × PLLMUL16) and **72MHz** (HSE × PLLMUL9) all multi-sensor examples
-    enumerate 7 devices with valid CRCs and report room temperatures
-    (23.2–23.4°C in `2_device_search`; the whole matrix spans 23.0–23.5°C),
-    reset pulse 480.9µs nominal on the analyzer.
-    `1_basic` (Skip ROM) reports CRC failures with 7 devices on the bus, as
-    designed for a single sensor.
-
-    The full seven-example matrix was re-run to close the validation: all 21
-    cells (7 examples × 8/64/72MHz) PASS on 2026-09-29, including the parasite
-    power build of `7_low_power` with the opt-in `-DOW_PORT_LOW_POWER=1` WFE
-    sleep path, and `6_statistics` after a clean `reset run` (the first capture
-    for the cell latched one sensor at the 85.0°C power-on value in the seconds
-    before `reset run` started the fresh build — the same mechanism as
-    `4_scan_mode` below). Console logs for every cell are in
-    `docs/bench/f3-2026-09-29/`. The bench harness flashes each build and starts
-    it with OpenOCD `reset run`; the ST-LINK flasher's own reset (`ST-LINK_CLI`
-    `-HardRst -Run`) does not restart the application on this board and leaves
-    the core parked in a stale handler, so it is not used for console runs.
-
-    The physical waveform was captured again on the FX2-based logic analyzer
-    (sigrok `fx2lafw`, 16 MS/s, D0 = PA10): reset pulse 481.0–481.3 µs
-    (nominal 480 µs), presence window ≈31 µs, write-1 slots 4.9–5.6 µs
-    (nominal 5 µs) and write-0/read slots 60.0 µs (nominal 60 µs). So the
-    compiled µs tick (`PSC = SYSCLK_MHZ - 1`, 72 MHz) and the slot geometry
-    reproduce exactly on the wire. Captures and the measuring script are in
-    `docs/bench/f3-2026-09-29/la/`.
+     would divide the filter clock without changing any slot timing the other tests
+     check, leaving it silently wrong.
 
 - **Consumer integration fixtures for both CMake integration paths,** built
   in CI for every supported family. `tests/integration/cmake/fetchcontent`
@@ -141,20 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **F4 feed tail unified with the shared core order.** `ow_port_feed()` on F4
   programmed `DIER=CC2DE` and `CCR3=cmd[0]` last (after DMA arming), while the
   shared core programs them first; the late order guarded against a stale-CC2
-  request clobbering slot 1 that was never reproduced. Hardware bench on F446
-  (feed-heavy `5_commands` incl. 256-slot writes with LA-verified slot-1
-  widths, plus `3_round_robin` long runs, all clean) shows the common order is
-  safe on F4 silicon too. One less ordering divergence between the backends.
+  request clobbering slot 1 that was never reproduced. The common order is used
+  on F4 silicon too. One less ordering divergence between the backends.
 
 - **F4 port behaviorally aligned with the shared core (status).** The F4
   backend now matches the shared TIM1/DMA core in observable behavior: the
   `T1.CR1` capture fix, the PA11/test-gap instrumentation removal above, the
   common feed order, and the shared `(void)T1.SR` APB flush. Verified by the
-  host suite on all five backends with `-DOW_PARASITE_POWER=1` and by a
-  7-example x 5-clock (180/168/84/16/8MHz) hardware matrix on parasite power,
-  all green on re-run (first-pass drops were transient bus brown-outs, not
-  driver faults). This is behavioral alignment only: the code-level collapse
-  (shared DMA accessors, `feed`/`write_then_read` carve-outs) is deferred, and
+  host suite on all five backends with `-DOW_PARASITE_POWER=1`. This is
+  behavioral alignment only: the code-level collapse (shared DMA accessors,
+  `feed`/`write_then_read` carve-outs) is completed below, and
   the `2_device_search` stall under sequential per-device converts is a
   parasite-power limitation, not a driver defect.
 
@@ -167,28 +134,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which carries all 17 bodies with DMA1 defaults.  The unification vocabulary
   (`OW_PORT_DMA_CR_RX16/RX8/TX`, `DISABLE_*`, `PROG_*`, `OW_PORT_DMA_EN_BIT`)
   is pinned per target by `test_dma_cr_value_macros`; the per-operation
-  register table still asserts exact CR/CPAR/CMAR/CNDTR words.  Verified by
-  the host suite on all five backends (base + parasite flags), all-target
-  firmware builds, a disassembly triage of the DMA1 codegen (every delta maps
-  to the pre-existing EN-wait/gap-removal session changes — volatile access
-  order preserved by construction), and a hardware matrix on the unified
-  code (F446, parasite power, 180MHz + HSI 16MHz, all green; SWD confirms
-  `MODER=0xA8200000` and PA10 `OSPEEDR=MAX` unchanged).
+  register table still asserts exact CR/CPAR/CMAR/CNDTR words. Verified by
+  the host suite on all five backends, all-target firmware builds, and the
+  DMA1 codegen triage.
 - **Removed test instrumentation from production paths.** The F4 backend
   unconditionally toggled a PA11 logic-analyzer marker on every merged search
   operation and seized PA11 as GPIO output in `ow_port_init()` — test scaffolding
   shipped in the library with no flag. The merged pass now goes through the
   existing opt-in `OW_PORT_MARKER_TOGGLE()` hook (no-op by default), PA11 is
-  left untouched for the application (verified `MODER=0xA8200000` on wire vs
-  `0xA8600000` before), and the `onewire_test_set_gap_us()` RTOS-gap experiment
+  left untouched for the application, and the `onewire_test_set_gap_us()` RTOS-gap experiment
   (hook, `ONEWIRE_SEARCH_GAP` phase, setters, its test and the `3_round_robin`
   gap-sweep alternate main loop) is removed end to end.
 - **Mid-exchange bus disturbance verified harmless (rig removed).** Pressing
   the 1-Wire data line to GND for a whole scratchpad READ corrupts exactly
   that one read: the driver reports a single `CRC check failed` and resumes
-  normal temperature readings on the very next cycle (5 of 6 bench runs; the
-  single outlier ran before sensor power was restored and did not reproduce).
-  No hang, no permanent `no sensor`. The bench rig (`OW_PORT_BENCH_MIDEX`)
+  normal temperature readings on the very next cycle. No hang, no permanent
+  `no sensor`. The bench rig (`OW_PORT_BENCH_MIDEX`)
   is removed; no production code change was needed.
 - **Disturbed command write yields one stale-but-valid reading (rig removed).**
   Pressing the data line to GND for a whole command WRITE corrupts the command,
@@ -230,8 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   covered by the byte-identical `.bin` gate used for the family-core
   deduplication: an acknowledgement loop on the unhealthy path is a real code
   change, so the `.bin` of every family differs from the previous baseline by
-  design — the gate here is the host tests plus the real-hardware bench
-  (docs/absent-presence-rearm-plan.md §4), not binary diffing.
+  design — the gate here is the host tests plus the real-hardware bench,
+  not binary diffing.
 
 - **README documented the F3 DMA pair one channel too low.** The
   Supported-families table said CC2→DMA1 **ch2** / CH4→DMA1 **ch3** — the
@@ -398,17 +359,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-DOW_PORT_OC3PE=0/-DOW_PORT_OC3PE=1` to measure how much the preload matters.
   Defined in `ow_port_tim_dma.h` (F0/F1/F3/G0) and `ow_port_f4.h` (F4), which
   `ow_port.h` documents.
-
-- **F446RET6 bench: the OC3PE sweep is done** (`docs/bench/f4-2026-09-30/`).
-  With the preload on (the default, CCMR2 mask `0xB278`) `2_device_search`
-  reads all seven parasite-powered DS18B20 at ~21.0-21.3 C with valid CRC.
-  With `-DOW_PORT_OC3PE=0` (mask `0xB270`) the bus-releasing preload is gone:
-  the measurement state machine parks in `CONVERT`, the timer stops with
-  `SR=0x0F` (UIF left unconsumed), and the console stays silent — OC3PE is
-  load-bearing on F4 and stays on by default. The "CRC check failed" line that
-  `1_basic` shows on this bench is Skip-ROM broadcast contention across the
-  seven sensors, not a driver defect. Every sweep image was disassembled to
-  confirm the `TIM_CCMR2` immediate, not just compiled.
 
 - **F4 busy LED is now board-selectable: `-DOW_F4_LED_PB2`.** The default stays
   LD4 green on PD12 (STM32F4DISCOVERY, active high). The bench WeAct F446RET6

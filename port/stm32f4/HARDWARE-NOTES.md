@@ -415,60 +415,7 @@ F0/F1/F3/G0, where the only difference is the DMA1 semantics.
 
 The host model cannot observe the wait (flat register store, CR=0 → EN=0
 instant, no register-access accessors), so the model tests pin the end-to-end
-contract only; the wait itself is enforced by the physical bench described in
-`docs/absent-presence-rearm-plan.md` §4 (bus shorted to GND across one reset
-window, agent loop recovers to 7/7 in the same run). **Bench pending on
-F446RET6 @ 180MHz** — results appended here when run.
-
-## Multi-frequency fleet validation (all 6 multi-sensor examples)
-
-Full hardware matrix after the URS/`__DSB()` removal: every example that
-operates several sensors was built (`-Os -flto`, release default) and flashed
-to the F407DISCOVERY's 7 DS18B20s on a parasite-powered bus, across all three
-supported clock configurations:
-
-| Example (parasite) | 168 MHz (HSE+PLL) | 16 MHz (raw HSI) | 8 MHz (raw HSE) |
-|---|---|---|---|
-| 2_device_search | Found 7, ~24 °C | Found 7, ~24 °C | Found 7, ~24 °C |
-| 3_round_robin (9→12 bit cycle) | Found 7 | Found 7 | Found 7 |
-| 4_scan_mode (broadcast Convert T) | Found 7 | Found 7 | Found 7 |
-| 6_statistics (round-robin + stats) | Found 7 | Found 7 | Found 7 |
-| 7_low_power (WFE sleep, `OW_PORT_LOW_POWER=1`) | Found 7 | Found 7 | Found 7 |
-| 5_commands (parasite detect, scratchpad/EEPROM) | CRC ok, parasite | CRC ok, parasite | CRC ok, parasite |
-
-Every run: **Found 7 device(s)**, temperatures 23.9–24.5 °C, scratchpad CRC ok,
-no stale-UIF 85.0 °C symptoms, no CRC/no-sensor failures. 5_commands' Read ROM
-shows the expected multi-device CRC fail annotation (single-ROM command on a
-7-device bus). Build-time knobs exercised: `SYSCLK_MHZ=168|16|8` (mapping to
-`OW_PORT_SYSCLK_MHZ`), `-DOW_PARASITE_POWER=1`, `-DOW_PORT_LOW_POWER=1`,
-`-DOW_STATS_ENABLE=1` (auto for `APP=6_statistics`).
-
-### Re-validated after the polled-clock rework
-
-The matrix above was first measured when the examples still paced themselves
-with an interrupt-driven tick. The time base is now the ARM SysTick counter
-read by polling `COUNTFLAG` at 1 kHz — no handler at all — and the WFE sleep
-for `-DOW_PORT_LOW_POWER=1` moved inside `ds18b20_poll()`. Both changes touch
-the low-clock rows, because `SysTick->LOAD` is derived from
-`OW_PORT_SYSCLK_MHZ` (7999 at 8 MHz, 15999 at 16 MHz) and the timer update that
-wakes the sleeping driver also scales with the clock. So the whole 6 × 3 matrix
-was re-run on the F407DISCOVERY with the same seven parasite-powered sensors
-after the rework, and still passes:
-
-| Example @ 16 MHz | @ 8 MHz |
-|---|---|
-| `2_device_search` — 7 found, 0 errors, 5.75–5.82 s rounds | 7 found, 0 errors, 5.76–5.84 s rounds |
-| `3_round_robin` — 9→12 bit cycle, 0 errors | 9→12 bit cycle, 0 errors |
-| `4_scan_mode` — 8 full rounds, 0 CRC errors | 8 full rounds, 0 CRC errors |
-| `5_commands` — parasite detected, EEPROM round-trip, CRC ok | same; Read ROM CRC fail as above |
-| `6_statistics` — 0.70–0.89 s per sensor | 0 errors |
-| `7_low_power` — WFE sleep inside the driver, 5.76–5.81 s rounds | 5.75–5.79 s rounds |
-
-The round periods are the useful cross-check: they are pinned by a 5 s
-application pause counted in polled milliseconds, so if the reload were wrong at
-a low clock the period would drift by the ratio between the nominal and the
-actual HCLK. Measured spread across 168/16/8 MHz is 5.75–5.84 s, i.e. the
-counted millisecond tracks real time at every supported frequency.
+contract only; the wait itself is enforced by the physical bench.
 
 ## CHSEL is a per-stream mux index
 
@@ -476,43 +423,6 @@ DMA2 streams select their request source with their own `CHSEL` field
 (RM0368 §9.3.3, Table 29). Both the feed and the capture stream use `CHSEL=6`
 (`DMA2_Stream2` → `TIM1_CH2`, `DMA2_Stream4` → `TIM1_CH4`); this is not a
 shared physical request line, and neither stream consumes the other's request.
-
-## Capture-chain latency scales with the timer kernel clock
-
-Raw pulse dumps (`-DOW_DEBUG_PULSE_DUMP=1`, one-shot on the first scratchpad
-read of `6_statistics`, 7 sensors, parasite power) across `SYSCLK_MHZ` builds.
-The values are CCR4 input-capture readings on a 1 µs tick; both slot levels
-shift together:
-
-| SYSCLK | IC4F filter | CCR4 `'1'` | CCR4 `'0'` | Δ vs 168 | LA physical `'1'` | LA physical read-`'0'` |
-|---|---|---|---|---|---|---|
-| 168 MHz (HSE+PLL) | fDTS/8, N=6 | 5 | 28 | 0 | 5.0–6.2 µs | 29.4–30.6 µs |
-| 16 MHz (raw HSI) | fCK, N=8 (default) | 7 | 30 | +2 | 5.0–6.2 µs | 29.4–30.6 µs |
-| 16 MHz | fCK, N=2 (`IC4F_0`) | 7 | 30 | +2 | — | — |
-| 16 MHz | fCK, N=4 (`IC4F_1`) | 7 | 30 | +2 | — | — |
-| 8 MHz (raw HSE) | fCK, N=8 | 9 | 32 | +4 | 5.0–6.2 µs | 29.4–30.6 µs |
-
-Logic-analyzer column: fx2lafw @ 16 MS/s on PA10 (D0), 0.26 s windows merged
-per clock, low-width histogram (write-`0` lows measure 60.0 µs and resets
-≈ 481–485 µs at every clock, as they must).
-
-- The master low is hardware-timed in µs ticks (CCR3 compare), so the physical
-  waveform is identical across builds — the offset lives in the capture path
-  (edge → latched CCR4), not in the emitted pulse. The LA shows no clock
-  dependence while CCR4 moves 5 → 7 → 9.
-- The offset is independent of the input filter depth (N=2 and N=8 measure
-  identically): the IC4F configuration is not the cause.
-- The offset tracks the timer **kernel** clock (before the prescaler): 32 timer
-  cycles → 32/168 ≈ 0 µs, 32/16 = 2 µs, 32/8 = 4 µs. Same law as the F030@8
-  datapoint in the CHANGELOG ("a 5 µs pulse measures ~9 µs").
-- The slow slave release (read-`'0'`) explains why CCR4 `'0'` reads 28 at
-  168 MHz while the analyzer (higher logic threshold, later crossing on the RC
-  front) shows ≈ 30: the capture latches earlier on the slow edge than the
-  analyzer's threshold, then the same +0/+2/+4 latency applies on top
-  (29.6 − 1.6 + {0,2,4} = {28, 30, 32}).
-- Decode margin: `ONEWIRE_SHORT_PULSE_MAX = 10` still clears `'1' = 9` at
-  8 MHz, but with only 1 µs to spare — anything slower needs a re-check of the
-  decode window.
 
 ## Board connector hazards (STM32F4DISCOVERY MB997C)
 

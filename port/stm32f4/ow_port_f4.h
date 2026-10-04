@@ -265,7 +265,7 @@ __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream);
  *       iterations (the EN readback check exits immediately). The host model
  *       cannot distinguish this from the bare CR=0 (no disable latency, no
  *       register-access accessors); those tests document the contract and the
- *       real-hardware bench proves the wait, see docs/absent-presence-rearm-plan.md.
+ *       real-hardware bench proves the wait.
  */
 __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream) {
     stream->CR = 0; /* request disable */
