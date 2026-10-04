@@ -95,8 +95,9 @@ of each recorded after the dash:
    assuming PA9.) `-DOW_UART_USART1_PA9` still exists (`make OW_TARGET=f4
    OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`) for boards that do put the VCP on
    PA9, or attach a USB-TTL adapter to whichever pin you build for. PA9 does not
-   conflict with the bus: the backend takes PA10 for TIM1_CH3 and PA11 for the
-   LA marker, and the console is TX only.
+    conflict with the bus: the backend takes PA10 for TIM1_CH3 and leaves PA11
+    untouched (former LA marker; sync via the opt-in OW_PORT_MARKER_TOGGLE()
+    hook), and the console is TX only.
 
    Silence is the failure mode worth fearing, because it is ambiguous: the
    clock-failure banner leaves over the same pin, so "no output" cannot be told
@@ -522,8 +523,8 @@ as the G031's USB-C on PA11/PA12):
 | Pad | Driver use | OTG FS use | Failure mode with a cable plugged |
 |---|---|---|---|
 | PA10 | 1-Wire bus (TIM1_CH3) | OTG_FS_ID | An A-cable grounds ID → holds the bus LOW; every reset/presence fails |
-| PA11 | LA marker (GPIO) | OTG_FS_D− | Probe/cable contention on the marker; USB traffic would corrupt it |
+| PA11 | — (free, former LA marker) | OTG_FS_D− | Only matters if USB is initialised or PA11/PA12 are repurposed |
 | PA12 | — (free) | OTG_FS_D+ | Only matters if USB is initialised or PA12 is repurposed |
 
 Never enable the USB FS peripheral while the driver runs: its pin
-initialisation would reconfigure PA10/PA11 away from TIM1_CH3 / the marker.
+    initialisation would reconfigure PA10 away from TIM1_CH3.

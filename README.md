@@ -125,7 +125,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── ow_bits.h           # STM32 register access macros (shared)
 ├── port/                   # Per-MCU backends for the ow_port_* interface
 │   ├── common/            # TIM1+DMA1 core shared by the F0/F1/F3/G0 backends
-│   │   └── ow_port_tim_dma.h  # 16 ow_port_* functions: slot timing, capture, feed
+│   │   └── ow_port_tim_dma.h  # 17 ow_port_* functions: slot timing, capture, feed
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
 │   │   ├── ow_port_f1.h    # F1 descriptor: clock gates + legacy-CRH pin setup
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
@@ -147,7 +147,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
 │   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
-│   │   ├── ow_port_f4.h    # STM32F4: self-contained (DMA2 streams + CHSEL, LA marker)
+│   │   ├── ow_port_f4.h    # STM32F4: thin shim over the shared core (family facts, DMA2 stream + CHSEL/flag overrides, rearm, write_then_read carve-out)
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
@@ -673,14 +673,13 @@ TX remapped to PB6 (AF7); see the complete build line in Hardware Verified:
 | PE13 | 1-Wire Data (optional) | alternative bus pin with `-DOW_PORT_BUS_PE13=1`; TIM1_CH3, open-drain AF1 |
 | PB6  | USART1 TX (115200)  | USART1 AF7 (remapped from PA9); RX line of the USB-UART adapter |
 | PD12 | Busy LED (optional) | **Active-high** (F4DISCOVERY LD4: pin → LED → GND); the F4 console is on PB6, not the F1/F0/G0 PA4 pin |
-| PA11 | LA marker (optional) | GPIO push-pull output, always configured by the F4 backend and toggled once per merged search pass; also USB OTG FS D− |
+| PA11 | Free (former LA marker) | Left untouched by the driver; logic-analyzer sync, if needed, goes through the opt-in OW_PORT_MARKER_TOGGLE() hook (no-op by default); also USB OTG FS D− |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
 
 Important: the board's USB OTG FS connector is wired to the pins above —
 **do not plug a USB cable into it while the driver runs**. A standard A-cable
-grounds OTG_FS_ID on **PA10** and holds the 1-Wire bus LOW; **PA11** (LA
-marker) is USB D− and **PA12** is USB D+, so a connected cable conflicts with
-the marker probe and any use of PA12.
+grounds OTG_FS_ID on **PA10** and holds the 1-Wire bus LOW; **PA11** is USB D−
+and **PA12** is USB D+, so a connected cable also conflicts with any use of PA12.
 
 Note: a pull-up is required between the bus pin and the supply — 4.7 kΩ for a
 single device, 2.2 kΩ for a parasite-powered multi-drop fleet (fed from a
@@ -986,10 +985,10 @@ CMSIS header (`tests/mock/stm32f1xx.h` / `stm32f0xx.h` / `stm32f3xx.h` /
 backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
     driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-    object file.) The base suite runs 304 tests against the F1/F0 mocks, 305
+    object file.) The base suite runs 306 tests against the F1/F0 mocks, 307
     against the F3 and F4 backends (the F4 target also builds and runs its
     180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe` as an
-    extra) and 306 against G0 (which adds two DMAMUX request-routing tests).
+    extra) and 308 against G0 (which adds two DMAMUX request-routing tests).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -1023,8 +1022,8 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
 tests, every family), `make test-lowpower` (full suite + low-power WFE path,
-316 tests against F1/F0, 317 against F3/F4, 318 against G0) and
-`make test-ndebug` (317 / 318 / 319, asserts off).
+318 tests against F1/F0, 319 against F3/F4, 320 against G0) and
+`make test-ndebug` (319 / 320 / 321, asserts off).
 
 ### PlatformIO
 
@@ -1547,9 +1546,11 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-  Four of the five backends (`ow_port_f0.h`, `ow_port_f1.h`, `ow_port_f3.h`,
-  `ow_port_g0.h`) share one TIM1/DMA1 core in `port/common/`; F4 keeps its own
-  because DMA2 streams carry a per-stream `CHSEL` mux.
+  All five backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
+  `ow_port_f1.h`, `ow_port_f3.h`, `ow_port_g0.h` with DMA1 defaults, `ow_port_f4.h`
+  as a thin shim overriding the DMA spelling): DMA2's per-stream `CHSEL` mux
+  travels inside the control-register word, and `write_then_read` stays an
+  F4-local carve-out (UG placement + marker hook).
   
 #### Bus Electrical Model
 
@@ -1645,11 +1646,6 @@ DS18B20 datasheet allows, what the bench measured, and what the suite covers.
 - **Measured on a real bus:** injecting idle-high gaps of 10 µs … 5 ms between
   Search ROM slots finds all 5 devices in 100/100 runs at every gap size (bench
   experiment, quoted from the earlier hardware campaign).
-- **Reproduced in the suite:** `test_search_gap_between_slots` injects an
-  idle-high gap after every search operation through the harness injector
-  (`onewire_test_set_gap_us()`, compiled only under `DS18B20_TEST_HARNESS`) and
-  asserts the device is still found — the behavioural TIM/DMA model, not a real
-  bus.
 - **Idle-LOW > 480 µs resets all devices** (datasheet: *"if the bus is left low
   for more than 480 µs, all components on the bus will be reset"*). This is the
   only real hazard.
