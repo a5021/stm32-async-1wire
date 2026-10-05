@@ -11,12 +11,12 @@
  *
  *  What actually differs between families is small enough to name: the clock
  *  gates in ow_port_init(), the bus-pin mux, and the DMA request routing.
- *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS); the pin mux and the
- *  push-pull toggle arrive either as two statement macros (F1's legacy CRH
- *  field, F4's PE13-capable OW_BUS_GPIO indirection) or as eight value
- *  tokens the shared defaults below assemble (F0/F3/G0); DMA request routing
- *  defaults to a no-op (fixed-map families) and G0 programs its DMAMUX
- *  through the same two macros.
+ *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS), and so does the pin
+ *  mux: OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE() are two short
+ *  statement macros per backend (F1's legacy CRH field and F4's PE13-capable
+ *  OW_BUS_GPIO indirection prove the shapes are family-owned, not shared).
+ *  DMA request routing defaults to a no-op (fixed-map families) and G0
+ *  programs its DMAMUX through the same two macros.
  *
  *  A family header that includes this must, before the include:
  *
@@ -26,10 +26,9 @@
  *      facts block up in the headers supplies ow_pulse_t,
  *      OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn;
  *    - define OW_PORT_ENABLE_BUS_CLOCKS(), which gates this family's clocks;
- *    - either define OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE()
- *      outright, or define the pin-mux tokens the shared defaults assemble:
- *      OW_PORT_MODER_MASK, OW_PORT_MODER_AF, OW_PORT_OT_BIT, OW_PORT_AF_MASK,
- *      OW_PORT_AF_POS, OW_PORT_BUS_AF, OW_PORT_OSPEED_MASK, OW_PORT_OSPEED_POS;
+ *    - define OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE(push_pull),
+ *      which put the bus pin into alternate-function open-drain mode and
+ *      toggle it to push-pull for the parasite strong pull-up;
  *    - optionally override OW_PORT_DMA_FEED / OW_PORT_DMA_CAPTURE (default
  *      D13/D14: TIM1_CC2 feed on channel 3, TIM1_CH4 capture on channel 4)
  *      and OW_PORT_ROUTE_CAPTURE() / OW_PORT_ROUTE_FEED() (default no-ops
@@ -46,9 +45,9 @@
  *  F4 rides the same core through accessor macros with DMA1 defaults (see the
  *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
- *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  The one
- *  F4-only carve-out that stays out is ow_port_write_then_read (UG placement
- *  relative to the DMA programming, plus the marker hook).
+ *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  Even the
+ *  merged write+read pass is shared: only its arm order differs per family
+ *  (see the knobs above ow_port_write_then_read).
  * ============================================================ */
 
 #ifndef OW_PORT_TIM_DMA_H
@@ -86,45 +85,11 @@
 #ifndef OW_PORT_ENABLE_BUS_CLOCKS
 #error "ow_port_tim_dma.h: define OW_PORT_ENABLE_BUS_CLOCKS() before including this core"
 #endif
-#if !defined(OW_PORT_CONFIG_BUS_PIN) && !defined(OW_PORT_AF_MASK)
-#error "ow_port_tim_dma.h: define OW_PORT_CONFIG_BUS_PIN() or the pin-mux tokens (OW_PORT_MODER_MASK, OW_PORT_MODER_AF, OW_PORT_OT_BIT, OW_PORT_AF_MASK, OW_PORT_AF_POS, OW_PORT_BUS_AF, OW_PORT_OSPEED_MASK, OW_PORT_OSPEED_POS) before including this core"
-#endif
-#if !defined(OW_PORT_SET_PIN_MODE) && !defined(OW_PORT_OT_BIT)
-#error "ow_port_tim_dma.h: define OW_PORT_SET_PIN_MODE(push_pull) or OW_PORT_OT_BIT before including this core"
-#endif
-
-/* Shared bus-pin defaults, assembled from the tokens above (F0/F3/G0).
- * PA10 (logical PA10 on G0, physical PA12): alternate function, open-drain,
- * TIM1_CH3.  The whole MODE field is cleared first so the pin lands in the
- * right mode even if something set it before us; drive strength follows
- * OW_BUS_DRIVE (default MAX).  F1 (legacy CRH) and F4 (PE13-capable
- * OW_BUS_GPIO indirection) keep their own spellings. */
 #ifndef OW_PORT_CONFIG_BUS_PIN
-#define OW_PORT_CONFIG_BUS_PIN()                                                         \
-    do {                                                                                 \
-        PA.MODER = (PA.MODER & ~OW_PORT_MODER_MASK) | OW_PORT_MODER_AF;                  \
-        PA.OTYPER |= OW_PORT_OT_BIT;                                                     \
-        PA.AFR[1] = (PA.AFR[1] & ~OW_PORT_AF_MASK) | (OW_PORT_BUS_AF << OW_PORT_AF_POS); \
-        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */              \
-        PA.OSPEEDR = (PA.OSPEEDR & ~OW_PORT_OSPEED_MASK) |                               \
-                     ((OW_BUS_DRIVE & 0x3u) << OW_PORT_OSPEED_POS);                      \
-    } while (0)
+#error "ow_port_tim_dma.h: define OW_PORT_CONFIG_BUS_PIN() before including this core"
 #endif
-
-/* Shared open-drain/push-pull toggle (F0/F3/G0): rewrites only the OTYPER bit,
- * so the pin never leaves alternate function.  Push-pull is only used by the
- * parasite strong pull-up and, when OW_DRIVE_ACTIVE is defined, by the
- * active-drive write path; every read and reset phase returns to open-drain
- * so the slave can pull the line LOW. */
 #ifndef OW_PORT_SET_PIN_MODE
-#define OW_PORT_SET_PIN_MODE(push_pull)                  \
-    do {                                                 \
-        if (push_pull) {                                 \
-            PA.OTYPER &= ~OW_PORT_OT_BIT; /* OD -> PP */ \
-        } else {                                         \
-            PA.OTYPER |= OW_PORT_OT_BIT; /* PP -> OD */  \
-        }                                                \
-    } while (0)
+#error "ow_port_tim_dma.h: define OW_PORT_SET_PIN_MODE(push_pull) before including this core"
 #endif
 
 /* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
@@ -574,10 +539,21 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
-/* A backend with its own merged-pass ordering (F4: DMA programmed before UG
- * plus the marker hook) defines OW_PORT_OWN_WRITE_THEN_READ and keeps its
- * own version below the core include; everyone else shares this one. */
-#ifndef OW_PORT_OWN_WRITE_THEN_READ
+/* Merged-pass arm order (port-unification knobs): everything about the
+ * merged single-slot write + two-slot read is identical on all families
+ * except two ordering facts.  DMA1 backends arm the direction pulse first and
+ * program the DMA after the update event; F4 skips the early arm (its
+ * direction pulse is armed once, after the DIER write, so a stale CC2 DMA
+ * reload can never clobber it before the timer runs) and programs the DMA
+ * before the update event (its requests stay disconnected through the re-arm
+ * kick so a stale CC2 request can never fire the reload early).  Defaults
+ * are the DMA1 order; F4 sets both knobs. */
+#ifndef OW_PORT_WRITE_THEN_READ_EARLY_CCR3
+#define OW_PORT_WRITE_THEN_READ_EARLY_CCR3 1
+#endif
+#ifndef OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
+#define OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG 0
+#endif
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
@@ -591,8 +567,10 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif
     const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
+    OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
     T1.RCR = 2; /* Three slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+#if OW_PORT_WRITE_THEN_READ_EARLY_CCR3
     /* Arm the direction pulse first. The bus was released idle-high by
      * ow_port_bus_done(), so this write produces the single clean falling edge
      * the devices re-sync their slot timer to. Holding it from the top instead
@@ -600,6 +578,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * bus is low, so the open-drain RC rise can never be mistaken for a slot
      * edge. */
     T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
+#endif
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
     /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
@@ -614,7 +593,9 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #else
     T1.DIER = 0;
 #endif
+#if !OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
     ow_port_update_event();
+#endif
     /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer.
      * Spelled through the PROG vocabulary (DMA1 defaults above write the same
      * CPAR/CMAR/CNDTR/CCR sequence), so a backend on different DMA IP only
@@ -628,6 +609,9 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
     OW_PORT_DMA_PROG_FEED(read_pulse, 3, OW_PORT_DMA_CR_TX);
+#if OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
+    ow_port_update_event();
+#endif
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else
@@ -636,7 +620,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
-#endif /* OW_PORT_OWN_WRITE_THEN_READ */
 
 /**
  * @brief Schedule a read of `bytes` bytes from the bus

@@ -8,10 +8,11 @@
  * DMA2_Stream4, while the CC2 slot-end marker (DMA2_Stream2) reloads CCR3.
  *
  * This header owns only the F4 facts (ow_pulse_t, clocks, pin mux, DMA
- * stream assignment, the OW_PORT_DMA_xx overrides) plus one function of its
- * own - ow_port_write_then_read() (UG placement carve-out, see its note).
- * Everything else is the shared body in port/common/ow_port_tim_dma.h,
- * included at the end of this file once the macros above are defined.
+ * stream assignment, the OW_PORT_DMA_xx overrides) plus the merged-pass arm
+ * order (DMA programmed before UG, no early direction-pulse arm - see the
+ * knobs below).  Everything else is the shared body in
+ * port/common/ow_port_tim_dma.h, included at the end of this file once the
+ * macros above are defined.
  *
  * HARDWARE CONTRACT (see the "Required Timer Capabilities" section of README):
  *  - DMA2 streams run in direct mode (no FIFO): the memory transfer width is
@@ -243,85 +244,17 @@ typedef uint16_t ow_pulse_t;
                               ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos);                  \
     } while (0)
 
-/* The shared body.  This shim keeps its own merged pass (UG placement plus
- * the marker hook differ — see OW_PORT_OWN_WRITE_THEN_READ), so the core
- * skips its write_then_read.  After the include: the F4 write_then_read. */
-#define OW_PORT_OWN_WRITE_THEN_READ 1
-#include "ow_port_tim_dma.h"
+/* Merged-pass arm order (see the knobs in port/common/ow_port_tim_dma.h):
+ * program the DMA streams BEFORE the update event, and skip the early
+ * direction-pulse arm.  The requests stay disconnected (DIER=UIE only)
+ * through the re-arm kick so a stale CC2 request can never fire the reload
+ * early; they are re-connected right before CEN, and the direction pulse is
+ * armed once, after the DIER write, so a stale CC2 DMA reload can never
+ * clobber it before the timer runs. */
+#define OW_PORT_WRITE_THEN_READ_EARLY_CCR3 0
+#define OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG 1
 
-/**
- * @brief Merge the direction-bit write with the id/cmp read pair in one pass
- * @note Deliberate carve-out from the shared core (OW_PORT_OWN_WRITE_THEN_READ):
- *       the core programs DMA after UG, this programs it before (see below).
- * @param[in] bit Direction bit to write in slot 1 (0 or 1)
- * @param[in] pulse3 Buffer for the three captured slots (write-slot capture,
- *                   id pulse, cmp pulse)
- * @param[in] read_pulse CCR3 reloads for read slots 2-3 (+ trailing ONEWIRE_RELEASE_PULSE)
- * @note Single timer pass (RCR=2, three slots) with two DMA2 streams armed
- *       together. The CC2 slot-end marker (Stream2; CCR2 = ONE+ZERO, frozen
- *       output) reloads CCR3 from read_pulse —
- *       ONEWIRE_ONE_PULSE for slots 2-3, then ONEWIRE_RELEASE_PULSE during slot
- *       3 so the one-pulse
- *       timer stops with the line released to idle HIGH — while CC4 (Stream4)
- *       captures the write-slot pulse plus the id/cmp pair into pulse3[0..2].
- *       OC3PE is off so the reload is immediate. DMA requests stay disconnected
- *       (DIER=UIE only) through the re-arm kick so a stale CC2 request can
- *       never fire the reload early; they are re-connected right before CEN
- *       with the direction pulse re-armed last.
- */
-__STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t* pulse3,
-                                                  const ow_pulse_t* read_pulse) {
-#if OW_DRIVE_ACTIVE
-    ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
-#endif
-    const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
-    OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
-    /* Clear stream status and retire flags on both streams before reprogram
-     * (disable + bounded EN wait + flag clear, same as the core path). */
-    OW_PORT_DMA_DISABLE_FEED();
-    OW_PORT_DMA_DISABLE_CAPTURE();
-    /* Arrange the timer pass: three slots, then a single update event. CC4 is
-     * armed for the whole pass, so the write-slot falling edge is captured
-     * into pulse3[0] as well as the id/cmp reads into [1] and [2]. */
-    T1.RCR = 2;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-    T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
-    /* OC3 in PWM mode (no preload so the DMA reload is immediate), CC4 capture armed */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
-    T1.CCER = TIM_CCER(CC3E, CC4E);
-    /* Keep the DMA requests disconnected while the channels re-arm. */
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
-#else
-    T1.DIER = 0;
-#endif
-    /* Capture stream: write-slot capture plus the id/cmp pulse pair. */
-    OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)pulse3;
-    OW_PORT_DMA_CAPTURE.NDTR = 3;
-    OW_PORT_DMA_CAPTURE.CR = OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL |
-                             DMA_SxCR(MSIZE_0, EN);
-    /* Feed stream: halfword-width reloads of CCR3 — read pulse for slots 2-3,
-     * then the trailing ONEWIRE_RELEASE_PULSE during slot 3 so the OPM stop
-     * hands the line back
-     * idle HIGH (hardware bus release); fed zero-copy from read_pulse. */
-    OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3;
-    OW_PORT_DMA_FEED.M0AR = (uint32_t)read_pulse;
-    OW_PORT_DMA_FEED.NDTR = 3;
-    OW_PORT_DMA_FEED.CR = OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL |
-                          DMA_SxCR(MSIZE_0, EN);
-    /* UG kick: reload ARR/RCR preloads and hand the fresh operation a clean
-     * UIF, then re-connect the DMA requests and start. The direction pulse is
-     * re-armed after the DIER write so a stale CC2 request can never clobber
-     * it before the timer runs. */
-    ow_port_update_event();
-#if OW_PORT_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
-#else
-    T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */
-#endif
-    T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
-    T1.CR1 = TIM_CR1(OPM, CEN);
-}
+/* The shared body. */
+#include "ow_port_tim_dma.h"
 
 #endif /* OW_PORT_F4_H */

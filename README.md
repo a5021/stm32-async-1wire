@@ -1462,11 +1462,11 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-  All five backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
-  `ow_port_f1.h`, `ow_port_f3.h`, `ow_port_g0.h` with DMA1 defaults, `ow_port_f4.h`
-  as a thin shim overriding the DMA spelling): DMA2's per-stream `CHSEL` mux
-  travels inside the control-register word, and `write_then_read` stays an
-  F4-local carve-out (UG placement + marker hook).
+All five backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
+`ow_port_f1.h`, `ow_port_f3.h`, `ow_port_g0.h` with DMA1 defaults, `ow_port_f4.h`
+as a thin shim overriding the DMA spelling): DMA2's per-stream `CHSEL` mux
+travels inside the control-register word, and the merged write+read pass is
+shared too, with per-family arm order (DMA before/after the update event).
   
 #### Bus Electrical Model
 

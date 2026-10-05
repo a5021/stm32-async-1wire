@@ -50,23 +50,37 @@ typedef uint8_t ow_pulse_t;
         RC.APB2ENR |= RCC_APB2ENR(TIM1EN);       \
     } while (0)
 
-/* @brief PA10 pin-mux tokens for the shared defaults in ow_port_tim_dma.h:
- *       alternate function, open-drain, AF2 (TIM1_CH3).
+/* @brief PA10: alternate function, open-drain, AF2 (TIM1_CH3).
  *
  *  F0 has the modern GPIO register model, as G0 does; F1 configures the same
- *  pin through the legacy CRH field instead (and keeps its own macros), which
- *  is why the shared defaults assemble tokens rather than spelling registers.
- *  The whole MODE field is cleared first so the pin lands in the right mode
- *  even if something set it before us.
+ *  pin through the legacy CRH field instead, which is why this is a macro
+ *  rather than shared code.  The whole MODE/CNF field is cleared first so the
+ *  pin lands in the right mode even if something set it before us.
  */
-#define OW_PORT_MODER_MASK GPIO_MODER_MODER10
-#define OW_PORT_MODER_AF GPIO_MODER_MODER10_1
-#define OW_PORT_OT_BIT GPIO_OTYPER_OT_10
-#define OW_PORT_AF_MASK GPIO_AFRH_AFSEL10
-#define OW_PORT_AF_POS GPIO_AFRH_AFSEL10_Pos
-#define OW_PORT_BUS_AF 2u
-#define OW_PORT_OSPEED_MASK GPIO_OSPEEDR_OSPEEDR10
-#define OW_PORT_OSPEED_POS GPIO_OSPEEDR_OSPEEDR10_Pos
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
+        PA.OTYPER |= GPIO_OTYPER_OT_10;                                               \
+        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos); \
+        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */           \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEEDR10) |                         \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEEDR10_Pos);           \
+    } while (0)
+
+/* @brief Toggle the bus pin between open-drain and push-pull.
+ *
+ *  Push-pull is only used by the experimental active-drive write path
+ *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
+ *  master reads, so every read and reset phase returns to open-drain.
+ */
+#define OW_PORT_SET_PIN_MODE(push_pull)                                   \
+    do {                                                                  \
+        if (push_pull) {                                                  \
+            PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                          \
+            PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */      \
+        }                                                                 \
+    } while (0)
 
 /* @brief DMA channel assignment (fixed request map, verified at bring-up):
  *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
