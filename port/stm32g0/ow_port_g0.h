@@ -1,9 +1,9 @@
 /* ============================================================
  *  ow_port_g0.h - STM32G0 backend
  *
- *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
- *  F0 and F1 and lives in port/common/ow_port_tim_dma.h.  G0 differs from
- *  those two in three ways, all of them here: the bus pins are remapped, the
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other four families and lives in port/common/ow_port_tim_dma.h.  G0 differs
+ *  in three ways, all of them here: the bus pins are remapped, the
  *  GPIO register macros have a different spelling, and DMA requests go through
  *  DMAMUX instead of a fixed map.
  * ============================================================ */
@@ -59,36 +59,21 @@ typedef uint8_t ow_pulse_t;
         SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_RMP | SYSCFG_CFGR1_PA12_RMP;             \
     } while (0)
 
-/* @brief Logical PA10: alternate function, open-drain, AF2 (TIM1_CH3).
+/* @brief Logical PA10 pin-mux tokens for the shared defaults in
+ *       ow_port_tim_dma.h: alternate function, open-drain, AF2 (TIM1_CH3).
  *
  *  Same register model as F0; the macro names differ because the G0 CMSIS
  *  spells the MODER fields without the R (MODE10, not MODER10) and drops the
  *  _R infix in OTYPER/OSPEEDR.  The values are the same pins.
  */
-#define OW_PORT_CONFIG_BUS_PIN()                                                      \
-    do {                                                                              \
-        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1;             \
-        PA.OTYPER |= GPIO_OTYPER_OT10;                                                \
-        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (2u << GPIO_AFRH_AFSEL10_Pos); \
-        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */           \
-        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
-                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
-    } while (0)
-
-/* @brief Toggle the bus pin between open-drain and push-pull.
- *
- *  Push-pull is only used by the experimental active-drive write path
- *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
- *  master reads, so every read and reset phase returns to open-drain.
- */
-#define OW_PORT_SET_PIN_MODE(push_pull)                                  \
-    do {                                                                 \
-        if (push_pull) {                                                 \
-            PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */ \
-        } else {                                                         \
-            PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */      \
-        }                                                                \
-    } while (0)
+#define OW_PORT_MODER_MASK GPIO_MODER_MODE10
+#define OW_PORT_MODER_AF GPIO_MODER_MODE10_1
+#define OW_PORT_OT_BIT GPIO_OTYPER_OT10
+#define OW_PORT_AF_MASK GPIO_AFRH_AFSEL10
+#define OW_PORT_AF_POS GPIO_AFRH_AFSEL10_Pos
+#define OW_PORT_BUS_AF 2u
+#define OW_PORT_OSPEED_MASK GPIO_OSPEEDR_OSPEED10
+#define OW_PORT_OSPEED_POS GPIO_OSPEEDR_OSPEED10_Pos
 
 /* @brief DMAMUX request selectors (RM0444 Table 42).
  *
@@ -112,9 +97,8 @@ typedef uint8_t ow_pulse_t;
 
 /* @brief DMA channel assignment: feed rides DMAMUX channel 2 paired with
  *       DMA1_Channel3 (TIM1_CC2), capture rides DMAMUX channel 3 paired with
- *       DMA1_Channel4 (TIM1_CH4). */
-#define OW_PORT_DMA_FEED D13 /* DMA1_Channel3 */
-#define OW_PORT_DMA_CAPTURE D14 /* DMA1_Channel4 */
+ *       DMA1_Channel4 (TIM1_CH4) - the core D13/D14 defaults; only the
+ *       DMAMUX routing above is G0-specific. */
 
 #include "ow_port_tim_dma.h"
 

@@ -69,7 +69,7 @@ typedef struct {
 typedef DMA_Stream_TypeDef DMA1_Channel_TypeDef;
 
 /* DMA2 controller: interrupt/flag registers. The F4 port writes LIFCR/HIFCR
- * only to clear stream TCIF (ow_port_dma_rearm). */
+ * only to retire stream flags after disable. */
 typedef struct {
     volatile uint32_t LISR;
     volatile uint32_t HISR;

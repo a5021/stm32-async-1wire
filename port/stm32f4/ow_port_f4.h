@@ -8,10 +8,8 @@
  * DMA2_Stream4, while the CC2 slot-end marker (DMA2_Stream2) reloads CCR3.
  *
  * This header owns only the F4 facts (ow_pulse_t, clocks, pin mux, DMA
- * stream assignment, the OW_PORT_DMA_xx and OW_PORT_ROUTE_xx overrides)
- * plus two functions of its own - ow_port_dma_rearm() (stream disable and
- * flag clear) and ow_port_write_then_read() (UG placement carve-out,
- * see its note).
+ * stream assignment, the OW_PORT_DMA_xx overrides) plus one function of its
+ * own - ow_port_write_then_read() (UG placement carve-out, see its note).
  * Everything else is the shared body in port/common/ow_port_tim_dma.h,
  * included at the end of this file once the macros above are defined.
  *
@@ -161,8 +159,9 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_CAPTURE (*DMA2_Stream4)
 #define OW_PORT_DMA_CHSEL (6u << DMA_SxCR_CHSEL_Pos)
 
-/* EN-bit spelling for the shared ow_port_dma_disable() (compiled but never
- * called on F4 — the DISABLE macros above route to ow_port_dma_rearm). */
+/* EN-bit spelling for the shared ow_port_dma_disable(), called by the
+ * DISABLE macros above (bounded wait identical to the old rearm request
+ * path). */
 #define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
 
 /* @brief Capture-stream control bits: MINC = memory-increment, PSIZE_0 =
@@ -190,10 +189,22 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))
 
 /* Stream-spelling overrides for the DISABLE/PROG vocabulary (defaults in
- * port/common/ow_port_tim_dma.h).  No request routing: CHSEL travels inside
- * the CR word, so the core's OW_PORT_ROUTE_* stay empty no-ops here. */
-#define OW_PORT_DMA_DISABLE_CAPTURE() ow_port_dma_rearm(DMA2_Stream4)
-#define OW_PORT_DMA_DISABLE_FEED() ow_port_dma_rearm(DMA2_Stream2)
+ * port/common/ow_port_tim_dma.h).  DISABLE is disable + bounded EN wait
+ * (shared ow_port_dma_disable(), same request path as the old rearm) plus
+ * the per-stream flag retirement: Stream2 retires LIFCR, Stream4 HIFCR, all
+ * five flags each so the next EN starts from a clean state.  No request
+ * routing: CHSEL travels inside the CR word, so the core's OW_PORT_ROUTE_*
+ * stay empty no-ops here. */
+#define OW_PORT_DMA_DISABLE_FEED()                                     \
+    do {                                                               \
+        ow_port_dma_disable(&OW_PORT_DMA_FEED.CR);                     \
+        D2.LIFCR = DMA_LIFCR(CFEIF2, CDMEIF2, CTEIF2, CHTIF2, CTCIF2); \
+    } while (0)
+#define OW_PORT_DMA_DISABLE_CAPTURE()                                  \
+    do {                                                               \
+        ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CR);                  \
+        D2.HIFCR = DMA_HIFCR(CFEIF4, CDMEIF4, CTEIF4, CHTIF4, CTCIF4); \
+    } while (0)
 #define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr)      \
     do {                                              \
         OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4; \
@@ -208,12 +219,6 @@ typedef uint16_t ow_pulse_t;
         OW_PORT_DMA_FEED.NDTR = (count);           \
         OW_PORT_DMA_FEED.CR = (cr);                \
     } while (0)
-#define OW_PORT_ROUTE_CAPTURE() ((void)0)
-#define OW_PORT_ROUTE_FEED() ((void)0)
-
-/* Forward declaration: the DISABLE macros above expand inside the shared core
- * below, which is included before the rearm definition that follows it. */
-__STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream);
 
 /* Core-required init hooks: the shared ow_port_init() calls these.
  * Statements moved verbatim from the former F4 ow_port_init().
@@ -240,48 +245,9 @@ __STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream);
 
 /* The shared body.  This shim keeps its own merged pass (UG placement plus
  * the marker hook differ — see OW_PORT_OWN_WRITE_THEN_READ), so the core
- * skips its write_then_read.  After the include: the rearm definition and
- * the F4 write_then_read. */
+ * skips its write_then_read.  After the include: the F4 write_then_read. */
 #define OW_PORT_OWN_WRITE_THEN_READ 1
 #include "ow_port_tim_dma.h"
-
-/* @brief Disable a DMA stream and retire all its status flags before re-arm
- * @note Both call sites only ever pass Stream2 (feed) or Stream4 (capture);
- *       the flag register is derived from the pointer. Clears all five flags
- *       (TC/HT/TE/DME/FE) so the next EN starts from a clean state —
- *       auto-recovery in case a stale error flag would otherwise silently
- *       corrupt the next operation.
- *
- *       EN acknowledgement: stm32F4 clears EN by hardware only at the end of a
- *       transfer, so a stream that never drained its counter takes CR=0 as a
- *       disable *request* and keeps EN latched for a while. That happens for
- *       exactly one software path here: the capture stream after a no-presence
- *       reset (2 transfers armed, only the master-release edge arrives → NDTR
- *       2→1, EN never retires). Reprogramming PAR/M0AR/NDTR while EN is still
- *       set is outside the RM0090 §9.3.9 programming model, so the disable is
- *       acknowledged with a bounded wait on CR.EN instead of the bare CR=0 the
- *       historical code used. On every healthy path — the previous transfer
- *       drained, so EN is already 0 when this runs — the wait is zero
- *       iterations (the EN readback check exits immediately). The host model
- *       cannot distinguish this from the bare CR=0 (no disable latency, no
- *       register-access accessors); those tests document the contract and the
- *       real-hardware bench proves the wait.
- */
-__STATIC_FORCEINLINE void ow_port_dma_rearm(DMA_Stream_TypeDef* stream) {
-    stream->CR = 0; /* request disable */
-    if (stream->CR & DMA_SxCR_EN) {
-        /* EN still latched (e.g. the capture underrun above): bounded wait for
-         * the stream to retire the disable before the reprogram writes below. */
-        uint32_t guard = 1000u;
-        while ((stream->CR & DMA_SxCR_EN) != 0u && guard-- != 0u) {
-        }
-    }
-    if (stream == DMA2_Stream2) {
-        D2.LIFCR = DMA_LIFCR(CFEIF2, CDMEIF2, CTEIF2, CHTIF2, CTCIF2);
-    } else {
-        D2.HIFCR = DMA_HIFCR(CFEIF4, CDMEIF4, CTEIF4, CHTIF4, CTCIF4);
-    }
-}
 
 /**
  * @brief Merge the direction-bit write with the id/cmp read pair in one pass
@@ -310,9 +276,10 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #endif
     const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
-    /* Clear TCIF status on both streams before reprogram. */
-    ow_port_dma_rearm(DMA2_Stream2);
-    ow_port_dma_rearm(DMA2_Stream4);
+    /* Clear stream status and retire flags on both streams before reprogram
+     * (disable + bounded EN wait + flag clear, same as the core path). */
+    OW_PORT_DMA_DISABLE_FEED();
+    OW_PORT_DMA_DISABLE_CAPTURE();
     /* Arrange the timer pass: three slots, then a single update event. CC4 is
      * armed for the whole pass, so the write-slot falling edge is captured
      * into pulse3[0] as well as the id/cmp reads into [1] and [2]. */
