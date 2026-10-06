@@ -1,5 +1,5 @@
 /* ============================================================
- *  ow_port_tim_dma.h - the TIM1 + DMA1 core shared by F0, F1, F3 and G0
+ *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all five families
  *
  *  The 1-Wire bus on all four of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
@@ -9,27 +9,32 @@
  *  each backend was written against its own reference manual and then never
  *  merged.
  *
- *  What actually differs between them is five statements, all of them register
- *  pokes in ow_port_init() and ow_port_set_pin_mode() plus the DMA request
- *  routing G0 needs.  Those are the five macros a family header defines;
- *  everything else lives here.
+ *  What actually differs between families is small enough to name: the clock
+ *  gates in ow_port_init(), the bus-pin mux, and the DMA request routing.
+ *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS), and so does the pin
+ *  mux: OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE() are two short
+ *  statement macros per backend (F1's legacy CRH field and F4's PE13-capable
+ *  OW_BUS_GPIO indirection prove the shapes are family-owned, not shared).
+ *  DMA request routing defaults to a no-op (fixed-map families) and G0
+ *  programs its DMAMUX through the same two macros.
  *
  *  A family header that includes this must, before the include:
  *
  *    - include onewire.h (which pulls in the same backend), ow_bits.h and its
  *      own device header: ow_bits.h supplies the T1/PA/RC/D1x aliases this
- *      uses, and the family facts block up in the headers supplies ow_pulse_t,
+ *      uses (including the D13/D14 channel defaults below), and the family
+ *      facts block up in the headers supplies ow_pulse_t,
  *      OW_PORT_SYSCLK_MHZ and OW_PORT_TIM1_UPD_IRQn;
- *    - define OW_PORT_DMA_FEED and OW_PORT_DMA_CAPTURE, which are the DMA
- *      channels that carry TIM1's CC2 (feed) and CH4 (capture) requests on
- *      that family.  They are D13/D14 on F0 and F1, D12/D13 on F3 - read the
- *      family header's assignment against its reference manual, it is the one
- *      thing here that is not interchangeable;
- *    - define the five statement macros listed below.  Every one of them is a
- *      hard requirement, not a convention, and each is checked with a #error
- *      directly after the include guard, so a family header that forgets one
- *      fails with the missing macro's name instead of a failure deep inside a
- *      pokes.
+ *    - define OW_PORT_ENABLE_BUS_CLOCKS(), which gates this family's clocks;
+ *    - define OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE(push_pull),
+ *      which put the bus pin into alternate-function open-drain mode and
+ *      toggle it to push-pull for the parasite strong pull-up;
+ *    - optionally override OW_PORT_DMA_FEED / OW_PORT_DMA_CAPTURE (default
+ *      D13/D14: TIM1_CC2 feed on channel 3, TIM1_CH4 capture on channel 4)
+ *      and OW_PORT_ROUTE_CAPTURE() / OW_PORT_ROUTE_FEED() (default no-ops
+ *      for fixed request maps; G0 programs its DMAMUX here).  The channel
+ *      assignment is the one thing here that is not interchangeable - read
+ *      the family header's assignment against its reference manual.
  *
  *  There is no run-time cost to the factoring: everything stays
  *  __STATIC_FORCEINLINE and every difference is resolved by the preprocessor,
@@ -37,32 +42,48 @@
  *  not assumed - the .bin of every example for the families already sharing
  *  this core is byte-identical before and after the split that introduced it.
  *
- *  F4 is not here yet.  It implements the same 17 functions in the same
- *  order but on a different DMA controller (DMA2 streams with a CHSEL mux
- *  instead of fixed DMA1 channels: CR/PAR/M0AR/NDTR register names, a
- *  two-bit DIR field, per-stream LIFCR/HIFCR flag registers, and a direct
- *  mode that forces the memory width to PSIZE).  Its register names do not
- *  fit the macros above without becoming conditional spaghetti, so the
- *  unification goes through accessor macros with DMA1 defaults (see the
+ *  F4 rides the same core through accessor macros with DMA1 defaults (see the
  *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
- *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  The one
- *  F4-only carve-out that stays out is ow_port_write_then_read (UG placement
- *  relative to the DMA programming, plus the marker hook).
+ *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  Even the
+ *  merged write+read pass is shared: only its arm order differs per family
+ *  (see the knobs above ow_port_write_then_read).
  * ============================================================ */
 
 #ifndef OW_PORT_TIM_DMA_H
 #define OW_PORT_TIM_DMA_H
 
 /* The core is only usable inside a family header that declared its pin/timer/
- * DMA plumbing first.  Each of the five statements below is a hard requirement
- * on that ordering; the DMA channels are checked too, because a family header
- * that forgets them compiles and then does nothing on the wire. */
+ * DMA plumbing first.  Clocks are always per-family (checked below); the pin
+ * mux arrives either as two statement macros or as the token set the shared
+ * defaults assemble (checked below); DMA channels and request routing have
+ * defaults a family overrides only when its hardware differs. */
+/* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
+ * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
+ * arbitrary channel numbers: each backend's pair was read out of its own
+ * reference manual and bench-verified (F0/F1/F3/G0 14/14 matrices, F4 LA),
+ * and a wrong pair is silent (feed never fires, captures read back empty).
+ * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
+ * deliberately no #error here: D13/D14 resolve through ow_bits.h, which every
+ * backend includes before this core, so a header that forgot its own device
+ * include still fails loudly on the missing device macros. */
 #ifndef OW_PORT_DMA_FEED
-#error "ow_port_tim_dma.h: define OW_PORT_DMA_FEED (the DMA channel for the TIM1_CC2 slot-end marker / CCR3 feed) before including this core"
+#define OW_PORT_DMA_FEED D13
 #endif
 #ifndef OW_PORT_DMA_CAPTURE
-#error "ow_port_tim_dma.h: define OW_PORT_DMA_CAPTURE (the DMA channel for the TIM1_CH4 capture) before including this core"
+#define OW_PORT_DMA_CAPTURE D14
+#endif
+/* Default request routing: no-op (fixed request maps need no programming).
+ * G0 programs its DMAMUX through these. */
+#ifndef OW_PORT_ROUTE_CAPTURE
+#define OW_PORT_ROUTE_CAPTURE() \
+    do {                        \
+    } while (0)
+#endif
+#ifndef OW_PORT_ROUTE_FEED
+#define OW_PORT_ROUTE_FEED() \
+    do {                     \
+    } while (0)
 #endif
 #ifndef OW_PORT_ENABLE_BUS_CLOCKS
 #error "ow_port_tim_dma.h: define OW_PORT_ENABLE_BUS_CLOCKS() before including this core"
@@ -73,17 +94,11 @@
 #ifndef OW_PORT_SET_PIN_MODE
 #error "ow_port_tim_dma.h: define OW_PORT_SET_PIN_MODE(push_pull) before including this core"
 #endif
-#ifndef OW_PORT_ROUTE_CAPTURE
-#error "ow_port_tim_dma.h: define OW_PORT_ROUTE_CAPTURE() before including this core"
-#endif
-#ifndef OW_PORT_ROUTE_FEED
-#error "ow_port_tim_dma.h: define OW_PORT_ROUTE_FEED() before including this core"
-#endif
 
 /* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
- *     living here because the shared core is the one place all four families
- *     that use it are processed.  The F4 backend carries an identical copy (it
- *     does not include this core); keep the two in sync.
+ *     living here because the shared core is the one place all five families
+ *     are processed.  The F4 backend uses this same ladder through the core
+ *     (it overrides only the DMA register spelling, not the timer setup).
  *
  *     ICxF is a 4-bit ladder.  The values this port actually programs, decoded
  *     from the RM0090 table (the same one ST's stm32f0xx_ll_tim.h spells out),
@@ -173,7 +188,8 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * the register-name level differs per DMA IP (DMA1 channels: CCR/CPAR/CMAR/
  * CNDTR; F4 streams: CR/PAR/M0AR/NDTR + CHSEL inside the CR word above), so
  * the bodies call these instead of spelling registers.  Defaults are the
- * DMA1 form; the F4 shim overrides all four.  Pinned end to end by
+ * DMA1 form; the F4 shim overrides DISABLE (stream CR + flag store) and the
+ * PROG pair (stream spelling).  Pinned end to end by
  * tests/test_dma_contract.c (per-operation CCR/CPAR/CMAR/CNDTR table). */
 #ifndef OW_PORT_DMA_EN_BIT
 #define OW_PORT_DMA_EN_BIT DMA_CCR_EN
@@ -185,28 +201,29 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
 #define OW_PORT_DMA_DISABLE_FEED() ow_port_dma_disable(&OW_PORT_DMA_FEED.CCR)
 #endif
 #ifndef OW_PORT_DMA_PROG_CAPTURE
-#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr) \
-    do { \
+#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr)       \
+    do {                                               \
         OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4; \
-        OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)(dst); \
-        OW_PORT_DMA_CAPTURE.CNDTR = (count); \
-        OW_PORT_DMA_CAPTURE.CCR = (cr); \
+        OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)(dst);    \
+        OW_PORT_DMA_CAPTURE.CNDTR = (count);           \
+        OW_PORT_DMA_CAPTURE.CCR = (cr);                \
     } while (0)
 #endif
 #ifndef OW_PORT_DMA_PROG_FEED
-#define OW_PORT_DMA_PROG_FEED(src, count, cr) \
-    do { \
+#define OW_PORT_DMA_PROG_FEED(src, count, cr)       \
+    do {                                            \
         OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3; \
-        OW_PORT_DMA_FEED.CMAR = (uint32_t)(src); \
-        OW_PORT_DMA_FEED.CNDTR = (count); \
-        OW_PORT_DMA_FEED.CCR = (cr); \
+        OW_PORT_DMA_FEED.CMAR = (uint32_t)(src);    \
+        OW_PORT_DMA_FEED.CNDTR = (count);           \
+        OW_PORT_DMA_FEED.CCR = (cr);                \
     } while (0)
 #endif
 
 /**
  * @brief Disable a DMA channel and wait for EN to retire before re-arm
  * @param[in] ccr Address of the channel's CCR register (`&OW_PORT_DMA_CAPTURE.CCR`
- *        or `&OW_PORT_DMA_FEED.CCR`)
+ *        or `&OW_PORT_DMA_FEED.CCR`; the F4 DISABLE macros pass their stream's
+ *        CR the same way)
  * @note DMA1 clears EN by hardware only when CNDTR drains, so a capture
  *       underrun (fewer physical bus edges than armed transfers, e.g. a
  *       no-presence reset schedules OW_PORT_CAPTURE_BUF_SIZE=2 captures but
@@ -525,10 +542,21 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
-/* A backend with its own merged-pass ordering (F4: DMA programmed before UG
- * plus the marker hook) defines OW_PORT_OWN_WRITE_THEN_READ and keeps its
- * own version below the core include; everyone else shares this one. */
-#ifndef OW_PORT_OWN_WRITE_THEN_READ
+/* Merged-pass arm order (port-unification knobs): everything about the
+ * merged single-slot write + two-slot read is identical on all families
+ * except two ordering facts.  DMA1 backends arm the direction pulse first and
+ * program the DMA after the update event; F4 skips the early arm (its
+ * direction pulse is armed once, after the DIER write, so a stale CC2 DMA
+ * reload can never clobber it before the timer runs) and programs the DMA
+ * before the update event (its requests stay disconnected through the re-arm
+ * kick so a stale CC2 request can never fire the reload early).  Defaults
+ * are the DMA1 order; F4 sets both knobs. */
+#ifndef OW_PORT_WRITE_THEN_READ_EARLY_CCR3
+#define OW_PORT_WRITE_THEN_READ_EARLY_CCR3 1
+#endif
+#ifndef OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
+#define OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG 0
+#endif
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
@@ -542,8 +570,10 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     ow_port_set_pin_mode(0); /* merged write+read stays open-drain so the read half is safe */
 #endif
     const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
+    OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
     T1.RCR = 2; /* Three slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+#if OW_PORT_WRITE_THEN_READ_EARLY_CCR3
     /* Arm the direction pulse first. The bus was released idle-high by
      * ow_port_bus_done(), so this write produces the single clean falling edge
      * the devices re-sync their slot timer to. Holding it from the top instead
@@ -551,6 +581,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * bus is low, so the open-drain RC rise can never be mistaken for a slot
      * edge. */
     T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
+#endif
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
     /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
@@ -565,23 +596,25 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #else
     T1.DIER = 0;
 #endif
+#if !OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
     ow_port_update_event();
-    /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer */
-    ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CCR);
+#endif
+    /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer.
+     * Spelled through the PROG vocabulary (DMA1 defaults above write the same
+     * CPAR/CMAR/CNDTR/CCR sequence), so a backend on different DMA IP only
+     * overrides the macros, not this body. */
+    OW_PORT_DMA_DISABLE_CAPTURE();
     OW_PORT_ROUTE_CAPTURE();
-    OW_PORT_DMA_CAPTURE.CPAR = (uint32_t)&T1.CCR4;
-    OW_PORT_DMA_CAPTURE.CMAR = (uint32_t)pulse3;
-    OW_PORT_DMA_CAPTURE.CNDTR = 3;
-    OW_PORT_DMA_CAPTURE.CCR = DMA_CCR(MINC, PSIZE_0, MSIZE_0, EN);
+    OW_PORT_DMA_PROG_CAPTURE(pulse3, 3, OW_PORT_DMA_CR_RX16);
     /* Feed DMA: reload CCR3 with the read pulse for slots 2-3, then write
      * ONEWIRE_RELEASE_PULSE during slot 3 so the one-pulse timer stops with
      * the line released to idle HIGH (hardware bus release). */
-    ow_port_dma_disable(&OW_PORT_DMA_FEED.CCR);
+    OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
-    OW_PORT_DMA_FEED.CPAR = (uint32_t)&T1.CCR3;
-    OW_PORT_DMA_FEED.CMAR = (uint32_t)read_pulse;
-    OW_PORT_DMA_FEED.CNDTR = 3;
-    OW_PORT_DMA_FEED.CCR = DMA_CCR(DIR, MINC, PSIZE_0, EN);
+    OW_PORT_DMA_PROG_FEED(read_pulse, 3, OW_PORT_DMA_CR_TX);
+#if OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
+    ow_port_update_event();
+#endif
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else
@@ -590,7 +623,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
-#endif /* OW_PORT_OWN_WRITE_THEN_READ */
 
 /**
  * @brief Schedule a read of `bytes` bytes from the bus

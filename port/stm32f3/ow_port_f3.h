@@ -1,10 +1,10 @@
 /* ============================================================
  *  ow_port_f3.h - STM32F3 backend
  *
- *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
- *  F0, F1 and G0 and lives in port/common/ow_port_tim_dma.h; what is left
- *  here is the part that is genuinely an F303: which clocks to gate, and how
- *  PA10 is put into alternate-function open-drain mode.
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other four families and lives in port/common/ow_port_tim_dma.h; what is
+ *  left here is the part that is genuinely an F303: which clocks to gate,
+ *  the PA10 pin-mux tokens, and the DMA assignment note.
  *
  *  Verified against the STM32F3-DISCOVERY (MB1035B, STM32F303VC), 7 DS18B20
  *  in parasite power on one bus, at 8, 64 and 72 MHz.
@@ -110,24 +110,12 @@ typedef uint8_t ow_pulse_t;
         }                                                                 \
     } while (0)
 
-/* @brief DMA request routing.
- *
- *  F3 has a fixed request map with no DMAMUX, so like F0 and F1 there is
- *  nothing to program. The channel numbers below are not the F0/F1 ones - see
- *  the assignment comment.
- */
-#define OW_PORT_ROUTE_CAPTURE() \
-    do {                        \
-    } while (0)
-#define OW_PORT_ROUTE_FEED() \
-    do {                     \
-    } while (0)
-
 /* @brief DMA channel assignment, from RM0316 Table 78 (STM32F303xB/C/D/E,
  *        STM32F358xC and STM32F398xE summary of DMA1 requests for each
  *        channel). The TIM1 row carries CC2 on channel 3 and CH4 on
- *        channel 4 - the same arrangement as F0/F1 (D13/D14), verified on
- *        the bench: all seven DS18B20 enumerate with valid CRCs.
+ *        channel 4 - the same arrangement as F0/F1 (the core D13/D14
+ *        defaults), verified on the bench: all seven DS18B20 enumerate with
+ *        valid CRCs.
  *
  *        Channel 4 also carries USART1_TX, and channel 3 carries USART3_TX.
  *        Neither collides here: this driver moves no UART bytes by DMA, it
@@ -135,8 +123,6 @@ typedef uint8_t ow_pulse_t;
  *        is never enabled. Same situation as F1, where USART1_TX shares
  *        channel 4 with nothing the port uses but the capture.
  */
-#define OW_PORT_DMA_FEED D13 /* DMA1_Channel3: TIM1_CC2 slot-end marker -> feeds CCR3 */
-#define OW_PORT_DMA_CAPTURE D14 /* DMA1_Channel4: TIM1_CH4 capture -> drains CCR4 */
 
 #include "ow_port_tim_dma.h"
 

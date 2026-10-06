@@ -266,7 +266,7 @@ void test_long_waits_keep_bus_released(void) {
  *  fixed driver (bounded EN-ack wait) and the historical one (bare CR=0) are
  *  register-indistinguishable here — this is NOT enforced by these tests, only
  *  documented and pinned as an end-to-end contract. The actual enforcement is
- *  code review of ow_port_dma_rearm()/ow_port_dma_disable() plus the
+ *  code review of ow_port_dma_disable() plus the
  *  real-hardware bench.
  * -----------------------------------------------------------*/
 void test_reset_absent_then_present_no_stale_capture(void) {
@@ -278,8 +278,8 @@ void test_reset_absent_then_present_no_stale_capture(void) {
     TEST_ASSERT_FALSE(test_bus_present());
     /* The reset underruns: OW_PORT_CAPTURE_BUF_SIZE slots were armed and only
      * one edge arrived, so the stream ends the operation with transfers still
-     * pending and EN latched. That is exactly the state the next operation's
-     * re-arm has to cope with - ow_port_dma_rearm() acknowledges the disable
+  * pending and EN latched. That is exactly the state the next operation's
+  * re-arm has to cope with - ow_port_dma_disable() acknowledges the disable
      * before the reprogram - and it is why the buffer is wider than the two
      * edges a timeslot produces. reset_pulses[1] was zeroed by ow_port_reset
      * and never rewritten: a non-event, not a phantom. */
@@ -302,7 +302,7 @@ void test_reset_absent_then_present_no_stale_capture(void) {
 
 /*-------------------------------------------------------------
  *  Two no-presence resets back to back: both underrun, and neither may leave a
- *  count that accumulates across operations. ow_port_dma_rearm() reprograms the
+  * count that accumulates across operations. ow_port_dma_disable() reprograms the
  *  slot count from scratch each time, so the residue is a function of this
  *  operation alone - the harmless kind of "stale". The dangerous kind, a
  *  reprogram while EN is still latched, is what the re-arm fix and the real

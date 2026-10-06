@@ -1,9 +1,9 @@
 /* ============================================================
  *  ow_port_g0.h - STM32G0 backend
  *
- *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
- *  F0 and F1 and lives in port/common/ow_port_tim_dma.h.  G0 differs from
- *  those two in three ways, all of them here: the bus pins are remapped, the
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other four families and lives in port/common/ow_port_tim_dma.h.  G0 differs
+ *  in three ways, all of them here: the bus pins are remapped, the
  *  GPIO register macros have a different spelling, and DMA requests go through
  *  DMAMUX instead of a fixed map.
  * ============================================================ */
@@ -112,9 +112,8 @@ typedef uint8_t ow_pulse_t;
 
 /* @brief DMA channel assignment: feed rides DMAMUX channel 2 paired with
  *       DMA1_Channel3 (TIM1_CC2), capture rides DMAMUX channel 3 paired with
- *       DMA1_Channel4 (TIM1_CH4). */
-#define OW_PORT_DMA_FEED D13 /* DMA1_Channel3 */
-#define OW_PORT_DMA_CAPTURE D14 /* DMA1_Channel4 */
+ *       DMA1_Channel4 (TIM1_CH4) - the core D13/D14 defaults; only the
+ *       DMAMUX routing above is G0-specific. */
 
 #include "ow_port_tim_dma.h"
 

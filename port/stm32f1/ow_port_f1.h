@@ -1,10 +1,10 @@
 /* ============================================================
  *  ow_port_f1.h - STM32F1 backend
  *
- *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
- *  F0 and G0 and lives in port/common/ow_port_tim_dma.h; what is left here is
- *  the part that is genuinely an F103: which clocks to gate, and how PA10 is
- *  put into alternate-function open-drain mode.
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other four families and lives in port/common/ow_port_tim_dma.h; what is
+ *  left here is the part that is genuinely an F103: which clocks to gate,
+ *  and how PA10 is put into alternate-function open-drain mode (legacy CRH).
  * ============================================================ */
 
 #ifndef OW_PORT_F1_H
@@ -79,25 +79,11 @@ typedef uint8_t ow_pulse_t;
                  (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10); \
     } while (0)
 
-/* @brief DMA request routing.
- *
- *  F1 has a fixed request map with no DMAMUX, so TIM1_CC2 -> channel 3 and
- *  CH4 -> channel 4 need no programming.  (Both mappings were confirmed
- *  empirically at board bring-up; USART1_TX shares channel 4's request line,
- *  which is harmless because the driver's UART output runs without DMA.)
- *  G0 does need these - see ow_port_g0.h.
- */
-#define OW_PORT_ROUTE_CAPTURE() \
-    do {                        \
-    } while (0)
-#define OW_PORT_ROUTE_FEED() \
-    do {                     \
-    } while (0)
-
 /* @brief DMA channel assignment (fixed request map, verified on target):
- *       feed rides TIM1_CC2 -> channel 3, capture rides CH4 -> channel 4. */
-#define OW_PORT_DMA_FEED D13
-#define OW_PORT_DMA_CAPTURE D14
+ *       feed rides TIM1_CC2 -> channel 3, capture rides CH4 -> channel 4 -
+ *       the core D13/D14 defaults.  Request routing needs no programming
+ *       (USART1_TX shares channel 4's request line, which is harmless because
+ *       the driver's UART output runs without DMA). */
 
 #include "ow_port_tim_dma.h"
 

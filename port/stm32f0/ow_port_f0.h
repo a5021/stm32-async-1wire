@@ -1,10 +1,10 @@
 /* ============================================================
  *  ow_port_f0.h - STM32F0 backend
  *
- *  Family-specific half only.  The TIM1/DMA1 state machine is shared with
- *  F1 and G0 and lives in port/common/ow_port_tim_dma.h; what is left here is
- *  the part that is genuinely an F030: which clocks to gate, and how PA10 is
- *  put into alternate-function open-drain mode.
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other four families and lives in port/common/ow_port_tim_dma.h; what is
+ *  left here is the part that is genuinely an F030: which clocks to gate,
+ *  the PA10 pin-mux tokens, and the DMA assignment note.
  * ============================================================ */
 
 #ifndef OW_PORT_F0_H
@@ -82,26 +82,12 @@ typedef uint8_t ow_pulse_t;
         }                                                                 \
     } while (0)
 
-/* @brief DMA request routing.
- *
- *  F0 has a fixed request map with no DMAMUX, so TIM1_CC2 -> channel 3 and
- *  CH4 -> channel 4 need no programming.  (Both mappings were confirmed
- *  empirically at board bring-up; USART1_TX shares channel 4's request line,
- *  which is harmless because the driver's UART output runs without DMA.)
- *  G0 does need these - see ow_port_g0.h.
- */
-#define OW_PORT_ROUTE_CAPTURE() \
-    do {                        \
-    } while (0)
-#define OW_PORT_ROUTE_FEED() \
-    do {                     \
-    } while (0)
-
 /* @brief DMA channel assignment (fixed request map, verified at bring-up):
  *       channel 3 carries the CC2 slot-end marker request and feeds CCR3,
- *       channel 4 carries the CC4 capture request and drains CCR4. */
-#define OW_PORT_DMA_FEED D13
-#define OW_PORT_DMA_CAPTURE D14
+ *       channel 4 carries the CC4 capture request and drains CCR4 - the core
+ *       D13/D14 defaults.  Request routing needs no programming here;
+ *       USART1_TX shares channel 4's request line, which is harmless because
+ *       the driver's UART output runs without DMA. */
 
 #include "ow_port_tim_dma.h"
 

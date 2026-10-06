@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Port layer second unification (experimental).** After the F4 collapse onto
+  the shared TIM1/DMA core, the remaining per-backend duplication moved into
+  it too: DMA channels default to D13/D14 with empty request-routing no-ops
+  (G0 programs its DMAMUX through the same macros), the core `write_then_read`
+  is spelled through the PROG/DISABLE vocabulary, and even the merged
+  write+read pass is shared now — only its arm order differs per family
+  (`OW_PORT_WRITE_THEN_READ_EARLY_CCR3`, `OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG`).
+  The F4 backend lost its `ow_port_dma_rearm()` and its private
+  `ow_port_write_then_read()`; what stays per-backend is what genuinely
+  differs: clocks, pin mux, DMA register spelling, and the F4 arm order.
+  F0/F1/F3/G0 firmware is byte-identical to before; F4 differs by ~32 bytes
+  of LTO codegen (same register sequences, proven by disassembly).
+
 ## [2.1.1] - 2026-10-04
 
 ### Changed
