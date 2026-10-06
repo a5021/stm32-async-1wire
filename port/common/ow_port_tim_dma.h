@@ -59,11 +59,14 @@
  * defaults assemble (checked below); DMA channels and request routing have
  * defaults a family overrides only when its hardware differs. */
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
- * rides TIM1_CH4 -> channel 4 (verified on F0/F1/F3/G0 at bring-up).  A
- * backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
- * deliberately no #error here anymore: D13/D14 come from ow_bits.h, so a
- * header that forgot its own device include still fails, on the missing
- * device macros rather than silently. */
+ * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
+ * arbitrary channel numbers: each backend's pair was read out of its own
+ * reference manual and bench-verified (F0/F1/F3/G0 14/14 matrices, F4 LA),
+ * and a wrong pair is silent (feed never fires, captures read back empty).
+ * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
+ * deliberately no #error here: D13/D14 resolve through ow_bits.h, which every
+ * backend includes before this core, so a header that forgot its own device
+ * include still fails loudly on the missing device macros. */
 #ifndef OW_PORT_DMA_FEED
 #define OW_PORT_DMA_FEED D13
 #endif
