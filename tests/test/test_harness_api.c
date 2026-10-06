@@ -66,6 +66,10 @@ void test_hw_run_until_uif_branches(void) {
         cmd[i] = (i & 1u) ? 5u : 60u;
     }
     cmd[16] = 0;
+    hw_register_buf(&cmd[1]); /* the feed DMA sources from &cmd[1]: register
+                                 it so the model resolves instead of quietly
+                                 disarming the channel (which would untest the
+                                 armed-feed clamp below) */
     test_bus_send_command_n(cmd, 16);
     TEST_ASSERT_FALSE(hw_run_until_uif(1));
 }
