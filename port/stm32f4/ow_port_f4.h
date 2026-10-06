@@ -147,18 +147,21 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
 
 /* @brief Capture-stream control bits: MINC = memory-increment, PSIZE_0 =
- *       16-bit peripheral read (CCR4), PL_1 = high priority.  Direct mode
- *       forces the memory width to PSIZE, so the caller also sets MSIZE_0
- *       (matching halfwords).  Note the F4 DIR field is two bits wide: the
- *       generic single-bit DMA_SxCR_DIR macro would write the reserved 0b11. */
-#define OW_PORT_DMA_CR_CAPTURE DMA_SxCR(MINC, PSIZE_0, PL_1)
+ *       16-bit peripheral read (CCR4).  Direct mode forces the memory width
+ *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
+ *       Priority stays at the reset default (like every other backend: ties
+ *       break by stream number, feed wins).  Note the F4 DIR field is two
+ *       bits wide: the generic single-bit DMA_SxCR_DIR macro would write the
+ *       reserved 0b11. */
+#define OW_PORT_DMA_CR_CAPTURE DMA_SxCR(MINC, PSIZE_0)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
- *       halfword register), PL_1 = high priority.  The caller also sets
- *       MSIZE_0: direct mode forces the memory width to PSIZE, so the source
- *       must be a matching halfword (ow_pulse_t) buffer. */
-#define OW_PORT_DMA_CR_FEED DMA_SxCR(DIR_0, MINC, PL_1, PSIZE_0)
+ *       halfword register).  Priority stays at the reset default (see
+ *       above).  The caller also sets MSIZE_0: direct mode forces the memory
+ *       width to PSIZE, so the source must be a matching halfword
+ *       (ow_pulse_t) buffer. */
+#define OW_PORT_DMA_CR_FEED DMA_SxCR(DIR_0, MINC, PSIZE_0)
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (see the
  * defaults in port/common/ow_port_tim_dma.h): same three transfer classes

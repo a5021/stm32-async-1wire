@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   F0/F1/F3/G0 firmware is byte-identical to before; F4 differs by ~32 bytes
   of LTO codegen (same register sequences, proven by disassembly).
 
+- **F4 DMA runs at reset-default priority.** The `PL_1` (high) bits are gone
+  from the F4 capture/feed control words: with a single active channel pair,
+  ties break by stream number either way (feed wins), so the bits changed
+  nothing observable. No family sets DMA priority now.
+
 ### Removed
 
 - **`OW_PORT_BUS_PE13` alternate bus pin (F4).** No board used it, no bench

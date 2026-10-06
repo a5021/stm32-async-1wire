@@ -385,16 +385,16 @@ void test_dma_cr_value_macros(void) {
 #if defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
-                   DMA_SxCR_PL_1 | (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
         (uint32_t)OW_PORT_DMA_CR_RX16);
     TEST_ASSERT_EQUAL_UINT32(
-        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PL_1 |
+        (uint32_t)(DMA_SxCR_MINC |
                    (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
         (uint32_t)OW_PORT_DMA_CR_RX8);
     TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 & DMA_SxCR_PSIZE_0));
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
-                   DMA_SxCR_MSIZE_0 | DMA_SxCR_PL_1 |
+                   DMA_SxCR_MSIZE_0 |
                    (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
         (uint32_t)OW_PORT_DMA_CR_TX);
 #else
