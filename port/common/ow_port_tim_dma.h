@@ -46,18 +46,20 @@
  *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
  *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  Even the
- *  merged write+read pass is shared: only its arm order differs per family
- *  (see the knobs above ow_port_write_then_read).
+ *  merged write+read pass is shared by all five families with no
+ *  per-family knobs left: two arm-order experiments on F446 (UG-vs-DMA order,
+ *  early direction-pulse arm) both behave identically, so one order serves
+ *  all - see the note above ow_port_write_then_read.
  * ============================================================ */
 
 #ifndef OW_PORT_TIM_DMA_H
 #define OW_PORT_TIM_DMA_H
 
 /* The core is only usable inside a family header that declared its pin/timer/
- * DMA plumbing first.  Clocks are always per-family (checked below); the pin
- * mux arrives either as two statement macros or as the token set the shared
- * defaults assemble (checked below); DMA channels and request routing have
- * defaults a family overrides only when its hardware differs. */
+ * DMA plumbing first.  Clocks are always per-family (checked below), and so
+ * is the pin mux (two statement macros, checked below); DMA channels and
+ * request routing have defaults a family overrides only when its hardware
+ * differs. */
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
  * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
@@ -542,21 +544,12 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.CR1 = TIM_CR1(OPM, CEN);
 }
 
-/* Merged-pass arm order (port-unification knobs): everything about the
- * merged single-slot write + two-slot read is identical on all families
- * except two ordering facts.  DMA1 backends arm the direction pulse first and
- * program the DMA after the update event; F4 skips the early arm (its
- * direction pulse is armed once, after the DIER write, so a stale CC2 DMA
- * reload can never clobber it before the timer runs) and programs the DMA
- * before the update event (its requests stay disconnected through the re-arm
- * kick so a stale CC2 request can never fire the reload early).  Defaults
- * are the DMA1 order; F4 sets both knobs. */
-#ifndef OW_PORT_WRITE_THEN_READ_EARLY_CCR3
-#define OW_PORT_WRITE_THEN_READ_EARLY_CCR3 1
-#endif
-#ifndef OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
-#define OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG 0
-#endif
+/* Merged-pass arm order: one order serves all families (direction pulse
+ * armed first, DMA programmed after the update event).  Two per-family knobs
+ * lived here briefly and were both removed after full F446 hardware matrices
+ * proved them don't-care: DMA-after-UG behaves like DMA-before-UG, and the
+ * early direction-pulse arm behaves like arming once before CEN (14 cells
+ * each, 2026-10-06). */
 /**
  * @brief Schedule a merged single-slot write followed by a two-slot read pair
  * @param[in] bit Direction bit to write in slot 1 (0 or 1)
@@ -573,7 +566,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
     T1.RCR = 2; /* Three slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
-#if OW_PORT_WRITE_THEN_READ_EARLY_CCR3
     /* Arm the direction pulse first. The bus was released idle-high by
      * ow_port_bus_done(), so this write produces the single clean falling edge
      * the devices re-sync their slot timer to. Holding it from the top instead
@@ -581,7 +573,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * bus is low, so the open-drain RC rise can never be mistaken for a slot
      * edge. */
     T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
-#endif
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
     /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
@@ -596,9 +587,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
 #else
     T1.DIER = 0;
 #endif
-#if !OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
     ow_port_update_event();
-#endif
     /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer.
      * Spelled through the PROG vocabulary (DMA1 defaults above write the same
      * CPAR/CMAR/CNDTR/CCR sequence), so a backend on different DMA IP only
@@ -612,9 +601,6 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
     OW_PORT_DMA_PROG_FEED(read_pulse, 3, OW_PORT_DMA_CR_TX);
-#if OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG
-    ow_port_update_event();
-#endif
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else

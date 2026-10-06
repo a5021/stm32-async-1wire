@@ -8,9 +8,8 @@
  * DMA2_Stream4, while the CC2 slot-end marker (DMA2_Stream2) reloads CCR3.
  *
  * This header owns only the F4 facts (ow_pulse_t, clocks, pin mux, DMA
- * stream assignment, the OW_PORT_DMA_xx overrides) plus the merged-pass arm
- * order (DMA programmed before UG, no early direction-pulse arm - see the
- * knobs below).  Everything else is the shared body in
+ * stream assignment, the OW_PORT_DMA_xx overrides).  Everything else,
+ * including the merged write+read pass, is the shared body in
  * port/common/ow_port_tim_dma.h, included at the end of this file once the
  * macros above are defined.
  *
@@ -243,16 +242,6 @@ typedef uint16_t ow_pulse_t;
         OW_BUS_GPIO.OSPEEDR = (OW_BUS_GPIO.OSPEEDR & ~OW_BUS_OSPEEDR) |                       \
                               ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos);                  \
     } while (0)
-
-/* Merged-pass arm order (see the knobs in port/common/ow_port_tim_dma.h):
- * program the DMA streams BEFORE the update event, and skip the early
- * direction-pulse arm.  The requests stay disconnected (DIER=UIE only)
- * through the re-arm kick so a stale CC2 request can never fire the reload
- * early; they are re-connected right before CEN, and the direction pulse is
- * armed once, after the DIER write, so a stale CC2 DMA reload can never
- * clobber it before the timer runs. */
-#define OW_PORT_WRITE_THEN_READ_EARLY_CCR3 0
-#define OW_PORT_WRITE_THEN_READ_PROG_BEFORE_UG 1
 
 /* The shared body. */
 #include "ow_port_tim_dma.h"
