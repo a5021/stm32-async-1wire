@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   F0/F1/F3/G0 firmware is byte-identical to before; F4 differs by ~32 bytes
   of LTO codegen (same register sequences, proven by disassembly).
 
+### Removed
+
+- **`OW_PORT_BUS_PE13` alternate bus pin (F4).** No board used it, no bench
+  ever validated it, no test or CI job covered it. The F4 bus is PA10-only;
+  passing `-DOW_PORT_BUS_PE13=1` is now a hard `#error` instead of a silent
+  PA10 build.
+
 ## [2.1.1] - 2026-10-04
 
 ### Changed

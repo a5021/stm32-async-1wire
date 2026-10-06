@@ -1,7 +1,7 @@
 /* ============================================================
  *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all five families
  *
- *  The 1-Wire bus on all four of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all five of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
  *  marker that triggers the feed DMA into CCR3.  Those 16 functions are one
@@ -13,9 +13,8 @@
  *  gates in ow_port_init(), the bus-pin mux, and the DMA request routing.
  *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS), and so does the pin
  *  mux: OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE() are two short
- *  statement macros per backend (F1's legacy CRH field and F4's PE13-capable
- *  OW_BUS_GPIO indirection prove the shapes are family-owned, not shared).
- *  DMA request routing defaults to a no-op (fixed-map families) and G0
+ *  statement macros per backend (F1's legacy CRH field proves the shapes are
+ *  family-owned, not shared).  DMA request routing defaults to a no-op (fixed-map families) and G0
  *  programs its DMAMUX through the same two macros.
  *
  *  A family header that includes this must, before the include:

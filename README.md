@@ -584,7 +584,6 @@ TX remapped to PB6 (AF7); see the complete build line in Hardware Verified:
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1; also OTG_FS_ID |
-| PE13 | 1-Wire Data (optional) | alternative bus pin with `-DOW_PORT_BUS_PE13=1`; TIM1_CH3, open-drain AF1 |
 | PB6  | USART1 TX (115200)  | USART1 AF7 (remapped from PA9); RX line of the USB-UART adapter |
 | PD12 | Busy LED (optional) | **Active-high** (F4DISCOVERY LD4: pin → LED → GND); the F4 console is on PB6, not the F1/F0/G0 PA4 pin |
 | PA11 | Free (former LA marker) | Left untouched by the driver; logic-analyzer sync, if needed, goes through the opt-in OW_PORT_MARKER_TOGGLE() hook (no-op by default); also USB OTG FS D− |
@@ -1407,7 +1406,7 @@ be moved to an arbitrary pin: the chosen GPIO must be the CH3/CH4 pair's
 output/capture pin on the selected timer.  On STM32F1 this is PA10
 (default AFIO map); on STM32F0, PA10 (AF2); on STM32F3, PA10 (AF6); on
 STM32G0, the PA12 pad remapped to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`;
-on STM32F4, PA10 (AF1) or PE13 with `-DOW_PORT_BUS_PE13=1`.
+on STM32F4, PA10 (AF1).
 
 #### 3. DMA
 
@@ -1625,10 +1624,9 @@ Rules for correct RTOS use:
    - **The DMA pair** — DMA1 channels 3 (feeds CCR3) and 4 (drains CCR4) on
      F0/F1/F3, the same two channels via DMAMUX requests 21 (TIM1_CC2) and 23
      (TIM1_CH4) on G0, and **DMA2 streams 2 and 4 at `CHSEL=6`** on F4.
-   - **The 1-Wire data pin** — PA10 as alternate-function open-drain (PE13 with
-     `-DOW_PORT_BUS_PE13=1` on F4), or the physical PA12 pad remapped to
-     logical PA10 on G0 (those pads must not be used as plain GPIO while the
-     driver is active).
+    - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or
+      the physical PA12 pad remapped to logical PA10 on G0 (those pads must
+      not be used as plain GPIO while the driver is active).
 
    The library has no deinit or release API — the exclusivity begins at
    `onewire_init()` / `ds18b20_init()` and lasts until reset. Configure any of

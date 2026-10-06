@@ -3,8 +3,7 @@
  * @brief STM32F4 backend: thin shim over the shared TIM1+DMA core.
  *
  * The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain alternate
- * function AF1, or PE13 with -DOW_PORT_BUS_PE13=1); CH4 captures in indirect
- * mode on the same pin (CC4S routes IC4 to TI3) and drains CCR4 via
+ * function AF1); CH4 captures in indirect mode on the same pin (CC4S routes IC4 to TI3) and drains CCR4 via
  * DMA2_Stream4, while the CC2 slot-end marker (DMA2_Stream2) reloads CCR3.
  *
  * This header owns only the F4 facts (ow_pulse_t, clocks, pin mux, DMA
@@ -105,45 +104,28 @@ typedef uint16_t ow_pulse_t;
 #include "ow_port.h"
 
 /* ------------------------------------------------------------------
- *  1-Wire bus pin selection (TIM1_CH3 output + IC4 capture via TI3).
+ *  1-Wire bus pin: PA10 (TIM1_CH3 output + IC4 capture via TI3, AF1).
  *
- *  Default: PA10 (AF1). With -DOW_PORT_BUS_PE13=1 the bus moves to PE13
- *  (also TIM1_CH3, AF1) for boards where PA10 is loaded/unavailable.
  *  PA11 is left untouched for the application; logic-analyzer sync, if
  *  needed, goes through the opt-in OW_PORT_MARKER_TOGGLE() hook.
+ *  (The former PE13 alternate-pin option was removed: no board used it,
+ *  no bench ever validated it.  Passing -DOW_PORT_BUS_PE13=1 is a hard
+ *  error below instead of a silent PA10 build.)
  * ------------------------------------------------------------------ */
-#if defined(OW_PORT_BUS_PE13)
-#define OW_BUS_GPIO (*GPIOE)
-#define OW_BUS_GPIO_CLK RCC_BITS(AHB1ENR, GPIOEEN)
-#define OW_BUS_MODER GPIO_MODER_MODER13
-#define OW_BUS_MODER_1 GPIO_MODER_MODER13_1
-#define OW_BUS_OT GPIO_OTYPER_OT_13
-#define OW_BUS_OSPEEDR GPIO_OSPEEDR_OSPEED13
-#define OW_BUS_OSPEEDR_Pos GPIO_OSPEEDR_OSPEED13_Pos
-#define OW_BUS_AFSEL GPIO_AFRH_AFSEL13
-#define OW_BUS_AFSEL_Pos GPIO_AFRH_AFSEL13_Pos
-#else
-#define OW_BUS_GPIO (*GPIOA)
-#define OW_BUS_GPIO_CLK RCC_BITS(AHB1ENR, GPIOAEN)
-#define OW_BUS_MODER GPIO_MODER_MODER10
-#define OW_BUS_MODER_1 GPIO_MODER_MODER10_1
-#define OW_BUS_OT GPIO_OTYPER_OT_10
-#define OW_BUS_OSPEEDR GPIO_OSPEEDR_OSPEED10
-#define OW_BUS_OSPEEDR_Pos GPIO_OSPEEDR_OSPEED10_Pos
-#define OW_BUS_AFSEL GPIO_AFRH_AFSEL10
-#define OW_BUS_AFSEL_Pos GPIO_AFRH_AFSEL10_Pos
+#ifdef OW_PORT_BUS_PE13
+#error "OW_PORT_BUS_PE13 was removed (PA10-only bus); see CHANGELOG"
 #endif
 
 /* Statement macro spelling of the pin-mode switch (same shape as the other
- * backends' OW_PORT_SET_PIN_MODE): the shared core will call this, the
- * function below delegates to it until the body moves to the core. */
-#define OW_PORT_SET_PIN_MODE(push_pull)                                    \
-    do {                                                                   \
-        if (push_pull) {                                                   \
-            OW_BUS_GPIO.OTYPER &= ~OW_BUS_OT; /* OD -> PP (strong HIGH) */ \
-        } else {                                                           \
-            OW_BUS_GPIO.OTYPER |= OW_BUS_OT; /* PP -> OD (release) */      \
-        }                                                                  \
+ * backends' OW_PORT_SET_PIN_MODE): the shared core calls this to toggle the
+ * bus pin between open-drain and push-pull. */
+#define OW_PORT_SET_PIN_MODE(push_pull)                                   \
+    do {                                                                  \
+        if (push_pull) {                                                  \
+            PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                          \
+            PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */      \
+        }                                                                 \
     } while (0)
 
 /* TIM prescaler: owned by the shared core (same PSC = SYSCLK_MHZ - 1 plus
@@ -160,7 +142,7 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_CHSEL (6u << DMA_SxCR_CHSEL_Pos)
 
 /* EN-bit spelling for the shared ow_port_dma_disable(), called by the
- * DISABLE macros above (bounded wait identical to the old rearm request
+ * DISABLE macros below (bounded wait identical to the old rearm request
  * path). */
 #define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
 
@@ -180,9 +162,9 @@ typedef uint16_t ow_pulse_t;
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (see the
  * defaults in port/common/ow_port_tim_dma.h): same three transfer classes
- * in stream spelling.  Each equals the per-site expression it will replace
- * (capture, read pair and merged capture share RX16; feed and merged feed
- * share TX) — pinned by
+ * in stream spelling.  Each equals the per-site expression used by the
+ * migrated bodies (capture, read pair and merged capture share RX16; feed
+ * and merged feed share TX) — pinned by
  * tests/test_dma_contract.c::test_dma_cr_value_macros. */
 #define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))
 #define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~DMA_SxCR(PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR(EN))
@@ -229,18 +211,18 @@ typedef uint16_t ow_pulse_t;
  * (broadcast) conversion of several devices droops the line into brown-out
  * (POR 85 C / garbage with valid CRC), while one device at a time still
  * converts fine.  Configurable via OW_BUS_DRIVE (default MAX = very-high). */
-#define OW_PORT_ENABLE_BUS_CLOCKS()                                                                            \
-    do {                                                                                                       \
-        RC.AHB1ENR |= RCC_BITS(AHB1ENR, DMA2EN, GPIOAEN) | OW_BUS_GPIO_CLK; /* TIM1 requests route via DMA2 */ \
-        RC.APB2ENR |= RCC_APB2ENR(TIM1EN);                                                                     \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                                          \
+    do {                                                                                     \
+        RC.AHB1ENR |= RCC_BITS(AHB1ENR, DMA2EN, GPIOAEN); /* TIM1 requests route via DMA2 */ \
+        RC.APB2ENR |= RCC_APB2ENR(TIM1EN);                                                   \
     } while (0)
-#define OW_PORT_CONFIG_BUS_PIN()                                                              \
-    do {                                                                                      \
-        OW_BUS_GPIO.MODER = (OW_BUS_GPIO.MODER & ~OW_BUS_MODER) | OW_BUS_MODER_1;             \
-        OW_BUS_GPIO.OTYPER |= OW_BUS_OT;                                                      \
-        OW_BUS_GPIO.AFR[1] = (OW_BUS_GPIO.AFR[1] & ~OW_BUS_AFSEL) | (1u << OW_BUS_AFSEL_Pos); \
-        OW_BUS_GPIO.OSPEEDR = (OW_BUS_GPIO.OSPEEDR & ~OW_BUS_OSPEEDR) |                       \
-                              ((OW_BUS_DRIVE & 0x3u) << OW_BUS_OSPEEDR_Pos);                  \
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
+        PA.OTYPER |= GPIO_OTYPER_OT_10;                                               \
+        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos); \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
     } while (0)
 
 /* The shared body. */

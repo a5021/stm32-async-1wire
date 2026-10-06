@@ -140,8 +140,8 @@ of each recorded after the dash:
    live on this part.
 4. **PA10 is usable as a bus pin** on the WeAct F446RET6 specifically — *done.*
    The whole fleet below runs on PA10 as AF1: 7 devices found, valid CRC8.
-   `-DOW_PORT_BUS_PE13=1` remains the move for a board where PA10 is not
-   available.
+   (`-DOW_PORT_BUS_PE13=1` was once the documented move for a board where
+   PA10 is not available; removed unvalidated and untested — PA10 only.)
 5. **All three clocks on real hardware:** 180MHz (default), 16MHz raw HSI, and
    raw 8MHz HSE — *done, and two more besides.* 168MHz and 84MHz were added
    because they are the two other distinct APB-divider cases, and all five
