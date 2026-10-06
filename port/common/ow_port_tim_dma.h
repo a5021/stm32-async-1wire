@@ -220,6 +220,12 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
     } while (0)
 #endif
 
+/* Disable-path contract: the wait algorithm below is DMA-IP-agnostic (write
+ * 0, poll the EN bit to 0, bounded) and intentionally shared; each backend
+ * supplies only the operands (control register + EN bit) through its DISABLE
+ * macros and OW_PORT_DMA_EN_BIT.  Duplicating the loop per backend would
+ * trade this single auditable copy for five drifting ones to hide register
+ * names that the PROG defaults already spell openly. */
 /**
  * @brief Disable a DMA channel and wait for EN to retire before re-arm
  * @param[in] ccr Address of the channel's CCR register (`&OW_PORT_DMA_CAPTURE.CCR`
