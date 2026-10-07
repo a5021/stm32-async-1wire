@@ -17,7 +17,7 @@ void ds18b20_test_register_buffers(void) {
      * DMA sources from &buf[1]; the element is family sized (16-bit on F4), so
      * the offset must be one element, not one byte. */
     hw_register_buf((const void*)&phase_pulses.cmd[1]);
-    hw_register_buf((const void*)&ctx.addr_cmd[1]);
+    hw_register_buf((const void*)&phase_pulses.addr[1]);
     hw_register_buf((const void*)&search_ctx.pulses[1]);
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
     hw_register_buf((const void*)&phase_pulses.res[1]);
@@ -61,7 +61,6 @@ int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
 unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
 uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc(); }
 void ds18b20_test_encode_byte_pulses(ow_pulse_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
-void ds18b20_test_build_addr_prefix(void) { build_addr_prefix(); }
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte) { build_addr_cmd(cmd_byte); }
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width) { ow_port_capture(dst, count, width); }
 void ds18b20_test_get_selected_rom(uint8_t* rom_out) {
@@ -74,8 +73,8 @@ void ds18b20_test_set_selected_rom(const uint8_t* rom_in) {
         ctx.selected_rom[i] = rom_in[i];
     }
 }
-uint8_t ds18b20_test_get_addr_cmd(uint8_t i) { return ctx.addr_cmd[i]; }
-void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v) { ctx.addr_cmd[i] = v; }
+uint8_t ds18b20_test_get_addr_cmd(uint8_t i) { return phase_pulses.addr[i]; }
+void ds18b20_test_set_addr_cmd(uint8_t i, uint8_t v) { phase_pulses.addr[i] = v; }
 
 void test_bus_send_command_n(const ow_pulse_t* cmd, uint16_t slots) { onewire_write_slots(cmd, slots); }
 void test_bus_reset(void) { onewire_reset(ctx.capture); }

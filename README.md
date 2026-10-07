@@ -1180,7 +1180,7 @@ omit or set to 0 to disable.  Old presence-only style
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
 | `OW_BUS_DRIVE` | 3 (`OW_BUS_DRIVE_MAX`) | Drive strength of the bus pin: 0 = `WEAK`, 1 = `MEDIUM`, 2 = `STRONG`, 3 = `MAX`. `MAX` is the default because the parasite strong pull-up sources the whole fleet from this pad; F1 has no `OSPEEDR` register, so `MAX` clamps to `STRONG` there. |
-| `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) |
+| `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) — single-sensor builds can set 1 and save 56 B of `.bss` |
 
 **Override examples**
 

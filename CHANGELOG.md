@@ -33,10 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ds18b20_txn_ctx_t` now carries one `phase_pulses` overlay instead of
   separate `conv_cmd`/`read_cmd` buffers and per-struct `pulses` members, and
   the resident state/phase enums are `uint8_t` with `_Static_assert` guards.
-  `.bss` shrinks by 136 bytes on STM32F0 `1_basic` (676 → 540) and by 272
-  bytes on STM32F4 (1004 → 732) — about 3% of an F030x6's 4 KB SRAM. Device ROMs
-  and the search buffer stay separate: both span phases where the union would
-  be overwritten.
+  The addressed (Match ROM) table joined the union too: its prefix is now
+  rebuilt from the stored selection on every operation instead of once per
+  selection, so a transaction reusing the storage between measurements is
+  harmless. `.bss` on `1_basic` shrinks by 216 bytes on STM32F0 (676 → 460)
+  and by 432 bytes on STM32F4 (1004 → 572). Device ROMs and the search buffer
+  stay separate: both span phases where the union would be overwritten (the
+  search state additionally lives in another translation unit).
+  Single-sensor builds can also set `-DDS18B20_MAX_DEVICES=1` to trim the scan
+  table from 64 to 8 bytes.
 
 ### Removed
 

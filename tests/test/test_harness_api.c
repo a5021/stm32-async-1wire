@@ -29,8 +29,8 @@ void test_harness_accessor_smoke(void) {
     ds18b20_test_set_addr_cmd(0, 0x55);
     TEST_ASSERT_EQUAL_UINT8(0x55, ds18b20_test_get_addr_cmd(0));
 
-    /* build_addr_prefix() derives the Match-ROM prefix from the selection. */
-    ds18b20_test_build_addr_prefix();
+    /* build_addr_cmd() rebuilds the full Match-ROM table from the selection. */
+    ds18b20_test_build_addr_cmd(DS18B20_CONVERT_T);
 
     TEST_ASSERT_EQUAL_UINT8(0, test_ds18b20_bus_done());
     ds18b20_test_set_search_pulse3(0, 1234);

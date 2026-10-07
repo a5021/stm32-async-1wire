@@ -25,7 +25,6 @@ int16_t ds18b20_test_decode_temperature(void);
 unsigned ds18b20_test_check_presence(void);
 uint8_t ds18b20_test_check_scratchpad_crc(void);
 void ds18b20_test_encode_byte_pulses(ow_pulse_t* out, uint8_t byte);
-void ds18b20_test_build_addr_prefix(void);
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte);
 void ds18b20_test_arm_capture(volatile void* dst, uint16_t count, uint16_t width);
 void ds18b20_test_get_selected_rom(uint8_t* rom_out);

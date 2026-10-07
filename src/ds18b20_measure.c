@@ -91,13 +91,15 @@ void ds18b20_scan_start(void) {
  */
 uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
 
-/* Lifetime note: the CONVERT/REQUEST builds share phase_pulses.cmd (see the
- * union in ds18b20.c). This is safe only because issue_command() is invoked
- * exclusively from the CONVERT/REQUEST states after onewire_bus_done() has
- * confirmed that the timer/DMA of the previous 1-Wire operation is idle, and
- * the ownership guards (ds18b20_select/search/resolution reject while busy)
- * prevent any concurrent re-entry that could interleave a second build while
- * the CCR3-feed DMA is still reading the table. In other words the rewrite
+/* Lifetime note: the CONVERT/REQUEST builds share phase_pulses.cmd, and the
+ * addressed (Match ROM) builds share phase_pulses.addr (see the union in
+ * ds18b20.c). This is safe only because issue_command() rebuilds the used
+ * member in full on every call, is invoked exclusively from the
+ * CONVERT/REQUEST states after onewire_bus_done() has confirmed that the
+ * timer/DMA of the previous 1-Wire operation is idle, and the ownership
+ * guards (ds18b20_select/search/resolution reject while busy) prevent any
+ * concurrent re-entry that could interleave a second build while the
+ * CCR3-feed DMA is still reading the table. In other words the rewrite
  * happens strictly between DMA bursts, never during one — the invariant is
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
@@ -110,8 +112,8 @@ static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
 /**
  * @brief Check presence and issue a DS18B20 command (shared by CONVERT and
  *        REQUEST states)
- * @param[in] cmd_byte Command byte to send (after the recycled Match ROM
- *                     prefix in address mode, or via the Skip-ROM table in
+ * @param[in] cmd_byte Command byte to send (Match ROM table rebuilt per call
+ *                     in address mode, or via the Skip-ROM table in
  *                     broadcast mode)
  * @param[in] next_state State to transition to on success
  */
@@ -133,7 +135,7 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
     }
     if (ctx.address_mode) {
         build_addr_cmd(cmd_byte);
-        onewire_write_slots(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
+        onewire_write_slots(phase_pulses.addr, DS18B20_MATCH_SLOTS);
     } else {
         ow_pulse_t* skip_tbl = phase_pulses.cmd;
         build_skip_cmd(skip_tbl, cmd_byte);
@@ -249,11 +251,12 @@ void ds18b20_poll(void) {
 
     case DS18B20_ST_REQUEST:
         if (ctx.scan_mode) {
-            // Scan mode: read the current device back via Match ROM.
+            // Scan mode: read the current device back via Match ROM. The
+            // table is rebuilt from selected_rom on every addressed
+            // operation (issue_command), so only the ROM is staged here.
             for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
                 ctx.selected_rom[i] = dev_roms[ctx.scan_index][i];
             }
-            build_addr_prefix();
             ctx.address_mode = 1;
         }
         if (ctx.parasite) {
