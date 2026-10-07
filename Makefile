@@ -567,6 +567,14 @@ test-manifest:
 test-version:
 	@sh tests/check_version.sh
 
+# --- Library .bss budget (see tests/check_ram_budget.sh) ---
+# The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
+# Needs the Arm toolchain (GCC_PATH as with firmware builds) and CMSIS deps.
+# Budgets are exact ceilings per family: any growth must update them knowingly.
+.PHONY: test-ram
+test-ram:
+	@sh tests/check_ram_budget.sh
+
 # =============================================================================
 # BUILD TARGETS
 # =============================================================================
