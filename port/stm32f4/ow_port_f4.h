@@ -85,8 +85,10 @@ typedef uint16_t ow_pulse_t;
 #if !defined(OW_PORT_F4_MAX_SYSCLK_MHZ)
 #if defined(STM32F446xx)
 #define OW_PORT_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
+#elif defined(STM32F401xC) || defined(STM32F401xE)
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 84 /* F401 parts top out at 84MHz */
 #else
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap; the F401 parts are lower still, see below */
+#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap */
 #endif
 #endif
 
@@ -168,7 +170,7 @@ typedef uint16_t ow_pulse_t;
  * in stream spelling.  Each equals the per-site expression used by the
  * migrated bodies (capture, read pair and merged capture share RX16; feed
  * and merged feed share TX) — pinned by
- * tests/test_dma_contract.c::test_dma_cr_value_macros. */
+ * tests/test/test_dma_contract.c::test_dma_cr_value_macros. */
 #define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))
 #define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~DMA_SxCR(PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR(EN))
 #define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))

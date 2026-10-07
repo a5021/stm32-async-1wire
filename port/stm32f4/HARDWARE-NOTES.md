@@ -166,8 +166,16 @@ of each recorded after the dash:
    worth sweeping if the captures are actually wrong: the F407's 286ns is the
    empirically proven setting for this bus, so `SYSCLK_MHZ=180
    -DOW_PORT_IC4F_ARGS=IC4F_3` (fDTS/8, N=6, ≈267ns) is the fallback to try
-   before anything else, and `IC4F_2|IC4F_3` (fDTS/16 N=5, ≈444ns) is the next
-   step down from the default.
+    before anything else, and `IC4F_2|IC4F_3` (fDTS/16 N=5, ≈444ns) is the next
+    step down from the default.
+
+    *Correction: the ladder has since changed — the code now programs
+    `IC4F_3` (fCK_INT/32, N=3) at and below 168MHz and
+    `IC4F_0|IC4F_1|IC4F_3` (fCK_INT/4, N=3) above it (see the ladder comment
+    in `port/common/ow_port_tim_dma.h`; the driver never sets CKD, so fDTS
+    here equals fCK_INT). The fDTS/N values recorded above describe the older
+    ladder, including the fallback advice — read this item as bench history,
+    and the core comment as the current reference.*
 
 ### Open item carried forward — closed
 
@@ -389,8 +397,8 @@ its 85.0 °C power-on-reset value.
 Current fix: a dummy `(void)T1.SR` read flushes posted APB writes into the
 timer domain, so UG is fully processed and UIF guaranteed set before the
 subsequent `SR=0` clear — the clear cannot lose the race. Verified in both
-`ow_port_update_event()` and `ow_port_kick()` on F407 (example
-2_device_search, 7 devices, parasite power, 168MHz).
+`ow_port_update_event()` (SR-read flush) and `ow_port_kick()` (`__DSB()`)
+on F407 (example 2_device_search, 7 devices, parasite power, 168MHz).
 
 ## No-presence reset leaves the capture stream armed — EN-ack now waits
 
@@ -416,6 +424,10 @@ F0/F1/F3/G0, where the only difference is the DMA1 semantics.
 The host model cannot observe the wait (flat register store, CR=0 → EN=0
 instant, no register-access accessors), so the model tests pin the end-to-end
 contract only; the wait itself is enforced by the physical bench.
+
+*Note (port unification): `ow_port_dma_rearm()` above is gone — the F4
+DISABLE macros now call the shared `ow_port_dma_disable()` explicitly and
+retire LIFCR/HIFCR themselves. Same request path, same bounded wait.*
 
 ## CHSEL is a per-stream mux index
 

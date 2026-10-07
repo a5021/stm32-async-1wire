@@ -121,7 +121,7 @@
  *     Backends feed the macro into TIM_CCMR2(...) unchanged.  The default can
  *     be overridden from the build (-DOW_PORT_IC4F_ARGS=...) to sweep the
  *     filter on a bench.
- *     Test: tests/test_timing.c::test_ic4f_matches_the_documented_tier() */
+ *     Test: tests/test/test_timing.c::test_ic4f_matches_the_documented_tier() */
 #ifndef OW_PORT_IC4F_ARGS
 #if (OW_PORT_SYSCLK_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
@@ -158,7 +158,7 @@
  * doubles the timer clock to 2 x PCLK and breaks every us-based timing constant
  * here.  Which APB the timer sits on, and why the prescaler is /1 on that
  * family, is family-specific and documented in each backend; it is checked by
- * tests/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
+ * tests/test/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
                "TIM prescaler exceeds 16-bit PSC register width");
@@ -174,7 +174,7 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  *    the memory width to PSIZE, so F4 reads CCR4 bytes (no PSIZE bit);
  *  - TX: CCR3 reload: the memory width follows ow_pulse_t (8-bit
  *    everywhere except F4's 16-bit halfwords), hence MSIZE_0 only on F4.
- * Pinned per target by tests/test_dma_contract.c::test_dma_cr_value_macros. */
+ * Pinned per target by tests/test/test_dma_contract.c::test_dma_cr_value_macros. */
 #ifndef OW_PORT_DMA_CR_RX16
 #define OW_PORT_DMA_CR_RX16 (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN)
 #endif
@@ -191,7 +191,7 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * the bodies call these instead of spelling registers.  Defaults are the
  * DMA1 form; the F4 shim overrides DISABLE (stream CR + flag store) and the
  * PROG pair (stream spelling).  Pinned end to end by
- * tests/test_dma_contract.c (per-operation CCR/CPAR/CMAR/CNDTR table). */
+ * tests/test/test_dma_contract.c (per-operation CCR/CPAR/CMAR/CNDTR table). */
 #ifndef OW_PORT_DMA_EN_BIT
 #define OW_PORT_DMA_EN_BIT DMA_CCR_EN
 #endif

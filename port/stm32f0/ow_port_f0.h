@@ -54,7 +54,7 @@ typedef uint8_t ow_pulse_t;
  *
  *  F0 has the modern GPIO register model, as G0 does; F1 configures the same
  *  pin through the legacy CRH field instead, which is why this is a macro
- *  rather than shared code.  The whole MODE/CNF field is cleared first so the
+ *  rather than shared code.  The whole MODE field is cleared first so the
  *  pin lands in the right mode even if something set it before us.
  */
 #define OW_PORT_CONFIG_BUS_PIN()                                                      \
