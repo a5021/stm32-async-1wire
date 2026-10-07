@@ -26,13 +26,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache apt packages (gcc)
+        # Host GCC comes from the Ubuntu archives on every run; cache the
+        # .debs so a stalled archive download cannot hang the job with no
+        # output (seen on fuzz/clang). Self-healing: a refreshed archive
+        # simply re-downloads once and re-saves.
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-gcc-v1
       - name: Install host GCC
         # The ubuntu-latest image ships a Google Chrome apt source (as a
         # .list or deb822 .sources file) whose metadata occasionally gets a
         # Hash Sum mismatch on the CDN, failing apt-get update for every
         # package install. Drop whatever file references it first — our tools
         # come from the Ubuntu archives only.
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y gcc
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # The Azure-local mirror intermittently stalls apt-get update with
+          # endless Ign retries (hung a job 14+ min with no output) while the
+          # canonical archive answers. Repoint, don't delete: same content.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y gcc
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Download CMSIS dependencies
         # All families up front: the host suites compile against mocks, but
         # keeping every backend's dependency set present lets any matrix cell
@@ -88,8 +107,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache apt packages (gcc, lcov)
+        # See host-tests: cached .debs keep a stalled archive from hanging
+        # the job with no output.
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-gcc-lcov-v1
       - name: Install host GCC and lcov
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y gcc lcov
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # See host-tests: the Azure mirror stalls apt-get update — repoint.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y gcc lcov
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Download CMSIS dependencies
         run: |
           make download-deps
@@ -145,8 +179,23 @@ jobs:
       # checkout must be present (the trace stores runner workspace paths,
       # which match $GITHUB_WORKSPACE exactly).
       - uses: actions/checkout@v5
+      - name: Cache apt packages (lcov)
+        # See host-tests: cached .debs keep a stalled archive from hanging
+        # the job with no output.
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-lcov-v1
       - name: Install lcov
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y lcov
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # See host-tests: the Azure mirror stalls apt-get update — repoint.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y lcov
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Download coverage traces
         uses: actions/download-artifact@v7
         with:
@@ -239,8 +288,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache apt packages (doxygen)
+        # See host-tests: cached .debs keep a stalled archive from hanging
+        # the job with no output.
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-doxygen-v1
       - name: Install doxygen
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y doxygen
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # See host-tests: the Azure mirror stalls apt-get update — repoint.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y doxygen
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Generate API documentation
         run: doxygen Doxyfile
       - name: Upload API docs artifact
@@ -253,8 +317,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache apt packages (cppcheck)
+        # See host-tests: cached .debs keep a stalled archive from hanging
+        # the job with no output.
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-cppcheck-v1
       - name: Install cppcheck
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y cppcheck
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # See host-tests: the Azure mirror stalls apt-get update — repoint.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y cppcheck
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Download CMSIS dependencies
         run: |
           make download-deps
@@ -597,7 +676,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache apt packages (clang)
+        # See host-tests: cached .debs keep a stalled archive from hanging
+        # the job with no output (this job hung 27+ min on install once).
+        uses: actions/cache@v5
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-clang-v1
       - name: Install clang
-        run: sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f && sudo apt-get update && sudo apt-get install -y clang
+        run: |
+          mkdir -p ~/apt-debs
+          sudo cp ~/apt-debs/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          # See host-tests: the Azure mirror stalls apt-get update — repoint.
+          sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
+          sudo apt-get install -y clang
+          cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
       - name: Build and run fuzz harnesses (standalone)
         run: make FUZZ_CC=clang FUZZ_TIME=5 fuzz-all
