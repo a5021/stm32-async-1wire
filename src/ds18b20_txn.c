@@ -41,7 +41,7 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
 }
 
 /**
- * @brief Build the command pulse sequence into txn_ctx.pulses
+ * @brief Build the command pulse sequence into phase_pulses.txn
  * @note Encodes the addressing prefix (Skip ROM 0xCC, or Match ROM 0x55 +
  *       selected ROM; none for a bare command such as Read ROM), the function
  *       command byte and the optional payload (Write Scratchpad TH/TL/CFG).
@@ -53,7 +53,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
     // In scan mode the command must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode && !txn_ctx.bare;
-    ow_pulse_t* p = txn_ctx.pulses;
+    ow_pulse_t* p = phase_pulses.txn;
     uint8_t bytes = 0;
     if (!txn_ctx.bare) {
         if (use_match) {
@@ -84,7 +84,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
      * reads as its final DMA transfer into CCR3, even though the command
      * write only ever fills slots 0 .. slots - 1 (see build_res_pulses for
      * the same pattern). */
-    txn_ctx.pulses[txn_ctx.slots] = ONEWIRE_RELEASE_PULSE;
+    phase_pulses.txn[txn_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -145,7 +145,7 @@ static uint8_t txn_poll(void) {
         if (ctx.parasite) {
             onewire_strong_pullup(1);
         }
-        onewire_write_slots(txn_ctx.pulses, txn_ctx.slots);
+        onewire_write_slots(phase_pulses.txn, txn_ctx.slots);
         txn_ctx.phase = DS18B20_TXN_WRITE;
         break;
 

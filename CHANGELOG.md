@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ties break by stream number either way (feed wins), so the bits changed
   nothing observable. No family sets DMA priority now.
 
+- **Phase buffers are a union; state enums pack to `uint8_t`.** The
+  convert/read scratch and result scratch of a transaction never coexist, so
+  `ds18b20_txn_ctx_t` now carries one `phase_pulses` overlay instead of
+  separate `conv_cmd`/`read_cmd` buffers and per-struct `pulses` members, and
+  the resident state/phase enums are `uint8_t` with `_Static_assert` guards.
+  `.bss` shrinks by 136 bytes on STM32F0 `1_basic` (676 → 540) and by 272
+  bytes on STM32F4 (1004 → 732) — about 3% of an F030x6's 4 KB SRAM. Device ROMs
+  and the search buffer stay separate: both span phases where the union would
+  be overwritten.
+
 ### Removed
 
 - **`OW_PORT_BUS_PE13` alternate bus pin (F4).** No board used it, no bench

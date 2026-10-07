@@ -75,7 +75,7 @@ typedef struct {
         volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
     };
-    ds18b20_state_t current_state; /**< Current state of the state machine */
+    uint8_t current_state; /**< Current state machine state (ds18b20_state_t values, packed from enum to save RAM) */
     uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
     uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
     uint8_t scan_index; /**< Index of the device currently read in scan mode */
@@ -101,11 +101,13 @@ typedef enum {
  * @note Drives every infrequent DS18B20 command (Read ROM, Write Scratchpad
  *       thresholds, Copy/Recall EEPROM, Read Power Supply, raw Read
  *       Scratchpad) with the same reset -> write -> (read | wait) discipline
- *       as the resolution state machine. The pulse buffer must stay valid
- *       across poll calls because the DMA feeds CCR3 from it asynchronously.
+ *       as the resolution state machine. The command build lives in the
+ *       shared phase_pulses.txn workspace (see the union above), which must
+ *       stay valid across poll calls because the DMA feeds CCR3 from it
+ *       asynchronously.
  */
 typedef struct {
-    ds18b20_txn_phase_t phase; /**< Current phase of the transaction */
+    uint8_t phase; /**< Current phase of the transaction (ds18b20_txn_phase_t values, packed) */
     uint8_t command; /**< DS18B20 function command byte (0x33/0x4E/0x48/0xB8/0xB4/0xBE) */
     uint8_t* out; /**< User result buffer (valid until the command finishes) */
     uint8_t payload[3]; /**< Write Scratchpad payload (TH, TL, CFG) */
@@ -114,7 +116,6 @@ typedef struct {
     uint16_t wait_us; /**< Timed wait after the command (0 = none) */
     uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
     uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
-    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Built command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
     uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
     uint8_t finished; /**< 1 once the transaction finished (or aborted) */
@@ -151,13 +152,6 @@ _Static_assert(DS18B20_SCRATCHPAD_LEN <= ONEWIRE_MAX_READ_BYTES,
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
 
-/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
- * DMA's final transfer must always be present at the exact slot index used
- * for the write (see txn_build_pulses); the buffer is sized for the longest
- * (Match ROM) command write. */
-_Static_assert(sizeof(txn_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
-               "txn_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
-               "trailing bus-release pulse consumed by the 1-Wire layer");
 _Static_assert(DS18B20_RES_SLOTS_MAX <= ONEWIRE_MAX_SLOTS,
                "longest txn write must fit one RCR window");
 
@@ -329,6 +323,59 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
  * declarations from the parts included above it (txn uses res_config_byte
  * from resolution; search uses txn_ctx, and measure uses dev_roms/dev_count
  * from search). clang-format must not alphabetise these lines. */
+/* Phase enums are stored packed in uint8_t context fields (see above); all
+ * values must fit. If a state is ever added past 255, the packing — not just
+ * the asserts — needs revisiting. */
+_Static_assert(DS18B20_ST_DECODE <= 255, "state enum must fit uint8_t packing");
+_Static_assert(DS18B20_TXN_DONE <= 255, "txn phase enum must fit uint8_t packing");
+/* Phase pulse workspace: one shared buffer reused by the mutually exclusive
+ * bus-owner phases, instead of a dedicated static per phase.
+ *
+ * @warning CRITICAL INVARIANT: the three members alias the same storage.
+ *          Each phase rebuilds its member in full before use, and the
+ *          ownership guards (measurement/search/resolution/transaction reject
+ *          while another owns the timer) guarantee no phase reads a member
+ *          outside its own ownership window:
+ *          - cmd: shared by the CONVERT and REQUEST command builds, which are
+ *            strictly sequential (CONVERT completes via bus_done before
+ *            REQUEST builds); build_skip_cmd() rewrites all entries plus the
+ *            trailing release on every call.
+ *          - res: rebuilt by build_res_pulses() on every set_resolution call;
+ *            live only while the resolution change owns the timer.
+ *          - txn: rebuilt by txn_build_pulses() on every txn_start; live only
+ *            while the command transaction owns the timer.
+ *          Deliberately EXCLUDED (same storage must NOT be shared):
+ *          - ctx.addr_cmd: its Match ROM prefix is built once per selection
+ *            (build_addr_prefix) and only the command byte is re-encoded per
+ *            call (build_addr_cmd) — a transaction between two measurements
+ *            would clobber the prefix silently. See build_addr_cmd's note.
+ *          - dev_roms: the scan device table must survive across measurement
+ *            cycles, and 4_scan_mode runs a resolution write between search
+ *            and scan rounds.
+ *          - onewire.c search buffers: separate translation unit (generic
+ *            1-Wire layer); also small.
+ *          - txn raw[]/flags, res/measure state bytes: read after completion
+ *            by the app and test accessors, so they stay in their structs.
+ */
+static union {
+    ow_pulse_t cmd[DS18B20_DMA_TRANSFERS + 1]; /**< CONVERT/REQUEST command builds (shared, sequential) */
+    ow_pulse_t res[DS18B20_RES_SLOTS_MAX + 1]; /**< resolution config writes */
+    ow_pulse_t txn[DS18B20_RES_SLOTS_MAX + 1]; /**< command transaction builds */
+} phase_pulses;
+
+/* B1 guards: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
+ * DMA's final transfer must always be present. Keep the per-member asserts
+ * even though all members share storage: each documents the size contract
+ * of the phase that fills it. */
+_Static_assert(sizeof(phase_pulses.cmd) >= DS18B20_DMA_TRANSFERS + 1,
+               "phase cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(sizeof(phase_pulses.res) >= DS18B20_RES_SLOTS_MAX + 1,
+               "phase res must be DS18B20_RES_SLOTS_MAX + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(sizeof(phase_pulses.txn) >= DS18B20_RES_SLOTS_MAX + 1,
+               "phase txn must be DS18B20_RES_SLOTS_MAX + 1 to hold the trailing "
+               "bus-release pulse consumed by the 1-Wire layer");
 // clang-format off
 #include "ds18b20_resolution.c"
 #include "ds18b20_txn.c"

@@ -72,7 +72,7 @@ static void drive_txn(uint8_t (*poll)(void)) {
     TEST_ASSERT_TRUE(guard <= 500);
 }
 
-/* Assert that txn_ctx.pulses[0..8*len) encodes the expected bytes. */
+/* Assert that phase_pulses.txn[0..8*len) encodes the expected bytes. */
 static void assert_txn_pulses_bytes(const uint8_t* bytes, uint8_t len) {
     for (uint8_t i = 0; i < len; i++) {
         for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {

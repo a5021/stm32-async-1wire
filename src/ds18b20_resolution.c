@@ -27,28 +27,23 @@ typedef enum {
 
 /**
  * @brief Non-blocking resolution change context
- * @note The pulse buffer must stay valid across poll calls because the DMA
- *       feeds CCR3 from it asynchronously while the config write is sent.
+ * @note The config write is built into the shared phase_pulses.res workspace
+ *       (see the union in ds18b20.c), which must stay valid across poll calls
+ *       because the DMA feeds CCR3 from it asynchronously while the config
+ *       write is sent.
  */
 typedef struct {
-    res_phase_t phase; /**< Current phase of the resolution state machine */
+    uint8_t phase; /**< Current phase of the resolution state machine (res_phase_t values, packed) */
     uint8_t pending_res; /**< Resolution (bits) to apply */
     uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
     uint8_t finished; /**< 1 once the operation has completed (or aborted) */
     uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
-    ow_pulse_t pulses[DS18B20_RES_SLOTS_MAX + 1]; /**< Pulse buffer for the config write (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
 } res_ctx_t;
 
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
 
-/* B1 guard: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed
- * DMA's final transfer must always be present at the exact slot index used
- * for the write (see build_res_pulses); the buffer is sized for the longest
- * (Match ROM) mode. */
-_Static_assert(sizeof(res_ctx.pulses) >= DS18B20_RES_SLOTS_MAX + 1,
-               "res_ctx.pulses must be DS18B20_RES_SLOTS_MAX + 1 to hold the "
-               "trailing bus-release pulse consumed by the 1-Wire layer");
+_Static_assert(DS18B20_RES_DONE <= 255, "res phase enum must fit uint8_t packing");
 
 /**
  * @}
@@ -65,7 +60,7 @@ __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
 }
 
 /**
- * @brief Pre-build the resolution config write into res_ctx.pulses
+ * @brief Pre-build the resolution config write into phase_pulses.res
  * @param[in] res Resolution in bits (9..12)
  * @note Encodes Skip ROM (0xCC) or Match ROM (0x55 + selected ROM) followed by
  *       Write Scratchpad (0x4E), TH, TL and the config byte. The trailing
@@ -77,7 +72,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // In scan mode the config write must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ctx.address_mode && !ctx.scan_mode;
-    ow_pulse_t* p = res_ctx.pulses;
+    ow_pulse_t* p = phase_pulses.res;
     if (use_match) {
         onewire_encode_byte(p, DS18B20_MATCH_ROM);
         p += DS18B20_BITS_PER_BYTE;
@@ -97,7 +92,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, res_config_byte(res));
     res_ctx.slots = use_match ? DS18B20_RES_SLOTS_MAX : DS18B20_RES_SLOTS_MIN;
-    res_ctx.pulses[res_ctx.slots] = ONEWIRE_RELEASE_PULSE;
+    phase_pulses.res[res_ctx.slots] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -173,7 +168,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
                 break;
             }
         }
-        onewire_write_slots(res_ctx.pulses, res_ctx.slots);
+        onewire_write_slots(phase_pulses.res, res_ctx.slots);
         res_ctx.phase = DS18B20_RES_WRITE;
         break;
 

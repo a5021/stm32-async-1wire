@@ -16,13 +16,12 @@ void ds18b20_test_register_buffers(void) {
     /* The driver builds each command in its own pulse buffer and the CCR3-feed
      * DMA sources from &buf[1]; the element is family sized (16-bit on F4), so
      * the offset must be one element, not one byte. */
-    hw_register_buf((const void*)&conv_cmd[1]);
-    hw_register_buf((const void*)&read_cmd[1]);
+    hw_register_buf((const void*)&phase_pulses.cmd[1]);
     hw_register_buf((const void*)&ctx.addr_cmd[1]);
     hw_register_buf((const void*)&search_ctx.pulses[1]);
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
-    hw_register_buf((const void*)&res_ctx.pulses[1]);
-    hw_register_buf((const void*)&txn_ctx.pulses[1]);
+    hw_register_buf((const void*)&phase_pulses.res[1]);
+    hw_register_buf((const void*)&phase_pulses.txn[1]);
 }
 
 ds18b20_state_t ds18b20_test_get_state(void) { return ctx.current_state; }
@@ -38,7 +37,7 @@ void ds18b20_test_reset_ctx(void) {
 
 void ds18b20_test_set_resolution(uint8_t r) { ctx.resolution = r; }
 
-uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return res_ctx.pulses[i]; }
+uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return phase_pulses.res[i]; }
 
 void ds18b20_test_reset_resolution(void) {
     res_ctx.phase = DS18B20_RES_DONE;
@@ -100,7 +99,7 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = 
  * assertions in the per-operation DMA contract table (test_dma_contract.c). */
 const ow_pulse_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
 const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
-const ow_pulse_t* test_res_pulses_feed_addr(void) { return res_ctx.pulses + 1u; }
+const ow_pulse_t* test_res_pulses_feed_addr(void) { return phase_pulses.res + 1u; }
 
 void ds18b20_test_reset_search(void) {
     search_ctx.finished = 1;
@@ -145,7 +144,7 @@ void ds18b20_test_reset_txn(void) {
     txn_ctx.finished = 1;
 }
 
-uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return txn_ctx.pulses[i]; }
+uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return phase_pulses.txn[i]; }
 uint8_t ds18b20_test_get_txn_slots(void) { return txn_ctx.slots; }
 uint8_t ds18b20_test_get_txn_ok(void) { return txn_ctx.ok; }
 uint8_t ds18b20_test_get_txn_finished(void) { return txn_ctx.finished; }

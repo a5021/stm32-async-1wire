@@ -63,7 +63,7 @@ static void drive_res_change(uint8_t bits) {
     drive_poll_until_done();
 }
 
-/* Assert that res_ctx.pulses[0..8*len) encodes the expected bytes. */
+/* Assert that phase_pulses.res[0..8*len) encodes the expected bytes. */
 static void assert_res_pulses_bytes(const uint8_t* bytes, uint8_t len) {
     for (uint8_t i = 0; i < len; i++) {
         for (uint8_t b = 0; b < DS18B20_BITS_PER_BYTE; b++) {

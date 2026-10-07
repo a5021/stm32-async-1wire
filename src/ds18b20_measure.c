@@ -1,7 +1,8 @@
 /* DS18B20 measurement module (include-only part of src/ds18b20.c).
  * Not a translation unit on its own: compile src/ds18b20.c, which
- * resolves the DS18B20_DRIVER_BUILD gate. This part owns conv_cmd,
- * read_cmd and the DS18B20_ST_* measurement state machine (ds18b20_poll). */
+ * resolves the DS18B20_DRIVER_BUILD gate. This part owns the DS18B20_ST_*
+ * measurement state machine (ds18b20_poll); its CONVERT/REQUEST command
+ * builds share the phase_pulses.cmd workspace (see the union in ds18b20.c). */
 #ifndef DS18B20_DRIVER_BUILD
 #error "ds18b20_measure.c is an include-only driver part; compile src/ds18b20.c"
 #endif
@@ -90,21 +91,8 @@ void ds18b20_scan_start(void) {
  */
 uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
 
-static ow_pulse_t conv_cmd[DS18B20_DMA_TRANSFERS + 1];
-static ow_pulse_t read_cmd[DS18B20_DMA_TRANSFERS + 1];
-
-/* B1 guard: same trailing bus-release invariant as addr_cmd/txn_ctx/res_ctx —
- * the 1-Wire layer's CCR3-feed DMA reads cmd[DS18B20_DMA_TRANSFERS] as the
- * final ONEWIRE_RELEASE_PULSE. Keep both Skip-ROM buffers at +1 for uniformity. */
-_Static_assert(sizeof(conv_cmd) >= DS18B20_DMA_TRANSFERS + 1,
-               "conv_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
-               "bus-release pulse consumed by the 1-Wire layer");
-_Static_assert(sizeof(read_cmd) >= DS18B20_DMA_TRANSFERS + 1,
-               "read_cmd must be DS18B20_DMA_TRANSFERS + 1 to hold the trailing "
-               "bus-release pulse consumed by the 1-Wire layer");
-
-/* Lifetime note: conv_cmd/read_cmd are shared static buffers reused on every
- * build_skip_cmd() call. This is safe only because issue_command() is invoked
+/* Lifetime note: the CONVERT/REQUEST builds share phase_pulses.cmd (see the
+ * union in ds18b20.c). This is safe only because issue_command() is invoked
  * exclusively from the CONVERT/REQUEST states after onewire_bus_done() has
  * confirmed that the timer/DMA of the previous 1-Wire operation is idle, and
  * the ownership guards (ds18b20_select/search/resolution reject while busy)
@@ -147,7 +135,7 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
         build_addr_cmd(cmd_byte);
         onewire_write_slots(ctx.addr_cmd, DS18B20_MATCH_SLOTS);
     } else {
-        ow_pulse_t* skip_tbl = (cmd_byte == DS18B20_CONVERT_T) ? conv_cmd : read_cmd;
+        ow_pulse_t* skip_tbl = phase_pulses.cmd;
         build_skip_cmd(skip_tbl, cmd_byte);
         onewire_write_slots(skip_tbl, DS18B20_DMA_TRANSFERS);
     }

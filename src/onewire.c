@@ -83,7 +83,7 @@ typedef enum {
  *       feeds CCR3 from it asynchronously while the search command is sent.
  */
 typedef struct {
-    onewire_search_phase_t phase; /**< Current phase of the search state machine */
+    uint8_t phase; /**< Current phase of the search state machine (onewire_search_phase_t values, packed) */
     uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
@@ -101,6 +101,8 @@ typedef struct {
 
 /** @brief Global search context instance */
 static onewire_search_ctx_t search_ctx;
+
+_Static_assert(ONEWIRE_SEARCH_DONE <= 255, "search phase enum must fit uint8_t packing");
 
 /* Internal pulse buffers must always fit one RCR window (+ trailing release). */
 _Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
