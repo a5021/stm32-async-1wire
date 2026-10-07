@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-07 17:38:59</td>
+            <td class="headerValue">2026-10-07 19:32:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -274,11 +274,11 @@
 <span id="L203"><span class="lineNum">     203</span>                 :             :     }</span>
 <span id="L204"><span class="lineNum">     204</span>                 :<span class="tlaGNC">         627 : }</span></span>
 <span id="L205"><span class="lineNum">     205</span>                 :             : </span>
-<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">       11068 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
-<span id="L207"><span class="lineNum">     207</span>         [<span class="tlaGBC" title="Branch 0 was taken 88544 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11068 times"> + </span>]:<span class="tlaGNC">       99612 :     for (uint8_t i = 0; i &lt; ONEWIRE_BITS_PER_BYTE; i++) {</span></span>
-<span id="L208"><span class="lineNum">     208</span>         [<span class="tlaGBC" title="Branch 0 was taken 35846 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 52698 times"> + </span>]:<span class="tlaGNC">       88544 :         out[i] = (byte &amp; (1u &lt;&lt; i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
+<span id="L206"><span class="lineNum">     206</span>                 :<span class="tlaGNC">        9946 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
+<span id="L207"><span class="lineNum">     207</span>         [<span class="tlaGBC" title="Branch 0 was taken 79568 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 9946 times"> + </span>]:<span class="tlaGNC">       89514 :     for (uint8_t i = 0; i &lt; ONEWIRE_BITS_PER_BYTE; i++) {</span></span>
+<span id="L208"><span class="lineNum">     208</span>         [<span class="tlaGBC" title="Branch 0 was taken 33140 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 46428 times"> + </span>]:<span class="tlaGNC">       79568 :         out[i] = (byte &amp; (1u &lt;&lt; i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :             :     }</span>
-<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">       11068 : }</span></span>
+<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">        9946 : }</span></span>
 <span id="L211"><span class="lineNum">     211</span>                 :             : </span>
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">        2354 : uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">        2354 :     uint8_t crc = 0;</span></span>
