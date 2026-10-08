@@ -60,7 +60,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # the empty value silently meant "F1", which is exactly how a typo such as
 # OW_TARGET=f401-84 ended up compiling a Blue Pill.
 OW_TARGET ?= f1
-OW_KNOWN_TARGETS = f1 f0 f3 g0 f4
+OW_KNOWN_TARGETS = f1 f0 f3 g0 f4 g4
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -80,6 +80,10 @@ else ifeq ($(OW_TARGET),f3)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 PORT_DEF = OW_PORT_TARGET_F3
+else ifeq ($(OW_TARGET),g4)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+MCU = -mcpu=cortex-m4 -mthumb
+PORT_DEF = OW_PORT_TARGET_G4
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
@@ -96,6 +100,8 @@ else ifeq ($(OW_TARGET),f4)
 OW_CHIP ?= f407xx
 else ifeq ($(OW_TARGET),f3)
 OW_CHIP ?= f303xc
+else ifeq ($(OW_TARGET),g4)
+OW_CHIP ?= g474cb
 else
 OW_CHIP ?= f103xb
 endif
@@ -117,9 +123,9 @@ CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
 CHIP_SVD := $(strip $(CHIP_SVD))
 CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
 
-# Crystal (HSE) frequency of the *board*, F4 only. Not part identity: a part
-# file may carry a default for the board it is named after, and HSE_MHZ= on the
-# command line wins for any other board.
+# Crystal (HSE) frequency of the *board*, F4 and G4 only. Not part identity: a
+# part file may carry a default for the board it is named after, and HSE_MHZ=
+# on the command line wins for any other board.
 CHIP_HSE_MHZ := $(strip $(CHIP_HSE_MHZ))
 
 ASM = $(CHIP_STARTUP)
@@ -137,7 +143,7 @@ ifndef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(CHIP_HSE_MHZ)
 endif
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -145,7 +151,7 @@ UART_TX_SIZE_2_device_search = 256
 UART_TX_SIZE_3_round_robin  = 256
 UART_TX_SIZE_4_scan_mode    = 256
 UART_TX_SIZE_5_commands     = 256
-UART_TX_SIZE_6_statistics   = 1024
+UART_TX_SIZE_6_statistics    = 1024
 UART_TX_SIZE_7_low_power    = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
@@ -158,12 +164,12 @@ ifdef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
 
-# Crystal frequency override for the F4 backend:
+# Crystal frequency override for the F4 and G4 backends:
 # make HSE_MHZ=25  ->  -DOW_HSE_MHZ=25
 # Separate from SYSCLK_MHZ because the crystal belongs to the board and the
 # system clock to the application; the F4 PLL derives its M divider from it, so a
 # wrong value leaves the PLL unlocked - which the app now reports instead of
-# spinning forever.
+# spinning forever. The G4 PLL derives M = OW_HSE_MHZ / 4 the same way.
 ifdef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(HSE_MHZ)
 endif
@@ -305,11 +311,13 @@ F1_URL = $(ST_URL)cmsis_device_f1/master
 F0_URL = $(ST_URL)cmsis_device_f0/master
 G0_URL = $(ST_URL)cmsis_device_g0/master
 F4_URL = $(ST_URL)cmsis_device_f4/master
+G4_URL = $(ST_URL)cmsis_device_g4/master
 F3_URL = $(ST_URL)cmsis-device-f3/master
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
 SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F407.svd
+SVD_URL_G4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G474xx.svd
 SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
 SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F446.svd
 SVD_URL_F303 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F303.svd
@@ -344,6 +352,14 @@ CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
 CMSIS_DEVICE_FAMILY_HDR = stm32f3xx.h
 CMSIS_SYSTEM_HDR = system_stm32f3xx.h
 CMSIS_SYSTEM_SRC = system_stm32f3xx.c
+else ifeq ($(OW_TARGET),g4)
+# Same as F4/F3: a Cortex-M4, so core_cm4.h pulls in mpu_armv7.h
+# unconditionally.
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv7.h
+CMSIS_DEVICE_FAMILY_HDR = stm32g4xx.h
+CMSIS_SYSTEM_HDR = system_stm32g4xx.h
+CMSIS_SYSTEM_SRC = system_stm32g4xx.c
 else
 CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm3.h
 CMSIS_DEVICE_FAMILY_HDR = stm32f1xx.h
@@ -448,6 +464,13 @@ CMSIS_DOWNLOADS_F4 = \
   startup_stm32f401xc.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s \
   startup_stm32f401xe.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s \
   startup_stm32f446xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f446xx.s
+# cmsis_device_g4 headers and sources (Apache 2.0)
+CMSIS_DOWNLOADS_G4 = \
+  stm32g4xx.h|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Include/stm32g4xx.h \
+  stm32g474xx.h|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Include/stm32g474xx.h \
+  system_stm32g4xx.h|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Include/system_stm32g4xx.h \
+  system_stm32g4xx.c|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Source/Templates/system_stm32g4xx.c \
+  startup_stm32g474xx.s|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Source/Templates/gcc/startup_stm32g474xx.s
 # cmsis-device-f3 headers and sources (Apache 2.0). The repository spells its
 # name with a hyphen, unlike the cmsis_device_* ones above.
 CMSIS_DOWNLOADS_F3 = \
@@ -464,11 +487,13 @@ CMSIS_DOWNLOADS_SVD = \
   STM32F407.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F4) \
   STM32F401.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F401) \
   STM32F446.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F446) \
-  STM32F303.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F303)
+  STM32F303.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F303) \
+  STM32G474xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G4)
 
 CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F1) \
                  $(CMSIS_DOWNLOADS_F0) $(CMSIS_DOWNLOADS_G0) \
                  $(CMSIS_DOWNLOADS_F4) $(CMSIS_DOWNLOADS_F3) \
+                 $(CMSIS_DOWNLOADS_G4) \
                  $(CMSIS_DOWNLOADS_SVD)
 
 # Generate the rules. $$(call ...) rather than $(call ...), and $$@ rather
@@ -536,7 +561,7 @@ clean-deps:
 # tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
 # because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
 # - the inner reference expands before t is bound and comes out empty.
-MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 f3:f303xc g0:g031xx f4:f407xx f4:f446xx
+MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 f3:f303xc g0:g031xx f4:f407xx f4:f446xx g4:g474cb
 test-mocks:
 	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
@@ -814,6 +839,10 @@ else ifeq ($(OW_TARGET),f3)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F3
 TEST_PORT_INC = -Iport/stm32f3
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f3.exe
+else ifeq ($(OW_TARGET),g4)
+TEST_PORT_FLAG = -DOW_PORT_TARGET_G4
+TEST_PORT_INC = -Iport/stm32g4
+TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
 else
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
@@ -846,6 +875,16 @@ TEST_F4_180_FLAG = $(TEST_FLAG) -DSTM32F446xx -DOW_PORT_SYSCLK_MHZ=180
 TEST_F4_180_EXE = $(TEST_OUT)/ds18b20_test_f4_180mhz.exe
 TEST_EXTRA_EXES = $(TEST_F4_180_EXE)
 endif
+# Mirror of the F4 second clock: the G4's 16MHz raw-HSI branch is a genuinely
+# different code path from the 170MHz HSE+PLL default (no PLL, no flash
+# latency change, SWS stays on HSI), so the suite runs at both. The default
+# build already covers 170MHz through the header default, hence the extra
+# executable forces the low clock instead of the high one.
+ifneq ($(filter g4,$(OW_TARGET)),)
+TEST_G4_16_FLAG = $(TEST_FLAG) -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=16
+TEST_G4_16_EXE = $(TEST_OUT)/ds18b20_test_g4_16mhz.exe
+TEST_EXTRA_EXES = $(TEST_G4_16_EXE)
+endif
 
 # Per-family suffix for the host-test artefacts, so the five families do not
 # share one output file. Defined once because three near-identical nested-if
@@ -853,13 +892,13 @@ endif
 # two left the active-drive and ndebug names with an unbalanced paren, which
 # only the ndebug job noticed - and it failed on CI while all five host-test
 # jobs went red on an artefact name rather than on a test.
-TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,))))
+TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g4,$(OW_TARGET)),_g4,)))))
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
-TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,STM32F1))))
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g4,$(1)),STM32G4,STM32F1)))))
 # This one defaults to _f1 rather than to nothing, so the family-macro compile
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.
@@ -996,6 +1035,15 @@ $(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/a
 # names the clock it happened at.
 $(TEST_F4_180_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_F4_180_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+# The G4 suite at the 16MHz raw-HSI clock. Same sources and same test_main,
+# only the clock differs, so the suite's own expectations have to hold at
+# 16MHz as well - the bit-slot constants are us figures and the TIM model is
+# prescaler-driven, which is exactly what should be clock-independent. Kept
+# as its own target (rather than a variable in $(TEST_EXE)) so a failure
+# names the clock it happened at.
+$(TEST_G4_16_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_G4_16_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@

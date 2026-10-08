@@ -24,6 +24,9 @@
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
 #   f0             329                 984              432
 #   f4             434                1088              536
+#   g4             329                 984              432
+# (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
+# lands byte-identical; only the part Statics differ, none driver-owned.)
 #
 # Matching goes through fixed strings on purpose (see check_version.sh: this
 # repo checks out CRLF on Windows and LF in CI).
@@ -118,6 +121,7 @@ fi
 
 check f0 329 984 432
 check f4 434 1088 536
+check g4 329 984 432
 
 if [ "$fail" -ne 0 ]; then
     exit 1

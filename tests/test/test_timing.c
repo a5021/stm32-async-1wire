@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(OW_PORT_TARGET_F4)
+#if defined(OW_PORT_TARGET_F4) || defined(OW_PORT_TARGET_G4)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -174,6 +174,62 @@ void test_apb_prescaler_div1_for_tim1(void) {
 #elif defined(OW_PORT_TARGET_G0)
     /* G0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
+#elif defined(OW_PORT_TARGET_G4)
+    /* Preset the ready/status flags configure_system_clock() waits on: the mock
+     * does not model hardware self-setting of HSERDY/PLLRDY. SWS is preset
+     * only on the PLL path - the raw-HSI16 path must leave CFGR untouched. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLLRDY;
+#if (OW_PORT_SYSCLK_MHZ) == 170
+    mock_rcc.CFGR = RCC_CFGR_SWS_PLL;
+#endif
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* APB1 and APB2 stay /1 at every G4 clock, so TIM1 = PCLK2 = SYSCLK
+     * directly - no x2 doubling (the ow_port 1us-tick invariant). */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+#if (OW_PORT_SYSCLK_MHZ) == 170
+    /* Range 1 Boost (PWR_CR1.VOS = 00) before the PLL starts: 170MHz is above
+     * the 150MHz Range-1 ceiling, and running it there is out of spec. PWR
+     * sits on APB1, so its clock has to be on before CR1 is writable -
+     * without it the VOS write is dropped and the part runs 170MHz in the
+     * reset scale. The mock's VOSF starts clear, so the transition wait
+     * passes; asserting the write is what would catch a dropped one. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_APB1ENR1_PWREN, mock_rcc.APB1ENR1 & RCC_APB1ENR1_PWREN);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.CR1 & PWR_CR1_VOS);
+    /* The switch write happened (SW was 0 in the preset, now PLL). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_SW_PLL, mock_rcc.CFGR & RCC_CFGR_SW);
+    /* Whole ACR compared: app.c assigns it in one write (prefetch + caches +
+     * latency), so this pins all three. */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                                 FLASH_ACR_LATENCY_8WS,
+                             mock_flash.ACR);
+    /* M = HSE/2 aims the PLL input at 4MHz (the PLLM field holds divider-1,
+     * so an 8MHz crystal needs field=1 to get divider=2 -> 4MHz PLL input).
+     * N = SYSCLK/2, R stays /2 (field 0) with PLLREN selecting it. Nothing
+     * else in the suite looks at these fields: a wrong crystal breaks M
+     * silently (the PLL never locks, or locks marginally below the 2.66MHz
+     * input window), which is the F4 M-field lesson applied here. Field
+     * widths: PLLM 4 bits, PLLN 7, PLLR 2. The M expectation is a literal,
+     * not the code's own formula: asserting the formula proved nothing when
+     * the formula itself forgot the minus-1. */
+#if (OW_HSE_MHZ) == 8
+    TEST_ASSERT_EQUAL_UINT32(1u, (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLM_Pos) & 0xFu);
+#endif
+    TEST_ASSERT_EQUAL_UINT32((OW_PORT_SYSCLK_MHZ) / 2u,
+                             (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLN_Pos) & 0x7Fu);
+    TEST_ASSERT_EQUAL_UINT32(0u, (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLR_Pos) & 0x3u);
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLLREN, mock_rcc.PLLCFGR & RCC_PLLCFGR_PLLREN);
+    /* PLLSRC uses the ST selection value (HSE = both bits, HSI16 = bit 1)
+     * that stm32g474xx.h and the Cube HAL agree on - not the RM table order,
+     * which is why this asserts the value rather than trusting the name. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLLSRC_HSE, mock_rcc.PLLCFGR & RCC_PLLCFGR_PLLSRC);
+#else
+    /* Raw HSI16: nothing configured - CFGR, PLL and flash latency stay reset. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
+#endif
 #endif
 }
 
@@ -274,6 +330,31 @@ void test_console_baud_divisor(void) {
 }
 #endif /* OW_PORT_TARGET_F4 */
 
+#if defined(OW_PORT_TARGET_G4)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  Same gap the F4 divisor check closes: the BRR write lives in
+ *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
+ *  build has ever compiled it on any family - and a per-clock table without
+ *  the new clock falls through silently. The G4 backend leaves APB2 at /1
+ *  at both clocks, so PCLK2 = SYSCLK; asserting the app.h value pins that
+ *  against both executables (170 default, 16 second clock).
+ *-------------------------------------------------------------*/
+void test_g4_console_baud_divisor(void) {
+    uint32_t brr_expected;
+
+    TEST_ASSERT_EQUAL_UINT32((OW_PORT_SYSCLK_MHZ), (uint32_t)OW_G4_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_PORT_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_G4_CONSOLE_BRR);
+    /* Sanity on the arithmetic itself: at every supported clock the divisor
+     * must land in a sane BRR range. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
+}
+#endif /* OW_PORT_TARGET_G4 */
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -285,6 +366,9 @@ void run_test_timing(void) {
     TEST_RUN(test_ic4f_matches_the_documented_tier);
 #if defined(OW_PORT_TARGET_F4)
     TEST_RUN(test_console_baud_divisor);
+#endif
+#if defined(OW_PORT_TARGET_G4)
+    TEST_RUN(test_g4_console_baud_divisor);
 #endif
     TEST_RUN(test_search_start_ignored_while_running);
 }

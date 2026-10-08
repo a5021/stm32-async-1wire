@@ -12,6 +12,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f3/ow_port_f3.h` — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F1/F0 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `port/stm32g4/ow_port_g4.h` — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=1, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
 - `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
 
 ## Table of Contents
@@ -378,6 +379,17 @@ are reachable only through the SYSCFG remap described in Hardware Connections
 below; the USB-C connector of this board is wired to PA11/PA12 and must stay
 unplugged while the driver owns the bus.
 
+### STM32G474CBT6 (WeAct STM32G474CBT6 Long)
+
+Validated on a WeAct STM32G474CBT6 Long board: 7 × DS18B20 in parasite
+power mode on one 1-Wire bus on **PA10** (TIM1 CH3/CH4 pair, DMA1 channels 3/4
+through DMAMUX — requests 43/45, 8-bit feed tables), console on USART1 TX /
+**PA9** (AF7) at 115200 8N1 via a CP2102 USB-UART adapter, flashed via ST-Link
+SWD. Builds: the default 170MHz (HSE 8MHz + PLL M=1, N=85, R=2, Range 1 Boost)
+and the raw-HSI16 `SYSCLK_MHZ=16` build. The board carries an 8 MHz crystal;
+`HSE_MHZ=8` in `chips/g474cb.mk` derives the PLL dividers. The bus pads are
+directly on PA10 (no remap needed). Build with `make OW_TARGET=g4`.
+
 ### STM32F407VGT6 (STM32F4DISCOVERY)
 
 Validated on an **STM32F4DISCOVERY** (MB997C, STM32F407VGT6, 8 MHz HSE):
@@ -573,6 +585,20 @@ static pin configuration. With the optional active-drive write mode
 (`-DOW_DRIVE_ACTIVE=1`) the pin is temporarily switched to push-pull during
 master-only write slots and restored to open-drain afterwards — see
 [Bus Electrical Model](#bus-electrical-model).
+
+### STM32G474CBT6 (WeAct STM32G474CBT6 Long)
+
+| Pin  | Function            | Notes                              |
+|------|---------------------|------------------------------------|
+| PA10 | 1-Wire Data         | TIM1_CH3 AF6, open-drain (default topology) |
+| PA9  | USART1 TX (115200)  | AF7; RX line of the USB-UART adapter |
+| PC13 | Busy LED (optional) | **Active-low** (blue LED on WeAct board) |
+| PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
+
+Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
+The board carries an **8 MHz crystal** (`HSE_MHZ=8` in `chips/g474cb.mk`);
+the 170 MHz PLL (M=1, N=85, R=2, Range 1 Boost) and the raw-HSI16
+`SYSCLK_MHZ=16` build are supported. Build with `make OW_TARGET=g4`.
 
 ### STM32F407VGT6 (STM32F4DISCOVERY)
 

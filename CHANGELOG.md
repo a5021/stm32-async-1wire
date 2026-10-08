@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ties break by stream number either way (feed wins), so the bits changed
   nothing observable. No family sets DMA priority now.
 
+- **STM32G4 port added (WeAct STM32G474CBT6 Long).** New `OW_TARGET=g4` backend
+  on the shared TIM1/DMA core: 8-bit feed tables (classic DMA + DMAMUX), AF6
+  on PA10 for TIM1_CH3, USART1 TX on PA9 (AF7), HSE+PLL to 170MHz (M=1, N=85,
+  R=2, Range 1 Boost) and raw HSI16 at 16MHz as fallback. `.bss` 432 bytes
+  on `1_basic` (same as F0 class). 14-cell HW matrix (7 apps × 170/16MHz,
+  parasite power) validated. CI matrix and RAM budget gate extended.
+
+- **F4 DMA runs at reset-default priority.** The `PL_1` (high) bits are gone
+  from the F4 capture/feed control words: with a single active channel pair,
+  ties break by stream number either way (feed wins), so the bits changed
+  nothing observable. No family sets DMA priority now.
+
 - **Phase buffers are a union; state enums pack to `uint8_t`.** The
   convert/read scratch and result scratch of a transaction never coexist, so
   `ds18b20_txn_ctx_t` now carries one `phase_pulses` overlay instead of

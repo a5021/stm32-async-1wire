@@ -52,9 +52,10 @@ extern "C" {
 #define ONEWIRE_ALARM_SEARCH 0xEC
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
- *  (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on
- *  their own; for the F4 family the concrete device spellings (STM32F407xx /
- *  STM32F401xC/STM32F401xE) are accepted too. The token is the single point of
+ *  (STM32F1, STM32F0, STM32F3, STM32G0, STM32G4) that PlatformIO / STM32CubeMX
+ *  define on their own; for the F4 family the concrete device spellings
+ *  (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too, and for G4 the
+ *  STM32G474xx spelling. The token is the single point of
  *  family selection: it picks the port backend (included below), app.c takes
  *  the device header and clock configuration from it, and the per-family
  *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
@@ -73,6 +74,8 @@ extern "C" {
 #elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) || \
     defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
 #define OW_PORT_FAMILY_F4
+#elif defined(OW_PORT_TARGET_G4) || defined(STM32G4) || defined(STM32G474xx)
+#define OW_PORT_FAMILY_G4
 #endif
 
 /** @brief Pull in the selected port backend.
@@ -92,8 +95,10 @@ extern "C" {
 #include "ow_port_g0.h"
 #elif defined(OW_PORT_FAMILY_F4)
 #include "ow_port_f4.h"
+#elif defined(OW_PORT_FAMILY_G4)
+#include "ow_port_g4.h"
 #else
-#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0 or OW_PORT_TARGET_F4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE)"
+#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0, OW_PORT_TARGET_F4 or OW_PORT_TARGET_G4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32G4/STM32G474xx)"
 #endif
 
 /** @} */

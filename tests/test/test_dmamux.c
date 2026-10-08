@@ -1,11 +1,13 @@
 /* ============================================================
- *  test_dmamux.c - G0 DMAMUX request-routing tests
+ *  test_dmamux.c - G0/G4 DMAMUX request-routing tests
  *
- *  STM32G031 has no fixed DMA request map: peripheral requests
+ *  STM32G031 and STM32G474 have no fixed DMA request map: peripheral requests
  *  reach DMA channels through DMAMUX. The backend must program
  *  the mux before enabling each channel:
- *    - TIM1_CC2 (marker feed -> CCR3) = request 21 on channel 2
- *    - TIM1_CH4 (capture drain <- CCR4) = request 23 on channel 3
+ *    - G0:  TIM1_CC2 (marker feed -> CCR3) = request 21 on channel 2
+ *    - G0:  TIM1_CH4 (capture drain <- CCR4) = request 23 on channel 3
+ *    - G4:  TIM1_CC2 (marker feed -> CCR3) = request 43 on channel 2
+ *    - G4:  TIM1_CH4 (capture drain <- CCR4) = request 45 on channel 3
  *  Other backends have a fixed request map, so this suite
  *  compiles empty there.
  * ============================================================ */
@@ -16,7 +18,15 @@
 #include "onewire.h"
 #include "unity.h"
 
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
+
+#if defined(OW_PORT_TARGET_G4)
+#define DMAMUX_EXPECT_FEED 43u
+#define DMAMUX_EXPECT_CAP 45u
+#else
+#define DMAMUX_EXPECT_FEED 21u
+#define DMAMUX_EXPECT_CAP 23u
+#endif
 
 static uint16_t rx_src(uint32_t idx) {
     return idx == 0 ? 510u : 700u; /* reset presence pulse durations */
@@ -30,7 +40,7 @@ void test_dmamux_capture_request_routed_on_reset(void) {
     hw_set_capture_source(rx_src);
 
     onewire_reset(capture); /* schedules the CC4 capture drain */
-    TEST_ASSERT_EQUAL_UINT32(23u, mock_dmamux_ch3.CCR);
+    TEST_ASSERT_EQUAL_UINT32(DMAMUX_EXPECT_CAP, mock_dmamux_ch3.CCR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
 
     /* run-through: the mux-enable actually let the capture data flow */
@@ -50,7 +60,7 @@ void test_dmamux_feed_request_routed_on_write(void) {
     onewire_encode_byte(pulses, 0xCC);
     pulses[ONEWIRE_BITS_PER_BYTE] = 0; /* trailing hardware bus release */
     onewire_write_slots(pulses, ONEWIRE_BITS_PER_BYTE);
-    TEST_ASSERT_EQUAL_UINT32(21u, mock_dmamux_ch2.CCR);
+    TEST_ASSERT_EQUAL_UINT32(DMAMUX_EXPECT_FEED, mock_dmamux_ch2.CCR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR, mock_feed_ch.CCR);
 
     /* run-through: the mux-enable actually let the feed data flow */
@@ -61,10 +71,10 @@ void test_dmamux_feed_request_routed_on_write(void) {
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
 }
 
-#endif /* OW_PORT_TARGET_G0 */
+#endif /* OW_PORT_TARGET_G0 || OW_PORT_TARGET_G4 */
 
 void run_test_dmamux(void) {
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
     TEST_RUN(test_dmamux_capture_request_routed_on_reset);
     TEST_RUN(test_dmamux_feed_request_routed_on_write);
 #endif

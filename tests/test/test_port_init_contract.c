@@ -28,7 +28,8 @@
  *           modern MODER two-bit field. PA11 is left untouched for the
  *           application on every family.
  *    af   - the alternate function number for TIM1_CH3 on the bus pin. It is
- *           genuinely 2 on F0/G0 and 1 on F4; that is silicon, not a typo.
+ *           genuinely 2 on F0/G0, 1 on F4 and 6 on G4; that is silicon, not
+ *           a typo.
  *    remap- G0 only: PA11_RMP | PA12_RMP, because the TSSOP20 does not bond
  *           out PA9/PA10 and the bus runs on the remapped pads.
  *  Pin numbers are PA10 everywhere, which the host mocks now agree on -
@@ -109,6 +110,17 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0x00000018u},
     {"open_drain", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u},
 };
+#elif defined(OW_PORT_FAMILY_G4)
+/* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
+ * open-drain, cleared for push-pull; af 0x600 = AF6 for TIM1_CH3;
+ * speed 0x300000 = PA10 at the fastest setting. clk packs APB2ENR low,
+ * AHB2ENR middle, AHB1ENR high (DMA1EN|DMAMUX1EN = 0x5 needs the 8 bits
+ * the high side has). No SYSCFG remap: PA9/PA10 are bonded out. */
+static const setup_row_t k_setup[] = {
+    {"init", 0x05010801u, 0x00A9u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
+    {"push_pull", 0x05010801u, 0x00A9u, 0x8000u, 0x00200000u, 0u, 0x00000600u, 0x00300000u, 0u},
+    {"open_drain", 0x05010801u, 0x00A9u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
+};
 #else /* OW_PORT_FAMILY_F4 */
 /* mode is PA10 = 0b10 in MODER (alternate function); af is 0x100 = AF1 here,
  * against AF2 on F0/G0 - that is the silicon, not an inconsistency. */
@@ -162,6 +174,17 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
     s.remap = (uint32_t)mock_syscfg.CFGR1;
+#elif defined(OW_PORT_FAMILY_G4)
+    /* APB2ENR low, AHB2ENR middle, AHB1ENR high: three gate registers, and
+     * the only packing where none of the in-use bits collide (APB2ENR
+     * 0x801, AHB2ENR 0x1, AHB1ENR 0x5). */
+    s.clk = (uint32_t)mock_rcc.APB2ENR |
+            ((uint32_t)mock_rcc.AHB2ENR << 16) |
+            ((uint32_t)mock_rcc.AHB1ENR << 24);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
 #else /* OW_PORT_FAMILY_F4 */
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHB1ENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;

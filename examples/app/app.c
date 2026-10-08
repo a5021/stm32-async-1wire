@@ -12,6 +12,8 @@
 #include "stm32g0xx.h"
 #elif defined(OW_PORT_FAMILY_F4)
 #include "stm32f4xx.h"
+#elif defined(OW_PORT_FAMILY_G4)
+#include "stm32g4xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -26,8 +28,8 @@ static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transm
  * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
-#if defined(OW_PORT_FAMILY_G0)
-    // G0 uses the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
+#if defined(OW_PORT_FAMILY_G0) || defined(OW_PORT_FAMILY_G4)
+    // G0/G4 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
         uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
@@ -188,7 +190,7 @@ void ow_stats_tx_enqueue(char c) {
  * which the F4 harness compiles (and test_timing drives) against the RCC
  * and FLASH mocks. hardware_init/app_init/ds18b20_busy stay target-only. */
 
-#if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4)
+#if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4)
 /**
  * @brief Configure system clock
  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).
@@ -198,6 +200,7 @@ void ow_stats_tx_enqueue(char c) {
  *       F4: 180MHz (F446, HSE+PLL with the over-drive sequence), 168MHz
  *       (F405/F407) or 84MHz (the F401 cap) via HSE+PLL, raw HSI
  *       at 16MHz, or raw HSE at the crystal's own frequency.
+ *       G4: 170MHz via HSE+PLL (M=2, N=85, R=2), or raw HSI16 at 16MHz.
  * @note On F4 the crystal comes from OW_HSE_MHZ, a *board* property, because
  *       one part ships on boards with different crystals. A wrong value cannot
  *       be caught at compile time - the PLL simply never locks - so the three
@@ -209,7 +212,7 @@ void ow_stats_tx_enqueue(char c) {
  *       scale every 1-Wire timing by an unknown factor. app_init() reports the
  *       reason over the console and stops.
  */
-#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)
+#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4)
 /* Set by configure_system_clock() and read by app_init(). A return value would
  * have been the obvious channel, but changing the signature changed codegen in
  * families that can never fail, so the state is a flag and the signature is
@@ -226,8 +229,9 @@ static uint8_t ow_clock_ok = 1u;
 /* The wait helper is excluded for the one clock on each family that configures
  * nothing - the MCU is already on its reset oscillator - and so has no wait to
  * bound, which -Werror would otherwise report as an unused function. That
- * clock is 16MHz on F4 (raw HSI) and 8MHz on F3 (raw HSI again: RCC_CFGR.SW=00
- * selects HSI undivided, the /2 only feeding the PLL). */
+ * clock is 16MHz on F4 (raw HSI), 8MHz on F3 (raw HSI again: RCC_CFGR.SW=00
+ * selects HSI undivided, the /2 only feeding the PLL) and 16MHz on G4
+ * (raw HSI16). */
 #if defined(OW_PORT_FAMILY_F3)
 #define OW_CLOCK_NEEDS_WAIT ((OW_PORT_SYSCLK_MHZ) != 8)
 #else
@@ -250,8 +254,8 @@ static uint8_t ow_wait_flag(volatile uint32_t* reg, uint32_t bit) {
 #endif
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3))
-/* The F4/F3 host harness needs to know whether the clock started, since that is
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4))
+/* The F4/F3/G4 host harness needs to know whether the clock started, since that is
  * now a flag rather than a return value. It lives here, not beside the console
  * helpers: those sit in the !DS18B20_TEST_HARNESS block, so under the harness
  * this would be compiled away while app.h still declares it. */
@@ -487,6 +491,103 @@ void configure_system_clock(void) {
 #else
 #error "Unsupported OW_PORT_SYSCLK_MHZ for F4: use 168 or 84 (HSE+PLL, crystal via HSE_MHZ), 180 on an F446 (HSE+PLL+over-drive), 16 (raw HSI), or a value equal to HSE_MHZ (raw HSE)"
 #endif
+#elif defined(OW_PORT_FAMILY_G4)
+/* STM32G4 clock tree (RM0440 §7): HSE + PLL to 170MHz, or raw HSI16.
+ *
+ *   HSE / M(=2)            = 4MHz PLL input (mid-window of 2.66..16MHz)
+ *   4MHz x N(=85)          = 340MHz VCO (inside 64..344MHz)
+ *   340MHz / R(=2)         = 170MHz SYSCLK
+ *
+ * M and N fall out of OW_HSE_MHZ and OW_PORT_SYSCLK_MHZ the same way the F4
+ * dividers do: M = HSE/2 aims the PLL input at exactly 4MHz (mid-window of
+ * the 2.66..16MHz range), N = SYSCLK/2 with the R divider at 2 puts the VCO
+ * at 2*SYSCLK. A board with a different crystal keeps working by changing
+ * HSE_MHZ alone, as long as it divides by 2 (static-asserted below). A clock
+ * the part cannot reach is rejected against OW_PORT_G4_MAX_SYSCLK_MHZ
+ * (ow_port_g4.h).
+ *
+ * APB1/APB2 stay /1 at both clocks (every peripheral here is within its
+ * limit at full speed), so TIM1 = PCLK2 = SYSCLK directly - no x2 doubling
+ * (the ow_port 1us-tick invariant), which is what keeps
+ * OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
+ *
+ * Voltage scaling is selected explicitly, and this is the step the first
+ * bring-up missed. The G4 has three ranges, not two: Range 1 tops out at
+ * 150MHz, and 170MHz needs Range 1 Boost (PWR_CR1.VOS = 00). The reset value
+ * is Range 1, so skipping this runs 170MHz out of spec - and the symptom is
+ * exactly what an out-of-spec core gives: garbage on the console and a dead
+ * debug port, while the 16MHz HSI build next to it works fine. PWR sits on
+ * APB1, so its clock is enabled first; VOS is written with the PLL still
+ * off (RM0440: the scale can only change then), and the VOSF wait is bounded
+ * like every other wait that can never end.
+ *
+ * Flash latency is programmed before the switch so the core never runs fast
+ * without its wait states. 8 is conservative by a row on purpose: excess
+ * wait states cost flash fetch cycles only, while too few hardfault the
+ * switch - and the 170MHz hardware matrix, not this comment, is the proof.
+ */
+#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
+#error "OW_PORT_SYSCLK_MHZ exceeds this G4 part's ceiling (OW_PORT_G4_MAX_SYSCLK_MHZ in ow_port_g4.h). 170MHz is the G474 cap."
+#endif
+
+#define OW_G4_PLLM (((OW_HSE_MHZ) / 4u) - 1u)
+#define OW_G4_PLLN ((OW_PORT_SYSCLK_MHZ) / 2u)
+
+    _Static_assert((OW_HSE_MHZ) % 4u == 0u,
+                   "G4: PLLM field = HSE/4 - 1 for a 4MHz PLL input, so HSE must divide by 4");
+    _Static_assert(OW_G4_PLLM <= 15u,
+                   "G4: PLLM is 4 bits wide (0..15) - check HSE_MHZ");
+    _Static_assert(OW_G4_PLLN >= 8u && OW_G4_PLLN <= 127u,
+                   "G4: PLLN is 7 bits wide (8..127)");
+    _Static_assert((OW_PORT_SYSCLK_MHZ) % 2u == 0u,
+                   "G4: PLLN is SYSCLK/2 with the R divider at 2, so the clock must divide by 2");
+
+#if (OW_PORT_SYSCLK_MHZ) == 170
+    RCC->CR |= RCC_CR_HSEON;
+    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    /* Range 1 Boost before the PLL starts (see above): PWR clock on first,
+     * VOS = 00, then wait out the transition. */
+    RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;
+    PWR->CR1 &= (uint32_t)~PWR_CR1_VOS;
+    {
+        uint32_t vos_guard = OW_CLOCK_FLAG_TIMEOUT;
+        while (vos_guard && (PWR->SR2 & PWR_SR2_VOSF))
+            vos_guard--;
+        if (PWR->SR2 & PWR_SR2_VOSF) {
+            ow_clock_ok = 0u;
+            return;
+        }
+    }
+    /* PLLSRC uses the ST selection value (HSE = both bits, HSI16 = bit 1 -
+     * the odd-looking encoding both stm32g474xx.h and the Cube HAL agree on),
+     * PLLM/PLLN from above, R/2 kept at reset with PLLREN selecting it. */
+    RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (OW_G4_PLLM << RCC_PLLCFGR_PLLM_Pos) |
+                   (OW_G4_PLLN << RCC_PLLCFGR_PLLN_Pos) | RCC_PLLCFGR_PLLREN;
+    RCC->CR |= RCC_CR_PLLON;
+    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLLRDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    // Flash latency: 8 wait states + prefetch + caches, before the switch.
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
+                 FLASH_ACR_LATENCY_8WS;
+    // Switch system clock to PLLRCLK. Left unbounded, as on F4: with the PLL
+    // already locked and selected this cannot hang. (G4 SW encoding is
+    // 1=HSI16, 2=HSE, 3=PLL - not the F1/F4 0/1/2.)
+    RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
+        ;
+#elif (OW_PORT_SYSCLK_MHZ) == 16
+    // Raw HSI16: the MCU already runs on the internal 16MHz RC after reset -
+    // nothing to configure (APB stays /1, so TIM1 = HSI16 = 16MHz)
+#else
+#error "Unsupported OW_PORT_SYSCLK_MHZ for G4: use 170 (HSE+PLL, crystal via HSE_MHZ) or 16 (raw HSI16)"
+#endif
+#undef OW_G4_PLLM
+#undef OW_G4_PLLN
 #elif defined(OW_PORT_FAMILY_F3)
 /* STM32F3 clock tree, and the reason the supported set is what it is.
  *
@@ -612,7 +713,9 @@ void configure_system_clock(void) {
  *       pad after the SYSCFG remap, see ow_port_g0.h), LED on PA4 (no PC13
  *       bonded out on TSSOP20). F4: USART1 TX on PB6 (AF7; the F4DISCOVERY has
  *       no USART1-to-ST-LINK route on PA9), LED on PD12, with an optional
- *       OW_UART_USART3 path on PB10. The F4 console pin is PB6 because that is
+ *       OW_UART_USART3 path on PB10. G4: USART1 TX on PA9 (AF7, external
+ *       USB-UART - the WeAct board has no VCP), LED on PC13 (active low,
+ *       WeAct standard). The F4 console pin is PB6 because that is
  *       where the F4DISCOVERY's ST-LINK VCP is, and it is also where a WeAct
  *       F446RET6's CP210x VCP answers (measured); for a board whose VCP is on
  *       PA9, build with -DOW_UART_USART1_PA9. The F4 busy LED defaults to PD12
@@ -621,7 +724,7 @@ void configure_system_clock(void) {
  *       silkscreen, active high (per the WeAct schematic) - opts in with
  *       -DOW_F4_LED_PB2.
  */
-#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)
+#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
 #if defined(OW_UART_USART3)
     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */
@@ -769,6 +872,32 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#elif defined(OW_PORT_FAMILY_G4)
+    /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (active low).
+     *
+     * The WeAct board wires no UART to USB, so the console rides an external
+     * USB-UART dongle on PA9 - TX only, like every other family. PA9 sits
+     * next to PA10 without touching it, so the bus and the console share the
+     * port. PC13 is the WeAct blue LED (active low, same polarity as F1).
+     *
+     * USART1 is on APB2, which this backend leaves at /1 at every supported
+     * clock (170, 16) - see configure_system_clock() - so PCLK2 = SYSCLK and
+     * the divisor needs no separate clock variable (test pins it through
+     * OW_G4_CONSOLE_BRR in app.h). */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+    // PA9: alternate function push-pull, AF7 = USART1_TX (pin 9 is in AFR[1]).
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER9) | GPIO_MODER_MODER9_1;
+    GPIOA->OTYPER &= ~GPIO_OTYPER_OT_9;
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
+
+    // PC13: plain push-pull output for the busy LED, active low.
+    GPIOC->MODER = (GPIOC->MODER & ~GPIO_MODER_MODER13) | GPIO_MODER_MODER13_0;
+
+    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+    app_set_console_baud(OW_G4_PCLK2_MHZ);
+    USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #else
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
     RCC->APB2ENR |= (RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPCEN);
@@ -794,7 +923,7 @@ void app_time_init(void); /* defined below, with the polled millisecond clock */
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  */
-#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)
+#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4)
 /**
  * @brief Report a clock that never started, then stop.
  * @note Called with the console already up so the reason can be printed, which is
@@ -820,6 +949,18 @@ static void app_stop_on_clock_failure(void) {
         "  and is read in bypass mode: keep the ST-LINK connected, or build\r\n"
         "  with SYSCLK_MHZ=64 (HSI/2+PLL, the internal ceiling) or\r\n"
         "  SYSCLK_MHZ=8 (raw HSI).\r\n"
+        "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
+        "  so the bus could not be timed correctly from here.\r\n";
+#elif defined(OW_PORT_FAMILY_G4)
+    /* The G4 170MHz clock runs off the board crystal through the PLL: HSE/2
+     * must be 4MHz and N = SYSCLK/2. If HSE_MHZ does not match the crystal on
+     * this board the PLL cannot lock. */
+    static const char msg[] =
+        "\r\nFATAL: the system clock did not start.\r\n"
+        "  HSE or the PLL never reported ready, so the requested clock is not\r\n"
+        "  running. On G4 the PLL input is HSE_MHZ/2: if that does not match\r\n"
+        "  the crystal on this board the PLL cannot lock. Rebuild with the\r\n"
+        "  real crystal, or run from the internal RC with SYSCLK_MHZ=16.\r\n"
         "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
         "  so the bus could not be timed correctly from here.\r\n";
 #else
@@ -852,7 +993,7 @@ void app_init(void) {
     configure_system_clock();
     hardware_init();
     app_time_init();
-#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3)
+#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4)
     if (!ow_clock_ok)
         app_stop_on_clock_failure();
 #endif
@@ -933,6 +1074,7 @@ uint32_t app_millis(void) {
  *       active high, so this is the opposite of F1 and F0).
  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high). F4 with
  *       -DOW_F4_LED_PB2: the WeAct F446RET6 bench LED on PB2 (active high).
+ *       G4: LED on PC13 (active low, WeAct standard - same polarity as F1).
  */
 void ds18b20_busy(unsigned action) {
 #if defined(OW_PORT_FAMILY_F3)

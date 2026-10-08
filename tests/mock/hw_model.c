@@ -14,15 +14,21 @@ USART_TypeDef mock_usart1;
 #if OW_PORT_LOW_POWER
 SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
 #endif
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
+DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0/G4 backends: DMAMUX routing */
+DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0/G4 backends: DMAMUX routing */
+#endif
 #if defined(OW_PORT_TARGET_G0)
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
-DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0 backend only */
-DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0 backend only */
 #endif
 #if defined(OW_PORT_TARGET_F4)
 DMA_TypeDef mock_dma2; /* F4 backend only */
 FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
+#endif
+#if defined(OW_PORT_TARGET_G4)
+FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -88,15 +94,20 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3) || defined(OW_PORT_TARGET_G4)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
 #endif
-#if defined(OW_PORT_TARGET_G0)
-    mock_syscfg = (SYSCFG_TypeDef){0};
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
     mock_dmamux_ch2 = (DMAMUX_Channel_TypeDef){0};
     mock_dmamux_ch3 = (DMAMUX_Channel_TypeDef){0};
+#endif
+#if defined(OW_PORT_TARGET_G4)
+    mock_flash = (FLASH_TypeDef){0};
+    /* VOSF starts clear, like hardware after the regulator settles, so the
+     * Range-1-Boost wait in configure_system_clock() passes immediately. */
+    mock_pwr = (PWR_TypeDef){0};
 #endif
 #if defined(OW_PORT_TARGET_F4)
     mock_dma2 = (DMA_TypeDef){0};

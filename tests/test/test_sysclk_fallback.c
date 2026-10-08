@@ -84,15 +84,31 @@
 #error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
 #endif
+#elif defined(OW_PORT_FAMILY_G4)
+#if OW_PORT_SYSCLK_MHZ != 170
+#error "G4 family-macro selection must default to a 170 MHz system clock"
+#endif
+#else
+#error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
+#endif
 
 /* The per-part ceiling has to agree with the default this file just checked, or
  * the guard that rejects an out-of-range request (OW_PORT_F4_MAX_SYSCLK_MHZ,
  * owned by ow_port_f4.h, used by app.c) would reject the part's own
  * default. That pair is the only thing stopping a 180 MHz build for an F407. */
+#if defined(OW_PORT_FAMILY_F4)
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
+#elif defined(OW_PORT_FAMILY_G4)
+/* Same pair for G4 (OW_PORT_G4_MAX_SYSCLK_MHZ, owned by ow_port_g4.h): the
+ * only part tops out at 170MHz. */
+#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_PORT_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#endif
 
+#if defined(OW_PORT_FAMILY_F4)
 /* The F4 PLL takes its M divider from the crystal (OW_HSE_MHZ) rather than a
  * hardcoded 8, so one part can run on boards with different crystals: PLLM =
  * OW_HSE_MHZ puts the PLL input at 1MHz, PLLN = 2 x SYSCLK sets the VCO. An 8MHz
@@ -117,6 +133,32 @@
 #if (OW_PORT_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
 #error "F4: SYSCLK_MHZ=8 selects raw HSE, which runs at the crystal: pass HSE_MHZ=8, or SYSCLK_MHZ=16 for the internal RC"
 #endif
-#else
-#error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
+#endif /* OW_PORT_FAMILY_F4 */
+#if defined(OW_PORT_FAMILY_G4)
+/* The G4 PLL aims its input at exactly 4MHz (M = HSE/4 = 2 for an 8MHz
+ * crystal, field value = divider-1 = 1, mid-window of the 2.66..16MHz range)
+ * with N = SYSCLK/2 and the R divider at 2, so the VCO equals 2 x SYSCLK
+ * and must stay in 64..344MHz (RM0440). The crystal is a board property
+ * (ow_port_g4.h defaults it to 8); a wrong value is not a compile error - the
+ * PLL simply never locks - which is why the input frequency itself is checked
+ * here and not just trusted from the M macro.
+ *
+ * The design point is pinned without restating the macro: whatever M the code
+ * computes, HSE/(M+1) must come out at 4MHz for a crystal that divides by 4. */
+#if !defined(OW_HSE_MHZ)
+#error "OW_HSE_MHZ must be defined for the G4 backend (ow_port_g4.h defaults it to 8)"
 #endif
+#if (OW_HSE_MHZ) < 4 || (OW_HSE_MHZ) > 48
+#error "G4: the HSE oscillator takes a 4..48MHz crystal (DS12288)"
+#endif
+#if (OW_HSE_MHZ) % 4 != 0
+#error "G4: the PLL input is HSE/4 = 4MHz by design, so the crystal must divide by 4"
+#endif
+#if ((OW_HSE_MHZ) / ((OW_HSE_MHZ) / 4u)) != 4
+#error "G4: HSE divided by the M divider (field+1) must give the 4MHz PLL input"
+#endif
+#if ((OW_PORT_SYSCLK_MHZ) * 2) < 64 || ((OW_PORT_SYSCLK_MHZ) * 2) > 344
+#error "G4: at a 4MHz PLL input the VCO equals 2*SYSCLK, which must stay in 64..344MHz"
+#endif
+/* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
+#endif /* OW_PORT_FAMILY_G4 */
