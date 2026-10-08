@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-08 15:59:56</td>
+            <td class="headerValue">2026-10-08 19:36:45</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">60.0&nbsp;%</td>
@@ -278,8 +278,8 @@
 <span id="L207"><span class="lineNum">     207</span>                 :             :  * @return CRC-8 checksum value</span>
 <span id="L208"><span class="lineNum">     208</span>                 :             :  * @note Delegates to the shared 1-Wire layer (same Dallas/Maxim algorithm).</span>
 <span id="L209"><span class="lineNum">     209</span>                 :             :  */</span>
-<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC tlaBgGNC">        1914 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
-<span id="L211"><span class="lineNum">     211</span>                 :<span class="tlaGNC">        1914 :     return onewire_crc8(data, len);</span></span>
+<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC tlaBgGNC">        2436 : uint8_t ds18b20_crc8(const uint8_t* data, uint8_t len) {</span></span>
+<span id="L211"><span class="lineNum">     211</span>                 :<span class="tlaGNC">        2436 :     return onewire_crc8(data, len);</span></span>
 <span id="L212"><span class="lineNum">     212</span>                 :             : }</span>
 <span id="L213"><span class="lineNum">     213</span>                 :             : </span>
 <span id="L214"><span class="lineNum">     214</span>                 :             : /**</span>
@@ -287,7 +287,7 @@
 <span id="L216"><span class="lineNum">     216</span>                 :             :  * @return CRC8 checksum value</span>
 <span id="L217"><span class="lineNum">     217</span>                 :             :  */</span>
 <span id="L218"><span class="lineNum">     218</span>                 :             : __STATIC_FORCEINLINE uint8_t check_scratchpad_crc(void) {</span>
-<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         363 :     return ds18b20_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);</span></span>
+<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         462 :     return ds18b20_crc8(ctx.scratchpad, DS18B20_CRC8_BYTES);</span></span>
 <span id="L220"><span class="lineNum">     220</span>                 :             : }</span>
 <span id="L221"><span class="lineNum">     221</span>                 :             : </span>
 <span id="L222"><span class="lineNum">     222</span>                 :             : /**</span>
@@ -298,8 +298,8 @@
 <span id="L227"><span class="lineNum">     227</span>                 :             : __STATIC_FORCEINLINE void decode_scratchpad(void) {</span>
 <span id="L228"><span class="lineNum">     228</span>                 :             :     /* Captured pulse durations (volatile, written by the read DMA) carry one</span>
 <span id="L229"><span class="lineNum">     229</span>                 :             :      * bit each; onewire_decode_pulses() recovers the scratchpad bytes. */</span>
-<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">         451 :     onewire_decode_pulses(ctx.scratchpad, ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
-<span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">         451 : }</span></span>
+<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">         574 :     onewire_decode_pulses(ctx.scratchpad, ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
+<span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">         574 : }</span></span>
 <span id="L232"><span class="lineNum">     232</span>                 :             : </span>
 <span id="L233"><span class="lineNum">     233</span>                 :             : /**</span>
 <span id="L234"><span class="lineNum">     234</span>                 :             :  * @brief Convert raw temperature data from scratchpad to tenths of degrees Celsius</span>
@@ -307,12 +307,12 @@
 <span id="L236"><span class="lineNum">     236</span>                 :             :  */</span>
 <span id="L237"><span class="lineNum">     237</span>                 :             : __STATIC_FORCEINLINE int16_t decode_temperature(void) {</span>
 <span id="L238"><span class="lineNum">     238</span>                 :             :     // Combine LSB and MSB of temperature register (bytes 0 and 1)</span>
-<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">         363 :     int16_t raw = (int16_t)((ctx.scratchpad[1] &lt;&lt; 8) | ctx.scratchpad[0]);</span></span>
+<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">         462 :     int16_t raw = (int16_t)((ctx.scratchpad[1] &lt;&lt; 8) | ctx.scratchpad[0]);</span></span>
 <span id="L240"><span class="lineNum">     240</span>                 :             :     // Convert to tenths of degrees Celsius (raw value in 1/16th degrees):</span>
 <span id="L241"><span class="lineNum">     241</span>                 :             :     // multiply by 10 and divide by 16 with round-half-away-from-zero so the</span>
 <span id="L242"><span class="lineNum">     242</span>                 :             :     // sign is preserved for small negative values (raw = -1 would otherwise</span>
 <span id="L243"><span class="lineNum">     243</span>                 :             :     // truncate to 0 and report +0.0 °C for a temperature below freezing).</span>
-<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 77 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 220 times"> + </span>]:<span class="tlaGNC">         363 :     return (int16_t)(((int32_t)raw * 10 + ((raw &lt; 0) ? -8 : 8)) / 16);</span></span>
+<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="Branch 0 was taken 84 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 98 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 280 times"> + </span>]:<span class="tlaGNC">         462 :     return (int16_t)(((int32_t)raw * 10 + ((raw &lt; 0) ? -8 : 8)) / 16);</span></span>
 <span id="L245"><span class="lineNum">     245</span>                 :             : }</span>
 <span id="L246"><span class="lineNum">     246</span>                 :             : </span>
 <span id="L247"><span class="lineNum">     247</span>                 :             : /**</span>
@@ -326,26 +326,26 @@
 <span id="L255"><span class="lineNum">     255</span>                 :             :  *       (RCR + 1) × ARR = wait in µs.</span>
 <span id="L256"><span class="lineNum">     256</span>                 :             :  */</span>
 <span id="L257"><span class="lineNum">     257</span>                 :             : __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {</span>
-<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">         323 :     switch (res) {</span></span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">          22 :     case 9:</span></span>
-<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">          22 :         *arr = 9375;</span></span>
-<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">          22 :         *rcr = 9;</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">          22 :         break; /* 10 × 9.375ms = 93.75ms */</span></span>
-<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          11 :     case 10:</span></span>
-<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">          11 :         *arr = 18750;</span></span>
-<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">          11 :         *rcr = 9;</span></span>
-<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">          11 :         break; /* 10 × 18.75ms = 187.5ms */</span></span>
-<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">          11 :     case 11:</span></span>
-<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">          11 :         *arr = 18750;</span></span>
-<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">          11 :         *rcr = 19;</span></span>
-<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">          11 :         break; /* 20 × 18.75ms = 375ms */</span></span>
-<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">         279 :     case 12:</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">         410 :     switch (res) {</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">          28 :     case 9:</span></span>
+<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">          28 :         *arr = 9375;</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">          28 :         *rcr = 9;</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaGNC">          28 :         break; /* 10 × 9.375ms = 93.75ms */</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">          14 :     case 10:</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">          14 :         *arr = 18750;</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">          14 :         *rcr = 9;</span></span>
+<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">          14 :         break; /* 10 × 18.75ms = 187.5ms */</span></span>
+<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">          14 :     case 11:</span></span>
+<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">          14 :         *arr = 18750;</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">          14 :         *rcr = 19;</span></span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">          14 :         break; /* 20 × 18.75ms = 375ms */</span></span>
+<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">         354 :     case 12:</span></span>
 <span id="L272"><span class="lineNum">     272</span>                 :             :     default:</span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">         279 :         *arr = 62500;</span></span>
-<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         279 :         *rcr = 11;</span></span>
-<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">         279 :         break; /* 12 × 62.5ms = 750ms */</span></span>
+<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">         354 :         *arr = 62500;</span></span>
+<span id="L274"><span class="lineNum">     274</span>                 :<span class="tlaGNC">         354 :         *rcr = 11;</span></span>
+<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">         354 :         break; /* 12 × 62.5ms = 750ms */</span></span>
 <span id="L276"><span class="lineNum">     276</span>                 :             :     }</span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">         323 : }</span></span>
+<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">         410 : }</span></span>
 <span id="L278"><span class="lineNum">     278</span>                 :             : </span>
 <span id="L279"><span class="lineNum">     279</span>                 :             : /**</span>
 <span id="L280"><span class="lineNum">     280</span>                 :             :  * @brief Wait for temperature conversion to complete</span>
@@ -356,10 +356,10 @@
 <span id="L285"><span class="lineNum">     285</span>                 :             : __STATIC_FORCEINLINE void wait_conversion(void) {</span>
 <span id="L286"><span class="lineNum">     286</span>                 :             :     uint16_t arr;</span>
 <span id="L287"><span class="lineNum">     287</span>                 :             :     uint8_t rcr;</span>
-<span id="L288"><span class="lineNum">     288</span>   [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 48 times"> + </span> :<span class="tlaGNC">         323 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 11 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 231 times"> + </span>]
-<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">         323 :     onewire_start_timer(arr, rcr);</span></span>
-<span id="L290"><span class="lineNum">     290</span>                 :<span class="tlaGNC">         323 : }</span></span>
+<span id="L288"><span class="lineNum">     288</span>   [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 60 times"> + </span> :<span class="tlaGNC">         410 :     resolution_to_wait(ctx.resolution, &amp;arr, &amp;rcr);</span></span>
+<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 14 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 294 times"> + </span>]
+<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">         410 :     onewire_start_timer(arr, rcr);</span></span>
+<span id="L290"><span class="lineNum">     290</span>                 :<span class="tlaGNC">         410 : }</span></span>
 <span id="L291"><span class="lineNum">     291</span>                 :             : </span>
 <span id="L292"><span class="lineNum">     292</span>                 :             : /**</span>
 <span id="L293"><span class="lineNum">     293</span>                 :             :  * @brief Start inter-measurement pause period (5s)</span>
@@ -455,16 +455,16 @@
 <span id="L383"><span class="lineNum">     383</span>                 :             :  *       addressed operation; the 1-Wire timings are milliseconds.</span>
 <span id="L384"><span class="lineNum">     384</span>                 :             :  */</span>
 <span id="L385"><span class="lineNum">     385</span>                 :             : __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {</span>
-<span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">         275 :     ow_pulse_t* p = phase_pulses.addr;</span></span>
-<span id="L387"><span class="lineNum">     387</span>                 :<span class="tlaGNC">         275 :     onewire_encode_byte(p, DS18B20_MATCH_ROM);</span></span>
-<span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">         275 :     p += DS18B20_BITS_PER_BYTE;</span></span>
-<span id="L389"><span class="lineNum">     389</span>   [<span class="tlaGBC" title="Branch 0 was taken 880 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 110 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1320 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 165 times"> + </span>]:<span class="tlaGNC">        2475 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L390"><span class="lineNum">     390</span>                 :<span class="tlaGNC">        2200 :         onewire_encode_byte(p, ctx.selected_rom[i]);</span></span>
-<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">        2200 :         p += DS18B20_BITS_PER_BYTE;</span></span>
+<span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">         350 :     ow_pulse_t* p = phase_pulses.addr;</span></span>
+<span id="L387"><span class="lineNum">     387</span>                 :<span class="tlaGNC">         350 :     onewire_encode_byte(p, DS18B20_MATCH_ROM);</span></span>
+<span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">         350 :     p += DS18B20_BITS_PER_BYTE;</span></span>
+<span id="L389"><span class="lineNum">     389</span>   [<span class="tlaGBC" title="Branch 0 was taken 1120 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 140 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1680 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 210 times"> + </span>]:<span class="tlaGNC">        3150 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L390"><span class="lineNum">     390</span>                 :<span class="tlaGNC">        2800 :         onewire_encode_byte(p, ctx.selected_rom[i]);</span></span>
+<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">        2800 :         p += DS18B20_BITS_PER_BYTE;</span></span>
 <span id="L392"><span class="lineNum">     392</span>                 :             :     }</span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">         275 :     onewire_encode_byte(&amp;phase_pulses.addr[DS18B20_PREFIX_SLOTS], cmd_byte);</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">         275 :     phase_pulses.addr[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;</span></span>
-<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         275 : }</span></span>
+<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">         350 :     onewire_encode_byte(&amp;phase_pulses.addr[DS18B20_PREFIX_SLOTS], cmd_byte);</span></span>
+<span id="L394"><span class="lineNum">     394</span>                 :<span class="tlaGNC">         350 :     phase_pulses.addr[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;</span></span>
+<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">         350 : }</span></span>
 <span id="L396"><span class="lineNum">     396</span>                 :             : // clang-format off</span>
 <span id="L397"><span class="lineNum">     397</span>                 :             : #include &quot;ds18b20_resolution.c&quot;</span>
 <span id="L398"><span class="lineNum">     398</span>                 :             : #include &quot;ds18b20_txn.c&quot;</span>
@@ -490,20 +490,20 @@
 <span id="L418"><span class="lineNum">     418</span>                 :             :  *          DMA, low-power or DS18B20 software state. Starting a new driver</span>
 <span id="L419"><span class="lineNum">     419</span>                 :             :  *          lifecycle requires an MCU reset.</span>
 <span id="L420"><span class="lineNum">     420</span>                 :             :  */</span>
-<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">         801 : void ds18b20_init(void) {</span></span>
-<span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">         801 :     onewire_init();</span></span>
+<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">        1024 : void ds18b20_init(void) {</span></span>
+<span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">        1024 :     onewire_init();</span></span>
 <span id="L423"><span class="lineNum">     423</span>                 :             :     // No resolution change or command transaction running after init; the</span>
 <span id="L424"><span class="lineNum">     424</span>                 :             :     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that</span>
 <span id="L425"><span class="lineNum">     425</span>                 :             :     // until a scratchpad read or set_resolution tells us otherwise.</span>
-<span id="L426"><span class="lineNum">     426</span>                 :<span class="tlaGNC">         801 :     res_ctx.flags |= DS18B20_RES_FLAG_FINISHED;</span></span>
-<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">         801 :     txn_ctx.flags |= DS18B20_TXN_FLAG_FINISHED;</span></span>
-<span id="L428"><span class="lineNum">     428</span>                 :<span class="tlaGNC">         801 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
-<span id="L429"><span class="lineNum">     429</span>                 :<span class="tlaGNC">         801 :     ctx.scan_index = 0;</span></span>
+<span id="L426"><span class="lineNum">     426</span>                 :<span class="tlaGNC">        1024 :     res_ctx.flags |= DS18B20_RES_FLAG_FINISHED;</span></span>
+<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">        1024 :     txn_ctx.flags |= DS18B20_TXN_FLAG_FINISHED;</span></span>
+<span id="L428"><span class="lineNum">     428</span>                 :<span class="tlaGNC">        1024 :     ctx.resolution = DS18B20_RES_DEFAULT;</span></span>
+<span id="L429"><span class="lineNum">     429</span>                 :<span class="tlaGNC">        1024 :     ctx.scan_index = 0;</span></span>
 <span id="L430"><span class="lineNum">     430</span>                 :             :     // External power is the default wiring assumption; parasite-powered</span>
 <span id="L431"><span class="lineNum">     431</span>                 :             :     // setups opt in explicitly via ds18b20_set_parasite(). The flag byte</span>
 <span id="L432"><span class="lineNum">     432</span>                 :             :     // starts clear (address_mode/scan_mode/parasite all zero).</span>
-<span id="L433"><span class="lineNum">     433</span>                 :<span class="tlaGNC">         801 :     ctx.flags = 0u;</span></span>
-<span id="L434"><span class="lineNum">     434</span>                 :<span class="tlaGNC">         801 : }</span></span>
+<span id="L433"><span class="lineNum">     433</span>                 :<span class="tlaGNC">        1024 :     ctx.flags = 0u;</span></span>
+<span id="L434"><span class="lineNum">     434</span>                 :<span class="tlaGNC">        1024 : }</span></span>
 <span id="L435"><span class="lineNum">     435</span>                 :             : </span>
 <span id="L436"><span class="lineNum">     436</span>                 :             : /**</span>
 <span id="L437"><span class="lineNum">     437</span>                 :             :  * @brief Select which DS18B20 device to measure by its ROM address</span>
@@ -525,40 +525,40 @@
 <span id="L453"><span class="lineNum">     453</span>                 :             :  *       ds18b20_complete() in single-device mode, or between rounds) to switch</span>
 <span id="L454"><span class="lineNum">     454</span>                 :             :  *       addressing.</span>
 <span id="L455"><span class="lineNum">     455</span>                 :             :  */</span>
-<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">         363 : void ds18b20_select(const uint8_t* rom) {</span></span>
+<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">         462 : void ds18b20_select(const uint8_t* rom) {</span></span>
 <span id="L457"><span class="lineNum">     457</span>                 :             :     /* Select is accepted only when no bus transaction is in flight, i.e. at</span>
 <span id="L458"><span class="lineNum">     458</span>                 :             :      * driver IDLE. The per-device scan callback runs at DS18B20_ST_DECODE</span>
 <span id="L459"><span class="lineNum">     459</span>                 :             :      * mid-round: a select() there is rejected so it cannot interrupt the</span>
 <span id="L460"><span class="lineNum">     460</span>                 :             :      * in-progress scan. To leave scan mode, call select() between measurement</span>
 <span id="L461"><span class="lineNum">     461</span>                 :             :      * rounds (at IDLE) or from the single-device ds18b20_complete() callback</span>
 <span id="L462"><span class="lineNum">     462</span>                 :             :      * (which runs at IDLE). */</span>
-<span id="L463"><span class="lineNum">     463</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 341 times"> + </span>]:<span class="tlaGNC">         363 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
-<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">          22 :         return;</span></span>
+<span id="L463"><span class="lineNum">     463</span>         [<span class="tlaGBC" title="Branch 0 was taken 28 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 434 times"> + </span>]:<span class="tlaGNC">         462 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">          28 :         return;</span></span>
 <span id="L465"><span class="lineNum">     465</span>                 :             :     }</span>
-<span id="L466"><span class="lineNum">     466</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 330 times"> + </span>]:<span class="tlaGNC">         341 :     if ((txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
+<span id="L466"><span class="lineNum">     466</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 420 times"> + </span>]:<span class="tlaGNC">         434 :     if ((txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L467"><span class="lineNum">     467</span>                 :             :         // A command transaction is running - reject to keep its addressing.</span>
-<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">          11 :         return;</span></span>
+<span id="L468"><span class="lineNum">     468</span>                 :<span class="tlaGNC">          14 :         return;</span></span>
 <span id="L469"><span class="lineNum">     469</span>                 :             :     }</span>
-<span id="L470"><span class="lineNum">     470</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 319 times"> + </span>]:<span class="tlaGNC">         330 :     if ((res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u) {</span></span>
+<span id="L470"><span class="lineNum">     470</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 406 times"> + </span>]:<span class="tlaGNC">         420 :     if ((res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L471"><span class="lineNum">     471</span>                 :             :         // A resolution change is running - reject to keep its addressing.</span>
-<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">          11 :         return;</span></span>
+<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">          14 :         return;</span></span>
 <span id="L473"><span class="lineNum">     473</span>                 :             :     }</span>
-<span id="L474"><span class="lineNum">     474</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 308 times"> + </span>]:<span class="tlaGNC">         319 :     if (onewire_search_active()) {</span></span>
+<span id="L474"><span class="lineNum">     474</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 392 times"> + </span>]:<span class="tlaGNC">         406 :     if (onewire_search_active()) {</span></span>
 <span id="L475"><span class="lineNum">     475</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
-<span id="L476"><span class="lineNum">     476</span>                 :<span class="tlaGNC">          11 :         return;</span></span>
+<span id="L476"><span class="lineNum">     476</span>                 :<span class="tlaGNC">          14 :         return;</span></span>
 <span id="L477"><span class="lineNum">     477</span>                 :             :     }</span>
 <span id="L478"><span class="lineNum">     478</span>                 :             :     // Explicit single-device addressing: leave simultaneous-conversion mode.</span>
-<span id="L479"><span class="lineNum">     479</span>                 :<span class="tlaGNC">         308 :     ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_SCAN_MODE;</span></span>
-<span id="L480"><span class="lineNum">     480</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 297 times"> + </span>]:<span class="tlaGNC">         308 :     if (rom == 0) {</span></span>
-<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">          11 :         ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;</span></span>
-<span id="L482"><span class="lineNum">     482</span>                 :<span class="tlaGNC">          11 :         return;</span></span>
+<span id="L479"><span class="lineNum">     479</span>                 :<span class="tlaGNC">         392 :     ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_SCAN_MODE;</span></span>
+<span id="L480"><span class="lineNum">     480</span>         [<span class="tlaGBC" title="Branch 0 was taken 14 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 378 times"> + </span>]:<span class="tlaGNC">         392 :     if (rom == 0) {</span></span>
+<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">          14 :         ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;</span></span>
+<span id="L482"><span class="lineNum">     482</span>                 :<span class="tlaGNC">          14 :         return;</span></span>
 <span id="L483"><span class="lineNum">     483</span>                 :             :     }</span>
-<span id="L484"><span class="lineNum">     484</span>         [<span class="tlaGBC" title="Branch 0 was taken 2376 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 297 times"> + </span>]:<span class="tlaGNC">        2673 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">        2376 :         ctx.selected_rom[i] = rom[i];</span></span>
+<span id="L484"><span class="lineNum">     484</span>         [<span class="tlaGBC" title="Branch 0 was taken 3024 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 378 times"> + </span>]:<span class="tlaGNC">        3402 :     for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">        3024 :         ctx.selected_rom[i] = rom[i];</span></span>
 <span id="L486"><span class="lineNum">     486</span>                 :             :     }</span>
 <span id="L487"><span class="lineNum">     487</span>                 :             :     /* The Match ROM table itself is rebuilt from selected_rom on every</span>
 <span id="L488"><span class="lineNum">     488</span>                 :             :      * addressed operation (build_addr_cmd), so select only stores the ROM. */</span>
-<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">         297 :     ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;</span></span>
+<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">         378 :     ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;</span></span>
 <span id="L490"><span class="lineNum">     490</span>                 :             : }</span>
 <span id="L491"><span class="lineNum">     491</span>                 :             : </span>
 <span id="L492"><span class="lineNum">     492</span>                 :             : /**</span>
