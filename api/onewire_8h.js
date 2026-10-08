@@ -1,11 +1,13 @@
 var onewire_8h =
 [
+    [ "ONEWIRE_ALARM_SEARCH", "group__ONEWIRE__Protocol.html#ga5fed02ba54e634f57bd478e320e083b5", null ],
     [ "ONEWIRE_BITS_PER_BYTE", "group__ONEWIRE__Protocol.html#gab22d43cb4e34913349621c66b9fd2c1c", null ],
     [ "ONEWIRE_MAX_READ_BYTES", "group__ONEWIRE__Protocol.html#gae0c96211c002f1d558a4de31f40381f2", null ],
     [ "ONEWIRE_MAX_SLOTS", "group__ONEWIRE__Protocol.html#ga5f7f921694a4ec26d7073e20282d9b4c", null ],
     [ "ONEWIRE_RELEASE_PULSE", "group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d", null ],
     [ "ONEWIRE_ROM_BITS", "group__ONEWIRE__Protocol.html#ga337412c996f5683edf6ddfcf049e73e4", null ],
     [ "ONEWIRE_ROM_BYTES", "group__ONEWIRE__Protocol.html#ga203ac9e9369cd6dac73239439e7e12e1", null ],
+    [ "ONEWIRE_SEARCH_ROM", "group__ONEWIRE__Protocol.html#gaacb5c64dbd17ccd61387d96298803501", null ],
     [ "onewire_search_sink_t", "group__ONEWIRE__Search.html#gaca009becf75c297ae69b4274a7f6abaf", null ],
     [ "onewire_bus_done", "group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119", null ],
     [ "onewire_crc8", "group__ONEWIRE__CRC.html#gac9e2cf3aba30d3216ccbfc8cbacb1a2d", null ],

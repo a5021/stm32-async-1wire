@@ -116,9 +116,31 @@ Macros</h2></td></tr>
 <tr class="memitem:ga0eee31a89c949c98e6341537d9f5564d" id="r_ga0eee31a89c949c98e6341537d9f5564d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d">ONEWIRE_RELEASE_PULSE</a>&#160;&#160;&#160;0u</td></tr>
 <tr class="memdesc:ga0eee31a89c949c98e6341537d9f5564d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Value that releases the bus (idle HIGH) at the end of a multi-slot write or merged write+read operation.  <br /></td></tr>
 <tr class="separator:ga0eee31a89c949c98e6341537d9f5564d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaacb5c64dbd17ccd61387d96298803501" id="r_gaacb5c64dbd17ccd61387d96298803501"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#gaacb5c64dbd17ccd61387d96298803501">ONEWIRE_SEARCH_ROM</a>&#160;&#160;&#160;0xF0</td></tr>
+<tr class="memdesc:gaacb5c64dbd17ccd61387d96298803501"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Search ROM (all devices respond with their ROM)  <br /></td></tr>
+<tr class="separator:gaacb5c64dbd17ccd61387d96298803501"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga5fed02ba54e634f57bd478e320e083b5" id="r_ga5fed02ba54e634f57bd478e320e083b5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__Protocol.html#ga5fed02ba54e634f57bd478e320e083b5">ONEWIRE_ALARM_SEARCH</a>&#160;&#160;&#160;0xEC</td></tr>
+<tr class="memdesc:ga5fed02ba54e634f57bd478e320e083b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Alarm Search (only alarming devices respond)  <br /></td></tr>
+<tr class="separator:ga5fed02ba54e634f57bd478e320e083b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Macro Definition Documentation</h2>
+<a id="ga5fed02ba54e634f57bd478e320e083b5" name="ga5fed02ba54e634f57bd478e320e083b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga5fed02ba54e634f57bd478e320e083b5">&#9670;&#160;</a></span>ONEWIRE_ALARM_SEARCH</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ONEWIRE_ALARM_SEARCH&#160;&#160;&#160;0xEC</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>1-Wire ROM command: Alarm Search (only alarming devices respond) </p>
+
+</div>
+</div>
 <a id="gab22d43cb4e34913349621c66b9fd2c1c" name="gab22d43cb4e34913349621c66b9fd2c1c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gab22d43cb4e34913349621c66b9fd2c1c">&#9670;&#160;</a></span>ONEWIRE_BITS_PER_BYTE</h2>
 
@@ -213,6 +235,22 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Bytes in a device ROM address. </p>
+
+</div>
+</div>
+<a id="gaacb5c64dbd17ccd61387d96298803501" name="gaacb5c64dbd17ccd61387d96298803501"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaacb5c64dbd17ccd61387d96298803501">&#9670;&#160;</a></span>ONEWIRE_SEARCH_ROM</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ONEWIRE_SEARCH_ROM&#160;&#160;&#160;0xF0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>1-Wire ROM command: Search ROM (all devices respond with their ROM) </p>
 
 </div>
 </div>
