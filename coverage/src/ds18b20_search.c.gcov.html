@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-08 04:08:52</td>
+            <td class="headerValue">2026-10-08 15:59:56</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -134,10 +134,10 @@
 <span id="L63"><span class="lineNum">      63</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 275 times"> + </span>]:<span class="tlaGNC">         286 :     if (onewire_search_active()) {</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">          11 :         return; // a search is already running - keep its sink and table</span></span>
 <span id="L65"><span class="lineNum">      65</span>                 :             :     }</span>
-<span id="L66"><span class="lineNum">      66</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 264 times"> + </span>]:<span class="tlaGNC">         275 :     if (!txn_ctx.finished) {</span></span>
+<span id="L66"><span class="lineNum">      66</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 264 times"> + </span>]:<span class="tlaGNC">         275 :     if ((txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          11 :         return; // a command transaction is running</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :             :     }</span>
-<span id="L69"><span class="lineNum">      69</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 253 times"> + </span>]:<span class="tlaGNC">         264 :     if (!res_ctx.finished) {</span></span>
+<span id="L69"><span class="lineNum">      69</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 253 times"> + </span>]:<span class="tlaGNC">         264 :     if ((res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">          11 :         return; // a resolution change owns the timer</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :             :     }</span>
 <span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">         253 :     dev_count = 0;</span></span>
@@ -159,10 +159,10 @@
 <span id="L88"><span class="lineNum">      88</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">         165 :     if (onewire_search_active()) {</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">          11 :         return; // a search is already running - keep its sink</span></span>
 <span id="L90"><span class="lineNum">      90</span>                 :             :     }</span>
-<span id="L91"><span class="lineNum">      91</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 143 times"> + </span>]:<span class="tlaGNC">         154 :     if (!txn_ctx.finished) {</span></span>
+<span id="L91"><span class="lineNum">      91</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 143 times"> + </span>]:<span class="tlaGNC">         154 :     if ((txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L92"><span class="lineNum">      92</span>                 :<span class="tlaGNC">          11 :         return; // a command transaction is running</span></span>
 <span id="L93"><span class="lineNum">      93</span>                 :             :     }</span>
-<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         143 :     if (!res_ctx.finished) {</span></span>
+<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaGBC" title="Branch 0 was taken 11 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         143 :     if ((res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">          11 :         return; // a resolution change owns the timer</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :             :     }</span>
 <span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">         132 :     search_user_sink = sink;</span></span>
