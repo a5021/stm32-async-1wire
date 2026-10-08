@@ -68,12 +68,12 @@ typedef uint8_t ow_pulse_t;
  *  APB clock has only just been gated, so the write is flushed before the
  *  first SYSCFG/TIM1 access below.  (No pin remap on this port: PA9/PA10
  *  are bonded out on the LQFP48, unlike the G031 TSSOP20.) */
-#define OW_PORT_ENABLE_BUS_CLOCKS()                                                  \
-    do {                                                                             \
-        RC.AHB1ENR |= RCC_AHB1ENR_DMA1EN | RCC_AHB1ENR_DMAMUX1EN;                    \
-        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                                           \
-        RC.APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_TIM1EN;                     \
-        (void)RC.APB2ENR; /* settle the APB clock before the TIM1 access below */   \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                               \
+    do {                                                                          \
+        RC.AHB1ENR |= RCC_AHB1ENR_DMA1EN | RCC_AHB1ENR_DMAMUX1EN;                 \
+        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                                        \
+        RC.APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_TIM1EN;                  \
+        (void)RC.APB2ENR; /* settle the APB clock before the TIM1 access below */ \
     } while (0)
 
 /* @brief PA10: alternate function, open-drain, AF6 (TIM1_CH3).
@@ -84,9 +84,9 @@ typedef uint8_t ow_pulse_t;
 #define OW_PORT_CONFIG_BUS_PIN()                                                      \
     do {                                                                              \
         PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
-        PA.OTYPER |= GPIO_OTYPER_OT_10;                                              \
+        PA.OTYPER |= GPIO_OTYPER_OT_10;                                               \
         PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (6u << GPIO_AFRH_AFSEL10_Pos); \
-        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */          \
+        /* Drive strength is configurable via OW_BUS_DRIVE, default MAX. */           \
         PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
                      ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
     } while (0)
@@ -96,13 +96,13 @@ typedef uint8_t ow_pulse_t;
  *  Push-pull is only used by the experimental active-drive write path
  *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
  *  master reads, so every read and reset phase returns to open-drain. */
-#define OW_PORT_SET_PIN_MODE(push_pull)                                  \
-    do {                                                                 \
-        if (push_pull) {                                                 \
+#define OW_PORT_SET_PIN_MODE(push_pull)                                   \
+    do {                                                                  \
+        if (push_pull) {                                                  \
             PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */ \
-        } else {                                                         \
+        } else {                                                          \
             PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */      \
-        }                                                                \
+        }                                                                 \
     } while (0)
 
 /* @brief DMAMUX request selectors (RM0440 §12, DMA request mapping table;
