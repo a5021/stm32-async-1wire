@@ -18,7 +18,8 @@ void ds18b20_test_register_buffers(void) {
      * the offset must be one element, not one byte. */
     hw_register_buf((const void*)&phase_pulses.cmd[1]);
     hw_register_buf((const void*)&phase_pulses.addr[1]);
-    hw_register_buf((const void*)&search_ctx.pulses[1]);
+    hw_register_buf((const void*)&search_cmd_rom[1]);
+    hw_register_buf((const void*)&search_cmd_alarm[1]);
     hw_register_buf((const void*)(uintptr_t)search_read_pulse);
     hw_register_buf((const void*)&phase_pulses.res[1]);
     hw_register_buf((const void*)&phase_pulses.txn[1]);

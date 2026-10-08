@@ -50,6 +50,24 @@ _Static_assert(ONEWIRE_ROM_BITS <= ONEWIRE_MAX_SLOTS, "search ROM pass must fit 
  *        idle HIGH (hardware bus release). */
 static const ow_pulse_t search_read_pulse[3] = {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_RELEASE_PULSE};
 
+/** @brief Pre-encoded Search ROM command (0xF0), LSB-first, plus the trailing
+ *         ONEWIRE_RELEASE_PULSE the CCR3-feed DMA consumes as its final
+ *         transfer (hardware bus release). The command byte never changes, so
+ *         it lives in flash instead of the RAM search context — same pattern
+ *         as search_read_pulse above.
+ *  @note 0xF0 = 0b11110000, sent LSB-first: 0,0,0,0,1,1,1,1. */
+static const ow_pulse_t search_cmd_rom[ONEWIRE_BITS_PER_BYTE + 1] = {
+    ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE,
+    ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE,
+    ONEWIRE_RELEASE_PULSE};
+
+/** @brief Pre-encoded Alarm Search command (0xEC), same layout as above.
+ *  @note 0xEC = 0b11101100, sent LSB-first: 0,0,1,1,0,1,1,1. */
+static const ow_pulse_t search_cmd_alarm[ONEWIRE_BITS_PER_BYTE + 1] = {
+    ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE,
+    ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE,
+    ONEWIRE_RELEASE_PULSE};
+
 /**
  * @defgroup ONEWIRE_Private_Variables ONEWIRE Private Variables
  * @{
@@ -78,16 +96,15 @@ typedef enum {
 
 /**
  * @brief Non-blocking search context
- * @note Holds the loop counters of the search algorithm; the persistent pulse
- *       buffer (pulses) must stay valid across poll calls because the DMA
- *       feeds CCR3 from it asynchronously while the search command is sent.
+ * @note Holds the loop counters of the search algorithm. The search command
+ *       itself is NOT built here: 0xF0/0xEC never change, so the pre-encoded
+ *       flash tables search_cmd_rom/search_cmd_alarm feed the DMA directly.
  */
 typedef struct {
     uint8_t phase; /**< Current phase of the search state machine (onewire_search_phase_t values, packed) */
-    uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search) */
+    uint8_t command; /**< Search command byte (0xF0 Search ROM / 0xEC Alarm Search): selects the flash table */
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
-    ow_pulse_t pulses[ONEWIRE_BITS_PER_BYTE + 1]; /**< Pulse buffer for the search command (+ ONEWIRE_RELEASE_PULSE for hardware bus release) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
     uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
     uint16_t last_zero; /**< Last position where the '0' branch was taken */
@@ -105,8 +122,10 @@ static onewire_search_ctx_t search_ctx;
 _Static_assert(ONEWIRE_SEARCH_DONE <= 255, "search phase enum must fit uint8_t packing");
 
 /* Internal pulse buffers must always fit one RCR window (+ trailing release). */
-_Static_assert(sizeof(search_ctx.pulses) <= ONEWIRE_MAX_SLOTS + 1u,
-               "search command buffer must fit one RCR window");
+_Static_assert(sizeof(search_cmd_rom) / sizeof(search_cmd_rom[0]) == ONEWIRE_BITS_PER_BYTE + 1u,
+               "flash Search ROM table must be 8 slots + trailing release");
+_Static_assert(sizeof(search_cmd_alarm) / sizeof(search_cmd_alarm[0]) == ONEWIRE_BITS_PER_BYTE + 1u,
+               "flash Alarm Search table must be 8 slots + trailing release");
 _Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
                "search pair capture must fit one RCR window");
 
@@ -292,9 +311,6 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     for (uint8_t i = 0; i < ONEWIRE_ROM_BYTES; i++) {
         search_ctx.rom[i] = 0;
     }
-    // Trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final
-    // transfer: this is the hardware bus release after the search command.
-    search_ctx.pulses[ONEWIRE_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;
@@ -334,13 +350,19 @@ uint8_t onewire_search_poll(void) {
     case ONEWIRE_SEARCH_RESET:
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so start a new search pass with the search command
-        // (0xF0 Search ROM / 0xEC Alarm Search).
+        // (0xF0 Search ROM / 0xEC Alarm Search). The command tables are
+        // pre-encoded in flash; only these two protocol commands ever reach
+        // this layer (ds18b20_search_start/alarm_search_start pass the
+        // DS18B20_* constants, and the tests/fuzz cover both).
         if (!onewire_present(search_pair_pulse)) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }
-        onewire_encode_byte(search_ctx.pulses, search_ctx.command);
-        onewire_write_slots(search_ctx.pulses, ONEWIRE_BITS_PER_BYTE);
+        if (search_ctx.command == ONEWIRE_SEARCH_ROM) {
+            onewire_write_slots(search_cmd_rom, ONEWIRE_BITS_PER_BYTE);
+        } else {
+            onewire_write_slots(search_cmd_alarm, ONEWIRE_BITS_PER_BYTE);
+        }
         search_ctx.phase = ONEWIRE_SEARCH_CMD;
         break;
 

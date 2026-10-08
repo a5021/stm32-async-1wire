@@ -46,6 +46,10 @@ extern "C" {
  *        write (slots == 1) the backend uses a separate path without DMA and
  *        does not read entry `slots`. */
 #define ONEWIRE_RELEASE_PULSE 0u
+/** @brief 1-Wire ROM command: Search ROM (all devices respond with their ROM) */
+#define ONEWIRE_SEARCH_ROM 0xF0
+/** @brief 1-Wire ROM command: Alarm Search (only alarming devices respond) */
+#define ONEWIRE_ALARM_SEARCH 0xEC
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32F3, STM32G0) that PlatformIO / STM32CubeMX define on
