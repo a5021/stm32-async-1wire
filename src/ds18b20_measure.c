@@ -22,11 +22,11 @@
  *       application's decision.
  */
 static void scan_finish_or_next(void) {
-    if (!ctx.scan_mode) {
+    if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) {
         // Parasite power: hold the strong pull-up while the driver is parked
         // so the device capacitors stay charged for the next measurement
         // cycle. ds18b20_start_measure() releases it again in START.
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         return;
@@ -42,7 +42,7 @@ static void scan_finish_or_next(void) {
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
         // Parasite power: keep the strong pull-up engaged while parked.
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
     }
@@ -60,7 +60,8 @@ void ds18b20_start_measure(void) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
         return; // a measurement cycle is in progress
     }
-    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
+    if (onewire_search_active() || (res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u ||
+        (txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return; // the search, a resolution change or a command owns the timer
     }
     ctx.current_state = DS18B20_ST_START;
@@ -75,13 +76,14 @@ void ds18b20_scan_start(void) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
         return; // a measurement cycle is in progress
     }
-    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
+    if (onewire_search_active() || (res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u ||
+        (txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return; // the search, a resolution change or a command owns the timer
     }
     if (dev_count == 0) {
         return; // nothing discovered: there is no device to convert
     }
-    ctx.scan_mode = 1;
+    ctx.flags |= DS18B20_FLAG_SCAN_MODE;
     ctx.scan_index = 0;
 }
 
@@ -128,12 +130,12 @@ static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
         ds18b20_busy(0);
         ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
         // Parasite power: hold the strong pull-up while parked.
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         return;
     }
-    if (ctx.address_mode) {
+    if ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) {
         build_addr_cmd(cmd_byte);
         onewire_write_slots(phase_pulses.addr, DS18B20_MATCH_SLOTS);
     } else {
@@ -153,7 +155,8 @@ void ds18b20_poll(void) {
     // Ownership guard: while the device search, a resolution change or a
     // command transaction owns the timer, the measurement state machine must
     // stay out of the way and not react to their UIFs.
-    if (onewire_search_active() || !res_ctx.finished || !txn_ctx.finished) {
+    if (onewire_search_active() || (res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u ||
+        (txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return;
     }
 
@@ -188,7 +191,7 @@ void ds18b20_poll(void) {
         // stays idle here and the application's pause between rounds
         // actually engages instead of the next round starting on the very
         // next poll.
-        if (!ctx.scan_mode) {
+        if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) {
             break;
         }
         ctx.current_state = DS18B20_ST_START;
@@ -200,7 +203,7 @@ void ds18b20_poll(void) {
         ds18b20_busy(1);
         // Parasite power: release the strong pull-up so the reset pulse can
         // drive the line LOW; it is re-engaged for the conversion window.
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(0);
         }
         // Initiate 1-Wire bus reset sequence
@@ -210,17 +213,17 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_CONVERT:
-        if (ctx.scan_mode) {
+        if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) != 0u) {
             // Scan mode: broadcast Convert T (Skip ROM) so every sensor starts
             // converting in parallel; a single conversion wait covers them all.
             ctx.scan_index = 0; // new round: read back starting from device 0
-            ctx.address_mode = 0;
+            ctx.flags &= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;
         }
         // Parasite power: the Convert T command is master-only (the slave does
         // not pull the line LOW during it), so keep the strong pull-up engaged
         // while the command is transmitted. This feeds the slave through the
         // command phase; the conversion window below re-asserts it anyway.
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         issue_command(DS18B20_CONVERT_T, DS18B20_ST_WAIT);
@@ -231,7 +234,7 @@ void ds18b20_poll(void) {
         // during the whole conversion, so drive the line HIGH actively before
         // the wait starts (engaging here and starting the timer in the same
         // transition keeps wait and supply aligned regardless of poll latency).
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         // Start timer for the conversion wait (93.75ms @ 9-bit .. 750ms @ 12-bit)
@@ -250,23 +253,23 @@ void ds18b20_poll(void) {
         break;
 
     case DS18B20_ST_REQUEST:
-        if (ctx.scan_mode) {
+        if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) != 0u) {
             // Scan mode: read the current device back via Match ROM. The
             // table is rebuilt from selected_rom on every addressed
             // operation (issue_command), so only the ROM is staged here.
             for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
                 ctx.selected_rom[i] = dev_roms[ctx.scan_index][i];
             }
-            ctx.address_mode = 1;
+            ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;
         }
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         issue_command(DS18B20_READ_SCRATCHPAD, DS18B20_ST_READ);
         break;
 
     case DS18B20_ST_READ:
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(0);
         }
         onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN);
@@ -277,7 +280,8 @@ void ds18b20_poll(void) {
         /* Snapshot pulse widths before decode_scratchpad() overwrites them
          * via the union alias (scratchpad[n] == pulse[n]). */
         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,
-                               ctx.address_mode ? ctx.selected_rom : (const uint8_t*)0);
+                               ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) ? ctx.selected_rom
+                                                                               : (const uint8_t*)0);
         // Decode captured pulse durations into scratchpad bytes
         decode_scratchpad();
         // Turn off LED to indicate measurement complete
@@ -288,14 +292,14 @@ void ds18b20_poll(void) {
         // own per-device addressing and stays in DECODE: a select() from the
         // scan callback is rejected, and it reports every device before
         // returning to IDLE at the round end.
-        if (!ctx.scan_mode) {
+        if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) {
             ctx.current_state = DS18B20_ST_IDLE;
         }
 
         // Match ROM mode: if the addressed device is absent, nobody drives
         // the bus after the address, so the whole scratchpad reads back as
         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.
-        if (ctx.address_mode) {
+        if ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) {
             uint8_t all_ones = 1;
             for (uint8_t i = 0; i < DS18B20_SCRATCHPAD_LEN; i++) {
                 if (ctx.scratchpad[i] != 0xFF) {

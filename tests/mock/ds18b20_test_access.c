@@ -30,8 +30,7 @@ void ds18b20_test_set_state(ds18b20_state_t s) { ctx.current_state = s; }
 
 void ds18b20_test_reset_ctx(void) {
     ctx.current_state = DS18B20_ST_IDLE;
-    ctx.address_mode = 0;
-    ctx.scan_mode = 0;
+    ctx.flags &= (uint8_t)~(DS18B20_FLAG_ADDRESS_MODE | DS18B20_FLAG_SCAN_MODE);
     ctx.scan_index = 0;
     ctx.resolution = DS18B20_RES_DEFAULT; /* 12 bit, DS18B20 power-on default */
 }
@@ -43,8 +42,7 @@ uint8_t ds18b20_test_get_res_pulse(uint8_t i) { return phase_pulses.res[i]; }
 void ds18b20_test_reset_resolution(void) {
     res_ctx.phase = DS18B20_RES_DONE;
     res_ctx.pending_res = DS18B20_RES_DEFAULT;
-    res_ctx.applied = 0;
-    res_ctx.finished = 1;
+    res_ctx.flags = DS18B20_RES_FLAG_FINISHED;
 }
 
 void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) { ctx.capture[i] = v; }
@@ -55,8 +53,16 @@ void ds18b20_test_set_scratchpad(uint8_t i, uint8_t v) { ctx.scratchpad[i] = v; 
 
 void ds18b20_test_decode_scratchpad(void) { decode_scratchpad(); }
 
-uint8_t ds18b20_test_get_address_mode(void) { return ctx.address_mode; }
-void ds18b20_test_set_address_mode(uint8_t m) { ctx.address_mode = m; }
+uint8_t ds18b20_test_get_address_mode(void) {
+    return (uint8_t)((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u);
+}
+void ds18b20_test_set_address_mode(uint8_t m) {
+    if (m != 0u) {
+        ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;
+    } else {
+        ctx.flags &= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;
+    }
+}
 
 int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
 unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
@@ -102,7 +108,7 @@ const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
 const ow_pulse_t* test_res_pulses_feed_addr(void) { return phase_pulses.res + 1u; }
 
 void ds18b20_test_reset_search(void) {
-    search_ctx.finished = 1;
+    search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
     search_ctx.phase = ONEWIRE_SEARCH_DONE;
     search_ctx.found = 0;
     search_ctx.max = 0;
@@ -127,8 +133,14 @@ void ds18b20_test_set_device(uint8_t index, const uint8_t* rom) {
 
 void ds18b20_test_set_device_count(uint8_t n) { dev_count = n; }
 uint8_t ds18b20_test_get_device_count(void) { return dev_count; }
-uint8_t ds18b20_test_get_scan_mode(void) { return ctx.scan_mode; }
-void ds18b20_test_set_scan_mode(uint8_t m) { ctx.scan_mode = m; }
+uint8_t ds18b20_test_get_scan_mode(void) { return (uint8_t)((ctx.flags & DS18B20_FLAG_SCAN_MODE) != 0u); }
+void ds18b20_test_set_scan_mode(uint8_t m) {
+    if (m != 0u) {
+        ctx.flags |= DS18B20_FLAG_SCAN_MODE;
+    } else {
+        ctx.flags &= (uint8_t)~DS18B20_FLAG_SCAN_MODE;
+    }
+}
 uint8_t ds18b20_test_get_scan_index(void) { return ctx.scan_index; }
 
 void ds18b20_test_reset_txn(void) {
@@ -138,13 +150,13 @@ void ds18b20_test_reset_txn(void) {
     txn_ctx.payload_len = 0;
     txn_ctx.read_bytes = 0;
     txn_ctx.wait_us = 0;
-    txn_ctx.bare = 0;
     txn_ctx.slots = 0;
-    txn_ctx.ok = 0;
-    txn_ctx.finished = 1;
+    txn_ctx.flags = DS18B20_TXN_FLAG_FINISHED;
 }
 
 uint8_t ds18b20_test_get_txn_pulse(uint8_t i) { return phase_pulses.txn[i]; }
 uint8_t ds18b20_test_get_txn_slots(void) { return txn_ctx.slots; }
-uint8_t ds18b20_test_get_txn_ok(void) { return txn_ctx.ok; }
-uint8_t ds18b20_test_get_txn_finished(void) { return txn_ctx.finished; }
+uint8_t ds18b20_test_get_txn_ok(void) { return (uint8_t)((txn_ctx.flags & DS18B20_TXN_FLAG_OK) != 0u); }
+uint8_t ds18b20_test_get_txn_finished(void) {
+    return (uint8_t)((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) != 0u);
+}

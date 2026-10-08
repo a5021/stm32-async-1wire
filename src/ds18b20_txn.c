@@ -36,8 +36,9 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
      * rejected. Without this check a command could slip through during the
      * brief IDLE pause between scan rounds. */
     return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &&
-                     !ctx.scan_mode && !onewire_search_active() &&
-                     res_ctx.finished && txn_ctx.finished);
+                     (ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u && !onewire_search_active() &&
+                     (res_ctx.flags & DS18B20_RES_FLAG_FINISHED) != 0u &&
+                     (txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) != 0u);
 }
 
 /**
@@ -52,10 +53,12 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
 __STATIC_FORCEINLINE void txn_build_pulses(void) {
     // In scan mode the command must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
-    const uint8_t use_match = ctx.address_mode && !ctx.scan_mode && !txn_ctx.bare;
+    const uint8_t use_match = ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) &&
+                              ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) &&
+                              (txn_ctx.flags & DS18B20_TXN_FLAG_BARE) == 0u;
     ow_pulse_t* p = phase_pulses.txn;
     uint8_t bytes = 0;
-    if (!txn_ctx.bare) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_BARE) == 0u) {
         if (use_match) {
             onewire_encode_byte(p, DS18B20_MATCH_ROM);
             p += DS18B20_BITS_PER_BYTE;
@@ -112,7 +115,7 @@ __STATIC_FORCEINLINE void txn_copy_out(uint8_t len) {
  *         running
  */
 static uint8_t txn_poll(void) {
-    if (txn_ctx.finished) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) != 0u) {
         return 1;
     }
 
@@ -121,7 +124,7 @@ static uint8_t txn_poll(void) {
         // The timer is idle from here on: it is picked up again by the next
         // ds18b20_start_measure() (or by the next search/command), which is
         // what keeps a command from silently starting a measurement.
-        txn_ctx.finished = 1;
+        txn_ctx.flags |= DS18B20_TXN_FLAG_FINISHED;
         return 1;
     }
 
@@ -142,7 +145,7 @@ static uint8_t txn_poll(void) {
                 break;
             }
         }
-        if (ctx.parasite) {
+        if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
             onewire_strong_pullup(1);
         }
         onewire_write_slots(phase_pulses.txn, txn_ctx.slots);
@@ -153,7 +156,7 @@ static uint8_t txn_poll(void) {
         // Command write completed: read the response back if the command has
         // one, otherwise wait the required hold-off or finish immediately.
         if (txn_ctx.read_bytes) {
-            if (ctx.parasite) {
+            if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
                 onewire_strong_pullup(0);
             }
             onewire_read_data(ctx.pulse, txn_ctx.read_bytes);
@@ -162,16 +165,16 @@ static uint8_t txn_poll(void) {
             // Parasite power: Copy Scratchpad / Recall E² draw their supply
             // from the bus while the EEPROM programs - drive HIGH actively
             // for the hold-off window.
-            if (ctx.parasite) {
+            if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
                 onewire_strong_pullup(1);
             }
             onewire_start_timer(txn_ctx.wait_us, 0);
             txn_ctx.phase = DS18B20_TXN_WAIT;
         } else {
-            if (ctx.parasite) {
+            if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
                 onewire_strong_pullup(0);
             }
-            txn_ctx.ok = 1;
+            txn_ctx.flags |= DS18B20_TXN_FLAG_OK;
             txn_ctx.phase = DS18B20_TXN_DONE;
         }
         break;
@@ -179,7 +182,7 @@ static uint8_t txn_poll(void) {
     case DS18B20_TXN_READ:
         // Data read completed: decode the captured pulse durations.
         txn_decode_read();
-        txn_ctx.ok = 1;
+        txn_ctx.flags |= DS18B20_TXN_FLAG_OK;
         txn_ctx.phase = DS18B20_TXN_DONE;
         break;
 
@@ -188,7 +191,7 @@ static uint8_t txn_poll(void) {
         // strong pull-up unconditionally (idempotent) so a parasite flag
         // cleared mid-window cannot leave the bus actively driven.
         onewire_strong_pullup(0);
-        txn_ctx.ok = 1;
+        txn_ctx.flags |= DS18B20_TXN_FLAG_OK;
         txn_ctx.phase = DS18B20_TXN_DONE;
         break;
 
@@ -224,13 +227,12 @@ static void txn_start(uint8_t command, uint8_t* out, const uint8_t* payload,
     txn_ctx.out = out;
     txn_ctx.read_bytes = read_bytes;
     txn_ctx.wait_us = wait_us;
-    txn_ctx.bare = bare;
     txn_ctx.payload_len = payload_len;
     for (uint8_t i = 0; i < payload_len && i < sizeof(txn_ctx.payload); i++) {
         txn_ctx.payload[i] = payload[i];
     }
-    txn_ctx.ok = 0;
-    txn_ctx.finished = 0;
+    /* Fresh transaction: only the bare bit survives (ok/finished are clear). */
+    txn_ctx.flags = bare ? DS18B20_TXN_FLAG_BARE : 0u;
     txn_build_pulses(); // Pre-build the command for the current address mode
     onewire_strong_pullup(0);
     txn_ctx.phase = DS18B20_TXN_RESET;
@@ -257,7 +259,7 @@ uint8_t ds18b20_read_rom_poll(void) {
     if (!txn_poll()) {
         return 0;
     }
-    if (txn_ctx.ok && txn_ctx.out) {
+    if (((txn_ctx.flags & DS18B20_TXN_FLAG_OK) != 0u) && txn_ctx.out) {
         txn_copy_out(DS18B20_ROM_BYTES);
     }
     return 1;
@@ -306,7 +308,7 @@ uint8_t ds18b20_read_scratchpad_poll(void) {
     if (!txn_poll()) {
         return 0;
     }
-    if (txn_ctx.ok && txn_ctx.out) {
+    if (((txn_ctx.flags & DS18B20_TXN_FLAG_OK) != 0u) && txn_ctx.out) {
         txn_copy_out(DS18B20_SCRATCHPAD_LEN);
         if (txn_ctx.raw[DS18B20_SCRATCHPAD_LEN - 1] ==
             ds18b20_crc8(txn_ctx.raw, DS18B20_CRC8_BYTES)) {
@@ -376,7 +378,7 @@ uint8_t ds18b20_recall_eeprom_poll(void) {
  *         a device present (and, for read commands, read its data back),
  *         0 when it aborted (e.g. no device present) or nothing ran yet
  */
-uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
+uint8_t ds18b20_last_command_ok(void) { return (uint8_t)((txn_ctx.flags & DS18B20_TXN_FLAG_OK) != 0u); }
 
 /**
  * @brief Declare the bus as parasite-powered
@@ -392,7 +394,11 @@ uint8_t ds18b20_last_command_ok(void) { return txn_ctx.ok; }
  *       this flag on success; this setter tells the driver how to behave.
  */
 void ds18b20_set_parasite(uint8_t parasite) {
-    ctx.parasite = parasite ? 1u : 0u;
+    if (parasite != 0u) {
+        ctx.flags |= DS18B20_FLAG_PARASITE;
+    } else {
+        ctx.flags &= (uint8_t)~DS18B20_FLAG_PARASITE;
+    }
 }
 
 /**
@@ -400,12 +406,12 @@ void ds18b20_set_parasite(uint8_t parasite) {
  * @return 1 when the strong pull-up will be engaged during conversion and
  *         EEPROM programming windows, 0 for external VDD supply
  */
-uint8_t ds18b20_parasite_mode(void) { return ctx.parasite; }
+uint8_t ds18b20_parasite_mode(void) { return (uint8_t)((ctx.flags & DS18B20_FLAG_PARASITE) != 0u); }
 
 /**
  * @brief Detect the bus wiring and configure parasite mode automatically
  * @note Issues a Read Power Supply command and stores the decoded answer in
- *       ctx.parasite on success (see ds18b20_detect_parasite_poll()).
+ *       the parasite flag on success (see ds18b20_detect_parasite_poll()).
  */
 void ds18b20_detect_parasite(void) { txn_start(DS18B20_READ_POWER_SUPPLY, &detect_buf, 0, 0, 1, 0, 0); }
 
@@ -413,9 +419,13 @@ uint8_t ds18b20_detect_parasite_poll(void) {
     if (!txn_poll()) {
         return 0;
     }
-    if (txn_ctx.ok) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_OK) != 0u) {
         // The sensor drives one bit: 0 = parasite power, 1 = external power.
-        ctx.parasite = (txn_ctx.raw[0] & 0x01) ? 0u : 1u;
+        if ((txn_ctx.raw[0] & 0x01) != 0u) {
+            ctx.flags &= (uint8_t)~DS18B20_FLAG_PARASITE;
+        } else {
+            ctx.flags |= DS18B20_FLAG_PARASITE;
+        }
     }
     return 1;
 }

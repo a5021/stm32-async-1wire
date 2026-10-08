@@ -76,13 +76,18 @@ typedef struct {
         uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
     };
     uint8_t current_state; /**< Current state machine state (ds18b20_state_t values, packed from enum to save RAM) */
-    uint8_t address_mode; /**< 0 = Skip ROM (all devices), non-zero = Match ROM */
-    uint8_t scan_mode; /**< 1 = simultaneous multi-device conversion (scan) mode */
+    uint8_t flags; /**< DS18B20_FLAG_* bits (address_mode/scan_mode/parasite) */
     uint8_t scan_index; /**< Index of the device currently read in scan mode */
     uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
     uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
-    uint8_t parasite; /**< 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
 } DS18B20_ctx_t;
+
+/** @brief Non-zero = Match ROM addressing (0 = Skip ROM broadcast) */
+#define DS18B20_FLAG_ADDRESS_MODE (1u << 0)
+/** @brief 1 = simultaneous multi-device conversion (scan) mode */
+#define DS18B20_FLAG_SCAN_MODE (1u << 1)
+/** @brief 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
+#define DS18B20_FLAG_PARASITE (1u << 2)
 
 /**
  * @brief Non-blocking single-command transaction phases
@@ -104,21 +109,32 @@ typedef enum {
  *       shared phase_pulses.txn workspace (see the union above), which must
  *       stay valid across poll calls because the DMA feeds CCR3 from it
  *       asynchronously.
+ * @note Field order is load-bearing for RAM: out/wait_us first, then bytes,
+ *       so no padding slips between the pointer and the 16-bit wait. The
+ *       one-bit states share flags (explicit masks, not C bitfields — layout
+ *       must stay deterministic across toolchains). There is no ISR in this
+ *       architecture (everything is poll-driven), so read-modify-write on the
+ *       flag bytes is safe.
  */
 typedef struct {
+    uint8_t* out; /**< User result buffer (valid until the command finishes) */
+    uint16_t wait_us; /**< Timed wait after the command (0 = none) */
     uint8_t phase; /**< Current phase of the transaction (ds18b20_txn_phase_t values, packed) */
     uint8_t command; /**< DS18B20 function command byte (0x33/0x4E/0x48/0xB8/0xB4/0xBE) */
-    uint8_t* out; /**< User result buffer (valid until the command finishes) */
     uint8_t payload[3]; /**< Write Scratchpad payload (TH, TL, CFG) */
     uint8_t payload_len; /**< 0..3 (payload bytes written after the command) */
     uint8_t read_bytes; /**< Bytes to read back (0 = no read phase) */
-    uint16_t wait_us; /**< Timed wait after the command (0 = none) */
-    uint8_t bare; /**< 1 = no addressing prefix (Read ROM: single-device bus only) */
     uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
     uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
-    uint8_t ok; /**< 1 once the transaction completed with a device present / valid read */
-    uint8_t finished; /**< 1 once the transaction finished (or aborted) */
+    uint8_t flags; /**< DS18B20_TXN_FLAG_* bits (bare/ok/finished) */
 } ds18b20_txn_ctx_t;
+
+/** @brief Transaction without addressing prefix (Read ROM: single-device bus only) */
+#define DS18B20_TXN_FLAG_BARE (1u << 0)
+/** @brief Set once the transaction completed with a device present / valid read */
+#define DS18B20_TXN_FLAG_OK (1u << 1)
+/** @brief Set once the transaction finished (or aborted) */
+#define DS18B20_TXN_FLAG_FINISHED (1u << 2)
 
 /**
  * @}
@@ -132,6 +148,11 @@ typedef struct {
 /** @brief Global driver context instance */
 static DS18B20_ctx_t ctx;
 
+/* Packing guard: the context layout is hand-packed (u8 phases, flag bytes,
+ * no padding). If a field is added, update this number knowingly — every
+ * byte here is .bss on all families. */
+_Static_assert(sizeof(ctx) == 84, "driver context must stay 84 bytes");
+
 /* RCR guard: every DS18B20 pass must fit one 8-bit RCR window (256 slots). */
 _Static_assert(DS18B20_MATCH_SLOTS <= ONEWIRE_MAX_SLOTS,
                "Match ROM write must fit one RCR window");
@@ -142,6 +163,12 @@ _Static_assert(DS18B20_SCRATCHPAD_LEN <= ONEWIRE_MAX_READ_BYTES,
 
 /** @brief Global single-command transaction context instance */
 static ds18b20_txn_ctx_t txn_ctx;
+
+/* Packing guard: pointer/wait first, flag byte last — 24 bytes, no padding.
+ * Firmware-only: on the host the pointer is 8 bytes wide. */
+#ifndef HOST_BUILD
+_Static_assert(sizeof(txn_ctx) == 24, "transaction context must stay 24 bytes");
+#endif
 
 _Static_assert(DS18B20_RES_SLOTS_MAX <= ONEWIRE_MAX_SLOTS,
                "longest txn write must fit one RCR window");
@@ -396,14 +423,14 @@ void ds18b20_init(void) {
     // No resolution change or command transaction running after init; the
     // DS18B20 powers up at 12 bit (750ms conversion), so wait for exactly that
     // until a scratchpad read or set_resolution tells us otherwise.
-    res_ctx.finished = 1;
-    txn_ctx.finished = 1;
+    res_ctx.flags |= DS18B20_RES_FLAG_FINISHED;
+    txn_ctx.flags |= DS18B20_TXN_FLAG_FINISHED;
     ctx.resolution = DS18B20_RES_DEFAULT;
-    ctx.scan_mode = 0;
     ctx.scan_index = 0;
     // External power is the default wiring assumption; parasite-powered
-    // setups opt in explicitly via ds18b20_set_parasite().
-    ctx.parasite = 0;
+    // setups opt in explicitly via ds18b20_set_parasite(). The flag byte
+    // starts clear (address_mode/scan_mode/parasite all zero).
+    ctx.flags = 0u;
 }
 
 /**
@@ -436,11 +463,11 @@ void ds18b20_select(const uint8_t* rom) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
         return;
     }
-    if (!txn_ctx.finished) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         // A command transaction is running - reject to keep its addressing.
         return;
     }
-    if (!res_ctx.finished) {
+    if ((res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u) {
         // A resolution change is running - reject to keep its addressing.
         return;
     }
@@ -449,9 +476,9 @@ void ds18b20_select(const uint8_t* rom) {
         return;
     }
     // Explicit single-device addressing: leave simultaneous-conversion mode.
-    ctx.scan_mode = 0;
+    ctx.flags &= (uint8_t)~DS18B20_FLAG_SCAN_MODE;
     if (rom == 0) {
-        ctx.address_mode = 0;
+        ctx.flags &= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;
         return;
     }
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
@@ -459,7 +486,7 @@ void ds18b20_select(const uint8_t* rom) {
     }
     /* The Match ROM table itself is rebuilt from selected_rom on every
      * addressed operation (build_addr_cmd), so select only stores the ROM. */
-    ctx.address_mode = 1;
+    ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;
 }
 
 /**

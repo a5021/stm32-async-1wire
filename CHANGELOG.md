@@ -36,10 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The addressed (Match ROM) table joined the union too: its prefix is now
   rebuilt from the stored selection on every operation instead of once per
   selection, so a transaction reusing the storage between measurements is
-  harmless. The constant Search ROM / Alarm Search commands moved to flash
+  harmless.   The constant Search ROM / Alarm Search commands moved to flash
   tables; the search context shrank from 44 to 32 bytes on STM32F0 (52 to 32
-  on STM32F4, where pulse entries are 16-bit). `.bss` on `1_basic` shrinks by
-  228 bytes on STM32F0 (676 → 448) and by 452 bytes on STM32F4 (1004 → 552). Device ROMs and the search buffer
+  on STM32F4, where pulse entries are 16-bit). One-bit states packed into flag
+  bytes with explicit masks (no ISR exists, so read-modify-write is safe):
+  transaction 32 to 24, driver context 86 to 84, resolution 4 bytes, plus
+  uint8_t search counters. `.bss` on `1_basic` shrinks by 244 bytes on
+  STM32F0 (676 → 432) and by 468 bytes on STM32F4 (1004 → 536). Device ROMs and the search buffer
   stay separate: both span phases where the union would be overwritten (the
   search state additionally lives in another translation unit).
   Single-sensor builds can also set `-DDS18B20_MAX_DEVICES=1` to trim the scan

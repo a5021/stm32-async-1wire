@@ -18,10 +18,12 @@
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
 # History: f0 352/1012/460 and f4 465/1124/572 before the flash search-command
-# tables (search_ctx 44->32 on F0, 52->32 on F4).
+# tables (search_ctx 44->32 on F0, 52->32 on F4); f0 340/1000/448 and f4
+# 445/1104/552 before the flag-byte packing (txn 32->24, ctx 86->84, res
+# 5->4; search counters give 0: sink-pointer alignment absorbs them).
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
-#   f0             340                1000              448
-#   f4             445                1104              552
+#   f0             329                 984              432
+#   f4             434                1088              536
 #
 # Matching goes through fixed strings on purpose (see check_version.sh: this
 # repo checks out CRLF on Windows and LF in CI).
@@ -114,8 +116,8 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 
-check f0 340 1000 448
-check f4 445 1104 552
+check f0 329 984 432
+check f4 434 1088 536
 
 if [ "$fail" -ne 0 ]; then
     exit 1

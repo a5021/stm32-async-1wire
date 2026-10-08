@@ -63,10 +63,10 @@ void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices) {
     if (onewire_search_active()) {
         return; // a search is already running - keep its sink and table
     }
-    if (!txn_ctx.finished) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return; // a command transaction is running
     }
-    if (!res_ctx.finished) {
+    if ((res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u) {
         return; // a resolution change owns the timer
     }
     dev_count = 0;
@@ -88,10 +88,10 @@ void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices)
     if (onewire_search_active()) {
         return; // a search is already running - keep its sink
     }
-    if (!txn_ctx.finished) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return; // a command transaction is running
     }
-    if (!res_ctx.finished) {
+    if ((res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u) {
         return; // a resolution change owns the timer
     }
     search_user_sink = sink;

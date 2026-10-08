@@ -106,18 +106,28 @@ typedef struct {
     uint8_t family; /**< 1-Wire family code to accept, or 0 to accept every family */
     uint8_t rom[ONEWIRE_ROM_BYTES]; /**< ROM being assembled (bit by bit) */
     uint8_t id_bit_number; /**< Current bit position (1..64) */
-    uint16_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm) */
-    uint16_t last_zero; /**< Last position where the '0' branch was taken */
+    uint8_t last_discrepancy; /**< Last discrepancy point (Maxim algorithm; fits uint8_t: <= 64) */
+    uint8_t last_zero; /**< Last position where the '0' branch was taken (fits uint8_t: <= 64) */
     uint8_t found; /**< Number of accepted devices found */
     uint8_t max; /**< Maximum number of devices to report */
-    uint8_t finished; /**< 1 once the search has completed */
-    uint8_t prev_leaf_valid; /**< 1 once prev_leaf holds the previous pass's ROM */
+    uint8_t flags; /**< ONEWIRE_SEARCH_FLAG_* bits (finished/prev_leaf_valid) */
     uint8_t prev_leaf[ONEWIRE_ROM_BYTES]; /**< ROM of the preceding completed walk */
     onewire_search_sink_t sink; /**< Per-device callback */
 } onewire_search_ctx_t;
 
+/** @brief Set once the search has completed */
+#define ONEWIRE_SEARCH_FLAG_FINISHED (1u << 0)
+/** @brief Set once prev_leaf holds the previous pass's ROM */
+#define ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID (1u << 1)
+
 /** @brief Global search context instance */
 static onewire_search_ctx_t search_ctx;
+
+/* Packing guard: 32 bytes, no padding on any family.
+ * Firmware-only: on the host the sink pointer is 8 bytes wide. */
+#ifndef HOST_BUILD
+_Static_assert(sizeof(search_ctx) == 32, "search context must stay 32 bytes");
+#endif
 
 _Static_assert(ONEWIRE_SEARCH_DONE <= 255, "search phase enum must fit uint8_t packing");
 
@@ -139,7 +149,7 @@ _Static_assert(OW_PORT_CAPTURE_BUF_SIZE <= ONEWIRE_MAX_SLOTS,
 void onewire_init(void) {
     // No search running after init: lets the slave driver own the timer until
     // the application starts a search.
-    search_ctx.finished = 1;
+    search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
 #if OW_PORT_LOW_POWER
@@ -305,7 +315,7 @@ static void onewire_search_advance_bit(uint8_t id_bit, uint8_t cmp_bit) {
 
 void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
                           uint8_t command, uint8_t family) {
-    if (!search_ctx.finished) {
+    if ((search_ctx.flags & ONEWIRE_SEARCH_FLAG_FINISHED) == 0u) {
         return; // a search is already running
     }
     for (uint8_t i = 0; i < ONEWIRE_ROM_BYTES; i++) {
@@ -314,9 +324,9 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
     search_ctx.sink = sink;
     search_ctx.max = max_devices;
     search_ctx.found = 0;
-    search_ctx.finished = 0;
+    /* Fresh search: running, previous leaf forgotten. */
+    search_ctx.flags &= (uint8_t)~(ONEWIRE_SEARCH_FLAG_FINISHED | ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID);
     search_ctx.last_discrepancy = 0;
-    search_ctx.prev_leaf_valid = 0;
     search_ctx.command = command;
     search_ctx.family = family;
     if (max_devices == 0) {
@@ -328,7 +338,7 @@ void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,
 }
 
 uint8_t onewire_search_poll(void) {
-    if (search_ctx.finished) {
+    if ((search_ctx.flags & ONEWIRE_SEARCH_FLAG_FINISHED) != 0u) {
         return 1;
     }
 
@@ -336,7 +346,7 @@ uint8_t onewire_search_poll(void) {
         // No hardware operation is pending at the end of the search: the timer
         // stays idle until the owner asks for the next operation (a new search
         // schedules its own reset, a measurement calls onewire_kick()).
-        search_ctx.finished = 1;
+        search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
         return 1;
     }
 
@@ -426,13 +436,13 @@ uint8_t onewire_search_poll(void) {
         // progress (a CRC-valid ROM rejected by the family filter, or a
         // hostile/broken slave answering the same profile twice). Terminate
         // instead of walking the same subtree forever.
-        if (search_ctx.prev_leaf_valid &&
+        if ((search_ctx.flags & ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID) != 0u &&
             memcmp(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES) == 0) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }
         memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);
-        search_ctx.prev_leaf_valid = 1;
+        search_ctx.flags |= ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID;
         onewire_reset(search_pair_pulse);
         search_ctx.phase = ONEWIRE_SEARCH_RESET;
         break;
@@ -451,6 +461,6 @@ uint8_t onewire_search_poll(void) {
 
 uint8_t onewire_search_count(void) { return search_ctx.found; }
 
-uint8_t onewire_search_active(void) { return (uint8_t)!search_ctx.finished; }
+uint8_t onewire_search_active(void) { return (uint8_t)((search_ctx.flags & ONEWIRE_SEARCH_FLAG_FINISHED) == 0u); }
 
 /** @} */

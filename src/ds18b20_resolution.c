@@ -35,13 +35,20 @@ typedef enum {
 typedef struct {
     uint8_t phase; /**< Current phase of the resolution state machine (res_phase_t values, packed) */
     uint8_t pending_res; /**< Resolution (bits) to apply */
-    uint8_t applied; /**< 1 once the config write completed (resolution actually changed) */
-    uint8_t finished; /**< 1 once the operation has completed (or aborted) */
     uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
+    uint8_t flags; /**< DS18B20_RES_FLAG_* bits (applied/finished) */
 } res_ctx_t;
+
+/** @brief Set once the config write completed (resolution actually changed) */
+#define DS18B20_RES_FLAG_APPLIED (1u << 0)
+/** @brief Set once the operation has completed (or aborted) */
+#define DS18B20_RES_FLAG_FINISHED (1u << 1)
 
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
+
+/* Packing guard: 4 bytes, no padding. */
+_Static_assert(sizeof(res_ctx) == 4, "resolution context must stay 4 bytes");
 
 _Static_assert(DS18B20_RES_DONE <= 255, "res phase enum must fit uint8_t packing");
 
@@ -71,7 +78,8 @@ __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
 __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // In scan mode the config write must reach every sensor, so the Match ROM
     // address is skipped even if a single-device address is still selected.
-    const uint8_t use_match = ctx.address_mode && !ctx.scan_mode;
+    const uint8_t use_match = ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) &&
+                              ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u);
     ow_pulse_t* p = phase_pulses.res;
     if (use_match) {
         onewire_encode_byte(p, DS18B20_MATCH_ROM);
@@ -108,10 +116,10 @@ void ds18b20_set_resolution(uint8_t bits) {
     if (bits < DS18B20_RES_MIN || bits > DS18B20_RES_MAX) {
         return; // out of range - ignore
     }
-    if (!res_ctx.finished) {
+    if ((res_ctx.flags & DS18B20_RES_FLAG_FINISHED) == 0u) {
         return; // a resolution change is already running
     }
-    if (!txn_ctx.finished) {
+    if ((txn_ctx.flags & DS18B20_TXN_FLAG_FINISHED) == 0u) {
         return; // a command transaction is running
     }
     if (onewire_search_active()) {
@@ -121,8 +129,8 @@ void ds18b20_set_resolution(uint8_t bits) {
         return; // a measurement cycle is in progress
     }
     res_ctx.pending_res = bits;
-    res_ctx.applied = 0;
-    res_ctx.finished = 0;
+    /* Fresh change: neither applied nor finished yet. */
+    res_ctx.flags = 0u;
     build_res_pulses(bits); // Pre-build the config write for the current address mode
     res_ctx.phase = DS18B20_RES_RESET;
     onewire_reset(ctx.capture); // Schedule the first hardware operation
@@ -136,7 +144,7 @@ void ds18b20_set_resolution(uint8_t bits) {
  *       (e.g. no device present) leaves the resolution unchanged.
  */
 uint8_t ds18b20_set_resolution_poll(void) {
-    if (res_ctx.finished) {
+    if ((res_ctx.flags & DS18B20_RES_FLAG_FINISHED) != 0u) {
         return 1;
     }
 
@@ -144,10 +152,10 @@ uint8_t ds18b20_set_resolution_poll(void) {
         // The last hardware operation completed (config written or aborted).
         // The timer stays idle: the next ds18b20_start_measure() picks it up,
         // so a resolution change never starts a measurement on its own.
-        if (res_ctx.applied) {
+        if ((res_ctx.flags & DS18B20_RES_FLAG_APPLIED) != 0u) {
             ctx.resolution = res_ctx.pending_res;
         }
-        res_ctx.finished = 1;
+        res_ctx.flags |= DS18B20_RES_FLAG_FINISHED;
         return 1;
     }
 
@@ -174,7 +182,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
 
     case DS18B20_RES_WRITE:
         // Config write completed: the sensor now uses the new resolution.
-        res_ctx.applied = 1;
+        res_ctx.flags |= DS18B20_RES_FLAG_APPLIED;
         res_ctx.phase = DS18B20_RES_DONE;
         break;
 
