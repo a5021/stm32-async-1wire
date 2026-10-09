@@ -1,10 +1,10 @@
 /* ============================================================
- *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all five families
+ *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all six families
  *
- *  The 1-Wire bus on all five of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all six of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
- *  marker that triggers the feed DMA into CCR3.  Those 16 functions are one
+ *  marker that triggers the feed DMA into CCR3.  Those 17 functions are one
  *  piece of code, not four that happen to look alike - they were four, because
  *  each backend was written against its own reference manual and then never
  *  merged.
@@ -14,8 +14,8 @@
  *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS), and so does the pin
  *  mux: OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE() are two short
  *  statement macros per backend (F1's legacy CRH field proves the shapes are
- *  family-owned, not shared).  DMA request routing defaults to a no-op (fixed-map families) and G0
- *  programs its DMAMUX through the same two macros.
+ *  family-owned, not shared).  DMA request routing defaults to a no-op (fixed-map families) and G0/G4
+ *  program their DMAMUX through the same two macros.
  *
  *  A family header that includes this must, before the include:
  *
@@ -45,7 +45,7 @@
  *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
  *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  Even the
- *  merged write+read pass is shared by all five families with no
+ *  merged write+read pass is shared by all six families with no
  *  per-family knobs left: two arm-order experiments on F446 (UG-vs-DMA order,
  *  early direction-pulse arm) both behave identically, so one order serves
  *  all - see the note above ow_port_write_then_read.
@@ -62,7 +62,7 @@
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
  * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
- * reference manual and bench-verified (F0/F1/F3/G0 14/14 matrices, F4 LA),
+ * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
  * deliberately no #error here: D13/D14 resolve through ow_bits.h, which every
@@ -75,7 +75,7 @@
 #define OW_PORT_DMA_CAPTURE D14
 #endif
 /* Default request routing: no-op (fixed request maps need no programming).
- * G0 programs its DMAMUX through these. */
+ * G0/G4 program their DMAMUX through these. */
 #ifndef OW_PORT_ROUTE_CAPTURE
 #define OW_PORT_ROUTE_CAPTURE() \
     do {                        \
@@ -97,7 +97,7 @@
 #endif
 
 /* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
- *     living here because the shared core is the one place all five families
+ *     living here because the shared core is the one place all six families
  *     are processed.  The F4 backend uses this same ladder through the core
  *     (it overrides only the DMA register spelling, not the timer setup).
  *
@@ -153,11 +153,13 @@
 #endif
 
 /* Prescaler for 1 us resolution: PSC = SYSCLK / 1MHz - 1, from the shared
- * OW_PORT_SYSCLK_MHZ.  INVARIANT: TIM1's clock must equal SYSCLK - the APB
- * prescaler feeding TIM1 must be /1, because on STM32 a prescaler != 1
- * doubles the timer clock to 2 x PCLK and breaks every us-based timing constant
- * here.  Which APB the timer sits on, and why the prescaler is /1 on that
- * family, is family-specific and documented in each backend; it is checked by
+ * OW_PORT_SYSCLK_MHZ.  INVARIANT: TIM1's kernel clock must equal SYSCLK.
+ * How each family gets there is family-specific and documented in its
+ * backend: F0/F1/F3/G0/G4 leave the APB prescaler feeding TIM1 at /1, so
+ * TIM1 = PCLK = SYSCLK directly; F4 programs PPRE2=/2 (PPRE1=/4 or /2) and
+ * relies on the STM32 x2 doubling, so TIM1 = 2 x PCLK2 = SYSCLK either way.
+ * Which APB the timer sits on, and why that family's prescalers are what
+ * they are, is documented in each backend; it is checked by
  * tests/test/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
@@ -224,7 +226,7 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * 0, poll the EN bit to 0, bounded) and intentionally shared; each backend
  * supplies only the operands (control register + EN bit) through its DISABLE
  * macros and OW_PORT_DMA_EN_BIT.  Duplicating the loop per backend would
- * trade this single auditable copy for five drifting ones to hide register
+ * trade this single auditable copy for six drifting ones to hide register
  * names that the PROG defaults already spell openly. */
 /**
  * @brief Disable a DMA channel and wait for EN to retire before re-arm

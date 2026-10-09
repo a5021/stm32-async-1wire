@@ -2,7 +2,7 @@
  *  ow_port_f1.h - STM32F1 backend
  *
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other four families and lives in port/common/ow_port_tim_dma.h; what is
+ *  other five families and lives in port/common/ow_port_tim_dma.h; what is
  *  left here is the part that is genuinely an F103: which clocks to gate,
  *  and how PA10 is put into alternate-function open-drain mode (legacy CRH).
  * ============================================================ */

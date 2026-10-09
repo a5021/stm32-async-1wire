@@ -2,7 +2,7 @@
  *  ow_port_f0.h - STM32F0 backend
  *
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other four families and lives in port/common/ow_port_tim_dma.h; what is
+ *  other five families and lives in port/common/ow_port_tim_dma.h; what is
  *  left here is the part that is genuinely an F030: which clocks to gate,
  *  the PA10 pin-mux tokens, and the DMA assignment note.
  * ============================================================ */

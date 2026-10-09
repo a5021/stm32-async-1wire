@@ -785,7 +785,7 @@ void test_state_machine_init_configures_registers(void) {
     /* What ds18b20_init() must do is leave the port exactly as ow_port_init()
      * left it. The values themselves are pinned per family by
      * test_port_init_contract.c, which asserts them as exact register contents
-     * rather than as bit tests, so duplicating four families' worth of clock,
+     * rather than as bit tests, so duplicating six families' worth of clock,
      * prescaler and GPIO field spellings here only gave the same coverage a
      * second, weaker time. What this file is actually for is the link: that the
      * driver's init reaches the port init at all, which nothing else checks. */

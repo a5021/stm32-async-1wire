@@ -52,17 +52,21 @@ extern "C" {
 #define ONEWIRE_ALARM_SEARCH 0xEC
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
- *  (STM32F1, STM32F0, STM32F3, STM32G0, STM32G4) that PlatformIO / STM32CubeMX
- *  define on their own; for the F4 family the concrete device spellings
- *  (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too, and for G4 the
- *  STM32G474xx spelling. The token is the single point of
+ *  (STM32F1, STM32F0, STM32F3, STM32G0, STM32F4, STM32G4) that PlatformIO /
+ *  STM32CubeMX define on their own; for the F4 family the concrete device
+ *  spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too, and
+ *  for G4 the STM32G474xx spelling. The token is the single point of
  *  family selection: it picks the port backend (included below), app.c takes
  *  the device header and clock configuration from it, and the per-family
  *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
  *  OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ
  *  live in the port headers, not here, so the backend and its defaults cannot
- *  drift. To add a family, extend this chain and the \#include branch below,
- *  add the app.c config, and a case in tests/test/test_sysclk_fallback.c. */
+ *  drift. To add a family, extend this chain and the \#include branch below
+ *  (plus the \#error spelling list), add the port/stm32<x>/ backend header,
+ *  the app.c clock/UART config, a chips/<part>.mk part file, the Makefile
+ *  (OW_KNOWN_TARGETS, OW_TARGET branch, TEST_CLOCK_FLAG) and CMakeLists.txt
+ *  (OW_TARGET branch, default chip) wiring, the tests/mockdevice header, and
+ *  a case in tests/test/test_sysclk_fallback.c. */
 #if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)

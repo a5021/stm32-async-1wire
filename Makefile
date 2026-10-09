@@ -41,12 +41,14 @@ CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
 # OW_TARGET selects the MCU family: f1 (STM32F103xB, default), f0 (STM32F030x6),
-# f3 (STM32F303xC), g0 (STM32G031xx) or f4 (STM32F407xx / STM32F401 family).
+# f3 (STM32F303xC), g0 (STM32G031xx), f4 (STM32F407xx / STM32F401 family) or
+# g4 (STM32G474CB, e.g. the WeAct G474 Long).
 #   make                -> F1 firmware
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=f3   -> F3 firmware (STM32F303VC, e.g. the F3-DISCOVERY)
 #   make OW_TARGET=g0   -> G0 firmware
 #   make OW_TARGET=f4   -> F4 firmware (default part f407xx)
+#   make OW_TARGET=g4   -> G4 firmware (default part g474cb)
 #
 # OW_CHIP selects the part *within* the family; its value is the name of a
 # chips/<part>.mk file, which carries the part identity (CMSIS device macro,
@@ -159,7 +161,10 @@ DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 # make SYSCLK_MHZ=16  →  -DOW_PORT_SYSCLK_MHZ=16
 # (run on the raw internal RC instead of the family default:
 #  STM32F103 = 72MHz HSE+PLL x9, STM32F030 = 48MHz HSI/2+PLL x12,
-#  STM32G031 = 64MHz HSI16+PLL; e.g. SYSCLK_MHZ=16 for the raw 16MHz HSI16)
+#  STM32G031 = 64MHz HSI16+PLL, STM32F303 = 72MHz HSE+PLL (or 64 HSI/2+PLL,
+#  8 raw HSI), STM32F407/F401/F446 = 168/84/180MHz HSE+PLL (or 16 raw HSI),
+#  STM32G474 = 170MHz HSE+PLL (or 16 raw HSI16);
+#  e.g. SYSCLK_MHZ=16 for the raw 16MHz RC on families that have one)
 ifdef SYSCLK_MHZ
 DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
@@ -169,7 +174,8 @@ endif
 # Separate from SYSCLK_MHZ because the crystal belongs to the board and the
 # system clock to the application; the F4 PLL derives its M divider from it, so a
 # wrong value leaves the PLL unlocked - which the app now reports instead of
-# spinning forever. The G4 PLL derives M = OW_HSE_MHZ / 4 the same way.
+# spinning forever. The G4 PLL field is OW_HSE_MHZ/4 - 1 (divider-minus-1,
+# so /2 on the 8MHz WeAct board) the same way.
 ifdef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(HSE_MHZ)
 endif
@@ -677,7 +683,8 @@ vpath %.s $(sort $(dir $(ASM))) # Set the search path for A source files
 OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
               $(wildcard port/common/*.h) $(wildcard port/stm32f1/*.h) \
               $(wildcard port/stm32f0/*.h) $(wildcard port/stm32f3/*.h) \
-              $(wildcard port/stm32g0/*.h) $(wildcard port/stm32f4/*.h)
+              $(wildcard port/stm32g0/*.h) $(wildcard port/stm32f4/*.h) \
+              $(wildcard port/stm32g4/*.h)
 
 # src/ds18b20.c is an umbrella translation unit: it #includes the driver parts
 # below, so editing one of them must rebuild the object. -MP gives each part a
@@ -886,7 +893,7 @@ TEST_G4_16_EXE = $(TEST_OUT)/ds18b20_test_g4_16mhz.exe
 TEST_EXTRA_EXES = $(TEST_G4_16_EXE)
 endif
 
-# Per-family suffix for the host-test artefacts, so the five families do not
+# Per-family suffix for the host-test artefacts, so the six families do not
 # share one output file. Defined once because three near-identical nested-if
 # chains had already drifted: adding f3 to the low-power one and not the other
 # two left the active-drive and ndebug names with an unbalanced paren, which
@@ -1210,13 +1217,13 @@ help:
 	@echo "  help            - Show this help"
 	@echo "Variables:"
 	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power  - example application to build"
-	@echo "  OW_TARGET=f1|f0|g0|f4            - MCU family (firmware build)"
+	@echo "  OW_TARGET=f1|f0|f3|g0|f4|g4      - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
-	@echo "                                    chips/<part>.mk (f103xb, f030x6, g031xx,"
-	@echo "                                    f407xx, f401xc, f401xe); default per family"
+	@echo "                                    chips/<part>.mk (f103xb, f030x6, f303xc, g031xx,"
+	@echo "                                    f407xx, f401xc, f401xe, f446xx, g474cb); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
-	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F4 only"
+	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4 only"
 	@echo "                                    default (8/16 on every family, 84 on F401; the"
-	@echo "                                    defaults are 72/48/64/168)"
+	@echo "                                    defaults are 72/48/72/64/168/170)"
 
 # *** EOF ***

@@ -41,7 +41,7 @@ typedef uint8_t ow_pulse_t;
 #endif
 
 #if !defined(OW_PORT_G4_MAX_SYSCLK_MHZ)
-#define OW_PORT_G4_MAX_SYSCLK_MHZ 170 /* G474 ceiling, voltage Range 1 */
+#define OW_PORT_G4_MAX_SYSCLK_MHZ 170 /* G474 ceiling, voltage Range 1 Boost */
 #endif
 
 #if !defined(OW_HSE_MHZ)

@@ -2,7 +2,7 @@
  *  ow_port_g0.h - STM32G0 backend
  *
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other four families and lives in port/common/ow_port_tim_dma.h.  G0 differs
+ *  other five families and lives in port/common/ow_port_tim_dma.h.  G0 differs
  *  in three ways, all of them here: the bus pins are remapped, the
  *  GPIO register macros have a different spelling, and DMA requests go through
  *  DMAMUX instead of a fixed map.

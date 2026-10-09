@@ -83,14 +83,16 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  * The clock -> ICxF selection now lives where it is used, so it runs before
  * any backend body that feeds TIM_CCMR2(..., OW_PORT_IC4F_ARGS) is reached no
  * matter which header the TU includes first: the shared core owns it for
- * F0/F1/F3/G0 (port/common/ow_port_tim_dma.h) and ow_port_f4.h owns it for F4.
- * See those for the decoded tier table and the bench-sweep override. */
+ * every family (port/common/ow_port_tim_dma.h), no backend overrides it.
+ * See there for the decoded tier table and the bench-sweep override. */
 
 /* --- Backend selection happened in onewire.h ---
- * The family chain and the per-family \#include branches live there (the
- * single place families are named); this header is reached through it, so the
- * family token, the backend and its facts (ow_pulse_t, the clock defaults and
- * the low-power IRQ mapping) are already in scope here.  Nothing to add. */
+ * The family chain and the per-family \#include branches live there; this
+ * header is reached through it, so the family token, the backend and its
+ * facts (ow_pulse_t, the clock defaults and the low-power IRQ mapping) are
+ * already in scope here.  Nothing to add.  (That chain is the single place
+ * for the header-level selection; the build systems name families too -
+ * Makefile, CMakeLists.txt, examples/app/app.c, chips/ and the host tests.) */
 
 #ifdef __cplusplus
 }
