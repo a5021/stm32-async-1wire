@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Alarm Search demo in `5_commands`.** The command sequence closes with
+  forced alarm thresholds (TH=-55C, TL=+125C, so every bench sensor alarms
+  deterministically) plus an Alarm Search (0xEC) pass reporting only alarmed
+  devices — the first example exercising `ds18b20_alarm_search_start()` /
+  `ds18b20_alarm_search_poll()` / `ds18b20_alarm_search_count()`. No new
+  example directory, no build-file changes, no HW-matrix growth.
+
 ### Changed
 
 - **Port layer second unification (experimental).** After the F4 collapse onto

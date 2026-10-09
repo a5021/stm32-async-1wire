@@ -251,7 +251,7 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
-| `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), then steady-state measurement of the selected device. |
+| `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 
@@ -329,7 +329,14 @@ Notes:
   non-blocking command sequence once at startup: power supply, raw scratchpad,
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
   the single-device Read ROM. Each command advances by one hardware operation
-  per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result.
+  per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result. The
+  sequence closes with forced alarm thresholds (TH=-55C, TL=+125C on the
+  selected device, so it alarms deterministically whatever the room
+  temperature) plus an Alarm Search (0xEC) pass that reports only alarmed
+  devices — the only example exercising
+  `ds18b20_alarm_search_start()` / `ds18b20_alarm_search_poll()` /
+  `ds18b20_alarm_search_count()`. Other fleet members may join from thresholds
+  retained in their own RAM/EEPROM.
 - `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
   (`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
   `STATS_DUMP_SWEEPS` sweeps - one sweep is one pass over every device, so a
@@ -342,6 +349,11 @@ Notes:
   Supports `-DOW_PARASITE_POWER=1`.
 - Programming targets (`make jprogram` / `make program`) flash whichever
   example is currently selected by `APP`.
+- Two build knobs have no dedicated example by design: `-DOW_DRIVE_ACTIVE=1`
+  switches master-only write slots to push-pull (experimental; covered by the
+  `test-active` host suite, same loop as every example so nothing demo-specific
+  would show on the console), and `-DDS18B20_MAX_DEVICES=1` trims the scan
+  table from 64 to 8 bytes for single-sensor builds (see CHANGELOG).
 
 ## Hardware Verified
 

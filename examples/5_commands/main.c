@@ -6,8 +6,9 @@
  * first device (Match ROM), then drives the non-blocking command transactions
  * one by one with the same poll discipline as the measurement path:
  * Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad
- * TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8)
- * and the single-device Read ROM (0x33). Every command owns TIM1/DMA while it
+ * TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8),
+ * the single-device Read ROM (0x33), forced alarm thresholds plus Alarm
+ * Search (0xEC) to show that only alarmed devices respond. Every command
  * runs and leaves the bus idle when done, so a command never starts a
  * measurement on its own. All low-level bus operations live in the shared
  * 1-Wire layer (onewire.h/onewire.c), and the command engine builds on it;
@@ -48,6 +49,8 @@ typedef enum {
     STEP_RECALL,
     STEP_SCRATCH_AFTER_RECALL,
     STEP_READ_ROM,
+    STEP_SET_ALARM_FORCE,
+    STEP_ALARM_SEARCH,
     STEP_MEASURE
 } step_t;
 
@@ -65,16 +68,33 @@ static uint8_t scratchpad[SCRATCHPAD_BYTES]; // Scratchpad result buffer
 static uint8_t rom[DS18B20_ROM_BYTES]; // Read ROM result buffer
 
 /**
+ * @brief Print one 8-byte ROM in hex, bytes separated by spaces
+ * @param[in] found_rom Pointer to the 8-byte ROM address (LSB first)
+ */
+static void print_rom(const uint8_t* found_rom) {
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        uart_write_hex(found_rom[i]);
+        if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
+    }
+}
+
+/**
  * @brief Device search callback - prints the ROM in hex
  * @param[in] found_rom Pointer to the 8-byte ROM address (LSB first)
  * @return 0 to continue the search
  */
 static uint8_t device_found_sink(const uint8_t* found_rom) {
     uart_write_str("  ROM: ");
-    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-        uart_write_hex(found_rom[i]);
-        if (i != DS18B20_ROM_BYTES - 1) uart_tx_enqueue_byte(' ');
-    }
+    print_rom(found_rom);
+    uart_write_str("\r\n");
+    return 0;
+}
+
+// Alarm-search sink: reports only, like device_found_sink above. The count
+// comes from ds18b20_alarm_search_count() at finish; nothing is stored.
+static uint8_t alarm_sink(const uint8_t* found_rom) {
+    uart_write_str("  alarmed ROM: ");
+    print_rom(found_rom);
     uart_write_str("\r\n");
     return 0;
 }
@@ -154,6 +174,21 @@ static void start_step(step_t s) {
         uart_write_str("Read ROM (0x33) - single-device command:\r\n");
         ds18b20_read_rom(rom);
         break;
+    case STEP_SET_ALARM_FORCE:
+        /* Guarantee the selected device alarms regardless of room
+         * temperature: TH=-55C (0xC9) fires above -55C and TL=+125C (0x7D)
+         * below +125C. TH/TL bytes are signed 8-bit degrees. The write is
+         * addressed, so other fleet members answer the search below only
+         * from thresholds retained in their own RAM/EEPROM (an MCU reboot
+         * does not clear sensor state) - that is live bus state, not a
+         * missed write. */
+        uart_write_str("Force alarm state (TH=-55C, TL=+125C):\r\n");
+        ds18b20_set_alarm_thresholds(0xC9, 0x7D);
+        break;
+    case STEP_ALARM_SEARCH:
+        uart_write_str("Alarm Search (0xEC) - only alarmed devices respond:\r\n");
+        ds18b20_alarm_search_start(alarm_sink, DS18B20_SEARCH_MAX_DEVICES);
+        break;
     case STEP_MEASURE:
         break;
     }
@@ -175,6 +210,7 @@ static uint8_t poll_step(step_t s) {
         return ds18b20_read_scratchpad_poll();
     case STEP_SET_ALARM:
     case STEP_SET_ALARM_AGAIN:
+    case STEP_SET_ALARM_FORCE:
         return ds18b20_set_alarm_thresholds_poll();
     case STEP_COPY:
         return ds18b20_copy_scratchpad_poll();
@@ -182,6 +218,8 @@ static uint8_t poll_step(step_t s) {
         return ds18b20_recall_eeprom_poll();
     case STEP_READ_ROM:
         return ds18b20_read_rom_poll();
+    case STEP_ALARM_SEARCH:
+        return ds18b20_alarm_search_poll();
     case STEP_MEASURE:
         return 1;
     }
@@ -211,6 +249,8 @@ static void finish_step(step_t s) {
         break;
     case STEP_SET_ALARM:
         break;
+    case STEP_SET_ALARM_FORCE:
+        break;
     case STEP_COPY:
         uart_write_str("  copied to EEPROM\r\n");
         break;
@@ -228,6 +268,11 @@ static void finish_step(step_t s) {
         uart_write_str(rom[7] == ds18b20_crc8(rom, 7)
                            ? "  CRC ok"
                            : "  CRC fail (valid only with one device on the bus)");
+        uart_write_str("\r\n");
+        break;
+    case STEP_ALARM_SEARCH:
+        uart_write_str("  alarmed device(s): ");
+        uart_write_int(ds18b20_alarm_search_count());
         uart_write_str("\r\n");
         break;
     case STEP_MEASURE:
