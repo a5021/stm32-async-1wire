@@ -106,6 +106,8 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v) { search_pulse3[i] = 
 const ow_pulse_t* test_search_read_pulse_addr(void) { return search_read_pulse; }
 const volatile uint16_t* test_search_pulse3_addr(void) { return search_pulse3; }
 const ow_pulse_t* test_res_pulses_feed_addr(void) { return phase_pulses.res + 1u; }
+const ow_pulse_t* test_search_cmd_rom_addr(void) { return search_cmd_rom; }
+const ow_pulse_t* test_search_cmd_alarm_addr(void) { return search_cmd_alarm; }
 
 void ds18b20_test_reset_search(void) {
     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;

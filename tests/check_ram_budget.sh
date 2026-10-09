@@ -28,6 +28,18 @@
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
 #
+# Recalibration procedure (ceilings are exact by design — no slack, so any
+# growth must be conscious; a red gate is a question, not a failure):
+#   - Intentional RAM change: update the numbers above and the matching
+#     _Static_assert sizes in src/ (ctx in ds18b20.c, txn_ctx beside it,
+#     res_ctx in ds18b20_resolution.c, search_ctx in onewire.c), and extend
+#     the History note with what moved and why.
+#   - Toolchain upgrade (pinned at 15.2.rel1 in ci.yml/build.yml/release.yml):
+#     run `make test-ram` locally with the new toolchain, record all three
+#     tiers per family, and update budgets + asserts + this note together —
+#     layout and padding shift between compiler versions, so a red gate right
+#     after an upgrade is expected recalibration, not a regression.
+#
 # Matching goes through fixed strings on purpose (see check_version.sh: this
 # repo checks out CRLF on Windows and LF in CI).
 #

@@ -10,6 +10,8 @@
 
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
+#include "hw_model.h"
+#include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
 
@@ -250,6 +252,173 @@ void test_select_rejected_from_scan_callback(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
 }
 
+/*-------------------------------------------------------------
+ *  Union integration: addressed measurement -> bare txn ->
+ *  addressed measurement, prefix identical on the wire twice.
+ *
+ *  The phase union overlays the addressed-command table with the txn
+ *  buffer, so a bare transaction between two addressed measurements
+ *  reuses the same RAM. The guards keep the two from overlapping, but
+ *  only this scenario proves the second measurement rebuilds its Match
+ *  ROM prefix on the real path (issue_command -> build_addr_cmd) instead
+ *  of feeding a stale union: the CCR3 feed log of the 80-slot command
+ *  write is snapshotted in both runs and compared slot for slot.
+ * -----------------------------------------------------------*/
+
+/* Presence-present capture source: valid reset (510) and presence (700). */
+static uint16_t union_cap_present(uint32_t idx) { return idx == 0 ? 510u : 700u; }
+
+/* Bulk-read pulse durations, filled per phase below (scratchpad or ROM). */
+static uint16_t union_read_pulses[72];
+static uint16_t union_cap_bulk(uint32_t idx) { return union_read_pulses[idx]; }
+
+static void union_set_bytes_as_pulses(const uint8_t* data, uint8_t len) {
+    for (uint8_t i = 0; i < len; i++) {
+        for (uint8_t b = 0; b < 8; b++) {
+            union_read_pulses[i * 8u + b] = ((data[i] >> b) & 1u) ? ONE_P : ZERO_P;
+        }
+    }
+}
+
+/* Pump the currently scheduled hardware pass. Bulk captures (>2 transfers)
+ * read from the pulse table the test filled; every other pass (resets) uses
+ * the presence source. Resets the source every pump so a reset following a
+ * bulk read cannot consume stale read data. */
+static void union_run_current_op(void) {
+    if (mock_tim1.CR1 & TIM_CR1_CEN) {
+        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > 2) {
+            hw_set_capture_source(union_cap_bulk);
+        } else {
+            hw_set_capture_source(union_cap_present);
+        }
+        TEST_ASSERT_TRUE(hw_run_until_uif(256));
+    }
+}
+
+/* Drive ds18b20_poll() until the driver parks at IDLE. After every pumped
+ * pass, snapshot the CCR3 feed when it is exactly the 80-slot addressed
+ * command write (Match ROM + ROM + command byte, fed from &addr[1]). */
+static void union_run_measurement_snapshot(uint16_t* out80, uint8_t* captured) {
+    *captured = 0;
+    ds18b20_start_measure();
+    /* Seed the UIF that onewire_kick() raises on hardware (EGR=UG): the
+     * model does not raise UIF on UG, so without this the first poll sees
+     * no completion and never schedules the reset pass. Every later pass
+     * gets a real UIF from the pumped timer. Same seed as test_parasite. */
+    mock_tim1.SR |= TIM_SR_UIF;
+    uint16_t guard = 0;
+    do {
+        ds18b20_poll();
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            union_run_current_op();
+            if (!*captured) {
+                const hw_ccr3_feed_log_t* log = hw_ccr3_feed_log();
+                if (log->total == ADDR_CMD_SLOTS) {
+                    for (uint16_t i = 0; i < ADDR_CMD_SLOTS; i++) {
+                        out80[i] = log->values[i];
+                    }
+                    *captured = 1;
+                }
+            }
+        }
+        if (++guard > 2000) {
+            break;
+        }
+    } while (ds18b20_test_get_state() != DS18B20_ST_IDLE);
+    TEST_ASSERT_TRUE(guard <= 2000);
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+}
+
+static void union_make_rom(uint8_t* rom) {
+    uint8_t r[8] = {0x28, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x00};
+    r[7] = ds18b20_crc8(r, 7);
+    for (int i = 0; i < 8; i++) {
+        rom[i] = r[i];
+    }
+}
+
+void test_rom_addressing_union_rebuilt_across_txn(void) {
+    uint8_t rom[8];
+    union_make_rom(rom);
+    /* Valid-CRC scratchpad so both measurements run clean to IDLE. */
+    uint8_t sd[9] = {0x64, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x08, 0x10, 0x00};
+    sd[8] = ds18b20_crc8(sd, 8);
+
+    hw_reset_all();
+    /* hw_reset_all() wipes the DMA-address registration table (addr_count),
+     * so re-register the driver buffers: every pumped pass below resolves
+     * CMAR through it, and an unregistered buffer fails silently (captures
+     * dropped, feed unresolved) rather than loudly. */
+    ds18b20_test_register_buffers();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_txn();
+    ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
+    ds18b20_select(rom);
+
+    /* Addressed measurement #1: snapshot the 80-slot command feed. */
+    union_set_bytes_as_pulses(sd, 9);
+    static uint16_t first[80];
+    uint8_t got_first = 0;
+    union_run_measurement_snapshot(first, &got_first);
+    TEST_ASSERT_EQUAL_UINT8(1, got_first);
+
+    /* Bare txn in between reuses the union as the txn buffer. Deselect
+     * first so it stays bare (an addressed txn would rebuild the prefix
+     * itself and weaken the test). */
+    ds18b20_select(NULL);
+    union_set_bytes_as_pulses(rom, 8);
+    {
+        uint8_t got[8];
+        ds18b20_read_rom(got);
+        uint16_t guard = 0;
+        for (;;) {
+            if (ds18b20_read_rom_poll()) {
+                break;
+            }
+            union_run_current_op();
+            if (++guard > 500) {
+                break;
+            }
+        }
+        TEST_ASSERT_TRUE(guard <= 500);
+        TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_txn_finished());
+        TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
+        for (int i = 0; i < 8; i++) {
+            TEST_ASSERT_EQUAL_HEX8(rom[i], got[i]);
+        }
+    }
+
+    /* Addressed measurement #2 must feed the identical prefix: the union
+     * held txn garbage, so anything but a rebuild shows up here. */
+    ds18b20_select(rom);
+    union_set_bytes_as_pulses(sd, 9);
+    static uint16_t second[80];
+    uint8_t got_second = 0;
+    union_run_measurement_snapshot(second, &got_second);
+    TEST_ASSERT_EQUAL_UINT8(1, got_second);
+
+    /* Absolute oracle, not just self-consistency: re-encode Match ROM +
+     * selected ROM + Convert T with the encoder (an independent path from
+     * the table under test) and compare all 80 fed slots. The feed sources
+     * from &addr[1], hence the +1 offset; slot 79 is the trailing release.
+     * A rebuild from a wrong/stale ROM fails here even if both runs agree. */
+    {
+        ow_pulse_t expect[81];
+        ds18b20_test_encode_byte_pulses(expect, DS18B20_MATCH_ROM);
+        for (uint8_t b = 0; b < DS18B20_ROM_BYTES; b++) {
+            ds18b20_test_encode_byte_pulses(expect + 8u + (uint16_t)b * 8u, rom[b]);
+        }
+        ds18b20_test_encode_byte_pulses(expect + 72u, DS18B20_CONVERT_T);
+        expect[80] = ONEWIRE_RELEASE_PULSE;
+        for (int i = 0; i < 80; i++) {
+            TEST_ASSERT_EQUAL_UINT16(expect[i + 1], first[i]);
+            TEST_ASSERT_EQUAL_UINT16(expect[i + 1], second[i]);
+        }
+    }
+}
+
 void run_test_rom_addressing(void) {
     TEST_RUN(test_rom_addressing_select_NULL_clears_mode);
     TEST_RUN(test_rom_addressing_select_copies_rom);
@@ -265,4 +434,5 @@ void run_test_rom_addressing(void) {
     TEST_RUN(test_select_rejected_during_search);
     TEST_RUN(test_select_rejected_during_resolution_change);
     TEST_RUN(test_select_rejected_from_scan_callback);
+    TEST_RUN(test_rom_addressing_union_rebuilt_across_txn);
 }

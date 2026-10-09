@@ -59,6 +59,8 @@ void ds18b20_test_set_search_pulse3(uint8_t i, uint16_t v);
 const ow_pulse_t* test_search_read_pulse_addr(void); /* &search_read_pulse[0] (merged feed source) */
 const volatile uint16_t* test_search_pulse3_addr(void); /* &search_pulse3[0] (merged capture sink) */
 const ow_pulse_t* test_res_pulses_feed_addr(void); /* &phase_pulses.res[1] (Match-ROM write feed source) */
+const ow_pulse_t* test_search_cmd_rom_addr(void); /* &search_cmd_rom[0] (flash Search ROM table) */
+const ow_pulse_t* test_search_cmd_alarm_addr(void); /* &search_cmd_alarm[0] (flash Alarm Search table) */
 
 /* Reset the search context to "no search running" (finished, DONE phase). */
 void ds18b20_test_reset_search(void);

@@ -92,6 +92,28 @@ void test_pulse_encoding_single_bit_positions(void) {
     }
 }
 
+/* The pre-encoded flash Search ROM / Alarm Search tables must match what
+ * onewire_encode_byte() produces for 0xF0/0xEC, slot for slot, with the
+ * trailing hardware bus-release entry last. A hand-edited table with two
+ * swapped entries passes every other test here (they only check the encoder
+ * logic) and shows up on hardware as "search finds nothing". */
+static void check_flash_cmd_table(const ow_pulse_t* table, uint8_t cmd) {
+    ow_pulse_t out[ONEWIRE_BITS_PER_BYTE];
+    ds18b20_test_encode_byte_pulses(out, cmd);
+    for (int i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
+        TEST_ASSERT_EQUAL_UINT8(out[i], table[i]);
+    }
+    TEST_ASSERT_EQUAL_UINT8(ONEWIRE_RELEASE_PULSE, table[ONEWIRE_BITS_PER_BYTE]);
+}
+
+void test_flash_search_rom_table_matches_encoder(void) {
+    check_flash_cmd_table(test_search_cmd_rom_addr(), ONEWIRE_SEARCH_ROM);
+}
+
+void test_flash_alarm_search_table_matches_encoder(void) {
+    check_flash_cmd_table(test_search_cmd_alarm_addr(), ONEWIRE_ALARM_SEARCH);
+}
+
 void test_onewire_bit_from_pulse_short_is_one(void) {
     TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(0));
     TEST_ASSERT_EQUAL_UINT8(1, onewire_bit_from_pulse(ONEWIRE_SHORT_PULSE_MAX));
@@ -154,6 +176,8 @@ void run_test_pulse_encoding(void) {
     TEST_RUN(test_pulse_encoding_output_length_always_8);
     TEST_RUN(test_pulse_encoding_only_valid_pulse_values);
     TEST_RUN(test_pulse_encoding_single_bit_positions);
+    TEST_RUN(test_flash_search_rom_table_matches_encoder);
+    TEST_RUN(test_flash_alarm_search_table_matches_encoder);
     TEST_RUN(test_onewire_bit_from_pulse_short_is_one);
     TEST_RUN(test_onewire_bit_from_pulse_long_is_zero);
     TEST_RUN(test_onewire_decode_pulses_all_short_is_0xFF);
