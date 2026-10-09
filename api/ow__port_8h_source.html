@@ -168,20 +168,22 @@ $(document).ready(function(){initNavTree('ow__port_8h_source.html',''); initResi
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="comment"> * The clock -&gt; ICxF selection now lives where it is used, so it runs before</span></div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="comment"> * any backend body that feeds TIM_CCMR2(..., OW_PORT_IC4F_ARGS) is reached no</span></div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span><span class="comment"> * matter which header the TU includes first: the shared core owns it for</span></div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment"> * F0/F1/F3/G0 (port/common/ow_port_tim_dma.h) and ow_port_f4.h owns it for F4.</span></div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="comment"> * See those for the decoded tier table and the bench-sweep override. */</span></div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment"> * every family (port/common/ow_port_tim_dma.h), no backend overrides it.</span></div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="comment"> * See there for the decoded tier table and the bench-sweep override. */</span></div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span> </div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span><span class="comment">/* --- Backend selection happened in onewire.h ---</span></div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment"> * The family chain and the per-family \#include branches live there (the</span></div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="comment"> * single place families are named); this header is reached through it, so the</span></div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="comment"> * family token, the backend and its facts (ow_pulse_t, the clock defaults and</span></div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="comment"> * the low-power IRQ mapping) are already in scope here.  Nothing to add. */</span></div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>}</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment"> * The family chain and the per-family \#include branches live there; this</span></div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="comment"> * header is reached through it, so the family token, the backend and its</span></div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="comment"> * facts (ow_pulse_t, the clock defaults and the low-power IRQ mapping) are</span></div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="comment"> * already in scope here.  Nothing to add.  (That chain is the single place</span></div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span><span class="comment"> * for the header-level selection; the build systems name families too -</span></div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="comment"> * Makefile, CMakeLists.txt, examples/app/app.c, chips/ and the host tests.) */</span></div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span> </div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>}</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span> </div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span><span class="preprocessor">#endif </span><span class="comment">/* OW_PORT_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aonewire_8h_html"><div class="ttname"><a href="onewire_8h.html">onewire.h</a></div><div class="ttdoc">Universal non-blocking 1-Wire bus layer for STM32.</div></div>
 <div class="ttc" id="aow__config_8h_html_a404da404453e7f30870bd891c1792139"><div class="ttname"><a href="ow__config_8h.html#a404da404453e7f30870bd891c1792139">ONEWIRE_ZERO_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ZERO_PULSE</div><div class="ttdoc">Duration of a '0' bit write pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:81</div></div>
 <div class="ttc" id="aow__config_8h_html_aa6a4d6398a7d8069affba9f78d5e2c6e"><div class="ttname"><a href="ow__config_8h.html#aa6a4d6398a7d8069affba9f78d5e2c6e">ONEWIRE_ONE_PULSE</a></div><div class="ttdeci">#define ONEWIRE_ONE_PULSE</div><div class="ttdoc">Duration of a '1' bit write/read pulse in microseconds.</div><div class="ttdef"><b>Definition</b> ow_config.h:76</div></div>
