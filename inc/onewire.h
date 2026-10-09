@@ -53,9 +53,9 @@ extern "C" {
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
  *  (STM32F1, STM32F0, STM32F3, STM32G0, STM32F4, STM32G4) that PlatformIO /
- *  STM32CubeMX define on their own; for the F4 family the concrete device
- *  spellings (STM32F407xx / STM32F401xC/STM32F401xE) are accepted too, and
- *  for G4 the STM32G474xx spelling. The token is the single point of
+ *  STM32CubeMX define on their own; the concrete device spellings are
+ *  accepted too (STM32F303xC for F3; STM32F407xx / STM32F401xC/STM32F401xE /
+ *  STM32F446xx for F4; STM32G474xx for G4). The token is the single point of
  *  family selection: it picks the port backend (included below), app.c takes
  *  the device header and clock configuration from it, and the per-family
  *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
@@ -71,12 +71,13 @@ extern "C" {
 #define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
 #define OW_PORT_FAMILY_F0
-#elif defined(OW_PORT_TARGET_F3) || defined(STM32F3)
+#elif defined(OW_PORT_TARGET_F3) || defined(STM32F3) || defined(STM32F303xC)
 #define OW_PORT_FAMILY_F3
 #elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
 #define OW_PORT_FAMILY_G0
-#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) || \
-    defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE)
+#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) ||                     \
+    defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \
+    defined(STM32F446xx)
 #define OW_PORT_FAMILY_F4
 #elif defined(OW_PORT_TARGET_G4) || defined(STM32G4) || defined(STM32G474xx)
 #define OW_PORT_FAMILY_G4
@@ -102,7 +103,7 @@ extern "C" {
 #elif defined(OW_PORT_FAMILY_G4)
 #include "ow_port_g4.h"
 #else
-#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0, OW_PORT_TARGET_F4 or OW_PORT_TARGET_G4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32G4/STM32G474xx)"
+#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0, OW_PORT_TARGET_F4 or OW_PORT_TARGET_G4, or a family macro such as STM32F1/STM32F0/STM32F3/STM32F303xC/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G4/STM32G474xx)"
 #endif
 
 /** @} */
