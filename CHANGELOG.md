@@ -8,12 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-09
+
 ### Fixed
 
 - **G4 busy LED moved from PC13 to PA8.** The port drove PC13, which on the
   WeAct G474 Long is the user button — the blue LED is on PA8 (WeAct BSP
   `board.h`: CxT6 = PA8; CxU6 = PC6), so the LED never lit. Polarity is
   active-high, verified on the bench (active-low drove it inverted).
+
+- **Lone device macros resolve to their family.** A bare `-DSTM32F446xx`
+  fell through the F4 branch (only F407xx/F401xC/F401xE were listed) and a
+  bare `-DSTM32F303xC` through the F3 branch, ending in `#error no family
+  selected` despite the documented concrete-device-spelling acceptance. Both
+  spellings are accepted now; existing branches are untouched.
 
 ### Added
 
@@ -46,15 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **STM32G4 port added (WeAct STM32G474CBT6 Long).** New `OW_TARGET=g4` backend
   on the shared TIM1/DMA core: 8-bit feed tables (classic DMA + DMAMUX), AF6
-  on PA10 for TIM1_CH3, USART1 TX on PA9 (AF7), HSE+PLL to 170MHz (M=1, N=85,
+  on PA10 for TIM1_CH3, USART1 TX on PA9 (AF7), HSE+PLL to 170MHz (M=2, N=85,
   R=2, Range 1 Boost) and raw HSI16 at 16MHz as fallback. `.bss` 432 bytes
   on `1_basic` (same as F0 class). 14-cell HW matrix (7 apps × 170/16MHz,
   parasite power) validated. CI matrix and RAM budget gate extended.
-
-- **F4 DMA runs at reset-default priority.** The `PL_1` (high) bits are gone
-  from the F4 capture/feed control words: with a single active channel pair,
-  ties break by stream number either way (feed wins), so the bits changed
-  nothing observable. No family sets DMA priority now.
 
 - **Phase buffers are a union; state enums pack to `uint8_t`.** The
   convert/read scratch and result scratch of a transaction never coexist, so
@@ -1806,4 +1809,5 @@ without a section here, and its changes had drifted into the section below.
 [2.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v1.8.1...v2.0.0
 [2.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...v2.1.0
 [2.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...v2.1.1
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...HEAD
+[2.2.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...v2.2.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...HEAD
