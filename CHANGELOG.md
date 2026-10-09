@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **G4 busy LED moved from PC13 to PA8.** The port drove PC13, which on the
+  WeAct G474 Long is the user button — the blue LED is on PA8 (WeAct BSP
+  `board.h`: CxT6 = PA8; CxU6 = PC6), so the LED never lit. Polarity is
+  active-high, verified on the bench (active-low drove it inverted).
+
 ### Added
 
 - **Alarm Search demo in `5_commands`.** The command sequence closes with

@@ -714,8 +714,8 @@ void configure_system_clock(void) {
  *       bonded out on TSSOP20). F4: USART1 TX on PB6 (AF7; the F4DISCOVERY has
  *       no USART1-to-ST-LINK route on PA9), LED on PD12, with an optional
  *       OW_UART_USART3 path on PB10. G4: USART1 TX on PA9 (AF7, external
- *       USB-UART - the WeAct board has no VCP), LED on PC13 (active low,
- *       WeAct standard). The F4 console pin is PB6 because that is
+ *       USB-UART - the WeAct board has no VCP), blue LED on PA8 (WeAct BSP:
+ *       CxT6 = PA8; PC13 on this board is the user button). The F4 console pin is PB6 because that is
  *       where the F4DISCOVERY's ST-LINK VCP is, and it is also where a WeAct
  *       F446RET6's CP210x VCP answers (measured); for a board whose VCP is on
  *       PA9, build with -DOW_UART_USART1_PA9. The F4 busy LED defaults to PD12
@@ -873,18 +873,21 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     USART1->BRR = USART_BRR_CALC((OW_PORT_SYSCLK_MHZ) * 1000000u, 115200); // PCLK = SYSCLK
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #elif defined(OW_PORT_FAMILY_G4)
-    /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (active low).
+    /* Console on PA9 (AF7 = USART1_TX), busy LED on PA8 (push-pull output).
      *
      * The WeAct board wires no UART to USB, so the console rides an external
      * USB-UART dongle on PA9 - TX only, like every other family. PA9 sits
      * next to PA10 without touching it, so the bus and the console share the
-     * port. PC13 is the WeAct blue LED (active low, same polarity as F1).
+     * port. The blue LED is on PA8 (WeAct BSP board.h: CxT6 = PA8, CxU6 =
+     * PC6) - NOT PC13, which is the user button on this board. PA8 needs no
+     * extra clock (GPIOA is already on) and no OTYPER change (push-pull is
+     * the reset state).
      *
      * USART1 is on APB2, which this backend leaves at /1 at every supported
      * clock (170, 16) - see configure_system_clock() - so PCLK2 = SYSCLK and
      * the divisor needs no separate clock variable (test pins it through
      * OW_G4_CONSOLE_BRR in app.h). */
-    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 
     // PA9: alternate function push-pull, AF7 = USART1_TX (pin 9 is in AFR[1]).
@@ -892,8 +895,9 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     GPIOA->OTYPER &= ~GPIO_OTYPER_OT_9;
     GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
 
-    // PC13: plain push-pull output for the busy LED, active low.
-    GPIOC->MODER = (GPIOC->MODER & ~GPIO_MODER_MODER13) | GPIO_MODER_MODER13_0;
+    // PA8: plain push-pull output for the busy LED, active-high
+    // (bench-verified: the WeAct G474 Long blue LED lights on pin HIGH).
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODER8) | GPIO_MODER_MODER8_0;
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     app_set_console_baud(OW_G4_PCLK2_MHZ);
@@ -1074,7 +1078,10 @@ uint32_t app_millis(void) {
  *       active high, so this is the opposite of F1 and F0).
  *       F4 (STM32F4DISCOVERY): LD4 green on PD12 (active high). F4 with
  *       -DOW_F4_LED_PB2: the WeAct F446RET6 bench LED on PB2 (active high).
- *       G4: LED on PC13 (active low, WeAct standard - same polarity as F1).
+ *       G4: blue LED on PA8 (WeAct BSP: CxT6 = PA8; PC13 on this board is
+ *       the user button, not an LED). Polarity is active-high, verified on
+ *       the bench (active-low drove it inverted: on during the pause, off
+ *       during the measurement).
  */
 void ds18b20_busy(unsigned action) {
 #if defined(OW_PORT_FAMILY_F3)
@@ -1114,6 +1121,15 @@ void ds18b20_busy(unsigned action) {
         GPIOD->BSRR = GPIO_BSRR_BR12;
     }
 #endif
+#elif defined(OW_PORT_FAMILY_G4)
+    /* PA8, active-high: the WeAct G474 Long blue LED lights on pin HIGH
+     * (verified on the bench: active-low drove it inverted - on during the
+     * pause, off during the measurement). */
+    if (action) {
+        GPIOA->BSRR = GPIO_BSRR_BS8;
+    } else {
+        GPIOA->BSRR = GPIO_BSRR_BR8;
+    }
 #else
     if (action) {
         // Turn LED on (PC13 low due to pull-up LED configuration)

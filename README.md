@@ -604,13 +604,14 @@ master-only write slots and restored to open-drain afterwards — see
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3 AF6, open-drain (default topology) |
 | PA9  | USART1 TX (115200)  | AF7; RX line of the USB-UART adapter |
-| PC13 | Busy LED (optional) | **Active-low** (blue LED on WeAct board) |
+| PA8  | Busy LED (optional) | **Active-high** (blue LED on WeAct board; CxT6 = PA8 per WeAct BSP) |
 | PA13/PA14 | SWDIO/SWCLK    | ST-Link SWD programming            |
 
 Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
 The board carries an **8 MHz crystal** (`HSE_MHZ=8` in `chips/g474cb.mk`);
 the 170 MHz PLL (M=1, N=85, R=2, Range 1 Boost) and the raw-HSI16
 `SYSCLK_MHZ=16` build are supported. Build with `make OW_TARGET=g4`.
+PC13 on this board is the user button (pull-up to VCC), not an LED.
 
 ### STM32F407VGT6 (STM32F4DISCOVERY)
 
@@ -748,7 +749,8 @@ See `examples/1_basic/main.c` for a complete single-sensor setup and
 Both callbacks are optional; the driver ships empty weak implementations. The
 shared example layer `examples/app/app.c` supplies a strong `ds18b20_busy()`
 that drives the onboard LED (F1: PC13, F0/G0: PA4, F3: PE8, F4: PD12 — or PB2
-with `-DOW_F4_LED_PB2` on a WeAct F446RET6). There is no shared
+with `-DOW_F4_LED_PB2` on a WeAct F446RET6, G4: PA8 on a WeAct G474 Long).
+There is no shared
 `ds18b20_complete()`: each example implements its own, because the output
 format differs.
 
@@ -758,8 +760,9 @@ format differs.
 > F0/G0 use PA4 active-low; F3 uses PE8 **active-high** (LED4 blue on the
 > F3-DISCOVERY); F4 uses PD12 **active-high** (LD4 green on the F4DISCOVERY),
 > or PB2 active-high with `-DOW_F4_LED_PB2` (the WeAct F446RET6's B2 LED —
-> PC13 is that board's user button, not an LED). On F0/G0 the same logic
-> targets `GPIOA` instead of `GPIOC`.
+> PC13 is that board's user button, not an LED); G4 uses PA8 active-high
+> (WeAct G474 Long blue LED — PC13 there is the user button too). On F0/G0/G4
+> the same logic targets `GPIOA` instead of `GPIOC`.
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement
