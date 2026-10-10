@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">97.8&nbsp;%</td>
-            <td class="headerCovTableEntry">139</td>
+            <td class="headerCovTableEntryHi">97.1&nbsp;%</td>
+            <td class="headerCovTableEntry">140</td>
             <td class="headerCovTableEntry">136</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-09 18:06:51</td>
+            <td class="headerValue">2026-10-10 10:47:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -233,9 +233,9 @@
 <span id="L162"><span class="lineNum">     162</span>                 :             : </span>
 <span id="L163"><span class="lineNum">     163</span>                 :             :     // Check if timer update interrupt occurred (indicates operation completion)</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :     // This is the non-blocking way to detect when timed operations finish.</span>
-<span id="L165"><span class="lineNum">     165</span>                 :             :     // ow_port_bus_done() *consumes* the update flag, so it must be called</span>
+<span id="L165"><span class="lineNum">     165</span>                 :             :     // onewire_bus_done() *consumes* the update flag, so it must be called</span>
 <span id="L166"><span class="lineNum">     166</span>                 :             :     // exactly once per poll and its result reused below.</span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        2744 :     uint8_t done = ow_port_bus_done();</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        2744 :     uint8_t done = onewire_bus_done();</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
 <span id="L169"><span class="lineNum">     169</span>                 :             : #if OW_PORT_LOW_POWER</span>
 <span id="L170"><span class="lineNum">     170</span>                 :             :     // Sleep through a long stage of the measurement cycle (temperature</span>
@@ -243,9 +243,9 @@
 <span id="L172"><span class="lineNum">     172</span>                 :             :     // the timer's own update event via SEVONPEND - no ISR, no NVIC interrupt</span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :     // - so this is invisible to the application: it just calls ds18b20_poll()</span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :     // and the call returns when the stage is done.</span>
-<span id="L175"><span class="lineNum">     175</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1158 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">        1194 :     if (!done &amp;&amp; ow_port_long_wait_pending()) {</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :             :         ow_port_sleep_until_done();</span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         done = ow_port_bus_done(); /* consume the event that woke us */</span></span>
+<span id="L175"><span class="lineNum">     175</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1158 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">        1176 :     if (!done &amp;&amp; onewire_long_wait_pending()) {</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         onewire_sleep_until_done();</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaUNC">           0 :         done = onewire_bus_done(); /* consume the event that woke us */</span></span>
 <span id="L178"><span class="lineNum">     178</span>                 :             :     }</span>
 <span id="L179"><span class="lineNum">     179</span>                 :             : #endif</span>
 <span id="L180"><span class="lineNum">     180</span>                 :             : </span>

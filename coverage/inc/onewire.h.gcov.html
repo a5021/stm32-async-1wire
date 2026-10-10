@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-09 18:06:51</td>
+            <td class="headerValue">2026-10-10 10:47:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -369,79 +369,100 @@
 <span id="L298"><span class="lineNum">     298</span>                 :             :  */</span>
 <span id="L299"><span class="lineNum">     299</span>                 :             : void onewire_strong_pullup(uint8_t on);</span>
 <span id="L300"><span class="lineNum">     300</span>                 :             : </span>
-<span id="L301"><span class="lineNum">     301</span>                 :             : /** @} */</span>
-<span id="L302"><span class="lineNum">     302</span>                 :             : </span>
-<span id="L303"><span class="lineNum">     303</span>                 :             : /**</span>
-<span id="L304"><span class="lineNum">     304</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
-<span id="L305"><span class="lineNum">     305</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
-<span id="L306"><span class="lineNum">     306</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
-<span id="L307"><span class="lineNum">     307</span>                 :             :  *        position i determines which devices keep participating at position</span>
-<span id="L308"><span class="lineNum">     308</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
-<span id="L309"><span class="lineNum">     309</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
-<span id="L310"><span class="lineNum">     310</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
-<span id="L311"><span class="lineNum">     311</span>                 :             :  *        so a poll call never blocks.</span>
-<span id="L312"><span class="lineNum">     312</span>                 :             :  * @{</span>
-<span id="L313"><span class="lineNum">     313</span>                 :             :  */</span>
-<span id="L314"><span class="lineNum">     314</span>                 :             : </span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
-<span id="L317"><span class="lineNum">     317</span>                 :             : </span>
-<span id="L318"><span class="lineNum">     318</span>                 :             : /**</span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             :  *                 return value stops the search early.</span>
-<span id="L322"><span class="lineNum">     322</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
-<span id="L323"><span class="lineNum">     323</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
-<span id="L324"><span class="lineNum">     324</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
-<span id="L325"><span class="lineNum">     325</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
-<span id="L326"><span class="lineNum">     326</span>                 :             :  *                   reach the sink.</span>
-<span id="L327"><span class="lineNum">     327</span>                 :             :  * @note Ignores the call while a search pass is already running. Arbitration</span>
-<span id="L328"><span class="lineNum">     328</span>                 :             :  *       of the shared bus/timer against other 1-Wire operations lives in the</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             :  *       ds18b20_* layer, not here.</span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :  */</span>
-<span id="L331"><span class="lineNum">     331</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
-<span id="L332"><span class="lineNum">     332</span>                 :             :                           uint8_t command, uint8_t family);</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             : </span>
-<span id="L334"><span class="lineNum">     334</span>                 :             : /**</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
-<span id="L336"><span class="lineNum">     336</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             :  */</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             : uint8_t onewire_search_poll(void);</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             : </span>
-<span id="L340"><span class="lineNum">     340</span>                 :             : /**</span>
-<span id="L341"><span class="lineNum">     341</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
-<span id="L342"><span class="lineNum">     342</span>                 :             :  * @return Count of found devices</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             :  */</span>
-<span id="L344"><span class="lineNum">     344</span>                 :             : uint8_t onewire_search_count(void);</span>
-<span id="L345"><span class="lineNum">     345</span>                 :             : </span>
-<span id="L346"><span class="lineNum">     346</span>                 :             : /**</span>
-<span id="L347"><span class="lineNum">     347</span>                 :             :  * @brief Check whether a search is currently running</span>
-<span id="L348"><span class="lineNum">     348</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
-<span id="L349"><span class="lineNum">     349</span>                 :             :  */</span>
-<span id="L350"><span class="lineNum">     350</span>                 :             : uint8_t onewire_search_active(void);</span>
-<span id="L351"><span class="lineNum">     351</span>                 :             : </span>
-<span id="L352"><span class="lineNum">     352</span>                 :             : /** @} */</span>
-<span id="L353"><span class="lineNum">     353</span>                 :             : </span>
-<span id="L354"><span class="lineNum">     354</span>                 :             : /**</span>
-<span id="L355"><span class="lineNum">     355</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :  * @{</span>
-<span id="L357"><span class="lineNum">     357</span>                 :             :  */</span>
-<span id="L358"><span class="lineNum">     358</span>                 :             : </span>
-<span id="L359"><span class="lineNum">     359</span>                 :             : /**</span>
-<span id="L360"><span class="lineNum">     360</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
-<span id="L361"><span class="lineNum">     361</span>                 :             :  * @param[in] data Input buffer</span>
-<span id="L362"><span class="lineNum">     362</span>                 :             :  * @param[in] len Number of bytes to process</span>
-<span id="L363"><span class="lineNum">     363</span>                 :             :  * @return CRC-8 checksum value</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             : #if OW_PORT_LOW_POWER</span>
+<span id="L302"><span class="lineNum">     302</span>                 :             : /**</span>
+<span id="L303"><span class="lineNum">     303</span>                 :             :  * @brief Whether the scheduled hardware stage is a long one (WFE eligible)</span>
+<span id="L304"><span class="lineNum">     304</span>                 :             :  * @return 1 while a long stage (&gt; 1 ms: temperature conversion, scratchpad</span>
+<span id="L305"><span class="lineNum">     305</span>                 :             :  *         read, EEPROM hold-off) is in flight, 0 otherwise</span>
+<span id="L306"><span class="lineNum">     306</span>                 :             :  * @note Derived from the scheduled timer duration, so callers stay on the</span>
+<span id="L307"><span class="lineNum">     307</span>                 :             :  *       onewire API and need not include ow_port.h. Only meaningful with</span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :  *       OW_PORT_LOW_POWER=1.</span>
+<span id="L309"><span class="lineNum">     309</span>                 :             :  */</span>
+<span id="L310"><span class="lineNum">     310</span>                 :             : uint8_t onewire_long_wait_pending(void);</span>
+<span id="L311"><span class="lineNum">     311</span>                 :             : </span>
+<span id="L312"><span class="lineNum">     312</span>                 :             : /**</span>
+<span id="L313"><span class="lineNum">     313</span>                 :             :  * @brief Block in WFE until the currently scheduled long stage completes</span>
+<span id="L314"><span class="lineNum">     314</span>                 :             :  * @note Only the timer's own update event wakes the core (SEVONPEND, no ISR,</span>
+<span id="L315"><span class="lineNum">     315</span>                 :             :  *       no NVIC vector), so to the caller this is an ordinary synchronous</span>
+<span id="L316"><span class="lineNum">     316</span>                 :             :  *       wait. Returns immediately when no long stage is running. Only</span>
+<span id="L317"><span class="lineNum">     317</span>                 :             :  *       meaningful with OW_PORT_LOW_POWER=1.</span>
+<span id="L318"><span class="lineNum">     318</span>                 :             :  */</span>
+<span id="L319"><span class="lineNum">     319</span>                 :             : void onewire_sleep_until_done(void);</span>
+<span id="L320"><span class="lineNum">     320</span>                 :             : #endif</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             : </span>
+<span id="L322"><span class="lineNum">     322</span>                 :             : /** @} */</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             : </span>
+<span id="L324"><span class="lineNum">     324</span>                 :             : /**</span>
+<span id="L325"><span class="lineNum">     325</span>                 :             :  * @defgroup ONEWIRE_Search Generic Non-Blocking Search ROM Engine</span>
+<span id="L326"><span class="lineNum">     326</span>                 :             :  * @brief Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC)</span>
+<span id="L327"><span class="lineNum">     327</span>                 :             :  *        algorithm as a polled state machine. The direction bit written at</span>
+<span id="L328"><span class="lineNum">     328</span>                 :             :  *        position i determines which devices keep participating at position</span>
+<span id="L329"><span class="lineNum">     329</span>                 :             :  *        i+1, so the transaction cannot be batched into one DMA pass; the</span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :  *        linear loop is decomposed into states with loop counters kept in the</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             :  *        context. Every state performs exactly one hardware-timed operation,</span>
+<span id="L332"><span class="lineNum">     332</span>                 :             :  *        so a poll call never blocks.</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             :  * @{</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :  */</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             : </span>
+<span id="L336"><span class="lineNum">     336</span>                 :             : /** @brief Per-device callback invoked by the search engine */</span>
+<span id="L337"><span class="lineNum">     337</span>                 :             : typedef uint8_t (*onewire_search_sink_t)(const uint8_t* rom);</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             : </span>
+<span id="L339"><span class="lineNum">     339</span>                 :             : /**</span>
+<span id="L340"><span class="lineNum">     340</span>                 :             :  * @brief Start a non-blocking search (Search ROM or Alarm Search)</span>
+<span id="L341"><span class="lineNum">     341</span>                 :             :  * @param[in] sink Callback invoked per found device (may be NULL). A non-zero</span>
+<span id="L342"><span class="lineNum">     342</span>                 :             :  *                 return value stops the search early.</span>
+<span id="L343"><span class="lineNum">     343</span>                 :             :  * @param[in] max_devices Maximum number of devices to report (0 aborts)</span>
+<span id="L344"><span class="lineNum">     344</span>                 :             :  * @param[in] command Search command byte (0xF0 Search ROM / 0xEC Alarm Search)</span>
+<span id="L345"><span class="lineNum">     345</span>                 :             :  * @param[in] family 1-Wire family code to accept, or 0 to accept every family.</span>
+<span id="L346"><span class="lineNum">     346</span>                 :             :  *                   Only accepted devices increment the found counter and</span>
+<span id="L347"><span class="lineNum">     347</span>                 :             :  *                   reach the sink.</span>
+<span id="L348"><span class="lineNum">     348</span>                 :             :  * @note Ignores the call while a search pass is already running. Arbitration</span>
+<span id="L349"><span class="lineNum">     349</span>                 :             :  *       of the shared bus/timer against other 1-Wire operations lives in the</span>
+<span id="L350"><span class="lineNum">     350</span>                 :             :  *       ds18b20_* layer, not here.</span>
+<span id="L351"><span class="lineNum">     351</span>                 :             :  */</span>
+<span id="L352"><span class="lineNum">     352</span>                 :             : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span>
+<span id="L353"><span class="lineNum">     353</span>                 :             :                           uint8_t command, uint8_t family);</span>
+<span id="L354"><span class="lineNum">     354</span>                 :             : </span>
+<span id="L355"><span class="lineNum">     355</span>                 :             : /**</span>
+<span id="L356"><span class="lineNum">     356</span>                 :             :  * @brief Advance the non-blocking search by one hardware operation</span>
+<span id="L357"><span class="lineNum">     357</span>                 :             :  * @return 1 when the search is finished, 0 while still running</span>
+<span id="L358"><span class="lineNum">     358</span>                 :             :  */</span>
+<span id="L359"><span class="lineNum">     359</span>                 :             : uint8_t onewire_search_poll(void);</span>
+<span id="L360"><span class="lineNum">     360</span>                 :             : </span>
+<span id="L361"><span class="lineNum">     361</span>                 :             : /**</span>
+<span id="L362"><span class="lineNum">     362</span>                 :             :  * @brief Number of devices found (valid once the search finished)</span>
+<span id="L363"><span class="lineNum">     363</span>                 :             :  * @return Count of found devices</span>
 <span id="L364"><span class="lineNum">     364</span>                 :             :  */</span>
-<span id="L365"><span class="lineNum">     365</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
+<span id="L365"><span class="lineNum">     365</span>                 :             : uint8_t onewire_search_count(void);</span>
 <span id="L366"><span class="lineNum">     366</span>                 :             : </span>
-<span id="L367"><span class="lineNum">     367</span>                 :             : /** @} */</span>
-<span id="L368"><span class="lineNum">     368</span>                 :             : </span>
-<span id="L369"><span class="lineNum">     369</span>                 :             : #ifdef __cplusplus</span>
-<span id="L370"><span class="lineNum">     370</span>                 :             : }</span>
-<span id="L371"><span class="lineNum">     371</span>                 :             : #endif</span>
+<span id="L367"><span class="lineNum">     367</span>                 :             : /**</span>
+<span id="L368"><span class="lineNum">     368</span>                 :             :  * @brief Check whether a search is currently running</span>
+<span id="L369"><span class="lineNum">     369</span>                 :             :  * @return 1 while the search owns the timer, 0 when it is idle</span>
+<span id="L370"><span class="lineNum">     370</span>                 :             :  */</span>
+<span id="L371"><span class="lineNum">     371</span>                 :             : uint8_t onewire_search_active(void);</span>
 <span id="L372"><span class="lineNum">     372</span>                 :             : </span>
-<span id="L373"><span class="lineNum">     373</span>                 :             : #endif /* ONEWIRE_H */</span>
+<span id="L373"><span class="lineNum">     373</span>                 :             : /** @} */</span>
+<span id="L374"><span class="lineNum">     374</span>                 :             : </span>
+<span id="L375"><span class="lineNum">     375</span>                 :             : /**</span>
+<span id="L376"><span class="lineNum">     376</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
+<span id="L377"><span class="lineNum">     377</span>                 :             :  * @{</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             :  */</span>
+<span id="L379"><span class="lineNum">     379</span>                 :             : </span>
+<span id="L380"><span class="lineNum">     380</span>                 :             : /**</span>
+<span id="L381"><span class="lineNum">     381</span>                 :             :  * @brief Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer</span>
+<span id="L382"><span class="lineNum">     382</span>                 :             :  * @param[in] data Input buffer</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             :  * @param[in] len Number of bytes to process</span>
+<span id="L384"><span class="lineNum">     384</span>                 :             :  * @return CRC-8 checksum value</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             :  */</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             : </span>
+<span id="L388"><span class="lineNum">     388</span>                 :             : /** @} */</span>
+<span id="L389"><span class="lineNum">     389</span>                 :             : </span>
+<span id="L390"><span class="lineNum">     390</span>                 :             : #ifdef __cplusplus</span>
+<span id="L391"><span class="lineNum">     391</span>                 :             : }</span>
+<span id="L392"><span class="lineNum">     392</span>                 :             : #endif</span>
+<span id="L393"><span class="lineNum">     393</span>                 :             : </span>
+<span id="L394"><span class="lineNum">     394</span>                 :             : #endif /* ONEWIRE_H */</span>
         </pre>
               </td>
             </tr>

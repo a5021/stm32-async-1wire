@@ -111,12 +111,14 @@ Macros</h2></td></tr>
 <tr class="separator:a5ec4c131780da9c582cb5f3d9464be78"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a629ce7673dff00062857559a77d2a2a5" id="r_a629ce7673dff00062857559a77d2a2a5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a629ce7673dff00062857559a77d2a2a5">OW_PORT_CAPTURE_BUF_SIZE</a>&#160;&#160;&#160;2u</td></tr>
 <tr class="separator:a629ce7673dff00062857559a77d2a2a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8f5a3ee214b8a36f837a8b58d5ddf741" id="r_a8f5a3ee214b8a36f837a8b58d5ddf741"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a8f5a3ee214b8a36f837a8b58d5ddf741">OW_PORT_LONG_STAGE_US</a>&#160;&#160;&#160;1000u</td></tr>
+<tr class="separator:a8f5a3ee214b8a36f837a8b58d5ddf741"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a41a339d033b83ce2dffa5d622c3a4547" id="r_a41a339d033b83ce2dffa5d622c3a4547"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547">OW_PORT_MARKER_TOGGLE</a>()&#160;&#160;&#160;((void)0)</td></tr>
 <tr class="separator:a41a339d033b83ce2dffa5d622c3a4547"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Platform port layer for the non-blocking 1-Wire engine. </p>
-<p>The 1-Wire layer (onewire.c) and the DS18B20 driver (ds18b20.c) are written against this thin, target-agnostic interface. Each target provides the ow_port_* implementation as a header of static inline functions, so the port layer compiles away to exactly the same register writes as a direct bare-metal implementation: zero call overhead in any build mode, with or without LTO, and no function pointers or runtime dispatch.</p>
+<p>The 1-Wire layer (onewire.c) is written against this thin, target-agnostic interface; the DS18B20 driver (ds18b20.c) uses only the onewire_* API on top of it. Each target provides the ow_port_* implementation as a header of static inline functions, so the port layer compiles away to exactly the same register writes as a direct bare-metal implementation: zero call overhead in any build mode, with or without LTO, and no function pointers or runtime dispatch.</p>
 <p>Every ow_port_* call schedules exactly one hardware-timed operation on the shared timer/DMA engine and returns immediately; the caller advances by polling ow_port_bus_done(). The CPU is never in the timing-critical path. </p>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a629ce7673dff00062857559a77d2a2a5" name="a629ce7673dff00062857559a77d2a2a5"></a>
@@ -127,6 +129,20 @@ Macros</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">#define OW_PORT_CAPTURE_BUF_SIZE&#160;&#160;&#160;2u</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a8f5a3ee214b8a36f837a8b58d5ddf741" name="a8f5a3ee214b8a36f837a8b58d5ddf741"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8f5a3ee214b8a36f837a8b58d5ddf741">&#9670;&#160;</a></span>OW_PORT_LONG_STAGE_US</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_PORT_LONG_STAGE_US&#160;&#160;&#160;1000u</td>
         </tr>
       </table>
 </div><div class="memdoc">

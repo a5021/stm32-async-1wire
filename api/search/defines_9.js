@@ -13,10 +13,11 @@ var searchData=
   ['ow_5fdrive_5factive_10',['OW_DRIVE_ACTIVE',['../ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20',1,'ow_config.h']]],
   ['ow_5fparasite_5fpower_11',['OW_PARASITE_POWER',['../ow__config_8h.html#a2aad532fa0eb3d852d91fc8178bf4e59',1,'ow_config.h']]],
   ['ow_5fport_5fcapture_5fbuf_5fsize_12',['OW_PORT_CAPTURE_BUF_SIZE',['../ow__port_8h.html#a629ce7673dff00062857559a77d2a2a5',1,'ow_port.h']]],
-  ['ow_5fport_5flow_5fpower_13',['OW_PORT_LOW_POWER',['../ow__config_8h.html#a3e288937a7a78f8aae146c25a71cdb40',1,'ow_config.h']]],
-  ['ow_5fport_5fmarker_5ftoggle_14',['OW_PORT_MARKER_TOGGLE',['../ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547',1,'ow_port.h']]],
-  ['ow_5fport_5freset_5fpulse_5fduration_15',['OW_PORT_RESET_PULSE_DURATION',['../ow__port_8h.html#aa18f9f11d231ba5cdc1674c70d1dca0c',1,'ow_port.h']]],
-  ['ow_5fport_5freset_5ftimeout_16',['OW_PORT_RESET_TIMEOUT',['../ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78',1,'ow_port.h']]],
-  ['ow_5fstats_5fhist_5fbuckets_17',['OW_STATS_HIST_BUCKETS',['../ow__stats_8h.html#a2ec44bc8d74f6c239c8379d6f1f7aed3',1,'ow_stats.h']]],
-  ['ow_5fstats_5fmax_5fsensors_18',['OW_STATS_MAX_SENSORS',['../ow__stats_8h.html#a7f85acaa52cb8357d0feeb50a51e6f02',1,'ow_stats.h']]]
+  ['ow_5fport_5flong_5fstage_5fus_13',['OW_PORT_LONG_STAGE_US',['../ow__port_8h.html#a8f5a3ee214b8a36f837a8b58d5ddf741',1,'ow_port.h']]],
+  ['ow_5fport_5flow_5fpower_14',['OW_PORT_LOW_POWER',['../ow__config_8h.html#a3e288937a7a78f8aae146c25a71cdb40',1,'ow_config.h']]],
+  ['ow_5fport_5fmarker_5ftoggle_15',['OW_PORT_MARKER_TOGGLE',['../ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547',1,'ow_port.h']]],
+  ['ow_5fport_5freset_5fpulse_5fduration_16',['OW_PORT_RESET_PULSE_DURATION',['../ow__port_8h.html#aa18f9f11d231ba5cdc1674c70d1dca0c',1,'ow_port.h']]],
+  ['ow_5fport_5freset_5ftimeout_17',['OW_PORT_RESET_TIMEOUT',['../ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78',1,'ow_port.h']]],
+  ['ow_5fstats_5fhist_5fbuckets_18',['OW_STATS_HIST_BUCKETS',['../ow__stats_8h.html#a2ec44bc8d74f6c239c8379d6f1f7aed3',1,'ow_stats.h']]],
+  ['ow_5fstats_5fmax_5fsensors_19',['OW_STATS_MAX_SENSORS',['../ow__stats_8h.html#a7f85acaa52cb8357d0feeb50a51e6f02',1,'ow_stats.h']]]
 ];
