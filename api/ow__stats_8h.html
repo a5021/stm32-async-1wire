@@ -167,7 +167,9 @@ Functions</h2></td></tr>
 <div class="textblock"><p>1-Wire signal statistics — optional compile-in module. </p>
 <p>Collects per-sensor pulse-width statistics, a global pulse histogram, and error counters. Enabled by setting OW_STATS_ENABLE to 1 at build time (e.g. -DOW_STATS_ENABLE=1). When the macro is 0, every inline body compiles away to nothing so there is zero overhead in production builds.</p>
 <p>The dump is non-blocking: <a class="el" href="ow__stats_8h.html#a80dad30beb47862038c8a5e8a33f0625" title="Begin a non-blocking stats dump via UART.">ow_stats_dump_start()</a> initiates it, <a class="el" href="ow__stats_8h.html#af4ba0b9a859190954918984c21af4b9d" title="Advance the non-blocking stats dump by one line.">ow_stats_dump_poll()</a> advances the dump by one line per main-loop call.</p>
-<dl class="section note"><dt>Note</dt><dd>RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16 histogram buckets, indices 0–12, are populated). </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16 histogram buckets, indices 0–12, are populated). </dd>
+<dd>
+Emitted by the DS18B20 driver (ds18b20.c): pulse widths, ROM addresses and DS18B20_TEMP_ERROR_* codes are driver-owned concepts, so the driver — not the onewire layer — feeds this module. </dd></dl>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a2ec44bc8d74f6c239c8379d6f1f7aed3" name="a2ec44bc8d74f6c239c8379d6f1f7aed3"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2ec44bc8d74f6c239c8379d6f1f7aed3">&#9670;&#160;</a></span>OW_STATS_HIST_BUCKETS</h2>
