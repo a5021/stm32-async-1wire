@@ -1422,6 +1422,51 @@ buffers, keeps the line released to idle HIGH after every transaction, and
 is fully covered by the host test suite. See the API Reference below for the
 complete `onewire_*` surface.
 
+### Layer Contracts
+
+Dependency direction is app → `ds18b20` → `onewire` → `ow_port` → backend:
+each layer uses only the one directly below it. Two past leaks were closed
+along this rule: the driver no longer calls `ow_port_*` directly (it goes
+through `onewire_bus_done()` / `onewire_long_wait_pending()` /
+`onewire_sleep_until_done()`), and the low-power "long stage" flag is gone —
+"long" is derived from the scheduled timer
+(`CEN && !UIF && ARR*(RCR+1) > OW_PORT_LONG_STAGE_US`, one rule for capture,
+feed and timer waits), so multi-slot writes sleep instead of busy-polling.
+`bus_done()` retires the schedule explicitly.
+
+The following five look like leaks but are deliberate, reviewed decisions —
+do not "fix" them without re-reading the reasoning:
+
+- **Backend selection lives in `onewire.h`.** One chain, one `#include`
+  branch, `#error` on no family — so the backend and its defaults cannot
+  drift (`8dba9d2`). Header-side selection is the integration contract:
+  consumers define `OW_PORT_TARGET_Fx` (or CubeMX defines `STM32F*` itself)
+  and the headers pick the backend. Moving selection into the build system
+  would break the CubeIDE path.
+- **`ow_pulse_t` is family-sized.** F4 feeds CCR3 in DMA direct mode
+  (halfword, `uint16_t`); the other families use `uint8_t`. An
+  always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;
+  casts would hide the F4 halfword requirement the backends document.
+- **The `onewire.h` ↔ `ow_port.h` include cycle is intentional.** It is
+  guard-protected and order-independent (`ow_port.h` stays self-contained
+  whatever the TU includes first). Breaking it means either duplicating the
+  selection chain or forcing an include order on users.
+- **`onewire_strong_pullup()` stays in the generic layer.** It is a thin
+  wrapper like every other `onewire_*` primitive, and the strong pull-up is
+  a bus-line mode owned by the layer that owns the hardware operations —
+  not a sensor concept. Removing it would push the driver back to
+  `ow_port_*`.
+- **`OW_PORT_MARKER_TOGGLE` is an opt-in hook.** Default no-op, used once
+  (merged-pass start marker for a logic-analyzer decoder, see
+  `port/stm32f4/HARDWARE-NOTES.md`). Zero cost unless a backend defines it.
+
+Two more closures, for the record: stats emission stays in the driver
+because pulse widths, ROM addresses and `DS18B20_TEMP_ERROR_*` codes are
+driver-owned concepts the onewire layer must not know (see the note at the
+`ow_stats.h` include in `src/ds18b20.c`); the reset-geometry macros stay in
+`inc/ow_port.h` because they are the port's own schedule parameters
+published as port contract (see the comment there).
+
 ### Required Timer Capabilities
 
 The contract describes the functional peripheral topology required by the
