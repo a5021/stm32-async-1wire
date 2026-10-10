@@ -298,6 +298,27 @@ void onewire_kick(void);
  */
 void onewire_strong_pullup(uint8_t on);
 
+#if OW_PORT_LOW_POWER
+/**
+ * @brief Whether the scheduled hardware stage is a long one (WFE eligible)
+ * @return 1 while a long stage (> 1 ms: temperature conversion, scratchpad
+ *         read, EEPROM hold-off) is in flight, 0 otherwise
+ * @note Derived from the scheduled timer duration, so callers stay on the
+ *       onewire API and need not include ow_port.h. Only meaningful with
+ *       OW_PORT_LOW_POWER=1.
+ */
+uint8_t onewire_long_wait_pending(void);
+
+/**
+ * @brief Block in WFE until the currently scheduled long stage completes
+ * @note Only the timer's own update event wakes the core (SEVONPEND, no ISR,
+ *       no NVIC vector), so to the caller this is an ordinary synchronous
+ *       wait. Returns immediately when no long stage is running. Only
+ *       meaningful with OW_PORT_LOW_POWER=1.
+ */
+void onewire_sleep_until_done(void);
+#endif
+
 /** @} */
 
 /**

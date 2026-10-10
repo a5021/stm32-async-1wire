@@ -4,12 +4,6 @@
 #include <assert.h>
 #include <string.h>
 
-#if OW_PORT_LOW_POWER
-/** @brief Set by the driver while a long stage (>1ms) is running, read by the
- *         low-power application. Shared across translation units. */
-uint8_t ow_long_pending = 0;
-#endif
-
 /**
  * @defgroup ONEWIRE_Private_Constants ONEWIRE Private Constants
  * @{
@@ -187,6 +181,16 @@ void onewire_kick(void) { ow_port_kick(); }
 void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
+
+#if OW_PORT_LOW_POWER
+uint8_t onewire_long_wait_pending(void) {
+    return ow_port_long_wait_pending();
+}
+
+void onewire_sleep_until_done(void) {
+    ow_port_sleep_until_done();
+}
+#endif
 
 uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {

@@ -1005,7 +1005,7 @@ test-clocks-f4: clock-ref-check
 
 # --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
-# __WFE()-related code (SEVONPEND, ow_long_pending, UIE) is exercised
+# __WFE()-related code (SEVONPEND, derived long-stage predicate, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
 .PHONY: test-lowpower
 test-lowpower: $(TEST_LP_EXE)

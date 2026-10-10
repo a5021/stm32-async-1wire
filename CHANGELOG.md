@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Low-power long-stage rule is uniform and stateless.** Whether a stage
+  may be slept through is now derived from the scheduled timer
+  (`CEN && !UIF && ARR*(RCR+1) > 1000 us`) for every arm path, so
+  multi-slot writes (Match ROM, Skip) sleep like conversions and
+  scratchpad reads instead of busy-polling. The shared `ow_long_pending`
+  global is gone; `ow_port_bus_done()` retires the schedule explicitly.
+
 ## [2.2.0] - 2026-10-09
 
 ### Fixed

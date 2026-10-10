@@ -95,6 +95,11 @@ uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
 #if OW_PORT_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count) {
+    /* Capture arms the channels only; the schedule (and therefore the
+     * long-stage predicate) belongs to the caller, as ow_port_reset() and
+     * ow_port_read_data() program ARR/RCR before calling ow_port_capture(). */
+    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
+    T1.RCR = (uint16_t)(count - 1u);
     ow_port_capture((volatile void*)ctx.capture, count, 16);
 }
 #endif

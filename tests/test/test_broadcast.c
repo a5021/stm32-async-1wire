@@ -126,8 +126,11 @@ static void read_one_device(uint8_t expected_index, uint8_t expect_more,
         TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     } else {
         TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
-        /* Inter-measurement pause armed after the last device. */
-        TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+        /* Parked after the last device: DECODE armed nothing and bus_done
+         * retired the read schedule, so the timer must be stopped (on
+         * hardware OPM stops it at completion; the mock used to leak a
+         * stale CEN here). */
+        TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
     }
 }
 
@@ -270,8 +273,8 @@ void test_broadcast_full_round_three_devices(void) {
         TEST_ASSERT_EQUAL_INT(223, test_spy_complete_values[i]);
     }
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
-    /* Inter-measurement pause armed after the last device. */
-    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+    /* Parked after the last device: nothing scheduled, timer stopped. */
+    TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
 }
 
 /*-------------------------------------------------------------

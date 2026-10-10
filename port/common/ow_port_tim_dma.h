@@ -299,11 +299,6 @@ __STATIC_FORCEINLINE void ow_port_init(void) {
     OW_PORT_CONFIG_BUS_PIN();
 }
 
-#if OW_PORT_LOW_POWER
-/** @brief Set while a hardware stage longer than 1 ms is running. */
-extern uint8_t ow_long_pending; /* defined in onewire.c, shared across TUs */
-#endif
-
 /**
  * @brief Non-blocking completion check for the scheduled operation
  * @return 1 if finished (update flag set and cleared), 0 while still running
@@ -322,11 +317,16 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
          * bit at every ow_port_update_event() re-arm (EGR=UG). Clear the
          * pending flag here so the next __WFE() truly sleeps; otherwise the
          * pending bit would make __WFE() return immediately forever (silent
-         * degradation back to a busy-loop). */
+         * degradation back to a busy-loop). Clearing UIF below also retires
+         * the long-stage condition read by ow_port_long_wait_pending(). */
         NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
-        ow_long_pending = 0;
 #endif
         T1.SR = 0;
+        /* Retire the schedule explicitly: on hardware OPM already stopped the
+         * counter, but stating it here keeps the completion state honest
+         * without relying on that side effect (and keeps the host mock, which
+         * does not model OPM auto-stop, in agreement with hardware). */
+        T1.CR1 &= (uint32_t)~TIM_CR1(CEN);
         return 1u;
     }
     return 0u;
@@ -334,14 +334,24 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
 
 #if OW_PORT_LOW_POWER
 /**
- * @brief Whether the currently scheduled operation is a "long" stage (> 1 ms)
- * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off)
- *         is in flight, 0 otherwise
- * @note A low-power application checks this, then calls
+ * @brief Whether the currently scheduled operation is a "long" stage
+ * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
+ *         multi-slot write) is armed and unfinished, 0 otherwise
+ * @note Derived from the timer the port itself programs: running (CEN),
+ *       unfinished (!UIF) and longer than OW_PORT_LONG_STAGE_US. There is no
+ *       stored flag to keep in sync — the schedule is the state — so every
+ *       arm path (capture, feed, timer wait) shares the one rule and cannot
+ *       drift from it. A low-power application checks this, then calls
  *       ow_port_sleep_until_done() when it is set, instead of busy-polling.
  */
 __STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
-    return ow_long_pending;
+    if (!(T1.CR1 & TIM_CR1(CEN))) {
+        return 0u;
+    }
+    if (T1.SR & TIM_SR(UIF)) {
+        return 0u; /* armed but already complete: nothing left to sleep on */
+    }
+    return (uint8_t)(((uint32_t)T1.RCR + 1u) * (uint32_t)T1.ARR > OW_PORT_LONG_STAGE_US);
 }
 
 /**
@@ -396,9 +406,9 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
-    if ((uint32_t)count * (ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) > 1000u) {
-        ow_long_pending = 1; /* e.g. a 72-slot scratchpad read (~5 ms) */
-    }
+    /* No duration decision here: ow_port_long_wait_pending() derives it from
+     * the caller's ARR/RCR, so every capture path (reset, read, long
+     * scratchpad read) shares the one OW_PORT_LONG_STAGE_US rule. */
 #else
     T1.DIER = TIM_DIER(CC4DE);
 #endif
@@ -457,11 +467,11 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     T1.ARR = arr;
     T1.RCR = rcr;
 #if OW_PORT_LOW_POWER
-    if ((uint32_t)(rcr + 1u) * arr > 1000u) {
-        ow_long_pending = 1; /* long stage: conversion / EEPROM hold-off */
-        /* Enable the update interrupt so the pending bit wakes __WFE() via
-         * SEVONPEND. ow_port_capture() already sets UIE for the long scratchpad
-         * read stage, but start_timer() must too, else WFE sleeps forever. */
+    if ((uint32_t)(rcr + 1u) * (uint32_t)arr > OW_PORT_LONG_STAGE_US) {
+        /* long stage: conversion / EEPROM hold-off. Enable the update
+         * interrupt so the pending bit wakes __WFE() via SEVONPEND.
+         * ow_port_capture() already sets UIE for the capture stages, but
+         * start_timer() must too, else WFE sleeps forever. */
         T1.DIER |= TIM_DIER(UIE);
     }
 #endif
