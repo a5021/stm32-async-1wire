@@ -30,6 +30,9 @@ PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
 FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #endif
+#if defined(OW_PORT_TARGET_H5)
+FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
+#endif
 
 static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;
@@ -94,7 +97,7 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3) || defined(OW_PORT_TARGET_G4)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3) || defined(OW_PORT_TARGET_G4) || defined(OW_PORT_TARGET_H5)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
@@ -108,6 +111,9 @@ void hw_reset_all(void) {
     /* VOSF starts clear, like hardware after the regulator settles, so the
      * Range-1-Boost wait in configure_system_clock() passes immediately. */
     mock_pwr = (PWR_TypeDef){0};
+#endif
+#if defined(OW_PORT_TARGET_H5)
+    mock_flash = (FLASH_TypeDef){0};
 #endif
 #if defined(OW_PORT_TARGET_F4)
     mock_dma2 = (DMA_TypeDef){0};
@@ -183,7 +189,13 @@ static void dma13_transfer(void) {
         return;
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
+#if defined(OW_PORT_TARGET_H5)
+    /* GPDMA carries the memory width in CTR1.DDW_LOG2 (halfword = 16-bit
+     * cells); the classic backends carry it in CCR.MSIZE_0. */
+    if (d->CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
+#else
     if (d->CCR & MOCK_DMA_CAP_MSIZE_0) {
+#endif
         *(volatile uint16_t*)d13_cur = val;
         d13_cur += 2;
     } else {
@@ -205,8 +217,15 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     feed_log.total = 0;
     op_capture_count = 0;
     /* Resolve the DMA buffer addresses exactly as the driver stored them. */
+#if defined(OW_PORT_TARGET_H5)
+    /* GPDMA SAR/DAR are direction-relative: feed memory lives in CSAR,
+     * capture memory in CDAR. */
+    d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
+    d13_cur = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
+#else
     d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
     d13_cur = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
+#endif
     uint32_t slots = (uint32_t)(t->RCR & 0xFFu) + 1u;
     if (slots > max_slots) {
         slots = max_slots;
@@ -302,7 +321,11 @@ void hw_tim_init(void) {
         MOCK_DMA_FEED.CNDTR > 0u) {
         g_tim.feed_en = 1u;
         g_tim.feed_rem = MOCK_DMA_FEED.CNDTR;
+#if defined(OW_PORT_TARGET_H5)
+        g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
+#else
         g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
+#endif
         if (g_tim.feed_ptr == NULL) {
             fprintf(stderr, "hw_model: unresolved feed source address\n");
             g_tim.feed_en = 0u;
@@ -315,7 +338,11 @@ void hw_tim_init(void) {
         g_tim.cap_en = 1u;
         g_tim.cap_total = MOCK_DMA_CAP.CNDTR;
         g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
+#if defined(OW_PORT_TARGET_H5)
+        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
+#else
         g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
+#endif
         if (g_tim.cap_ptr == NULL) {
             fprintf(stderr, "hw_model: unresolved capture destination address\n");
             g_tim.cap_en = 0u;
@@ -374,7 +401,12 @@ static uint32_t hw_tim_next_capture_tick(void) {
 static void hw_tim_do_capture(void) {
     uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
     mock_tim1.CCR4 = val;
+#if defined(OW_PORT_TARGET_H5)
+    /* GPDMA width in CTR1.DDW_LOG2 (halfword = 16-bit cells). */
+    if (mock_dma1_ch4.CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
+#else
     if (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_MSIZE_0) {
+#endif
         *(volatile uint16_t*)g_tim.cap_ptr = val;
         g_tim.cap_ptr += 2;
     } else {

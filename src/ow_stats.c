@@ -16,6 +16,8 @@
 #include "stm32g0xx.h"
 #elif defined(OW_PORT_FAMILY_G4)
 #include "stm32g4xx.h"
+#elif defined(OW_PORT_FAMILY_H5)
+#include "stm32h5xx.h"
 #elif defined(OW_PORT_FAMILY_F0)
 #include "stm32f0xx.h"
 #elif defined(OW_PORT_FAMILY_F3)

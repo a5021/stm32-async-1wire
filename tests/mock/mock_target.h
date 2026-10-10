@@ -3,7 +3,7 @@
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (OW_PORT_TARGET_F0 / OW_PORT_TARGET_F1 /
  * OW_PORT_TARGET_F3 / OW_PORT_TARGET_G0 / OW_PORT_TARGET_G4 /
- * OW_PORT_TARGET_F4). */
+ * OW_PORT_TARGET_F4 / OW_PORT_TARGET_H5). */
 #if defined(OW_PORT_TARGET_F4)
 #include "stm32f4xx.h"
 #elif defined(OW_PORT_TARGET_F0)
@@ -14,6 +14,8 @@
 #include "stm32g0xx.h"
 #elif defined(OW_PORT_TARGET_G4)
 #include "stm32g4xx.h"
+#elif defined(OW_PORT_TARGET_H5)
+#include "stm32h5xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -74,7 +76,7 @@
 #define MOCK_PIN_IS_PP() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) == 0u))
 #define MOCK_PIN_AT_MAX_SPEED() (((mock_gpioa.CRH & GPIO_CRH_MODE10) == GPIO_CRH_MODE10_1))
 #else
-#if defined(OW_PORT_TARGET_G0)
+#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_H5)
 #define MOCK_PIN_MODER GPIO_MODER_MODE10
 #define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
 #define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0

@@ -102,6 +102,20 @@ _Static_assert((OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 #define OW_G4_CONSOLE_BRR USART_BRR_CALC(OW_G4_PCLK2_MHZ * 1000000u, 115200)
 #endif /* OW_PORT_FAMILY_G4 */
 
+/* --- H5 console divisor ----------------------------------------------------
+ *
+ * Same shape as G4: USART1 is on APB2, left at /1, so PCLK2 = SYSCLK and the
+ * divisor is one line. It still lives here rather than in app.c for the same
+ * reason: the register write it feeds is inside hardware_init(), which no
+ * host build compiles, so this is the host suite's only reach over it
+ * (test_timing.c::test_h5_console_baud_divisor). */
+#if defined(OW_PORT_FAMILY_H5)
+/** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
+#define OW_H5_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ))
+/** @brief Console BRR on USART1/APB2 at 115200 baud */
+#define OW_H5_CONSOLE_BRR USART_BRR_CALC(OW_H5_PCLK2_MHZ * 1000000u, 115200)
+#endif /* OW_PORT_FAMILY_H5 */
+
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  * @note One call instead of configure_system_clock() + hardware_init()
@@ -120,9 +134,9 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5))
 /**
- * @brief Configure system clock (exposed for the F4/G4 host harness)
+ * @brief Configure system clock (exposed for the F4/G4/H5 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
  *       Under DS18B20_TEST_HARNESS the F4/G4 suite drives the real clock path
  *       against the RCC/FLASH mocks (test_timing), so it needs external

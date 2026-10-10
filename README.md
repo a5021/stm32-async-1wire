@@ -6,7 +6,7 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Six backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Seven backends ship today:
 
 - `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
 - `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
@@ -14,6 +14,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
 - `port/stm32g4/ow_port_g4.h` — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
 - `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
+- `port/stm32h5/ow_port_h5.h` — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock; HSE and HSE+PLL steps pending). USART1 TX on PA9 (AF7). Hardware validation pending — host suite green, firmware builds, bench not yet run.
 
 ## Table of Contents
 
@@ -98,10 +99,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F103C8T6, STM32F030x6,
   STM32F303VC, STM32G031x6, STM32F407VGT6, STM32F401CC, STM32F401xE,
-  STM32F446RE, STM32G474CB; see port backends in `port/`).
+  STM32F446RE, STM32G474CB, STM32H503CB; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default, `OW_CHIP=g474cb`), or 16MHz via raw HSI16. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default, `OW_CHIP=g474cb`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default, `OW_CHIP=h503cb`); HSE and HSE+PLL steps pending bench validation. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
   The 180MHz mode is the one clock on F4 that is above 168MHz, and it is a
   different code path rather than a different number: it needs the PWR over-drive
@@ -152,7 +153,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── STM32G474CB_FLASH.ld  # Linker script, STM32G474CB (128KB flash / 96KB RAM)
 │   │   ├── stm32g474cb.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G474CB, SWD)
-│   └── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
+│   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
 │   │   ├── ow_port_f4.h    # STM32F4: thin shim over the shared core (family facts, DMA2 stream + CHSEL/flag overrides, rearm, write_then_read carve-out)
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
@@ -167,6 +168,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
 │   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
+│   └── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10 (header-only static inline)
+    ├── ow_port_h5.h    # H5 descriptor: clock gates + MODER/AFR pin setup + GPDMA CTR1/CTR2/REQSEL overrides
+    ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
+    └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
 ├── chips/                  # Per-part build identity, one file per part
@@ -178,7 +183,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
 │   ├── f401xe.mk           # 512KB flash / 128KB RAM
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
-│   └── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
+│   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
+│   └── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
 ├── src/                    # Project source files
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
@@ -309,6 +315,9 @@ make OW_TARGET=f4 OW_CHIP=f446xx HSE_MHZ=8 SYSCLK_MHZ=8 APP=4_scan_mode
 make OW_TARGET=g4 APP=4_scan_mode
 # ... 16MHz on the raw internal HSI16 (no HSE crystal needed):
 make OW_TARGET=g4 SYSCLK_MHZ=16 APP=4_scan_mode
+
+# STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
+make OW_TARGET=h5 APP=4_scan_mode
 ```
 
 Notes:
@@ -1566,7 +1575,8 @@ are identical across all families.
   | STM32F3 | TIM1 | PA10 (AF6) | Fixed, same pair as F0/F1: CC2→DMA1 **ch3**, CH4→DMA1 **ch4** | RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA |
   | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
 | STM32G4 | TIM1 | PA10 (AF6) | DMAMUX: CC2=#43, CH4=#45 | APB2=/1, no x2 doubling; 8-bit feed tables |
-  | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
+   | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
+   | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; bench validation pending |
   
   The DMA column is the one thing here that is **not** interchangeable between
   families, and getting it wrong is silent: on a family whose CC2/CH4 requests sit
@@ -1574,11 +1584,13 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-All six backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
+All seven backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
 `ow_port_f1.h`, `ow_port_f3.h`, `ow_port_g0.h`, `ow_port_g4.h`
 with DMA1 defaults, `ow_port_f4.h`
-as a thin shim overriding the DMA spelling): DMA2's per-stream `CHSEL` mux
-travels inside the control-register word, and the merged write+read pass is
+as a thin shim overriding the DMA spelling, `ow_port_h5.h` with GPDMA
+CTR1/CTR2/REQSEL overrides): DMA2's per-stream `CHSEL` mux
+travels inside the control-register word (GPDMA's `REQSEL` in CTR2 likewise),
+and the merged write+read pass is
 shared too, with no per-family arm order left.
   
 #### Bus Electrical Model

@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(OW_PORT_TARGET_F4) || defined(OW_PORT_TARGET_G4)
+#if defined(OW_PORT_TARGET_F4) || defined(OW_PORT_TARGET_G4) || defined(OW_PORT_TARGET_H5)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -230,6 +230,18 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
 #endif
+#elif defined(OW_PORT_TARGET_H5)
+    /* HSI-64 bring-up: flash latency + HSI divider only, no waits (HSI is
+     * already running), so no failure flag and no ready-flag presetting. */
+    configure_system_clock();
+    /* 3 WS + prefetch in one write (covers 64MHz in every voltage range). */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_3WS,
+                             mock_flash.ACR);
+    /* Divider to /1: reset is /2 (32MHz SYSCLK). */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSIDIV);
+    /* APB prescalers stay at reset /1: TIM1 = PCLK2 = SYSCLK directly. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
+                                     (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
 #endif
 }
 
@@ -355,6 +367,29 @@ void test_g4_console_baud_divisor(void) {
 }
 #endif /* OW_PORT_TARGET_G4 */
 
+#if defined(OW_PORT_TARGET_H5)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  Same gap the G4 divisor check closes: the BRR write lives in
+ *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
+ *  build has ever compiled it on any family. The H5 backend leaves APB2 at
+ *  /1, so PCLK2 = SYSCLK; asserting the app.h value pins that.
+ *-------------------------------------------------------------*/
+void test_h5_console_baud_divisor(void) {
+    uint32_t brr_expected;
+
+    TEST_ASSERT_EQUAL_UINT32((OW_PORT_SYSCLK_MHZ), (uint32_t)OW_H5_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_PORT_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H5_CONSOLE_BRR);
+    /* Sanity on the arithmetic itself: at every supported clock the divisor
+     * must land in a sane BRR range. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
+}
+#endif /* OW_PORT_TARGET_H5 */
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -369,6 +404,9 @@ void run_test_timing(void) {
 #endif
 #if defined(OW_PORT_TARGET_G4)
     TEST_RUN(test_g4_console_baud_divisor);
+#endif
+#if defined(OW_PORT_TARGET_H5)
+    TEST_RUN(test_h5_console_baud_divisor);
 #endif
     TEST_RUN(test_search_start_ignored_while_running);
 }

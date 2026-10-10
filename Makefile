@@ -49,6 +49,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=g0   -> G0 firmware
 #   make OW_TARGET=f4   -> F4 firmware (default part f407xx)
 #   make OW_TARGET=g4   -> G4 firmware (default part g474cb)
+#   make OW_TARGET=h5   -> H5 firmware (default part h503cb)
 #
 # OW_CHIP selects the part *within* the family; its value is the name of a
 # chips/<part>.mk file, which carries the part identity (CMSIS device macro,
@@ -62,7 +63,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # the empty value silently meant "F1", which is exactly how a typo such as
 # OW_TARGET=f401-84 ended up compiling a Blue Pill.
 OW_TARGET ?= f1
-OW_KNOWN_TARGETS = f1 f0 f3 g0 f4 g4
+OW_KNOWN_TARGETS = f1 f0 f3 g0 f4 g4 h5
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -86,6 +87,10 @@ else ifeq ($(OW_TARGET),g4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 PORT_DEF = OW_PORT_TARGET_G4
+else ifeq ($(OW_TARGET),h5)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+MCU = -mcpu=cortex-m33 -mthumb
+PORT_DEF = OW_PORT_TARGET_H5
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
@@ -104,6 +109,8 @@ else ifeq ($(OW_TARGET),f3)
 OW_CHIP ?= f303xc
 else ifeq ($(OW_TARGET),g4)
 OW_CHIP ?= g474cb
+else ifeq ($(OW_TARGET),h5)
+OW_CHIP ?= h503cb
 else
 OW_CHIP ?= f103xb
 endif
@@ -125,7 +132,7 @@ CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
 CHIP_SVD := $(strip $(CHIP_SVD))
 CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
 
-# Crystal (HSE) frequency of the *board*, F4 and G4 only. Not part identity: a
+# Crystal (HSE) frequency of the *board*, F4, G4 and H5 only. Not part identity: a
 # part file may carry a default for the board it is named after, and HSE_MHZ=
 # on the command line wins for any other board.
 CHIP_HSE_MHZ := $(strip $(CHIP_HSE_MHZ))
@@ -145,7 +152,7 @@ ifndef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(CHIP_HSE_MHZ)
 endif
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/stm32h5 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -319,6 +326,7 @@ G0_URL = $(ST_URL)cmsis_device_g0/master
 F4_URL = $(ST_URL)cmsis_device_f4/master
 G4_URL = $(ST_URL)cmsis_device_g4/master
 F3_URL = $(ST_URL)cmsis-device-f3/master
+H5_URL = $(ST_URL)cmsis_device_h5/master
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
@@ -366,6 +374,13 @@ CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
 CMSIS_DEVICE_FAMILY_HDR = stm32g4xx.h
 CMSIS_SYSTEM_HDR = system_stm32g4xx.h
 CMSIS_SYSTEM_SRC = system_stm32g4xx.c
+else ifeq ($(OW_TARGET),h5)
+# Cortex-M33: core_cm33.h pulls in mpu_armv8.h unconditionally.
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm33.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv8.h
+CMSIS_DEVICE_FAMILY_HDR = stm32h5xx.h
+CMSIS_SYSTEM_HDR = system_stm32h5xx.h
+CMSIS_SYSTEM_SRC = system_stm32h5xx.c
 else
 CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm3.h
 CMSIS_DEVICE_FAMILY_HDR = stm32f1xx.h
@@ -435,7 +450,9 @@ CMSIS_DOWNLOADS_CORE = \
   cmsis_compiler.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_compiler.h \
   cmsis_gcc.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_gcc.h \
   cmsis_version.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/cmsis_version.h \
-  core_cm4.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm4.h
+  core_cm4.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm4.h \
+  core_cm33.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/core_cm33.h \
+  mpu_armv8.h|$(CMSIS_CORE_DIR)|$(CMSIS_CORE_URL)/mpu_armv8.h
 # cmsis_device_f1 headers and sources (Apache 2.0)
 CMSIS_DOWNLOADS_F1 = \
   stm32f1xx.h|$(CMSIS_DEVICE_DIR)|$(F1_URL)/Include/stm32f1xx.h \
@@ -479,6 +496,15 @@ CMSIS_DOWNLOADS_G4 = \
   startup_stm32g474xx.s|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Source/Templates/gcc/startup_stm32g474xx.s
 # cmsis-device-f3 headers and sources (Apache 2.0). The repository spells its
 # name with a hyphen, unlike the cmsis_device_* ones above.
+# cmsis_device_h5 headers and sources (Apache 2.0). No SVD upstream
+# (cmsis-svd-data carries no STM32H503 file), so the H5 part file leaves
+# CHIP_SVD empty; ST-Link flashing and debugging do not need it.
+CMSIS_DOWNLOADS_H5 = \
+  stm32h5xx.h|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Include/stm32h5xx.h \
+  stm32h503xx.h|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Include/stm32h503xx.h \
+  system_stm32h5xx.h|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Include/system_stm32h5xx.h \
+  system_stm32h5xx.c|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Source/Templates/system_stm32h5xx.c \
+  startup_stm32h503xx.s|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Source/Templates/gcc/startup_stm32h503xx.s
 CMSIS_DOWNLOADS_F3 = \
   stm32f3xx.h|$(CMSIS_DEVICE_DIR)|$(F3_URL)/Include/stm32f3xx.h \
   stm32f303xc.h|$(CMSIS_DEVICE_DIR)|$(F3_URL)/Include/stm32f303xc.h \
@@ -499,7 +525,7 @@ CMSIS_DOWNLOADS_SVD = \
 CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F1) \
                  $(CMSIS_DOWNLOADS_F0) $(CMSIS_DOWNLOADS_G0) \
                  $(CMSIS_DOWNLOADS_F4) $(CMSIS_DOWNLOADS_F3) \
-                 $(CMSIS_DOWNLOADS_G4) \
+                 $(CMSIS_DOWNLOADS_G4) $(CMSIS_DOWNLOADS_H5) \
                  $(CMSIS_DOWNLOADS_SVD)
 
 # Generate the rules. $$(call ...) rather than $(call ...), and $$@ rather
@@ -850,6 +876,10 @@ else ifeq ($(OW_TARGET),g4)
 TEST_PORT_FLAG = -DOW_PORT_TARGET_G4
 TEST_PORT_INC = -Iport/stm32g4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
+else ifeq ($(OW_TARGET),h5)
+TEST_PORT_FLAG = -DOW_PORT_TARGET_H5
+TEST_PORT_INC = -Iport/stm32h5
+TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
 else
 TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
 TEST_PORT_INC = -Iport/stm32f1
@@ -899,13 +929,13 @@ endif
 # two left the active-drive and ndebug names with an unbalanced paren, which
 # only the ndebug job noticed - and it failed on CI while all five host-test
 # jobs went red on an artefact name rather than on a test.
-TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g4,$(OW_TARGET)),_g4,)))))
+TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter h5,$(OW_TARGET)),_h5,))))))
 
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
-TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g4,$(1)),STM32G4,STM32F1)))))
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter g0,$(1)),STM32G0,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g4,$(1)),STM32G4,$(if $(filter h5,$(1)),STM32H5,STM32F1))))))
 # This one defaults to _f1 rather than to nothing, so the family-macro compile
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.

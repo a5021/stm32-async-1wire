@@ -25,8 +25,11 @@
 #   f0             329                 984              432
 #   f4             434                1088              536
 #   g4             329                 984              432
+#   h5             329                 984              432
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
+# (h5 measured 2026-10-10: same uint8_t pulse tables again - GPDMA converts
+# widths in hardware, so no F4-style halfword tables - hence the same 329.)
 #
 # Recalibration procedure (ceilings are exact by design — no slack, so any
 # growth must be conscious; a red gate is a question, not a failure):
@@ -134,6 +137,7 @@ fi
 check f0 329 984 432
 check f4 434 1088 536
 check g4 329 984 432
+check h5 329 984 432
 
 if [ "$fail" -ne 0 ]; then
     exit 1

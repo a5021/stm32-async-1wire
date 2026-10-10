@@ -1,7 +1,7 @@
 /* ============================================================
- *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all six families
+ *  ow_port_tim_dma.h - the TIM1 + DMA core shared by all seven families
  *
- *  The 1-Wire bus on all six of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all seven of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
  *  marker that triggers the feed DMA into CCR3.  Those 17 functions are one
@@ -44,8 +44,9 @@
  *  F4 rides the same core through accessor macros with DMA1 defaults (see the
  *  OW_PORT_DMA_* block below) that the F4 shim overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
- *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks.  Even the
- *  merged write+read pass is shared by all six families with no
+ *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks — and H5
+ *  through GPDMA CTR1/CTR2/REQSEL vocabulary overrides the same way.  Even the
+ *  merged write+read pass is shared by all seven families with no
  *  per-family knobs left: two arm-order experiments on F446 (UG-vs-DMA order,
  *  early direction-pulse arm) both behave identically, so one order serves
  *  all - see the note above ow_port_write_then_read.
@@ -62,7 +63,8 @@
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
  * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
- * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA),
+ * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA,
+ * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
  * deliberately no #error here: D13/D14 resolve through ow_bits.h, which every
@@ -97,9 +99,10 @@
 #endif
 
 /* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
- *     living here because the shared core is the one place all six families
+ *     living here because the shared core is the one place all seven families
  *     are processed.  The F4 backend uses this same ladder through the core
- *     (it overrides only the DMA register spelling, not the timer setup).
+ *     (it overrides only the DMA register spelling, not the timer setup), and
+ *     so does H5 (GPDMA CTR1/CTR2/REQSEL overrides only).
  *
  *     ICxF is a 4-bit ladder.  The values this port actually programs, decoded
  *     from the RM0090 table (the same one ST's stm32f0xx_ll_tim.h spells out),

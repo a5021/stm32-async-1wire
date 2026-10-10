@@ -158,17 +158,30 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
     /* first buffer: CMAR must address exactly its slot-1 element */
     onewire_write_slots(a.pulses, ONEWIRE_BITS_PER_BYTE);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&a.pulses[1], mock_feed_ch.CSAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
+#else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&a.pulses[1], mock_feed_ch.CMAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CPAR);
+#endif
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_BITS_PER_BYTE, mock_feed_ch.CNDTR);
     /* memory -> peripheral, increment on; the memory element is family sized
-     * (F4 feeds 16-bit halfwords in direct mode, F1 8-bit cells) */
+     * (F4 feeds 16-bit halfwords in direct mode, F1 8-bit cells; H5 carries
+     * direction/width/increment in CTR1/CTR2 with CCR holding EN only) */
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+                             mock_feed_ch.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 #if defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 16-bit cells */
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0, mock_feed_ch.CCR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1, mock_feed_ch.CCR);
+#endif
 #endif
 
     run_op();
@@ -188,7 +201,11 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
     /* second buffer: identical geometry but the data must follow B */
     onewire_write_slots(b.pulses, ONEWIRE_BITS_PER_BYTE);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CSAR);
+#else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CMAR);
+#endif
     run_op();
     log = hw_ccr3_feed_log();
     TEST_ASSERT_EQUAL_UINT8(ONEWIRE_BITS_PER_BYTE, log->count);
@@ -289,13 +306,24 @@ void test_dma_rx_read_pair_16bit_destination(void) {
     hw_set_capture_source(two_val16_src);
 
     onewire_read_pair(g.capture); /* capture 2 slots, 16-bit MSIZE */
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.capture[0], mock_dma1_ch4.CDAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
+#else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.capture[0], mock_dma1_ch4.CMAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
+#endif
     TEST_ASSERT_EQUAL_UINT32(2u, mock_dma1_ch4.CNDTR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
     TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_1, mock_dma1_ch4.CCR); /* 16-bit, not 32-bit */
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
@@ -321,6 +349,11 @@ void test_dma_rx_byte_read_8bit_minc(void) {
     onewire_read_data(g.buf, 1); /* 1 byte = 8 slots, 8-bit MSIZE */
     TEST_ASSERT_EQUAL_UINT32(8u, mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(7u, mock_tim1.RCR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX8, mock_dma1_ch4.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
 #if defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_BITS_LOW(DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR); /* 8-bit direct-mode width */
@@ -329,6 +362,7 @@ void test_dma_rx_byte_read_8bit_minc(void) {
 #endif
     TEST_ASSERT_BITS_LOW(DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1, mock_dma1_ch4.CCR); /* 8-bit */
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR);
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
@@ -439,7 +473,11 @@ void test_dma_tx_direction_memory_to_peripheral(void) {
     onewire_write_slots(g.pulses, ONEWIRE_BITS_PER_BYTE);
     memcpy(snapshot, g.pulses, sizeof(snapshot));
 
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH((1u << DMA_CTR2_DREQ_Pos), mock_feed_ch.CTR2); /* memory -> peripheral */
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_DIR, mock_feed_ch.CCR); /* memory -> peripheral */
+#endif
     run_op();
 
     /* behavioural direction: the data moved OUT of memory. The source buffer
@@ -463,7 +501,11 @@ void test_dma_rx_direction_peripheral_to_memory(void) {
     hw_set_capture_source(two_val16_src);
 
     onewire_read_pair(g.capture);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_LOW((1u << DMA_CTR2_DREQ_Pos), mock_dma1_ch4.CTR2); /* peripheral -> memory */
+#else
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
+#endif
     run_op();
 
     /* behavioural direction: the data moved INTO memory through the capture
@@ -488,9 +530,19 @@ void test_dma_reset_capture_geometry(void) {
     /* ONE slot but TWO captures: the reset bus-turnaround is 2 pulse captures in 1 slot */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, mock_dma1_ch4.CNDTR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CDAR);
+#else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CMAR);
+#endif
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
+#endif
 
     run_op();
     /* Two edges in a timeslot that armed OW_PORT_CAPTURE_BUF_SIZE slots: the
@@ -513,12 +565,34 @@ void test_dma_write_then_read_merged_geometry(void) {
     TEST_ASSERT_EQUAL_UINT32(2u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(3u, mock_dma1_ch4.CNDTR); /* 3 x 16-bit captures */
     TEST_ASSERT_EQUAL_UINT32(3u, mock_feed_ch.CNDTR); /* 3 x 8-bit feed reloads */
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
+#else
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CPAR);
+#endif
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+                             mock_feed_ch.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
+#endif
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
+#else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CPAR);
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
@@ -551,7 +625,11 @@ void test_dma_single_bit_write_uses_no_dma(void) {
     TEST_ASSERT_BITS_LOW(MOCK_TIM_FEED_DE, mock_tim1.DIER);
     /* the capture channel must be equally untouched: no capture DMA armed */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
+#else
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_MSIZE_0, mock_dma1_ch4.CCR);
+#endif
     TEST_ASSERT_BITS_LOW(MOCK_TIM_CAP_DE, mock_tim1.DIER);
 
     run_op();
@@ -569,8 +647,13 @@ void test_dma_cndtr_one_transfer(void) {
 
     ds18b20_test_arm_capture(g.capture, 1, 16); /* minimal transfer count */
     TEST_ASSERT_EQUAL_UINT32(1u, mock_dma1_ch4.CNDTR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
@@ -609,7 +692,14 @@ void test_dma_match_rom_resolution_writes_104_slots(void) {
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(103u, mock_tim1.RCR); /* 104 slots */
     TEST_ASSERT_EQUAL_UINT32(104u, mock_feed_ch.CNDTR);
+#if defined(OW_PORT_TARGET_H5)
+    TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
+    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+                             mock_feed_ch.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
+#endif
 
     run_op();
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);

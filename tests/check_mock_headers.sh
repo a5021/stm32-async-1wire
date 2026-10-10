@@ -123,6 +123,7 @@ compare f3 "$MOCK_DIR/stm32f3xx.h" "$CMSIS_DIR/stm32f303xc.h"
 compare g0 "$MOCK_DIR/stm32g0xx.h" "$CMSIS_DIR/stm32g031xx.h"
 compare f4 "$MOCK_DIR/stm32f4xx.h" "$CMSIS_DIR/stm32f407xx.h"
 compare g4 "$MOCK_DIR/stm32g4xx.h" "$CMSIS_DIR/stm32g474xx.h"
+compare h5 "$MOCK_DIR/stm32h5xx.h" "$CMSIS_DIR/stm32h503xx.h"
 # The F4 mock twice, against a second real header. One F4 mock has to serve the
 # whole family, and the over-drive bits the F446's 180MHz branch needs
 # (PWR_CR_ODEN/ODSWEN, PWR_CSR_ODRDY/ODSWRDY) are defined in stm32f446xx.h but

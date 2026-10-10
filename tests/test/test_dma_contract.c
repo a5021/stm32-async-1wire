@@ -43,20 +43,37 @@ static uint16_t presence_src(uint32_t idx) {
 /* CCR bit fields a correct operation must program (see table above).
  * Direct mode forces the memory width to PSIZE: F4 feeds 16-bit halfwords
  * from the ow_pulse_t buffer (MSIZE_0) and drops PSIZE for 8-bit captures,
- * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout. */
-#if defined(OW_PORT_TARGET_F4)
+ * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout.
+ * H5 programs GPDMA: CCR carries EN only, the transfer class lives in
+ * CTR1/CTR2 (pinned by test_dma_cr_value_macros below). */
+#if defined(OW_PORT_TARGET_H5)
+#define WIDTH_MSIZE16 0u
+#define WIDTH_PSIZE8 0u
+#define FEED_8BIT_HI DMA_CCR_EN
+#define FEED_8BIT_LO (~DMA_CCR_EN)
+#define CAP_16BIT_HI DMA_CCR_EN
+#define CAP_16BIT_LO (~DMA_CCR_EN)
+#define CAP_8BIT_HI DMA_CCR_EN
+#define CAP_8BIT_LO (~DMA_CCR_EN)
+#elif defined(OW_PORT_TARGET_F4)
 #define WIDTH_MSIZE16 DMA_CCR_MSIZE_0
 #define WIDTH_PSIZE8 0u
-#else
-#define WIDTH_MSIZE16 0u
-#define WIDTH_PSIZE8 DMA_CCR_PSIZE_0
-#endif
 #define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
 #define FEED_8BIT_LO (DMA_CCR_MSIZE_1)
 #define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
 #define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
 #define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
+#else
+#define WIDTH_MSIZE16 0u
+#define WIDTH_PSIZE8 DMA_CCR_PSIZE_0
+#define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
+#define FEED_8BIT_LO (DMA_CCR_MSIZE_1)
+#define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
+#define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
+#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
+#define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
+#endif
 
 /* ------------------------------------------------------------------ */
 
@@ -338,8 +355,14 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* feed channel: exact CMAR/CPAR/CNDTR, required CCR bits */
     if (row->exp_feed_cmar != 0u) {
+#if defined(OW_PORT_TARGET_H5)
+        /* GPDMA SAR/DAR are direction-relative: feed memory in CSAR. */
+        TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cmar, mock_feed_ch.CSAR);
+        TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cpar, mock_feed_ch.CDAR);
+#else
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cmar, mock_feed_ch.CMAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cpar, mock_feed_ch.CPAR);
+#endif
         TEST_ASSERT_EQUAL_UINT32(row->exp_feed_cndtr, mock_feed_ch.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_feed_ccr_hi, mock_feed_ch.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_feed_ccr_lo, mock_feed_ch.CCR);
@@ -350,8 +373,14 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* capture channel */
     if (row->exp_cap_cmar != 0u) {
+#if defined(OW_PORT_TARGET_H5)
+        /* GPDMA SAR/DAR are direction-relative: capture memory in CDAR. */
+        TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cmar, mock_dma1_ch4.CDAR);
+        TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cpar, mock_dma1_ch4.CSAR);
+#else
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cmar, mock_dma1_ch4.CMAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cpar, mock_dma1_ch4.CPAR);
+#endif
         TEST_ASSERT_EQUAL_UINT32(row->exp_cap_cndtr, mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_cap_ccr_hi, mock_dma1_ch4.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_cap_ccr_lo, mock_dma1_ch4.CCR);
@@ -382,7 +411,28 @@ static void run_contract_row(const dma_contract_row_t* row) {
  * discriminating bits (PSIZE present/absent on 8-bit captures, MSIZE on
  * halfword memories, CHSEL on F4 streams). */
 void test_dma_cr_value_macros(void) {
-#if defined(OW_PORT_TARGET_F4)
+#if defined(OW_PORT_TARGET_H5)
+    /* GPDMA CTR1 templates (transfer-register-1 words, not CCR): capture
+     * reads the halfword CCR4 into incrementing memory (16- or 8-bit
+     * cells), feed reads incrementing byte memory into the fixed halfword
+     * CCR3. */
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)((1u << DMA_CTR1_SDW_LOG2_Pos) | (1u << DMA_CTR1_DDW_LOG2_Pos) |
+                   (1u << DMA_CTR1_DINC_Pos)),
+        (uint32_t)OW_PORT_DMA_CR_RX16);
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)((1u << DMA_CTR1_SDW_LOG2_Pos) | (1u << DMA_CTR1_DINC_Pos)),
+        (uint32_t)OW_PORT_DMA_CR_RX8);
+    TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 &
+                                            (1u << DMA_CTR1_DDW_LOG2_Pos)));
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)((1u << DMA_CTR1_SINC_Pos) | (1u << DMA_CTR1_DDW_LOG2_Pos)),
+        (uint32_t)OW_PORT_DMA_CR_TX);
+    /* REQSEL routing (no DMAMUX on H5): feed <- TIM1_CH2, capture <-
+     * TIM1_CH4. Double-sourced from the H5 RM mapping table and CubeH5. */
+    TEST_ASSERT_EQUAL_UINT32(59u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CC2);
+    TEST_ASSERT_EQUAL_UINT32(61u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CH4);
+#elif defined(OW_PORT_TARGET_F4)
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
                    (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),

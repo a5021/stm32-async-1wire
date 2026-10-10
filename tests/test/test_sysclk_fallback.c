@@ -2,7 +2,7 @@
  *  test_sysclk_fallback.c - Family-macro backend selection check
  *
  *  Compile-only (no test harness): verifies that selecting a family
- *  through the raw family macro (STM32F1/F0/F3/G0/G4, STM32F4 — for F4/G4
+ *  through the raw family macro (STM32F1/F0/F3/G0/G4/H5, STM32F4 — for F4/G4/H5
  *  also the concrete device spellings) — the path PlatformIO / STM32CubeMX
  *  use, without the OW_PORT_TARGET_* knob — resolves both the
  *  OW_PORT_FAMILY_* token and the matching default OW_PORT_SYSCLK_MHZ.
@@ -88,6 +88,10 @@
 #if OW_PORT_SYSCLK_MHZ != 170
 #error "G4 family-macro selection must default to a 170 MHz system clock"
 #endif
+#elif defined(OW_PORT_FAMILY_H5)
+#if OW_PORT_SYSCLK_MHZ != 64
+#error "H5 family-macro selection must default to a 64 MHz system clock"
+#endif
 #else
 #error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
 #endif
@@ -105,6 +109,12 @@
  * only part tops out at 170MHz. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#elif defined(OW_PORT_FAMILY_H5)
+/* Same pair for H5 (OW_PORT_H5_MAX_SYSCLK_MHZ, owned by ow_port_h5.h): the
+ * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
+#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_H5_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_PORT_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #endif
 

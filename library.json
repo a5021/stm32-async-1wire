@@ -30,7 +30,8 @@
             "-Iport/stm32f1",
             "-Iport/stm32f0",
             "-Iport/stm32g0",
-            "-Iport/stm32f4"
+            "-Iport/stm32f4",
+            "-Iport/stm32h5"
         ]
     }
 }

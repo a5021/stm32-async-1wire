@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **STM32H5 backend (host-green, bench pending).** Seventh family:
+  `port/stm32h5/ow_port_h5.h` rides the shared TIM1 core with GPDMA
+  CTR1/CTR2/REQSEL vocabulary overrides (GPDMA1 channels 2/3, requests 59/61,
+  no DMAMUX), bus on PA10 (AF1), console USART1 TX on PA9 (AF7), LED on PC13.
+  Default clock is raw HSI at 64MHz (`chips/h503cb.mk` for the WeAct
+  STM32H503Cx Core Board, 8MHz crystal reserved for the later HSE/HSE+PLL
+  steps). Host suite (incl. lowpower/active/ndebug), mocks-vs-CMSIS,
+  RAM budget (329/984/432, same uint8_t tables as F0/G4) and the HSI-64
+  firmware build pass; hardware validation (search, measure, WFE sleep,
+  LA timing) is the next step, not yet run.
+
 ### Changed
 
 - **Low-power long-stage rule is uniform and stateless.** Whether a stage

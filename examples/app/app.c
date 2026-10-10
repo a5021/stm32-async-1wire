@@ -14,6 +14,8 @@
 #include "stm32f4xx.h"
 #elif defined(OW_PORT_FAMILY_G4)
 #include "stm32g4xx.h"
+#elif defined(OW_PORT_FAMILY_H5)
+#include "stm32h5xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -28,8 +30,8 @@ static uint8_t uart_tx_buf[UART_TX_BUF_SIZE]; // circular buffer for UART transm
  * @note Must be called periodically to feed the UART from the ring buffer
  */
 void uart_poll_tx(void) {
-#if defined(OW_PORT_FAMILY_G0) || defined(OW_PORT_FAMILY_G4)
-    // G0/G4 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
+#if defined(OW_PORT_FAMILY_G0) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5)
+    // G0/G4/H5 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
         uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
@@ -190,7 +192,7 @@ void ow_stats_tx_enqueue(char c) {
  * which the F4 harness compiles (and test_timing drives) against the RCC
  * and FLASH mocks. hardware_init/app_init/ds18b20_busy stay target-only. */
 
-#if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4)
+#if !defined(DS18B20_TEST_HARNESS) || defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5)
 /**
  * @brief Configure system clock
  * @note The source is derived from OW_PORT_SYSCLK_MHZ (see onewire.h).
@@ -201,6 +203,8 @@ void ow_stats_tx_enqueue(char c) {
  *       (F405/F407) or 84MHz (the F401 cap) via HSE+PLL, raw HSI
  *       at 16MHz, or raw HSE at the crystal's own frequency.
  *       G4: 170MHz via HSE+PLL (M=2, N=85, R=2), or raw HSI16 at 16MHz.
+ *       H5: 64MHz raw HSI direct (bring-up clock; HSE and HSE+PLL steps are
+ *       validated separately).
  * @note On F4 the crystal comes from OW_HSE_MHZ, a *board* property, because
  *       one part ships on boards with different crystals. A wrong value cannot
  *       be caught at compile time - the PLL simply never locks - so the three
@@ -669,6 +673,24 @@ void configure_system_clock(void) {
 #error "Unsupported OW_PORT_SYSCLK_MHZ for F3: use 8 (raw HSI), 64 (HSI/2 + PLL x16, the HSI ceiling) or 72 (HSE/PREDIV + PLL x9, the part ceiling)"
 #endif
 #undef OW_F3_PPRE
+#elif defined(OW_PORT_FAMILY_H5)
+/* STM32H5 clock tree, bring-up step: HSI 64MHz direct.
+ *
+ * HSI runs at 64MHz but reset divides it to 32MHz (HSIDIV=/2), so the only
+ * write is the divider to /1 - no oscillator to start, no PLL to lock, no
+ * clock switch, and therefore no wait that can hang and no failure flag.
+ * Prescalers stay at reset /1, so TIM1 = PCLK2 = SYSCLK directly, which is
+ * what keeps the ow_port 1us-tick invariant and OW_PORT_TIM_PRESCALER at
+ * SYSCLK_MHZ - 1.
+ *
+ * Flash latency is programmed before raising the clock: 3 WS covers 64MHz
+ * in every voltage range (VOS3 tops at 80MHz with 3WS), so this holds
+ * whatever the reset VOS is; prefetch is required with any WS > 0. */
+#if (OW_PORT_SYSCLK_MHZ) != 64
+#error "Unsupported OW_PORT_SYSCLK_MHZ for H5: use 64 (raw HSI). HSE and HSE+PLL steps are validated separately."
+#endif
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_3WS;
+    RCC->CR &= (uint32_t)~RCC_CR_HSIDIV;
 #else /* F1 */
 #if (OW_PORT_SYSCLK_MHZ) == 72
     // Enable HSI and HSE oscillators
@@ -702,7 +724,7 @@ void configure_system_clock(void) {
 #endif
 #endif
 }
-#endif /* !DS18B20_TEST_HARNESS || OW_PORT_FAMILY_F4 */
+#endif /* !DS18B20_TEST_HARNESS || OW_PORT_FAMILY_F4 || OW_PORT_FAMILY_G4 || OW_PORT_FAMILY_H5 */
 
 #if !defined(DS18B20_TEST_HARNESS)
 /**
@@ -724,7 +746,7 @@ void configure_system_clock(void) {
  *       silkscreen, active high (per the WeAct schematic) - opts in with
  *       -DOW_F4_LED_PB2.
  */
-#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4)
+#if defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
 #if defined(OW_UART_USART3)
     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */
@@ -901,6 +923,32 @@ __STATIC_FORCEINLINE void hardware_init(void) {
 
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     app_set_console_baud(OW_G4_PCLK2_MHZ);
+    USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#elif defined(OW_PORT_FAMILY_H5)
+    /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (push-pull output).
+     *
+     * The WeAct board wires no UART to USB, so the console rides an external
+     * USB-UART dongle on PA9 - TX only, like every other family. PA9 sits
+     * next to PA10 without touching it, so the bus and the console share the
+     * port. The blue LED is on PC13 (stm32duino variant pin map and the WeAct
+     * schematic agree); polarity active-high assumed, to confirm on the bench
+     * (an inverted LED reads on-during-pause, like the G4 bring-up showed).
+     *
+     * USART1 is on APB2, left at /1 - so PCLK2 = SYSCLK (test pins it through
+     * OW_H5_CONSOLE_BRR in app.h). */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOCEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+    // PA9: alternate function push-pull, AF7 = USART1_TX (pin 9 is in AFR[1]).
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;
+    GPIOA->OTYPER &= ~GPIO_OTYPER_OT9;
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
+
+    // PC13: plain push-pull output for the busy LED (push-pull is the reset state).
+    GPIOC->MODER = (GPIOC->MODER & ~GPIO_MODER_MODE13) | GPIO_MODER_MODE13_0;
+
+    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+    app_set_console_baud(OW_H5_PCLK2_MHZ);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #else
     // Enable clock for GPIOA, USART1, and GPIOC peripherals
@@ -1129,6 +1177,14 @@ void ds18b20_busy(unsigned action) {
         GPIOA->BSRR = GPIO_BSRR_BS8;
     } else {
         GPIOA->BSRR = GPIO_BSRR_BR8;
+    }
+#elif defined(OW_PORT_FAMILY_H5)
+    /* PC13, active-high assumed (bench check pending: inverted would read
+     * on-during-pause, as the G4 bring-up showed). */
+    if (action) {
+        GPIOC->BSRR = GPIO_BSRR_BS13;
+    } else {
+        GPIOC->BSRR = GPIO_BSRR_BR13;
     }
 #else
     if (action) {

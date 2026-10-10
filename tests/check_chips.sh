@@ -24,10 +24,15 @@ CHIP_DIR=chips
 fail=0
 
 # Every variable a part file must define, with the shape it must have. The
-# three *_PATH entries are checked against the filesystem; the other three are
-# checked for form.
-REQUIRED_PATHS="CHIP_LINKER CHIP_JFLASH CHIP_JDEBUG"
-REQUIRED_FORMS="CHIP_DEV_DEF CHIP_SYSCLK_MHZ CHIP_SVD CHIP_STARTUP CHIP_DEVICE_HDR"
+# two *_PATH entries are checked against the filesystem; the forms are
+# checked for shape. CHIP_JFLASH is optional: a part without J-Link support
+# (unknown JTAG CoreID) leaves it empty, and empty is only accepted there -
+# a typo naming a file that does not exist still fails, empty or not.
+# CHIP_SVD is informational only (no SVD upstream for every part) and is
+# validated by download, not by form, so it is not checked here at all.
+REQUIRED_PATHS="CHIP_LINKER CHIP_JDEBUG"
+OPTIONAL_PATHS="CHIP_JFLASH"
+REQUIRED_FORMS="CHIP_DEV_DEF CHIP_SYSCLK_MHZ CHIP_STARTUP CHIP_DEVICE_HDR"
 
 parts=$(ls "$CHIP_DIR" 2>/dev/null | sed -n 's/\.mk$//p' | sort)
 if [ -z "$parts" ]; then
@@ -58,6 +63,12 @@ for part in $parts; do
     for var in $REQUIRED_PATHS; do
         path=$(value_of "$var")
         [ -f "$path" ] || bad="$bad $var -> $path (no such file)"
+    done
+    for var in $OPTIONAL_PATHS; do
+        path=$(value_of "$var")
+        if [ -n "$path" ] && [ ! -f "$path" ]; then
+            bad="$bad $var -> $path (no such file)"
+        fi
     done
 
     case "$(value_of CHIP_DEV_DEF)" in
