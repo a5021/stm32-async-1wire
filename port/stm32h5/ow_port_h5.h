@@ -186,7 +186,7 @@ typedef uint8_t ow_pulse_t;
          * 2 bytes per element, so BNDT = count * 2. RX8 keeps   \
          * the halfword CCR4 source (reading the low byte) and   \
          * needs the same x2; the feed below is byte-sourced     \
-         * (SDW_LOG2 = 0) and stays BNDT = count bytes. */          \
+         * (SDW_LOG2 = 0) and stays BNDT = count bytes. */           \
         OW_PORT_DMA_CAPTURE.CBR1 =                                           \
             ((uint32_t)(count) << (((cr) >> DMA_CTR1_SDW_LOG2_Pos) & 0x3u)); \
         OW_PORT_DMA_CAPTURE.CTR2 =                                           \

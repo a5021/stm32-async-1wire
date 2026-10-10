@@ -28,7 +28,9 @@
 # No SVD upstream (cmsis-svd-data carries no STM32H503 file), so CHIP_SVD is
 # empty; ST-Link flashing and debugging do not need it. No J-Flash project
 # either (the H503 JTAG CoreID is unverified); the Ozone project uses the
-# CMSIS-SVD bundled with the install.
+# CMSIS-SVD bundled with the install. Both blanks are sanctioned: check_chips.sh
+# lists CHIP_JFLASH in OPTIONAL_PATHS and calls CHIP_SVD informational, and the
+# CMake part guard excludes the two from its empty-key check.
 
 # CMSIS device macro; selects stm32h503xx.h via stm32h5xx.h
 CHIP_DEV_DEF = -DSTM32H503xx

@@ -326,7 +326,7 @@ G0_URL = $(ST_URL)cmsis_device_g0/master
 F4_URL = $(ST_URL)cmsis_device_f4/master
 G4_URL = $(ST_URL)cmsis_device_g4/master
 F3_URL = $(ST_URL)cmsis-device-f3/master
-H5_URL = $(ST_URL)cmsis_device_h5/master
+H5_URL = $(ST_URL)cmsis_device_h5/main
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
@@ -593,7 +593,7 @@ clean-deps:
 # tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
 # because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
 # - the inner reference expands before t is bound and comes out empty.
-MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 f3:f303xc g0:g031xx f4:f407xx f4:f446xx g4:g474cb
+MOCK_CHECK_PARTS = f1:f103xb f0:f030x6 f3:f303xc g0:g031xx f4:f407xx f4:f446xx g4:g474cb h5:h503cb
 test-mocks:
 	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh

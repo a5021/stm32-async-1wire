@@ -75,6 +75,17 @@ else()
     message(FATAL_ERROR "OW_TARGET must be f1, f0, f3, g0, f4, g4 or h5 (got: ${OW_TARGET})")
 endif()
 
+# The cmsis_device_<family> repos all use master as their default branch except
+# cmsis_device_h5, whose default branch is main. The Makefile's H5 raw URLs are
+# pinned to main for the same reason, but a wrong ref there would still resolve
+# because raw.githubusercontent.com falls back to the default branch; git needs
+# a real ref, so the FetchContent tag is pinned explicitly here.
+if(OW_TARGET STREQUAL "h5")
+    set(CMSIS_DEVICE_TAG "main")
+else()
+    set(CMSIS_DEVICE_TAG "master")
+endif()
+
 # ---------------------------------------------------------------------------
 # Part selection: read chips/<part>.mk, the same file the Makefile build uses
 # ---------------------------------------------------------------------------
@@ -134,8 +145,16 @@ foreach(_line IN LISTS _ow_chip_lines)
         set(${_k} "${_v}")
     endif()
 endforeach()
+# CHIP_JFLASH and CHIP_SVD are optional, excluded from the empty-check because
+# check_chips.sh already treats them that way (CHIP_JFLASH is in OPTIONAL_PATHS,
+# CHIP_SVD is called informational): a part can have no J-Flash project (the H5
+# JTAG CoreID is unverified) and no SVD upstream (cmsis-svd-data carries no
+# STM32H5 files). The Makefile handles both blank - JFLASH only feeds the J-Link
+# jprogram path, CHIP_SVD only EXTERNAL_DEPS - so requiring them here drifted
+# from the repo-side checklist, and faking a non-empty value that pointed at
+# nothing would be worse than an honest blank.
 foreach(_k CHIP_DEV_DEF CHIP_DEVICE_HDR CHIP_STARTUP CHIP_LINKER
-           CHIP_JFLASH CHIP_JDEBUG CHIP_SVD CHIP_SYSCLK_MHZ)
+           CHIP_JDEBUG CHIP_SYSCLK_MHZ)
     if(NOT ${_k})
         message(FATAL_ERROR
             "chips/${OW_CHIP}.mk does not define ${_k}; the part file and this "
@@ -146,7 +165,9 @@ if(NOT EXISTS "${OW_CHIP_DIR}/${OW_CHIP}.mk")
     message(FATAL_ERROR "chips/${OW_CHIP}.mk does not exist")
 endif()
 foreach(_p "${CHIP_LINKER}" "${CHIP_JFLASH}" "${CHIP_JDEBUG}")
-    if(NOT EXISTS "${_p}")
+    # CHIP_JFLASH may be blank by design (no J-Flash project), so skip the
+    # existence check for it - an empty path must not be treated as missing.
+    if(_p AND NOT EXISTS "${_p}")
         message(FATAL_ERROR
             "chips/${OW_CHIP}.mk points at a file that does not exist: ${_p}")
     endif()
@@ -169,7 +190,7 @@ endif()
 
 FetchContent_Declare(cmsis_device
     GIT_REPOSITORY ${CMSIS_DEVICE_REPO}
-    GIT_TAG        master
+    GIT_TAG        ${CMSIS_DEVICE_TAG}
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
