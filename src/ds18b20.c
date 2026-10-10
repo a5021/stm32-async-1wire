@@ -1,6 +1,5 @@
 #include "ds18b20.h"
 #include "onewire.h"
-#include "ow_port.h"
 #include "ow_stats.h"
 
 /**

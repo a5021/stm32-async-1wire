@@ -2,8 +2,9 @@
  * @file ow_port.h
  * @brief Platform port layer for the non-blocking 1-Wire engine
  *
- * The 1-Wire layer (onewire.c) and the DS18B20 driver (ds18b20.c) are written
- * against this thin, target-agnostic interface. Each target provides the
+ * The 1-Wire layer (onewire.c) is written against this thin, target-agnostic
+ * interface; the DS18B20 driver (ds18b20.c) uses only the onewire_* API on top
+ * of it. Each target provides the
  * ow_port_* implementation as a header of static inline functions, so the
  * port layer compiles away to exactly the same register writes as a direct
  * bare-metal implementation: zero call overhead in any build mode, with or
@@ -29,6 +30,12 @@ extern "C" {
 #define OW_PORT_RESET_PULSE_DURATION 480u
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u
+
+/* Long-stage threshold shared by every schedule path: a running, unfinished
+ * operation whose ARR*(RCR+1) exceeds this is "long" and may be slept through
+ * with ow_port_sleep_until_done() instead of busy-polled. One rule for
+ * capture, feed and timer waits — 1 ms for every stage. */
+#define OW_PORT_LONG_STAGE_US 1000u
 
 /* Optional logic-analyzer marker hook, empty by default.  Backends that have
  * one may define OW_PORT_MARKER_TOGGLE() to pulse a spare GPIO so a decoder

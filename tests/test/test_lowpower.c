@@ -4,9 +4,9 @@
  *  Verifies the OW_PORT_LOW_POWER behaviour that the default
  *  busy-poll test build cannot reach (see CHANGELOG):
  *    - onewire_init() arms SEVONPEND in SCB.SCR
- *    - a "long" stage (> 1 ms) sets ow_long_pending and enables
- *      TIM1 UIE in DIER
- *    - ow_port_bus_done() clears ow_long_pending on completion.
+ *    - a "long" stage (running, unfinished, ARR*(RCR+1) > 1000 us)
+ *      reads back as pending and enables TIM1 UIE in DIER
+ *    - ow_port_bus_done() retires the pending condition on completion.
  *    - ow_port_sleep_until_done() exits cleanly when UIF is set
  *    - ow_port_capture() long threshold boundary (14 vs 15 slots)
  *    - UIE is enabled on short ops (read_pair, write_bit,
@@ -59,8 +59,8 @@ void test_lowpower_long_wait_sets_pending_and_uie(void) {
  * -----------------------------------------------------------*/
 void test_lowpower_short_op_keeps_pending_clear(void) {
     /* A reset/presence operation is < 1 ms and must not arm the sleep flag.
-     * Clear the flag first so the test is independent of test ordering. */
-    ow_long_pending = 0;
+     * setUp() zeroes the timer, so the predicate starts clear regardless of
+     * test ordering. */
     test_bus_reset();
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
 }
@@ -105,10 +105,9 @@ void test_lowpower_sleep_until_done_smoke(void) {
  *  ow_port_capture() long threshold: 15 slots (> 1000 us)
  *
  *  Standard timing: 5 + 60 + 5 = 70 us per slot.
- *  15 * 70 = 1050 us > 1000 => ow_long_pending must be set.
+ *  15 * 70 = 1050 us > 1000 => pending must read back set.
  * -----------------------------------------------------------*/
 void test_lowpower_capture_long_sets_pending(void) {
-    ow_long_pending = 0;
     /* 15 slots: 15 * 70 = 1050 us > 1000 us threshold. */
     test_bus_arm_capture_n(15);
     TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
@@ -118,11 +117,10 @@ void test_lowpower_capture_long_sets_pending(void) {
 /*-------------------------------------------------------------
  *  ow_port_capture() boundary: 14 slots (<= 1000 us)
  *
- *  14 * 70 = 980 us <= 1000 => ow_long_pending must NOT be set.
+ *  14 * 70 = 980 us <= 1000 => pending must read back clear.
  *  (UIE is still enabled — that is always-on in the low-power path.)
  * -----------------------------------------------------------*/
 void test_lowpower_capture_short_keeps_pending_clear(void) {
-    ow_long_pending = 0;
     /* 14 slots: 14 * 70 = 980 us <= 1000 us threshold. */
     test_bus_arm_capture_n(14);
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
@@ -150,21 +148,43 @@ void test_lowpower_write_then_read_enables_uie(void) {
 }
 
 /*-------------------------------------------------------------
- *  Feed (multi-slot write) enables UIE but NOT ow_long_pending
+ *  Feed (multi-slot write): long by duration, not by kind
  *
- *  ow_port_feed() always sets CC2DE + UIE in DIER but never
- *  sets ow_long_pending — feed operations are short by design.
+ *  ow_port_feed() arms ARR=70 us and RCR=slots-1, so the one
+ *  OW_PORT_LONG_STAGE_US rule applies: 15+ slots sleep, fewer
+ *  do not. UIE is always armed in the low-power path.
  * -----------------------------------------------------------*/
-void test_lowpower_feed_sets_uie_without_pending(void) {
-    /* A 16-slot command (e.g. Match ROM) exercises ow_port_feed(). */
+void test_lowpower_feed_long_sets_pending(void) {
+    /* A 16-slot command (e.g. Match ROM): 16 * 70 = 1120 us > 1000. */
     static const ow_pulse_t cmd[17] = {
         0x55, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
-    ow_long_pending = 0;
     mock_tim1.DIER = 0;
     test_bus_send_command_n(cmd, 16);
     TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
     TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_CC2DE);
+    TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
+}
+
+void test_lowpower_feed_short_keeps_pending_clear(void) {
+    /* 3 slots: 3 * 70 = 210 us <= 1000. */
+    static const ow_pulse_t cmd[17] = {
+        0x55, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+    mock_tim1.DIER = 0;
+    test_bus_send_command_n(cmd, 3);
+    TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
+    TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_CC2DE);
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
+}
+
+void test_lowpower_feed_threshold_boundary(void) {
+    /* 14 slots: 14 * 70 = 980 us <= 1000 => clear. */
+    static const ow_pulse_t cmd[17] = {
+        0x55, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+    test_bus_send_command_n(cmd, 14);
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
+    /* 15 slots: 15 * 70 = 1050 us > 1000 => set. */
+    test_bus_send_command_n(cmd, 15);
+    TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
 }
 
 /*-------------------------------------------------------------
@@ -188,7 +208,9 @@ void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_capture_short_keeps_pending_clear);
     TEST_RUN(test_lowpower_read_pair_enables_uie);
     TEST_RUN(test_lowpower_write_then_read_enables_uie);
-    TEST_RUN(test_lowpower_feed_sets_uie_without_pending);
+    TEST_RUN(test_lowpower_feed_long_sets_pending);
+    TEST_RUN(test_lowpower_feed_short_keeps_pending_clear);
+    TEST_RUN(test_lowpower_feed_threshold_boundary);
     TEST_RUN(test_lowpower_single_slot_write_enables_uie);
 }
 

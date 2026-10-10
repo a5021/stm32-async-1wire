@@ -162,9 +162,9 @@ void ds18b20_poll(void) {
 
     // Check if timer update interrupt occurred (indicates operation completion)
     // This is the non-blocking way to detect when timed operations finish.
-    // ow_port_bus_done() *consumes* the update flag, so it must be called
+    // onewire_bus_done() *consumes* the update flag, so it must be called
     // exactly once per poll and its result reused below.
-    uint8_t done = ow_port_bus_done();
+    uint8_t done = onewire_bus_done();
 
 #if OW_PORT_LOW_POWER
     // Sleep through a long stage of the measurement cycle (temperature
@@ -172,9 +172,9 @@ void ds18b20_poll(void) {
     // the timer's own update event via SEVONPEND - no ISR, no NVIC interrupt
     // - so this is invisible to the application: it just calls ds18b20_poll()
     // and the call returns when the stage is done.
-    if (!done && ow_port_long_wait_pending()) {
-        ow_port_sleep_until_done();
-        done = ow_port_bus_done(); /* consume the event that woke us */
+    if (!done && onewire_long_wait_pending()) {
+        onewire_sleep_until_done();
+        done = onewire_bus_done(); /* consume the event that woke us */
     }
 #endif
 
