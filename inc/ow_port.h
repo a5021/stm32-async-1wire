@@ -26,7 +26,10 @@ extern "C" {
 
 /* --- 1-Wire reset timeslot geometry (microseconds), shared by all backends.
  *     The '1'/'0' bit-slot durations live in ow_config.h (ONEWIRE_ONE_PULSE,
- *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). --- */
+ *     ONEWIRE_ZERO_PULSE, ONEWIRE_GUARD_BAND). These are the port's own
+ *     schedule parameters, published as port contract: onewire.c and the
+ *     tests consume them through this interface, so this is not protocol
+ *     leaking down — it is the interface. --- */
 #define OW_PORT_RESET_PULSE_DURATION 480u
 #define OW_PORT_RESET_TIMEOUT 960u
 #define OW_PORT_CAPTURE_BUF_SIZE 2u

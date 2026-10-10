@@ -1,5 +1,9 @@
 #include "ds18b20.h"
 #include "onewire.h"
+/* Intra-stack instrumentation, not a layer leak: stats emission needs
+ * driver-owned concepts (device ROM, DS18B20_TEMP_ERROR_*) that the onewire
+ * layer must not know, so the driver is the rightful emitter. Compiles away
+ * when OW_STATS_ENABLE=0. */
 #include "ow_stats.h"
 
 /**

@@ -14,6 +14,9 @@
  * @note RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram
  *       [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16
  *       histogram buckets, indices 0–12, are populated).
+ * @note Emitted by the DS18B20 driver (ds18b20.c): pulse widths, ROM
+ *       addresses and DS18B20_TEMP_ERROR_* codes are driver-owned concepts,
+ *       so the driver — not the onewire layer — feeds this module.
  */
 
 #ifndef OW_STATS_H
