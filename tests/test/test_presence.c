@@ -106,7 +106,7 @@ void test_capture_16bit_config(void) {
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_0) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_1) == 0);
 #endif
-    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(2), mock_dma1_ch4.CNDTR);
 }
 
 void test_capture_8bit_config(void) {
@@ -129,7 +129,7 @@ void test_capture_8bit_config(void) {
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_0) == 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MSIZE_1) == 0);
 #endif
-    TEST_ASSERT_EQUAL_UINT32(2, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(2), mock_dma1_ch4.CNDTR);
 }
 
 void run_test_presence(void) {

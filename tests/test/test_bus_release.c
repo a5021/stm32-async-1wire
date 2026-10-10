@@ -283,7 +283,7 @@ void test_reset_absent_then_present_no_stale_capture(void) {
      * before the reprogram - and it is why the buffer is wider than the two
      * edges a timeslot produces. reset_pulses[1] was zeroed by ow_port_reset
      * and never rewritten: a non-event, not a phantom. */
-    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
     TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
 
@@ -315,14 +315,14 @@ void test_reset_absent_twice_in_a_row(void) {
     test_bus_reset();
     complete_op(4);
     TEST_ASSERT_FALSE(test_bus_present());
-    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
     TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
 
     test_bus_reset();
     complete_op(4);
     TEST_ASSERT_FALSE(test_bus_present());
-    TEST_ASSERT_EQUAL_UINT32(1u, MOCK_DMA_CAP.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
     TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
 

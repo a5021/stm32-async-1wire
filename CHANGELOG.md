@@ -10,16 +10,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **STM32H5 backend (host-green, bench pending).** Seventh family:
+- **STM32H5 backend (host-green, bench-validated).** Seventh family:
   `port/stm32h5/ow_port_h5.h` rides the shared TIM1 core with GPDMA
   CTR1/CTR2/REQSEL vocabulary overrides (GPDMA1 channels 2/3, requests 59/61,
   no DMAMUX), bus on PA10 (AF1), console USART1 TX on PA9 (AF7), LED on PC13.
   Default clock is raw HSI at 64MHz (`chips/h503cb.mk` for the WeAct
-  STM32H503Cx Core Board, 8MHz crystal reserved for the later HSE/HSE+PLL
-  steps). Host suite (incl. lowpower/active/ndebug), mocks-vs-CMSIS,
-  RAM budget (329/984/432, same uint8_t tables as F0/G4) and the HSI-64
-  firmware build pass; hardware validation (search, measure, WFE sleep,
-  LA timing) is the next step, not yet run.
+  STM32H503Cx Core Board). Host suite (incl. lowpower/active/ndebug),
+  mocks-vs-CMSIS and the HSI-64 firmware build pass. Bench-validated on the
+  WeAct board at **all three clocks** (64MHz HSI, 8MHz raw HSE, 250MHz
+  HSE+PLL1): all seven examples were flashed and captured at each clock - ROM
+  search finds the 7 sensors, every reading is a correct 22.8-23.1C (no
+  injected 127.9C), `5_commands` scratchpad CRC ok and alarm search ok,
+  `6_statistics` reports `t=70c 0e` (70 samples, 0 errors) at each clock, and
+  `7_low_power` runs the WFE-sleep path. The clock-failure path (unlockable
+  PLL) prints the `FATAL: the system clock did not start.` message cleanly at
+  the reset-HSI console baud.
+
+- **H5 clock ladder: 64MHz HSI, 8MHz raw HSE, 250MHz HSE+PLL1.** `app.c`
+  gained the two crystal-derived branches alongside the raw-HSI default: the
+  raw-HSE path waits HSERDY and switches `CFGR1.SW` to HSE (0 flash wait
+  states, `_Static_assert` on SYSCLK <= 16MHz); the 250MHz path raises voltage
+  scaling to VOS0 (`PWR_VOSCR`, waiting VOSRDY), takes **5 flash wait states**
+  (H503 Table 1: 190 < HCLK <= 250), then feeds a `HSE/4 x 125 / 2` PLL1
+  (`PLL1CFGR`/`PLL1DIVR`, PLL1P output) and switches `CFGR1.SW` to PLL1 -
+  all pinned by `_Static_assert`. The H5 console divisor and failure-path
+  baud divisor follow the selected clock. Host suite now builds and runs the
+  H5 configuration at all three clocks (64/250/8MHz), and two extra cppcheck
+  passes read the real `stm32h503xx.h` at 250MHz and 8MHz to prove the
+  PWR/RCC PLL1 register spellings exist. Bench-validated at every clock (the
+  full 3 x 7 example matrix; see the H5 backend entry above).
+
+  Note on failure detection: the bounded wait only proves *PLL1RDY*, not that
+  SYSCLK matches the compiled `OW_PORT_SYSCLK_MHZ`. An `OW_HSE_MHZ` that does
+  not match the crystal can still leave the PLL in its 1-16MHz input range
+  (e.g. `HSE_MHZ=12` on the 8MHz board divides to 2.67MHz), so the PLL locks at
+  the wrong frequency and the port runs with a mistuned console rather than
+  stopping. A divisor that pushes the VCO out of range (e.g. `HSE_MHZ=4` ->
+  8MHz x 125 = 1000MHz > 836MHz wide max) does fail and is caught. The clock
+  failure guard catches an unlocking PLL, not a lockable-but-mismatched
+  crystal; matching `OW_HSE_MHZ` to the board remains the integrator's
+  responsibility.
+
+### Fixed
+
+- **H5 GPDMA capture halt is a byte count, not a transfer count.** The
+  GPDMA `CBR1.BNDT` field counts *source bytes*, and a halfword capture
+  transfer consumes two, so the driver now programs `BNDT = 2 x transfers`
+  where `CNDTR` on the classic-DMA backends counts transfers directly. The
+  host mock (which aliases `CNDTR` to `CBR1` on H5) was corrected to match,
+  with the per-target conversion centralised in `tests/mock/mock_target.h`.
+
+- **H5 busy LED is active-low on PC13.** The WeAct STM32H503Cx Core Board
+  lights its blue LED (PC13) on pin LOW, the same polarity as the F1's PC13.
+  The port drove it active-high, so the busy indicator read inverted on the
+  bench - on during the pause, off during the measurement - exactly the
+  lesson the G4 bring-up recorded. `ds18b20_busy()` now resets the pin to
+  light the LED and sets it to turn it off. Bench-confirmed: with the fix the
+  LED is lit during the measurement windows and dark in the gaps.
 
 ### Changed
 

@@ -922,6 +922,21 @@ TEST_G4_16_FLAG = $(TEST_FLAG) -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=16
 TEST_G4_16_EXE = $(TEST_OUT)/ds18b20_test_g4_16mhz.exe
 TEST_EXTRA_EXES = $(TEST_G4_16_EXE)
 endif
+# H5 carries two extra clocks, both genuinely different code paths from the
+# 64MHz raw-HSI default: 250MHz is the HSE+PLL1 branch (VOS0, 5 wait states,
+# PLL1CFGR/PLL1DIVR and the CFGR1 switch) and 8MHz is the raw-HSE branch (an
+# HSERDY wait, the CFGR1 switch, 0 wait states, no PLL). One suite, three
+# clocks, so the per-clock asserts in test_timing.c are compiled and run at
+# all, and a regression in either branch cannot hide behind the 64MHz build
+# passing. The 250MHz build also compiles app.c's PLL divider invariants
+# (_Static_assert on HSE/4 x 125 / 2 == 250).
+ifneq ($(filter h5,$(OW_TARGET)),)
+TEST_H5_250_FLAG = $(TEST_FLAG) -DOW_PORT_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8
+TEST_H5_250_EXE = $(TEST_OUT)/ds18b20_test_h5_250mhz.exe
+TEST_H5_8_FLAG = $(TEST_FLAG) -DOW_PORT_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
+TEST_H5_8_EXE = $(TEST_OUT)/ds18b20_test_h5_8mhz.exe
+TEST_EXTRA_EXES = $(TEST_H5_250_EXE) $(TEST_H5_8_EXE)
+endif
 
 # Per-family suffix for the host-test artefacts, so the six families do not
 # share one output file. Defined once because three near-identical nested-if
@@ -1081,6 +1096,18 @@ $(TEST_F4_180_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exa
 # names the clock it happened at.
 $(TEST_G4_16_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_G4_16_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+# The H5 suite at its two crystal clocks. Same sources and same test_main, only
+# the clock differs, so the suite's own expectations have to hold at 250MHz and
+# 8MHz too - the bit-slot constants are us figures and the TIM model is
+# prescaler-driven, which is what should be clock-independent. Kept as their own
+# targets (rather than variables in $(TEST_EXE)) so a failure names the clock it
+# happened at.
+$(TEST_H5_250_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_H5_250_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+$(TEST_H5_8_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_H5_8_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@

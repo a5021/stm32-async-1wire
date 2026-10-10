@@ -286,7 +286,8 @@ static void union_set_bytes_as_pulses(const uint8_t* data, uint8_t len) {
  * bulk read cannot consume stale read data. */
 static void union_run_current_op(void) {
     if (mock_tim1.CR1 & TIM_CR1_CEN) {
-        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > 2) {
+        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) &&
+            MOCK_CAP_TRANSFERS(mock_dma1_ch4.CNDTR) > 2) {
             hw_set_capture_source(union_cap_bulk);
         } else {
             hw_set_capture_source(union_cap_present);

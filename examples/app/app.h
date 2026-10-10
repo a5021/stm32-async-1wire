@@ -145,10 +145,10 @@ uint32_t app_millis(void);
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5))
 /**
- * @brief Whether the requested clock actually started (F4/G4 harness surface)
- * @note F4/G4 report a clock that never came up through this rather than through a
+ * @brief Whether the requested clock actually started (F4/G4/H5 harness surface)
+ * @note F4/G4/H5 report a clock that never came up through this rather than through a
  *       return value: changing configure_system_clock()'s signature changed
  *       codegen in the families that cannot fail, for no benefit. 1 = running,
  *       0 = an HSE or PLL wait timed out.

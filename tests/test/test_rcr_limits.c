@@ -82,7 +82,7 @@ void test_rcr_read_data_32_ok(void) {
     onewire_read_data(rx, ONEWIRE_MAX_READ_BYTES);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_MAX_SLOTS - 1u, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT32(ONEWIRE_MAX_SLOTS, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(ONEWIRE_MAX_SLOTS), mock_dma1_ch4.CNDTR);
 
     uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));
@@ -99,7 +99,7 @@ void test_rcr_read_data_1_ok(void) {
     onewire_read_data(rx, 1);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(7u, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT32(8u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(8u), mock_dma1_ch4.CNDTR);
 
     uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));
@@ -149,7 +149,7 @@ void test_rcr_read_data_32_full_capture(void) {
     hw_set_capture_source(idx_capture_src);
 
     onewire_read_data(rx, ONEWIRE_MAX_READ_BYTES);
-    TEST_ASSERT_EQUAL_UINT32(ONEWIRE_MAX_SLOTS, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(ONEWIRE_MAX_SLOTS), mock_dma1_ch4.CNDTR);
 
     uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));

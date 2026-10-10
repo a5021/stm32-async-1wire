@@ -54,6 +54,25 @@
 #define MOCK_DMA_CAP_MSIZE_0 DMA_CCR_MSIZE_0
 #endif
 
+/* --- capture-count semantics: classic CNDTR vs GPDMA BNDT ---
+ * Classic DMA1/F4 count *transfers* in CNDTR/NDTR. H5 GPDMA counts *source
+ * bytes* in CBR1.BNDT: each halfword capture transfer (the CCR4 source is a
+ * halfword, SDW_LOG2 = 1) consumes 2 BNDT bytes, so an N-transfer capture
+ * programs the register with 2*N.  Tests therefore assert the register value
+ * for N transfers through MOCK_CAP_CNDTR(), and the model converts between
+ * bytes and transfers with MOCK_CAP_TRANSFERS() / MOCK_CAP_BYTES_PER_XFR.
+ * The feed source is an 8-bit cell (1 byte per transfer) on every family, so
+ * feed BNDT/CNDTR unchanged. */
+#if defined(OW_PORT_TARGET_H5)
+#define MOCK_CAP_BYTES_PER_XFR 2u
+#define MOCK_CAP_CNDTR(n) ((n) * 2u)
+#define MOCK_CAP_TRANSFERS(cndtr) ((cndtr) / 2u)
+#else
+#define MOCK_CAP_BYTES_PER_XFR 1u
+#define MOCK_CAP_CNDTR(n) (n)
+#define MOCK_CAP_TRANSFERS(cndtr) (cndtr)
+#endif
+
 /* --- bus pin state, family-neutral ------------------------------------------
  * The bus pin is PA10 on every family, but the CMSIS fields that say "alternate
  * function" and "open-drain" are spelled three different ways: F1 configures

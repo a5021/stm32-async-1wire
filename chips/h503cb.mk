@@ -13,12 +13,14 @@
 # CMSIS device layer and the clock default differ.
 #
 # 64MHz, HSI direct. Not the part's ceiling (250MHz): HSI is 64MHz straight,
-# no PLL, no crystal, no voltage-scaling change - the bring-up clock. HSE
-# (8MHz crystal Y2 on this board) and HSE+PLL steps are validated separately.
+# no PLL, no crystal, no voltage-scaling change - the bring-up clock. The
+# other two clocks app.c implements for this family are the raw 8MHz HSE
+# (Y2 on this board) and the HSE+PLL1 250MHz step (VOS0 + 5 flash wait
+# states); both are bench-validated.
 #
-# APB prescalers stay /1, so TIM1 = PCLK2 = SYSCLK directly, which is what
-# keeps the ow_port 1us-tick invariant and OW_PORT_TIM_PRESCALER at
-# SYSCLK_MHZ - 1.
+# APB prescalers stay /1 at all three clocks, so TIM1 = PCLK2 = SYSCLK
+# directly, which is what keeps the ow_port 1us-tick invariant and
+# OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
 #
 # 128KB flash / 32KB SRAM in one contiguous block, so the linker script needs
 # nothing more.
@@ -37,7 +39,9 @@ CHIP_LINKER = port/stm32h5/STM32H503CB_FLASH.ld
 CHIP_JFLASH =
 CHIP_JDEBUG = port/stm32h5/project-h503cb.jdebug
 CHIP_SVD =
-# Board crystal for the later HSE/HSE+PLL steps (present as Y2, unused at the
-# HSI-64 default).
+# Board crystal (Y2): the PLL input for the 8MHz raw-HSE and 250MHz
+# HSE+PLL1 clocks in app.c.
 CHIP_HSE_MHZ = 8
+# Default build clock. Override per build with SYSCLK_MHZ=/HSE_MHZ= (e.g.
+# `make OW_TARGET=h5 APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8`).
 CHIP_SYSCLK_MHZ = 64

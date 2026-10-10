@@ -397,6 +397,19 @@ jobs:
       # CTR1/CTR2/CBR1/CSAR/CDAR channel layout.
       - name: Run static analysis (H5 at 64MHz HSI)
         run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/stm32h5 -Iport/common -DSTM32H503xx -DOW_PORT_TARGET_H5 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
+      # The H5 250MHz HSE+PLL1 branch exists in no other configuration: VOS0
+      # through PWR, 5 flash wait states, the PLL1CFGR/PLL1DIVR fields and the
+      # CFGR1 switch. cppcheck reads the real stm32h503xx.h, which is what
+      # proves the PWR_VOSCR/VOSSR, RCC_PLL1CFGR_PLL1SRC/PLL1RGE/PLL1M/PLL1PEN,
+      # RCC_PLL1DIVR_PLL1N/PLL1P and RCC_CFGR1_SW/SWS spellings the path
+      # depends on actually exist.
+      - name: Run static analysis (H5 at 250MHz HSE+PLL)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/stm32h5 -Iport/common -DSTM32H503xx -DOW_PORT_TARGET_H5 -DOW_PORT_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
+      # The H5 8MHz raw-HSE branch: an HSERDY wait and the CFGR1 switch, no PLL,
+      # 0 flash wait states - a genuinely different path from both the 64MHz
+      # default and the 250MHz PLL clock, so it gets its own pass.
+      - name: Run static analysis (H5 at 8MHz raw HSE)
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -Iport/stm32f1 -Iport/stm32f0 -Iport/stm32f3 -Iport/stm32g0 -Iport/stm32f4 -Iport/stm32g4 -Iport/stm32h5 -Iport/common -DSTM32H503xx -DOW_PORT_TARGET_H5 -DOW_PORT_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c
 
   part-matrix:
     # Every chips/<part>.mk must name repository files that exist and well-formed
@@ -576,11 +589,17 @@ jobs:
         run: make clean && make OW_TARGET=g4
       - name: Build release (G4 backend, 16MHz HSI)
         run: make clean && make OW_TARGET=g4 SYSCLK_MHZ=16
-      # The H503's bring-up clock. The 64MHz default is raw HSI (no PLL, no
-      # crystal), so this one build covers the only clock this phase validates;
-      # HSE and HSE+PLL steps get their own builds when they land.
+      # The H503's three clocks, each its own code path in app.c: the 64MHz
+      # raw-HSI default (no PLL, no crystal, no voltage-scaling change), the
+      # raw 8MHz HSE (HSERDY wait + CFGR1 switch, 0 wait states) and the 250MHz
+      # HSE+PLL1 (VOS0 + 5 flash wait states + the PLL1 fields). Each gets its
+      # own `make clean` so the run cannot pass on the previous clock's objects.
       - name: Build release (H5 backend, 64MHz HSI default)
         run: make clean && make OW_TARGET=h5
+      - name: Build release (H5 backend, 8MHz raw HSE)
+        run: make clean && make OW_TARGET=h5 SYSCLK_MHZ=8 HSE_MHZ=8
+      - name: Build release (H5 backend, 250MHz HSE+PLL1)
+        run: make clean && make OW_TARGET=h5 SYSCLK_MHZ=250 HSE_MHZ=8
       # The console pin and UART are firmware-only code: hardware_init() is
       # inside #if !defined(DS18B20_TEST_HARNESS), so no host build compiles it
       # on any family and a break here reaches a tag unnoticed. These three

@@ -35,6 +35,7 @@ typedef struct {
     volatile uint32_t CCR3;
     volatile uint32_t CCR4;
     volatile uint32_t BDTR;
+    volatile uint32_t TISEL;
     volatile uint32_t DCR;
     volatile uint32_t DMAR;
 } TIM1_TypeDef;
@@ -46,8 +47,12 @@ typedef struct {
  * memory (CCR4 in CSAR, mem in CDAR) - so no legacy union can name both
  * directions at once. The model and the contract tests therefore read the
  * direction-correct register per operation (see the OW_PORT_TARGET_H5
- * branches); only CNDTR aliases CBR1, which is direction-free (BRC is
- * always 0 here, so CBR1 holds exactly the remaining transfer count). */
+ * branches); CNDTR here aliases CBR1, whose BNDT field is a *source-byte*
+ * count, NOT a transfer count (RM0481: "Block number of data bytes to
+ * transfer from the source").  Because the capture source is the halfword
+ * CCR4, the driver programs BNDT = 2 x transfer count and each transfer
+ * consumes 2 BNDT bytes; mock_target.h carries the per-target conversion
+ * (MOCK_CAP_CNDTR / MOCK_CAP_TRANSFERS). */
 typedef struct {
     volatile uint32_t CCR;
     volatile uint32_t CTR1;
@@ -101,6 +106,15 @@ typedef struct {
     volatile uint32_t ACR;
 } FLASH_TypeDef;
 
+/* PWR: only the voltage-scaling registers the H5 250MHz clock path touches.
+ * On this family PWR is in the always-on domain (no RCC enable bit), so the
+ * mock needs no clock gate - VOSCR/VOSSR are writable as soon as the mock
+ * instance exists. */
+typedef struct {
+    volatile uint32_t VOSCR;
+    volatile uint32_t VOSSR;
+} PWR_TypeDef;
+
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CR2;
@@ -126,6 +140,7 @@ extern DMA1_Channel_TypeDef mock_feed_ch;
 extern GPIO_TypeDef mock_gpioa;
 extern RCC_TypeDef mock_rcc;
 extern FLASH_TypeDef mock_flash;
+extern PWR_TypeDef mock_pwr;
 extern USART_TypeDef mock_usart1;
 #define TIM1 (&mock_tim1)
 #define GPDMA1_Channel2 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
@@ -133,6 +148,7 @@ extern USART_TypeDef mock_usart1;
 #define GPIOA (&mock_gpioa)
 #define RCC (&mock_rcc)
 #define FLASH (&mock_flash)
+#define PWR (&mock_pwr)
 #define USART1 (&mock_usart1)
 
 /* --- Bit-field constants used by the driver (H5 spellings, real values) --- */
@@ -145,8 +161,43 @@ extern USART_TypeDef mock_usart1;
 #define RCC_CR_HSIDIV 0x00000018u
 #define RCC_CR_HSIDIV_0 0x00000008u
 #define RCC_CR_HSIDIV_1 0x00000010u
+#define RCC_CR_HSEON 0x00010000u
+#define RCC_CR_HSERDY 0x00020000u
+#define RCC_CR_HSEBYP 0x00040000u
+#define RCC_CR_PLL1ON 0x01000000u
+#define RCC_CR_PLL1RDY 0x02000000u
 #define RCC_CFGR1_SW 0x00000003u
+#define RCC_CFGR1_SW_0 0x00000001u
+#define RCC_CFGR1_SW_1 0x00000002u
 #define RCC_CFGR1_SWS 0x00000018u
+#define RCC_CFGR1_SWS_0 0x00000008u
+#define RCC_CFGR1_SWS_1 0x00000010u
+#define RCC_PLL1CFGR_PLL1SRC 0x00000003u
+#define RCC_PLL1CFGR_PLL1SRC_Pos 0u
+#define RCC_PLL1CFGR_PLL1RGE 0x0000000Cu
+#define RCC_PLL1CFGR_PLL1RGE_Pos 2u
+#define RCC_PLL1CFGR_PLL1RGE_0 0x00000004u
+#define RCC_PLL1CFGR_PLL1RGE_1 0x00000008u
+#define RCC_PLL1CFGR_PLL1VCOSEL 0x00000020u
+#define RCC_PLL1CFGR_PLL1VCOSEL_Pos 5u
+#define RCC_PLL1CFGR_PLL1M 0x00003F00u
+#define RCC_PLL1CFGR_PLL1M_Pos 8u
+#define RCC_PLL1CFGR_PLL1PEN 0x00010000u
+#define RCC_PLL1CFGR_PLL1QEN 0x00020000u
+#define RCC_PLL1CFGR_PLL1REN 0x00040000u
+#define RCC_PLL1DIVR_PLL1N_Pos 0u
+#define RCC_PLL1DIVR_PLL1N_Msk 0x000001FFu
+#define RCC_PLL1DIVR_PLL1P_Pos 9u
+#define RCC_PLL1DIVR_PLL1P_Msk 0x0000FE00u
+#define RCC_PLL1DIVR_PLL1Q_Pos 16u
+#define RCC_PLL1DIVR_PLL1R_Pos 24u
+#define PWR_VOSCR_VOS_Pos 4u
+#define PWR_VOSCR_VOS 0x00000030u
+#define PWR_VOSCR_VOS_0 0x00000010u
+#define PWR_VOSCR_VOS_1 0x00000020u
+#define PWR_VOSSR_VOSRDY_Pos 3u
+#define PWR_VOSSR_VOSRDY 0x00000008u
+#define PWR_VOSSR_ACTVOSRDY 0x00002000u
 #define RCC_CFGR2_HPRE 0x0000000Fu
 #define RCC_CFGR2_PPRE1 0x00000070u
 #define RCC_CFGR2_PPRE2 0x00000700u
@@ -154,8 +205,10 @@ extern USART_TypeDef mock_usart1;
 #define RCC_CFGR2_PPRE1 0x00000070u
 #define RCC_CFGR2_PPRE2 0x00000700u
 #define FLASH_ACR_LATENCY 0x0000000Fu
+#define FLASH_ACR_LATENCY_0WS 0x00000000u
 #define FLASH_ACR_LATENCY_1WS 0x00000001u
 #define FLASH_ACR_LATENCY_3WS 0x00000003u
+#define FLASH_ACR_LATENCY_5WS 0x00000005u
 #define FLASH_ACR_PRFTEN 0x00000100u
 #define GPIO_MODER_MODE10 0x00300000u
 #define GPIO_MODER_MODE10_0 0x00100000u
@@ -189,6 +242,8 @@ extern USART_TypeDef mock_usart1;
 #define TIM_DIER_CC2DE 0x00000400u
 #define TIM_DIER_CC4DE 0x00001000u
 #define TIM_DIER_UIE 0x00000001u
+#define TIM_TISEL_TI4SEL_Pos 24u
+#define TIM_TISEL_TI4SEL_Msk 0x0F000000u
 #define DMA_CCR_EN 0x00000001u
 #define DMA_CTR1_SDW_LOG2_Pos 0u
 #define DMA_CTR1_SINC_Pos 3u

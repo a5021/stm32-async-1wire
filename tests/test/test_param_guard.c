@@ -131,7 +131,7 @@ void test_guard_read_data_schedules(void) {
     uint8_t st = onewire_read_data(rx, 1);
     TEST_ASSERT_EQUAL_UINT8(1u, st);
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
-    TEST_ASSERT_EQUAL_UINT32(8u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(8u), mock_dma1_ch4.CNDTR);
 
     uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));

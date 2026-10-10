@@ -313,7 +313,7 @@ void test_dma_rx_read_pair_16bit_destination(void) {
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.capture[0], mock_dma1_ch4.CMAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
 #endif
-    TEST_ASSERT_EQUAL_UINT32(2u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(2u), mock_dma1_ch4.CNDTR);
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
@@ -347,7 +347,7 @@ void test_dma_rx_byte_read_8bit_minc(void) {
     hw_set_capture_source(two_val8_src);
 
     onewire_read_data(g.buf, 1); /* 1 byte = 8 slots, 8-bit MSIZE */
-    TEST_ASSERT_EQUAL_UINT32(8u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(8u), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(7u, mock_tim1.RCR);
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
@@ -386,7 +386,7 @@ void test_dma_rx_full_scratchpad_fills_buffer(void) {
     hw_set_capture_source(byte_seq_src);
 
     onewire_read_data(g.buf, RX_BYTES_9); /* 9 bytes = 72 transfers */
-    TEST_ASSERT_EQUAL_UINT32(RX_BITS_72, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(RX_BITS_72), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(RX_BITS_72 - 1u, mock_tim1.RCR);
 
     run_op();
@@ -412,7 +412,7 @@ void test_dma_rx_overrun_is_observable(void) {
     hw_set_capture_source(two_val16_src);
 
     ds18b20_test_arm_capture(g.capture, 2, 16);
-    mock_dma1_ch4.CNDTR = 5u; /* config error: 5 x 16-bit = 10 bytes > 8-byte buffer */
+    mock_dma1_ch4.CNDTR = MOCK_CAP_CNDTR(5u); /* config error: 5 x 16-bit = 10 bytes > 8-byte buffer */
 
     TEST_ASSERT_TRUE(hw_run_until_uif(8));
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
@@ -439,7 +439,7 @@ void test_dma_rx_overrun_8bit_walks_guard(void) {
 
     onewire_read_data(g.buf, 1); /* 8 slots, 8-bit MSIZE, CNDTR = 8 */
     /* config error: 20 8-bit transfers against a 16-byte buffer */
-    mock_dma1_ch4.CNDTR = 20u;
+    mock_dma1_ch4.CNDTR = MOCK_CAP_CNDTR(20u);
     mock_tim1.RCR = 19u; /* claim a matching slot budget so the op can drain */
 
     run_op();
@@ -529,7 +529,7 @@ void test_dma_reset_capture_geometry(void) {
     onewire_reset(capture);
     /* ONE slot but TWO captures: the reset bus-turnaround is 2 pulse captures in 1 slot */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT32(OW_PORT_CAPTURE_BUF_SIZE, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(OW_PORT_CAPTURE_BUF_SIZE), mock_dma1_ch4.CNDTR);
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CDAR);
 #else
@@ -563,7 +563,7 @@ void test_dma_write_then_read_merged_geometry(void) {
 
     test_bus_write_then_read(0); /* 3 slots: write direction bit + read id/cmp */
     TEST_ASSERT_EQUAL_UINT32(2u, mock_tim1.RCR);
-    TEST_ASSERT_EQUAL_UINT32(3u, mock_dma1_ch4.CNDTR); /* 3 x 16-bit captures */
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(3u), mock_dma1_ch4.CNDTR); /* 3 x 16-bit captures */
     TEST_ASSERT_EQUAL_UINT32(3u, mock_feed_ch.CNDTR); /* 3 x 8-bit feed reloads */
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
@@ -646,7 +646,7 @@ void test_dma_cndtr_one_transfer(void) {
     hw_set_capture_source(one_val_src);
 
     ds18b20_test_arm_capture(g.capture, 1, 16); /* minimal transfer count */
-    TEST_ASSERT_EQUAL_UINT32(1u, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), mock_dma1_ch4.CNDTR);
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
@@ -777,7 +777,7 @@ void test_dma_search_transfer_accounting(void) {
         }
         if (mock_tim1.CR1 & TIM_CR1_CEN) {
             const uint32_t pre_feed = mock_feed_ch.CNDTR;
-            const uint32_t pre_cap = mock_dma1_ch4.CNDTR;
+            const uint32_t pre_cap = MOCK_CAP_TRANSFERS(mock_dma1_ch4.CNDTR);
             const uint32_t rcr = (uint32_t)(mock_tim1.RCR & 0xFFu);
             const uint32_t arr = (uint32_t)mock_tim1.ARR;
 

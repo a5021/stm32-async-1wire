@@ -231,6 +231,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
 #endif
 #elif defined(OW_PORT_TARGET_H5)
+#if (OW_PORT_SYSCLK_MHZ) == 64
     /* HSI-64 bring-up: flash latency + HSI divider only, no waits (HSI is
      * already running), so no failure flag and no ready-flag presetting. */
     configure_system_clock();
@@ -242,6 +243,60 @@ void test_apb_prescaler_div1_for_tim1(void) {
     /* APB prescalers stay at reset /1: TIM1 = PCLK2 = SYSCLK directly. */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
                                      (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
+#elif (OW_PORT_SYSCLK_MHZ) == 250
+    /* Preset the status flags the three waits poll: the mock does not model
+     * the regulator ramp (VOSRDY), the oscillator start (HSERDY) or the PLL
+     * lock (PLL1RDY), and all start clear, so a path that drops a wait blocks
+     * here rather than passing. SWS is preset to PLL1 because the mock does
+     * not mirror SW -> SWS; the switch write preserves the SWS field. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS;
+    mock_pwr.VOSSR = PWR_VOSSR_VOSRDY;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* VOS0 (VOS = 11) raised before the clock: 250MHz is above the 180MHz
+     * range-1 ceiling, so running it in the reset scale is out of spec. */
+    TEST_ASSERT_EQUAL_UINT32(PWR_VOSCR_VOS, mock_pwr.VOSCR & PWR_VOSCR_VOS);
+    /* 5 WS + prefetch in one write (ST RCC HAL Table 1: 190 < HCLK <= 250). */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_5WS,
+                             mock_flash.ACR);
+    /* SYSCLK switched to PLL1 (SW = 11). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+    /* The PLL input is pinned at HSE/4 = 4MHz, so M = HSE/4, N = 125 (500MHz
+     * VCO), P = 2. Source is HSE (both bits), RGE = 01 (the 4..8MHz window),
+     * wide VCO (VCOSEL clear) and only the P output enabled: SYSCLK is taken
+     * from PLL1P, so R/Q stay off. Asserted as literals rather than the code's
+     * own formulas, because a wrong crystal is exactly what these silently
+     * break. Field widths: PLL1M 6 bits, PLL1N 9, PLL1P 7. */
+    TEST_ASSERT_EQUAL_UINT32(
+        RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 | RCC_PLL1CFGR_PLL1PEN,
+        mock_rcc.PLL1CFGR & ~RCC_PLL1CFGR_PLL1M);
+    TEST_ASSERT_EQUAL_UINT32((OW_HSE_MHZ) / 4u,
+                             (mock_rcc.PLL1CFGR >> RCC_PLL1CFGR_PLL1M_Pos) & 0x3Fu);
+    TEST_ASSERT_EQUAL_UINT32(124u,
+                             (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1N_Pos) & 0x1FFu);
+    TEST_ASSERT_EQUAL_UINT32(1u,
+                             (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1P_Pos) & 0x7Fu);
+    /* APB prescalers stay at reset /1: TIM1 = PCLK2 = SYSCLK directly. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
+                                     (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
+#elif (OW_PORT_SYSCLK_MHZ) == (OW_HSE_MHZ)
+    /* Raw HSE: no PLL, 0 wait states, only HSERDY waited on. SWS is preset to
+     * HSE for the same reason as the PLL path above. */
+    mock_rcc.CR = RCC_CR_HSERDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS_1;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* 8MHz is 0 WS in every voltage range: prefetch only, latency left 0. */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN, mock_flash.ACR);
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW_1, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+    /* No PLL1 programmed or started on this path. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLL1CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLL1DIVR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
+                                     (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
+#endif
 #endif
 }
 
@@ -384,9 +439,11 @@ void test_h5_console_baud_divisor(void) {
     /* 115200 baud: BRR = round(PCLK / 115200). */
     brr_expected = ((OW_PORT_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
     TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H5_CONSOLE_BRR);
-    /* Sanity on the arithmetic itself: at every supported clock the divisor
-     * must land in a sane BRR range. */
-    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
+    /* Sanity on the arithmetic itself: the divisor must land in the USARTDIV
+     * range the 12-bit mantissa can hold at every H5 clock - 69 at 8MHz, 556
+     * at 64MHz and 2171 at 250MHz. A SYSCLK-sized mistake (using the reset
+     * 32MHz HSI, say) would give ~278 at the 250MHz build. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 4096u);
 }
 #endif /* OW_PORT_TARGET_H5 */
 

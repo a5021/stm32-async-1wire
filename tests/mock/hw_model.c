@@ -32,6 +32,7 @@ PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #endif
 #if defined(OW_PORT_TARGET_H5)
 FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -114,6 +115,12 @@ void hw_reset_all(void) {
 #endif
 #if defined(OW_PORT_TARGET_H5)
     mock_flash = (FLASH_TypeDef){0};
+    /* VOS0/HSERDY/PLL1RDY all start clear: the mock does not model the
+     * regulator ramp, the oscillator start or the PLL lock, so the clock tests
+     * preset exactly the flags the path they exercise waits on. A build that
+     * forgets one of those waits then blocks on the first poll instead of
+     * passing by accident. */
+    mock_pwr = (PWR_TypeDef){0};
 #endif
 #if defined(OW_PORT_TARGET_F4)
     mock_dma2 = (DMA_TypeDef){0};
@@ -202,7 +209,7 @@ static void dma13_transfer(void) {
         *(volatile uint8_t*)d13_cur = (uint8_t)val;
         d13_cur += 1;
     }
-    d->CNDTR--;
+    d->CNDTR -= MOCK_CAP_BYTES_PER_XFR; /* classic: 1/transfer; H5: BNDT bytes (2 for halfword source) */
     if (d->CNDTR == 0) {
         d->CCR &= ~MOCK_DMA_CAP_EN;
     }
@@ -234,7 +241,7 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     uint32_t cps = 0;
     if ((t->DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
         MOCK_DMA_CAP.CNDTR > 0) {
-        uint32_t n = MOCK_DMA_CAP.CNDTR;
+        uint32_t n = MOCK_CAP_TRANSFERS(MOCK_DMA_CAP.CNDTR);
         uint32_t s = (uint32_t)(t->RCR & 0xFFu) + 1u;
         cps = (n + s - 1u) / s;
     }
@@ -336,7 +343,7 @@ void hw_tim_init(void) {
     if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
         MOCK_DMA_CAP.CNDTR > 0u) {
         g_tim.cap_en = 1u;
-        g_tim.cap_total = MOCK_DMA_CAP.CNDTR;
+        g_tim.cap_total = MOCK_CAP_TRANSFERS(MOCK_DMA_CAP.CNDTR);
         g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
 #if defined(OW_PORT_TARGET_H5)
         g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
@@ -414,7 +421,7 @@ static void hw_tim_do_capture(void) {
         g_tim.cap_ptr += 1;
     }
     g_tim.cap_done++;
-    MOCK_DMA_CAP.CNDTR = g_tim.cap_total - g_tim.cap_done;
+    MOCK_DMA_CAP.CNDTR = MOCK_CAP_CNDTR(g_tim.cap_total - g_tim.cap_done);
     if (g_tim.cap_done >= g_tim.cap_total) {
         g_tim.cap_en = 0u;
         MOCK_DMA_CAP.CCR &= ~MOCK_DMA_CAP_EN;

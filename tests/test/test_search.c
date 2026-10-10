@@ -336,7 +336,7 @@ void test_write_then_read_configures_registers(void) {
     TEST_ASSERT_BITS_HIGH(MOCK_TIM_OUT_CCE | MOCK_TIM_CAP_CCE, mock_tim1.CCER);
     TEST_ASSERT_BITS_HIGH(TIM_CR1_OPM | TIM_CR1_CEN, mock_tim1.CR1);
 
-    TEST_ASSERT_EQUAL_UINT32(3, mock_dma1_ch4.CNDTR);
+    TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(3), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(3, mock_feed_ch.CNDTR);
 #if defined(OW_PORT_TARGET_H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);

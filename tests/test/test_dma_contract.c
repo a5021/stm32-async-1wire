@@ -381,7 +381,9 @@ static void run_contract_row(const dma_contract_row_t* row) {
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cmar, mock_dma1_ch4.CMAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cpar, mock_dma1_ch4.CPAR);
 #endif
-        TEST_ASSERT_EQUAL_UINT32(row->exp_cap_cndtr, mock_dma1_ch4.CNDTR);
+        /* exp_cap_cndtr is a transfer count; H5 GPDMA CBR1.BNDT counts
+         * source bytes (halfword CCR4 source = 2 per transfer). */
+        TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(row->exp_cap_cndtr), mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_cap_ccr_hi, mock_dma1_ch4.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_cap_ccr_lo, mock_dma1_ch4.CCR);
     } else {

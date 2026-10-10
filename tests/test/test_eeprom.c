@@ -69,7 +69,8 @@ static void make_scratchpad(uint8_t* sd, uint8_t th, uint8_t tl, uint8_t cfg) {
 
 static void run_current_op(void) {
     if (mock_tim1.CR1 & TIM_CR1_CEN) {
-        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) && mock_dma1_ch4.CNDTR > OW_PORT_CAPTURE_BUF_SIZE) {
+        if ((mock_dma1_ch4.CCR & DMA_CCR_EN) &&
+            MOCK_CAP_TRANSFERS(mock_dma1_ch4.CNDTR) > OW_PORT_CAPTURE_BUF_SIZE) {
             hw_set_capture_source(ep_read_capture);
         }
         TEST_ASSERT_TRUE(hw_run_until_uif(256));
