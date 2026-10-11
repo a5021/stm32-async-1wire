@@ -317,15 +317,17 @@ endif()
 # Library targets (code only — no startup/system, no syscall.c)
 # ---------------------------------------------------------------------------
 
-# src/ds18b20.c is an amalgamated translation unit: the search / txn /
-# resolution / measurement code lives in these include-only parts (guarded by
-# DS18B20_DRIVER_BUILD). Mark them as header-only-sources so the IDE shows the
-# split while only ds18b20.c itself is compiled into the library.
+# src/ds18b20.c and src/ds2431.c are amalgamated translation units: the search /
+# txn / resolution / measurement code lives in these include-only parts
+# (guarded by DS18B20_DRIVER_BUILD / DS2431_DRIVER_BUILD). Mark them as
+# header-only-sources so the IDE shows the split while only ds18b20.c and
+# ds2431.c themselves are compiled into the library.
 set_source_files_properties(
     src/ds18b20_resolution.c
     src/ds18b20_txn.c
     src/ds18b20_search.c
     src/ds18b20_measure.c
+    src/ds2431_txn.c
     PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
@@ -376,6 +378,7 @@ endfunction()
 ow_add_core_library(stm32_async_1wire
     src/onewire.c
     src/ds18b20.c
+    src/ds2431.c
     src/ow_stats.c
 )
 
@@ -393,6 +396,7 @@ install(TARGETS stm32_async_1wire
 install(FILES
     inc/onewire.h
     inc/ds18b20.h
+    inc/ds2431.h
     inc/ow_port.h
     inc/ow_stats.h
     inc/ow_config.h

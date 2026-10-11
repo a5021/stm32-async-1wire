@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **DS2431 1-Kbit EEPROM driver (second 1-Wire device driver).** New
+  `inc/ds2431.h` + `src/ds2431.c` + `src/ds2431_txn.c` implement the four
+  DS2431 commands on top of the shared `onewire_*` primitives, without
+  touching `src/ds18b20*.c`, `src/onewire.c`, `inc/onewire.h` or any port
+  layer. The driver is non-blocking with the same poll discipline as the
+  DS18B20 drivers: `ds2431_read_memory()`, `ds2431_write_scratchpad()`,
+  `ds2431_read_scratchpad()` and `ds2431_copy_scratchpad()` each schedule one
+  operation and return immediately; the matching `*_poll()` advances it by one
+  hardware operation per call. Read Memory (0xF0) reads 1-8 bytes; Write
+  Scratchpad (0x0F) latches a pending write cycle (target address + ES); Read
+  Scratchpad (0xAA) reads the 11-byte frame and echo-verifies TA/ES when a
+  write is pending; Copy Scratchpad (0x55) holds the t_PROG window. Parasite
+  power is supported via `ds2431_set_parasite()`. The context uses a union
+  (cmd/cap/pulse) so the command table, reset capture and read capture share
+  one 161-byte buffer. Host suite: 18 tests in `tests/test/test_ds2431.c`
+  (reset/presence, all four commands, echo match/mismatch, parasite, buffer
+  safety, full write cycle). Fuzz: `tests/fuzz/fuzz_ds2431_txn.c` mirrors
+  `fuzz_txn.c` — single-op-per-input, reference model (ok/parasite/out-buffer),
+  determinism, buffer-untouched-on-abort. Wired into `CMakeLists.txt`,
+  `library.json`, `library.properties`, `tests/check_library_manifest.sh`,
+  `tests/check_ram_budget.sh` and the Makefile firmware build (all 7 families).
+  `make test-ds2431` runs the suite; `make fuzz-ds2431-txn` runs the fuzzer.
+
+- **Example 8_ds2431: DS2431 EEPROM write cycle demo.** `examples/8_ds2431/main.c`
+  runs a full EEPROM write cycle: Read Memory (baseline), Write Scratchpad,
+  Read Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG hold-off), then
+  Read Memory again to confirm the data landed. Uses `onewire_search_start()`
+  to discover the bus, then `ds2431_select()` + the four DS2431 commands.
+  Build with `make APP=8_ds2431`.
+
 ## [2.3.0] - 2026-10-11
 
 ### Added
