@@ -161,7 +161,18 @@ uint8_t ds18b20_set_resolution_poll(void) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    if (!onewire_bus_done()) {
+    uint8_t res_done = onewire_bus_done();
+
+#if OW_PORT_LOW_POWER
+    // Sleep through a long resolution-change write instead of spinning on
+    // it - same WFE mechanism as the measurement cycle in ds18b20_poll().
+    if (!res_done && onewire_long_wait_pending()) {
+        onewire_sleep_until_done();
+        res_done = onewire_bus_done(); /* consume the event that woke us */
+    }
+#endif
+
+    if (!res_done) {
         return 0;
     }
 

@@ -69,7 +69,7 @@ typedef uint8_t ow_pulse_t;
 
 /* @brief PA10: alternate function, open-drain, AF6 (TIM1_CH3).
  *
- *  Same register model as F0/G0/F4, but three of the macro *names* differ from
+ *  Same register model as F0/F4/G0, but three of the macro *names* differ from
  *  every other backend here, which is why this is a macro rather than shared
  *  code and why the spellings below are the F3 CMSIS ones (checked against
  *  CMSIS/device/stm32f303xc.h by tests/check_mock_headers.sh):

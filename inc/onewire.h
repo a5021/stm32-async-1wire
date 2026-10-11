@@ -52,7 +52,7 @@ extern "C" {
 #define ONEWIRE_ALARM_SEARCH 0xEC
 /** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
  *  either the explicit OW_PORT_TARGET_* knob or the family macros
-  *  (STM32F1, STM32F0, STM32F3, STM32G0, STM32F4, STM32G4, STM32H5) that PlatformIO /
+  *  (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5) that PlatformIO /
  *  STM32CubeMX define on their own; the concrete device spellings are
  *  accepted too (STM32F303xC for F3; STM32F407xx / STM32F401xC/STM32F401xE /
  *  STM32F446xx for F4; STM32G474xx for G4). The token is the single point of
@@ -67,18 +67,18 @@ extern "C" {
  *  (OW_KNOWN_TARGETS, OW_TARGET branch, TEST_CLOCK_FLAG) and CMakeLists.txt
  *  (OW_TARGET branch, default chip) wiring, the tests/mockdevice header, and
  *  a case in tests/test/test_sysclk_fallback.c. */
-#if defined(OW_PORT_TARGET_F1) || defined(STM32F1)
-#define OW_PORT_FAMILY_F1
-#elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)
+#if defined(OW_PORT_TARGET_F0) || defined(STM32F0)
 #define OW_PORT_FAMILY_F0
+#elif defined(OW_PORT_TARGET_F1) || defined(STM32F1)
+#define OW_PORT_FAMILY_F1
 #elif defined(OW_PORT_TARGET_F3) || defined(STM32F3) || defined(STM32F303xC)
 #define OW_PORT_FAMILY_F3
-#elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
-#define OW_PORT_FAMILY_G0
 #elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) ||                     \
     defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \
     defined(STM32F446xx)
 #define OW_PORT_FAMILY_F4
+#elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)
+#define OW_PORT_FAMILY_G0
 #elif defined(OW_PORT_TARGET_G4) || defined(STM32G4) || defined(STM32G474xx)
 #define OW_PORT_FAMILY_G4
 #elif defined(OW_PORT_TARGET_H5) || defined(STM32H5) || defined(STM32H503xx)
@@ -92,22 +92,22 @@ extern "C" {
  *  backend defines are visible wherever this header is: ow_pulse_t (used by the
  *  prototypes below) and the clock defaults (used by app.c and the host tests).
  *  Keep the branches in the same order as the chain above. */
-#if defined(OW_PORT_FAMILY_F1)
-#include "ow_port_f1.h"
-#elif defined(OW_PORT_FAMILY_F0)
+#if defined(OW_PORT_FAMILY_F0)
 #include "ow_port_f0.h"
+#elif defined(OW_PORT_FAMILY_F1)
+#include "ow_port_f1.h"
 #elif defined(OW_PORT_FAMILY_F3)
 #include "ow_port_f3.h"
-#elif defined(OW_PORT_FAMILY_G0)
-#include "ow_port_g0.h"
 #elif defined(OW_PORT_FAMILY_F4)
 #include "ow_port_f4.h"
+#elif defined(OW_PORT_FAMILY_G0)
+#include "ow_port_g0.h"
 #elif defined(OW_PORT_FAMILY_G4)
 #include "ow_port_g4.h"
 #elif defined(OW_PORT_FAMILY_H5)
 #include "ow_port_h5.h"
 #else
-#error "onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0, OW_PORT_TARGET_F4, OW_PORT_TARGET_G4 or OW_PORT_TARGET_H5, or a family macro such as STM32F1/STM32F0/STM32F3/STM32F303xC/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G4/STM32G474xx/STM32H5/STM32H503xx)"
+#error "onewire: no family selected (define OW_PORT_TARGET_F0, OW_PORT_TARGET_F1, OW_PORT_TARGET_F3, OW_PORT_TARGET_F4, OW_PORT_TARGET_G0, OW_PORT_TARGET_G4 or OW_PORT_TARGET_H5, or a family macro such as STM32F0/STM32F1/STM32F3/STM32F303xC/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G0/STM32G4/STM32G474xx/STM32H5/STM32H503xx)"
 #endif
 
 /** @} */

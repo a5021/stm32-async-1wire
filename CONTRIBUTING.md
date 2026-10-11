@@ -70,7 +70,7 @@ interrupt-free, minimal CPU usage).
 make                # release build (must succeed with -Werror)
 make SYSCLK_MHZ=8   # 8MHz variant
 make debug          # optional, for debugging
-make test           # host test suite; also -f0 / -g0 / -f4
+make test           # host test suite; also -f0 / -f4 / -g0
 make test-lowpower  # same suite with the -DOW_PORT_LOW_POWER=1 WFE path
 make test-ndebug    # same suite with asserts compiled out
 make test-clocks    # per-family clock-default compile checks

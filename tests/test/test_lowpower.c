@@ -11,6 +11,9 @@
  *    - ow_port_capture() long threshold boundary (14 vs 15 slots)
  *    - UIE is enabled on short ops (read_pair, write_bit,
  *      write_then_read, feed, single-slot write)
+ *    - command-transaction and resolution-change long stages qualify
+ *      for the txn_poll()/res_poll() sleep blocks and still run to
+ *      completion through the re-plumbed polls
  *
  *  Compiled ONLY with -DOW_PORT_LOW_POWER=1 (make test-lowpower);
  *  without the flag this TU is empty so `make test` stays
@@ -19,7 +22,9 @@
  *  blocking sleep itself.
  * ============================================================ */
 
+#include "ds18b20.h"
 #include "ds18b20_test_access.h"
+#include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
 #include "ow_port.h"
@@ -197,6 +202,71 @@ void test_lowpower_single_slot_write_enables_uie(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
 }
 
+/*-------------------------------------------------------------
+ *  Transaction/resolution long stages qualify for sleep
+ *
+ *  The txn_poll()/res_poll() sleep blocks consult
+ *  onewire_long_wait_pending(), so a long stage scheduled there must
+ *  read back pending with UIE armed - otherwise the new block could
+ *  never fire (or would fire on a short stage). Afterwards the
+ *  machine must still run to completion through the re-plumbed
+ *  poll. The timer runs to its update event BEFORE every poll: polling
+ *  a scheduled-but-unfinished stage without UIF would enter the WFE
+ *  wait itself, whose host __WFE() stub never returns.
+ * -----------------------------------------------------------*/
+
+/* Presence-present capture source: valid reset (510) and presence
+ * pulse (700) for every reset operation. */
+static uint16_t lp_capture_present(uint32_t idx) {
+    return idx == 0 ? 510u : 700u;
+}
+
+/* Drive a ds18b20_*_poll() engine to completion, running the mock
+ * timer to its update event before every poll (see note above). */
+static void lp_drive_poll_until_done(uint8_t (*poll)(void)) {
+    uint16_t guard = 0;
+    for (;;) {
+        if (mock_tim1.CR1 & TIM_CR1_CEN) {
+            TEST_ASSERT_TRUE(hw_run_until_uif(20000));
+        }
+        if (poll()) {
+            break;
+        }
+        if (++guard > 50) {
+            break;
+        }
+    }
+    TEST_ASSERT_TRUE(guard <= 50);
+}
+
+void test_lowpower_txn_long_write_qualifies_and_completes(void) {
+    hw_set_capture_source(lp_capture_present);
+    ds18b20_test_set_address_mode(0); /* Skip ROM: 16-slot command write */
+    ds18b20_copy_scratchpad();
+    TEST_ASSERT_FALSE(ds18b20_copy_scratchpad_poll()); /* reset scheduled */
+    TEST_ASSERT_TRUE(hw_run_until_uif(20000));
+    TEST_ASSERT_FALSE(ds18b20_copy_scratchpad_poll()); /* write scheduled */
+    /* 16 slots x 70 us = 1120 us > 1000: the new sleep block may fire. */
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_long_wait_pending());
+    TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
+    lp_drive_poll_until_done(ds18b20_copy_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_last_command_ok());
+}
+
+void test_lowpower_resolution_long_write_qualifies_and_completes(void) {
+    hw_set_capture_source(lp_capture_present);
+    ds18b20_test_set_address_mode(0); /* Skip ROM: 5-byte / 40-slot write */
+    ds18b20_set_resolution(9);
+    TEST_ASSERT_FALSE(ds18b20_set_resolution_poll()); /* reset scheduled */
+    TEST_ASSERT_TRUE(hw_run_until_uif(20000));
+    TEST_ASSERT_FALSE(ds18b20_set_resolution_poll()); /* write scheduled */
+    /* 40 slots x 70 us = 2800 us > 1000: the new sleep block may fire. */
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_long_wait_pending());
+    TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
+    lp_drive_poll_until_done(ds18b20_set_resolution_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_set_resolution_poll()); /* finished */
+}
+
 void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_init_sets_sevonpend);
     TEST_RUN(test_lowpower_conversion_wait_sets_pending_and_uie);
@@ -212,6 +282,8 @@ void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_feed_short_keeps_pending_clear);
     TEST_RUN(test_lowpower_feed_threshold_boundary);
     TEST_RUN(test_lowpower_single_slot_write_enables_uie);
+    TEST_RUN(test_lowpower_txn_long_write_qualifies_and_completes);
+    TEST_RUN(test_lowpower_resolution_long_write_qualifies_and_completes);
 }
 
 #endif /* OW_PORT_LOW_POWER */

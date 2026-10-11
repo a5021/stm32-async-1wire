@@ -6,7 +6,8 @@
 #   1. It is self-consistent: every file it names exists, every source under
 #      build.srcDir is either listed in build.srcFilter or deliberately excluded,
 #      and every header it advertises is one the driver actually includes.
-#   2. It is sufficient: a consumer translation unit compiles with the include
+#   2. It is sufficient: a consumer translation unit - and the manifest's own
+#      library sources, once per backend - compile with the include
 #      directories and flags the manifest itself declares, and no others.
 #
 # The consumer is tests/integration/platformio/src/main.c - the same file the
@@ -102,8 +103,11 @@ INCS=$(cat "$INCS_FILE")
 [ -n "$INCS" ] || fail "could not derive an include set from library.json"
 
 # The consumer must compile with the manifest's own include set and nothing
-# else. tests/mock supplies the device header the manifest's -Iport/stm32f1
+# else. tests/mock supplies the device header the manifest's -Iport/stm32f0
 # would otherwise point at, exactly as the host test suite does.
+# NOTE: this TU only exercises the API surface (ds18b20.h is self-contained
+# and never pulls a backend), so it cannot catch a missing backend include
+# path - the per-backend source compiles below are the check that does.
 OBJ="${INCS_FILE}.o"
 gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
     -DOW_PORT_TARGET_F1 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
@@ -111,4 +115,21 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
     -c tests/integration/platformio/src/main.c -o "$OBJ" \
     || fail "the consumer did not compile against the include set library.json declares"
 
-echo "  check_library_manifest: OK (manifest is self-consistent and its include set builds a consumer)"
+# The manifest's own sources must compile per backend with the manifest's own
+# include set and nothing else (beyond the mock device headers): src/onewire.c
+# pulls the backend through onewire.h's bare quote-include
+# (#include "ow_port_f3.h"), and every backend pulls the shared TIM1 core
+# through a bare #include "ow_port_tim_dma.h" - so a missing -Iport/stm32<xx>
+# or -Iport/common fails here instead of in a real project. Every backend the
+# manifest carries a port flag for earns its compile (F0/F1/F3/F4/G0/G4/H5).
+for target in F0 F1 F3 F4 G0 G4 H5; do
+    for src in src/onewire.c src/ds18b20.c src/ow_stats.c; do
+        gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
+            "-DOW_PORT_TARGET_$target" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+            $INCS -Itests/mock \
+            -c "$src" -o "$OBJ" \
+            || fail "$src for OW_PORT_TARGET_$target did not compile against the include set library.json declares"
+    done
+done
+
+echo "  check_library_manifest: OK (manifest is self-consistent; its include set builds the consumer and the library sources for F0/F1/F3/F4/G0/G4/H5)"

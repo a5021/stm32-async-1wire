@@ -25,7 +25,7 @@
 
 - [ ] `make` builds cleanly (release, `-Werror`)
 - [ ] `make SYSCLK_MHZ=8` builds cleanly
-- [ ] `make test` passes (and `-f0` / `-g0` / `-f4` if a backend was touched)
+- [ ] `make test` passes (and `-f0` / `-f4` / `-g0` if a backend was touched)
 - [ ] `make test-clocks` passes (per-family clock defaults)
 - [ ] `make test-chips` passes (after adding or editing a `chips/<part>.mk`)
 - [ ] `clang-format --dry-run --Werror` passes on changed files

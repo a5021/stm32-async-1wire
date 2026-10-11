@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raw-HSE path waits HSERDY and switches `CFGR1.SW` to HSE (0 flash wait
   states, `_Static_assert` on SYSCLK <= 16MHz); the 250MHz path raises voltage
   scaling to VOS0 (`PWR_VOSCR`, waiting VOSRDY), takes **5 flash wait states**
-  (H503 Table 1: 190 < HCLK <= 250), then feeds a `HSE/4 x 125 / 2` PLL1
+   (H503 Table 1: 190 < HCLK <= 250), then feeds a `HSE/M x 125 / 2` PLL1
+   (M = HSE/4)
   (`PLL1CFGR`/`PLL1DIVR`, PLL1P output) and switches `CFGR1.SW` to PLL1 -
   all pinned by `_Static_assert`. The H5 console divisor and failure-path
   baud divisor follow the selected clock. Host suite now builds and runs the
@@ -229,7 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Also: the LED is **PE8 and active high** — all eight indicators on MB1035B are
   on GPIOE, per ST's own BSP header, and `BSP_LED_On` writes `GPIO_PIN_SET`,
-  the opposite of F1's PC13 and F0's PA4. The console is USART1_TX on **PA9
+  the opposite of F0's PA4 and F1's PC13. The console is USART1_TX on **PA9
   (AF7)**, which the F3-DISCOVERY leaves to an external USB-UART.
 
     Regression cover: the F3 mock is compared against the real
@@ -267,7 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching **Debug F3 (J-Link)** / **Debug F3 (ST-Link)** configurations
   (device `STM32F303VC`, `CMSIS/device/STM32F303.svd`, `target/stm32f3x.cfg`,
   `preLaunchTask Build F3 (debug)`), so the README's VSCode section and the
-  actual workspace both list F1/F0/F3/G0/F4.
+  actual workspace both list F0/F1/F3/F4/G0.
 
 ### Fixed
 
@@ -380,7 +381,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of HIGH, starving parasite sensors (scratchpads latched 0x07FE).
   The fix zeroes CCR3 and loads it via UG (OC3PE buffers the write) on engage,
   so CNT=0 holds the output ACTIVE=HIGH; release restores open-drain and the
-  line floats HIGH. Applies to the shared F0/F1/G0/F3 core and to F4, which
+  line floats HIGH. Applies to the shared F0/F1/F3/G0 core and to F4, which
   had the same shape. Bench: parasite conversions now complete with valid
   CRCs and room temperatures.
 
@@ -544,7 +545,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   F4-prefixed**, since F3 needs the same two: `ow_f4_clock_ok` and
   `ow_f4_wait_flag` are `ow_clock_ok` and `ow_wait_flag`, guarded by
   `OW_PORT_FAMILY_F4 || OW_PORT_FAMILY_F3`. The helper is still excluded for the
-  clock that configures nothing — 16MHz on F4, 8MHz on F3 — because
+  clock that configures nothing — 8MHz on F3, 16MHz on F4 — because
   `-Werror=unused-function` is the only thing that notices. The failure banner
   gained an F3 variant, because the fix is not the same one: on F3 the
   unreachability is structural (no HSI16, PLLMUL ≤ 16), so the message names the
@@ -619,7 +620,7 @@ the board's crystal frequency.
 
 - **A per-part build matrix in `chips/<part>.mk`.** `OW_TARGET` selects the
   family (unchanged); the new `OW_CHIP` selects the part *within* it by naming
-  a file: `f103xb`, `f030x6`, `g031xx`, `f407xx`, `f401xc`, `f401xe`. Each file
+  a file: `f030x6`, `f103xb`, `f407xx`, `f401xc`, `f401xe`, `g031xx`. Each file
   holds only the part identity — CMSIS device macro, device header, startup
   file, linker script, J-Flash and Ozone projects, SVD and default clock — while
   everything a family shares (MCU flags, the port header, the timer/DMA/pin
@@ -715,7 +716,7 @@ the board's crystal frequency.
   turn into an undiscovered `onewire_bus_done()` hang. The three
   underlying port-layer functions (`ow_port_feed`,
   `ow_port_write_slots`, `ow_port_read_data`) follow the same
-  contract on all four backends (F0/F1/G0/F4). Tested by a new
+  contract on all four backends (F0/F1/F4/G0). Tested by a new
   `make test-ndebug*` build that compiles the suite with `-DNDEBUG`
   (see `tests/test/test_param_guard.c`).
 
@@ -724,9 +725,10 @@ the board's crystal frequency.
 - **The bus pin's state is asked through three macros in `mock_target.h`**
   (`MOCK_PIN_IS_AF` / `_OD` / `_PP`) instead of each host test naming the CMSIS
   fields itself. The pin is PA10 on every family, but the fields that say
-  "alternate function" and "open-drain" are spelled three ways - F1 uses the
-  legacy `CRH` CNF10 field, G0's CMSIS drops the R, F0 and F4 use `MODER10` with
-  `OTYPER` - and three test files each carried their own copy of that spelling.
+  "alternate function" and "open-drain" are spelled three ways - F0 and F4 use
+  `MODER10` with `OTYPER`, F1 uses the legacy `CRH` CNF10 field, and G0's
+  CMSIS drops the R - and three test files each carried their own copy of
+  that spelling.
   A fourth copy is part of why the mocks' wrong MODER10 field went unnoticed:
   the same expression spelled out in a test reads as deliberate, where the same
   wrong value inside a mock does not. The roles now sit beside the 18 existing
@@ -744,7 +746,7 @@ the board's crystal frequency.
 
   One assertion genuinely moved rather than disappeared: F1's copy of the
   strong-pull-up helper also checked the CRH MODE10 drive-strength field, which
-  the F0/G0/F4 copies never did. That asymmetry was unintentional, so the
+  the F0/F4/G0 copies never did. That asymmetry was unintentional, so the
   contract test now captures F1's MODE10 field as `pin_speed` and pins it like
   the other three families - the check is kept, and the file no longer implies
   the families assert the same thing when they did not.
@@ -765,7 +767,7 @@ the board's crystal frequency.
 
   There is no run-time cost - it all stays `__STATIC_FORCEINLINE` and every
   difference is resolved by the preprocessor. Checked rather than assumed:
-  the `.bin` of all seven examples for F0, G0 and F1 is byte-identical before
+  the `.bin` of all seven examples for F0, F1 and G0 is byte-identical before
   and after, which is what "moved, not rewritten" has to mean for a layer
   whose boards are not available to re-verify on.
 
@@ -871,7 +873,7 @@ the board's crystal frequency.
 - **The split driver parts are now covered by CI on both axes.** The Code
   Quality `format` job lints `src/ds18b20_{search,txn,resolution,measure}.c`
   alongside `src/ds18b20.c`, and a new `cmake` job smoke-builds the library
-  package (with `OW_BUILD_EXAMPLES=ON`) for F1, F0, G0 and F4 via the ARM
+  package (with `OW_BUILD_EXAMPLES=ON`) for F0, F1, F4 and G0 via the ARM
   toolchain and verifies the `find_package()` install tree — the CMake path
   previously had no in-CI coverage despite the root `CMakeLists.txt`.
 
@@ -965,7 +967,7 @@ the board's crystal frequency.
   the real board's numbers, since the matrix otherwise only ever built f4 at
   168MHz/8MHz. The 21 non-F4 firmware images are byte-for-byte unchanged.
 
-- **The f0, g0 and f4 host mocks had pin 10's MODER bit field holding pin
+- **The f0, f4 and g0 host mocks had pin 10's MODER bit field holding pin
   11's bits.** A test asserting that the bus pin is in alternate-function
   mode was therefore asserting about PA11, on three of the four backends.
   The suite stayed green throughout, because the mocks are what the tests
@@ -1038,8 +1040,8 @@ the board's crystal frequency.
 
 - **`chips/<part>.mk` and `ow_port.h` each carried their own system clock
   default, and nothing checked that they agreed.** `onewire.h` picks a
-  default per family under `#if !defined(OW_PORT_SYSCLK_MHZ)` - 72 for F1,
-  48 for F0, 64 for G0, 84 for the F401 parts, 168 for F407 - and every part
+  default per family under `#if !defined(OW_PORT_SYSCLK_MHZ)` - 48 for F0,
+  72 for F1, 84 for the F401 parts, 168 for F407, 64 for G0 - and every part
   file separately declares `CHIP_SYSCLK_MHZ`, which the build passes as
   `-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)`. That define is precisely the
   header's `!defined()` guard, so on a Make or CMake firmware the header
@@ -1072,11 +1074,11 @@ the board's crystal frequency.
   `mpu_armv7.h` unconditionally - every Cortex-M4 has an MPU - but the F4
   dependency list never fetched it, so `make clean-deps && make OW_TARGET=f4`
   died with `core_cm4.h: fatal error: mpu_armv7.h: No such file or directory`
-  on any machine that had not previously built G0 or F4. It went unnoticed
+  on any machine that had not previously built F4 or G0. It went unnoticed
   because the CMSIS cache in CI is keyed on the Makefile and had been warm.
   `core_cm3.h` and `core_cm0.h` reach that header only behind `__MPU_PRESENT`,
-  which the F1 and F0 parts do not define, so only the F4 list needed the entry.
-  Verified by rebuilding f1, f0, g0, f4, f4/f401xc and f4/f401xe from an empty
+  which the F0 and F1 parts do not define, so only the F4 list needed the entry.
+  Verified by rebuilding f0, f1, f4, f4/f401xc, f4/f401xe and g0 from an empty
   `CMSIS/`.
 
 - **`make jprogram` had no J-Flash project for the STM32F401CC.** `JFLASH` was
@@ -1089,7 +1091,7 @@ the board's crystal frequency.
   128 KB of SRAM.
 
 - **The F4 backend had no SEGGER Ozone project.** `port/<mcu>/project.jdebug`
-  existed for F1, F0 and G0 and the README pointed at that path generically,
+  existed for F0, F1 and G0 and the README pointed at that path generically,
   so F4 users had nothing to open. Added `project.jdebug` (F407VGT6) and
   `project-f401cc.jdebug`, plus the `STM32F401.svd` download the second one
   needs — the F4 `EXTERNAL_DEPS` list only fetched the F407 SVD.
@@ -1106,7 +1108,7 @@ the board's crystal frequency.
 
 - **The CMake build could not select the STM32F4 backend, although CI asked
   for it.** The `cmake` job matrix lists `f4`, but `CMakeLists.txt` only knew
-  `f1`, `f0` and `g0`, so configuring with `-DOW_TARGET=f4` stopped at
+  `f0`, `f1` and `g0`, so configuring with `-DOW_TARGET=f4` stopped at
   `FATAL_ERROR`. The F4 target is now wired up like the other three (CMSIS
   device repo and `STM32F407xx` define, `-mcpu=cortex-m4 -mthumb` mirroring the
   Makefile, `system_stm32f4xx.c`, `startup_stm32f407xx.s`, the
@@ -1143,11 +1145,11 @@ the board's crystal frequency.
   (`OW_PORT_TARGET_F0`/`OW_PORT_TARGET_G0`) instead of `OW_PORT_FAMILY_*`, so
   an F4 build took the F1 branch and referenced the nonexistent `TIM1_UP_IRQn`
   (the F4 vector is `TIM1_UP_TIM10_IRQn`). The mapping now keys off
-  `OW_PORT_FAMILY_*` and covers F0/G0/F1/F4, with a hard `#error` for any
+  `OW_PORT_FAMILY_*` and covers F0/F1/F4/G0, with a hard `#error` for any
   unhandled family.
 
 - **`src/ow_stats.c` failed to build on STM32F4 with `OW_STATS_ENABLE=1`.**
-  Its device-header chain handled G0/F0/F1 but fell through to `stm32f1xx.h`
+  Its device-header chain handled F0/F1/G0 but fell through to `stm32f1xx.h`
   for F4; it now includes `stm32f4xx.h` under `OW_PORT_FAMILY_F4`.
 
 - **Public write/read API limited to the 8-bit `TIM1.RCR` capacity.**
@@ -1297,7 +1299,7 @@ without a section here, and its changes had drifted into the section below.
 - **New `make test-lowpower` host tests** (`tests/test/test_lowpower.c`, plus
   `test-lowpower`, `test-lowpower-f0` and `test-lowpower-g0` Makefile targets).
   They compile and run the opt-in `-DOW_PORT_LOW_POWER` path against the mock
-  target for F1/F0/G0, asserting the observable low-power state: `SEVONPEND`
+  target for F0/F1/G0, asserting the observable low-power state: `SEVONPEND`
   armed by `onewire_init()`, `ow_long_pending` set on long stages (conversion
   wait, cycle pause) and cleared on completion, and `UIE` enabled in `T1.DIER`.
   Short slots stay outside the sleeping path (`ow_long_pending` keeps clear).
@@ -1376,7 +1378,7 @@ without a section here, and its changes had drifted into the section below.
   bare-metal toolchain file (`cmake/arm-none-eabi-gcc.cmake`) for CMake-based
   projects.
 - Auto-detection of MCU family in `ow_port.h` via PlatformIO / STM32CubeMX
-  defines (`STM32F1`, `STM32F0`, `STM32G0`) alongside the explicit
+  defines (`STM32F0`, `STM32F1`, `STM32G0`) alongside the explicit
   `OW_PORT_TARGET_*` knob.
 - **Fuzz testing infrastructure** covering the full codebase: `onewire.c`
   pure functions (`fuzz_crc8`, `fuzz_decode_pulses`, `fuzz_present`,
@@ -1489,7 +1491,7 @@ without a section here, and its changes had drifted into the section below.
 
 - STM32G0 backend (`port/stm32g0/ow_port_g0.h`) for the STM32G031x6, e.g. the
   TSSOP20 STM32G031F6P6: same TIM1 CH3-output / CH4-indirect-capture scheme
-  as F1/F0, with two family adaptations — the bus sits on logical PA10,
+  as F0/F1, with two family adaptations — the bus sits on logical PA10,
   which lives on the physical PA12 pad via the SYSCFG `PA12_RMP` remap (the
   package does not bond PA9/PA10 out), and DMA requests are routed through
   DMAMUX (TIM1_CC2 = request 21 feeds CCR3 via channel 3, TIM1_CH4 = request
@@ -1511,8 +1513,8 @@ without a section here, and its changes had drifted into the section below.
   16MHz, not 8). Every clock-dependent setting now derives from the new
   value: timer prescaler (`PSC = SYSCLK - 1`), input-capture filter
   selection and the '1'-slot pulse width switch on a shared ≤16MHz
-  threshold, `app.c` derives its clock source per family (F1: 72 = HSE+PLL,
-  8 = raw HSI; F0: 48 = HSI+PLL, 8 = raw HSI; anything else fails the
+  threshold, `app.c` derives its clock source per family (F0: 48 = HSI+PLL,
+  8 = raw HSI; F1: 72 = HSE+PLL, 8 = raw HSI; anything else fails the
   build with a clear message) and the USART baud rate computes from it.
   Build via `make SYSCLK_MHZ=8`; defaults are unchanged.
 
@@ -1530,7 +1532,7 @@ without a section here, and its changes had drifted into the section below.
   the strong pull-up (bus pin switched to push-pull HIGH) for every
   temperature-conversion window and EEPROM hold-off, releasing the line back
   to the external pull-up before any further bus activity. Backed by a new
-  `ow_port_strong_pullup()` port hook in both the STM32F1 and STM32F0
+  `ow_port_strong_pullup()` port hook in both the STM32F0 and STM32F1
   backends; seven host tests cover engagement windows, register state,
   mid-window flag clears and the default-off regression.
 - Automatic parasite-mode detection: `ds18b20_detect_parasite()` /
@@ -1543,7 +1545,7 @@ without a section here, and its changes had drifted into the section below.
   `-DPARASITE_POWER=1` build flag to enable the mode out of the box, and the
   README gains a Parasite Power section with supply-current guidance.
 - Public CI coverage: the host-test workflow now runs both backend suites
-  (F1 and F0) as a test matrix, captures per-backend lcov traces and merges
+  (F0 and F1) as a test matrix, captures per-backend lcov traces and merges
   them into a single metric over the MCU-independent core (port plumbing is
   excluded, so adding new MCU families never dilutes the number). Every push
   to `main` republishes an HTML report and a self-hosted badge to the
@@ -1597,8 +1599,8 @@ without a section here, and its changes had drifted into the section below.
 
 - Release pipeline now ships the full firmware matrix: all four example apps
   (`1_basic`, `3_round_robin`, `4_scan_mode`, `5_commands`) for both backends
-  (STM32F103 @72MHz/8MHz HSI, STM32F030
-  @48MHz/8MHz HSI) — 16 variants with per-file SHA256 checksums.
+  (STM32F030 @48MHz/8MHz HSI, STM32F103
+  @72MHz/8MHz HSI) — 16 variants with per-file SHA256 checksums.
 
 
 ## [1.4.0] - 2026-08-22

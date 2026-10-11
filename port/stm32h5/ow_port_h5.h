@@ -75,7 +75,7 @@
  *    crystal belongs to the *board*, the system clock to the *application*.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (split vector on this family: TIM1_UP, not the combined BRK/UP/TRG/COM
- *    of F1/F0/G0). */
+ *    of F0/F1/G0). */
 typedef uint8_t ow_pulse_t;
 
 #if !defined(OW_PORT_SYSCLK_MHZ)
@@ -226,7 +226,7 @@ typedef uint8_t ow_pulse_t;
         PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos); \
         PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
                      ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
-        /* Route TI4 to TIM1_CH4 (direct pin) so that CC4 capture sees the bus */     \
+        /* CC4 captures indirect from TI3 (bus); TISEL reset = direct TI4 pad */      \
         T1.TISEL = (T1.TISEL & ~TIM_TISEL_TI4SEL_Msk) | (0u << TIM_TISEL_TI4SEL_Pos); \
     } while (0)
 

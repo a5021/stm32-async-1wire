@@ -2,7 +2,7 @@
  *  test_sysclk_fallback.c - Family-macro backend selection check
  *
  *  Compile-only (no test harness): verifies that selecting a family
- *  through the raw family macro (STM32F1/F0/F3/G0/G4/H5, STM32F4 — for F4/G4/H5
+ *  through the raw family macro (STM32F0/F1/F3/F4/G0/G4/H5 — for F4/G4/H5
  *  also the concrete device spellings) — the path PlatformIO / STM32CubeMX
  *  use, without the OW_PORT_TARGET_* knob — resolves both the
  *  OW_PORT_FAMILY_* token and the matching default OW_PORT_SYSCLK_MHZ.
@@ -14,7 +14,7 @@
 #include "ow_port.h"
 
 /* The clock default has two sources: the #if cascade in the family headers
- * (ow_port_f0/f1/f3/g0/f4.h) above, and
+ * (ow_port_f0/f1/f3/f4/g0.h) above, and
  * CHIP_SYSCLK_MHZ in the chips/<part>.mk the build selects. They are not
  * connected: the build passes -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the
  * firmware command line, which is exactly the #if !defined() guard in the
@@ -37,17 +37,13 @@
 #error "chips/<part>.mk CHIP_SYSCLK_MHZ disagrees with the ow_port.h family default for this part"
 #endif
 
-#if defined(OW_PORT_FAMILY_F1)
-#if OW_PORT_SYSCLK_MHZ != 72
-#error "F1 family-macro selection must default to a 72 MHz system clock"
-#endif
-#elif defined(OW_PORT_FAMILY_F0)
+#if defined(OW_PORT_FAMILY_F0)
 #if OW_PORT_SYSCLK_MHZ != 48
 #error "F0 family-macro selection must default to a 48 MHz system clock"
 #endif
-#elif defined(OW_PORT_FAMILY_G0)
-#if OW_PORT_SYSCLK_MHZ != 64
-#error "G0 family-macro selection must default to a 64 MHz system clock"
+#elif defined(OW_PORT_FAMILY_F1)
+#if OW_PORT_SYSCLK_MHZ != 72
+#error "F1 family-macro selection must default to a 72 MHz system clock"
 #endif
 #elif defined(OW_PORT_FAMILY_F3)
 #if OW_PORT_SYSCLK_MHZ != 72
@@ -83,6 +79,10 @@
 #if OW_PORT_SYSCLK_MHZ != 168
 #error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
+#endif
+#elif defined(OW_PORT_FAMILY_G0)
+#if OW_PORT_SYSCLK_MHZ != 64
+#error "G0 family-macro selection must default to a 64 MHz system clock"
 #endif
 #elif defined(OW_PORT_FAMILY_G4)
 #if OW_PORT_SYSCLK_MHZ != 170

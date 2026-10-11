@@ -110,7 +110,7 @@ extern USART_TypeDef mock_usart1;
 #define RCC_APB2ENR_TIM1EN 0x00000800u
 #define RCC_CFGR_PPRE_Msk (0x7UL << 8) /* APB prescaler field [10:8] */
 /* MODER bit fields, matching CMSIS stm32f303xc.h. Pin 10 occupies bits [21:20]
- * and pin 11 bits [23:22]. The F0/G0/F4 mocks once held pin 11's bits under
+ * and pin 11 bits [23:22]. The F0/F4/G0 mocks once held pin 11's bits under
  * pin 10's names, which meant a test asserting "PA10 is in alternate-function
  * mode" was really asserting about PA11. Verified against the CMSIS header by
  * tests/check_mock_headers.sh. */

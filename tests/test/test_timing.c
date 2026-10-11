@@ -102,7 +102,10 @@ void test_apb_prescaler_div1_for_tim1(void) {
     /* PSC must equal SYSCLK_MHZ - 1 (1µs tick at full SYSCLK) */
     TEST_ASSERT_EQUAL_UINT16(OW_PORT_SYSCLK_MHZ - 1, (uint16_t)mock_tim1.PSC);
 
-#if defined(OW_PORT_TARGET_F1)
+#if defined(OW_PORT_TARGET_F0)
+    /* F0: single APB bus — PPRE must be /1 (field = 0) */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
+#elif defined(OW_PORT_TARGET_F1)
     /* F1: TIM1 on APB2 → PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
 #elif defined(OW_PORT_TARGET_F4)
@@ -168,9 +171,6 @@ void test_apb_prescaler_div1_for_tim1(void) {
         (OW_PORT_SYSCLK_MHZ) * 2u,
         (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLN_Pos) & 0x1FFu);
 #endif
-#elif defined(OW_PORT_TARGET_F0)
-    /* F0: single APB bus — PPRE must be /1 (field = 0) */
-    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
 #elif defined(OW_PORT_TARGET_G0)
     /* G0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);

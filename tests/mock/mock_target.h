@@ -2,14 +2,14 @@
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (OW_PORT_TARGET_F0 / OW_PORT_TARGET_F1 /
- * OW_PORT_TARGET_F3 / OW_PORT_TARGET_G0 / OW_PORT_TARGET_G4 /
- * OW_PORT_TARGET_F4 / OW_PORT_TARGET_H5). */
-#if defined(OW_PORT_TARGET_F4)
-#include "stm32f4xx.h"
-#elif defined(OW_PORT_TARGET_F0)
+ * OW_PORT_TARGET_F3 / OW_PORT_TARGET_F4 / OW_PORT_TARGET_G0 /
+ * OW_PORT_TARGET_G4 / OW_PORT_TARGET_H5). */
+#if defined(OW_PORT_TARGET_F0)
 #include "stm32f0xx.h"
 #elif defined(OW_PORT_TARGET_F3)
 #include "stm32f3xx.h"
+#elif defined(OW_PORT_TARGET_F4)
+#include "stm32f4xx.h"
 #elif defined(OW_PORT_TARGET_G0)
 #include "stm32g0xx.h"
 #elif defined(OW_PORT_TARGET_G4)
@@ -36,7 +36,7 @@
 #define MOCK_TIM_CAP_CCE TIM_CCER_CC4E
 
 /* --- DMA model abstraction -------------------------------------------------
- * The hw_model works on one feed and one capture channel per family. F1/F0/G0/
+ * The hw_model works on one feed and one capture channel per family. F0/F1/G0/
  * G4 use DMA1 channels with the CCR/CNDTR/CPAR/CMAR register names and 8-bit
  * memory cells; F4 uses DMA2 streams with CR/NDTR/PAR/M0AR. The F4 mock unions
  * keep the legacy field spellings valid, so the model can name a field
@@ -75,9 +75,10 @@
 
 /* --- bus pin state, family-neutral ------------------------------------------
  * The bus pin is PA10 on every family, but the CMSIS fields that say "alternate
- * function" and "open-drain" are spelled three different ways: F1 configures
- * the pin through the legacy CRH CNF10 field, G0's CMSIS drops the R (MODE10,
- * not MODER10), and F0/F4/G4 use MODER10 with OTYPER for the output stage.
+ * function" and "open-drain" are spelled three different ways: F0/F4/G4 use
+ * MODER10 with OTYPER for the output stage, F1 configures the pin through
+ * the legacy CRH CNF10 field, and G0's CMSIS drops the R (MODE10, not
+ * MODER10).
  *
  * A test that only wants to know which state the pin is in should ask through
  * these three. test_parasite.c, test_active_drive.c and test_state_machine.c

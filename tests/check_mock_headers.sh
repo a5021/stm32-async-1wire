@@ -6,7 +6,7 @@
 # tests/mock/stm32f<family>xx.h. If a stand-in's macro value disagrees with the
 # silicon header, a test asserting "the bus pin is in alternate-function mode"
 # passes no matter what the driver does - it is checking the wrong bits. That is
-# not hypothetical: the MODER bit field for pin 10 in the f0, g0 and f4 mocks
+# not hypothetical: the MODER bit field for pin 10 in the f0, f4 and g0 mocks
 # held pin 11's bits, so on three of the four backends the bus-pin setup was
 # unverifiable on the host and the whole suite stayed green throughout.
 #
@@ -117,11 +117,11 @@ compare() {
     fi
 }
 
-compare f1 "$MOCK_DIR/stm32f1xx.h" "$CMSIS_DIR/stm32f103xb.h"
 compare f0 "$MOCK_DIR/stm32f0xx.h" "$CMSIS_DIR/stm32f030x6.h"
+compare f1 "$MOCK_DIR/stm32f1xx.h" "$CMSIS_DIR/stm32f103xb.h"
 compare f3 "$MOCK_DIR/stm32f3xx.h" "$CMSIS_DIR/stm32f303xc.h"
-compare g0 "$MOCK_DIR/stm32g0xx.h" "$CMSIS_DIR/stm32g031xx.h"
 compare f4 "$MOCK_DIR/stm32f4xx.h" "$CMSIS_DIR/stm32f407xx.h"
+compare g0 "$MOCK_DIR/stm32g0xx.h" "$CMSIS_DIR/stm32g031xx.h"
 compare g4 "$MOCK_DIR/stm32g4xx.h" "$CMSIS_DIR/stm32g474xx.h"
 compare h5 "$MOCK_DIR/stm32h5xx.h" "$CMSIS_DIR/stm32h503xx.h"
 # The F4 mock twice, against a second real header. One F4 mock has to serve the

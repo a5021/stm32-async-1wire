@@ -4,12 +4,12 @@ project(stm32_async_1wire VERSION 2.2.0 LANGUAGES C ASM)
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-set(OW_TARGET "f1" CACHE STRING "MCU family: f1 (default), f0, f3, g0, f4, g4, h5")
-set_property(CACHE OW_TARGET PROPERTY STRINGS f1 f0 f3 g0 f4 g4 h5)
+set(OW_TARGET "f1" CACHE STRING "MCU family: f0, f1 (default), f3, f4, g0, g4, h5")
+set_property(CACHE OW_TARGET PROPERTY STRINGS f0 f1 f3 f4 g0 g4 h5)
 # Part within the family, named after the chips/<part>.mk file the Makefile
 # build uses. Both build systems read the same part file, so they cannot drift
 # on the device macro, startup file, linker script or clock default.
-set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f103xb, f030x6, f303xc, g031xx, f407xx, f401xc, f401xe, f446xx, g474cb, h503cb); empty = the family's default")
+set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f401xe, f446xx, g031xx, g474cb, h503cb); empty = the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
 # to every library and example, so a CMake build can select the same firmware
@@ -36,31 +36,31 @@ FetchContent_MakeAvailable(cmsis_core)
 set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
 
 # Device-specific repo and defines
-if(OW_TARGET STREQUAL "f1")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f1.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F1")
-    set(MCU_FLAGS          -mcpu=cortex-m3 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f1xx.c")
-elseif(OW_TARGET STREQUAL "f0")
+if(OW_TARGET STREQUAL "f0")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f0.git")
     set(OW_PORT_DEF       "OW_PORT_TARGET_F0")
     set(MCU_FLAGS          -mcpu=cortex-m0 -mthumb)
     set(SYSTEM_SRC         "system_stm32f0xx.c")
-elseif(OW_TARGET STREQUAL "g0")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g0.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_G0")
-    set(MCU_FLAGS          -mcpu=cortex-m0plus -mthumb)
-    set(SYSTEM_SRC         "system_stm32g0xx.c")
-elseif(OW_TARGET STREQUAL "f4")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
-    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f4xx.c")
+elseif(OW_TARGET STREQUAL "f1")
+    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f1.git")
+    set(OW_PORT_DEF       "OW_PORT_TARGET_F1")
+    set(MCU_FLAGS          -mcpu=cortex-m3 -mthumb)
+    set(SYSTEM_SRC         "system_stm32f1xx.c")
 elseif(OW_TARGET STREQUAL "f3")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis-device-f3.git")
     set(OW_PORT_DEF       "OW_PORT_TARGET_F3")
     set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
     set(SYSTEM_SRC         "system_stm32f3xx.c")
+elseif(OW_TARGET STREQUAL "f4")
+    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
+    set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
+    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
+    set(SYSTEM_SRC         "system_stm32f4xx.c")
+elseif(OW_TARGET STREQUAL "g0")
+    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g0.git")
+    set(OW_PORT_DEF       "OW_PORT_TARGET_G0")
+    set(MCU_FLAGS          -mcpu=cortex-m0plus -mthumb)
+    set(SYSTEM_SRC         "system_stm32g0xx.c")
 elseif(OW_TARGET STREQUAL "g4")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g4.git")
     set(OW_PORT_DEF       "OW_PORT_TARGET_G4")
@@ -72,7 +72,7 @@ elseif(OW_TARGET STREQUAL "h5")
     set(MCU_FLAGS          -mcpu=cortex-m33 -mthumb)
     set(SYSTEM_SRC         "system_stm32h5xx.c")
 else()
-    message(FATAL_ERROR "OW_TARGET must be f1, f0, f3, g0, f4, g4 or h5 (got: ${OW_TARGET})")
+    message(FATAL_ERROR "OW_TARGET must be f0, f1, f3, f4, g0, g4 or h5 (got: ${OW_TARGET})")
 endif()
 
 # The cmsis_device_<family> repos all use master as their default branch except
@@ -103,12 +103,12 @@ endforeach()
 
 if(OW_TARGET STREQUAL "f0")
     set(_ow_default_chip f030x6)
-elseif(OW_TARGET STREQUAL "g0")
-    set(_ow_default_chip g031xx)
-elseif(OW_TARGET STREQUAL "f4")
-    set(_ow_default_chip f407xx)
 elseif(OW_TARGET STREQUAL "f3")
     set(_ow_default_chip f303xc)
+elseif(OW_TARGET STREQUAL "f4")
+    set(_ow_default_chip f407xx)
+elseif(OW_TARGET STREQUAL "g0")
+    set(_ow_default_chip g031xx)
 elseif(OW_TARGET STREQUAL "g4")
     set(_ow_default_chip g474cb)
 elseif(OW_TARGET STREQUAL "h5")
@@ -335,11 +335,11 @@ function(ow_add_core_library tgt)
     target_include_directories(${tgt} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f3>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g4>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32h5>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/common>
@@ -403,11 +403,11 @@ install(FILES
     # path (this target exports them via BUILD_INTERFACE; the Makefile adds -I
     # for every port dir), and the flattened install above is why the includes
     # cannot be spelled "port/stm32f1/..." here.
-    port/stm32f1/ow_port_f1.h
     port/stm32f0/ow_port_f0.h
+    port/stm32f1/ow_port_f1.h
     port/stm32f3/ow_port_f3.h
-    port/stm32g0/ow_port_g0.h
     port/stm32f4/ow_port_f4.h
+    port/stm32g0/ow_port_g0.h
     port/stm32g4/ow_port_g4.h
     port/stm32h5/ow_port_h5.h
     # Shared TIM1/DMA1 core: ow_port_f0.h, ow_port_f1.h, ow_port_f3.h,
@@ -466,11 +466,11 @@ if(OW_BUILD_EXAMPLES)
     target_include_directories(stm32_async_1wire_platform PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/port
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f3
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
         ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g4
         ${CMSIS_CORE_INCLUDE}
         ${CMSIS_DEVICE_INCLUDE}

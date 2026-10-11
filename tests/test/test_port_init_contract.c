@@ -63,7 +63,16 @@ typedef struct {
 } setup_row_t;
 
 /* Captured from the backends, not derived from them. See the header. */
-#if defined(OW_PORT_FAMILY_F1)
+#if defined(OW_PORT_FAMILY_F0)
+/* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
+ * open-drain, cleared for push-pull; af 0x200 = AF2 for TIM1_CH3;
+ * speed 0x300000 = PA10 at the fastest setting. */
+static const setup_row_t k_setup[] = {
+    {"init", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
+    {"push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u},
+    {"open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
+};
+#elif defined(OW_PORT_FAMILY_F1)
 /* clk packs APB2ENR in the low half (IOPAEN | TIM1EN) and AHBENR in the high
  * half (DMA1EN). mode is CRH: MODE10 = 0b10 (2 MHz) with CNF10 = 0b11
  * (alternate-function open-drain) after init, and CNF10 = 0b10 (AF push-pull)
@@ -72,15 +81,6 @@ static const setup_row_t k_setup[] = {
     {"init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
     {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0x00000200u, 0u},
     {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
-};
-#elif defined(OW_PORT_FAMILY_F0)
-/* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
- * open-drain, cleared for push-pull; af 0x200 = AF2 for TIM1_CH3;
- * speed 0x300000 = PA10 at the fastest setting. */
-static const setup_row_t k_setup[] = {
-    {"init", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
-    {"push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u},
-    {"open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
 };
 #elif defined(OW_PORT_FAMILY_F3)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
@@ -154,16 +154,16 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_speed = 0u;
     s.remap = 0u;
 
-#if defined(OW_PORT_FAMILY_F1)
-    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
-    s.pin_mode = (uint32_t)mock_gpioa.CRH;
-    s.pin_speed = (uint32_t)mock_gpioa.CRH & GPIO_CRH_MODE10;
-#elif defined(OW_PORT_FAMILY_F0)
+#if defined(OW_PORT_FAMILY_F0)
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#elif defined(OW_PORT_FAMILY_F1)
+    s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
+    s.pin_mode = (uint32_t)mock_gpioa.CRH;
+    s.pin_speed = (uint32_t)mock_gpioa.CRH & GPIO_CRH_MODE10;
 #elif defined(OW_PORT_FAMILY_F3)
     /* AHBENR low, APB2ENR high - the reverse of the F0/F4 packing, and it has
      * to be: on this family the GPIO gates live in AHBENR at bits 17..21

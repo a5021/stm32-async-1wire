@@ -40,9 +40,10 @@ typedef uint8_t ow_pulse_t;
 
 /* @brief Gate GPIOA, TIM1 and DMA1.
  *
- *  F1 puts IOPAEN and TIM1EN in APB2ENR and DMA1EN in AHBENR; F0 uses the same
- *  two registers but names the bits GPIOAEN/DMAEN, and G0 uses IOPENR/APBENR2
- *  with a read-back to settle the APB clock before its first SYSCFG access.
+ *  F0/F1 put the port and timer gates in APB2ENR and the DMA gate in AHBENR
+ *  (F1 names them IOPAEN/TIM1EN/DMA1EN, F0 GPIOAEN/DMAEN); G0 uses
+ *  IOPENR/APBENR2 with a read-back to settle the APB clock before its first
+ *  SYSCFG access.
  */
 #define OW_PORT_ENABLE_BUS_CLOCKS()                \
     do {                                           \

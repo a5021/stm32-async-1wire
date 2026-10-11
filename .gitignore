@@ -96,5 +96,7 @@ docs/api/
 
 # Bench evidence (UART logs, logic captures, matrices): kept out of the repo
 # by decision — numbers live in CHANGELOG prose, primary data does not.
+# Two local-only trees, neither referenced by the build: docs/bench/
+# (archived per-target matrices) and bench_logs/ (raw capture staging).
 docs/bench/
 bench_logs/
