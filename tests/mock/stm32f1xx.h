@@ -161,7 +161,15 @@ extern SCB_Type mock_scb;
 /* WFE/SEV block until an event: no-op on the host (the driver never relies on
  * the block; it only needs the code to compile). */
 #define __SEV() ((void)0)
+#ifdef MOCK_WFE_HOOK
+/* Route the sleep through a host hook so a test can model the update event
+ * arriving asynchronously (mock_wfe_set_hook). Without the define this stays
+ * the plain no-op and every existing low-power build is unchanged. */
+void mock_wfe_hook(void);
+#define __WFE() mock_wfe_hook()
+#else
 #define __WFE() ((void)0)
+#endif
 /* Clear the NVIC pending bit for an IRQ: no-op on the host. */
 #define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
 #endif /* OW_PORT_LOW_POWER */

@@ -101,4 +101,18 @@ uint16_t hw_tim_ccr3(void); /* CCR3 preload register value */
 uint16_t hw_tim_ccr4(void); /* CCR4 capture register value */
 uint32_t hw_tim_slots(void); /* total slots in the scheduled operation */
 
+/* ---------------------------------------------------------------------------
+ * Low-power WFE hook (host tests)
+ *
+ * The low-power port sleeps in __WFE(); on the host that macro is otherwise a
+ * no-op, so a still-running long stage would spin forever and the
+ * ow_port_sleep_until_done() loop could never be exercised. When a build
+ * defines -DMOCK_WFE_HOOK the mock __WFE() routes here, and a test can install
+ * a callback (mock_wfe_set_hook) that models the TIM1 update event arriving
+ * asynchronously (e.g. set UIF on the Nth wake-up) or counts the sleeps. The
+ * default callback is NULL, so __WFE() stays equivalent to the plain stub.
+ * ------------------------------------------------------------------------ */
+void mock_wfe_hook(void);
+void mock_wfe_set_hook(void (*hook)(void));
+
 #endif /* HW_MODEL_H */

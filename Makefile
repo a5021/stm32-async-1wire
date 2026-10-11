@@ -1173,10 +1173,23 @@ FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz
 FUZZ_TIME    ?= 120
 FUZZ_HW_MOCK = tests/mock/hw_model.c
+FUZZ_SEEDS   = tests/fuzz/corpus
+FUZZ_DICT    = tests/fuzz/ds18b20.dict
+FUZZ_CORPUS  = $(FUZZ_OUT)/corpus
+
+# Every harness shares the checked-in seed blobs and the command dictionary.
+# Fuzzing writes into a per-target corpus under build/ so a run never dirties
+# the checkout; CI caches $(FUZZ_CORPUS) to carry coverage across runs.
+define run_fuzz
+	-@mkdir -p $(FUZZ_CORPUS)/$(1)
+	-@cp -n $(FUZZ_SEEDS)/* $(FUZZ_CORPUS)/$(1)/ 2>/dev/null || true
+	$(FUZZ_OUT)/$(1) $(FUZZ_CORPUS)/$(1) $(FUZZ_SEEDS) -dict=$(FUZZ_DICT) -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+endef
 
 .PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
         fuzz-encode-byte fuzz-bit-from-pulse \
-        fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution fuzz-all
+        fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
+        fuzz-measure fuzz-txn fuzz-lowpower fuzz-all
 
 $(FUZZ_OUT):
 	mkdir -p $@
@@ -1185,39 +1198,39 @@ $(FUZZ_OUT):
 fuzz-crc8: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_crc8.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_crc8
-	$(FUZZ_OUT)/fuzz_crc8 -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_crc8)
 
 fuzz-decode-pulses: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_decode_pulses.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_decode_pulses
-	$(FUZZ_OUT)/fuzz_decode_pulses -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_decode_pulses)
 
 fuzz-present: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_present.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_present
-	$(FUZZ_OUT)/fuzz_present -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_present)
 
 fuzz-pair-bits: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_pair_bits.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_pair_bits
-	$(FUZZ_OUT)/fuzz_pair_bits -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_pair_bits)
 
 fuzz-encode-byte: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_encode_byte.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_encode_byte
-	$(FUZZ_OUT)/fuzz_encode_byte -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_encode_byte)
 
 fuzz-bit-from-pulse: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_bit_from_pulse.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_bit_from_pulse
-	$(FUZZ_OUT)/fuzz_bit_from_pulse -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_bit_from_pulse)
 
 # Tier 3: ow_stats (single-TU, #include)
 fuzz-stats: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_STATS_ENABLE=1 \
 	    tests/fuzz/fuzz_stats.c $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_stats
-	$(FUZZ_OUT)/fuzz_stats -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_stats)
 
 # Tier 4: ds18b20 decode (single-TU via test_access)
 fuzz-ds18b20-decode: | $(FUZZ_OUT)
@@ -1225,7 +1238,7 @@ fuzz-ds18b20-decode: | $(FUZZ_OUT)
 	    tests/fuzz/fuzz_ds18b20_decode.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds18b20_decode
-	$(FUZZ_OUT)/fuzz_ds18b20_decode -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_ds18b20_decode)
 
 # Tier 5: Search ROM / Alarm Search state machine (single-TU via test_access).
 # The fuzz input drives the capture source; every property is checked with
@@ -1235,7 +1248,7 @@ fuzz-search: | $(FUZZ_OUT)
 	    tests/fuzz/fuzz_search.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_search
-	$(FUZZ_OUT)/fuzz_search -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_search)
 
 # Tier 6: resolution change state machine (single-TU via test_access); fuzz
 # input drives the presence reset and the address mode (Skip vs Match ROM).
@@ -1244,11 +1257,44 @@ fuzz-resolution: | $(FUZZ_OUT)
 	    tests/fuzz/fuzz_resolution.c src/ow_stats.c \
 	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_resolution
-	$(FUZZ_OUT)/fuzz_resolution -max_total_time=$(FUZZ_TIME) -print_final_stats=1
+	$(call run_fuzz,fuzz_resolution)
+
+# Tier 7: measurement state machine (single + scan + Match ROM + parasite).
+# The fuzz input drives the presence resets and every scratchpad read; the
+# reference-model oracle checks complete values, indices and resolution.
+fuzz-measure: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 \
+	    tests/fuzz/fuzz_measure.c src/ow_stats.c \
+	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c tests/mock/ds18b20_test_spy.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_measure
+	$(call run_fuzz,fuzz_measure)
+
+# Tier 8: command-transaction engine (single-TU via test_access); fuzz input
+# selects the command and addressing mode, drives the presence reset and the
+# read-backs. The reference-model oracle checks ok/resolution/parasite and the
+# copied out-buffer; every property is checked with abort().
+fuzz-txn: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 \
+	    tests/fuzz/fuzz_txn.c src/ow_stats.c \
+	    $(FUZZ_HW_MOCK) tests/mock/uart_stub.c \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_txn
+	$(call run_fuzz,fuzz_txn)
+
+# Tier 9: opt-in low-power path (compiled -DOW_PORT_LOW_POWER=1). Fuzzes
+# ow_port_long_wait_pending() against its schedule formula, and - with
+# -DMOCK_WFE_HOOK routing the host __WFE() through hw_model - drives the
+# ow_port_sleep_until_done() loop by delivering the update event after a
+# fuzz-chosen number of wake-ups.
+fuzz-lowpower: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -DOW_PORT_LOW_POWER=1 -DMOCK_WFE_HOOK \
+	    tests/fuzz/fuzz_lowpower.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_lowpower
+	$(call run_fuzz,fuzz_lowpower)
 
 fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
           fuzz-encode-byte fuzz-bit-from-pulse \
-          fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution
+          fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
+          fuzz-measure fuzz-txn fuzz-lowpower
 
 # Help target
 help:
@@ -1268,6 +1314,9 @@ help:
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
 	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"
+	@echo "  fuzz-measure    - Fuzz the DS18B20 measurement state machine"
+	@echo "  fuzz-txn        - Fuzz the DS18B20 command-transaction engine"
+	@echo "  fuzz-lowpower   - Fuzz the low-power predicate + WFE sleep (OW_PORT_LOW_POWER=1)"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
 	@echo "  gccversion      - Show compiler version"

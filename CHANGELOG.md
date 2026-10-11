@@ -10,6 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fuzz coverage for the two DS18B20 state machines and the low-power
+  predicate.** Three new libFuzzer harnesses join the suite (now 13):
+  `tests/fuzz/fuzz_measure.c` drives the measurement engine (`ds18b20_poll()`
+  over single/scan, Match ROM and parasite) and checks a from-scratch model of
+  the decoded temperature, the resolution adapt and the scan indices;
+  `tests/fuzz/fuzz_txn.c` drives the command-transaction engine (`_read_rom`,
+  `_read_scratchpad`, `_set_alarm_thresholds`, `_copy_scratchpad`,
+  `_recall_eeprom`, `_detect_parasite`) and checks ok/resolution/parasite and
+  the copied out-buffer against a model; `tests/fuzz/fuzz_lowpower.c` fuzzes
+  the schedule-derived `ow_port_long_wait_pending()` predicate under
+  `-DOW_PORT_LOW_POWER=1` and — via the new host `WFE` hook
+  (`-DMOCK_WFE_HOOK`, `mock_wfe_set_hook()`) that models the TIM1 update event
+  arriving after a fuzz-chosen number of wake-ups — also drives the
+  `ow_port_sleep_until_done()` loop itself, asserting it wakes on exactly the
+  wake-up that sets `UIF` and never spins past it. Every harness also asserts
+  termination, an IDLE park and determinism, and reports a failing input
+  through `abort()`. `make fuzz-measure` / `fuzz-txn` / `fuzz-lowpower` are
+  wired into `fuzz-all` and the help text.
+
+- **Shared fuzz seed corpus, DS18B20 dictionary and CI corpus cache.**
+  `tests/fuzz/corpus/` seeds every harness with a few blobs (command bytes, a
+  family-`0x28` ROM, a CRC-correct scratchpad, slot-width pairs) and
+  `tests/fuzz/ds18b20.dict` adds the ROM/function-command and slot-width
+  tokens. Fuzzing runs with a writable per-target corpus under
+  `build/fuzz/corpus/` (seeded from the checked-in blobs, so a run never
+  dirties the checkout), and the `fuzz` CI job caches that directory to carry
+  coverage across runs.
+
 - **STM32H5 backend (host-green, bench-validated).** Seventh family:
   `port/stm32h5/ow_port_h5.h` rides the shared TIM1 core with GPDMA
   CTR1/CTR2/REQSEL vocabulary overrides (GPDMA1 channels 2/3, requests 59/61,

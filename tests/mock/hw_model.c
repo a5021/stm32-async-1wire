@@ -41,6 +41,20 @@ static hw_ccr3_feed_log_t feed_log;
 static uint32_t op_capture_count;
 static uint32_t capture_edges; /* 0 = unlimited (historical model behaviour) */
 
+/* Low-power WFE hook state: see hw_model.h. The NULL default keeps __WFE() a
+ * no-op, so builds without -DMOCK_WFE_HOOK are unchanged. */
+static void (*s_wfe_hook)(void);
+
+void mock_wfe_set_hook(void (*hook)(void)) {
+    s_wfe_hook = hook;
+}
+
+void mock_wfe_hook(void) {
+    if (s_wfe_hook != NULL) {
+        s_wfe_hook();
+    }
+}
+
 /* --- truncated 32-bit DMA address -> real host pointer table ---
  * The mock models what the silicon sees: CMAR/CPAR are 32-bit registers, so
  * it keeps the true host pointer only in this bookkeeping table and resolves

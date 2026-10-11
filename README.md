@@ -212,7 +212,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   └── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
-│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 10 harnesses)
+│   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)
+│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 13 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
@@ -542,6 +543,15 @@ application's own (a plain `app_millis()` deadline, see below); short stages
 (reset, commands, search reads) are still handled by standard polling.
 Power is **not measured** yet — this example's goal is only to establish the
 mechanism and measure the CPU-time saving.
+
+> **How the sleep is tested without hardware.** On the host the mock `__WFE()` is
+> a no-op, so a still-running stage would spin the `while(!UIF)` loop forever.
+> A build that defines `-DMOCK_WFE_HOOK` routes `__WFE()` through
+> `mock_wfe_set_hook()` (see `tests/mock/hw_model.h`), letting a test deliver
+> the TIM1 update event after a chosen number of wake-ups. `make fuzz-lowpower`
+> uses this to drive `ow_port_sleep_until_done()` directly and assert the loop
+> wakes on exactly the wake-up that sets `UIF`; builds without the define keep
+> the original no-op stub.
 
 > **No interrupt anywhere in the application.** Milliseconds come from the ARM
 > SysTick counter running at 1 kHz with its interrupt *disabled*
@@ -961,8 +971,11 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
-| `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration) |
+| `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a DS18B20 command dictionary; CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
+| `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
+| `make fuzz-txn` | Fuzz the DS18B20 command-transaction engine (ROM/scratchpad/thresholds/copy/recall/power-supply) against a reference model |
+| `make fuzz-lowpower` | Fuzz the low-power long-stage predicate and drive the `WFE` sleep loop itself (`OW_PORT_LOW_POWER=1`; the harness models the TIM1 update event via `-DMOCK_WFE_HOOK`; requires host-side Clang) |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
 | `make gccversion` | Show the detected compiler and linker versions |
 | `make help` | Show all targets |

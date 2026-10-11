@@ -22,3 +22,10 @@ CMakeLists.txt text eol=lf
 *.md  text
 *.yml text
 *.cmake text
+
+# libFuzzer dictionaries are line-oriented; LF keeps the tokens byte-exact.
+*.dict text eol=lf
+
+# Fuzz corpus seeds are raw byte blobs, not text: never touch their bytes,
+# whatever core.autocrlf says on the machine that adds them.
+tests/fuzz/corpus/* binary

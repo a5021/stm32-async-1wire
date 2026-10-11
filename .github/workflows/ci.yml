@@ -797,5 +797,14 @@ jobs:
           for i in 1 2 3; do sudo apt-get update && break || sleep 15; done
           sudo apt-get install -y clang
           cp /var/cache/apt/archives/*.deb ~/apt-debs/ 2>/dev/null || true
+      - name: Cache fuzz corpus
+        # Carry the coverage-grown corpus between runs: a fresh key per commit
+        # saves a new snapshot, the restore-key prefix pulls the latest one.
+        uses: actions/cache@v5
+        with:
+          path: build/fuzz/corpus
+          key: ${{ runner.os }}-fuzz-corpus-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-fuzz-corpus-
       - name: Build and run fuzz harnesses (standalone)
         run: make FUZZ_CC=clang FUZZ_TIME=5 fuzz-all
