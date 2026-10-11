@@ -132,7 +132,7 @@ CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
 CHIP_SVD := $(strip $(CHIP_SVD))
 CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
 
-# Crystal (HSE) frequency of the *board*, F4, G4 and H5 only. Not part identity: a
+# Crystal (HSE) frequency of the *board*, F3, F4, G4 and H5 only. Not part identity: a
 # part file may carry a default for the board it is named after, and HSE_MHZ=
 # on the command line wins for any other board.
 CHIP_HSE_MHZ := $(strip $(CHIP_HSE_MHZ))
@@ -1274,13 +1274,13 @@ help:
 	@echo "  help            - Show this help"
 	@echo "Variables:"
 	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power  - example application to build"
-	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4      - MCU family (firmware build)"
+	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|h5   - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
-	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb); default per family"
+	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb, h503cb); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
-	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4 only"
-	@echo "                                    default (8/16 on every family, 84 on F401; the"
-	@echo "                                    defaults are 72/48/72/64/168/170)"
+	@echo "                                    default (per-family defaults are 48/72/72/168/64/170/64"
+	@echo "                                    for f0/f1/f3/f4/g0/g4/h5; F401=84, F446=180; 8/16 raw RC)"
+	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4/H5 only"
 
 # *** EOF ***
