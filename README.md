@@ -1,7 +1,7 @@
 [![STM32 Build Pipeline](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml)
 [![Code Quality](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml)
 [![Coverage](https://raw.githubusercontent.com/a5021/stm32-async-1wire/gh-pages/coverage-badge.svg)](https://a5021.github.io/stm32-async-1wire/) [![Awesome](https://awesome.re/badge.svg)](https://github.com/iDoka/awesome-embedded-software#sensors)
-[![No HAL](https://img.shields.io/badge/HAL-none-blue.svg)](#features) [![Zero interrupts](https://img.shields.io/badge/interrupts-zero-blue.svg)](#features) [![Fuzzed](https://img.shields.io/badge/fuzzed-libFuzzer-blue.svg)](#testing)
+[![Fuzzed](https://img.shields.io/badge/fuzzed-libFuzzer-blue.svg)](#testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
 
