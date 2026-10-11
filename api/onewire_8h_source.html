@@ -117,40 +117,40 @@ $(document).ready(function(){initNavTree('onewire_8h_source.html',''); initResiz
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="group__ONEWIRE__Protocol.html#ga0eee31a89c949c98e6341537d9f5564d">   48</a></span><span class="preprocessor">#define ONEWIRE_RELEASE_PULSE 0u</span></div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno"><a class="line" href="group__ONEWIRE__Protocol.html#gaacb5c64dbd17ccd61387d96298803501">   50</a></span><span class="preprocessor">#define ONEWIRE_SEARCH_ROM 0xF0</span></div>
 <div class="line"><a id="l00052" name="l00052"></a><span class="lineno"><a class="line" href="group__ONEWIRE__Protocol.html#ga5fed02ba54e634f57bd478e320e083b5">   52</a></span><span class="preprocessor">#define ONEWIRE_ALARM_SEARCH 0xEC</span></div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">#if defined(OW_PORT_TARGET_F1) || defined(STM32F1)</span></div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#define OW_PORT_FAMILY_F1</span></div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_F0) || defined(STM32F0)</span></div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="preprocessor">#define OW_PORT_FAMILY_F0</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="preprocessor">#if defined(OW_PORT_TARGET_F0) || defined(STM32F0)</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#define OW_PORT_FAMILY_F0</span></div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_F1) || defined(STM32F1)</span></div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="preprocessor">#define OW_PORT_FAMILY_F1</span></div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_F3) || defined(STM32F3) || defined(STM32F303xC)</span></div>
 <div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="preprocessor">#define OW_PORT_FAMILY_F3</span></div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)</span></div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="preprocessor">#define OW_PORT_FAMILY_G0</span></div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) ||                     \</span></div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="preprocessor">    defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \</span></div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="preprocessor">    defined(STM32F446xx)</span></div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="preprocessor">#define OW_PORT_FAMILY_F4</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_F4) || defined(STM32F4) ||                     \</span></div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="preprocessor">    defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="preprocessor">    defined(STM32F446xx)</span></div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="preprocessor">#define OW_PORT_FAMILY_F4</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_G0) || defined(STM32G0)</span></div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="preprocessor">#define OW_PORT_FAMILY_G0</span></div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_G4) || defined(STM32G4) || defined(STM32G474xx)</span></div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="preprocessor">#define OW_PORT_FAMILY_G4</span></div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="preprocessor">#elif defined(OW_PORT_TARGET_H5) || defined(STM32H5) || defined(STM32H503xx)</span></div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span><span class="preprocessor">#define OW_PORT_FAMILY_H5</span></div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span> </div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F1)</span></div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span><span class="preprocessor">#include &quot;ow_port_f1.h&quot;</span></div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F0)</span></div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span><span class="preprocessor">#include &quot;ow_port_f0.h&quot;</span></div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F0)</span></div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span><span class="preprocessor">#include &quot;ow_port_f0.h&quot;</span></div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F1)</span></div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span><span class="preprocessor">#include &quot;ow_port_f1.h&quot;</span></div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F3)</span></div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span><span class="preprocessor">#include &quot;ow_port_f3.h&quot;</span></div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="preprocessor">#include &quot;ow_port_f4.h&quot;</span></div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">#include &quot;ow_port_f4.h&quot;</span></div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G0)</span></div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="preprocessor">#include &quot;ow_port_g0.h&quot;</span></div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G4)</span></div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span><span class="preprocessor">#include &quot;ow_port_g4.h&quot;</span></div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_H5)</span></div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span><span class="preprocessor">#include &quot;ow_port_h5.h&quot;</span></div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="preprocessor">#error &quot;onewire: no family selected (define OW_PORT_TARGET_F1, OW_PORT_TARGET_F0, OW_PORT_TARGET_F3, OW_PORT_TARGET_G0, OW_PORT_TARGET_F4, OW_PORT_TARGET_G4 or OW_PORT_TARGET_H5, or a family macro such as STM32F1/STM32F0/STM32F3/STM32F303xC/STM32G0/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G4/STM32G474xx/STM32H5/STM32H503xx)&quot;</span></div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="preprocessor">#error &quot;onewire: no family selected (define OW_PORT_TARGET_F0, OW_PORT_TARGET_F1, OW_PORT_TARGET_F3, OW_PORT_TARGET_F4, OW_PORT_TARGET_G0, OW_PORT_TARGET_G4 or OW_PORT_TARGET_H5, or a family macro such as STM32F0/STM32F1/STM32F3/STM32F303xC/STM32F4/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G0/STM32G4/STM32G474xx/STM32H5/STM32H503xx)&quot;</span></div>
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span> </div>
 <div class="line"><a id="l00142" name="l00142"></a><span class="lineno"><a class="line" href="group__ONEWIRE__Init.html#gac6a21039977d29da711c6b094c87bf3e">  142</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__ONEWIRE__Init.html#gac6a21039977d29da711c6b094c87bf3e">onewire_init</a>(<span class="keywordtype">void</span>);</div>
