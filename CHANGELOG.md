@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-11
+
 ### Added
 
 - **Fuzz coverage for the two DS18B20 state machines and the low-power
@@ -1909,4 +1911,5 @@ without a section here, and its changes had drifted into the section below.
 [2.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.0.0...v2.1.0
 [2.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...v2.1.1
 [2.2.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...v2.2.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...HEAD
+[2.3.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...v2.3.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...HEAD
