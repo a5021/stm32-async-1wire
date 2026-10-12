@@ -4,12 +4,14 @@ project(stm32_async_1wire VERSION 2.3.0 LANGUAGES C ASM)
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-set(OW_TARGET "f1" CACHE STRING "MCU family: f0, f1 (default), f3, f4, g0, g4, h5")
+set(OW_MCU "" CACHE STRING "Exact STMicroelectronics device macro (e.g. STM32F030x6, STM32F103xB, STM32H503xx); empty = use OW_TARGET/OW_CHIP")
+set_property(CACHE OW_MCU PROPERTY STRINGS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32H503xx)
+set(OW_TARGET "" CACHE STRING "MCU family: f0, f1, f3, f4, g0, g4, h5; empty = derived from OW_MCU, otherwise f1")
 set_property(CACHE OW_TARGET PROPERTY STRINGS f0 f1 f3 f4 g0 g4 h5)
 # Part within the family, named after the chips/<part>.mk file the Makefile
 # build uses. Both build systems read the same part file, so they cannot drift
 # on the device macro, startup file, linker script or clock default.
-set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f401xe, f446xx, g031xx, g474cb, h503cb); empty = the family's default")
+set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f401xe, f446xx, g031xx, g474cb, h503cb); empty = derived from OW_MCU, otherwise the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
 # to every library and example, so a CMake build can select the same firmware
@@ -18,6 +20,71 @@ set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own d
 set(OW_EXTRA_DEFINES "" CACHE STRING "Extra definitions applied to all targets, e.g. \"-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1\"")
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
+
+# Exact STMicroelectronics device macros supported by chips/<part>.mk. This is
+# the same table the Makefile uses for OW_MCU; ow_mcu_selection() keeps the
+# macro -> family/part mapping in one place for both directions below.
+set(OW_KNOWN_MCUS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32H503xx)
+function(ow_mcu_selection macro out_target out_chip)
+    if(macro STREQUAL "STM32F030x6")
+        set(${out_target} "f0" PARENT_SCOPE)
+        set(${out_chip} "f030x6" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F103xB")
+        set(${out_target} "f1" PARENT_SCOPE)
+        set(${out_chip} "f103xb" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F303xC")
+        set(${out_target} "f3" PARENT_SCOPE)
+        set(${out_chip} "f303xc" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F407xx")
+        set(${out_target} "f4" PARENT_SCOPE)
+        set(${out_chip} "f407xx" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F401xC")
+        set(${out_target} "f4" PARENT_SCOPE)
+        set(${out_chip} "f401xc" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F401xE")
+        set(${out_target} "f4" PARENT_SCOPE)
+        set(${out_chip} "f401xe" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32F446xx")
+        set(${out_target} "f4" PARENT_SCOPE)
+        set(${out_chip} "f446xx" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32G031xx")
+        set(${out_target} "g0" PARENT_SCOPE)
+        set(${out_chip} "g031xx" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32G474xx")
+        set(${out_target} "g4" PARENT_SCOPE)
+        set(${out_chip} "g474cb" PARENT_SCOPE)
+    elseif(macro STREQUAL "STM32H503xx")
+        set(${out_target} "h5" PARENT_SCOPE)
+        set(${out_chip} "h503cb" PARENT_SCOPE)
+    else()
+        set(${out_target} "" PARENT_SCOPE)
+        set(${out_chip} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+# When OW_MCU names one exact device, it determines the legacy selectors. Any
+# nonempty legacy value must agree; CMake caches OW_TARGET/OW_CHIP, so use a
+# fresh build directory (or matching values) when changing devices.
+if(OW_MCU)
+    if(NOT OW_MCU IN_LIST OW_KNOWN_MCUS)
+        message(FATAL_ERROR "OW_MCU='${OW_MCU}' is not a known MCU. Use one of: ${OW_KNOWN_MCUS}")
+    endif()
+    ow_mcu_selection("${OW_MCU}" _ow_mcu_target _ow_mcu_chip)
+    if(NOT _ow_mcu_target OR NOT _ow_mcu_chip)
+        message(FATAL_ERROR "internal error: OW_MCU='${OW_MCU}' has no target/part mapping")
+    endif()
+    if(OW_TARGET AND NOT OW_TARGET STREQUAL _ow_mcu_target)
+        message(FATAL_ERROR "OW_TARGET='${OW_TARGET}' conflicts with OW_MCU='${OW_MCU}' (expected '${_ow_mcu_target}')")
+    endif()
+    if(OW_CHIP AND NOT OW_CHIP STREQUAL _ow_mcu_chip)
+        message(FATAL_ERROR "OW_CHIP='${OW_CHIP}' conflicts with OW_MCU='${OW_MCU}' (expected '${_ow_mcu_chip}')")
+    endif()
+    set(OW_TARGET "${_ow_mcu_target}")
+    set(OW_CHIP "${_ow_mcu_chip}")
+endif()
+if(NOT OW_TARGET)
+    set(OW_TARGET "f1")
+endif()
 
 # ---------------------------------------------------------------------------
 # FetchContent: ARM CMSIS Core + STM32 device headers
@@ -145,6 +212,14 @@ foreach(_line IN LISTS _ow_chip_lines)
         set(${_k} "${_v}")
     endif()
 endforeach()
+# The part file is authoritative for its own CMSIS macro. For known exact
+# macros, require the selected family to match the part, even when OW_MCU was
+# not used. Unknown/custom part files keep the previous behaviour.
+string(REGEX REPLACE "^-D" "" _ow_part_macro "${CHIP_DEV_DEF}")
+ow_mcu_selection("${_ow_part_macro}" _ow_part_target _ow_part_chip)
+if(_ow_part_target AND NOT _ow_part_target STREQUAL OW_TARGET)
+    message(FATAL_ERROR "OW_CHIP='${OW_CHIP}' belongs to OW_TARGET='${_ow_part_target}', not OW_TARGET='${OW_TARGET}'")
+endif()
 # CHIP_JFLASH and CHIP_SVD are optional, excluded from the empty-check because
 # check_chips.sh already treats them that way (CHIP_JFLASH is in OPTIONAL_PATHS,
 # CHIP_SVD is called informational): a part can have no J-Flash project (the H5
@@ -447,7 +522,8 @@ install(FILES
 # ---------------------------------------------------------------------------
 # Convenience: print selected target
 # ---------------------------------------------------------------------------
-message(STATUS "stm32-async-1wire: OW_TARGET=${OW_TARGET}  "
+message(STATUS "stm32-async-1wire: OW_MCU=${OW_MCU}  "
+               "OW_TARGET=${OW_TARGET}  "
                "OW_CHIP=${OW_CHIP}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
                "OW_FAMILY_DEF=${OW_FAMILY_DEF}  "

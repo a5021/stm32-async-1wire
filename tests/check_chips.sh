@@ -100,10 +100,21 @@ rejects() {
     esac
 }
 
+accepts() {
+    # Parse-only check: -n validates the OW_MCU -> OW_TARGET/OW_CHIP mapping
+    # without requiring a toolchain or producing objects.
+    make --no-print-directory -n APP=1_basic $1 >/dev/null 2>&1 || { echo "  FAIL: $1 did not parse"; fail=1; }
+}
+
 rejects OW_TARGET=f401-84 "OW_TARGET='f401-84' is not a known family"
 rejects OW_TARGET=f9 "is not a known family"
 rejects "OW_TARGET=f4 OW_CHIP=f401" "OW_CHIP='f401' has no chips/f401.mk"
 rejects "OW_TARGET=f4 OW_CHIP=f999" "OW_CHIP='f999' has no chips/f999.mk"
+rejects "OW_MCU=STM32NOPE" "OW_MCU='STM32NOPE' is not a known MCU"
+rejects "OW_MCU=STM32F446xx OW_TARGET=g0" "conflicts with OW_MCU='STM32F446xx'"
+rejects "OW_MCU=STM32F446xx OW_CHIP=g031xx" "conflicts with OW_MCU='STM32F446xx'"
+rejects "OW_TARGET=f1 OW_CHIP=f446xx" "belongs to OW_TARGET='f4', not OW_TARGET='f1'"
+accepts OW_MCU=STM32F446xx
 
 if [ "$fail" -ne 0 ]; then
     echo "test-chips: FAILED"

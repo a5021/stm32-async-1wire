@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Single-key MCU selection with `OW_MCU`.** Make and CMake accept one exact
+  STMicroelectronics device macro (e.g. `OW_MCU=STM32F401xC`), derive the
+  matching `OW_TARGET`/`OW_CHIP`, and reject conflicting legacy values or a
+  part paired with the wrong family.
+
 ### Removed
 
 - **Backend-selection macros `OW_PORT_TARGET_F0 … OW_PORT_TARGET_H5`.**

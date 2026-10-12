@@ -1151,7 +1151,9 @@ with, and `NDEBUG` is a separate mode in this project.
 Select the MCU family with `-DOW_TARGET=f0`, `-DOW_TARGET=f1` (default), `f3`, `f4`, `g0` or `g4`, and
 the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4
 -DOW_CHIP=f401xc`, default per family, `-DOW_SYSCLK_MHZ=N` to override the
-part's clock). CMake reads the same `chips/<part>.mk` the Makefile build does,
+part's clock). Alternatively, select one exact STMicroelectronics device with
+`-DOW_MCU=STM32F401xC`: it sets `OW_TARGET`/`OW_CHIP` for that device and
+rejects a conflicting legacy value. CMake reads the same `chips/<part>.mk` the Makefile build does,
 so the two cannot disagree about the device macro, startup file, linker script
 or clock.
 
@@ -1198,7 +1200,7 @@ Two things to know, both consequences of how a package can be built:
   imported target — from STM32Cube, PlatformIO, or a manual checkout.
 - **The package carries its part selection.** `OW_CHIP` and `OW_TARGET` are
   baked into the installed target as public definitions (`STM32F407xx`,
-  `OW_PORT_TARGET_F4`, `OW_PORT_SYSCLK_MHZ=168`), because `ow_port.h` picks its
+  `STM32F4`, `OW_PORT_SYSCLK_MHZ=168`), because `ow_port.h` picks its
   backend from them and `#error`s without them. Build the package for the part
   your firmware is for; there is no way to change it afterwards.
 

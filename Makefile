@@ -40,7 +40,14 @@ CMSIS_CORE_DIR   = CMSIS/core
 CMSIS_DEVICE_DIR = CMSIS/device
 
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
-# OW_TARGET selects the MCU family: f0 (STM32F030x6), f1 (STM32F103xB, default),
+# OW_MCU selects one exact STMicroelectronics device macro and is the primary
+# selector: f0 STM32F030x6, f1 STM32F103xB, f3 STM32F303xC, f4 STM32F407xx /
+# STM32F401xC / STM32F401xE / STM32F446xx, g0 STM32G031xx, g4 STM32G474xx,
+# h5 STM32H503xx.
+#   make OW_MCU=STM32F030x6
+#   make OW_MCU=STM32H503xx APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8
+# OW_TARGET selects the MCU family and remains accepted for compatibility:
+# f0 (STM32F030x6), f1 (STM32F103xB, default),
 # f3 (STM32F303xC), f4 (STM32F407xx / STM32F401 family), g0 (STM32G031xx) or
 # g4 (STM32G474CB, e.g. the WeAct G474 Long).
 #   make                -> F1 firmware
@@ -51,18 +58,77 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=g4   -> G4 firmware (default part g474cb)
 #   make OW_TARGET=h5   -> H5 firmware (default part h503cb)
 #
-# OW_CHIP selects the part *within* the family; its value is the name of a
+# OW_CHIP selects the part *within* the family and remains accepted for
+# compatibility; its value is the name of a
 # chips/<part>.mk file, which carries the part identity (CMSIS device macro,
 # device header, startup file, linker script, debugger projects, SVD and the
 # default system clock). Everything shared by a whole family stays here.
 #   make OW_TARGET=f4 OW_CHIP=f401xc
 #
+# OW_MCU is the primary selector. OW_TARGET and OW_CHIP remain accepted for
+# compatibility, but when OW_MCU is set they must either be unset or agree
+# with it. Board-level defaults stay in the selected chips/<part>.mk for now.
+OW_MCU ?=
+OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32H503xx
+OW_MCU_TARGET_STM32F030x6 = f0
+OW_MCU_CHIP_STM32F030x6 = f030x6
+OW_MCU_TARGET_STM32F103xB = f1
+OW_MCU_CHIP_STM32F103xB = f103xb
+OW_MCU_TARGET_STM32F303xC = f3
+OW_MCU_CHIP_STM32F303xC = f303xc
+OW_MCU_TARGET_STM32F407xx = f4
+OW_MCU_CHIP_STM32F407xx = f407xx
+OW_MCU_TARGET_STM32F401xC = f4
+OW_MCU_CHIP_STM32F401xC = f401xc
+OW_MCU_TARGET_STM32F401xE = f4
+OW_MCU_CHIP_STM32F401xE = f401xe
+OW_MCU_TARGET_STM32F446xx = f4
+OW_MCU_CHIP_STM32F446xx = f446xx
+OW_MCU_TARGET_STM32G031xx = g0
+OW_MCU_CHIP_STM32G031xx = g031xx
+OW_MCU_TARGET_STM32G474xx = g4
+OW_MCU_CHIP_STM32G474xx = g474cb
+OW_MCU_TARGET_STM32H503xx = h5
+OW_MCU_CHIP_STM32H503xx = h503cb
+OW_TARGET_ORIGIN := $(origin OW_TARGET)
+OW_CHIP_ORIGIN := $(origin OW_CHIP)
+ifneq ($(OW_MCU),)
+ifeq ($(filter $(OW_MCU),$(OW_KNOWN_MCUS)),)
+$(error OW_MCU='$(OW_MCU)' is not a known MCU. Use one of: $(OW_KNOWN_MCUS))
+endif
+OW_MCU_TARGET := $(OW_MCU_TARGET_$(OW_MCU))
+OW_MCU_CHIP := $(OW_MCU_CHIP_$(OW_MCU))
+ifeq ($(OW_MCU_TARGET),)
+$(error internal error: OW_MCU='$(OW_MCU)' has no target mapping)
+endif
+ifeq ($(OW_MCU_CHIP),)
+$(error internal error: OW_MCU='$(OW_MCU)' has no part mapping)
+endif
+ifneq ($(OW_TARGET_ORIGIN),undefined)
+ifneq ($(OW_TARGET),$(OW_MCU_TARGET))
+$(error OW_TARGET='$(OW_TARGET)' conflicts with OW_MCU='$(OW_MCU)' (expected '$(OW_MCU_TARGET)'))
+endif
+else
+OW_TARGET := $(OW_MCU_TARGET)
+endif
+ifneq ($(OW_CHIP_ORIGIN),undefined)
+ifneq ($(OW_CHIP),$(OW_MCU_CHIP))
+$(error OW_CHIP='$(OW_CHIP)' conflicts with OW_MCU='$(OW_MCU)' (expected '$(OW_MCU_CHIP)'))
+endif
+else
+OW_CHIP := $(OW_MCU_CHIP)
+endif
+endif
+ifeq ($(OW_TARGET),)
+ifeq ($(OW_TARGET_ORIGIN),undefined)
+OW_TARGET := f1
+endif
+endif
 # An unknown OW_TARGET or OW_CHIP is a hard error. It used to fall through to
 # the F1 branch and build the wrong part with a valid-looking binary, which is
-# worse than not building at all. Note OW_TARGET never had an explicit default:
-# the empty value silently meant "F1", which is exactly how a typo such as
-# OW_TARGET=f401-84 ended up compiling a Blue Pill.
-OW_TARGET ?= f1
+# worse than not building at all. An explicitly empty OW_TARGET is still an
+# error; only an unset OW_TARGET receives the F1 default. A typo such as
+# OW_TARGET=f401-84 therefore cannot silently compile a Blue Pill.
 OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 h5
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
@@ -124,6 +190,17 @@ CHIP_JFLASH := $(strip $(CHIP_JFLASH))
 CHIP_JDEBUG := $(strip $(CHIP_JDEBUG))
 CHIP_SVD := $(strip $(CHIP_SVD))
 CHIP_SYSCLK_MHZ := $(strip $(CHIP_SYSCLK_MHZ))
+
+# The part file is authoritative for its own CMSIS macro. For known exact
+# macros, require the selected family to match the part, even when OW_MCU was
+# not used. Unknown/custom part files keep the previous behaviour.
+OW_PART_MACRO := $(patsubst -D%,%,$(CHIP_DEV_DEF))
+OW_PART_TARGET := $(OW_MCU_TARGET_$(OW_PART_MACRO))
+ifneq ($(OW_PART_TARGET),)
+ifneq ($(OW_PART_TARGET),$(OW_TARGET))
+$(error OW_CHIP='$(OW_CHIP)' belongs to OW_TARGET='$(OW_PART_TARGET)', not OW_TARGET='$(OW_TARGET)')
+endif
+endif
 
 # Crystal (HSE) frequency of the *board*, F3, F4, G4 and H5 only. Not part identity: a
 # part file may carry a default for the board it is named after, and HSE_MHZ=
