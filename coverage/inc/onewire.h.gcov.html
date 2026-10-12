@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-12 19:27:02</td>
+            <td class="headerValue">2026-10-12 20:23:30</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -138,8 +138,8 @@
 <span id="L67"><span class="lineNum">      67</span>                 :             :  *  drift. To add a family, extend this chain and the \#include branch below</span>
 <span id="L68"><span class="lineNum">      68</span>                 :             :  *  (plus the \#error spelling list), add the port/stm32&lt;x&gt;/ backend header,</span>
 <span id="L69"><span class="lineNum">      69</span>                 :             :  *  the app.c clock/UART config, a chips/&lt;part&gt;.mk part file, the Makefile</span>
-<span id="L70"><span class="lineNum">      70</span>                 :             :  *  (OW_KNOWN_TARGETS, OW_TARGET branch, TEST_CLOCK_FLAG) and CMakeLists.txt</span>
-<span id="L71"><span class="lineNum">      71</span>                 :             :  *  (OW_TARGET branch, default chip) wiring, the tests/mockdevice header, and</span>
+<span id="L70"><span class="lineNum">      70</span>                 :             :  *  (OW_KNOWN_TARGETS, OW_MCU family block, TEST_CLOCK_FLAG) and CMakeLists.txt</span>
+<span id="L71"><span class="lineNum">      71</span>                 :             :  *  (OW_MCU mapping, default chip) wiring, the tests/mockdevice header, and</span>
 <span id="L72"><span class="lineNum">      72</span>                 :             :  *  a case in tests/test/test_sysclk_fallback.c. */</span>
 <span id="L73"><span class="lineNum">      73</span>                 :             : #if defined(STM32F030x6) || defined(STM32F0)</span>
 <span id="L74"><span class="lineNum">      74</span>                 :             : #define OW_PORT_FAMILY_F0</span>
