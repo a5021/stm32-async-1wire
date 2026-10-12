@@ -7,6 +7,8 @@ var topics =
     [ "DS18B20 Non-Blocking Command Transactions", "group__DS18B20__Commands.html", "group__DS18B20__Commands" ],
     [ "DS18B20 Simultaneous Multi-Device Conversion", "group__DS18B20__Scan.html", "group__DS18B20__Scan" ],
     [ "DS18B20 Exported Functions", "group__DS18B20__Exported__Functions.html", "group__DS18B20__Exported__Functions" ],
+    [ "DS2431 Exported Constants", "group__DS2431__Exported__Constants.html", "group__DS2431__Exported__Constants" ],
+    [ "DS2431 Exported Functions", "group__DS2431__Exported__Functions.html", "group__DS2431__Exported__Functions" ],
     [ "1-Wire Protocol Constants", "group__ONEWIRE__Protocol.html", "group__ONEWIRE__Protocol" ],
     [ "Init", "group__ONEWIRE__Init.html", "group__ONEWIRE__Init" ],
     [ "Non-Blocking 1-Wire Bus Primitives", "group__ONEWIRE__Bus.html", "group__ONEWIRE__Bus" ],

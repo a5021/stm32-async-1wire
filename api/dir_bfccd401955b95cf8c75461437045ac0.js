@@ -1,6 +1,7 @@
 var dir_bfccd401955b95cf8c75461437045ac0 =
 [
     [ "ds18b20.h", "ds18b20_8h.html", "ds18b20_8h" ],
+    [ "ds2431.h", "ds2431_8h.html", "ds2431_8h" ],
     [ "onewire.h", "onewire_8h.html", "onewire_8h" ],
     [ "ow_bits.h", "ow__bits_8h.html", "ow__bits_8h" ],
     [ "ow_config.h", "ow__config_8h.html", "ow__config_8h" ],

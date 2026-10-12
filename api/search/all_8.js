@@ -10,5 +10,5 @@ var searchData=
   ['flash_5foptkeyr_7',['FLASH_OPTKEYR',['../ow__bits_8h.html#a9a67570f5ac773fad811b0b32c871559',1,'ow_bits.h']]],
   ['flash_5fsr_8',['FLASH_SR',['../ow__bits_8h.html#a5657a77ffef767d4f91118aceceb40ad',1,'ow_bits.h']]],
   ['flash_5fwrpr_9',['FLASH_WRPR',['../ow__bits_8h.html#a325e776286ff11eaeba1fcaf9df87f93',1,'ow_bits.h']]],
-  ['functions_10',['DS18B20 Exported Functions',['../group__DS18B20__Exported__Functions.html',1,'']]]
+  ['functions_10',['functions',['../group__DS18B20__Exported__Functions.html',1,'DS18B20 Exported Functions'],['../group__DS2431__Exported__Functions.html',1,'DS2431 Exported Functions']]]
 ];
