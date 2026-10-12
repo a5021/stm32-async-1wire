@@ -338,7 +338,7 @@ void test_write_then_read_configures_registers(void) {
 
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(3), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(3, mock_feed_ch.CNDTR);
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
     TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);

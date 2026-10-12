@@ -9,17 +9,17 @@
  * ============================================================ */
 
 #include "app.h"
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
 #include "stm32f4xx.h"
-#elif defined(OW_PORT_TARGET_F0)
+#elif defined(STM32F0)
 #include "stm32f0xx.h"
-#elif defined(OW_PORT_TARGET_F3)
+#elif defined(STM32F3)
 #include "stm32f3xx.h"
-#elif defined(OW_PORT_TARGET_G0)
+#elif defined(STM32G0)
 #include "stm32g0xx.h"
-#elif defined(OW_PORT_TARGET_G4)
+#elif defined(STM32G4)
 #include "stm32g4xx.h"
-#elif defined(OW_PORT_TARGET_H5)
+#elif defined(STM32H5)
 #include "stm32h5xx.h"
 #else
 #include "stm32f1xx.h"
@@ -28,17 +28,17 @@
 #include "unity.h"
 #include <stdint.h>
 
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4) || defined(OW_PORT_TARGET_H5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5)
 #define TXE_BIT USART_ISR_TXE_TXFNF
 #define TX_SR ISR
 #define TX_DR TDR
-#elif defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3)
+#elif defined(STM32F0) || defined(STM32F3)
 /* F0 and F3 both use the modern USART registers: the TXE flag is plain
  * USART_ISR_TXE and data goes to TDR. F3 has no TXFNF - unlike G0. */
 #define TXE_BIT USART_ISR_TXE
 #define TX_SR ISR
 #define TX_DR TDR
-#elif defined(OW_PORT_TARGET_F4)
+#elif defined(STM32F4)
 #define TXE_BIT USART_SR_TXE
 #define TX_SR SR
 #define TX_DR DR

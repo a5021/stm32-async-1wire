@@ -58,7 +58,7 @@ static void pu_assert_af_mode(void) {
  * Which register that stage lives in does differ - OTYPER on every family that
  * has one, a field of CRH on F1 - and this used to be three branches, two of them
  * with identical bodies. */
-#if defined(OW_PORT_TARGET_F1)
+#if defined(STM32F1)
 
 typedef struct {
     uint32_t crh;

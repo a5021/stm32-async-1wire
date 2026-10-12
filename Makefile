@@ -70,31 +70,24 @@ endif
 ifeq ($(OW_TARGET),f0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m0 -mthumb
-PORT_DEF = OW_PORT_TARGET_F0
 else ifeq ($(OW_TARGET),g0)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m0plus -mthumb
-PORT_DEF = OW_PORT_TARGET_G0
 else ifeq ($(OW_TARGET),f4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
-PORT_DEF = OW_PORT_TARGET_F4
 else ifeq ($(OW_TARGET),f3)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
-PORT_DEF = OW_PORT_TARGET_F3
 else ifeq ($(OW_TARGET),g4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
-PORT_DEF = OW_PORT_TARGET_G4
 else ifeq ($(OW_TARGET),h5)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
-PORT_DEF = OW_PORT_TARGET_H5
 else
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
-PORT_DEF = OW_PORT_TARGET_F1
 endif
 
 # Part selection: pull the part identity in from chips/<part>.mk. The default
@@ -141,7 +134,7 @@ ASM = $(CHIP_STARTUP)
 LDS = $(CHIP_LINKER)
 JFLASH = $(CHIP_JFLASH)
 JDEBUG = $(CHIP_JDEBUG)
-DEF = $(CHIP_DEV_DEF) -D$(PORT_DEF)
+DEF = $(CHIP_DEV_DEF)
 # The part's own clock default; SYSCLK_MHZ still wins when passed explicitly
 # (e.g. 16 for a board without an HSE crystal).
 ifndef SYSCLK_MHZ
@@ -647,7 +640,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # compile flags differ along both axes and a shared object name would otherwise
 # be reused stale across invocations:
 #   APP=      -DUART_TX_BUF_SIZE
-#   OW_TARGET -mcpu / -DOW_PORT_TARGET_* / -DOW_PORT_SYSCLK_MHZ
+#   OW_TARGET -mcpu / -DOW_PORT_SYSCLK_MHZ
 #   OW_CHIP   -DSTM32Fxxx, the startup file, the linker script
 # The part component is not optional. With only the app prefix, `make OW_TARGET=f1`
 # followed by `make OW_TARGET=f0` reused the f1 objects: only the startup and
@@ -857,31 +850,31 @@ endif
 # OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
 # OW_TARGET=g0 against the STM32G0 backend mock.
 ifeq ($(OW_TARGET),f0)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_F0
+TEST_PORT_FLAG = -DSTM32F0
 TEST_PORT_INC = -Iport/stm32f0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f0.exe
 else ifeq ($(OW_TARGET),f3)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_F3
+TEST_PORT_FLAG = -DSTM32F3
 TEST_PORT_INC = -Iport/stm32f3
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f3.exe
 else ifeq ($(OW_TARGET),f4)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_F4
+TEST_PORT_FLAG = -DSTM32F4
 TEST_PORT_INC = -Iport/stm32f4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f4.exe
 else ifeq ($(OW_TARGET),g0)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_G0
+TEST_PORT_FLAG = -DSTM32G0
 TEST_PORT_INC = -Iport/stm32g0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
 else ifeq ($(OW_TARGET),g4)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_G4
+TEST_PORT_FLAG = -DSTM32G4
 TEST_PORT_INC = -Iport/stm32g4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
 else ifeq ($(OW_TARGET),h5)
-TEST_PORT_FLAG = -DOW_PORT_TARGET_H5
+TEST_PORT_FLAG = -DSTM32H5
 TEST_PORT_INC = -Iport/stm32h5
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
 else
-TEST_PORT_FLAG = -DOW_PORT_TARGET_F1
+TEST_PORT_FLAG = -DSTM32F1
 TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
@@ -1167,7 +1160,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-               -DHOST_BUILD -DOW_PORT_TARGET_F1 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
+               -DHOST_BUILD -DSTM32F1 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz

@@ -63,7 +63,7 @@ typedef struct {
 } setup_row_t;
 
 /* Captured from the backends, not derived from them. See the header. */
-#if defined(OW_PORT_FAMILY_F0)
+#if defined(STM32F0)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x200 = AF2 for TIM1_CH3;
  * speed 0x300000 = PA10 at the fastest setting. */
@@ -72,7 +72,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0u},
     {"open_drain", 0x00010800u, 0x002Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0u},
 };
-#elif defined(OW_PORT_FAMILY_F1)
+#elif defined(STM32F1)
 /* clk packs APB2ENR in the low half (IOPAEN | TIM1EN) and AHBENR in the high
  * half (DMA1EN). mode is CRH: MODE10 = 0b10 (2 MHz) with CNF10 = 0b11
  * (alternate-function open-drain) after init, and CNF10 = 0b10 (AF push-pull)
@@ -82,7 +82,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0x00000200u, 0u},
     {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
 };
-#elif defined(OW_PORT_FAMILY_F3)
+#elif defined(STM32F3)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x600 = AF6 for TIM1_CH3, which lives
  * in AFRH_AFRH2 (bits [11:8]) - the F3 header names these fields by their
@@ -101,7 +101,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x08220001u, 0x0047u, 0x8000u, 0x00200000u, 0u, 0x00000600u, 0x00300000u, 0u},
     {"open_drain", 0x08220001u, 0x0047u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
 };
-#elif defined(OW_PORT_FAMILY_G0)
+#elif defined(STM32G0)
 /* As F0 for the bus pin, plus remap 0x18 = PA11_RMP | PA12_RMP: the G031 TSSOP20
  * does not bond out PA9/PA10, so the bus runs on the remapped pads. clk packs
  * APBENR2 low, IOPENR middle, AHBENR high. */
@@ -110,7 +110,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000200u, 0x00300000u, 0x00000018u},
     {"open_drain", 0x00010801u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000200u, 0x00300000u, 0x00000018u},
 };
-#elif defined(OW_PORT_FAMILY_G4)
+#elif defined(STM32G4)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x600 = AF6 for TIM1_CH3;
  * speed 0x300000 = PA10 at the fastest setting. clk packs APB2ENR low,
@@ -121,7 +121,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x05010801u, 0x00A9u, 0x8000u, 0x00200000u, 0u, 0x00000600u, 0x00300000u, 0u},
     {"open_drain", 0x05010801u, 0x00A9u, 0x8000u, 0x00200000u, 0x00000400u, 0x00000600u, 0x00300000u, 0u},
 };
-#elif defined(OW_PORT_FAMILY_H5)
+#elif defined(STM32H5)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x100 = AF1 for TIM1_CH3 (Arduino
  * PinMap confirmed); speed 0x300000 = PA10 at the fastest setting. clk
@@ -132,7 +132,7 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
     {"open_drain", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
 };
-#else /* OW_PORT_FAMILY_F4 */
+#else /* STM32F4 */
 /* mode is PA10 = 0b10 in MODER (alternate function); af is 0x100 = AF1 here,
  * against AF2 on F0/G0 - that is the silicon, not an inconsistency. */
 static const setup_row_t k_setup[] = {
@@ -154,17 +154,17 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_speed = 0u;
     s.remap = 0u;
 
-#if defined(OW_PORT_FAMILY_F0)
+#if defined(STM32F0)
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#elif defined(OW_PORT_FAMILY_F1)
+#elif defined(STM32F1)
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHBENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.CRH;
     s.pin_speed = (uint32_t)mock_gpioa.CRH & GPIO_CRH_MODE10;
-#elif defined(OW_PORT_FAMILY_F3)
+#elif defined(STM32F3)
     /* AHBENR low, APB2ENR high - the reverse of the F0/F4 packing, and it has
      * to be: on this family the GPIO gates live in AHBENR at bits 17..21
      * (GPIOEEN is bit 21), so AHBENR needs 22 bits and the low half of this
@@ -176,7 +176,7 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#elif defined(OW_PORT_FAMILY_G0)
+#elif defined(STM32G0)
     s.clk = (uint32_t)mock_rcc.APBENR2 |
             ((uint32_t)mock_rcc.IOPENR << 16) |
             ((uint32_t)mock_rcc.AHBENR << 32);
@@ -185,7 +185,7 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
     s.remap = (uint32_t)mock_syscfg.CFGR1;
-#elif defined(OW_PORT_FAMILY_G4)
+#elif defined(STM32G4)
     /* APB2ENR low, AHB2ENR middle, AHB1ENR high: three gate registers, and
      * the only packing where none of the in-use bits collide (APB2ENR
      * 0x801, AHB2ENR 0x1, AHB1ENR 0x5). */
@@ -196,7 +196,7 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#elif defined(OW_PORT_FAMILY_H5)
+#elif defined(STM32H5)
     /* APB2ENR low (TIM1EN), AHB2ENR middle (GPIOAEN), AHB1ENR high
      * (GPDMA1EN): same three-register packing as G4. */
     s.clk = (uint32_t)mock_rcc.APB2ENR |
@@ -206,7 +206,7 @@ port_setup_t port_setup_snapshot(void) {
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
     s.pin_af = (uint32_t)mock_gpioa.AFR[1];
     s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
-#else /* OW_PORT_FAMILY_F4 */
+#else /* STM32F4 */
     s.clk = (uint32_t)mock_rcc.APB2ENR | ((uint32_t)mock_rcc.AHB1ENR << 16);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
@@ -261,7 +261,7 @@ static void test_port_setup_open_drain(void) {
     check(SETUP_OPEN_DRAIN);
 }
 
-#if defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_H5)
+#if defined(STM32F3) || defined(STM32H5)
 /* The F3/H5 TIM1 has an IC4PSC capture prescaler in CCMR2 bits [11:10] that
  * F4 does not have - on F4 those bits are reserved. The shared core assigns
  * the whole register and passes no IC4PSC bit, so it lands at 0, which is
@@ -277,7 +277,7 @@ static void test_port_ic4psc_is_no_prescaler(void) {
     hw_reset_all();
     ow_port_init();
     /* A reset goes through ow_port_capture(), which is what programs CCMR2. */
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     ow_port_capture((volatile void*)(uintptr_t)mock_feed_ch.CSAR, 1u, 16u);
 #else
     ow_port_capture((volatile void*)(uintptr_t)mock_feed_ch.CMAR, 1u, 16u);
@@ -313,7 +313,7 @@ void run_test_port_init_contract(void) {
     TEST_RUN(test_port_setup_after_init);
     TEST_RUN(test_port_setup_push_pull);
     TEST_RUN(test_port_setup_open_drain);
-#if defined(OW_PORT_FAMILY_F3) || defined(OW_PORT_FAMILY_H5)
+#if defined(STM32F3) || defined(STM32H5)
     TEST_RUN(test_port_ic4psc_is_no_prescaler);
 #endif
 }

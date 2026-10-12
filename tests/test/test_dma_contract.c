@@ -46,7 +46,7 @@ static uint16_t presence_src(uint32_t idx) {
  * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout.
  * H5 programs GPDMA: CCR carries EN only, the transfer class lives in
  * CTR1/CTR2 (pinned by test_dma_cr_value_macros below). */
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 0u
 #define FEED_8BIT_HI DMA_CCR_EN
@@ -55,7 +55,7 @@ static uint16_t presence_src(uint32_t idx) {
 #define CAP_16BIT_LO (~DMA_CCR_EN)
 #define CAP_8BIT_HI DMA_CCR_EN
 #define CAP_8BIT_LO (~DMA_CCR_EN)
-#elif defined(OW_PORT_TARGET_F4)
+#elif defined(STM32F4)
 #define WIDTH_MSIZE16 DMA_CCR_MSIZE_0
 #define WIDTH_PSIZE8 0u
 #define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
@@ -355,7 +355,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* feed channel: exact CMAR/CPAR/CNDTR, required CCR bits */
     if (row->exp_feed_cmar != 0u) {
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
         /* GPDMA SAR/DAR are direction-relative: feed memory in CSAR. */
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cmar, mock_feed_ch.CSAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cpar, mock_feed_ch.CDAR);
@@ -373,7 +373,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* capture channel */
     if (row->exp_cap_cmar != 0u) {
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
         /* GPDMA SAR/DAR are direction-relative: capture memory in CDAR. */
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cmar, mock_dma1_ch4.CDAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cpar, mock_dma1_ch4.CSAR);
@@ -413,7 +413,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
  * discriminating bits (PSIZE present/absent on 8-bit captures, MSIZE on
  * halfword memories, CHSEL on F4 streams). */
 void test_dma_cr_value_macros(void) {
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     /* GPDMA CTR1 templates (transfer-register-1 words, not CCR): capture
      * reads the halfword CCR4 into incrementing memory (16- or 8-bit
      * cells), feed reads incrementing byte memory into the fixed halfword
@@ -434,7 +434,7 @@ void test_dma_cr_value_macros(void) {
      * TIM1_CH4. Double-sourced from the H5 RM mapping table and CubeH5. */
     TEST_ASSERT_EQUAL_UINT32(59u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CC2);
     TEST_ASSERT_EQUAL_UINT32(61u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CH4);
-#elif defined(OW_PORT_TARGET_F4)
+#elif defined(STM32F4)
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
                    (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),

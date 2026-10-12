@@ -15,7 +15,7 @@ include(CMakeFindDependencyMacro)
 # tests/integration/cmake/installed is the fixture that holds the contract to it.
 #
 # What the imported target *does* carry is the part selection: the device macro
-# and the OW_PORT_TARGET_* / OW_PORT_SYSCLK_MHZ definitions are PUBLIC on the
+# and the OW_PORT_SYSCLK_MHZ definition are PUBLIC on the
 # library target, so they arrive through INTERFACE_COMPILE_DEFINITIONS. A
 # consumer must therefore build a package for the part its own firmware is for.
 include("${CMAKE_CURRENT_LIST_DIR}/stm32_async_1wireTargets.cmake")

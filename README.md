@@ -1496,9 +1496,9 @@ do not "fix" them without re-reading the reasoning:
 - **Backend selection lives in `onewire.h`.** One chain, one `#include`
   branch, `#error` on no family — so the backend and its defaults cannot
   drift (`8dba9d2`). Header-side selection is the integration contract:
-  consumers define `OW_PORT_TARGET_Fx` (or CubeMX defines `STM32F*` itself)
-  and the headers pick the backend. Moving selection into the build system
-  would break the CubeIDE path.
+  consumers define their CMSIS device macro (e.g. `STM32F030x6`; CubeMX
+  defines `STM32F*` itself) and the headers pick the backend. Moving
+  selection into the build system would break the CubeIDE path.
 - **`ow_pulse_t` is family-sized.** F4 feeds CCR3 in DMA direct mode
   (halfword, `uint16_t`); the other families use `uint8_t`. An
   always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;

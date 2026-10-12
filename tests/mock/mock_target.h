@@ -1,20 +1,19 @@
 #ifndef MOCK_TARGET_H
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
- * matching the backend under test (OW_PORT_TARGET_F0 / OW_PORT_TARGET_F1 /
- * OW_PORT_TARGET_F3 / OW_PORT_TARGET_F4 / OW_PORT_TARGET_G0 /
- * OW_PORT_TARGET_G4 / OW_PORT_TARGET_H5). */
-#if defined(OW_PORT_TARGET_F0)
+ * matching the backend under test (STM32F0 / STM32F1 / STM32F3 / STM32F4 /
+ * STM32G0 / STM32G4 / STM32H5, passed as -D by the host build). */
+#if defined(STM32F0)
 #include "stm32f0xx.h"
-#elif defined(OW_PORT_TARGET_F3)
+#elif defined(STM32F3)
 #include "stm32f3xx.h"
-#elif defined(OW_PORT_TARGET_F4)
+#elif defined(STM32F4)
 #include "stm32f4xx.h"
-#elif defined(OW_PORT_TARGET_G0)
+#elif defined(STM32G0)
 #include "stm32g0xx.h"
-#elif defined(OW_PORT_TARGET_G4)
+#elif defined(STM32G4)
 #include "stm32g4xx.h"
-#elif defined(OW_PORT_TARGET_H5)
+#elif defined(STM32H5)
 #include "stm32h5xx.h"
 #else
 #include "stm32f1xx.h"
@@ -44,7 +43,7 @@
  * genuinely differ and are abstracted here. */
 #define MOCK_DMA_FEED mock_feed_ch /* feed channel storage */
 #define MOCK_DMA_CAP mock_dma1_ch4 /* capture channel storage */
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
 #define MOCK_DMA_FEED_EN DMA_SxCR_EN
 #define MOCK_DMA_CAP_EN DMA_SxCR_EN
 #define MOCK_DMA_CAP_MSIZE_0 DMA_SxCR_MSIZE_0
@@ -63,7 +62,7 @@
  * bytes and transfers with MOCK_CAP_TRANSFERS() / MOCK_CAP_BYTES_PER_XFR.
  * The feed source is an 8-bit cell (1 byte per transfer) on every family, so
  * feed BNDT/CNDTR unchanged. */
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
 #define MOCK_CAP_BYTES_PER_XFR 2u
 #define MOCK_CAP_CNDTR(n) ((n) * 2u)
 #define MOCK_CAP_TRANSFERS(cndtr) ((cndtr) / 2u)
@@ -90,13 +89,13 @@
  * equivalent two-bit speed field in OSPEEDR, so a test asking about drive
  * strength should read that field itself - the value the driver programs is
  * pinned per family by test_port_init_contract.c. */
-#if defined(OW_PORT_TARGET_F1)
+#if defined(STM32F1)
 #define MOCK_PIN_IS_AF() (((mock_gpioa.CRH & GPIO_CRH_CNF10_1) != 0u))
 #define MOCK_PIN_IS_OD() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) != 0u))
 #define MOCK_PIN_IS_PP() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) == 0u))
 #define MOCK_PIN_AT_MAX_SPEED() (((mock_gpioa.CRH & GPIO_CRH_MODE10) == GPIO_CRH_MODE10_1))
 #else
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_H5)
+#if defined(STM32G0) || defined(STM32H5)
 #define MOCK_PIN_MODER GPIO_MODER_MODE10
 #define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
 #define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0

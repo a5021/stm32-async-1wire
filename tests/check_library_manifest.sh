@@ -110,7 +110,7 @@ INCS=$(cat "$INCS_FILE")
 # path - the per-backend source compiles below are the check that does.
 OBJ="${INCS_FILE}.o"
 gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-    -DOW_PORT_TARGET_F1 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+    -DSTM32F1 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
     $INCS -Itests/mock \
     -c tests/integration/platformio/src/main.c -o "$OBJ" \
     || fail "the consumer did not compile against the include set library.json declares"
@@ -125,10 +125,10 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
 for target in F0 F1 F3 F4 G0 G4 H5; do
     for src in src/onewire.c src/ds18b20.c src/ow_stats.c; do
         gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-            "-DOW_PORT_TARGET_$target" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+            "-DSTM32$target" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
             $INCS -Itests/mock \
             -c "$src" -o "$OBJ" \
-            || fail "$src for OW_PORT_TARGET_$target did not compile against the include set library.json declares"
+            || fail "$src for STM32$target did not compile against the include set library.json declares"
     done
 done
 

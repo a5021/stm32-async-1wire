@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Backend-selection macros `OW_PORT_TARGET_F0 … OW_PORT_TARGET_H5`.**
+  The `OW_PORT_FAMILY_*` token is now resolved from the CMSIS device macro
+  of the target (e.g. `-DSTM32F030x6`) or, for host-test mocks, PlatformIO
+  and STM32CubeMX projects, from a family macro (`-DSTM32F0`). Make/CMake
+  builds are unaffected (`OW_TARGET`/`OW_CHIP` unchanged, same binaries);
+  manual consumers replace `-DOW_PORT_TARGET_Fx` with `-DSTM32Fx` or their
+  device macro.
+
 ## [2.3.0] - 2026-10-11
 
 ### Added

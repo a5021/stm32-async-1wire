@@ -14,23 +14,23 @@ USART_TypeDef mock_usart1;
 #if OW_PORT_LOW_POWER
 SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
 #endif
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
+#if defined(STM32G0) || defined(STM32G4)
 DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0/G4 backends: DMAMUX routing */
 DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0/G4 backends: DMAMUX routing */
 #endif
-#if defined(OW_PORT_TARGET_G0)
+#if defined(STM32G0)
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
 #endif
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
 DMA_TypeDef mock_dma2; /* F4 backend only */
 FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
 #endif
-#if defined(OW_PORT_TARGET_G4)
+#if defined(STM32G4)
 FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #endif
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
 FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
 #endif
@@ -112,22 +112,22 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_F0) || defined(OW_PORT_TARGET_F3) || defined(OW_PORT_TARGET_G4) || defined(OW_PORT_TARGET_H5)
+#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32H5)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
 #endif
-#if defined(OW_PORT_TARGET_G0) || defined(OW_PORT_TARGET_G4)
+#if defined(STM32G0) || defined(STM32G4)
     mock_dmamux_ch2 = (DMAMUX_Channel_TypeDef){0};
     mock_dmamux_ch3 = (DMAMUX_Channel_TypeDef){0};
 #endif
-#if defined(OW_PORT_TARGET_G4)
+#if defined(STM32G4)
     mock_flash = (FLASH_TypeDef){0};
     /* VOSF starts clear, like hardware after the regulator settles, so the
      * Range-1-Boost wait in configure_system_clock() passes immediately. */
     mock_pwr = (PWR_TypeDef){0};
 #endif
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     mock_flash = (FLASH_TypeDef){0};
     /* VOS0/HSERDY/PLL1RDY all start clear: the mock does not model the
      * regulator ramp, the oscillator start or the PLL lock, so the clock tests
@@ -136,7 +136,7 @@ void hw_reset_all(void) {
      * passing by accident. */
     mock_pwr = (PWR_TypeDef){0};
 #endif
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
     mock_dma2 = (DMA_TypeDef){0};
     mock_flash = (FLASH_TypeDef){0};
     /* Over-drive starts disabled, and - unlike the real part - the ready flags
@@ -210,7 +210,7 @@ static void dma13_transfer(void) {
         return;
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     /* GPDMA carries the memory width in CTR1.DDW_LOG2 (halfword = 16-bit
      * cells); the classic backends carry it in CCR.MSIZE_0. */
     if (d->CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
@@ -238,7 +238,7 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     feed_log.total = 0;
     op_capture_count = 0;
     /* Resolve the DMA buffer addresses exactly as the driver stored them. */
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     /* GPDMA SAR/DAR are direction-relative: feed memory lives in CSAR,
      * capture memory in CDAR. */
     d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
@@ -342,7 +342,7 @@ void hw_tim_init(void) {
         MOCK_DMA_FEED.CNDTR > 0u) {
         g_tim.feed_en = 1u;
         g_tim.feed_rem = MOCK_DMA_FEED.CNDTR;
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
         g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
 #else
         g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
@@ -359,7 +359,7 @@ void hw_tim_init(void) {
         g_tim.cap_en = 1u;
         g_tim.cap_total = MOCK_CAP_TRANSFERS(MOCK_DMA_CAP.CNDTR);
         g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
         g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
 #else
         g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
@@ -422,7 +422,7 @@ static uint32_t hw_tim_next_capture_tick(void) {
 static void hw_tim_do_capture(void) {
     uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
     mock_tim1.CCR4 = val;
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     /* GPDMA width in CTR1.DDW_LOG2 (halfword = 16-bit cells). */
     if (mock_dma1_ch4.CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
 #else

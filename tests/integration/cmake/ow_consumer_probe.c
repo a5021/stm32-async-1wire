@@ -11,8 +11,8 @@
  *               configure the bus at all.
  *
  * ow_port.h is self-checking, which is why this file needs no assertions of
- * its own. It ends in `#error` unless one of the OW_PORT_TARGET_* macros
- * arrived (inc/ow_port.h), it compares against OW_PORT_SYSCLK_MHZ, and it
+ * its own. It ends in `#error` unless a CMSIS device macro (e.g. STM32F103xB)
+ * or family macro (e.g. STM32F1) arrived (inc/onewire.h), it compares against OW_PORT_SYSCLK_MHZ, and it
  * _Static_asserts the pulse-timing sum. All three reach a consumer only
  * through the exported target's INTERFACE_COMPILE_DEFINITIONS, so a build that
  * compiles this file has proved that the package handed over its include

@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(OW_PORT_TARGET_F4) || defined(OW_PORT_TARGET_G4) || defined(OW_PORT_TARGET_H5)
+#if defined(STM32F4) || defined(STM32G4) || defined(STM32H5)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -102,13 +102,13 @@ void test_apb_prescaler_div1_for_tim1(void) {
     /* PSC must equal SYSCLK_MHZ - 1 (1µs tick at full SYSCLK) */
     TEST_ASSERT_EQUAL_UINT16(OW_PORT_SYSCLK_MHZ - 1, (uint16_t)mock_tim1.PSC);
 
-#if defined(OW_PORT_TARGET_F0)
+#if defined(STM32F0)
     /* F0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
-#elif defined(OW_PORT_TARGET_F1)
+#elif defined(STM32F1)
     /* F1: TIM1 on APB2 → PPRE2 must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
-#elif defined(OW_PORT_TARGET_F4)
+#elif defined(STM32F4)
     /* Preset the ready/status flags configure_system_clock() waits on: the mock
      * does not model hardware self-setting of HSERDY/PLLRDY/SWS. */
     mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLLRDY;
@@ -171,10 +171,10 @@ void test_apb_prescaler_div1_for_tim1(void) {
         (OW_PORT_SYSCLK_MHZ) * 2u,
         (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLN_Pos) & 0x1FFu);
 #endif
-#elif defined(OW_PORT_TARGET_G0)
+#elif defined(STM32G0)
     /* G0: single APB bus — PPRE must be /1 (field = 0) */
     TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE_Msk);
-#elif defined(OW_PORT_TARGET_G4)
+#elif defined(STM32G4)
     /* Preset the ready/status flags configure_system_clock() waits on: the mock
      * does not model hardware self-setting of HSERDY/PLLRDY. SWS is preset
      * only on the PLL path - the raw-HSI16 path must leave CFGR untouched. */
@@ -230,7 +230,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
 #endif
-#elif defined(OW_PORT_TARGET_H5)
+#elif defined(STM32H5)
 #if (OW_PORT_SYSCLK_MHZ) == 64
     /* HSI-64 bring-up: flash latency + HSI divider only, no waits (HSI is
      * already running), so no failure flag and no ready-flag presetting. */
@@ -346,7 +346,7 @@ void test_ic4f_matches_the_documented_tier(void) {
     TEST_ASSERT_EQUAL_UINT32(expected, mock_tim1.CCMR2 & 0xF000u);
 }
 
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
 /*-------------------------------------------------------------
  *  The console UART divisor must follow the APB prescalers.
  *
@@ -395,9 +395,9 @@ void test_console_baud_divisor(void) {
      * 180MHz, i.e. double this. */
     TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
 }
-#endif /* OW_PORT_TARGET_F4 */
+#endif /* STM32F4 */
 
-#if defined(OW_PORT_TARGET_G4)
+#if defined(STM32G4)
 /*-------------------------------------------------------------
  *  The console UART divisor must follow the APB prescalers.
  *
@@ -420,9 +420,9 @@ void test_g4_console_baud_divisor(void) {
      * must land in a sane BRR range. */
     TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
 }
-#endif /* OW_PORT_TARGET_G4 */
+#endif /* STM32G4 */
 
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
 /*-------------------------------------------------------------
  *  The console UART divisor must follow the APB prescalers.
  *
@@ -445,7 +445,7 @@ void test_h5_console_baud_divisor(void) {
      * 32MHz HSI, say) would give ~278 at the 250MHz build. */
     TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 4096u);
 }
-#endif /* OW_PORT_TARGET_H5 */
+#endif /* STM32H5 */
 
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
@@ -456,13 +456,13 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
     TEST_RUN(test_ic4f_matches_the_documented_tier);
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
     TEST_RUN(test_console_baud_divisor);
 #endif
-#if defined(OW_PORT_TARGET_G4)
+#if defined(STM32G4)
     TEST_RUN(test_g4_console_baud_divisor);
 #endif
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     TEST_RUN(test_h5_console_baud_divisor);
 #endif
     TEST_RUN(test_search_start_ignored_while_running);

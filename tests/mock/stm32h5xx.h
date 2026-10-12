@@ -46,8 +46,8 @@ typedef struct {
  * peripheral (mem in CSAR, CCR3 in CDAR) while capture is peripheral-to-
  * memory (CCR4 in CSAR, mem in CDAR) - so no legacy union can name both
  * directions at once. The model and the contract tests therefore read the
- * direction-correct register per operation (see the OW_PORT_TARGET_H5
- * branches); CNDTR here aliases CBR1, whose BNDT field is a *source-byte*
+ * direction-correct register per operation (see the STM32H5
+ * branches in mock_target.h); CNDTR here aliases CBR1, whose BNDT field is a *source-byte*
  * count, NOT a transfer count (RM0481: "Block number of data bytes to
  * transfer from the source").  Because the capture source is the halfword
  * CCR4, the driver programs BNDT = 2 x transfer count and each transfer

@@ -14,7 +14,7 @@
  * Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES,
  * DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the
  * per-family system-clock default (OW_PORT_SYSCLK_MHZ, selected from the
- * OW_PORT_TARGET / STM32F* family token) remain in their respective headers
+ * CMSIS device / STM32F* family macro) remain in their respective headers
  * and are intentionally NOT listed here.
  *
  * The four feature flags are value-style: define to 1 to enable, omit or

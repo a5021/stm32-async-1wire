@@ -38,37 +38,37 @@ set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
 # Device-specific repo and defines
 if(OW_TARGET STREQUAL "f0")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f0.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F0")
+    set(OW_FAMILY_DEF      "STM32F0")
     set(MCU_FLAGS          -mcpu=cortex-m0 -mthumb)
     set(SYSTEM_SRC         "system_stm32f0xx.c")
 elseif(OW_TARGET STREQUAL "f1")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f1.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F1")
+    set(OW_FAMILY_DEF      "STM32F1")
     set(MCU_FLAGS          -mcpu=cortex-m3 -mthumb)
     set(SYSTEM_SRC         "system_stm32f1xx.c")
 elseif(OW_TARGET STREQUAL "f3")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis-device-f3.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F3")
+    set(OW_FAMILY_DEF      "STM32F3")
     set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
     set(SYSTEM_SRC         "system_stm32f3xx.c")
 elseif(OW_TARGET STREQUAL "f4")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_F4")
+    set(OW_FAMILY_DEF      "STM32F4")
     set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
     set(SYSTEM_SRC         "system_stm32f4xx.c")
 elseif(OW_TARGET STREQUAL "g0")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g0.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_G0")
+    set(OW_FAMILY_DEF      "STM32G0")
     set(MCU_FLAGS          -mcpu=cortex-m0plus -mthumb)
     set(SYSTEM_SRC         "system_stm32g0xx.c")
 elseif(OW_TARGET STREQUAL "g4")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g4.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_G4")
+    set(OW_FAMILY_DEF      "STM32G4")
     set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
     set(SYSTEM_SRC         "system_stm32g4xx.c")
 elseif(OW_TARGET STREQUAL "h5")
     set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_h5.git")
-    set(OW_PORT_DEF       "OW_PORT_TARGET_H5")
+    set(OW_FAMILY_DEF      "STM32H5")
     set(MCU_FLAGS          -mcpu=cortex-m33 -mthumb)
     set(SYSTEM_SRC         "system_stm32h5xx.c")
 else()
@@ -353,7 +353,7 @@ function(ow_add_core_library tgt)
     )
     target_compile_definitions(${tgt} PUBLIC
         ${CMSIS_DEVICE_DEF}
-        ${OW_PORT_DEF}
+        ${OW_FAMILY_DEF}
         # The part's default clock, so this build system resolves the same
         # OW_PORT_SYSCLK_MHZ the Makefile build does instead of relying on the
         # fallback in the family headers.
@@ -450,7 +450,7 @@ install(FILES
 message(STATUS "stm32-async-1wire: OW_TARGET=${OW_TARGET}  "
                "OW_CHIP=${OW_CHIP}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
-               "OW_PORT_DEF=${OW_PORT_DEF}  "
+               "OW_FAMILY_DEF=${OW_FAMILY_DEF}  "
                "OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}")
 
 # ---------------------------------------------------------------------------
@@ -477,7 +477,7 @@ if(OW_BUILD_EXAMPLES)
     )
     target_compile_definitions(stm32_async_1wire_platform PUBLIC
         ${CMSIS_DEVICE_DEF}
-        ${OW_PORT_DEF}
+        ${OW_FAMILY_DEF}
         OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
         ${OW_EXTRA_DEFINES}
     )

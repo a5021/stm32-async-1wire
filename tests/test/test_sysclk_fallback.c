@@ -4,7 +4,7 @@
  *  Compile-only (no test harness): verifies that selecting a family
  *  through the raw family macro (STM32F0/F1/F3/F4/G0/G4/H5 — for F4/G4/H5
  *  also the concrete device spellings) — the path PlatformIO / STM32CubeMX
- *  use, without the OW_PORT_TARGET_* knob — resolves both the
+ *  use resolves both the
  *  OW_PORT_FAMILY_* token and the matching default OW_PORT_SYSCLK_MHZ.
  *  Guards against a family gaining a backend today and a wrong clock
  *  default tomorrow (see the family chain in onewire.h).
@@ -37,15 +37,15 @@
 #error "chips/<part>.mk CHIP_SYSCLK_MHZ disagrees with the ow_port.h family default for this part"
 #endif
 
-#if defined(OW_PORT_FAMILY_F0)
+#if defined(STM32F0)
 #if OW_PORT_SYSCLK_MHZ != 48
 #error "F0 family-macro selection must default to a 48 MHz system clock"
 #endif
-#elif defined(OW_PORT_FAMILY_F1)
+#elif defined(STM32F1)
 #if OW_PORT_SYSCLK_MHZ != 72
 #error "F1 family-macro selection must default to a 72 MHz system clock"
 #endif
-#elif defined(OW_PORT_FAMILY_F3)
+#elif defined(STM32F3)
 #if OW_PORT_SYSCLK_MHZ != 72
 #error "F3 family-macro selection must default to a 72 MHz system clock"
 #endif
@@ -66,7 +66,7 @@
 #if (OW_HSE_MHZ) != 8
 #error "F3: 72MHz is HSE x PLLMUL9, so the board oscillator must be 8MHz; the HSI-only ceiling is 64MHz (SYSCLK_MHZ=64)"
 #endif
-#elif defined(OW_PORT_FAMILY_F4)
+#elif defined(STM32F4)
 #if defined(STM32F401xC) || defined(STM32F401xE)
 #if OW_PORT_SYSCLK_MHZ != 84
 #error "F4/STM32F401 family-macro selection must default to an 84 MHz system clock"
@@ -80,15 +80,15 @@
 #error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
 #endif
-#elif defined(OW_PORT_FAMILY_G0)
+#elif defined(STM32G0)
 #if OW_PORT_SYSCLK_MHZ != 64
 #error "G0 family-macro selection must default to a 64 MHz system clock"
 #endif
-#elif defined(OW_PORT_FAMILY_G4)
+#elif defined(STM32G4)
 #if OW_PORT_SYSCLK_MHZ != 170
 #error "G4 family-macro selection must default to a 170 MHz system clock"
 #endif
-#elif defined(OW_PORT_FAMILY_H5)
+#elif defined(STM32H5)
 #if OW_PORT_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
 #endif
@@ -100,17 +100,17 @@
  * the guard that rejects an out-of-range request (OW_PORT_F4_MAX_SYSCLK_MHZ,
  * owned by ow_port_f4.h, used by app.c) would reject the part's own
  * default. That pair is the only thing stopping a 180 MHz build for an F407. */
-#if defined(OW_PORT_FAMILY_F4)
+#if defined(STM32F4)
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
-#elif defined(OW_PORT_FAMILY_G4)
+#elif defined(STM32G4)
 /* Same pair for G4 (OW_PORT_G4_MAX_SYSCLK_MHZ, owned by ow_port_g4.h): the
  * only part tops out at 170MHz. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
-#elif defined(OW_PORT_FAMILY_H5)
+#elif defined(STM32H5)
 /* Same pair for H5 (OW_PORT_H5_MAX_SYSCLK_MHZ, owned by ow_port_h5.h): the
  * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_H5_MAX_SYSCLK_MHZ)
@@ -118,7 +118,7 @@
 #endif
 #endif
 
-#if defined(OW_PORT_FAMILY_F4)
+#if defined(STM32F4)
 /* The F4 PLL takes its M divider from the crystal (OW_HSE_MHZ) rather than a
  * hardcoded 8, so one part can run on boards with different crystals: PLLM =
  * OW_HSE_MHZ puts the PLL input at 1MHz, PLLN = 2 x SYSCLK sets the VCO. An 8MHz
@@ -143,8 +143,8 @@
 #if (OW_PORT_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
 #error "F4: SYSCLK_MHZ=8 selects raw HSE, which runs at the crystal: pass HSE_MHZ=8, or SYSCLK_MHZ=16 for the internal RC"
 #endif
-#endif /* OW_PORT_FAMILY_F4 */
-#if defined(OW_PORT_FAMILY_G4)
+#endif /* STM32F4 */
+#if defined(STM32G4)
 /* The G4 PLL aims its input at exactly 4MHz (M = HSE/4 = 2 for an 8MHz
  * crystal, field value = divider-1 = 1, mid-window of the 2.66..16MHz range)
  * with N = SYSCLK/2 and the R divider at 2, so the VCO equals 2 x SYSCLK
@@ -171,4 +171,4 @@
 #error "G4: at a 4MHz PLL input the VCO equals 2*SYSCLK, which must stay in 64..344MHz"
 #endif
 /* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
-#endif /* OW_PORT_FAMILY_G4 */
+#endif /* STM32G4 */

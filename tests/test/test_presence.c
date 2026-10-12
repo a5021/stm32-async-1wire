@@ -94,7 +94,7 @@ void test_presence_reset_clears_stale_pulse(void) {
 void test_capture_16bit_config(void) {
     uint16_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 16);
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
     TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
@@ -112,7 +112,7 @@ void test_capture_16bit_config(void) {
 void test_capture_8bit_config(void) {
     uint8_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 8);
-#if defined(OW_PORT_TARGET_H5)
+#if defined(STM32H5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX8, mock_dma1_ch4.CTR1);
     TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
@@ -120,7 +120,7 @@ void test_capture_8bit_config(void) {
     uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MINC) != 0);
-#if defined(OW_PORT_TARGET_F4)
+#if defined(STM32F4)
     /* F4 direct mode forces the memory width to the 8-bit PSIZE */
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) == 0);
 #else
