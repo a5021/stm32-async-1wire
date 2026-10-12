@@ -151,7 +151,7 @@ int main(void) {
 #if OW_PARASITE_POWER
     ds2431_set_parasite(1);
 #endif
-    onewire_search_start(device_found_sink, DS2431_SEARCH_MAX_DEVICES, 0xF0, 0x12);
+    onewire_search_start(device_found_sink, DS2431_SEARCH_MAX_DEVICES, 0xF0, DS2431_FAMILY_CODE);
 
     for (;;) {
         if (search_running) {
@@ -161,17 +161,23 @@ int main(void) {
                 uart_write_int(onewire_search_count());
                 uart_write_str(" device(s).\r\n");
                 if (rom_found) {
+                    uart_write_str("Selected ROM: ");
+                    print_rom(selected_rom);
+                    uart_write_str("\r\n");
                     ds2431_select(selected_rom);
                     step = STEP_READ_BASELINE;
                     start_step(step);
                     cmd_running = 1;
                 } else {
+                    uart_write_str("No DS2431 found.\r\n");
                     step = STEP_DONE;
                 }
             }
         } else if (step == STEP_DONE) {
             uart_write_str("Demo done.\r\n");
-            step = (step_t)(step + 1);
+            for (;;) {
+                uart_poll_tx();
+            }
         } else if (!cmd_running) {
             start_step(step);
             cmd_running = 1;
