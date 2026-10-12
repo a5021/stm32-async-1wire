@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Single-key MCU selection with `OW_MCU`.** Make and CMake accept one exact
   STMicroelectronics device macro (e.g. `OW_MCU=STM32F401xC`), derive the
   matching `OW_TARGET`/`OW_CHIP`, and reject conflicting legacy values or a
-  part paired with the wrong family.
+  part paired with the wrong family. All consumers now use `OW_MCU` as the
+  documented interface: CI/release workflows, `.vscode` tasks and IntelliSense
+  configs, `tests/check_elf_variant.sh`, `tests/check_ram_budget.sh`, README
+  examples and the per-part variable reference. `OW_TARGET`/`OW_CHIP` remain
+  accepted as legacy aliases.
 
 - **DS2431 1-Kbit EEPROM driver (second 1-Wire device driver).** New
   `inc/ds2431.h` + `src/ds2431.c` + `src/ds2431_txn.c` implement the four

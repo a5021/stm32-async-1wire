@@ -9,7 +9,7 @@ TIM1/DMA2/`CHSEL=6` topology by construction (the CHSEL note below cites RM0368
 — the F401 reference manual — and matches silicon behavior on the F407), and
 the F446 section records its own separate bench run on a WeAct F446RET6.
 
-## F446 specifics (`OW_CHIP=f446xx`)
+## F446 specifics (`OW_MCU=STM32F446xx`)
 
 **Validated on hardware** (WeAct F446RET6, 8MHz crystal, 7 DS18B20 in parasite
 power on one bus, console on the on-board CP210x at 115200). The part file, the
@@ -92,8 +92,8 @@ of each recorded after the dash:
    is where the STM32F4DISCOVERY routes its ST-LINK virtual COM port, and a
    WeAct F446RET6 does the same: its CP210x VCP answers on PB6, so the default
    build talks to it with no extra flags. (Measured — do not "fix" this by
-   assuming PA9.) `-DOW_UART_USART1_PA9` still exists (`make OW_TARGET=f4
-   OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`) for boards that do put the VCP on
+   assuming PA9.) `-DOW_UART_USART1_PA9` still exists (`make OW_MCU=STM32F446xx
+   EXT=-DOW_UART_USART1_PA9`) for boards that do put the VCP on
    PA9, or attach a USB-TTL adapter to whichever pin you build for. PA9 does not
     conflict with the bus: the backend takes PA10 for TIM1_CH3 and leaves PA11
     untouched (former LA marker; sync via the opt-in OW_PORT_MARKER_TOGGLE()
@@ -287,7 +287,7 @@ At 180MHz the ladder's finest window is `fCK_INT/16` ≈ 5.6 ns, and no encoding
 reaches 500 ns.
 
 
-## F401CC specifics (`OW_CHIP=f401xc`)
+## F401CC specifics (`OW_MCU=STM32F401xC`)
 
 The F401 needs no port-level changes — only the build/case layer: `STM32F401xC`
 CMSIS device + startup (`stm32f401xc.h` / `startup_stm32f401xc.s`), the
@@ -324,7 +324,7 @@ Two consequences worth keeping in mind:
 
 #### Validated on the F401CC (WeAct F401 Black Pill, 25MHz crystal)
 
-`OW_CHIP=f401xc`, default 84MHz over the board's 25MHz crystal (`HSE_MHZ=25`,
+`OW_MCU=STM32F401xC`, default 84MHz over the board's 25MHz crystal (`HSE_MHZ=25`,
 `M=25/N=168`), 7 × DS18B20 in parasite power on one bus on **PA10**, console on
 USART1 TX / **PB6** at 115200 8N1, flashed over SWD. Flashed with
 `EXT="-DOW_PARASITE_POWER=1"`, no other clock overrides - the 84MHz default is

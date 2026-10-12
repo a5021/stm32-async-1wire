@@ -109,13 +109,13 @@ totalbss() {
 }
 
 check() {
-    target="$1"
+    mcu="$1"
     libmax="$2"
     total5max="$3"
     total1max="$4"
-    note "OW_TARGET=$target"
-    make -s OW_TARGET="$target" APP=1_basic > /dev/null
-    make -s OW_TARGET="$target" APP=5_commands > /dev/null
+    note "OW_MCU=$mcu"
+    make -s OW_MCU="$mcu" APP=1_basic > /dev/null
+    make -s OW_MCU="$mcu" APP=5_commands > /dev/null
     lib=$(libsum build/ds18b20_5_commands.elf)
     tot5=$(totalbss build/ds18b20_5_commands.elf)
     tot1=$(totalbss build/ds18b20_1_basic.elf)
@@ -123,13 +123,13 @@ check() {
     note "total(5_commands)=$tot5 (budget $total5max)"
     note "total(1_basic)=$tot1 (budget $total1max)"
     if [ "$lib" -gt "$libmax" ]; then
-        bad "$target library .bss $lib exceeds budget $libmax — update LIBSYMS/budgets consciously or shrink RAM"
+        bad "$mcu library .bss $lib exceeds budget $libmax — update LIBSYMS/budgets consciously or shrink RAM"
     fi
     if [ "$tot5" -gt "$total5max" ]; then
-        bad "$target 5_commands total .bss $tot5 exceeds budget $total5max"
+        bad "$mcu 5_commands total .bss $tot5 exceeds budget $total5max"
     fi
     if [ "$tot1" -gt "$total1max" ]; then
-        bad "$target 1_basic total .bss $tot1 exceeds budget $total1max"
+        bad "$mcu 1_basic total .bss $tot1 exceeds budget $total1max"
     fi
 }
 
@@ -142,10 +142,10 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 
-check f0 329 984 432
-check f4 434 1088 536
-check g4 329 984 432
-check h5 329 984 432
+check STM32F030x6 329 984 432
+check STM32F407xx 434 1088 536
+check STM32G474xx 329 984 432
+check STM32H503xx 329 984 432
 
 if [ "$fail" -ne 0 ]; then
     exit 1

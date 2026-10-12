@@ -9,7 +9,7 @@
 #
 # It lives in config/ rather than chips/ because chips/*.mk is globbed as the
 # list of MCU parts: adding a non-part file there would make `optim` look like
-# a selectable OW_CHIP to both tests/check_chips.sh and the CMake part check.
+# a selectable OW_MCU part to both tests/check_chips.sh and the CMake part check.
 
 # -Os         : Optimize for code size. This driver is polled on a millisecond
 #               cadence, so compact code matters more than raw speed. Saves

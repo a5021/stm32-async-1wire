@@ -16,7 +16,7 @@
             "intelliSenseMode": "linux-gcc-arm"
         },
         {
-            "name": "STM32F030 (make OW_TARGET=f0)",
+            "name": "STM32F030 (make OW_MCU=STM32F030x6)",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/inc",
@@ -31,7 +31,7 @@
             "intelliSenseMode": "linux-gcc-arm"
         },
         {
-            "name": "STM32G031 (make OW_TARGET=g0)",
+            "name": "STM32G031 (make OW_MCU=STM32G031xx)",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/inc",
@@ -46,7 +46,7 @@
             "intelliSenseMode": "linux-gcc-arm"
         },
         {
-            "name": "STM32F407 (make OW_TARGET=f4)",
+            "name": "STM32F407 (make OW_MCU=STM32F407xx)",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/inc",
@@ -61,7 +61,7 @@
             "intelliSenseMode": "linux-gcc-arm"
         },
         {
-            "name": "STM32F401CC (make OW_TARGET=f4 OW_CHIP=f401xc)",
+            "name": "STM32F401CC (make OW_MCU=STM32F401xC)",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/inc",

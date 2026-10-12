@@ -51,9 +51,10 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
     header-only backends for STM32F0, STM32F1, STM32F3, STM32F4, STM32G0,
     STM32G4 and STM32H5, all on the shared CH3/CH4 scheme. Select at build
-    time with `make OW_TARGET=f0` / `make OW_TARGET=f3` /
-    `make OW_TARGET=f4` / `make OW_TARGET=g0` / `make OW_TARGET=g4` /
-    `make OW_TARGET=h5` (F1 is the default).
+    time with `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` /
+    `make OW_MCU=STM32F407xx` / `make OW_MCU=STM32G031xx` /
+    `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx`
+    (STM32F103xB is the default).
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -104,7 +105,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   STM32G031x6, STM32G474CB, STM32H503CB; see port backends in `port/`).
 - Sensor: DS18B20 digital temperature sensor
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default, `OW_CHIP=f401xc`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default, `OW_CHIP=f446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default, `OW_CHIP=g474cb`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default, `OW_CHIP=h503cb`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default with `OW_MCU=STM32F401xC`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default with `OW_MCU=STM32F446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default with `OW_MCU=STM32G474xx`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default with `OW_MCU=STM32H503xx`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
   The 180MHz mode is the one clock on F4 that is above 168MHz, and it is a
   different code path rather than a different number: it needs the PWR over-drive
@@ -180,8 +181,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── f103xb.mk           # CMSIS macro, startup, linker script, debugger
 │   ├── f030x6.mk           #   projects, SVD and default clock. Shared by
 │   ├── g031xx.mk           #   the Makefile and the CMake build
-│   ├── f407xx.mk           #   (OW_CHIP=<name> / -DOW_CHIP=<name>)
-│   ├── f303xc.mk           # 256KB flash / 32KB RAM (F3-DISCOVERY, 72MHz default)
+│   ├── f407xx.mk           #   (selected by OW_MCU=<device macro>; the legacy
+│   ├── f303xc.mk           #   OW_TARGET/OW_CHIP pair selects them too)
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
 │   ├── f401xe.mk           # 512KB flash / 128KB RAM
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
@@ -282,45 +283,45 @@ make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # build 7_low_power -> build/
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
-make OW_TARGET=f0 APP=4_scan_mode
+make OW_MCU=STM32F030x6 APP=4_scan_mode
 
 # STM32G031 target (bus on PA12 pad via remap, console on PA11):
-make OW_TARGET=g0 APP=4_scan_mode
+make OW_MCU=STM32G031xx APP=4_scan_mode
 # ... or on the raw internal HSI16 (no PLL):
-make OW_TARGET=g0 SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_MCU=STM32G031xx SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32F303VC target (F3-DISCOVERY / MB1035B, bus on PA10, console on PA9):
 # 72MHz is the default and needs the board's 8MHz external clock, which the
 # ST-LINK drives onto OSC_IN and which is read in bypass mode. This family has
 # no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach.
-make OW_TARGET=f3 APP=4_scan_mode
-make OW_TARGET=f3 SYSCLK_MHZ=64 APP=4_scan_mode   # HSI/2 + PLL, no external clock
-make OW_TARGET=f3 SYSCLK_MHZ=8  APP=4_scan_mode   # raw HSI, nothing configured
+make OW_MCU=STM32F303xC APP=4_scan_mode
+make OW_MCU=STM32F303xC SYSCLK_MHZ=64 APP=4_scan_mode   # HSI/2 + PLL, no external clock
+make OW_MCU=STM32F303xC SYSCLK_MHZ=8  APP=4_scan_mode   # raw HSI, nothing configured
 
 # STM32F407 target (same examples, bus on PA10):
-make OW_TARGET=f4 APP=4_scan_mode
+make OW_MCU=STM32F407xx APP=4_scan_mode
 
 # STM32F401CC target (F401 Black Pill, 84MHz HSE+PLL default):
-make OW_TARGET=f4 OW_CHIP=f401xc APP=4_scan_mode
+make OW_MCU=STM32F401xC APP=4_scan_mode
 
 # STM32F401xE target (512KB flash / 128KB RAM, same 84MHz default):
-make OW_TARGET=f4 OW_CHIP=f401xe APP=4_scan_mode
+make OW_MCU=STM32F401xE APP=4_scan_mode
 # ... or on the raw internal RC (no HSE crystal needed):
-make OW_TARGET=f4 OW_CHIP=f401xc SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_MCU=STM32F401xC SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32F446RE target (WeAct F446, 180MHz HSE+PLL + over-drive default):
-make OW_TARGET=f4 OW_CHIP=f446xx APP=4_scan_mode
+make OW_MCU=STM32F446xx APP=4_scan_mode
 # ... 16MHz on the raw internal RC, or straight off the 8MHz crystal:
-make OW_TARGET=f4 OW_CHIP=f446xx SYSCLK_MHZ=16 APP=4_scan_mode
-make OW_TARGET=f4 OW_CHIP=f446xx HSE_MHZ=8 SYSCLK_MHZ=8 APP=4_scan_mode
+make OW_MCU=STM32F446xx SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_MCU=STM32F446xx HSE_MHZ=8 SYSCLK_MHZ=8 APP=4_scan_mode
 
 # STM32G474CB target (WeAct G474 Long, 170MHz HSE+PLL + Range 1 Boost default):
-make OW_TARGET=g4 APP=4_scan_mode
+make OW_MCU=STM32G474xx APP=4_scan_mode
 # ... 16MHz on the raw internal HSI16 (no HSE crystal needed):
-make OW_TARGET=g4 SYSCLK_MHZ=16 APP=4_scan_mode
+make OW_MCU=STM32G474xx SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
-make OW_TARGET=h5 APP=4_scan_mode
+make OW_MCU=STM32H503xx APP=4_scan_mode
 ```
 
 Notes:
@@ -429,7 +430,7 @@ through DMAMUX — requests 43/45, 8-bit feed tables), console on USART1 TX /
 SWD. Builds: the default 170MHz (HSE 8MHz + PLL M=2, N=85, R=2, Range 1 Boost)
 and the raw-HSI16 `SYSCLK_MHZ=16` build. The board carries an 8 MHz crystal;
 `HSE_MHZ=8` in `chips/g474cb.mk` derives the PLL dividers. The bus pads are
-directly on PA10 (no remap needed). Build with `make OW_TARGET=g4`.
+directly on PA10 (no remap needed). Build with `make OW_MCU=STM32G474xx`.
 
 ### STM32F407VGT6 (STM32F4DISCOVERY)
 
@@ -443,7 +444,7 @@ F4DISCOVERY-specific choice, not an F4 family default** — a WeAct F446RET6
 answers with its CP210x VCP on **PB6** too (measured, not the PA9 the silkscreen
 implies), so the default build works on both boards with no flag. For an F4
 board whose console really is on PA9, build with
-`-DOW_UART_USART1_PA9` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9`)
+`-DOW_UART_USART1_PA9` (`make OW_MCU=STM32F446xx EXT=-DOW_UART_USART1_PA9`)
 or attach the USB-TTL adapter to PB6. `SYSCLK_MHZ=16` selects raw HSI.
 The F4-specific DMA topology and timing choices are documented in
 `port/stm32f4/HARDWARE-NOTES.md`.
@@ -456,7 +457,7 @@ the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
 port layer is chip-generic. The chip-specific parts (CMSIS device header
 `stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
 script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
-clock default) are selected with `OW_CHIP=f401xc` — all of it in
+clock default) are selected with `OW_MCU=STM32F401xC` — all of it in
 `chips/f401xc.mk`.
 
 **The crystal is the one thing the part cannot decide.** This board carries a
@@ -477,7 +478,7 @@ carries no signal on the default PA9 USART1 pad.
 
 The `xE` parts (F401CD/RD/VD/CE/RE/VE, 512KB flash / 128KB RAM) are the same
 core with twice the memory, so they share everything above and differ only in
-the memory map: `OW_CHIP=f401xe` selects `chips/f401xe.mk` with
+the memory map: `OW_MCU=STM32F401xE` selects `chips/f401xe.mk` with
 `STM32F401RE_FLASH.ld` (512K/128K) and the `stm32f401xe.h` /
 `startup_stm32f401xe.s` device layer. Like the xC variant it is unproven on
 hardware — no F401xE part was available. Note that the CMSIS `STM32F401xE`
@@ -506,7 +507,7 @@ states). The board carries an 8 MHz crystal (Y2); `HSE_MHZ=8` in
 `chips/h503cb.mk` derives the PLL dividers. All seven examples were flashed
 and captured at each clock with correct 22.8-23.1C readings and 0 errors in
 `6_statistics`. The busy LED on **PC13** is **active-low** (blue LED on the
-WeAct board). Build with `make OW_TARGET=h5`.
+WeAct board). Build with `make OW_MCU=STM32H503xx`.
 
 **6_statistics — signal statistics** (`examples/6_statistics/main.c`): startup device search +
 sequential measurement with the optional `ow_stats` module. By default the
@@ -518,7 +519,7 @@ then streams the full report over UART.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=1"
+make OW_MCU=STM32G031xx APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_POWER=1"
 ```
 
 **7_low_power — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
@@ -572,8 +573,8 @@ mechanism and measure the CPU-time saving.
 Build and run:
 
 ```sh
-make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DOW_PARASITE_POWER=1 on a parasite bus)
-make OW_TARGET=g0 APP=7_low_power                              # same example, but standard polling (define omitted)
+make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DOW_PARASITE_POWER=1 on a parasite bus)
+make OW_MCU=STM32G031xx APP=7_low_power                              # same example, but standard polling (define omitted)
 ```
 
 ## Hardware Connections
@@ -662,7 +663,7 @@ master-only write slots and restored to open-drain afterwards — see
 Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
 The board carries an **8 MHz crystal** (`HSE_MHZ=8` in `chips/g474cb.mk`);
 the 170 MHz PLL (M=2, N=85, R=2, Range 1 Boost) and the raw-HSI16
-`SYSCLK_MHZ=16` build are supported. Build with `make OW_TARGET=g4`.
+`SYSCLK_MHZ=16` build are supported. Build with `make OW_MCU=STM32G474xx`.
 PC13 on this board is the user button (pull-up to VCC), not an LED.
 
 ### STM32F407VGT6 (STM32F4DISCOVERY)
@@ -699,7 +700,7 @@ F446 entry in Hardware Verified). Bench wiring on this board:
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1 (same topology as the F407) |
 | PB6  | USART1 TX (115200)  | AF7; the on-board CP210x VCP answers here on the default build |
-| PB2  | Busy LED (optional) | Active high; silkscreen "B2". Select with `-DOW_F4_LED_PB2` (`make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_F4_LED_PB2`) |
+| PB2  | Busy LED (optional) | Active high; silkscreen "B2". Select with `-DOW_F4_LED_PB2` (`make OW_MCU=STM32F446xx EXT=-DOW_F4_LED_PB2`) |
 | PA13/PA14 | SWDIO/SWCLK    | On-board ST-Link SWD programming            |
 
 Important: the board's user button is on **PC13** (pull-up to VCC, not an LED),
@@ -719,7 +720,7 @@ supply, as on the F407. The F446 bench uses the same 8 MHz crystal and reaches
 Note: the same 4.7kΩ pull-up is required between the bus pin and 3.3V.
 The board carries an **8 MHz crystal** (Y2; `HSE_MHZ=8` in `chips/h503cb.mk`);
 the 250MHz PLL1 (M=HSE/4, N=125, P=2, VOS0, 5 flash wait states) and the
-raw-HSE `SYSCLK_MHZ=8` build are supported. Build with `make OW_TARGET=h5`.
+raw-HSE `SYSCLK_MHZ=8` build are supported. Build with `make OW_MCU=STM32H503xx`.
 There is no J-Flash project for this part (JTAG CoreID unverified) — flash
 via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 
@@ -1108,7 +1109,7 @@ headers needed. A bare-metal toolchain file is included.
 ```bash
 # ARM GCC must be on PATH
 cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_TARGET=f1 -B build .
+      -DOW_MCU=STM32F103xB -B build .
 cmake --build build
 ```
 
@@ -1130,7 +1131,7 @@ variants can be selected without a dedicated option each.
 
 ```bash
 cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_TARGET=f4 -DOW_BUILD_EXAMPLES=ON \
+      -DOW_MCU=STM32F407xx -DOW_BUILD_EXAMPLES=ON \
       -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" \
       -B build .
 cmake --build build
@@ -1148,12 +1149,12 @@ undefined references to the driver API. CMake's own `Release` (`-O3 -DNDEBUG`)
 is deliberately not used — `-O3` is not what the hardware numbers were taken
 with, and `NDEBUG` is a separate mode in this project.
 
-Select the MCU family with `-DOW_TARGET=f0`, `-DOW_TARGET=f1` (default), `f3`, `f4`, `g0` or `g4`, and
-the part within it with `-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4
--DOW_CHIP=f401xc`, default per family, `-DOW_SYSCLK_MHZ=N` to override the
-part's clock). Alternatively, select one exact STMicroelectronics device with
-`-DOW_MCU=STM32F401xC`: it sets `OW_TARGET`/`OW_CHIP` for that device and
-rejects a conflicting legacy value. CMake reads the same `chips/<part>.mk` the Makefile build does,
+Select the device with the standard STMicroelectronics part macro: `-DOW_MCU=STM32F103xB` (default), `STM32F030x6`, `STM32F303xC`,
+`STM32F407xx`, `STM32F401xC`, `STM32F401xE`, `STM32F446xx`, `STM32G031xx`,
+`STM32G474xx` or `STM32H503xx` (e.g. `-DOW_MCU=STM32F401xC`; `-DOW_SYSCLK_MHZ=N` overrides the
+part's clock). The legacy family/part pair `-DOW_TARGET=<family>` /
+`-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4 -DOW_CHIP=f401xc`) is still accepted
+as an alias. CMake reads the same `chips/<part>.mk` the Makefile build does,
 so the two cannot disagree about the device macro, startup file, linker script
 or clock.
 
@@ -1181,7 +1182,7 @@ the prefix:
 
 ```bash
 cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_TARGET=f4 -DCMAKE_BUILD_TYPE=Release -B build .
+      -DOW_MCU=STM32F407xx -DCMAKE_BUILD_TYPE=Release -B build .
 cmake --build build
 cmake --install build --prefix build/prefix
 ```
@@ -1198,9 +1199,9 @@ Two things to know, both consequences of how a package can be built:
   the install export would tie the package to the machine that built it. So
   add your own CMSIS `core` and device include directories on top of the
   imported target — from STM32Cube, PlatformIO, or a manual checkout.
-- **The package carries its part selection.** `OW_CHIP` and `OW_TARGET` are
-  baked into the installed target as public definitions (`STM32F407xx`,
-  `STM32F4`, `OW_PORT_SYSCLK_MHZ=168`), because `ow_port.h` picks its
+- **The package carries its part selection.** The part macros (`STM32F407xx`,
+  `STM32F4`, `OW_PORT_SYSCLK_MHZ=168`) are
+  baked into the installed target as public definitions, because `ow_port.h` picks its
   backend from them and `#error`s without them. Build the package for the part
   your firmware is for; there is no way to change it afterwards.
 
@@ -1228,27 +1229,27 @@ the install-tree file checks alone would not catch.
     -   **Release:** `-Os -flto -g0` (default).
     -   **Debug:** `-Og -g3 -gdwarf`.
 
--   **MCU Flags:** `STM32F030x6` (Cortex-M0) with `OW_TARGET=f0`;
+-   **MCU Flags:** `STM32F030x6` (Cortex-M0) with `OW_MCU=STM32F030x6`;
     `STM32F103xB` (Cortex-M3) by default; `STM32F303xC` (Cortex-M4) with
-    `OW_TARGET=f3`; `STM32F407xx` (Cortex-M4) with `OW_TARGET=f4`,
-    `STM32F401xC` with `OW_TARGET=f4 OW_CHIP=f401xc`, `STM32F401xE` with
-    `OW_TARGET=f4 OW_CHIP=f401xe` or `STM32F446xx` with `OW_TARGET=f4
-    OW_CHIP=f446xx`; `STM32G031xx` (Cortex-M0+) with `OW_TARGET=g0`.
+    `OW_MCU=STM32F303xC`; `STM32F407xx` (Cortex-M4) with `OW_MCU=STM32F407xx`,
+    `STM32F401xC` with `OW_MCU=STM32F401xC`, `STM32F401xE` with
+    `OW_MCU=STM32F401xE` or `STM32F446xx` with `OW_MCU=STM32F446xx`;
+    `STM32G031xx` (Cortex-M0+) with `OW_MCU=STM32G031xx`.
 
--   **Target Selection:** `make OW_TARGET=f0` builds for the STM32F0 backend
+-   **Target Selection:** `make OW_MCU=STM32F030x6` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
-    `make OW_TARGET=f3` for the STM32F3 backend (72MHz default clock,
+    `make OW_MCU=STM32F303xC` for the STM32F3 backend (72MHz default clock,
     `port/stm32f3/STM32F303XC_FLASH.ld`),
-    `make OW_TARGET=f4` for the STM32F4
+    `make OW_MCU=STM32F407xx` for the STM32F4
     backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
-    `make OW_TARGET=f4 OW_CHIP=f401xc` for the F401CC variant of the same backend
+    `make OW_MCU=STM32F401xC` for the F401CC variant of the same backend
     (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`) and
-    `make OW_TARGET=f4 OW_CHIP=f401xe` for the 512KB/128KB xE parts
+    `make OW_MCU=STM32F401xE` for the 512KB/128KB xE parts
     (`port/stm32f4/STM32F401RE_FLASH.ld`, same 84MHz default), and
-    `make OW_TARGET=f4 OW_CHIP=f446xx` for the STM32F446
+    `make OW_MCU=STM32F446xx` for the STM32F446
     (180MHz default clock with the over-drive sequence,
     `port/stm32f4/STM32F446RE_FLASH.ld`),
-    `make OW_TARGET=g0` for the STM32G0 backend (64MHz default clock,
+    `make OW_MCU=STM32G031xx` for the STM32G0 backend (64MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default
     target is STM32F103 (bus on PA10 for F0/F1/F3/F4, logical PA10 via PA12 remap
@@ -1321,7 +1322,7 @@ the `6_statistics` example only (its dedicated library variant), mirroring
 `make APP=6_statistics`:
 
 ```bash
-cmake -DOW_TARGET=f0 -DOW_BUILD_EXAMPLES=ON -B build .
+cmake -DOW_MCU=STM32F030x6 -DOW_BUILD_EXAMPLES=ON -B build .
 cmake --build build --target 6_statistics
 ```
 
@@ -1353,10 +1354,10 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 - `Build (release)` — `make` (default)
 - `Build (debug)` — `make debug`
-- `Build F0 (debug)` — `make OW_TARGET=f0 debug` (debug build for the STM32F030 target)
-- `Build F3 (debug)` — `make OW_TARGET=f3 debug` (debug build for the STM32F3 target)
-- `Build G0 (debug)` — `make OW_TARGET=g0 debug` (debug build for the STM32G031 target)
-- `Build F4 (debug)` — `make OW_TARGET=f4 debug` (debug build for the STM32F4 target)
+- `Build F0 (debug)` — `make OW_MCU=STM32F030x6 debug` (debug build for the STM32F030 target)
+- `Build F3 (debug)` — `make OW_MCU=STM32F303xC debug` (debug build for the STM32F3 target)
+- `Build G0 (debug)` — `make OW_MCU=STM32G031xx debug` (debug build for the STM32G031 target)
+- `Build F4 (debug)` — `make OW_MCU=STM32F407xx debug` (debug build for the STM32F4 target)
 - `Clean` — `make clean`
 - `Program (J-Link)` / `Program (ST-Link)` — flash the device
 - `Download dependencies` — `make download-deps`
@@ -1370,9 +1371,9 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
    (ST-Link)"** for the STM32F303 target, **"Debug G0 (J-Link)"** / **"Debug
    G0 (ST-Link)"** for the STM32G031 target, or **"Debug F4 (J-Link)"** /
    **"Debug F4 (ST-Link)"** for the STM32F4 target. The F0
-   configurations build with `OW_TARGET=f0` automatically, the F3 ones with
-   `OW_TARGET=f3`, the G0 ones with `OW_TARGET=g0`, the F4 ones with
-   `OW_TARGET=f4`.
+   configurations build with `OW_MCU=STM32F030x6` automatically, the F3 ones with
+   `OW_MCU=STM32F303xC`, the G0 ones with `OW_MCU=STM32G031xx`, the F4 ones with
+   `OW_MCU=STM32F407xx`.
 2. Open `examples/1_basic/main.c` and set a breakpoint in `main()`.
 3. Press **F5** — Cortex-Debug will build the firmware in debug mode,
    flash it, run to `main()`, and halt.
@@ -2403,19 +2404,29 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 ## Configuration
 
-### Part selection: families and parts
+### Part selection: one `OW_MCU` key
 
-Two build knobs, and the split between them is the whole point:
+A single build knob names the exact STMicroelectronics part by its standard
+device macro — the same string the CMSIS device header is named after:
 
-- `OW_TARGET` picks the **family** (`f0`, `f1`, `f3`, `f4`, `g0`). This is where the
-  driver code differs: the port header, the timer and DMA resources, the bus
-  pin. One `port/<family>/ow_port_<family>.h` per family.
-- `OW_CHIP` picks the **part** within the family, by naming a file in
-  `chips/`. The parts of one family share a port header — `ow_port_f4.h` has no
-  per-part conditional at all, because TIM1/DMA2 and `CHSEL=6` map identically
-  across the F4 parts. What actually differs is the CMSIS device layer, the
-  linker script (memory sizes), the debugger projects and the default clock,
-  so that is exactly what `chips/<part>.mk` holds:
+```sh
+make OW_MCU=STM32F401xC APP=4_scan_mode   # Makefile
+cmake -S . -B build -DOW_MCU=STM32F401xC  # CMake (same chips/*.mk)
+```
+
+The macro does two jobs at once, and the split between them is the whole
+point of how the project is laid out:
+
+- **Family** — the last part of the macro (`F4`, `F0`, `G0`, ...) picks the
+  driver code: the port header, the timer and DMA resources, the bus
+  pin. One `port/<family>/ow_port_<family>.h` per family. This is where the
+  driver code differs.
+- **Part** — the full macro names a file in `chips/`. The parts of one
+  family share a port header — `ow_port_f4.h` has no per-part conditional at
+  all, because TIM1/DMA2 and `CHSEL=6` map identically across the F4 parts.
+  What actually differs is the CMSIS device layer, the linker script
+  (memory sizes), the debugger projects and the default clock, so that is
+  exactly what `chips/<part>.mk` holds:
 
   | Variable | Meaning |
   |---|---|
@@ -2429,12 +2440,7 @@ Two build knobs, and the split between them is the whole point:
   | `CHIP_SYSCLK_MHZ` | the part's default clock, overridable via `SYSCLK_MHZ` |
 
 Both build systems read the same file, so they cannot drift on the device macro,
-startup file, linker script or clock:
-
-```sh
-make OW_TARGET=f4 OW_CHIP=f401xc APP=4_scan_mode   # Makefile
-cmake -S . -B build -DOW_TARGET=f4 -DOW_CHIP=f401xc # CMake (same chips/*.mk)
-```
+startup file, linker script or clock.
 
 Parts are named after the CMSIS device macro, lowercased — `STM32F401xC`
 becomes `f401xc`, `STM32F103xB` becomes `f103xb` — so the name says which
@@ -2442,8 +2448,12 @@ flash/pin-density code it is. `make test-chips` (part of `make test-clocks`)
 checks that every part's repository-side files exist and that the two scalars
 are well formed, and that an unknown family or part is **rejected** rather than
 silently falling back to the F1 default. That last part matters: an
-unrecognised `OW_TARGET` used to fall through to the F1 branch and produce a
+unrecognised `OW_MCU` used to fall through to the F1 branch and produce a
 perfectly valid Blue Pill binary.
+
+Legacy aliases: `OW_TARGET=<family>` and `OW_CHIP=<part>` still select the
+same part file as before (e.g. `OW_TARGET=f4 OW_CHIP=f401xc` ≡
+`OW_MCU=STM32F401xC`), but they are no longer the documented interface.
 
 Two rules when editing a part file: keep it to plain `NAME = value` assignments
 (no includes or conditionals — the CMake build parses it), and do not put a

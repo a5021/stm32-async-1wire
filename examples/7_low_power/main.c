@@ -21,7 +21,7 @@
  *   (the sleep path is not compiled without it).
  *
  * Build:
- *   make OW_TARGET=g0 APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
+ *   make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
  *   On a parasite-powered bus add -DOW_PARASITE_POWER=1.
  */
 

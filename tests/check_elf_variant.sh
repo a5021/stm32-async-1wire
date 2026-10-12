@@ -17,8 +17,8 @@ cd "$(dirname "$0")/.."
 ELF=build/ds18b20_2_device_search.elf
 APP=2_device_search
 
-build_b() { make OW_TARGET=f4 OW_CHIP=f446xx SYSCLK_MHZ=180 "APP=$APP" >/dev/null; }
-build_a() { make OW_TARGET=g0 "APP=$APP" >/dev/null; }
+build_b() { make OW_MCU=STM32F446xx SYSCLK_MHZ=180 "APP=$APP" >/dev/null; }
+build_a() { make OW_MCU=STM32G031xx "APP=$APP" >/dev/null; }
 hash_of() { sha256sum "$ELF" | cut -c1-16; }
 
 build_b; b1=$(hash_of)

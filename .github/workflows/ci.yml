@@ -58,12 +58,12 @@ jobs:
         # configure either target without re-downloading.
         run: |
           make download-deps
-          make OW_TARGET=f0 download-deps
-          make OW_TARGET=f3 download-deps
-          make OW_TARGET=f4 download-deps
-          make OW_TARGET=g0 download-deps
-          make OW_TARGET=g4 download-deps
-          make OW_TARGET=h5 download-deps
+          make OW_MCU=STM32F030x6 download-deps
+          make OW_MCU=STM32F303xC download-deps
+          make OW_MCU=STM32F407xx download-deps
+          make OW_MCU=STM32G031xx download-deps
+          make OW_MCU=STM32G474xx download-deps
+          make OW_MCU=STM32H503xx download-deps
       # One step for all sixteen configurations: the family comes from the job
       # matrix above, so only the variant list is spelled out here. The opt-in
       # variants rebuild the SAME suite with a feature flag changed -
@@ -129,12 +129,12 @@ jobs:
       - name: Download CMSIS dependencies
         run: |
           make download-deps
-          make OW_TARGET=f0 download-deps
-          make OW_TARGET=f3 download-deps
-          make OW_TARGET=f4 download-deps
-          make OW_TARGET=g0 download-deps
-          make OW_TARGET=g4 download-deps
-          make OW_TARGET=h5 download-deps
+          make OW_MCU=STM32F030x6 download-deps
+          make OW_MCU=STM32F303xC download-deps
+          make OW_MCU=STM32F407xx download-deps
+          make OW_MCU=STM32G031xx download-deps
+          make OW_MCU=STM32G474xx download-deps
+          make OW_MCU=STM32H503xx download-deps
       - name: Build and run host tests with coverage
         # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
         # build. The test executables run from the repository root, so the
@@ -353,10 +353,10 @@ jobs:
       - name: Download CMSIS dependencies
         run: |
           make download-deps
-          make OW_TARGET=f3 download-deps
-          make OW_TARGET=f4 download-deps
-          make OW_TARGET=g4 download-deps
-          make OW_TARGET=h5 download-deps
+          make OW_MCU=STM32F303xC download-deps
+          make OW_MCU=STM32F407xx download-deps
+          make OW_MCU=STM32G474xx download-deps
+          make OW_MCU=STM32H503xx download-deps
       # onewire.h selects and pulls in the family backend with a bare sibling
       # quote-include (#include "ow_port_f1.h") - required bare so the flattened
       # CMake install (all headers into one include dir) keeps working - so the
@@ -516,10 +516,10 @@ jobs:
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           make download-deps
-          make OW_TARGET=f3 download-deps
-          make OW_TARGET=f4 download-deps
-          make OW_TARGET=g4 download-deps
-          make OW_TARGET=h5 download-deps
+          make OW_MCU=STM32F303xC download-deps
+          make OW_MCU=STM32F407xx download-deps
+          make OW_MCU=STM32G474xx download-deps
+          make OW_MCU=STM32H503xx download-deps
       - name: Build release (1_basic)
         run: make
       - name: Build release (3_round_robin)
@@ -542,13 +542,13 @@ jobs:
       # Smoke-build both backends and both clock branches of app.c so a
       # family-only breakage cannot reach a tag.
       - name: Build release (F0 backend)
-        run: make clean && make OW_TARGET=f0
+        run: make clean && make OW_MCU=STM32F030x6
       - name: Build release (F0 backend, 8MHz RC)
-        run: make clean && make OW_TARGET=f0 SYSCLK_MHZ=8
+        run: make clean && make OW_MCU=STM32F030x6 SYSCLK_MHZ=8
       - name: Build release (G0 backend)
-        run: make clean && make OW_TARGET=g0
+        run: make clean && make OW_MCU=STM32G031xx
       - name: Build release (G0 backend, 16MHz RC)
-        run: make clean && make OW_TARGET=g0 SYSCLK_MHZ=16
+        run: make clean && make OW_MCU=STM32G031xx SYSCLK_MHZ=16
       # The F3's three clocks, and all three are separate app.c branches: 8MHz
       # is raw HSI (nothing configured), 64MHz is HSI/2 + PLLMUL16, and 72MHz is
       # HSE-bypass + PLLMUL9. The 64MHz build is the one that proves the HSI
@@ -557,57 +557,57 @@ jobs:
       # bound, and -Werror would catch a helper left unused). Each gets its own
       # `make clean` so a run cannot pass on the previous clock's objects.
       - name: Build release (F3 backend, 72MHz default)
-        run: make clean && make OW_TARGET=f3
+        run: make clean && make OW_MCU=STM32F303xC
       - name: Build release (F3 backend, 64MHz HSI PLL)
-        run: make clean && make OW_TARGET=f3 SYSCLK_MHZ=64
+        run: make clean && make OW_MCU=STM32F303xC SYSCLK_MHZ=64
       - name: Build release (F3 backend, 8MHz raw HSI)
-        run: make clean && make OW_TARGET=f3 SYSCLK_MHZ=8
+        run: make clean && make OW_MCU=STM32F303xC SYSCLK_MHZ=8
       # A clock this family cannot reach must be a build error, not a silently
       # mis-timed firmware. 16MHz is a real STM32F3 frequency in general but not
       # one this clock tree can produce: HSI/2 x PLLMUL tops out at 64MHz, and
       # 8/16 is not an integer multiple of any PLLMUL in 2..16.
       - name: Reject an unreachable F3 clock
         run: |
-          if make OW_TARGET=f3 SYSCLK_MHZ=16 2>&1 | grep -q 'Unsupported OW_PORT_SYSCLK_MHZ for F3'; then
+          if make OW_MCU=STM32F303xC SYSCLK_MHZ=16 2>&1 | grep -q 'Unsupported OW_PORT_SYSCLK_MHZ for F3'; then
             echo "F3 correctly rejected 16MHz"
           else
             echo "::error::a 16MHz F3 build was accepted; the supported set is 8, 64 and 72"
             exit 1
           fi
       - name: Build release (F4 backend)
-        run: make clean && make OW_TARGET=f4
+        run: make clean && make OW_MCU=STM32F407xx
       - name: Build release (F4 backend, 16MHz HSI)
-        run: make clean && make OW_TARGET=f4 SYSCLK_MHZ=16
+        run: make clean && make OW_MCU=STM32F407xx SYSCLK_MHZ=16
       # The F446's three clocks. The 180MHz default is a separate app.c branch
       # (over-drive + its own PLL/latency/APB values), so the F4 168MHz build
       # says nothing about it; 16MHz and the raw 8MHz crystal are the two
       # fallbacks the part file is expected to survive. Each gets its own
       # `make clean` so the run cannot pass on the previous clock's objects.
       - name: Build release (F446 backend, 180MHz default)
-        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx
+        run: make clean && make OW_MCU=STM32F446xx
       - name: Build release (F446 backend, 16MHz HSI)
-        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx SYSCLK_MHZ=16
+        run: make clean && make OW_MCU=STM32F446xx SYSCLK_MHZ=16
       - name: Build release (F446 backend, raw 8MHz HSE)
-        run: make clean && make OW_TARGET=f4 OW_CHIP=f446xx HSE_MHZ=8 SYSCLK_MHZ=8
+        run: make clean && make OW_MCU=STM32F446xx HSE_MHZ=8 SYSCLK_MHZ=8
       # The G474's two clocks. The 170MHz default is HSE+PLL (its own PWR/
       # latency/APB values in app.c), so the 170MHz build says nothing about
       # the 16MHz raw-HSI16 fallback and vice versa. Each gets its own
       # `make clean` so the run cannot pass on the previous clock's objects.
       - name: Build release (G4 backend, 170MHz default)
-        run: make clean && make OW_TARGET=g4
+        run: make clean && make OW_MCU=STM32G474xx
       - name: Build release (G4 backend, 16MHz HSI)
-        run: make clean && make OW_TARGET=g4 SYSCLK_MHZ=16
+        run: make clean && make OW_MCU=STM32G474xx SYSCLK_MHZ=16
       # The H503's three clocks, each its own code path in app.c: the 64MHz
       # raw-HSI default (no PLL, no crystal, no voltage-scaling change), the
       # raw 8MHz HSE (HSERDY wait + CFGR1 switch, 0 wait states) and the 250MHz
       # HSE+PLL1 (VOS0 + 5 flash wait states + the PLL1 fields). Each gets its
       # own `make clean` so the run cannot pass on the previous clock's objects.
       - name: Build release (H5 backend, 64MHz HSI default)
-        run: make clean && make OW_TARGET=h5
+        run: make clean && make OW_MCU=STM32H503xx
       - name: Build release (H5 backend, 8MHz raw HSE)
-        run: make clean && make OW_TARGET=h5 SYSCLK_MHZ=8 HSE_MHZ=8
+        run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=8 HSE_MHZ=8
       - name: Build release (H5 backend, 250MHz HSE+PLL1)
-        run: make clean && make OW_TARGET=h5 SYSCLK_MHZ=250 HSE_MHZ=8
+        run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=250 HSE_MHZ=8
       # The console pin and UART are firmware-only code: hardware_init() is
       # inside #if !defined(DS18B20_TEST_HARNESS), so no host build compiles it
       # on any family and a break here reaches a tag unnoticed. These three
@@ -615,14 +615,14 @@ jobs:
       # built by any other job.
       - name: Build the console-pin and USART3 variants (F4)
         run: |
-          make clean && make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART1_PA9
-          make clean && make OW_TARGET=f4 OW_CHIP=f446xx EXT=-DOW_UART_USART3
-          make clean && make OW_TARGET=f4 OW_CHIP=f407xx EXT=-DOW_UART_USART3
+          make clean && make OW_MCU=STM32F446xx EXT=-DOW_UART_USART1_PA9
+          make clean && make OW_MCU=STM32F446xx EXT=-DOW_UART_USART3
+          make clean && make OW_MCU=STM32F407xx EXT=-DOW_UART_USART3
       # A clock the part cannot reach must fail the build, not ship out of spec.
       # 180MHz is real on the F446 and over the F407's 168MHz cap.
       - name: Reject 180MHz on a part that cannot reach it
         run: |
-          if make OW_TARGET=f4 OW_CHIP=f407xx SYSCLK_MHZ=180 2>&1 | grep -q 'exceeds this F4 part'; then
+          if make OW_MCU=STM32F407xx SYSCLK_MHZ=180 2>&1 | grep -q 'exceeds this F4 part'; then
             echo "F407 correctly rejected 180MHz"
           else
             echo "::error::a 180MHz build was accepted for the F407, whose cap is 168MHz"
@@ -644,6 +644,21 @@ jobs:
       fail-fast: false
       matrix:
         backend: [f0, f1, f3, f4, g0, g4, h5]
+        include:
+          - backend: f0
+            mcu: STM32F030x6
+          - backend: f1
+            mcu: STM32F103xB
+          - backend: f3
+            mcu: STM32F303xC
+          - backend: f4
+            mcu: STM32F407xx
+          - backend: g0
+            mcu: STM32G031xx
+          - backend: g4
+            mcu: STM32G474xx
+          - backend: h5
+            mcu: STM32H503xx
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -665,7 +680,7 @@ jobs:
         with:
           path: ${{ github.workspace }}/build/_deps
           key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
-      - name: Configure (OW_TARGET=${{ matrix.backend }})
+      - name: Configure (OW_MCU=${{ matrix.mcu }})
         # Bare-metal: CMake's default compiler-link check hits missing
         # syscalls in the runtime, so the toolcheck only builds a static
         # archive (CMAKE_TRY_COMPILE_TARGET_TYPE). The toolchain is on PATH
@@ -674,7 +689,7 @@ jobs:
         run: |
           TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
           cmake -S . -B build/cmake-${{ matrix.backend }} \
-              -DOW_TARGET=${{ matrix.backend }} \
+              -DOW_MCU=${{ matrix.mcu }} \
               -DOW_BUILD_EXAMPLES=ON \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
@@ -683,9 +698,9 @@ jobs:
               -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
               -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
               -DFETCHCONTENT_BASE_DIR="${{ github.workspace }}/build/_deps"
-      - name: Build (OW_TARGET=${{ matrix.backend }})
+      - name: Build (OW_MCU=${{ matrix.mcu }})
         run: cmake --build build/cmake-${{ matrix.backend }} -- -j"$(nproc)"
-      - name: Verify install/export tree (OW_TARGET=${{ matrix.backend }})
+      - name: Verify install/export tree (OW_MCU=${{ matrix.mcu }})
         run: |
           cmake --install build/cmake-${{ matrix.backend }} --prefix build/prefix-${{ matrix.backend }}
           test -f build/prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
@@ -695,7 +710,7 @@ jobs:
           # ow_port_f0/f1/g0.h include the shared TIM1/DMA1 core, so a
           # package without it would hand consumers a broken header.
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port_tim_dma.h
-      - name: Build the installed-package consumer (OW_TARGET=${{ matrix.backend }})
+      - name: Build the installed-package consumer (OW_MCU=${{ matrix.mcu }})
         # The step above checks that the install tree contains certain files.
         # This builds a downstream consumer against it, which is the only thing
         # that proves the installed headers still compile on their own, that the
@@ -731,7 +746,7 @@ jobs:
                 -DOW_CMSIS_CORE_INCLUDE="$CORE" \
                 -DOW_CMSIS_DEVICE_INCLUDE="$DEV"
           cmake --build build/consumer-installed-${{ matrix.backend }} -- -j"$(nproc)"
-      - name: Build the FetchContent consumer (OW_TARGET=${{ matrix.backend }})
+      - name: Build the FetchContent consumer (OW_MCU=${{ matrix.mcu }})
         # The other documented way in. As a subproject the library target keeps
         # its BUILD_INTERFACE include directories, which carry the CMSIS paths,
         # so this consumer needs no CMSIS of its own - asking it for one would
@@ -743,7 +758,7 @@ jobs:
           TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
           cmake -S tests/integration/cmake/fetchcontent \
                 -B build/consumer-fetchcontent-${{ matrix.backend }} \
-                -DOW_TARGET=${{ matrix.backend }} \
+                -DOW_MCU=${{ matrix.mcu }} \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
                 -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
@@ -762,7 +777,7 @@ jobs:
         run: |
           TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
           cmake -S . -B build/cmake-variants-${{ matrix.backend }} \
-              -DOW_TARGET=${{ matrix.backend }} \
+              -DOW_MCU=${{ matrix.mcu }} \
               -DOW_BUILD_EXAMPLES=ON \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \

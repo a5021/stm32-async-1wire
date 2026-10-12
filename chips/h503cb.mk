@@ -45,5 +45,5 @@ CHIP_SVD =
 # HSE+PLL1 clocks in app.c.
 CHIP_HSE_MHZ = 8
 # Default build clock. Override per build with SYSCLK_MHZ=/HSE_MHZ= (e.g.
-# `make OW_TARGET=h5 APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8`).
+# `make OW_MCU=STM32H503xx APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8`).
 CHIP_SYSCLK_MHZ = 64

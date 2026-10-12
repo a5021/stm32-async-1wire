@@ -43,7 +43,7 @@
         {
             "label": "Build F0 (debug)",
             "type": "shell",
-            "command": "make OW_TARGET=f0 debug",
+            "command": "make OW_MCU=STM32F030x6 debug",
             "group": "build",
             "problemMatcher": {
                 "owner": "cpp",
@@ -61,7 +61,7 @@
         {
             "label": "Build F3 (debug)",
             "type": "shell",
-            "command": "make OW_TARGET=f3 debug",
+            "command": "make OW_MCU=STM32F303xC debug",
             "group": "build",
             "problemMatcher": {
                 "owner": "cpp",
@@ -79,7 +79,7 @@
         {
             "label": "Build G0 (debug)",
             "type": "shell",
-            "command": "make OW_TARGET=g0 debug",
+            "command": "make OW_MCU=STM32G031xx debug",
             "group": "build",
             "problemMatcher": {
                 "owner": "cpp",
@@ -97,7 +97,7 @@
         {
             "label": "Build F4 (debug)",
             "type": "shell",
-            "command": "make OW_TARGET=f4 debug",
+            "command": "make OW_MCU=STM32F407xx debug",
             "group": "build",
             "problemMatcher": {
                 "owner": "cpp",

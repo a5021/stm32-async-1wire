@@ -67,8 +67,8 @@ extern "C" {
  *  drift. To add a family, extend this chain and the \#include branch below
  *  (plus the \#error spelling list), add the port/stm32<x>/ backend header,
  *  the app.c clock/UART config, a chips/<part>.mk part file, the Makefile
- *  (OW_KNOWN_TARGETS, OW_TARGET branch, TEST_CLOCK_FLAG) and CMakeLists.txt
- *  (OW_TARGET branch, default chip) wiring, the tests/mockdevice header, and
+ *  (OW_KNOWN_TARGETS, OW_MCU family block, TEST_CLOCK_FLAG) and CMakeLists.txt
+ *  (OW_MCU mapping, default chip) wiring, the tests/mockdevice header, and
  *  a case in tests/test/test_sysclk_fallback.c. */
 #if defined(STM32F030x6) || defined(STM32F0)
 #define OW_PORT_FAMILY_F0
