@@ -7,6 +7,7 @@
 #                        TH/TL, Copy/Recall EEPROM)
 #   6_statistics        (device search + sequential polling with signal statistics)
 #   7_low_power         (device search + WFE sleep on long stages)
+#   8_ds2431            (DS2431 EEPROM: Read/Write/Read/Copy Scratchpad cycle)
 #   make                     -> builds 1_basic   (ds18b20_1_basic.elf)
 #   make APP=2_device_search -> builds 2_device_search
 #   make APP=3_round_robin   -> builds 3_round_robin
@@ -14,9 +15,10 @@
 #   make APP=5_commands      -> builds 5_commands
 #   make APP=6_statistics    -> builds 6_statistics
 #   make APP=7_low_power     -> builds 7_low_power
+#   make APP=8_ds2431        -> builds 8_ds2431
 APP ?= 1_basic
-ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power),)
-$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics' or '7_low_power')
+ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power 8_ds2431),)
+$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics', '7_low_power' or '8_ds2431')
 endif
 
 # 6_statistics is the signal-statistics example: enable the optional stats module by
@@ -134,25 +136,25 @@ ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m0 -mthumb
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m0plus -mthumb
 else ifeq ($(OW_TARGET),f4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),f3)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),g4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),h5)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
 endif
 
@@ -232,6 +234,7 @@ UART_TX_SIZE_4_scan_mode    = 256
 UART_TX_SIZE_5_commands     = 256
 UART_TX_SIZE_6_statistics    = 1024
 UART_TX_SIZE_7_low_power    = 256
+UART_TX_SIZE_8_ds2431       = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
@@ -782,19 +785,21 @@ OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
               $(wildcard port/stm32g0/*.h) $(wildcard port/stm32f4/*.h) \
               $(wildcard port/stm32g4/*.h)
 
-# src/ds18b20.c is an umbrella translation unit: it #includes the driver parts
-# below, so editing one of them must rebuild the object. -MP gives each part a
-# phony target of its own, which would otherwise defeat the dependency even
-# where depfiles do parse.
+# src/ds18b20.c and src/ds2431.c are umbrella translation units: each #includes
+# its driver part below, so editing one of them must rebuild the object file.
+# -MP gives each part a phony target of its own, which would otherwise defeat
+# the dependency even where depfiles do parse.
 OW_DRIVER_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
-                  src/ds18b20_search.c src/ds18b20_measure.c
+                  src/ds18b20_search.c src/ds18b20_measure.c \
+                  src/ds2431_txn.c
 
 # Specify how to compile a C source file into an object file
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c $(OW_INC_HDRS) Makefile | $(BUILD_DIR)
 	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
 
-# The umbrella unit needs the include-only parts on top of the shared list.
+# The umbrella units need the include-only parts on top of the shared list.
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_ds18b20.o: $(OW_DRIVER_PARTS)
+$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_ds2431.o: $(OW_DRIVER_PARTS)
 
 # Specify how to compile an assembly source file into an object file
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
@@ -1016,6 +1021,43 @@ endif
 # jobs went red on an artefact name rather than on a test.
 TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter h5,$(OW_TARGET)),_h5,))))))
 
+# --- DS2431 EEPROM driver (second 1-Wire device driver) host tests ----------
+# The DS2431 driver is compiled through tests/mock/ds2431_test_access.c (which
+# #includes src/ds2431.c + src/onewire.c); hardware behaviour is simulated by
+# hw_model.c, exactly like the DS18B20 suite. It is its own executable because
+# the two drivers share the onewire layer's statics and cannot link into one
+# binary. Runs as part of every `make test` on the active OW_TARGET, which is
+# what also exercises the family-sized command buffer (8-bit ow_pulse_t on
+# F0/F1/F3/G0/G4/H5, 16-bit on F4). All variables are defined here, above the
+# variant sections, because GNU make expands rule prerequisites as the file is
+# read: test-lowpower/test reference these names from earlier recipes.
+DS2431_PARTS = src/ds2431_txn.c
+TEST_DS2431_SRC = \
+    $(TEST_DIR)/test_main_ds2431.c \
+    $(TEST_DIR)/test_ds2431.c \
+    $(TEST_MOCK)/hw_model.c \
+    $(TEST_MOCK)/ds2431_test_access.c
+TEST_DS2431_EXE = $(TEST_OUT)/ds2431_test$(TEST_FAM_SUFFIX).exe
+TEST_DS2431_LP_EXE = $(TEST_OUT)/ds2431_test_lowpower$(TEST_FAM_SUFFIX).exe
+TEST_DS2431_ACTIVE_EXE = $(TEST_OUT)/ds2431_test_active$(TEST_FAM_SUFFIX).exe
+TEST_DS2431_NG_EXE = $(TEST_OUT)/ds2431_test_ndebug$(TEST_FAM_SUFFIX).exe
+
+.PHONY: test-ds2431
+test-ds2431: $(TEST_DS2431_EXE)
+	$(TEST_DS2431_EXE)
+
+$(TEST_DS2431_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
+
+$(TEST_DS2431_LP_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
+
+$(TEST_DS2431_ACTIVE_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
+
+$(TEST_DS2431_NG_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
+
 # Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
@@ -1028,7 +1070,7 @@ TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(or $(TEST_FAM_SUFFIX),_f1).o
 # Per-part F4 fallback compile check: always built as part of `make test`,
 # independent of the active OW_TARGET (see F4_PART_CLOCK_CHECKS below).
 
-test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) clock-ref-check
+test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) clock-ref-check test-ds2431
 	$(TEST_EXE)
 	$(foreach x,$(TEST_EXTRA_EXES),$(x);)
 
@@ -1123,8 +1165,9 @@ test-clocks-f4: clock-ref-check
 # __WFE()-related code (SEVONPEND, derived long-stage predicate, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
 .PHONY: test-lowpower
-test-lowpower: $(TEST_LP_EXE)
+test-lowpower: $(TEST_LP_EXE) $(TEST_DS2431_LP_EXE)
 	$(TEST_LP_EXE)
+	$(TEST_DS2431_LP_EXE)
 
 # src/ds18b20.c is an amalgamated translation unit: the search / txn /
 # resolution / measurement code lives in these include-only parts (guarded by
@@ -1200,8 +1243,9 @@ TEST_ACTIVE_FLAG = $(TEST_FLAG) -DOW_DRIVE_ACTIVE=1
 TEST_ACTIVE_EXE  = $(TEST_OUT)/ds18b20_test_active$(TEST_FAM_SUFFIX).exe
 
 .PHONY: test-active
-test-active: $(TEST_ACTIVE_EXE)
+test-active: $(TEST_ACTIVE_EXE) $(TEST_DS2431_ACTIVE_EXE)
 	$(TEST_ACTIVE_EXE)
+	$(TEST_DS2431_ACTIVE_EXE)
 
 $(TEST_ACTIVE_EXE): $(TEST_ACTIVE_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_ACTIVE_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_ACTIVE_SRC) -o $@
@@ -1217,8 +1261,9 @@ TEST_NG_SRC  = $(TEST_SRC) $(TEST_DIR)/test_param_guard.c
 TEST_NG_EXE  = $(TEST_OUT)/ds18b20_test_ndebug$(TEST_FAM_SUFFIX).exe
 
 .PHONY: test-ndebug
-test-ndebug: $(TEST_NG_EXE)
+test-ndebug: $(TEST_NG_EXE) $(TEST_DS2431_NG_EXE)
 	$(TEST_NG_EXE)
+	$(TEST_DS2431_NG_EXE)
 
 $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_NG_SRC) examples/app/app.c -o $@
@@ -1259,7 +1304,7 @@ endef
 .PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
         fuzz-encode-byte fuzz-bit-from-pulse \
         fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
-        fuzz-measure fuzz-txn fuzz-lowpower fuzz-all
+        fuzz-measure fuzz-txn fuzz-lowpower fuzz-ds2431-txn fuzz-all
 
 $(FUZZ_OUT):
 	mkdir -p $@
@@ -1361,10 +1406,22 @@ fuzz-lowpower: | $(FUZZ_OUT)
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_lowpower
 	$(call run_fuzz,fuzz_lowpower)
 
+# Tier 10: DS2431 EEPROM command-transaction engine (single-TU via
+# ds2431_test_access). Fuzz input selects the command (Read Memory / Write /
+# Read Scratchpad / Copy), addressing mode and parasite flag, drives the
+# presence reset and the read-backs. The reference-model oracle checks
+# ok/parasite and the copied out-buffer (including the scratchpad TA/ES echo
+# check); every property is checked with abort(). It compiles the driver + the
+# shared layer through the accessor TU, so no separate src/onewire.c.
+fuzz-ds2431-txn: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_ds2431_txn.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds2431_txn
+	$(call run_fuzz,fuzz_ds2431_txn)
+
 fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
           fuzz-encode-byte fuzz-bit-from-pulse \
           fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
-          fuzz-measure fuzz-txn fuzz-lowpower
+          fuzz-measure fuzz-txn fuzz-lowpower fuzz-ds2431-txn
 
 # Help target
 help:
@@ -1379,6 +1436,7 @@ help:
 	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-f4/-g0)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f4/-g0)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f4/-g0)"
+	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f4)"
 	@echo "  debug           - Build with debug symbols"
@@ -1387,12 +1445,13 @@ help:
 	@echo "  fuzz-measure    - Fuzz the DS18B20 measurement state machine"
 	@echo "  fuzz-txn        - Fuzz the DS18B20 command-transaction engine"
 	@echo "  fuzz-lowpower   - Fuzz the low-power predicate + WFE sleep (OW_PORT_LOW_POWER=1)"
+	@echo "  fuzz-ds2431-txn - Fuzz the DS2431 EEPROM command-transaction engine"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power  - example application to build"
+	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431  - example application to build"
 	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|h5   - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"

@@ -31,6 +31,14 @@
 # (h5 measured 2026-10-10: same uint8_t pulse tables again - GPDMA converts
 # widths in hardware, so no F4-style halfword tables - hence the same 329.)
 #
+# 2026-10-11: src/ds2431.c (the DS2431 EEPROM driver) joined the firmware links
+# (Makefile SRC / CMake core library). None of the shipped examples call it, so
+# --gc-sections drops its context and the three tiers are unchanged; the driver
+# is present in the image but byte-inert. Its context static is also named `ctx`
+# (file-local, so no link clash with the DS18B20 one) — the day an example pulls
+# the DS2431 driver in, the `ctx` allowlist entry sums both, which is the
+# intended behaviour but worth knowing when reading a grown number.
+#
 # Recalibration procedure (ceilings are exact by design — no slack, so any
 # growth must be conscious; a red gate is a question, not a failure):
 #   - Intentional RAM change: update the numbers above and the matching

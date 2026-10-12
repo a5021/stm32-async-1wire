@@ -61,18 +61,20 @@ srcdir = b["srcDir"]
 
 # src/ holds sources that are deliberately NOT in the manifest, so "everything
 # under srcDir must be listed" would be the wrong check - it would demand the
-# amalgamated driver parts, which ds18b20.c #includes and which must never be
-# compiled as separate TUs.
+# amalgamated driver parts, which ds18b20.c/ds2431.c #include and which must
+# never be compiled as separate TUs.
 #
 #   ds18b20_{measure,resolution,search,txn}.c  the four functional parts of the
 #       amalgamated driver TU. CMakeLists.txt marks them HEADER_FILE_ONLY for
 #       this reason; listing them here would compile them twice.
+#   ds2431_txn.c  the DS2431 operation engine, included by its own amalgamated
+#       umbrella TU (src/ds2431.c) for the same reason.
 #   syscall.c  weak newlib-nano retarget stubs. Its own header says the library
 #       target does not carry it: CMake links --specs=nosys.specs, which ships
 #       equivalent weak stubs, and the linker collapses duplicate weak symbols.
 INTENTIONALLY_UNLISTED = {
     "ds18b20_measure.c", "ds18b20_resolution.c",
-    "ds18b20_search.c", "ds18b20_txn.c", "syscall.c",
+    "ds18b20_search.c", "ds18b20_txn.c", "ds2431_txn.c", "syscall.c",
 }
 
 all_c = sorted(f for f in os.listdir(srcdir) if f.endswith(".c"))
@@ -123,7 +125,7 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
 # or -Iport/common fails here instead of in a real project. Every backend the
 # manifest carries a port flag for earns its compile (F0/F1/F3/F4/G0/G4/H5).
 for target in F0 F1 F3 F4 G0 G4 H5; do
-    for src in src/onewire.c src/ds18b20.c src/ow_stats.c; do
+    for src in src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c; do
         gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             "-DSTM32$target" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
             $INCS -Itests/mock \
