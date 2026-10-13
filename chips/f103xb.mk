@@ -2,7 +2,7 @@
 #
 # Part identity ONLY. Anything shared by the whole family — MCU flags, the
 # 1-Wire pin and timer/DMA mapping, the port header itself — lives in the
-# OW_MCU family block of the Makefile. Do not duplicate it here.
+# OW_TARGET family block of the Makefile. Do not duplicate it here.
 #
 # Naming follows the CMSIS device macro (stm32f4xx.h lists the valid device
 # macros per family), lowercased: STM32F103xB -> f103xb.
