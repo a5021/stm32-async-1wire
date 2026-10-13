@@ -49,6 +49,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to discover the bus, then `ds2431_select()` + the four DS2431 commands.
   Build with `make APP=8_ds2431`.
 
+- **`8_ds2431` wired through the build systems, docs and release.** The example
+  joins the CMake example list (`-DOW_BUILD_EXAMPLES=ON`, its own
+  `UART_TX_SIZE=256`), the CI lint/analysis jobs (format and cppcheck entries
+  for `ds2431.h`, `ds2431.c`, `ds2431_txn.c` and `8_ds2431/main.c`) and the
+  firmware jobs (`Build release (8_ds2431)` in `ci.yml`, `make APP=8_ds2431`
+  in `build.yml` with the variants job checking its `.hex`/`.bin`). The release
+  matrix publishes 9 default-clock variants — one per MCU: F1 72, F0 48, G0 64,
+  F3 72, G4 170, H5 64, F407 168, F401 84, F446 180 — as `ds18b20_8_ds2431_*`
+  artifacts, listed in the Download table, with a "What's new in 2.3.1" section
+  in the release body. The README documents the example, the driver and the
+  test/fuzz targets with the counts measured on this toolchain, and the fuzz
+  dictionary gained the DS2431 opcodes.
+
 ### Removed
 
 - **Backend-selection macros `OW_PORT_TARGET_F0 … OW_PORT_TARGET_H5`.**
