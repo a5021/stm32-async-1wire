@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
 
-Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, and other 1-Wire slaves (DS2413, DS2431, ...) can ride it as-is.
+Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431 EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...) can ride it as-is.
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Seven backends ship today:
 
@@ -45,8 +45,8 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - Pure Bare-Metal: direct register manipulation, no HAL or LL libraries.
 - Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
   non-blocking 1-Wire master (bus primitives + Maxim Search ROM) scheduled on
-  TIM1/DMA; the DS18B20 driver is built on it, and other 1-Wire slaves
-  (DS2413, DS2431, ...) can reuse it as-is — see
+  TIM1/DMA; the DS18B20 and DS2431 drivers are built on it, and other 1-Wire
+  slaves (DS2413, ...) can reuse it as-is — see
   [1-Wire Layer (shared)](#1-wire-layer-shared).
   - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
     header-only backends for STM32F0, STM32F1, STM32F3, STM32F4, STM32G0,
@@ -123,6 +123,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 ```
 ├── inc/                    # Project header files
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
+│   ├── ds2431.h            # DS2431 EEPROM driver interface (commands + async API)
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
@@ -199,6 +200,11 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
 │   ├── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
+│   ├── ds2431.c            # Driver: DS2431 EEPROM command set on the 1-Wire
+│   │                       # layer. Compiles as ONE translation unit
+│   │                       # (#includes its ds2431_txn.c part below).
+│   ├── ds2431_txn.c        # (include-only part) Read Memory + Write/Read/Copy
+│   │                       # Scratchpad transaction engine
 │   └── syscall.c           # Minimal libc stubs (_write/_sbrk/...) for bare metal
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
@@ -211,11 +217,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── 5_commands/main.c   # Device search + command transactions
 │   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
 │   ├── 6_statistics/main.c # Device search + stats dump every N cycles
-│   └── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
+│   ├── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
+│   └── 8_ds2431/main.c     # DS2431 EEPROM: Read/Write/Read/Copy scratchpad cycle
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)
-│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 13 harnesses)
+│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 14 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
@@ -260,7 +267,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Examples
 
-Seven ready-to-run example applications are provided; select one with `APP`:
+Eight ready-to-run example applications are provided; select one with `APP`:
 
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
@@ -271,6 +278,7 @@ Seven ready-to-run example applications are provided; select one with `APP`:
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
+| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface and leaves the bus idle when done. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -280,6 +288,7 @@ make APP=4_scan_mode                          # build 4_scan_mode -> build/ds18b
 make APP=5_commands                           # build 5_commands -> build/ds18b20_5_commands.elf
 make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
 make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
+make APP=8_ds2431                             # build 8_ds2431 -> build/ds18b20_8_ds2431.elf (DS2431 EEPROM)
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -732,10 +741,12 @@ via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 #include "ds18b20.h"
 ```
 
-> Working with a non-DS18B20 1-Wire slave (DS2413, DS2431, ...)? Include
-> `"onewire.h"` instead and build directly on the shared bus primitives
+> Working with a 1-Wire slave that has no driver in this repo (DS2413, ...)?
+> Include `"onewire.h"` instead and build directly on the shared bus primitives
 > (`onewire_reset()`, `onewire_write_then_read()`, the Search ROM engine) —
-> no DS18B20 code is pulled in.
+> no DS18B20 code is pulled in. The DS2431 is the exception: it ships with the
+> repo as its own driver — include `"ds2431.h"`
+> (see `examples/8_ds2431`).
 
 ### 2. Initialize the Driver
 
@@ -952,6 +963,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-f4` | Build and run host tests against the STM32F4 backend mock |
 | `make test-g4` | Build and run host tests against the STM32G4 backend mock |
+| `make test-h5` | Build and run host tests against the STM32H5 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
 | `make test-active-f0` | Same as above against the STM32F0 backend mock |
@@ -971,12 +983,14 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
+| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (18 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
-| `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a DS18B20 command dictionary; CI caches the grown corpus |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
+| `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
 | `make fuzz-txn` | Fuzz the DS18B20 command-transaction engine (ROM/scratchpad/thresholds/copy/recall/power-supply) against a reference model |
+| `make fuzz-ds2431-txn` | Fuzz the DS2431 EEPROM command-transaction engine (Read Memory, Write/Read/Copy Scratchpad) against a reference model |
 | `make fuzz-lowpower` | Fuzz the low-power long-stage predicate and drive the `WFE` sleep loop itself (`OW_PORT_LOW_POWER=1`; the harness models the TIM1 update event via `-DMOCK_WFE_HOOK`; requires host-side Clang) |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
 | `make gccversion` | Show the detected compiler and linker versions |
@@ -988,7 +1002,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing-1). |
-| `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every example with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
+| `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every DS18B20 example (1-7) with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
 | `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define builds are byte-identical to the original. |
 
 ### Flash
@@ -1008,23 +1022,31 @@ make test-f3     # same suite against the STM32F3 backend mock
 make test-g0     # same suite against the STM32G0 backend mock
 make test-f4     # same suite against the STM32F4 backend mock
 make test-g4     # same suite against the STM32G4 backend mock
+make test-h5     # same suite against the STM32H5 backend mock
+make test-ds2431 # DS2431 EEPROM suite (18 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header (`tests/mock/stm32f0xx.h` / `stm32f1xx.h` / `stm32f3xx.h` /
-`stm32f4xx.h` / `stm32g0xx.h`) — each suite runs the full driver against its own
+`stm32f4xx.h` / `stm32g0xx.h` / `stm32g4xx.h` / `stm32h5xx.h`) — each suite runs
+the full driver against its own
 backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
    driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-   object file.) The base suite runs 309 tests against the F0/F1 mocks, 310
+   object file.) The DS2431 driver is amalgamated the same way
+   (`tests/mock/ds2431_test_access.c` pulls `src/ds2431.c` and its
+   `ds2431_txn.c` part into one object). The base suite runs 309 tests against the F0/F1 mocks, 310
    against the F3 and F4 backends (the F4 target also builds and runs its
    180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe` as an
    extra, same count) and 311 against G0 (which adds two DMAMUX
    request-routing tests), 312 against G4 (same two DMAMUX tests plus the
    G4 console-baud test; the 16 MHz variant `ds18b20_test_g4_16mhz.exe`
-   runs as an extra, same count).
+   runs as an extra, same count) and 313 against H5 (which also runs the
+   250 MHz and 8 MHz host variants `ds18b20_test_h5_250mhz.exe` and
+   `ds18b20_test_h5_8mhz.exe` as extras, same count). Every wrapper runs
+   the DS2431 suite alongside it (18 tests, see `make test-ds2431`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -1055,11 +1077,17 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     test-scaffold accessors/harness edge-case branches (`test_harness_api`)
 -   `ow_stats` capture and error counters plus the non-blocking dump protocol
     (`test_ow_stats`)
+-   DS2431 EEPROM command transactions (`test_ds2431` in the separate
+    `make test-ds2431` suite): Read Memory over Skip/Match ROM, Write/Read
+    Scratchpad with TA/ES echo verification, Copy Scratchpad with the t_PROG
+    hold-off, presence-abort and out-of-range paths, plus a full end-to-end
+    write cycle
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests, every family), `make test-lowpower` (full suite + low-power WFE path,
-321 tests against F0/F1, 322 against F3/F4, 323 against G0, 324 against G4) and
-`make test-ndebug` (322 / 323 / 324 / 325, asserts off).
+tests + the 18-test DS2431 suite, every family), `make test-lowpower` (full
+suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
+327 against G0, 328 against G4, plus the same 18 DS2431 tests) and
+`make test-ndebug` (322 / 323 / 324 / 325 + the same 18, asserts off).
 
 ### PlatformIO
 
@@ -1119,7 +1147,7 @@ does. `build/` is ignored and `make clean` removes it; a `--prefix` at the
 repository root works too but leaves a directory that `make clean` has to glob
 for.
 
-Add `-DOW_BUILD_EXAMPLES=ON` to build the seven example applications. They are
+Add `-DOW_BUILD_EXAMPLES=ON` to build the eight example applications. They are
 built with the same per-example `UART_TX_BUF_SIZE` and, for `6_statistics`, the
 same `OW_STATS_ENABLE` as `make APP=<ex>`, and
 each one also gets a `.hex` and a `.bin` next to the executable in
@@ -2188,7 +2216,7 @@ The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
 ```sh
-make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # all seven examples gate ds18b20_set_parasite(1) on it
+make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # all seven DS18B20 examples gate ds18b20_set_parasite(1) on it
 ```
 
 ### Signal Statistics Module (`ow_stats`)
@@ -2572,9 +2600,10 @@ the issue templates, feature requests, Code of Conduct, PR workflow). Quick
 version:
 
 1. Fork and create a feature branch (`git checkout -b fix/my-change`).
-2. Make your changes and keep the host tests green: `make test`, plus
+2. Make your changes and keep the host tests green: `make test` (includes the
+   DS2431 suite), plus
    `make test-f0` / `make test-f3` / `make test-g0` / `make test-f4` /
-   `make test-g4` for the other backends.
+   `make test-g4` / `make test-h5` for the other backends.
 3. Format touched sources with the repo's `.clang-format`
    (`clang-format --dry-run --Werror <files>` must pass), using the
    `clang-format` version CI pins — see the `format` job in
