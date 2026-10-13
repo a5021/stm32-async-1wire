@@ -691,7 +691,7 @@ test-manifest:
 	@sh tests/check_library_manifest.sh
 
 # --- Project version consistency (see tests/check_version.sh) ---
-# The version is declared in eight places; inc/ds18b20.h is the source the
+# The version is declared in several places; inc/ds18b20.h is the source the
 # others are compared against. Also requires CHANGELOG.md to carry a dated
 # section for it, which is the check whose absence let v1.8.1 ship untitled.
 test-version:
@@ -1432,13 +1432,18 @@ help:
 	@echo "  clean-deps      - Remove downloaded dependencies (CMSIS/, CMake _deps/)"
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
-	@echo "  test-f0         - ... against the STM32F0 backend (also -f4 / -g0)"
-	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-f4/-g0)"
-	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f4/-g0)"
-	@echo "  test-active     - ... with the active-drive write path (also -f0/-f4/-g0)"
+	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-h5)"
+	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"
+	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f3/-f4/-g0/-g4/-h5)"
+	@echo "  test-active     - ... with the active-drive write path (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
-	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f4)"
+	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
+	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
+	@echo "  test-version    - Check the version is declared consistently everywhere"
+	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
+	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
+	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
 	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"
@@ -1452,6 +1457,10 @@ help:
 	@echo "  help            - Show this help"
 	@echo "Variables:"
 	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431  - example application to build"
+	@echo "  OW_MCU=<mcu>                     - primary selector: one ST device macro selects"
+	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
+	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC, STM32F401xE,"
+	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx, STM32H503xx)"
 	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|h5   - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"

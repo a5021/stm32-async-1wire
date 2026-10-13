@@ -1,7 +1,7 @@
-# libFuzzer dictionary for the DS18B20 harnesses: ROM commands, function
-# commands and the two 1-Wire slot pulse widths. Tokens are byte strings, so
-# the timing harnesses pick up the pulse entries while the command harnesses
-# pick up the opcode entries.
+# libFuzzer dictionary for the shared 1-Wire command harnesses (DS18B20 and
+# DS2431): ROM commands, function commands and the two 1-Wire slot pulse
+# widths. Tokens are byte strings, so the timing harnesses pick up the pulse
+# entries while the command harnesses pick up the opcode entries.
 rom_family="\x28"
 read_rom="\x33"
 match_rom="\x55"
@@ -13,6 +13,9 @@ read_scratchpad="\xbe"
 copy_scratchpad="\x48"
 recall_eeprom="\xb8"
 read_power_supply="\xb4"
+ds2431_read_memory="\xf0"
+ds2431_write_scratchpad="\x0f"
+ds2431_read_scratchpad="\xaa"
 one_slot="\x05\x00"
 zero_slot="\x3c\x00"
 reset_pulse="\xf4\x01"

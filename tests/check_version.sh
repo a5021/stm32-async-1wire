@@ -1,12 +1,13 @@
 #!/bin/sh
 # tests/check_version.sh - verify the project version is declared consistently
 #
-# The version lived in eight places: four macros in inc/ds18b20.h, the CMake
-# project(), the two PlatformIO manifests, the Doxygen PROJECT_NUMBER, the
-# FetchContent GIT_TAG example in the README, and the release notes body. Nothing
-# compared them, which is how v1.8.1 shipped with no [1.8.1] section in
-# CHANGELOG.md at all: the tag existed, the release notes did not, and the
-# section that should have described it had drifted into [Unreleased].
+# The version is declared in several places: the four macros in inc/ds18b20.h,
+# the CMake project(), the two PlatformIO manifests, the Doxygen
+# PROJECT_NUMBER, the FetchContent GIT_TAG example in the README, and the
+# release notes body in CHANGELOG.md. Nothing compared them, which is how
+# v1.8.1 shipped with no [1.8.1] section in CHANGELOG.md at all: the tag
+# existed, the release notes did not, and the section that should have
+# described it had drifted into [Unreleased].
 #
 # inc/ds18b20.h is the single source: it is the only place a user compiles
 # against, so every other site is compared against the macros there. A bump that
@@ -85,8 +86,6 @@ else
 fi
 
 # --- CHANGELOG must describe the version being released ---------------------
-# A tag with no section is what went wrong last time, so the section and its
-# compare link are part of "the version is consistent".
 # A tag with no section is what went wrong last time, so the section and its
 # compare link are part of "the version is consistent". The date is required
 # rather than optional: a "## [2.0.0] - TBD" placeholder is what a release gets

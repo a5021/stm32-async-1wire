@@ -49,7 +49,7 @@ interrupt-free, minimal CPU usage).
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
    and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
 4. Run the code quality checks used in CI:
-   - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/ds18b20_search.c src/ds18b20_txn.c src/ds18b20_resolution.c src/ds18b20_measure.c examples/1_basic/main.c`
+   - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/ds18b20_search.c src/ds18b20_txn.c src/ds18b20_resolution.c src/ds18b20_measure.c inc/ds2431.h src/ds2431.c src/ds2431_txn.c examples/1_basic/main.c`
      (the full list, and the version, are in the `format` job above)
    - `cppcheck --enable=warning,style,performance,portability ...`
 5. Update the README and the [CHANGELOG](CHANGELOG.md) if your change
@@ -70,7 +70,8 @@ interrupt-free, minimal CPU usage).
 make                # release build (must succeed with -Werror)
 make SYSCLK_MHZ=8   # 8MHz variant
 make debug          # optional, for debugging
-make test           # host test suite; also -f0 / -f4 / -g0
+make test           # host test suite; also -f0 / -f1 / -f3 / -f4 / -g0 / -g4 / -h5
+make test-ds2431    # the DS2431 EEPROM driver suite
 make test-lowpower  # same suite with the -DOW_PORT_LOW_POWER=1 WFE path
 make test-ndebug    # same suite with asserts compiled out
 make test-clocks    # per-family clock-default compile checks
