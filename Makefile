@@ -968,7 +968,11 @@ endif
 # reading of them. Empty by default, so the normal suite is unaffected.
 TEST_EXTRA_FLAG ?=
 
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
+# The host suite's clock: mirrors the firmware build, which always passes
+# -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk. Placed before
+# $(TEST_EXTRA_FLAG) on purpose, so an explicit TEST_EXTRA_FLAG clock (e.g.
+# the ci 84MHz/25MHz-crystal F4 run) still wins by last-`-D`-wins.
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
@@ -1067,11 +1071,18 @@ TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(or $(TEST_FAM_SUFFIX),_f1).o
+# No-default anti-regression twin: the same source WITHOUT -DOW_PORT_SYSCLK_MHZ,
+# proving no family header smuggles a fallback default back in.
+TEST_CLOCK_NODEFAULT_OBJ = $(TEST_OUT)/test_sysclk_nodefault$(or $(TEST_FAM_SUFFIX),_f1).o
+# SystemCoreClock auto-path runner: the only host TU built WITHOUT
+# -DOW_PORT_SYSCLK_MHZ (see tests/test/test_sysclk_auto.c).
+TEST_AUTO_EXE = $(TEST_OUT)/test_sysclk_auto$(or $(TEST_FAM_SUFFIX),_f1).exe
 # Per-part F4 fallback compile check: always built as part of `make test`,
 # independent of the active OW_TARGET (see F4_PART_CLOCK_CHECKS below).
 
-test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) clock-ref-check test-ds2431
+test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_NODEFAULT_OBJ) $(TEST_AUTO_EXE) clock-ref-check test-ds2431
 	$(TEST_EXE)
+	$(TEST_AUTO_EXE)
 	$(foreach x,$(TEST_EXTRA_EXES),$(x);)
 
 # --- Per-family wrappers, generated ---------------------------------------
@@ -1100,7 +1111,7 @@ endef
 
 define OWRULE_TEST_CLOCKS
 test-clocks-$(1):
-	$$(MAKE) OW_TARGET=$(1) $(TEST_OUT)/test_sysclk_fallback_$(1).o
+	$$(MAKE) OW_TARGET=$(1) $(TEST_OUT)/test_sysclk_fallback_$(1).o $(TEST_OUT)/test_sysclk_nodefault_$(1).o
 endef
 
 OW_TEST_WRAPPERS = $(foreach v,$(OW_TEST_VARIANTS),\
@@ -1111,40 +1122,62 @@ $(foreach v,$(OW_TEST_VARIANTS),\
    $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_VARIANT,$(v),$(f)))))
 $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 
-# --- Family-macro fallback compile check (see test_sysclk_fallback.c) ---
-# Compile-only: verifies that selecting a family through the raw family macro
-# (STM32F0/F1/G0, the PlatformIO/STM32CubeMX path) resolves both
-# OW_PORT_FAMILY_* and the OW_PORT_SYSCLK_MHZ default for the backend under
-# test. Runs as part of every test build so the two can never drift.
+# --- Family-macro clock-value compile check (see test_sysclk_fallback.c) ---
+# Compile-only, values mode: verifies that selecting a family through the raw
+# family macro (STM32F0/F1/G0, the PlatformIO/STM32CubeMX path) resolves
+# OW_PORT_FAMILY_*, and that the chips/<part>.mk clock passed explicitly via
+# -D matches the literal table and the PLL/ceiling invariants. Runs as part
+# of every test build so the part file and the literals can never drift.
 
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+
+# --- No-default anti-regression twin (see test_sysclk_fallback.c) ---
+# Compile-only, no -DOW_PORT_SYSCLK_MHZ on purpose: fails if any family header
+# reintroduces a fallback default, and proves the family macro still resolves
+# the backend token (the auto-path a header-less integration gets).
+
+$(TEST_CLOCK_NODEFAULT_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
-# --- Per-part F4 fallback compile check (see test_sysclk_fallback.c) ---
-# Compile-only, built as part of every `make test` (via clock-ref-check): verifies
-# that selecting the F4 family together with a device macro that is not the plain
-# F407 one resolves the F4 backend with *that part's* clock default - 84 MHz for
-# the STM32F401 parts, 180 MHz for the STM32F446 - instead of the 168 MHz
-# F405/F407 default. The macro is taken from chips/<chip>.mk rather than repeated
-# here, so renaming the part in one place cannot leave this guard testing a
-# macro nothing builds. Deliberately does not pass -DOW_PORT_SYSCLK_MHZ: the
-# point is to check the default that onewire.h derives from the part macro alone.
+# --- SystemCoreClock auto-path runner (see tests/test/test_sysclk_auto.c) ---
+# The only host TU built WITHOUT -DOW_PORT_SYSCLK_MHZ: defines its own
+# SystemCoreClock, drives ow_port_init() through every supported frequency
+# and checks the PSC plus the runtime IC4F tier. Runs in every `make test`.
+
+$(TEST_AUTO_EXE): tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_PORT_FLAG) -DHOST_BUILD $(TEST_INC) $(TEST_OPT) tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c -o $@
+
+# --- Per-part F4 clock-value compile check (see test_sysclk_fallback.c) ---
+# Compile-only values mode, built as part of every `make test` (via
+# clock-ref-check): verifies that selecting the F4 family together with a
+# device macro that is not the plain F407 one resolves the F4 backend, with
+# *that part's* chips/<part>.mk clock - 84 MHz for the STM32F401 parts,
+# 180 MHz for the STM32F446 - checked against the per-part literals instead
+# of the 168 MHz F405/F407 value. The macro is taken from chips/<chip>.mk
+# rather than repeated here, so renaming the part in one place cannot leave
+# this guard testing a macro nothing builds. The nodefault twin (no clock
+# -D) proves the part macro resolves the backend with no header default.
 #
-# Every F4 part with a default of its own is listed here. Enumerating them in one
+# Every F4 part with a clock of its own is listed here. Enumerating them in one
 # list keeps a newly added variant from silently shipping without a guard - the
 # xE part was checked for nothing at all until this was generalised from the
 # single f401xc entry it started as, and the F446 is the case that matters most
 # (180 MHz is a different PLL branch from 168, not just a different number).
-# f407xx is left out on purpose: 168 MHz is the family-wide fallback that
+# f407xx is left out on purpose: 168 MHz is the family-wide value that
 # test_sysclk_fallback_f4.o already covers with the plain STM32F4 macro.
 F4_PART_CLOCK_CHECKS = f401xc f401xe f446xx
 F4_PART_CLOCK_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallback_$(c).o)
+F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_nodefault_$(c).o)
 
 # The stem of the target is the part, so one pattern rule serves every F4 part;
 # the sub-make below selects OW_CHIP, which is what makes CHIP_DEV_DEF the right
 # part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
 # file changes.
 $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
+	    tests/test/test_sysclk_fallback.c -o $@
+$(TEST_OUT)/test_sysclk_nodefault_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
@@ -1152,7 +1185,7 @@ $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefi
 # that part's macro. Recursion is what makes the part file the single source.
 .PHONY: clock-ref-check
 clock-ref-check:
-	$(foreach c,$(F4_PART_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o &&) true
+	$(foreach c,$(F4_PART_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o $(TEST_OUT)/test_sysclk_nodefault_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
 test-clocks: test-chips test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
@@ -1281,9 +1314,9 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
-               -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-               -DHOST_BUILD -DSTM32F1 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
-               -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+                -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
+                -DHOST_BUILD -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
+                -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz
 FUZZ_TIME    ?= 120
