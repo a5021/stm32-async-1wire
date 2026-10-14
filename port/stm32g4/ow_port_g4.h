@@ -28,17 +28,15 @@
  *    search-ROM matrix on the WeAct board is the experiment - F4's rejected
  *    byte feed (merged slots, all-zero ROMs, see port/stm32f4/HARDWARE-NOTES.md)
  *    is what a failure looks like.
- *  - OW_PORT_SYSCLK_MHZ: this family's default system clock (HSE+PLL, see
- *    app.c); -DOW_PORT_SYSCLK_MHZ=N overrides it, 16 selects raw HSI16.
+ *  - OW_PORT_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c; 16
+ *    selects raw HSI16).  The build systems pass it explicitly
+ *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *  - OW_PORT_G4_MAX_SYSCLK_MHZ: the part ceiling; app.c rejects more.
  *  - OW_HSE_MHZ: the board crystal, read by app.c as the PLL's M divider.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (shared with TIM16 on this family). */
 typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_PORT_SYSCLK_MHZ)
-#define OW_PORT_SYSCLK_MHZ 170 /* STM32G474: HSE 8MHz + PLL (M=2, N=85, R=2) */
-#endif
 
 #if !defined(OW_PORT_G4_MAX_SYSCLK_MHZ)
 #define OW_PORT_G4_MAX_SYSCLK_MHZ 170 /* G474 ceiling, voltage Range 1 Boost */

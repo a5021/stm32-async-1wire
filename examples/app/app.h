@@ -28,6 +28,14 @@
 #include "onewire.h"
 #include <stdint.h>
 
+/* The application layer always needs an explicit clock: unlike the port core
+ * (which falls back to SystemCoreClock), an undefined OW_PORT_SYSCLK_MHZ
+ * would read as 0 in the #if ladders below and silently select the /1
+ * divisors with a vacuous _Static_assert. Fail loudly instead. */
+#ifndef OW_PORT_SYSCLK_MHZ
+#error "app.h: OW_PORT_SYSCLK_MHZ is required (pass -DOW_PORT_SYSCLK_MHZ=<MHz>); the SystemCoreClock fallback lives in the port core only"
+#endif
+
 #ifndef UART_TX_BUF_SIZE
 #define UART_TX_BUF_SIZE 128u /**< Default TX ring buffer size (power of two) */
 #endif

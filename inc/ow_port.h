@@ -52,11 +52,12 @@ extern "C" {
 #define OW_PORT_MARKER_TOGGLE() ((void)0)
 #endif
 
-/* The selected backend (onewire.h includes it) supplies OW_PORT_SYSCLK_MHZ
- * (used for the timer prescaler and the IC4F selection below) and ow_pulse_t
- * for the backend signatures; the bit-slot durations come from ow_config.h.
- * Including onewire.h here keeps this header self-contained regardless of the
- * TU include order. */
+/* The selected backend (onewire.h includes it) receives OW_PORT_SYSCLK_MHZ
+ * from the build (used for the timer prescaler and the IC4F selection
+ * below) or, when it is absent, reads the CMSIS SystemCoreClock at startup;
+ * it also supplies ow_pulse_t for the backend signatures. The bit-slot
+ * durations come from ow_config.h. Including onewire.h here keeps this
+ * header self-contained regardless of the TU include order. */
 #include "onewire.h"
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's

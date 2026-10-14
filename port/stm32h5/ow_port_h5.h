@@ -62,8 +62,11 @@
  *    in hardware, so a byte memory cell feeding the halfword CCR3 needs no
  *    packing games (contrast the F4 backend, a uint16_t direct-mode feed on
  *    DMA2 streams).  Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: this family's default system clock (HSI 64MHz
- *    direct, see app.c); -DOW_PORT_SYSCLK_MHZ=N overrides it.  The two other
+ *  - OW_PORT_SYSCLK_MHZ: system clock in MHz (HSI 64MHz direct, see
+ *    app.c).  The build systems pass it explicitly
+ *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
+ *    The two other clocks app.c implements for this family are the raw 8MHz
  *    clocks app.c implements for this family are the raw 8MHz HSE (N =
  *    OW_HSE_MHZ) and the HSE+PLL1 250MHz step (N = 250): both switch CFGR1.SW
  *    away from HSI, the 250 path raising VOS to SCALE0 and taking 5 flash
@@ -77,10 +80,6 @@
  *    (split vector on this family: TIM1_UP, not the combined BRK/UP/TRG/COM
  *    of F0/F1/G0). */
 typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_PORT_SYSCLK_MHZ)
-#define OW_PORT_SYSCLK_MHZ 64 /* STM32H503: HSI 64MHz direct, no PLL */
-#endif
 
 #if !defined(OW_PORT_H5_MAX_SYSCLK_MHZ)
 #define OW_PORT_H5_MAX_SYSCLK_MHZ 250 /* H503 ceiling */

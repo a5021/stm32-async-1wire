@@ -125,6 +125,7 @@
  *     be overridden from the build (-DOW_PORT_IC4F_ARGS=...) to sweep the
  *     filter on a bench.
  *     Test: tests/test/test_timing.c::test_ic4f_matches_the_documented_tier() */
+#if defined(OW_PORT_SYSCLK_MHZ)
 #ifndef OW_PORT_IC4F_ARGS
 #if (OW_PORT_SYSCLK_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
@@ -138,6 +139,8 @@
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
 #endif
 #endif
+#endif /* OW_PORT_SYSCLK_MHZ: ladder above is compile-time only; the OC3PE
+        * knob below is clock-independent and shared by both paths. */
 
 /* OC3 output-compare preload (OC3PE) knob, see ow_port.h for the rationale.
  * Or-ed into the CCMR2 mask on the write/capture paths that rely on it
@@ -164,9 +167,64 @@
  * Which APB the timer sits on, and why that family's prescalers are what
  * they are, is documented in each backend; it is checked by
  * tests/test/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
+#if defined(OW_PORT_SYSCLK_MHZ)
 #define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
                "TIM prescaler exceeds 16-bit PSC register width");
+/* CCMR2 capture-mode word shared by the three capture arms below
+ * (ow_port_capture, ow_port_read_pair, ow_port_write_then_read): OC3 in PWM
+ * mode 2 on the bus pin, CC4 capturing the same pin through TI3, plus the
+ * IC4F tier above and the OC3PE knob. One macro so the three arms cannot
+ * drift; the DMA-fed merged arm drops the preload bit (see below). */
+#define OW_PORT_CCMR2_CAP TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS
+#define OW_PORT_CCMR2_MRG TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS)
+#else /* !defined(OW_PORT_SYSCLK_MHZ): SystemCoreClock auto-path -------------
+ * For integrations that select a backend without passing a clock -D
+ * (PlatformIO/CubeMX family-macro path): the CMSIS SystemCoreClock variable
+ * supplies the frequency instead of a header fallback guess, so a CubeMX
+ * project at 64MHz can never silently inherit a 72MHz prescaler. The Make
+ * and CMake builds always pass -DOW_PORT_SYSCLK_MHZ (from chips/<part>.mk)
+ * and never reach this branch.
+ * @pre SystemCoreClock holds the real SYSCLK in Hz (SystemCoreClockUpdate()
+ *      after any clock-tree change), is an integer number of MHz >= 1MHz,
+ *      and TIM1's kernel clock equals SYSCLK (same invariant as above).
+ * @note The -DOW_PORT_IC4F_ARGS bench override is compile-time only and is
+ *       ignored on this path; the tiers below match the ladder above.
+ *       Test: tests/test/test_sysclk_auto.c */
+extern uint32_t SystemCoreClock; /* CMSIS: maintained by SystemInit()/SystemCoreClockUpdate() */
+__STATIC_FORCEINLINE uint32_t ow_port_mhz_from_hz(uint32_t hz) {
+    /* Integer-MHz truncation of the system clock. Exact for every supported
+     * clock (8/16/48/64/72/84/168/170/180/250); shifts plus one 32x32
+     * multiply, so no __aeabi_uidiv on M0/M0+. The intermediate fits 32
+     * bits (524M at 250MHz). */
+    return (uint32_t)(((hz >> 8u) * 537u) >> 21u);
+}
+__STATIC_FORCEINLINE uint16_t ow_port_psc_from_hz(uint32_t hz) {
+    const uint32_t mhz = ow_port_mhz_from_hz(hz);
+    return (uint16_t)((mhz > 0u) ? (mhz - 1u) : 0u);
+}
+__STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
+    /* Same tiers as the compile-time ladder above, as a numeric CCMR2 mask. */
+    const uint32_t mhz = ow_port_mhz_from_hz(hz);
+    if (mhz <= 8u) {
+        return TIM_CCMR2_IC4F_1;
+    }
+    if (mhz <= 16u) {
+        return (uint32_t)(TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1);
+    }
+    if (mhz <= 72u) {
+        return (uint32_t)(TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_2);
+    }
+    if (mhz <= 168u) {
+        return TIM_CCMR2_IC4F_3;
+    }
+    return (uint32_t)(TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_3);
+}
+#define OW_PORT_CCMR2_CAP \
+    (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock) | OW_PORT_OC3PE_ARGS)
+#define OW_PORT_CCMR2_MRG \
+    (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock))
+#endif /* OW_PORT_SYSCLK_MHZ */
 
 /* DMA control-value accessors (port-unification vocabulary): the exact
  * CR/CCR word each DMA-programming site writes, split by transfer class.
@@ -297,7 +355,11 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
  */
 __STATIC_FORCEINLINE void ow_port_init(void) {
     OW_PORT_ENABLE_BUS_CLOCKS();
+#if defined(OW_PORT_SYSCLK_MHZ)
     T1.PSC = OW_PORT_TIM_PRESCALER;
+#else
+    T1.PSC = ow_port_psc_from_hz(SystemCoreClock);
+#endif
     T1.BDTR = TIM_BDTR(MOE);
     OW_PORT_CONFIG_BUS_PIN();
 }
@@ -405,7 +467,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #if OW_DRIVE_ACTIVE
     ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */
 #endif
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
+    T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
@@ -549,7 +611,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.RCR = 1; /* Two read slots, then a single update event */
     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS;
+    T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
 #if OW_PORT_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
@@ -595,7 +657,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     T1.CCR3 = write_pulse; /* Slot 1 write pulse encodes the direction bit */
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE; /* End-of-slot reload trigger */
     /* OC3 in PWM mode (no preload so the reload is immediate), CC4 capture armed */
-    T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS);
+    T1.CCMR2 = OW_PORT_CCMR2_MRG;
     T1.CCER = TIM_CCER(CC3E, CC4E); /* Enable both channels */
     /* Disconnect DMA requests while re-arming the channels, then re-connect
      * them only after the timer flags are clean and just before starting.

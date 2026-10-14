@@ -43,9 +43,11 @@
  *    mode, where the memory-transfer width is forced to PSIZE, so a feed entry
  *    is a 16-bit halfword here (zero-copy, CNDTR == slots); every other
  *    backend latches 8-bit entries.  Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: this family's default system clock, one fact per
- *    concrete part; the timer prescaler and the IC4F ladder derive from it.
- *    -DOW_PORT_SYSCLK_MHZ=N overrides it; validate any change against every
+ *  - OW_PORT_SYSCLK_MHZ: system clock in MHz, one fact per concrete part;
+ *    the timer prescaler and the IC4F ladder derive from it.  The build
+ *    systems pass it explicitly (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
+ *    from chips/f4<part>.mk); without it the shared core reads the CMSIS
+ *    SystemCoreClock at startup instead.  Validate any change against every
  *    supported clock (app.c).
  *  - OW_PORT_F4_MAX_SYSCLK_MHZ: the highest clock this part can take.  app.c
  *    rejects a build that asks for more, so a 180MHz request cannot silently
@@ -57,16 +59,6 @@
  *    value is not a compile error - the PLL simply never locks.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 typedef uint16_t ow_pulse_t;
-
-#if !defined(OW_PORT_SYSCLK_MHZ)
-#if defined(STM32F401xC) || defined(STM32F401xE)
-#define OW_PORT_SYSCLK_MHZ 84 /* STM32F401: the part's 84MHz cap, see OW_HSE_MHZ */
-#elif defined(STM32F446xx)
-#define OW_PORT_SYSCLK_MHZ 180 /* STM32F446: HSE + PLL + over-drive, see OW_HSE_MHZ */
-#else
-#define OW_PORT_SYSCLK_MHZ 168 /* STM32F407: HSE + PLL, see OW_HSE_MHZ */
-#endif
-#endif
 
 /* F4 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
  * gives a 1us tick here): TIM1 is on APB2 (RM0090 §7), and when the APB
@@ -101,7 +93,8 @@ typedef uint16_t ow_pulse_t;
 #endif
 
 /* IC4F ladder and OC3PE knob: owned by the shared core (identical tiers),
- * which sees OW_PORT_SYSCLK_MHZ above before its own definitions. */
+ * which resolves OW_PORT_SYSCLK_MHZ (or SystemCoreClock) before its own
+ * definitions. */
 
 #include "ow_port.h"
 

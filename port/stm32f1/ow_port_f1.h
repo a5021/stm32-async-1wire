@@ -22,15 +22,13 @@
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: this family's default system clock; the timer
- *    prescaler and the IC4F ladder derive from it.  -DOW_PORT_SYSCLK_MHZ=N
- *    overrides it; validate any change against every supported clock (app.c).
+ *  - OW_PORT_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
+ *    IC4F ladder derive from it.  The build systems pass it explicitly
+ *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
+ *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_PORT_SYSCLK_MHZ)
-#define OW_PORT_SYSCLK_MHZ 72 /* STM32F103: HSE + PLL x9 */
-#endif
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
