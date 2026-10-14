@@ -224,7 +224,7 @@ ifndef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(CHIP_HSE_MHZ)
 endif
 endif
-INC = -I. -Iinc -Iexamples/app -Iport/stm32f0 -Iport/stm32f1 -Iport/stm32f3 -Iport/stm32f4 -Iport/stm32g0 -Iport/stm32g4 -Iport/stm32h5 -Iport/common -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+INC = -I. -Iinc -Iexamples/app -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
 UART_TX_SIZE_1_basic        = 128
@@ -726,7 +726,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # followed by `make OW_TARGET=f0` reused the f1 objects: only the startup and
 # system files, whose basenames happen to differ per part, were recompiled, so
 # the f0 firmware went on to link Cortex-M3 code compiled against
-# port/stm32f1/ow_port_f1.h with a 72 MHz prescaler - the two families' bit-slot
+# inc/ow_mcu.h (F1 section) with a 72 MHz prescaler - the two families' bit-slot
 # timings differ by that factor. It showed up as a confusing assembler failure
 # ("invalid constant after fixup") on the one freshly-named file rather than as
 # the stale link it actually was, and switching families within one build tree
@@ -779,11 +779,7 @@ vpath %.s $(sort $(dir $(ASM))) # Set the search path for A source files
 #
 # So the dependencies are listed explicitly instead. Cost: one extra stat per
 # header per object, which is negligible next to the compile it may trigger.
-OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
-              $(wildcard port/common/*.h) $(wildcard port/stm32f1/*.h) \
-              $(wildcard port/stm32f0/*.h) $(wildcard port/stm32f3/*.h) \
-              $(wildcard port/stm32g0/*.h) $(wildcard port/stm32f4/*.h) \
-              $(wildcard port/stm32g4/*.h)
+OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h)
 
 # src/ds18b20.c and src/ds2431.c are umbrella translation units: each #includes
 # its driver part below, so editing one of them must rebuild the object file.
@@ -933,31 +929,24 @@ endif
 # OW_TARGET=g0 against the STM32G0 backend mock.
 ifeq ($(OW_TARGET),f0)
 TEST_PORT_FLAG = -DSTM32F0
-TEST_PORT_INC = -Iport/stm32f0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f0.exe
 else ifeq ($(OW_TARGET),f3)
 TEST_PORT_FLAG = -DSTM32F3
-TEST_PORT_INC = -Iport/stm32f3
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f3.exe
 else ifeq ($(OW_TARGET),f4)
 TEST_PORT_FLAG = -DSTM32F4
-TEST_PORT_INC = -Iport/stm32f4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_f4.exe
 else ifeq ($(OW_TARGET),g0)
 TEST_PORT_FLAG = -DSTM32G0
-TEST_PORT_INC = -Iport/stm32g0
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
 else ifeq ($(OW_TARGET),g4)
 TEST_PORT_FLAG = -DSTM32G4
-TEST_PORT_INC = -Iport/stm32g4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
 else ifeq ($(OW_TARGET),h5)
 TEST_PORT_FLAG = -DSTM32H5
-TEST_PORT_INC = -Iport/stm32h5
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
 else
 TEST_PORT_FLAG = -DSTM32F1
-TEST_PORT_INC = -Iport/stm32f1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 endif
 # Hook for defines only the host suite should see, the counterpart of EXT
@@ -976,7 +965,7 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -Iexamples/app -Iport/common $(TEST_PORT_INC) -I$(TEST_MOCK)
+TEST_INC  = -Iinc -Iexamples/app -I$(TEST_MOCK)
 
 # Extra host executables for this family, built and run alongside $(TEST_EXE).
 # Empty for every family but F4, which carries a second clock that is a
@@ -1175,10 +1164,10 @@ F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sy
 # part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
 # file changes.
 $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 $(TEST_OUT)/test_sysclk_nodefault_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -Iport/stm32f4 -Iport/common -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
 # Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
@@ -1217,9 +1206,7 @@ DS18B20_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
 # a *false pass*. Mutating the 180MHz IC4F tier in inc/ow_port.h and re-running
 # `make test` reported success, because the binary was stale; only a forced
 # rebuild failed. A test that cannot be made to run is worse than no test.
-TEST_PORT_DIR = $(patsubst -I%,%,$(TEST_PORT_INC))
 TEST_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
-            $(wildcard port/common/*.h) $(wildcard $(TEST_PORT_DIR)/*.h) \
             $(wildcard $(TEST_MOCK)/*.h)
 
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
@@ -1315,7 +1302,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-                -DHOST_BUILD -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -Iinc -Iport/stm32f1 -Iport/common -Itests/mock \
+                -DHOST_BUILD -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -Iinc -Itests/mock \
                 -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz

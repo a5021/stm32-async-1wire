@@ -411,17 +411,8 @@ function(ow_add_core_library tgt)
     add_library(${tgt} STATIC ${ARGN})
     target_include_directories(${tgt} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f3>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g4>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/stm32h5>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/port/common>
         $<INSTALL_INTERFACE:include/stm32-async-1wire>
-        # Device/CMSIS headers are required to compile the library (ow_port.h
+        # Device/CMSIS headers are required to compile the library (ow_mcu.h
         # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
         # build tree and must not leak into install exports — consumers of the
         # installed lib provide their own CMSIS/device headers.
@@ -473,26 +464,10 @@ install(FILES
     inc/ds18b20.h
     inc/ds2431.h
     inc/ow_port.h
+    inc/ow_mcu.h
     inc/ow_stats.h
     inc/ow_config.h
-    inc/ow_bits.h  # included by every ow_port_<family>.h backend
-    # onewire.h selects its backend with sibling quote-includes
-    # (#include "ow_port_f1.h"), so the backends must ship alongside it.
-    # Build-tree consumers must therefore add the port dirs to their include
-    # path (this target exports them via BUILD_INTERFACE; the Makefile adds -I
-    # for every port dir), and the flattened install above is why the includes
-    # cannot be spelled "port/stm32f1/..." here.
-    port/stm32f0/ow_port_f0.h
-    port/stm32f1/ow_port_f1.h
-    port/stm32f3/ow_port_f3.h
-    port/stm32f4/ow_port_f4.h
-    port/stm32g0/ow_port_g0.h
-    port/stm32g4/ow_port_g4.h
-    port/stm32h5/ow_port_h5.h
-    # Shared TIM1/DMA1 core: ow_port_f0.h, ow_port_f1.h, ow_port_f3.h,
-    # ow_port_g0.h and ow_port_g4.h include it, so it must be installed
-    # alongside them.
-    port/common/ow_port_tim_dma.h
+    inc/ow_bits.h  # included by ow_mcu.h (register aliases) and ow_port.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 
@@ -545,13 +520,6 @@ if(OW_BUILD_EXAMPLES)
     )
     target_include_directories(stm32_async_1wire_platform PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/inc
-        ${CMAKE_CURRENT_SOURCE_DIR}/port
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f0
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f1
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f3
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32f4
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g0
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/stm32g4
         ${CMSIS_CORE_INCLUDE}
         ${CMSIS_DEVICE_INCLUDE}
     )

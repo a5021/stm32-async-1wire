@@ -6,7 +6,7 @@
 # The F4 port backend is shared by the whole F4 family: TIM1/DMA2 and CHSEL=6
 # map identically here as on the F405/F407 (RM0390 DMA2 request mapping keeps
 # TIM1_CH2 on Stream 2 and TIM1_CH4 on Stream 4, both at CHSEL=6), so there is
-# no per-part code in ow_port_f4.h — only memory sizes, the CMSIS device layer
+# no per-part code in the ow_mcu.h F4 section — only memory sizes, the CMSIS device layer
 # and the clock default differ.
 #
 # 180MHz, not 168: the F446 is the only F4 part in the matrix that needs the

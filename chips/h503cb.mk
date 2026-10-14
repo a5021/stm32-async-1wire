@@ -9,7 +9,7 @@
 # The H5 port backend is shared by the whole H5 family as it stands: TIM1 CH3 on
 # PA10, the CH4 indirect capture off TI3, and the GPDMA1 request pair
 # (TIM1_CH2 -> channel 2, TIM1_CH4 -> channel 3) map the same way on every H5
-# part, so there is no per-part code in ow_port_h5.h - only memory sizes, the
+# part, so there is no per-part code in the ow_mcu.h H5 section - only memory sizes, the
 # CMSIS device layer and the clock default differ.
 #
 # 64MHz, HSI direct. Not the part's ceiling (250MHz): HSI is 64MHz straight,

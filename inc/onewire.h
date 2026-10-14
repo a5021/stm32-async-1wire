@@ -58,60 +58,27 @@ extern "C" {
  *  supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
  *  STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4;
  *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
- *  The token is the single point of
- *  family selection: it picks the port backend (included below), app.c takes
+ *  The token is the single point of family selection: it picks the MCU
+ *  section in inc/ow_mcu.h (included below via ow_port.h), app.c takes
  *  the device header and clock configuration from it, and the per-family
  *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
  *  OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ
- *  live in the port headers, not here, so the backend and its defaults cannot
- *  drift. To add a family, extend this chain and the \#include branch below
- *  (plus the \#error spelling list), add the port/stm32<x>/ backend header,
- *  the app.c clock/UART config, a chips/<part>.mk part file, the Makefile
- *  (OW_KNOWN_TARGETS, the OW_TARGET family block, the OW_MCU mapping
- *  entries, TEST_CLOCK_FLAG) and CMakeLists.txt (the OW_MCU mapping, the
- *  OW_TARGET branch, the default chip) wiring, the tests/mockdevice header,
- *  and a case in tests/test/test_sysclk_fallback.c. */
-#if defined(STM32F030x6) || defined(STM32F0)
-#define OW_PORT_FAMILY_F0
-#elif defined(STM32F103xB) || defined(STM32F1)
-#define OW_PORT_FAMILY_F1
-#elif defined(STM32F303xC) || defined(STM32F3)
-#define OW_PORT_FAMILY_F3
-#elif defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \
-    defined(STM32F446xx) || defined(STM32F4)
-#define OW_PORT_FAMILY_F4
-#elif defined(STM32G031xx) || defined(STM32G0)
-#define OW_PORT_FAMILY_G0
-#elif defined(STM32G474xx) || defined(STM32G4)
-#define OW_PORT_FAMILY_G4
-#elif defined(STM32H503xx) || defined(STM32H5)
-#define OW_PORT_FAMILY_H5
-#endif
-
-/** @brief Pull in the selected port backend.
+ *  live in the ow_mcu.h sections, not here, so the facts and their defaults
+ *  cannot drift. To add a family, extend the dispatch in inc/ow_mcu.h
+ *  (plus the \#error spelling list), the app.c clock/UART config, a
+ *  chips/<part>.mk part file, the Makefile (OW_KNOWN_TARGETS, the OW_TARGET
+ *  family block, the OW_MCU mapping entries, TEST_CLOCK_FLAG) and
+ *  CMakeLists.txt (the OW_MCU mapping, the OW_TARGET branch, the default
+ *  chip) wiring, the tests/mock device header, and a case in
+ *  tests/test/test_sysclk_fallback.c. */
+/** @brief Pull in the port layer (MCU facts + TIM1+DMA engine).
  *
- *  The backend is included here (not duplicated in ow_port.h) so there is one
- *  chain and one \#include branch to maintain, and so the per-family facts the
- *  backend defines are visible wherever this header is: ow_pulse_t (used by the
- *  prototypes below) and the clock defaults (used by app.c and the host tests).
- *  Keep the branches in the same order as the chain above. */
-#if defined(OW_PORT_FAMILY_F0)
-#include "ow_port_f0.h"
-#elif defined(OW_PORT_FAMILY_F1)
-#include "ow_port_f1.h"
-#elif defined(OW_PORT_FAMILY_F3)
-#include "ow_port_f3.h"
-#elif defined(OW_PORT_FAMILY_F4)
-#include "ow_port_f4.h"
-#elif defined(OW_PORT_FAMILY_G0)
-#include "ow_port_g0.h"
-#elif defined(OW_PORT_FAMILY_G4)
-#include "ow_port_g4.h"
-#elif defined(OW_PORT_FAMILY_H5)
-#include "ow_port_h5.h"
-#else
-#error "onewire: no family selected (define a device macro such as STM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx, or a family macro such as STM32F0/STM32F1/STM32F3/STM32F4/STM32G0/STM32G4/STM32H5)"
-#endif
+ *  ow_mcu.h comes first so ow_pulse_t is defined before the prototypes
+ *  below no matter which header the TU includes first; ow_port.h then
+ *  provides the engine (it reuses ow_mcu.h through its guard).  The clock
+ *  defaults travel the same way (used by app.c and the host tests). */
+#include "ow_mcu.h"
+#include "ow_port.h"
 
 /** @} */
 

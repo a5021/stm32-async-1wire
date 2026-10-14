@@ -16,7 +16,7 @@
     },
     "frameworks": "stm32cube",
     "platform": "ststm32",
-    "headers": ["onewire.h", "ow_config.h", "ow_bits.h", "ds18b20.h", "ds2431.h", "ow_port.h", "ow_stats.h"],
+    "headers": ["onewire.h", "ow_config.h", "ow_bits.h", "ds18b20.h", "ds2431.h", "ow_port.h", "ow_mcu.h", "ow_stats.h"],
     "build": {
         "srcDir": "src",
         "srcFilter": [
@@ -25,17 +25,6 @@
             "+<ds2431.c>",
             "+<ow_stats.c>"
         ],
-        "includeDir": "inc",
-        "flags": [
-            "-Iport",
-            "-Iport/common",
-            "-Iport/stm32f0",
-            "-Iport/stm32f1",
-            "-Iport/stm32f3",
-            "-Iport/stm32f4",
-            "-Iport/stm32g0",
-            "-Iport/stm32g4",
-            "-Iport/stm32h5"
-        ]
+        "includeDir": "inc"
     }
 }

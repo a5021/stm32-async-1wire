@@ -24,7 +24,15 @@ cd "$(dirname "$0")/.."
 
 fail() { echo "  check_library_manifest: FAIL - $*" >&2; exit 1; }
 
-command -v python3 >/dev/null || fail "python3 is required to read library.json"
+# python3 on Windows often resolves to the Microsoft Store stub, which cannot
+# run anything: probe for a working interpreter instead of a name.
+if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
+    PYBIN=python3
+elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
+    PYBIN=python
+else
+    fail "a working python3/python interpreter is required to read library.json"
+fi
 command -v gcc >/dev/null || fail "gcc is required to compile the consumer"
 
 # mktemp, not build/: this script must work on a fresh checkout, where build/
@@ -33,7 +41,7 @@ command -v gcc >/dev/null || fail "gcc is required to compile the consumer"
 INCS_FILE=$(mktemp)
 trap 'rm -f "$INCS_FILE"' EXIT
 
-python3 - <<'PY' > "$INCS_FILE"
+$PYBIN - <<'PY' > "$INCS_FILE"
 import json, sys, os
 m = json.load(open("library.json", encoding="utf-8"))
 b = m["build"]
@@ -105,8 +113,8 @@ INCS=$(cat "$INCS_FILE")
 [ -n "$INCS" ] || fail "could not derive an include set from library.json"
 
 # The consumer must compile with the manifest's own include set and nothing
-# else. tests/mock supplies the device header the manifest's -Iport/stm32f0
-# would otherwise point at, exactly as the host test suite does.
+# else. tests/mock supplies the device header (stm32f1xx.h via ow_mcu.h),
+# exactly as the host test suite does.
 # NOTE: this TU only exercises the API surface (ds18b20.h is self-contained
 # and never pulls a backend), so it cannot catch a missing backend include
 # path - the per-backend source compiles below are the check that does.
@@ -119,11 +127,10 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
 
 # The manifest's own sources must compile per backend with the manifest's own
 # include set and nothing else (beyond the mock device headers): src/onewire.c
-# pulls the backend through onewire.h's bare quote-include
-# (#include "ow_port_f3.h"), and every backend pulls the shared TIM1 core
-# through a bare #include "ow_port_tim_dma.h" - so a missing -Iport/stm32<xx>
-# or -Iport/common fails here instead of in a real project. Every backend the
-# manifest carries a port flag for earns its compile (F0/F1/F3/F4/G0/G4/H5).
+# pulls the port layer through onewire.h's bare quote-include
+# (#include "ow_port.h"), which reaches the MCU facts through another bare
+# quote-include (#include "ow_mcu.h") - so a missing -Iinc fails here instead
+# of in a real project. Every backend earns its compile (F0/F1/F3/F4/G0/G4/H5).
 # The clock each backend compiles against mirrors the chips/<part>.mk default
 # (single source; test_sysclk_fallback.c guards the values). The family
 # headers no longer guess a default, so without this the sources below would

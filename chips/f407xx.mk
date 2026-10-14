@@ -5,7 +5,7 @@
 #
 # The F4 port backend is shared by the whole F4 family: TIM1/DMA2 and CHSEL=6
 # map identically on every part listed here, so there is no per-part code in
-# ow_port_f4.h — only memory sizes, the CMSIS device layer and the clock
+# the ow_mcu.h F4 section — only memory sizes, the CMSIS device layer and the clock
 # default differ. That is why the parts get a file each here rather than a
 # subdirectory: the split is in the build matrix, not in the driver.
 

@@ -69,7 +69,7 @@
  * either. The PLL input is the board's external clock, so OW_HSE_MHZ has to be
  * defined for the same reason it is on F4. */
 #ifndef OW_HSE_MHZ
-#error "OW_HSE_MHZ must be defined for the F3 backend (ow_port_f3.h defaults it to 8)"
+#error "OW_HSE_MHZ must be defined for the F3 backend (the ow_mcu.h F3 section defaults it to 8)"
 #endif
 #if (OW_HSE_MHZ) != 8
 #error "F3: 72MHz is HSE x PLLMUL9, so the board oscillator must be 8MHz; the HSI-only ceiling is 64MHz (SYSCLK_MHZ=64)"
@@ -106,20 +106,20 @@
 
 /* The per-part ceiling has to agree with the default this file just checked, or
  * the guard that rejects an out-of-range request (OW_PORT_F4_MAX_SYSCLK_MHZ,
- * owned by ow_port_f4.h, used by app.c) would reject the part's own
+ * owned by the ow_mcu.h F4 section, used by app.c) would reject the part's own
  * default. That pair is the only thing stopping a 180 MHz build for an F407. */
 #if defined(STM32F4)
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32G4)
-/* Same pair for G4 (OW_PORT_G4_MAX_SYSCLK_MHZ, owned by ow_port_g4.h): the
+/* Same pair for G4 (OW_PORT_G4_MAX_SYSCLK_MHZ, owned by the ow_mcu.h G4 section): the
  * only part tops out at 170MHz. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H5)
-/* Same pair for H5 (OW_PORT_H5_MAX_SYSCLK_MHZ, owned by ow_port_h5.h): the
+/* Same pair for H5 (OW_PORT_H5_MAX_SYSCLK_MHZ, owned by the ow_mcu.h H5 section): the
  * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_H5_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_PORT_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
@@ -136,7 +136,7 @@
  * F401 quietly reverting to M=8: nothing else in the build looks at the M field,
  * and a wrong value is not a compile error - the PLL just never locks. */
 #if !defined(OW_HSE_MHZ)
-#error "OW_HSE_MHZ must be defined for the F4 backend (ow_port_f4.h defaults it to 8)"
+#error "OW_HSE_MHZ must be defined for the F4 backend (the ow_mcu.h F4 section defaults it to 8)"
 #endif
 #if (OW_HSE_MHZ) < 2 || (OW_HSE_MHZ) > 63
 #error "F4: PLLM is 5 bits (2..63); OW_HSE_MHZ outside that cannot give a 1MHz PLL input"
@@ -157,14 +157,14 @@
  * crystal, field value = divider-1 = 1, mid-window of the 2.66..16MHz range)
  * with N = SYSCLK/2 and the R divider at 2, so the VCO equals 2 x SYSCLK
  * and must stay in 64..344MHz (RM0440). The crystal is a board property
- * (ow_port_g4.h defaults it to 8); a wrong value is not a compile error - the
+ * (the ow_mcu.h G4 section defaults it to 8); a wrong value is not a compile error - the
  * PLL simply never locks - which is why the input frequency itself is checked
  * here and not just trusted from the M macro.
  *
  * The design point is pinned without restating the macro: whatever M the code
  * computes, HSE/(M+1) must come out at 4MHz for a crystal that divides by 4. */
 #if !defined(OW_HSE_MHZ)
-#error "OW_HSE_MHZ must be defined for the G4 backend (ow_port_g4.h defaults it to 8)"
+#error "OW_HSE_MHZ must be defined for the G4 backend (the ow_mcu.h G4 section defaults it to 8)"
 #endif
 #if (OW_HSE_MHZ) < 4 || (OW_HSE_MHZ) > 48
 #error "G4: the HSE oscillator takes a 4..48MHz crystal (DS12288)"

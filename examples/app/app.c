@@ -394,14 +394,14 @@ void configure_system_clock(void) {
  * at all, and the lock wait never ended.
  *
  * A clock the part cannot reach is rejected here rather than at runtime. The
- * per-part ceiling lives in ow_port_f4.h (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a
+ * per-part ceiling lives in the ow_mcu.h F4 section (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a
  * real frequency on the F446 and an out-of-spec one on an F407, and the two do
  * not differ by a divisor - they differ by over-drive, flash latency and APB
  * limits, so a build that asked for 180 on an F407 could not be made correct
  * by scaling the PLL down.
  */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
-#error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in ow_port_f4.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
+#error "OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in the ow_mcu.h F4 section). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks."
 #endif
 
     /* The APB prescalers this backend programs, and the console divisor derived
@@ -594,7 +594,7 @@ void configure_system_clock(void) {
  * at 2*SYSCLK. A board with a different crystal keeps working by changing
  * HSE_MHZ alone, as long as it divides by 2 (static-asserted below). A clock
  * the part cannot reach is rejected against OW_PORT_G4_MAX_SYSCLK_MHZ
- * (ow_port_g4.h).
+ * (the ow_mcu.h G4 section).
  *
  * APB1/APB2 stay /1 at both clocks (every peripheral here is within its
  * limit at full speed), so TIM1 = PCLK2 = SYSCLK directly - no x2 doubling
@@ -617,7 +617,7 @@ void configure_system_clock(void) {
  * switch - and the 170MHz hardware matrix, not this comment, is the proof.
  */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
-#error "OW_PORT_SYSCLK_MHZ exceeds this G4 part's ceiling (OW_PORT_G4_MAX_SYSCLK_MHZ in ow_port_g4.h). 170MHz is the G474 cap."
+#error "OW_PORT_SYSCLK_MHZ exceeds this G4 part's ceiling (OW_PORT_G4_MAX_SYSCLK_MHZ in the ow_mcu.h G4 section). 170MHz is the G474 cap."
 #endif
 
 #define OW_G4_PLLM (((OW_HSE_MHZ) / 4u) - 1u)
@@ -698,7 +698,7 @@ void configure_system_clock(void) {
  * with the reason rather than running on a clock its timings were not built
  * for. */
 #if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_H5_MAX_SYSCLK_MHZ)
-#error "OW_PORT_SYSCLK_MHZ exceeds this H5 part's ceiling (OW_PORT_H5_MAX_SYSCLK_MHZ in ow_port_h5.h). 250MHz is the H503 cap."
+#error "OW_PORT_SYSCLK_MHZ exceeds this H5 part's ceiling (OW_PORT_H5_MAX_SYSCLK_MHZ in the ow_mcu.h H5 section). 250MHz is the H503 cap."
 #endif
 #if (OW_PORT_SYSCLK_MHZ) == 64
     /* raw HSI, as above */
@@ -823,7 +823,7 @@ void configure_system_clock(void) {
  *       UART (AF7) and LED on PE8, active high. F4: USART1 TX on PB6 (AF7;
  *       the F4DISCOVERY has no USART1-to-ST-LINK route on PA9), LED on
  *       PD12, with an optional OW_UART_USART3 path on PB10. G0: UART TX on
- *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),
+ *       logical PA9 (PA11 pad after the SYSCFG remap, see the ow_mcu.h G0 section),
  *       LED on PA4 (no PC13 bonded out on TSSOP20). G4: USART1 TX on PA9
  *       (AF7, external
  *       USB-UART - the WeAct board has no VCP), blue LED on PA8 (WeAct BSP:
@@ -897,7 +897,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
      * missing pin, so "no output" could not be told apart from "the clock never
      * started". Hence OW_UART_USART1_PA9, default unchanged.
      *
-     * PA9 is safe alongside the bus: ow_port_f4.h takes PA10 for TIM1_CH3 and
+     * PA9 is safe alongside the bus: the ow_mcu.h F4 section takes PA10 for TIM1_CH3 and
      * PA11 for the logic-analyzer marker, and only PA10 would clash with a
      * board's USART1_RX - which nothing here configures, the console is TX only.
      */

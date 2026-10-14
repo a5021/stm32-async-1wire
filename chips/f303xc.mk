@@ -9,7 +9,7 @@
 # The F3 port backend is shared by the whole F3 family as it stands: TIM1 CH3 on
 # PA10, the CH4 indirect capture off TI3, and the DMA1 request pair from
 # RM0316 Table 78 (TIM1_CC2 -> channel 2, TIM1_CH4 -> channel 3) map the same
-# way on the xB/C/D/E parts, so there is no per-part code in ow_port_f3.h - only
+# way on the xB/C/D/E parts, so there is no per-part code in the ow_mcu.h F3 section - only
 # memory sizes, the CMSIS device layer and the clock default differ.
 #
 # 72MHz, the part's ceiling. Not reachable from the internal RC: this family
