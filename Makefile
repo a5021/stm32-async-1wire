@@ -293,6 +293,7 @@ endif
 # which the CMake build reads too, so "make and cmake produce the same
 # firmware" is enforced by there being only one copy of the flags.
 include config/optim.mk
+include config/cmsis_pins.mk
 
 OPT = $(OPT_RELEASE)
 
@@ -392,22 +393,22 @@ DOWNLOAD_FLAGS = $(if $(WGET),-q -O,-s -o)
 # Base URLs
 RAW_URL = https://raw.githubusercontent.com
 ST_URL = $(RAW_URL)/STMicroelectronics/
-CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/master/CMSIS/Core/Include
-F0_URL = $(ST_URL)cmsis_device_f0/master
-F1_URL = $(ST_URL)cmsis_device_f1/master
-F3_URL = $(ST_URL)cmsis-device-f3/master
-F4_URL = $(ST_URL)cmsis_device_f4/master
-G0_URL = $(ST_URL)cmsis_device_g0/master
-G4_URL = $(ST_URL)cmsis_device_g4/master
-H5_URL = $(ST_URL)cmsis_device_h5/main
-SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F030.svd
-SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F103xx.svd
-SVD_URL_F303 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F303.svd
-SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F407.svd
-SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F401.svd
-SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32F446.svd
-SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G031.svd
-SVD_URL_G4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/refs/heads/main/data/STMicro/STM32G474xx.svd
+CMSIS_CORE_URL = $(RAW_URL)/ARM-software/CMSIS_5/$(CMSIS_CORE_REF)/CMSIS/Core/Include
+F0_URL = $(ST_URL)cmsis_device_f0/$(CMSIS_DEVICE_REF_F0)
+F1_URL = $(ST_URL)cmsis_device_f1/$(CMSIS_DEVICE_REF_F1)
+F3_URL = $(ST_URL)cmsis-device-f3/$(CMSIS_DEVICE_REF_F3)
+F4_URL = $(ST_URL)cmsis_device_f4/$(CMSIS_DEVICE_REF_F4)
+G0_URL = $(ST_URL)cmsis_device_g0/$(CMSIS_DEVICE_REF_G0)
+G4_URL = $(ST_URL)cmsis_device_g4/$(CMSIS_DEVICE_REF_G4)
+H5_URL = $(ST_URL)cmsis_device_h5/$(CMSIS_DEVICE_REF_H5)
+SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F030.svd
+SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F103xx.svd
+SVD_URL_F303 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F303.svd
+SVD_URL_F4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F407.svd
+SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F401.svd
+SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F446.svd
+SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G031.svd
+SVD_URL_G4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G474xx.svd
 
 # Required external files (needed for build but not in repo)
 # The part-specific entries come from chips/<part>.mk, so download-deps fetches
@@ -473,8 +474,8 @@ EXTERNAL_DEPS = $(CMSIS_CORE_HEADERS) \
 
 
 # License files
-CMSIS_CORE_LICENSE_URL = https://raw.githubusercontent.com/ARM-software/CMSIS_5/master/LICENSE.txt
-DEVICE_F1_LICENSE_URL = https://raw.githubusercontent.com/STMicroelectronics/cmsis_device_f1/master/License.md
+CMSIS_CORE_LICENSE_URL = https://raw.githubusercontent.com/ARM-software/CMSIS_5/$(CMSIS_CORE_REF)/LICENSE.txt
+DEVICE_F1_LICENSE_URL = https://raw.githubusercontent.com/STMicroelectronics/cmsis_device_f1/$(CMSIS_DEVICE_REF_F1)/License.md
 
 CMSIS_CORE_LICENSE = $(CMSIS_CORE_DIR)/LICENSE.txt
 CMSIS_DEVICE_LICENSE = $(CMSIS_DEVICE_DIR)/LICENSE

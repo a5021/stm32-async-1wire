@@ -89,11 +89,37 @@ endif()
 # ---------------------------------------------------------------------------
 # FetchContent: ARM CMSIS Core + STM32 device headers
 # ---------------------------------------------------------------------------
+# Pinned SHAs come from config/cmsis_pins.mk, which the Makefile includes
+# directly, so there is exactly one copy of the pins in the repository. Parsed
+# with the same flat "NAME = value" reader as config/optim.mk and the
+# chips/<part>.mk files: plain assignments, no includes, no conditionals,
+# no multi-line values, no trailing comments on a value line.
+set(OW_CMSIS_PINS_MK "${CMAKE_CURRENT_SOURCE_DIR}/config/cmsis_pins.mk")
+if(NOT EXISTS "${OW_CMSIS_PINS_MK}")
+    message(FATAL_ERROR "CMSIS pins not found: ${OW_CMSIS_PINS_MK}")
+endif()
+file(STRINGS "${OW_CMSIS_PINS_MK}" _ow_pins_lines)
+foreach(_line IN LISTS _ow_pins_lines)
+    if(_line MATCHES "^[ \t]*(CMSIS_[A-Z_0-9]+)[ \t]*=[ \t]*(.*)$")
+        set(_k "${CMAKE_MATCH_1}")
+        set(_v "${CMAKE_MATCH_2}")
+        string(REGEX REPLACE "#.*$" "" _v "${_v}")
+        string(STRIP "${_v}" _v)
+        set(${_k} "${_v}")
+    endif()
+endforeach()
+foreach(_k CMSIS_CORE_REF CMSIS_DEVICE_REF_F0 CMSIS_DEVICE_REF_F1
+           CMSIS_DEVICE_REF_F3 CMSIS_DEVICE_REF_F4 CMSIS_DEVICE_REF_G0
+           CMSIS_DEVICE_REF_G4 CMSIS_DEVICE_REF_H5)
+    if(NOT ${_k})
+        message(FATAL_ERROR "${OW_CMSIS_PINS_MK} does not define ${_k}")
+    endif()
+endforeach()
 include(FetchContent)
 
 FetchContent_Declare(cmsis_core
     GIT_REPOSITORY https://github.com/ARM-software/CMSIS_5.git
-    GIT_TAG        master
+    GIT_TAG        ${CMSIS_CORE_REF}
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -142,15 +168,13 @@ else()
     message(FATAL_ERROR "OW_TARGET must be f0, f1, f3, f4, g0, g4 or h5 (got: ${OW_TARGET})")
 endif()
 
-# The cmsis_device_<family> repos all use master as their default branch except
-# cmsis_device_h5, whose default branch is main. The Makefile's H5 raw URLs are
-# pinned to main for the same reason, but a wrong ref there would still resolve
-# because raw.githubusercontent.com falls back to the default branch; git needs
-# a real ref, so the FetchContent tag is pinned explicitly here.
-if(OW_TARGET STREQUAL "h5")
-    set(CMSIS_DEVICE_TAG "main")
-else()
-    set(CMSIS_DEVICE_TAG "master")
+# The device checkout follows the pinned SHA from config/cmsis_pins.mk, so a
+# fresh clone resolves byte-identical headers years later. The per-family key
+# matches the pins file (CMSIS_DEVICE_REF_<FAMILY>, uppercased OW_TARGET).
+string(TOUPPER "${OW_TARGET}" _ow_target_up)
+set(CMSIS_DEVICE_TAG "${CMSIS_DEVICE_REF_${_ow_target_up}}")
+if(NOT CMSIS_DEVICE_TAG)
+    message(FATAL_ERROR "config/cmsis_pins.mk does not define CMSIS_DEVICE_REF_${_ow_target_up}")
 endif()
 
 # ---------------------------------------------------------------------------
