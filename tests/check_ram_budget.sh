@@ -22,14 +22,21 @@
 # 445/1104/552 before the flag-byte packing (txn 32->24, ctx 86->84, res
 # 5->4; search counters give 0: sink-pointer alignment absorbs them).
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
-#   f0             329                 984              432
-#   f4             434                1088              536
-#   g4             329                 984              432
-#   h5             329                 984              432
+#   f0             329                 652              432
+#   f4             434                 756              536
+#   g4             329                 652              432
+#   h5             329                 652              432
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
 # (h5 measured 2026-10-10: same uint8_t pulse tables again - GPDMA converts
 # widths in hardware, so no F4-style halfword tables - hence the same 329.)
+#
+# 2026-10-14: ONEWIRE_PARAM_CHECK replaced assert(0) in the onewire.c reject
+# paths (fail-soft everywhere, trap only under the test harness). The 5_commands
+# image used to link __assert_func -> fprintf -> __sf (332 B .bss on every
+# family), so total(5_commands) drops 984->652 (f0/g4/h5) and 1088->756 (f4);
+# libsum and total(1_basic) do not move (that image never kept the trap).
+# H5 1_basic text drops 76 B for the same reason.
 #
 # 2026-10-11: src/ds2431.c (the DS2431 EEPROM driver) joined the firmware links
 # (Makefile SRC / CMake core library). Neither tier image (1_basic,
@@ -144,10 +151,10 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 
-check STM32F030x6 329 984 432
-check STM32F407xx 434 1088 536
-check STM32G474xx 329 984 432
-check STM32H503xx 329 984 432
+check STM32F030x6 329 652 432
+check STM32F407xx 434 756 536
+check STM32G474xx 329 652 432
+check STM32H503xx 329 652 432
 
 if [ "$fail" -ne 0 ]; then
     exit 1

@@ -85,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test_sysclk_fallback.c` additionally proves no header defines a default
   anymore.
 
+### Fixed
+
+- **Reject-path asserts no longer pull stdio into firmware.** `onewire_write_slots()` / `onewire_read_data()` guard out-of-range sizes with `ONEWIRE_PARAM_CHECK()` (new in `src/onewire.c`): fail-soft `return 0` in every build, `assert()` trap only under `DS18B20_TEST_HARNESS` / `OW_TEST_PARAM_GUARD`. Previously the trap survived LTO in some images, linking `fprintf`/`__sf` (~5 KB text, ~400 B `.bss` at stake); H5 `1_basic` text drops 76 B with identical behaviour.
+
 ### Removed
 
 - **Backend-selection macros `OW_PORT_TARGET_F0 … OW_PORT_TARGET_H5`.**

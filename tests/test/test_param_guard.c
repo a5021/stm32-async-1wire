@@ -2,7 +2,8 @@
  *  test_param_guard.c - Rejected-parameter schedules
  *
  *  onewire_write_slots/read_data guard out-of-range sizes with
- *  `assert(0 && ...); return 0;`, so the public reject cases are
+ *  `ONEWIRE_PARAM_CHECK(0 && ...); return 0;` (assert under the harness,
+ *  silent fail-soft in firmware), so the public reject cases are
  *  built only by the release-semantics test variant
  *  (make test-ndebug*).  Backend entry points are fail-soft and
  *  reject the same ranges without assert in every build.

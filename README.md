@@ -974,7 +974,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
 | `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
 | `make test-lowpower-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard` |
+| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) are fail-soft in every build — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
 | `make test-ndebug-f3` | Same as above against the STM32F3 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |

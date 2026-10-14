@@ -1,8 +1,24 @@
 ﻿#include "onewire.h"
 #include "ow_port.h"
 
-#include <assert.h>
 #include <string.h>
+
+/* Reject-path contract: out-of-range sizes fail soft (return 0) in every
+ * build. Under the test harness the violation additionally traps via
+ * assert, so a test feeding a bad size fails loudly instead of silently
+ * passing. Assert lives only here (never in firmware): __assert_func pulls
+ * fprintf/__sf into the image (~5 KB text, ~400 B .bss), which the exact
+ * RAM budgets would otherwise silently absorb.
+ * Test: tests/test/test_param_guard.c (release-semantics variant). */
+#if defined(DS18B20_TEST_HARNESS) || defined(OW_TEST_PARAM_GUARD)
+#include <assert.h>
+#define ONEWIRE_PARAM_CHECK(cond) \
+    do {                          \
+        assert(cond);             \
+    } while (0)
+#else
+#define ONEWIRE_PARAM_CHECK(cond) ((void)0)
+#endif
 
 /**
  * @defgroup ONEWIRE_Private_Constants ONEWIRE Private Constants
@@ -194,7 +210,7 @@ void onewire_sleep_until_done(void) {
 
 uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {
     if (slots == 0u || slots > ONEWIRE_MAX_SLOTS) {
-        assert(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
+        ONEWIRE_PARAM_CHECK(0 && "onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)");
         return 0;
     }
     return ow_port_write_slots(pulses, slots);
@@ -220,7 +236,7 @@ void onewire_write_then_read(uint8_t bit) {
 
 uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
     if (bytes == 0u || bytes > ONEWIRE_MAX_READ_BYTES) {
-        assert(0 && "onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)");
+        ONEWIRE_PARAM_CHECK(0 && "onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)");
         return 0;
     }
     return ow_port_read_data(dst, bytes);
