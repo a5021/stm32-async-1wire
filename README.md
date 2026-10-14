@@ -7,15 +7,15 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431 EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU backends are header-only implementations under `port/`. Seven backends ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU facts are header-only sections in `inc/ow_mcu.h` (one per family), and the shared TIM1+DMA engine lives in `inc/ow_port.h` — external projects need only `-Iinc`. Seven families ship today:
 
-- `port/stm32f1/ow_port_f1.h` — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `port/stm32f0/ow_port_f0.h` — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `port/stm32f3/ow_port_f3.h` — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F0/F1 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
-- `port/stm32g0/ow_port_g0.h` — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `port/stm32g4/ow_port_g4.h` — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
-- `port/stm32f4/ow_port_f4.h` — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same header for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
-- `port/stm32h5/ow_port_h5.h` — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock, default), raw 8MHz HSE (crystal Y2), or HSE+PLL1 to 250MHz (VOS0, 5 flash wait states). USART1 TX on PA9 (AF7). Bench-validated on the WeAct board — all seven examples flashed and captured at each clock with correct 22.8-23.1C readings and 0 errors in 6_statistics.
+- `inc/ow_mcu.h` (STM32F1 section) — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `inc/ow_mcu.h` (STM32F0 section) — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `inc/ow_mcu.h` (STM32F3 section) — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F0/F1 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
+- `inc/ow_mcu.h` (STM32G0 section) — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `inc/ow_mcu.h` (STM32G4 section) — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
+- `inc/ow_mcu.h` (STM32F4 section) — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same section for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
+- `inc/ow_mcu.h` (STM32H5 section) — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock, default), raw 8MHz HSE (crystal Y2), or HSE+PLL1 to 250MHz (VOS0, 5 flash wait states). USART1 TX on PA9 (AF7). Bench-validated on the WeAct board — all seven examples flashed and captured at each clock with correct 22.8-23.1C readings and 0 errors in 6_statistics.
 
 ## Table of Contents
 
@@ -113,7 +113,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
   values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
   on any other F4 part is rejected at compile time rather than quietly run out of
   spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in
-  `port/stm32f4/ow_port_f4.h`.
+  the `inc/ow_mcu.h` F4 section.
   APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
   2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
   unchanged.
@@ -127,38 +127,31 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
-│   ├── ow_port.h           # 1-Wire port layer interface (+ backend select)
+│   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (17 ow_port_* functions) + family select
+│   ├── ow_mcu.h            # Per-MCU facts for the engine (7 family sections: clocks, PA10 mux, DMA assignment)
 │   └── ow_bits.h           # STM32 register access macros (shared)
-├── port/                   # Per-MCU backends for the ow_port_* interface
-│   ├── common/            # TIM1+DMA1 core shared by all seven backends
-│   │   └── ow_port_tim_dma.h  # 17 ow_port_* functions: slot timing, capture, feed
-│   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f1.h    # F1 descriptor: clock gates + legacy-CRH pin setup
+├── port/                   # Per-MCU build artifacts for the examples (linker scripts, debug projects)
+│   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
 │   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
-│   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f0.h    # F0 descriptor: clock gates + MODER/AFR pin setup
+│   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10
 │   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
 │   │   ├── stm32f030f4.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F030F4, SWD)
-│   ├── stm32f3/            # STM32F3: TIM1 + DMA1 + PA10 (header-only static inline)
-│   │   ├── ow_port_f3.h    # F3 descriptor: clock gates + MODER/AFR pin setup
+│   ├── stm32f3/            # STM32F3: TIM1 + DMA1 + PA10
 │   │   ├── STM32F303XC_FLASH.ld  # Linker script, STM32F303xC (256KB flash / 32KB RAM)
 │   │   ├── stm32f303vc.jflash    # J-Flash project file (STM32F303VC)
 │   │   └── project-f303vc.jdebug # SEGGER Ozone project (STM32F303VC, SWD)
-│   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap (header-only static inline)
-│   │   ├── ow_port_g0.h    # G0 descriptor: + SYSCFG pad remap and DMAMUX routing
+│   ├── stm32g0/            # STM32G0: TIM1 + DMA1 + DMAMUX + PA10 via PA12 remap
 │   │   ├── STM32G031X6_FLASH.ld  # Linker script, STM32G031x6 (32KB flash / 8KB RAM)
 │   │   ├── stm32g031f6.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G031F6, SWD)
-│   ├── stm32g4/            # STM32G4: TIM1 + DMA1 + DMAMUX + PA10 (header-only static inline)
-│   │   ├── ow_port_g4.h    # G4 descriptor: clock gates + MODER/AFR pin setup + DMAMUX routing
+│   ├── stm32g4/            # STM32G4: TIM1 + DMA1 + DMAMUX + PA10
 │   │   ├── STM32G474CB_FLASH.ld  # Linker script, STM32G474CB (128KB flash / 96KB RAM)
 │   │   ├── stm32g474cb.jflash    # J-Flash project file
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32G474CB, SWD)
-│   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10 (header-only static inline)
-│   │   ├── ow_port_f4.h    # STM32F4: thin shim over the shared core (family facts, DMA2 stream + CHSEL/flag overrides, rearm, write_then_read carve-out)
+│   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
 │   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
@@ -172,8 +165,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
 │   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
-│   └── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10 (header-only static inline)
-    ├── ow_port_h5.h    # H5 descriptor: clock gates + MODER/AFR pin setup + GPDMA CTR1/CTR2/REQSEL overrides
+│   └── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10
     ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
     └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
 ├── config/                # Build settings shared by both build systems
@@ -460,7 +452,7 @@ The F4-specific DMA topology and timing choices are documented in
 
 ### STM32F401CC (F401 Black Pill)
 
-The **same backend header** drives the 84 MHz-capped STM32F401 family: TIM1,
+The **same ow_mcu.h F4 section** drives the 84 MHz-capped STM32F401 family: TIM1,
 the DMA2 dual-stream topology and the `CHSEL=6` request map are identical to
 the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
 port layer is chip-generic. The chip-specific parts (CMSIS device header
@@ -1582,8 +1574,8 @@ sufficient.  The topology is:
 The driver does not care which timer is used — it cares about what the timer
 can do.  The following capabilities are hard requirements; a timer that lacks
 any one of them cannot run this driver, which is why the port layer
-(`port/stm32*/ow_port_*.h`) pins each backend to one specific timer rather
-than letting the user choose.
+(the `inc/ow_mcu.h` family sections) pins each family to one specific timer
+rather than letting the user choose.
 
 #### 1. Advanced-control timer (not general-purpose)
 
@@ -1667,10 +1659,8 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-All seven backends share one TIM1/DMA core in `port/common/` (`ow_port_f0.h`,
-`ow_port_f1.h`, `ow_port_f3.h`, `ow_port_g0.h`, `ow_port_g4.h`
-with DMA1 defaults, `ow_port_f4.h`
-as a thin shim overriding the DMA spelling, `ow_port_h5.h` with GPDMA
+All seven families share one TIM1/DMA core in `inc/ow_port.h` (F0/F1/F3/G0/G4
+with DMA1 defaults, F4 as a thin shim overriding the DMA spelling, H5 with GPDMA
 CTR1/CTR2/REQSEL overrides): DMA2's per-stream `CHSEL` mux
 travels inside the control-register word (GPDMA's `REQSEL` in CTR2 likewise),
 and the merged write+read pass is
@@ -2451,11 +2441,11 @@ The macro does two jobs at once, and the split between them is the whole
 point of how the project is laid out:
 
 - **Family** — the last part of the macro (`F4`, `F0`, `G0`, ...) picks the
-  driver code: the port header, the timer and DMA resources, the bus
-  pin. One `port/<family>/ow_port_<family>.h` per family. This is where the
+  driver code: the `ow_mcu.h` section, the timer and DMA resources, the bus
+  pin. One family section per family. This is where the
   driver code differs.
 - **Part** — the full macro names a file in `chips/`. The parts of one
-  family share a port header — `ow_port_f4.h` has no per-part conditional at
+  family share an `ow_mcu.h` section — the F4 section has no per-part conditional at
   all, because TIM1/DMA2 and `CHSEL=6` map identically across the F4 parts.
   What actually differs is the CMSIS device layer, the linker script
   (memory sizes), the debugger projects and the default clock, so that is

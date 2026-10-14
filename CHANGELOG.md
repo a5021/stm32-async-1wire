@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified port headers (`inc/ow_mcu.h` + `inc/ow_port.h`).** The seven
+  family backends (`port/stm32*/ow_port_*.h`) and the shared TIM1+DMA core
+  (`port/common/ow_port_tim_dma.h`) move verbatim into `inc/`: `ow_mcu.h`
+  carries the family dispatch plus the per-family facts (clocks, PA10 mux,
+  DMA assignment), `ow_port.h` carries the engine. External projects now
+  need a single include path (`-Iinc`); `port/` keeps only linker scripts,
+  J-Flash/Ozone projects and hardware notes. All firmware images are
+  byte-identical before and after.
+
 - **Single-key MCU selection with `OW_MCU`.** Make and CMake accept one exact
   STMicroelectronics device macro (e.g. `OW_MCU=STM32F401xC`), derive the
   matching `OW_TARGET`/`OW_CHIP`, and reject conflicting legacy values or a

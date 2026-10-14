@@ -14,8 +14,8 @@ OUTPUT_DIRECTORY       = docs
 INPUT                  = inc/
 FILE_PATTERNS          = *.h *.c
 RECURSIVE              = NO
-EXCLUDE                = port/ tests/ examples/ build/
-EXCLUDE_PATTERNS       = */port/* */tests/* */build/*
+EXCLUDE                = tests/ examples/ build/
+EXCLUDE_PATTERNS       = */tests/* */build/*
 
 #---------------------------------------------------------------------------
 # Extraction

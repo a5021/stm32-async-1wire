@@ -1,6 +1,6 @@
 # STM32F4 backend (STM32F407 / STM32F401 / STM32F446) — hardware notes
 
-Bring-up notes for `ow_port_f4.h`: the peripheral topology that works, and the
+Bring-up notes for the F4 backend (now the `ow_mcu.h` F4 section): the peripheral topology that works, and the
 alternatives that were tested on real hardware and rejected. The operating
 invariants live in the code comments and in the "Required Timer Capabilities"
 section of `README.md`; this file keeps the experiments. Most of it was
@@ -172,7 +172,7 @@ of each recorded after the dash:
     *Correction: the ladder has since changed — the code now programs
     `IC4F_3` (fCK_INT/32, N=3) at and below 168MHz and
     `IC4F_0|IC4F_1|IC4F_3` (fCK_INT/4, N=3) above it (see the ladder comment
-    in `port/common/ow_port_tim_dma.h`; the driver never sets CKD, so fDTS
+    in `inc/ow_port.h`; the driver never sets CKD, so fDTS
     here equals fCK_INT). The fDTS/N values recorded above describe the older
     ladder, including the fallback advice — read this item as bench history,
     and the core comment as the current reference.*
@@ -418,7 +418,7 @@ back and, if EN is still set, waits (bounded) until the stream retires it.
 Because on every healthy path the previous transfer drained before
 `ow_port_bus_done()` returned, EN is already 0 when this runs and the wait is
 zero iterations — no healthy-path cost. Same change on the shared core
-(`ow_port_dma_disable()`, all five disarm sites in `ow_port_tim_dma.h`) for
+(`ow_port_dma_disable()`, all five disarm sites in `inc/ow_port.h`) for
 F0/F1/F3/G0, where the only difference is the DMA1 semantics.
 
 The host model cannot observe the wait (flat register store, CR=0 → EN=0
