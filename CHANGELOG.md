@@ -58,9 +58,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matrix publishes 9 default-clock variants — one per MCU: F1 72, F0 48, G0 64,
   F3 72, G4 170, H5 64, F407 168, F401 84, F446 180 — as `ds18b20_8_ds2431_*`
   artifacts, listed in the Download table, with a "What's new in 2.3.1" section
-  in the release body. The README documents the example, the driver and the
-  test/fuzz targets with the counts measured on this toolchain, and the fuzz
-  dictionary gained the DS2431 opcodes.
+   in the release body. The README documents the example, the driver and the
+   test/fuzz targets with the counts measured on this toolchain, and the fuzz
+   dictionary gained the DS2431 opcodes.
+
+- **SystemCoreClock auto-detection for the port clock.** When
+  `OW_PORT_SYSCLK_MHZ` is not passed on the command line (the
+  PlatformIO/STM32CubeMX family-macro path), the port core derives the TIM1
+  prescaler and the IC4F filter tier from the CMSIS `SystemCoreClock`
+  variable at startup instead of a header fallback guess, so a project
+  running at 64 MHz can never silently inherit a 72 MHz prescaler. Make and
+  CMake builds always pass `-DOW_PORT_SYSCLK_MHZ` (from `chips/<part>.mk`)
+  and are unaffected — same binaries. New host runner
+  `tests/test/test_sysclk_auto.c` (the only TU built without the define,
+  run by every `make test`) drives `ow_port_init()` through all ten
+  supported clocks and checks the prescaler plus the filter tier, and
+  `test_sysclk_fallback.c` additionally proves no header defines a default
+  anymore.
 
 ### Removed
 
@@ -69,8 +83,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the target (e.g. `-DSTM32F030x6`) or, for host-test mocks, PlatformIO
   and STM32CubeMX projects, from a family macro (`-DSTM32F0`). Make/CMake
   builds are unaffected (`OW_TARGET`/`OW_CHIP` unchanged, same binaries);
-  manual consumers replace `-DOW_PORT_TARGET_Fx` with `-DSTM32Fx` or their
-  device macro.
+   manual consumers replace `-DOW_PORT_TARGET_Fx` with `-DSTM32Fx` or their
+   device macro.
+
+- **Family-header `OW_PORT_SYSCLK_MHZ` fallback defaults.** The `#ifndef`
+  blocks in `port/stm32*/ow_port_*.h` (48/72/72/168/84/180/64/170/64) are
+  gone: an integration that selected a backend without a clock `-D` used to
+  get a silently guessed prescaler, and now gets the `SystemCoreClock`
+  auto-path above (strictly more accurate, but a behavior change — keep
+  `SystemCoreClock` updated via `SystemCoreClockUpdate()`). Consumers that
+  pass `-DOW_PORT_SYSCLK_MHZ` explicitly, and all Make/CMake builds, are
+  unaffected.
 
 ## [2.3.0] - 2026-10-11
 

@@ -752,12 +752,17 @@ via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 
 Before `ds18b20_init()`, the driver must know the system-clock frequency: the
 TIM1 prescaler that generates the 1-Wire timing derives from
- `OW_PORT_SYSCLK_MHZ`. Each backend has a built-in default (48 on STM32F0,
- 72 on STM32F1, 72 on STM32F3, 64 on STM32G0, 170 on STM32G4, and on F4 the part's own
- default: 168 on F407, 84 on F401, 180 on F446), and the
-examples enable that clock in their
+ `OW_PORT_SYSCLK_MHZ`. The Make and CMake builds pass it for the part being
+built (`-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)` from `chips/<part>.mk`:
+48 on STM32F0, 72 on STM32F1, 72 on STM32F3, 64 on STM32G0, 170 on STM32G4,
+and on F4 the part's own clock: 168 on F407, 84 on F401, 180 on F446), and
+the examples enable that clock in their
 `app_init()`. If your firmware runs the MCU at a different frequency, provide
 it explicitly — e.g. `-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build.
+Integrations that select a backend without passing a clock (the
+PlatformIO/STM32CubeMX family-macro path) need no define at all: the port
+core reads the CMSIS `SystemCoreClock` at startup instead — keep it updated
+with `SystemCoreClockUpdate()` after any clock-tree change.
 
 **Single sensor (Skip ROM).** With one DS18B20 on the bus there is no need for
 a ROM search — the driver uses Skip ROM (broadcast) addressing by default:
@@ -1314,9 +1319,9 @@ header.  (These are preprocessor macros, not CMake options: a `cmake
 -DOW_STATS_ENABLE=1` variable would not reach the compiler.  The CMake
 example build enables stats automatically for `6_statistics` — see below.)
 Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
-`DS18B20_RES_MIN/MAX/DEFAULT`) and the per-family system clock default
-(`OW_PORT_SYSCLK_MHZ`) remain in their respective headers and are NOT
-listed here.
+`DS18B20_RES_MIN/MAX/DEFAULT`) and the system clock (`OW_PORT_SYSCLK_MHZ`,
+passed by the build or resolved from `SystemCoreClock` by the port core)
+remain outside this file and are NOT listed here.
 
 The four feature flags use **value style**: define to **1** to enable,
 omit or set to 0 to disable.  Old presence-only style
