@@ -1,41 +1,49 @@
 /* ============================================================
  *  test_sysclk_fallback.c - Family-macro backend selection check
  *
- *  Compile-only (no test harness): verifies that selecting a family
- *  through the raw family macro (STM32F0/F1/F3/F4/G0/G4/H5 — for F4/G4/H5
- *  also the concrete device spellings) — the path PlatformIO / STM32CubeMX
- *  use resolves both the
- *  OW_PORT_FAMILY_* token and the matching default OW_PORT_SYSCLK_MHZ.
- *  Guards against a family gaining a backend today and a wrong clock
- *  default tomorrow (see the family chain in onewire.h).
- *  Built per OW_TARGET by the test-clocks Makefile target.
+ *  Compile-only (no test harness), built in two modes from this one
+ *  source (see the test-clocks Makefile target):
+ *  - Values mode (-DOW_SYSCLK_VALUES_CHECK=1, WITH -DOW_PORT_SYSCLK_MHZ
+ *    from chips/<part>.mk): verifies that the part file's clock matches
+ *    the literal table below and the PLL/ceiling invariants - the check
+ *    that would have caught a chips-clock typo (see below).
+ *  - No-default mode (WITHOUT -DOW_PORT_SYSCLK_MHZ): anti-regression
+ *    proving no family header guesses a clock default anymore; the
+ *    PlatformIO / CubeMX path must reach the port core's SystemCoreClock
+ *    auto-path instead of a silent fallback.
+ *  Selecting a family through the raw family macro (STM32F0/F1/F3/F4/G0/
+ *  G4/H5 - for F4/G4/H5 also the concrete device spellings) must still
+ *  resolve the OW_PORT_FAMILY_* token in both modes. Built per OW_TARGET
+ *  by the test-clocks Makefile target.
  * ============================================================ */
 
 #include "ow_port.h"
 
-/* The clock default has two sources: the #if cascade in the family headers
- * (ow_port_f0/f1/f3/f4/g0.h) above, and
- * CHIP_SYSCLK_MHZ in the chips/<part>.mk the build selects. They are not
- * connected: the build passes -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the
- * firmware command line, which is exactly the #if !defined() guard in the
- * family headers,
- * so on a Make/CMake firmware the header cascade is bypassed and the part file
- * alone decides. Meanwhile this file deliberately omits that define so it can
- * check the cascade the PlatformIO / CubeMX path gets.
+/* The part file's clock used to have two sources: the #if cascade in the
+ * family headers above, and CHIP_SYSCLK_MHZ in the chips/<part>.mk the
+ * build selects. They were not connected: the build passes
+ * -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the firmware command line,
+ * which used to be exactly the #if !defined() guard in the family headers,
+ * so on a Make/CMake firmware the header cascade was bypassed and the part
+ * file alone decided. Meanwhile this file deliberately omitted that define
+ * so it could check the cascade the PlatformIO / CubeMX path got.
  *
  * The consequence was a silent one: with CHIP_SYSCLK_MHZ = 168 in
  * chips/f401xe.mk, the firmware compiled against a 168 MHz prescaler while the
  * part actually runs at 84 MHz - every 1-Wire slot half as long as intended -
  * and clock-ref-check, test-chips and all sixteen host configurations still
- * passed. So compare the two explicitly. The build passes the part file's value
- * as OW_CHIP_SYSCLK_MHZ precisely so it can be compared here.
+ * passed. The header cascade is now gone (no family header may define a
+ * clock), so the values mode below compares the part file's value - passed
+ * as both OW_CHIP_SYSCLK_MHZ and OW_PORT_SYSCLK_MHZ - against the literal
+ * table instead. Same bug class, one source instead of two.
  */
 #ifndef OW_CHIP_SYSCLK_MHZ
 #error "OW_CHIP_SYSCLK_MHZ missing: compile via `make test-clocks`, which passes the part file's CHIP_SYSCLK_MHZ"
 #endif
-#if OW_CHIP_SYSCLK_MHZ != OW_PORT_SYSCLK_MHZ
-#error "chips/<part>.mk CHIP_SYSCLK_MHZ disagrees with the ow_port.h family default for this part"
-#endif
+
+#ifdef OW_SYSCLK_VALUES_CHECK
+/* Values mode: OW_PORT_SYSCLK_MHZ arrives via -D from chips/<part>.mk.
+ * Every check below validates that value against the literals. */
 
 #if defined(STM32F0)
 #if OW_PORT_SYSCLK_MHZ != 48
@@ -172,3 +180,17 @@
 #endif
 /* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
 #endif /* STM32G4 */
+#else /* !defined(OW_SYSCLK_VALUES_CHECK): no-default mode -------------------
+ * Compiled WITHOUT -DOW_PORT_SYSCLK_MHZ: proves no family header smuggles
+ * a clock default back in, and that the family macro still resolves the
+ * backend token (the PlatformIO / CubeMX selection path). */
+/* The core must see no clock here: any definition would come from a header
+ * fallback guess, which must not exist. (The -D the values mode passes is
+ * deliberately absent from this object's command line.) */
+#ifdef OW_PORT_SYSCLK_MHZ
+#error "test_sysclk_fallback: OW_PORT_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
+#endif
+#if !defined(OW_PORT_FAMILY_F0) && !defined(OW_PORT_FAMILY_F1) && !defined(OW_PORT_FAMILY_F3) && !defined(OW_PORT_FAMILY_F4) && !defined(OW_PORT_FAMILY_G0) && !defined(OW_PORT_FAMILY_G4) && !defined(OW_PORT_FAMILY_H5)
+#error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
+#endif
+#endif /* OW_SYSCLK_VALUES_CHECK */

@@ -112,7 +112,7 @@ INCS=$(cat "$INCS_FILE")
 # path - the per-backend source compiles below are the check that does.
 OBJ="${INCS_FILE}.o"
 gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-    -DSTM32F1 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+    -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
     $INCS -Itests/mock \
     -c tests/integration/platformio/src/main.c -o "$OBJ" \
     || fail "the consumer did not compile against the include set library.json declares"
@@ -124,10 +124,22 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
 # through a bare #include "ow_port_tim_dma.h" - so a missing -Iport/stm32<xx>
 # or -Iport/common fails here instead of in a real project. Every backend the
 # manifest carries a port flag for earns its compile (F0/F1/F3/F4/G0/G4/H5).
+# The clock each backend compiles against mirrors the chips/<part>.mk default
+# (single source; test_sysclk_fallback.c guards the values). The family
+# headers no longer guess a default, so without this the sources below would
+# take the SystemCoreClock auto-path, which has no definition on the host.
 for target in F0 F1 F3 F4 G0 G4 H5; do
+    case $target in
+        F0) CLK=48 ;;
+        F1 | F3) CLK=72 ;;
+        F4) CLK=168 ;;
+        G0) CLK=64 ;;
+        G4) CLK=170 ;;
+        H5) CLK=64 ;;
+    esac
     for src in src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c; do
         gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-            "-DSTM32$target" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+            "-DSTM32$target" -DOW_PORT_SYSCLK_MHZ="$CLK" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
             $INCS -Itests/mock \
             -c "$src" -o "$OBJ" \
             || fail "$src for STM32$target did not compile against the include set library.json declares"
