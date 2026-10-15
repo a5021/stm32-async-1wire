@@ -754,7 +754,24 @@ OW_EFF_HSE := $(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))
 # into a filename-safe tag (spaces -> underscores).
 OW_EFF_EXT := $(strip $(EXT))
 OW_EXT_TAG := $(subst $(space),_,$(OW_EFF_EXT))
-OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))
+# OPT is a per-build knob like EXT above (release vs `make debug`): two builds
+# of the same part that differ only in OPT are different firmware, and without
+# OPT in the object name rebuilding one after the other silently reuses the
+# first build's objects. Release keeps the historical names; any other profile
+# gets the sanitised flag list appended (spaces to underscores, like
+# OW_EXT_TAG above), so `make debug`, a custom OPT=... on the command line
+# and any future profile each land in their own namespace - sharing one
+# fixed tag would only move the same bug one level down.
+# Decided at parse time on purpose, using globals only: pattern rules expand
+# their targets once when the makefile is parsed, so the target-specific
+# value (`debug: OPT = ...`, visible only at use time) would never reach
+# them. A command-line OPT=... is global and caught by direct comparison;
+# `make debug` (whose OPT is target-specific) is caught through MAKECMDGOALS
+# with the tag spelled from OPT_DEBUG, itself global. Sub-makes do not
+# inherit goals (test-ram and friends recurse with explicit goals), so their
+# objects keep release names.
+OPT_TAG = $(if $(filter-out $(subst $(space),_,$(strip $(OPT_RELEASE))),$(subst $(space),_,$(strip $(OPT)))),_opt$(subst $(space),_,$(strip $(OPT))),$(if $(filter debug,$(MAKECMDGOALS)),_opt$(subst $(space),_,$(strip $(OPT_DEBUG))),))
+OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
