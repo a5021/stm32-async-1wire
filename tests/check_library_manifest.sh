@@ -77,12 +77,12 @@ srcdir = b["srcDir"]
 #       this reason; listing them here would compile them twice.
 #   ds2431_txn.c  the DS2431 operation engine, included by its own amalgamated
 #       umbrella TU (src/ds2431.c) for the same reason.
-#   syscall.c  weak newlib-nano retarget stubs. Its own header says the library
-#       target does not carry it: CMake links --specs=nosys.specs, which ships
-#       equivalent weak stubs, and the linker collapses duplicate weak symbols.
+# (The weak newlib-nano retarget stubs used to live here as src/syscall.c;
+# they moved to examples/app/syscall.c - example support, not library code -
+# so src/ holds no exclusions beyond the amalgamated parts above.)
 INTENTIONALLY_UNLISTED = {
     "ds18b20_measure.c", "ds18b20_resolution.c",
-    "ds18b20_search.c", "ds18b20_txn.c", "ds2431_txn.c", "syscall.c",
+    "ds18b20_search.c", "ds18b20_txn.c", "ds2431_txn.c",
 }
 
 all_c = sorted(f for f in os.listdir(srcdir) if f.endswith(".c"))

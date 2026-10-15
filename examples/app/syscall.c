@@ -2,6 +2,9 @@
  * @file syscall.c
  * @brief Weak newlib-nano syscall retarget stubs for firmware links
  *
+ * Example support, not part of the library: linked into the Makefile
+ * examples and the CMake platform library only.
+ *
  * Makes the small-retarget symbols newlib-nano may pull in resolve without a
  * full syscall layer. Each stub is weak, so a consumer that provides its own
  * (strong) retarget simply overrides it. The CMake build already links

@@ -195,13 +195,13 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ds2431.c            # Driver: DS2431 EEPROM command set on the 1-Wire
 │   │                       # layer. Compiles as ONE translation unit
 │   │                       # (#includes its ds2431_txn.c part below).
-│   ├── ds2431_txn.c        # (include-only part) Read Memory + Write/Read/Copy
-│   │                       # Scratchpad transaction engine
-│   └── syscall.c           # Minimal libc stubs (_write/_sbrk/...) for bare metal
+│   └── ds2431_txn.c        # (include-only part) Read Memory + Write/Read/Copy
+│                           # Scratchpad transaction engine
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
-│   │   └── app.h           # Shared application layer interface
+│   │   ├── app.h           # Shared application layer interface
+│   │   └── syscall.c       # Minimal libc stubs (_write/_sbrk/...) for bare metal (example support, not library code)
 │   ├── 1_basic/main.c      # Single sensor, unconditional (Skip ROM)
 │   ├── 2_device_search/main.c  # Device search + per-device poll (no broadcast convert)
 │   ├── 3_round_robin/main.c    # Device search + sequential poll of all

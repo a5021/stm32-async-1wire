@@ -537,8 +537,9 @@ message(STATUS "stm32-async-1wire: OW_MCU=${OW_MCU}  "
 # ---------------------------------------------------------------------------
 if(OW_BUILD_EXAMPLES)
     # Complete platform: startup, system, linker script, syscall.c
+    # (example support in examples/app/, not part of the library itself).
     add_library(stm32_async_1wire_platform STATIC
-        src/syscall.c
+        examples/app/syscall.c
         ${CMSIS_STARTUP_DIR}/${STARTUP_ASM}
         ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
     )

@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Weak newlib-nano syscall stubs moved out of the library.** `src/syscall.c` → `examples/app/syscall.c` (example support, linked into firmware examples and the CMake platform library only). Arduino builds, which compile `src/` recursively, no longer receive the retargets — benign, their cores provide their own (and ours were `weak`).
+
 - **Debug/release object namespaces separated.** `OBJ_STAMP` now encodes the `OPT` profile (release keeps historical names; `make debug`, custom `OPT=...` and future profiles each get their own `_opt...` suffix), so rebuilding one profile after another can no longer silently reuse the other's objects. Previously `make debug` poisoned the objects `test-ram` measured.
 
 - **CMSIS dependencies pinned to commit SHAs.** `config/cmsis_pins.mk` records the exact upstream commits (ARM CMSIS_5, all seven `cmsis_device_*` repos, SVD data); the Makefile builds raw URLs from them and CMake passes them as `GIT_TAG`, replacing floating `master`/`main`. Fresh checkouts now download byte-identical headers years later — previously `system_stm32f3xx.c` drifted upstream (VTOR setup) and moved firmware images without any repository change.

@@ -136,25 +136,25 @@ ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0 -mthumb
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0plus -mthumb
 else ifeq ($(OW_TARGET),f4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),f3)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),g4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),h5)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c src/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
 endif
 
