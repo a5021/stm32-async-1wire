@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-14 04:47:59</td>
+            <td class="headerValue">2026-10-16 04:57:03</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
@@ -465,14 +465,14 @@
 <span id="L394"><span class="lineNum">     394</span>                 :             :  * at all, and the lock wait never ended.</span>
 <span id="L395"><span class="lineNum">     395</span>                 :             :  *</span>
 <span id="L396"><span class="lineNum">     396</span>                 :             :  * A clock the part cannot reach is rejected here rather than at runtime. The</span>
-<span id="L397"><span class="lineNum">     397</span>                 :             :  * per-part ceiling lives in ow_port_f4.h (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a</span>
+<span id="L397"><span class="lineNum">     397</span>                 :             :  * per-part ceiling lives in the ow_mcu.h F4 section (OW_PORT_F4_MAX_SYSCLK_MHZ): 180MHz is a</span>
 <span id="L398"><span class="lineNum">     398</span>                 :             :  * real frequency on the F446 and an out-of-spec one on an F407, and the two do</span>
 <span id="L399"><span class="lineNum">     399</span>                 :             :  * not differ by a divisor - they differ by over-drive, flash latency and APB</span>
 <span id="L400"><span class="lineNum">     400</span>                 :             :  * limits, so a build that asked for 180 on an F407 could not be made correct</span>
 <span id="L401"><span class="lineNum">     401</span>                 :             :  * by scaling the PLL down.</span>
 <span id="L402"><span class="lineNum">     402</span>                 :             :  */</span>
 <span id="L403"><span class="lineNum">     403</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) &gt; (OW_PORT_F4_MAX_SYSCLK_MHZ)</span>
-<span id="L404"><span class="lineNum">     404</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in ow_port_f4.h). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks.&quot;</span>
+<span id="L404"><span class="lineNum">     404</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this F4 part's ceiling (OW_PORT_F4_MAX_SYSCLK_MHZ in the ow_mcu.h F4 section). 180MHz needs the F446's over-drive; 168 and 84 are the F407/F401 clocks.&quot;</span>
 <span id="L405"><span class="lineNum">     405</span>                 :             : #endif</span>
 <span id="L406"><span class="lineNum">     406</span>                 :             : </span>
 <span id="L407"><span class="lineNum">     407</span>                 :             :     /* The APB prescalers this backend programs, and the console divisor derived</span>
@@ -665,7 +665,7 @@
 <span id="L594"><span class="lineNum">     594</span>                 :             :  * at 2*SYSCLK. A board with a different crystal keeps working by changing</span>
 <span id="L595"><span class="lineNum">     595</span>                 :             :  * HSE_MHZ alone, as long as it divides by 2 (static-asserted below). A clock</span>
 <span id="L596"><span class="lineNum">     596</span>                 :             :  * the part cannot reach is rejected against OW_PORT_G4_MAX_SYSCLK_MHZ</span>
-<span id="L597"><span class="lineNum">     597</span>                 :             :  * (ow_port_g4.h).</span>
+<span id="L597"><span class="lineNum">     597</span>                 :             :  * (the ow_mcu.h G4 section).</span>
 <span id="L598"><span class="lineNum">     598</span>                 :             :  *</span>
 <span id="L599"><span class="lineNum">     599</span>                 :             :  * APB1/APB2 stay /1 at both clocks (every peripheral here is within its</span>
 <span id="L600"><span class="lineNum">     600</span>                 :             :  * limit at full speed), so TIM1 = PCLK2 = SYSCLK directly - no x2 doubling</span>
@@ -688,7 +688,7 @@
 <span id="L617"><span class="lineNum">     617</span>                 :             :  * switch - and the 170MHz hardware matrix, not this comment, is the proof.</span>
 <span id="L618"><span class="lineNum">     618</span>                 :             :  */</span>
 <span id="L619"><span class="lineNum">     619</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) &gt; (OW_PORT_G4_MAX_SYSCLK_MHZ)</span>
-<span id="L620"><span class="lineNum">     620</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this G4 part's ceiling (OW_PORT_G4_MAX_SYSCLK_MHZ in ow_port_g4.h). 170MHz is the G474 cap.&quot;</span>
+<span id="L620"><span class="lineNum">     620</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this G4 part's ceiling (OW_PORT_G4_MAX_SYSCLK_MHZ in the ow_mcu.h G4 section). 170MHz is the G474 cap.&quot;</span>
 <span id="L621"><span class="lineNum">     621</span>                 :             : #endif</span>
 <span id="L622"><span class="lineNum">     622</span>                 :             : </span>
 <span id="L623"><span class="lineNum">     623</span>                 :             : #define OW_G4_PLLM (((OW_HSE_MHZ) / 4u) - 1u)</span>
@@ -769,7 +769,7 @@
 <span id="L698"><span class="lineNum">     698</span>                 :             :  * with the reason rather than running on a clock its timings were not built</span>
 <span id="L699"><span class="lineNum">     699</span>                 :             :  * for. */</span>
 <span id="L700"><span class="lineNum">     700</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) &gt; (OW_PORT_H5_MAX_SYSCLK_MHZ)</span>
-<span id="L701"><span class="lineNum">     701</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this H5 part's ceiling (OW_PORT_H5_MAX_SYSCLK_MHZ in ow_port_h5.h). 250MHz is the H503 cap.&quot;</span>
+<span id="L701"><span class="lineNum">     701</span>                 :             : #error &quot;OW_PORT_SYSCLK_MHZ exceeds this H5 part's ceiling (OW_PORT_H5_MAX_SYSCLK_MHZ in the ow_mcu.h H5 section). 250MHz is the H503 cap.&quot;</span>
 <span id="L702"><span class="lineNum">     702</span>                 :             : #endif</span>
 <span id="L703"><span class="lineNum">     703</span>                 :             : #if (OW_PORT_SYSCLK_MHZ) == 64</span>
 <span id="L704"><span class="lineNum">     704</span>                 :             :     /* raw HSI, as above */</span>
@@ -894,7 +894,7 @@
 <span id="L823"><span class="lineNum">     823</span>                 :             :  *       UART (AF7) and LED on PE8, active high. F4: USART1 TX on PB6 (AF7;</span>
 <span id="L824"><span class="lineNum">     824</span>                 :             :  *       the F4DISCOVERY has no USART1-to-ST-LINK route on PA9), LED on</span>
 <span id="L825"><span class="lineNum">     825</span>                 :             :  *       PD12, with an optional OW_UART_USART3 path on PB10. G0: UART TX on</span>
-<span id="L826"><span class="lineNum">     826</span>                 :             :  *       logical PA9 (PA11 pad after the SYSCFG remap, see ow_port_g0.h),</span>
+<span id="L826"><span class="lineNum">     826</span>                 :             :  *       logical PA9 (PA11 pad after the SYSCFG remap, see the ow_mcu.h G0 section),</span>
 <span id="L827"><span class="lineNum">     827</span>                 :             :  *       LED on PA4 (no PC13 bonded out on TSSOP20). G4: USART1 TX on PA9</span>
 <span id="L828"><span class="lineNum">     828</span>                 :             :  *       (AF7, external</span>
 <span id="L829"><span class="lineNum">     829</span>                 :             :  *       USB-UART - the WeAct board has no VCP), blue LED on PA8 (WeAct BSP:</span>
@@ -968,7 +968,7 @@
 <span id="L897"><span class="lineNum">     897</span>                 :             :      * missing pin, so &quot;no output&quot; could not be told apart from &quot;the clock never</span>
 <span id="L898"><span class="lineNum">     898</span>                 :             :      * started&quot;. Hence OW_UART_USART1_PA9, default unchanged.</span>
 <span id="L899"><span class="lineNum">     899</span>                 :             :      *</span>
-<span id="L900"><span class="lineNum">     900</span>                 :             :      * PA9 is safe alongside the bus: ow_port_f4.h takes PA10 for TIM1_CH3 and</span>
+<span id="L900"><span class="lineNum">     900</span>                 :             :      * PA9 is safe alongside the bus: the ow_mcu.h F4 section takes PA10 for TIM1_CH3 and</span>
 <span id="L901"><span class="lineNum">     901</span>                 :             :      * PA11 for the logic-analyzer marker, and only PA10 would clash with a</span>
 <span id="L902"><span class="lineNum">     902</span>                 :             :      * board's USART1_RX - which nothing here configures, the console is TX only.</span>
 <span id="L903"><span class="lineNum">     903</span>                 :             :      */</span>

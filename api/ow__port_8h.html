@@ -91,7 +91,9 @@ $(document).ready(function(){initNavTree('ow__port_8h.html',''); initResizable()
 
 <div class="header">
   <div class="summary">
-<a href="#define-members">Macros</a>  </div>
+<a href="#define-members">Macros</a> &#124;
+<a href="#func-members">Functions</a> &#124;
+<a href="#var-members">Variables</a>  </div>
   <div class="headertitle"><div class="title">ow_port.h File Reference</div></div>
 </div><!--header-->
 <div class="contents">
@@ -100,6 +102,7 @@ $(document).ready(function(){initNavTree('ow__port_8h.html',''); initResizable()
 <a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
 <code>#include &quot;<a class="el" href="onewire_8h_source.html">onewire.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="ow__mcu_8h_source.html">ow_mcu.h</a>&quot;</code><br />
 </div>
 <p><a href="ow__port_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -115,11 +118,77 @@ Macros</h2></td></tr>
 <tr class="separator:a8f5a3ee214b8a36f837a8b58d5ddf741"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a41a339d033b83ce2dffa5d622c3a4547" id="r_a41a339d033b83ce2dffa5d622c3a4547"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547">OW_PORT_MARKER_TOGGLE</a>()&#160;&#160;&#160;((void)0)</td></tr>
 <tr class="separator:a41a339d033b83ce2dffa5d622c3a4547"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e4eb7e4ee83ba3ac48e266cb46491dd" id="r_a5e4eb7e4ee83ba3ac48e266cb46491dd"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a5e4eb7e4ee83ba3ac48e266cb46491dd">OW_PORT_OC3PE_ARGS</a>&#160;&#160;&#160;0</td></tr>
+<tr class="separator:a5e4eb7e4ee83ba3ac48e266cb46491dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af716f13f3c5c20b9818c0b17f52ab091" id="r_af716f13f3c5c20b9818c0b17f52ab091"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#af716f13f3c5c20b9818c0b17f52ab091">OW_PORT_CCMR2_CAP</a>&#160;&#160;&#160;    (<a class="el" href="ow__bits_8h.html#a1b5c482907ada37a945fb106dad4891d">TIM_CCMR2</a>(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | <a class="el" href="ow__port_8h.html#a0556e734406376ee31c164db95d88174">ow_port_ic4f_mask_from_hz</a>(<a class="el" href="ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6">SystemCoreClock</a>) | <a class="el" href="ow__port_8h.html#a5e4eb7e4ee83ba3ac48e266cb46491dd">OW_PORT_OC3PE_ARGS</a>)</td></tr>
+<tr class="separator:af716f13f3c5c20b9818c0b17f52ab091"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6d549f34f0d370191bd4d1b6adcbc64b" id="r_a6d549f34f0d370191bd4d1b6adcbc64b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a6d549f34f0d370191bd4d1b6adcbc64b">OW_PORT_CCMR2_MRG</a>&#160;&#160;&#160;    (<a class="el" href="ow__bits_8h.html#a1b5c482907ada37a945fb106dad4891d">TIM_CCMR2</a>(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | <a class="el" href="ow__port_8h.html#a0556e734406376ee31c164db95d88174">ow_port_ic4f_mask_from_hz</a>(<a class="el" href="ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6">SystemCoreClock</a>))</td></tr>
+<tr class="separator:a6d549f34f0d370191bd4d1b6adcbc64b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:ac50cf9755c4770272344f0ee74c35913" id="r_ac50cf9755c4770272344f0ee74c35913"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#ac50cf9755c4770272344f0ee74c35913">ow_port_mhz_from_hz</a> (uint32_t hz)</td></tr>
+<tr class="separator:ac50cf9755c4770272344f0ee74c35913"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6fe687c1540c5433bcd5840ed76b16fe" id="r_a6fe687c1540c5433bcd5840ed76b16fe"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a6fe687c1540c5433bcd5840ed76b16fe">ow_port_psc_from_hz</a> (uint32_t hz)</td></tr>
+<tr class="separator:a6fe687c1540c5433bcd5840ed76b16fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0556e734406376ee31c164db95d88174" id="r_a0556e734406376ee31c164db95d88174"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a0556e734406376ee31c164db95d88174">ow_port_ic4f_mask_from_hz</a> (uint32_t hz)</td></tr>
+<tr class="separator:a0556e734406376ee31c164db95d88174"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abd4eab40c1da09eb8b4856ee2764bafd" id="r_abd4eab40c1da09eb8b4856ee2764bafd"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#abd4eab40c1da09eb8b4856ee2764bafd">ow_port_dma_disable</a> (volatile uint32_t *ccr)</td></tr>
+<tr class="memdesc:abd4eab40c1da09eb8b4856ee2764bafd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Disable a DMA channel and wait for EN to retire before re-arm.  <br /></td></tr>
+<tr class="separator:abd4eab40c1da09eb8b4856ee2764bafd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa119329b8d19dae0753f01e8444a6601" id="r_aa119329b8d19dae0753f01e8444a6601"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#aa119329b8d19dae0753f01e8444a6601">ow_port_kick</a> (void)</td></tr>
+<tr class="memdesc:aa119329b8d19dae0753f01e8444a6601"><td class="mdescLeft">&#160;</td><td class="mdescRight">Force a timer update event, leaving UIF set.  <br /></td></tr>
+<tr class="separator:aa119329b8d19dae0753f01e8444a6601"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a14ad63e6b577e8c5e0c8fe1eaee838e9" id="r_a14ad63e6b577e8c5e0c8fe1eaee838e9"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a14ad63e6b577e8c5e0c8fe1eaee838e9">ow_port_update_event</a> (void)</td></tr>
+<tr class="memdesc:a14ad63e6b577e8c5e0c8fe1eaee838e9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Force a timer update event and clear the update flag.  <br /></td></tr>
+<tr class="separator:a14ad63e6b577e8c5e0c8fe1eaee838e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab3a24c2e18484d9c7ae5792bc67394ca" id="r_ab3a24c2e18484d9c7ae5792bc67394ca"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#ab3a24c2e18484d9c7ae5792bc67394ca">ow_port_init</a> (void)</td></tr>
+<tr class="memdesc:ab3a24c2e18484d9c7ae5792bc67394ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enable clocks, configure the timer prescaler and the open-drain bus pin.  <br /></td></tr>
+<tr class="separator:ab3a24c2e18484d9c7ae5792bc67394ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a93a89dc570c3e676a6ea18abfe054afd" id="r_a93a89dc570c3e676a6ea18abfe054afd"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a93a89dc570c3e676a6ea18abfe054afd">ow_port_bus_done</a> (void)</td></tr>
+<tr class="memdesc:a93a89dc570c3e676a6ea18abfe054afd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Non-blocking completion check for the scheduled operation.  <br /></td></tr>
+<tr class="separator:a93a89dc570c3e676a6ea18abfe054afd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac40cd4ef00bbe19178e595d8b70590c9" id="r_ac40cd4ef00bbe19178e595d8b70590c9"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#ac40cd4ef00bbe19178e595d8b70590c9">ow_port_set_pin_mode</a> (uint8_t push_pull)</td></tr>
+<tr class="memdesc:ac40cd4ef00bbe19178e595d8b70590c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the bus pin drive mode (open-drain vs push-pull)  <br /></td></tr>
+<tr class="separator:ac40cd4ef00bbe19178e595d8b70590c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2a39f5622cd30a789d376ce5699de5c6" id="r_a2a39f5622cd30a789d376ce5699de5c6"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a2a39f5622cd30a789d376ce5699de5c6">ow_port_capture</a> (volatile void *dst, uint16_t count, uint16_t width)</td></tr>
+<tr class="memdesc:a2a39f5622cd30a789d376ce5699de5c6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure timer and DMA for a capture operation.  <br /></td></tr>
+<tr class="separator:a2a39f5622cd30a789d376ce5699de5c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0262c6ac318c2cceaf55e2477d9a1baf" id="r_a0262c6ac318c2cceaf55e2477d9a1baf"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a0262c6ac318c2cceaf55e2477d9a1baf">ow_port_feed</a> (const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *cmd, uint16_t slots)</td></tr>
+<tr class="memdesc:a0262c6ac318c2cceaf55e2477d9a1baf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transmit a command sequence of arbitrary length using DMA.  <br /></td></tr>
+<tr class="separator:a0262c6ac318c2cceaf55e2477d9a1baf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6ab7a325d1e77e96192d2977acac02c2" id="r_a6ab7a325d1e77e96192d2977acac02c2"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a6ab7a325d1e77e96192d2977acac02c2">ow_port_start_timer</a> (uint16_t arr, uint8_t rcr)</td></tr>
+<tr class="memdesc:a6ab7a325d1e77e96192d2977acac02c2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Start a hardware-timed wait (conversion wait / EEPROM hold-off)  <br /></td></tr>
+<tr class="separator:a6ab7a325d1e77e96192d2977acac02c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aec5eb61ecbcf0a27def8c517f62f765e" id="r_aec5eb61ecbcf0a27def8c517f62f765e"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#aec5eb61ecbcf0a27def8c517f62f765e">ow_port_reset</a> (volatile uint16_t *reset_pulses)</td></tr>
+<tr class="memdesc:aec5eb61ecbcf0a27def8c517f62f765e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a 1-Wire bus reset with presence capture.  <br /></td></tr>
+<tr class="separator:aec5eb61ecbcf0a27def8c517f62f765e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad9a0317250d21b2aa946008c3d1df6cb" id="r_ad9a0317250d21b2aa946008c3d1df6cb"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#ad9a0317250d21b2aa946008c3d1df6cb">ow_port_write_slots</a> (const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *pulses, uint16_t slots)</td></tr>
+<tr class="memdesc:ad9a0317250d21b2aa946008c3d1df6cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a write of <code>slots</code> bit slots.  <br /></td></tr>
+<tr class="separator:ad9a0317250d21b2aa946008c3d1df6cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae0319820fca4de890409088d41e15183" id="r_ae0319820fca4de890409088d41e15183"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#ae0319820fca4de890409088d41e15183">ow_port_read_pair</a> (volatile uint16_t *pair_pulses)</td></tr>
+<tr class="memdesc:ae0319820fca4de890409088d41e15183"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a two-slot read of a Search ROM id/cmp bit pair.  <br /></td></tr>
+<tr class="separator:ae0319820fca4de890409088d41e15183"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a64a9b2eb0409784f93d22aea2581d80b" id="r_a64a9b2eb0409784f93d22aea2581d80b"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a64a9b2eb0409784f93d22aea2581d80b">ow_port_write_then_read</a> (uint8_t bit, volatile uint16_t *pulse3, const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *read_pulse)</td></tr>
+<tr class="memdesc:a64a9b2eb0409784f93d22aea2581d80b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a merged single-slot write followed by a two-slot read pair.  <br /></td></tr>
+<tr class="separator:a64a9b2eb0409784f93d22aea2581d80b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a14d113083845ba39754faf865847dae4" id="r_a14d113083845ba39754faf865847dae4"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a14d113083845ba39754faf865847dae4">ow_port_read_data</a> (volatile uint8_t *dst, uint8_t bytes)</td></tr>
+<tr class="memdesc:a14d113083845ba39754faf865847dae4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a read of <code>bytes</code> bytes from the bus.  <br /></td></tr>
+<tr class="separator:a14d113083845ba39754faf865847dae4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a77cda7917cf3aa833bc22fffa0890bfa" id="r_a77cda7917cf3aa833bc22fffa0890bfa"><td class="memItemLeft" align="right" valign="top">__STATIC_FORCEINLINE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#a77cda7917cf3aa833bc22fffa0890bfa">ow_port_strong_pullup</a> (uint8_t on)</td></tr>
+<tr class="memdesc:a77cda7917cf3aa833bc22fffa0890bfa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Engage or release the parasite-power strong pull-up on the bus.  <br /></td></tr>
+<tr class="separator:a77cda7917cf3aa833bc22fffa0890bfa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
+Variables</h2></td></tr>
+<tr class="memitem:aa3cd3e43291e81e795d642b79b6088e6" id="r_aa3cd3e43291e81e795d642b79b6088e6"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6">SystemCoreClock</a></td></tr>
+<tr class="separator:aa3cd3e43291e81e795d642b79b6088e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Platform port layer for the non-blocking 1-Wire engine. </p>
 <p>The 1-Wire layer (onewire.c) is written against this thin, target-agnostic interface; the DS18B20 driver (ds18b20.c) uses only the onewire_* API on top of it. Each target provides the ow_port_* implementation as a header of static inline functions, so the port layer compiles away to exactly the same register writes as a direct bare-metal implementation: zero call overhead in any build mode, with or without LTO, and no function pointers or runtime dispatch.</p>
-<p>Every ow_port_* call schedules exactly one hardware-timed operation on the shared timer/DMA engine and returns immediately; the caller advances by polling ow_port_bus_done(). The CPU is never in the timing-critical path. </p>
+<p>Every ow_port_* call schedules exactly one hardware-timed operation on the shared timer/DMA engine and returns immediately; the caller advances by polling <a class="el" href="ow__port_8h.html#a93a89dc570c3e676a6ea18abfe054afd" title="Non-blocking completion check for the scheduled operation.">ow_port_bus_done()</a>. The CPU is never in the timing-critical path.</p>
+<p>Layout: protocol constants, then the target facts (<a class="el" href="ow__mcu_8h.html" title="Target-microcontroller facts for the non-blocking 1-Wire engine.">ow_mcu.h</a>: family dispatch plus the seven MCU sections), then the shared TIM1+DMA engine below. A consumer only needs -Iinc. </p>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a629ce7673dff00062857559a77d2a2a5" name="a629ce7673dff00062857559a77d2a2a5"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a629ce7673dff00062857559a77d2a2a5">&#9670;&#160;</a></span>OW_PORT_CAPTURE_BUF_SIZE</h2>
@@ -129,6 +198,34 @@ Macros</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">#define OW_PORT_CAPTURE_BUF_SIZE&#160;&#160;&#160;2u</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="af716f13f3c5c20b9818c0b17f52ab091" name="af716f13f3c5c20b9818c0b17f52ab091"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af716f13f3c5c20b9818c0b17f52ab091">&#9670;&#160;</a></span>OW_PORT_CCMR2_CAP</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_PORT_CCMR2_CAP&#160;&#160;&#160;    (<a class="el" href="ow__bits_8h.html#a1b5c482907ada37a945fb106dad4891d">TIM_CCMR2</a>(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | <a class="el" href="ow__port_8h.html#a0556e734406376ee31c164db95d88174">ow_port_ic4f_mask_from_hz</a>(<a class="el" href="ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6">SystemCoreClock</a>) | <a class="el" href="ow__port_8h.html#a5e4eb7e4ee83ba3ac48e266cb46491dd">OW_PORT_OC3PE_ARGS</a>)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a6d549f34f0d370191bd4d1b6adcbc64b" name="a6d549f34f0d370191bd4d1b6adcbc64b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6d549f34f0d370191bd4d1b6adcbc64b">&#9670;&#160;</a></span>OW_PORT_CCMR2_MRG</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_PORT_CCMR2_MRG&#160;&#160;&#160;    (<a class="el" href="ow__bits_8h.html#a1b5c482907ada37a945fb106dad4891d">TIM_CCMR2</a>(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | <a class="el" href="ow__port_8h.html#a0556e734406376ee31c164db95d88174">ow_port_ic4f_mask_from_hz</a>(<a class="el" href="ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6">SystemCoreClock</a>))</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -166,6 +263,20 @@ Macros</h2></td></tr>
 
 </div>
 </div>
+<a id="a5e4eb7e4ee83ba3ac48e266cb46491dd" name="a5e4eb7e4ee83ba3ac48e266cb46491dd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5e4eb7e4ee83ba3ac48e266cb46491dd">&#9670;&#160;</a></span>OW_PORT_OC3PE_ARGS</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_PORT_OC3PE_ARGS&#160;&#160;&#160;0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aa18f9f11d231ba5cdc1674c70d1dca0c" name="aa18f9f11d231ba5cdc1674c70d1dca0c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa18f9f11d231ba5cdc1674c70d1dca0c">&#9670;&#160;</a></span>OW_PORT_RESET_PULSE_DURATION</h2>
 
@@ -190,6 +301,542 @@ Macros</h2></td></tr>
           <td class="memname">#define OW_PORT_RESET_TIMEOUT&#160;&#160;&#160;960u</td>
         </tr>
       </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<h2 class="groupheader">Function Documentation</h2>
+<a id="a93a89dc570c3e676a6ea18abfe054afd" name="a93a89dc570c3e676a6ea18abfe054afd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a93a89dc570c3e676a6ea18abfe054afd">&#9670;&#160;</a></span>ow_port_bus_done()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint8_t ow_port_bus_done </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Non-blocking completion check for the scheduled operation. </p>
+<dl class="section return"><dt>Returns</dt><dd>1 if finished (update flag set and cleared), 0 while still running </dd></dl>
+
+</div>
+</div>
+<a id="a2a39f5622cd30a789d376ce5699de5c6" name="a2a39f5622cd30a789d376ce5699de5c6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2a39f5622cd30a789d376ce5699de5c6">&#9670;&#160;</a></span>ow_port_capture()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_capture </td>
+          <td>(</td>
+          <td class="paramtype">volatile void *&#160;</td>
+          <td class="paramname"><em>dst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>count</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>width</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Configure timer and DMA for a capture operation. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">dst</td><td>Destination buffer for captured data </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">count</td><td>Number of transfers </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">width</td><td>DMA transfer width: 8 for 8-bit, 16 for 16-bit </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="abd4eab40c1da09eb8b4856ee2764bafd" name="abd4eab40c1da09eb8b4856ee2764bafd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abd4eab40c1da09eb8b4856ee2764bafd">&#9670;&#160;</a></span>ow_port_dma_disable()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_dma_disable </td>
+          <td>(</td>
+          <td class="paramtype">volatile uint32_t *&#160;</td>
+          <td class="paramname"><em>ccr</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Disable a DMA channel and wait for EN to retire before re-arm. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">ccr</td><td>Address of the channel's CCR register (<code>&amp;OW_PORT_DMA_CAPTURE.CCR</code> or <code>&amp;OW_PORT_DMA_FEED.CCR</code>; the F4 DISABLE macros pass their stream's CR the same way) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>DMA1 clears EN by hardware only when CNDTR drains, so a capture underrun (fewer physical bus edges than armed transfers, e.g. a no-presence reset schedules OW_PORT_CAPTURE_BUF_SIZE=2 captures but only the master-release edge arrives) leaves the channel armed mid-transfer — CNDTR &gt; 0, EN still set — when the timer operation completes. Reprogramming PAR/CMAR/NDTR while EN is set is outside the RM0008/RM0091 programming-model flow, so the disable is acknowledged with a bounded wait on CCR.EN instead of the bare CCR=0 the historical code used. On every healthy path (the previous transfer drained, EN already 0) the wait is zero iterations. The host model cannot distinguish this from the bare CCR=0 (no disable latency, no register-access accessors); those tests document the contract and the real-hardware bench proves the wait. The parameter is the CCR field rather than a channel pointer so the core need not name the channel type (the ST headers spell it <code>DMA_Channel_TypeDef</code>, the host mocks <code>DMA1_Channel_TypeDef</code>). </dd></dl>
+
+</div>
+</div>
+<a id="a0262c6ac318c2cceaf55e2477d9a1baf" name="a0262c6ac318c2cceaf55e2477d9a1baf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0262c6ac318c2cceaf55e2477d9a1baf">&#9670;&#160;</a></span>ow_port_feed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint8_t ow_port_feed </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *&#160;</td>
+          <td class="paramname"><em>cmd</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>slots</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Transmit a command sequence of arbitrary length using DMA. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">cmd</td><td>Pointer to command sequence in pulse duration format </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots (bits) to transmit, 1..ONEWIRE_MAX_SLOTS. Out-of-range values are rejected: TIM1 RCR is 8-bit (RCR = slots - 1). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the feed was scheduled, 0 if <code>slots</code> is out of range (nothing is scheduled). </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The buffer must hold <code>slots + 1</code> entries and the entry at index <code>slots</code> must be ONEWIRE_RELEASE_PULSE: the final CC2-triggered DMA transfer feeds that value into CCR3 during the last slot, so the one-pulse timer stops with the line already released to idle HIGH (hardware bus release — no software CCR3 write needed afterwards). </dd></dl>
+
+</div>
+</div>
+<a id="a0556e734406376ee31c164db95d88174" name="a0556e734406376ee31c164db95d88174"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0556e734406376ee31c164db95d88174">&#9670;&#160;</a></span>ow_port_ic4f_mask_from_hz()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>hz</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ab3a24c2e18484d9c7ae5792bc67394ca" name="ab3a24c2e18484d9c7ae5792bc67394ca"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab3a24c2e18484d9c7ae5792bc67394ca">&#9670;&#160;</a></span>ow_port_init()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_init </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Enable clocks, configure the timer prescaler and the open-drain bus pin. </p>
+<dl class="section pre"><dt>Precondition</dt><dd>Internal after-reset bootstrap only. This is not a reinit or recovery hook and must not be called while a TIM1/DMA operation is active. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Does not stop/reset TIM1 or the DMA channels, and does not clear stale low-power state. The timer stays stopped: no update event is forced, so the first operation only starts when the application requests it. </dd></dl>
+
+</div>
+</div>
+<a id="aa119329b8d19dae0753f01e8444a6601" name="aa119329b8d19dae0753f01e8444a6601"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa119329b8d19dae0753f01e8444a6601">&#9670;&#160;</a></span>ow_port_kick()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_kick </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Force a timer update event, leaving UIF set. </p>
+<dl class="section note"><dt>Note</dt><dd>Explicit start: EGR=UG with no SR clear, so the owner (measurement state machine) sees UIF set and advances on its next poll. Nothing calls this implicitly: after init and after every finished operation the timer stays idle until the application requests the next one. </dd></dl>
+
+</div>
+</div>
+<a id="ac50cf9755c4770272344f0ee74c35913" name="ac50cf9755c4770272344f0ee74c35913"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac50cf9755c4770272344f0ee74c35913">&#9670;&#160;</a></span>ow_port_mhz_from_hz()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint32_t ow_port_mhz_from_hz </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>hz</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a6fe687c1540c5433bcd5840ed76b16fe" name="a6fe687c1540c5433bcd5840ed76b16fe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6fe687c1540c5433bcd5840ed76b16fe">&#9670;&#160;</a></span>ow_port_psc_from_hz()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint16_t ow_port_psc_from_hz </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>hz</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a14d113083845ba39754faf865847dae4" name="a14d113083845ba39754faf865847dae4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a14d113083845ba39754faf865847dae4">&#9670;&#160;</a></span>ow_port_read_data()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint8_t ow_port_read_data </td>
+          <td>(</td>
+          <td class="paramtype">volatile uint8_t *&#160;</td>
+          <td class="paramname"><em>dst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>bytes</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Schedule a read of <code>bytes</code> bytes from the bus. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">dst</td><td>Buffer for the captured pulse durations (bytes x 8 x 8-bit) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">bytes</td><td>Number of bytes to read, 1..ONEWIRE_MAX_READ_BYTES. Out-of-range values are rejected (8-bit RCR limit: 256 slots). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the read was scheduled, 0 if <code>bytes</code> is out of range (nothing is scheduled). </dd></dl>
+
+</div>
+</div>
+<a id="ae0319820fca4de890409088d41e15183" name="ae0319820fca4de890409088d41e15183"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae0319820fca4de890409088d41e15183">&#9670;&#160;</a></span>ow_port_read_pair()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_read_pair </td>
+          <td>(</td>
+          <td class="paramtype">volatile uint16_t *&#160;</td>
+          <td class="paramname"><em>pair_pulses</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Schedule a two-slot read of a Search ROM id/cmp bit pair. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">pair_pulses</td><td>Buffer for the captured pulse durations (2 x 16-bit) </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aec5eb61ecbcf0a27def8c517f62f765e" name="aec5eb61ecbcf0a27def8c517f62f765e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aec5eb61ecbcf0a27def8c517f62f765e">&#9670;&#160;</a></span>ow_port_reset()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_reset </td>
+          <td>(</td>
+          <td class="paramtype">volatile uint16_t *&#160;</td>
+          <td class="paramname"><em>reset_pulses</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Schedule a 1-Wire bus reset with presence capture. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">reset_pulses</td><td>Buffer for the captured reset + presence pulse durations (2 x 16-bit) </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ac40cd4ef00bbe19178e595d8b70590c9" name="ac40cd4ef00bbe19178e595d8b70590c9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac40cd4ef00bbe19178e595d8b70590c9">&#9670;&#160;</a></span>ow_port_set_pin_mode()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_set_pin_mode </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>push_pull</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Set the bus pin drive mode (open-drain vs push-pull) </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">push_pull</td><td>1 selects alternate-function push-pull (master actively drives both bus levels), 0 selects alternate-function open-drain (master drives LOW only, releasing HIGH to the external pull-up). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>Used by the parasite strong-pull-up and, when OW_DRIVE_ACTIVE is defined, by the active-drive write path. The pin never leaves alternate-function (TIM1_CH3); only the output-stage topology changes. </dd></dl>
+
+</div>
+</div>
+<a id="a6ab7a325d1e77e96192d2977acac02c2" name="a6ab7a325d1e77e96192d2977acac02c2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6ab7a325d1e77e96192d2977acac02c2">&#9670;&#160;</a></span>ow_port_start_timer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_start_timer </td>
+          <td>(</td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>arr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>rcr</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Start a hardware-timed wait (conversion wait / EEPROM hold-off) </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">arr</td><td>Auto-reload value (one timer period in µs) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">rcr</td><td>Repetition counter (number of periods - 1) </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a77cda7917cf3aa833bc22fffa0890bfa" name="a77cda7917cf3aa833bc22fffa0890bfa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a77cda7917cf3aa833bc22fffa0890bfa">&#9670;&#160;</a></span>ow_port_strong_pullup()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_strong_pullup </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>on</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Engage or release the parasite-power strong pull-up on the bus. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">on</td><td>1 drives the bus line HIGH actively, 0 releases it again </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>The pin stays in alternate-function mode (TIM1_CH3) at all times. Engaged: OTYPER switches to push-pull so the AF output stage drives the line HIGH actively, sourcing the current parasite devices need during temperature conversion and EEPROM programming windows. CCR3 is zeroed (via UG, since OC3PE buffers it) so the stopped counter (CNT=0) holds the PWM mode 2 output ACTIVE=HIGH; without this CCR3 keeps the last slot's pulse value, CNT=0 &lt; CCR3 forces INACTIVE=LOW, and the bus is driven LOW instead of HIGH, starving the sensors. Released: OTYPER restores open-drain, the AF output (still ACTIVE from CCR3=0) releases the line so it floats HIGH via the external pull-up. No BSRR or MODER writes needed, and ODR is irrelevant in AF mode. The UG sets UIF, which the next operation clears at its own re-arm. </dd></dl>
+
+</div>
+</div>
+<a id="a14ad63e6b577e8c5e0c8fe1eaee838e9" name="a14ad63e6b577e8c5e0c8fe1eaee838e9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a14ad63e6b577e8c5e0c8fe1eaee838e9">&#9670;&#160;</a></span>ow_port_update_event()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_update_event </td>
+          <td>(</td>
+          <td class="paramtype">void&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Force a timer update event and clear the update flag. </p>
+<dl class="section note"><dt>Note</dt><dd>Re-arm: reloads ARR/RCR/CCR preloads and clears UIF so the freshly scheduled operation has a clean completion flag. </dd></dl>
+
+</div>
+</div>
+<a id="ad9a0317250d21b2aa946008c3d1df6cb" name="ad9a0317250d21b2aa946008c3d1df6cb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad9a0317250d21b2aa946008c3d1df6cb">&#9670;&#160;</a></span>ow_port_write_slots()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE uint8_t ow_port_write_slots </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *&#160;</td>
+          <td class="paramname"><em>pulses</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>slots</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Schedule a write of <code>slots</code> bit slots. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Pulse buffer (one entry per slot); for <code>slots &gt; 1</code> the entry at index <code>slots</code> must be ONEWIRE_RELEASE_PULSE (hardware bus release) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">slots</td><td>Number of bit slots to transmit, 1..ONEWIRE_MAX_SLOTS. Out-of-range values are rejected (8-bit RCR limit). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the write was scheduled, 0 if <code>slots</code> is out of range (nothing is scheduled). </dd></dl>
+
+</div>
+</div>
+<a id="a64a9b2eb0409784f93d22aea2581d80b" name="a64a9b2eb0409784f93d22aea2581d80b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a64a9b2eb0409784f93d22aea2581d80b">&#9670;&#160;</a></span>ow_port_write_then_read()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">__STATIC_FORCEINLINE void ow_port_write_then_read </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>bit</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">volatile uint16_t *&#160;</td>
+          <td class="paramname"><em>pulse3</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="ow__mcu_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *&#160;</td>
+          <td class="paramname"><em>read_pulse</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Schedule a merged single-slot write followed by a two-slot read pair. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">bit</td><td>Direction bit to write in slot 1 (0 or 1) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">pulse3</td><td>Buffer for the three captured slots (write-slot capture, id pulse, cmp pulse) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">read_pulse</td><td>CCR3 reloads for read slots 2-3 (+ ONEWIRE_RELEASE_PULSE) </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Variable Documentation</h2>
+<a id="aa3cd3e43291e81e795d642b79b6088e6" name="aa3cd3e43291e81e795d642b79b6088e6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3cd3e43291e81e795d642b79b6088e6">&#9670;&#160;</a></span>SystemCoreClock</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t SystemCoreClock</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">extern</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 </div>

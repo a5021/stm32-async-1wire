@@ -1,8 +1,30 @@
 var ow__port_8h =
 [
     [ "OW_PORT_CAPTURE_BUF_SIZE", "ow__port_8h.html#a629ce7673dff00062857559a77d2a2a5", null ],
+    [ "OW_PORT_CCMR2_CAP", "ow__port_8h.html#af716f13f3c5c20b9818c0b17f52ab091", null ],
+    [ "OW_PORT_CCMR2_MRG", "ow__port_8h.html#a6d549f34f0d370191bd4d1b6adcbc64b", null ],
     [ "OW_PORT_LONG_STAGE_US", "ow__port_8h.html#a8f5a3ee214b8a36f837a8b58d5ddf741", null ],
     [ "OW_PORT_MARKER_TOGGLE", "ow__port_8h.html#a41a339d033b83ce2dffa5d622c3a4547", null ],
+    [ "OW_PORT_OC3PE_ARGS", "ow__port_8h.html#a5e4eb7e4ee83ba3ac48e266cb46491dd", null ],
     [ "OW_PORT_RESET_PULSE_DURATION", "ow__port_8h.html#aa18f9f11d231ba5cdc1674c70d1dca0c", null ],
-    [ "OW_PORT_RESET_TIMEOUT", "ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78", null ]
+    [ "OW_PORT_RESET_TIMEOUT", "ow__port_8h.html#a5ec4c131780da9c582cb5f3d9464be78", null ],
+    [ "ow_port_bus_done", "ow__port_8h.html#a93a89dc570c3e676a6ea18abfe054afd", null ],
+    [ "ow_port_capture", "ow__port_8h.html#a2a39f5622cd30a789d376ce5699de5c6", null ],
+    [ "ow_port_dma_disable", "ow__port_8h.html#abd4eab40c1da09eb8b4856ee2764bafd", null ],
+    [ "ow_port_feed", "ow__port_8h.html#a0262c6ac318c2cceaf55e2477d9a1baf", null ],
+    [ "ow_port_ic4f_mask_from_hz", "ow__port_8h.html#a0556e734406376ee31c164db95d88174", null ],
+    [ "ow_port_init", "ow__port_8h.html#ab3a24c2e18484d9c7ae5792bc67394ca", null ],
+    [ "ow_port_kick", "ow__port_8h.html#aa119329b8d19dae0753f01e8444a6601", null ],
+    [ "ow_port_mhz_from_hz", "ow__port_8h.html#ac50cf9755c4770272344f0ee74c35913", null ],
+    [ "ow_port_psc_from_hz", "ow__port_8h.html#a6fe687c1540c5433bcd5840ed76b16fe", null ],
+    [ "ow_port_read_data", "ow__port_8h.html#a14d113083845ba39754faf865847dae4", null ],
+    [ "ow_port_read_pair", "ow__port_8h.html#ae0319820fca4de890409088d41e15183", null ],
+    [ "ow_port_reset", "ow__port_8h.html#aec5eb61ecbcf0a27def8c517f62f765e", null ],
+    [ "ow_port_set_pin_mode", "ow__port_8h.html#ac40cd4ef00bbe19178e595d8b70590c9", null ],
+    [ "ow_port_start_timer", "ow__port_8h.html#a6ab7a325d1e77e96192d2977acac02c2", null ],
+    [ "ow_port_strong_pullup", "ow__port_8h.html#a77cda7917cf3aa833bc22fffa0890bfa", null ],
+    [ "ow_port_update_event", "ow__port_8h.html#a14ad63e6b577e8c5e0c8fe1eaee838e9", null ],
+    [ "ow_port_write_slots", "ow__port_8h.html#ad9a0317250d21b2aa946008c3d1df6cb", null ],
+    [ "ow_port_write_then_read", "ow__port_8h.html#a64a9b2eb0409784f93d22aea2581d80b", null ],
+    [ "SystemCoreClock", "ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6", null ]
 ];

@@ -358,7 +358,7 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Opt-in low-power WFE sleep path. </p>
-<p>When 1 the TIM1 update interrupt (UIE) and SEVONPEND are armed for long hardware stages (&gt; 1 ms) so that the application can block in __WFE() without an ISR; the driver itself stays non-blocking. No ISR is ever installed and NVIC_EnableIRQ is never called; the pending bit is cleared explicitly in ow_port_bus_done() so WFE does not degrade into a busy-loop.</p>
+<p>When 1 the TIM1 update interrupt (UIE) and SEVONPEND are armed for long hardware stages (&gt; 1 ms) so that the application can block in __WFE() without an ISR; the driver itself stays non-blocking. No ISR is ever installed and NVIC_EnableIRQ is never called; the pending bit is cleared explicitly in <a class="el" href="ow__port_8h.html#a93a89dc570c3e676a6ea18abfe054afd" title="Non-blocking completion check for the scheduled operation.">ow_port_bus_done()</a> so WFE does not degrade into a busy-loop.</p>
 <p>Enable with -DOW_PORT_LOW_POWER=1. </p>
 
 </div>

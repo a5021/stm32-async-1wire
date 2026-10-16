@@ -39,7 +39,7 @@ var searchData=
   ['ds18b20_5fbusy_36',['ds18b20_busy',['../group__DS18B20__Exported__Functions.html#ga5dbe17cf39bea12578eeab800338851c',1,'ds18b20.h']]],
   ['ds18b20_5fcomplete_37',['ds18b20_complete',['../group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3',1,'ds18b20.h']]],
   ['ds18b20_5fconvert_5ft_38',['DS18B20_CONVERT_T',['../group__DS18B20__Exported__Constants.html#ga8f1209a169850233c400aad1b701c962',1,'ds18b20.h']]],
-  ['ds18b20_5fcopy_5fscratchpad_39',['ds18b20_copy_scratchpad',['../group__DS18B20__Exported__Constants.html#ga244a129394fe7ea0119b9c569fe7099d',1,'DS18B20_COPY_SCRATCHPAD:&#160;ds18b20.h'],['../group__DS18B20__Commands.html#ga7c78f33c0c274e68a79ddb2350d67e6e',1,'ds18b20_copy_scratchpad(void):&#160;ds18b20.h']]],
+  ['ds18b20_5fcopy_5fscratchpad_39',['ds18b20_copy_scratchpad',['../group__DS18B20__Commands.html#ga7c78f33c0c274e68a79ddb2350d67e6e',1,'ds18b20_copy_scratchpad(void):&#160;ds18b20.h'],['../group__DS18B20__Exported__Constants.html#ga244a129394fe7ea0119b9c569fe7099d',1,'DS18B20_COPY_SCRATCHPAD:&#160;ds18b20.h']]],
   ['ds18b20_5fcopy_5fscratchpad_5fpoll_40',['ds18b20_copy_scratchpad_poll',['../group__DS18B20__Commands.html#ga2fc77c8cfda6e87783bd9d86acbaa6e9',1,'ds18b20.h']]],
   ['ds18b20_5fcrc8_41',['ds18b20_crc8',['../group__DS18B20__Exported__Functions.html#gab65690ee317482cd5054de7dfc7322e2',1,'ds18b20.h']]],
   ['ds18b20_5fdetect_5fparasite_42',['ds18b20_detect_parasite',['../group__DS18B20__Commands.html#gaa4fa10a987f22701850b2b1ce91668f5',1,'ds18b20.h']]],
@@ -109,7 +109,7 @@ var searchData=
   ['ds2431_5fread_5fmemory_106',['ds2431_read_memory',['../group__DS2431__Exported__Functions.html#gaa0d74d2523de7b4182a0d12795eb2555',1,'ds2431_read_memory(uint8_t *dst, uint16_t addr, uint8_t len):&#160;ds2431.h'],['../group__DS2431__Exported__Constants.html#ga2961abaa912c8e5cf3f7caf06027ca50',1,'DS2431_READ_MEMORY:&#160;ds2431.h']]],
   ['ds2431_5fread_5fmemory_5fpoll_107',['ds2431_read_memory_poll',['../group__DS2431__Exported__Functions.html#ga3ccedb33b5fb521b1f707afa501e5c16',1,'ds2431.h']]],
   ['ds2431_5fread_5fpass_108',['DS2431_READ_PASS',['../group__DS2431__Exported__Constants.html#gaf690601360e91d9f5703d7e2449af4b9',1,'ds2431.h']]],
-  ['ds2431_5fread_5fscratchpad_109',['ds2431_read_scratchpad',['../group__DS2431__Exported__Constants.html#ga6735151daab3babf640b8f6d64aba606',1,'DS2431_READ_SCRATCHPAD:&#160;ds2431.h'],['../group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0',1,'ds2431_read_scratchpad(uint8_t *buf):&#160;ds2431.h']]],
+  ['ds2431_5fread_5fscratchpad_109',['ds2431_read_scratchpad',['../group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0',1,'ds2431_read_scratchpad(uint8_t *buf):&#160;ds2431.h'],['../group__DS2431__Exported__Constants.html#ga6735151daab3babf640b8f6d64aba606',1,'DS2431_READ_SCRATCHPAD:&#160;ds2431.h']]],
   ['ds2431_5fread_5fscratchpad_5fpoll_110',['ds2431_read_scratchpad_poll',['../group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d',1,'ds2431.h']]],
   ['ds2431_5from_5fbytes_111',['DS2431_ROM_BYTES',['../group__DS2431__Exported__Constants.html#ga4b4c268311a72a1bc4b82710250ac7f6',1,'ds2431.h']]],
   ['ds2431_5fscratch_5fframe_112',['DS2431_SCRATCH_FRAME',['../group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f',1,'ds2431.h']]],
@@ -118,6 +118,6 @@ var searchData=
   ['ds2431_5fset_5fparasite_115',['ds2431_set_parasite',['../group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d',1,'ds2431.h']]],
   ['ds2431_5fskip_5from_116',['DS2431_SKIP_ROM',['../group__DS2431__Exported__Constants.html#ga4b83192312e807d025218c305334b246',1,'ds2431.h']]],
   ['ds2431_5ftprog_5fus_117',['DS2431_TPROG_US',['../group__DS2431__Exported__Constants.html#ga7879f7aee9227ad3a17a29484db95c1c',1,'ds2431.h']]],
-  ['ds2431_5fwrite_5fscratchpad_118',['ds2431_write_scratchpad',['../group__DS2431__Exported__Constants.html#ga8789269ce5ac7ea21550e5579e517e0b',1,'DS2431_WRITE_SCRATCHPAD:&#160;ds2431.h'],['../group__DS2431__Exported__Functions.html#gaaa37c72a0eb2b02e953f63d8bea44d71',1,'ds2431_write_scratchpad(uint16_t addr, const uint8_t *data, uint8_t len):&#160;ds2431.h']]],
+  ['ds2431_5fwrite_5fscratchpad_118',['ds2431_write_scratchpad',['../group__DS2431__Exported__Functions.html#gaaa37c72a0eb2b02e953f63d8bea44d71',1,'ds2431_write_scratchpad(uint16_t addr, const uint8_t *data, uint8_t len):&#160;ds2431.h'],['../group__DS2431__Exported__Constants.html#ga8789269ce5ac7ea21550e5579e517e0b',1,'DS2431_WRITE_SCRATCHPAD:&#160;ds2431.h']]],
   ['ds2431_5fwrite_5fscratchpad_5fpoll_119',['ds2431_write_scratchpad_poll',['../group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2',1,'ds2431.h']]]
 ];
