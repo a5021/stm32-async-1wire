@@ -1169,6 +1169,33 @@ builds, which is what the example apps demonstrate):
     clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK),
     or the bus timing is scaled by the mismatch.
 
+### CMake helper (`ow_add_library`)
+
+If you vendor the sources but still drive the build with CMake, the drop-in
+helper `cmake/ow_add_library.cmake` wraps the CMake boilerplate above:
+
+```cmake
+include(path/to/stm32-async-1wire/cmake/ow_add_library.cmake)
+ow_add_library(owlib
+    MCU STM32H503xx
+    SYSCLK_MHZ 64                                     # optional; omit for the SystemCoreClock path
+    PARASITE                                          # -DOW_PARASITE_POWER=1
+    CMSIS_INCLUDE_DIRS ${CMSIS}/core ${CMSIS}/device)
+target_link_libraries(app PRIVATE owlib)
+```
+
+It creates a static library from the four driver sources, adds `inc/` and your
+CMSIS include directories, and attaches the device macro, the optional clock,
+the feature defines you select (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`,
+`STATS`) and the family's `-mcpu` — all `PUBLIC`, so your own sources compile
+against the same target. It does **not** fetch CMSIS: pass your own include
+directories through `CMSIS_INCLUDE_DIRS`. `SOURCE_DIR` defaults to the checkout
+the helper lives in; set it if you vendored `inc/` + `src/` somewhere else.
+
+This helper is for the vendored layout only. On the FetchContent /
+`add_subdirectory` path you do not need it — the library's own `CMakeLists.txt`
+already provides the `stm32_async_1wire` target with CMSIS managed.
+
 ### PlatformIO
 
 The repository ships with `library.json` and `library.properties` so

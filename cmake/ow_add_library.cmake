@@ -1,0 +1,206 @@
+# =============================================================================
+# ow_add_library.cmake - drop-in CMake helper for vendored consumers
+# =============================================================================
+#
+# For projects that copy the library's inc/ and src/ into their own tree (see
+# the README "Vendoring" section) and drive the build with CMake. It creates a
+# static library target compiling the four driver sources and attaches the
+# include directory, the target/clock/feature defines and the family's -mcpu
+# flags, so a consumer writes:
+#
+#   include(path/to/stm32-async-1wire/cmake/ow_add_library.cmake)
+#   ow_add_library(stm32_async_1wire
+#       MCU STM32H503xx
+#       SYSCLK_MHZ 64
+#       PARASITE
+#       CMSIS_INCLUDE_DIRS ${CMSIS}/core ${CMSIS}/device)
+#   target_link_libraries(app PRIVATE stm32_async_1wire)
+#
+# The flags are PUBLIC, so the consumer's own sources get the same -mcpu and
+# the same device macro - a consumer TU that includes ds18b20.h must see them
+# (ds18b20.h -> ow_port.h -> ow_mcu.h is self-checking and #errors otherwise).
+#
+# This helper does NOT fetch CMSIS. A consumer supplies its own core/device
+# include directories through CMSIS_INCLUDE_DIRS (STM32Cube, PlatformIO, or a
+# manual checkout). Consumers on the FetchContent/add_subdirectory path do not
+# need this file at all: the library's own CMakeLists.txt already provides the
+# stm32_async_1wire target with CMSIS managed.
+#
+# Options:
+#   MCU <macro>                required; device (STM32H503xx) or family (STM32H5)
+#   SYSCLK_MHZ <n>             optional; omit for the SystemCoreClock runtime path
+#   PARASITE                   -DOW_PARASITE_POWER=1
+#   LOW_POWER                  -DOW_PORT_LOW_POWER=1
+#   ACTIVE_DRIVE               -DOW_DRIVE_ACTIVE=1
+#   STATS                      -DOW_STATS_ENABLE=1 (whole target, including the
+#                              library's own sources - unlike the repo's example
+#                              build, which enables it for 6_statistics only)
+#   CMSIS_INCLUDE_DIRS <dir>.. extra PUBLIC include dirs (your CMSIS core/device)
+#   EXTRA_DEFINITIONS <def>..  extra PUBLIC compile definitions
+#   SOURCE_DIR <dir>           library root (default: the parent of this file's
+#                              directory, i.e. the checkout this file lives in)
+#
+# LTO: with the repository's own Make/CMake profiles LTO is on by default and a
+# plain `ar` drops the LTO symbols from the archive index. When the GNU
+# toolchain and arm-none-eabi-gcc-ar are available this helper points CMAKE_AR/
+# CMAKE_RANLIB at them, the same way the root CMakeLists.txt does. Harmless
+# when LTO is off.
+# =============================================================================
+
+if(NOT CMAKE_VERSION VERSION_LESS 3.14)
+    # no-op: documents the minimum this file targets
+endif()
+
+# Resolve the checkout root once, at include time: CMAKE_CURRENT_LIST_FILE is
+# this file while it is being processed, so its parent directory is the root
+# that holds inc/ and src/.
+get_filename_component(_ow_add_library_dir "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+get_filename_component(OW_LIBRARY_ROOT "${_ow_add_library_dir}" DIRECTORY)
+
+function(ow_add_library tgt)
+    set(_ow_opts PARASITE LOW_POWER ACTIVE_DRIVE STATS)
+    set(_ow_one  MCU SYSCLK_MHZ SOURCE_DIR)
+    set(_ow_multi CMSIS_INCLUDE_DIRS EXTRA_DEFINITIONS)
+    cmake_parse_arguments(OW "${_ow_opts}" "${_ow_one}" "${_ow_multi}" ${ARGN})
+
+    if(OW_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "ow_add_library(${tgt}): unrecognized arguments: ${OW_UNPARSED_ARGUMENTS}")
+    endif()
+    if(NOT OW_MCU)
+        message(FATAL_ERROR
+            "ow_add_library(${tgt}): MCU is required, e.g. MCU STM32H503xx "
+            "(see README, \"Vendoring\")")
+    endif()
+    if(NOT OW_SOURCE_DIR)
+        if(DEFINED OW_LIBRARY_ROOT)
+            set(OW_SOURCE_DIR "${OW_LIBRARY_ROOT}")
+        else()
+            message(FATAL_ERROR
+                "ow_add_library(${tgt}): SOURCE_DIR not given and the library "
+                "root could not be derived from this helper's location")
+        endif()
+    endif()
+
+    # --- MCU macro -> family, core and family macro ---------------------------
+    # Mirrors inc/ow_mcu.h: the device macro picks the family, and the family
+    # macro (STM32F1, ...) is accepted as an alias. Same table as the root
+    # CMakeLists.txt so the two cannot disagree about the core flags.
+    set(_ow_family "")
+    set(_ow_cpu "")
+    set(_ow_family_def "")
+    if(OW_MCU STREQUAL "STM32F030x6" OR OW_MCU STREQUAL "STM32F0")
+        set(_ow_family f0)
+        set(_ow_cpu cortex-m0)
+        set(_ow_family_def STM32F0)
+    elseif(OW_MCU STREQUAL "STM32F103xB" OR OW_MCU STREQUAL "STM32F1")
+        set(_ow_family f1)
+        set(_ow_cpu cortex-m3)
+        set(_ow_family_def STM32F1)
+    elseif(OW_MCU STREQUAL "STM32F303xC" OR OW_MCU STREQUAL "STM32F3")
+        set(_ow_family f3)
+        set(_ow_cpu cortex-m4)
+        set(_ow_family_def STM32F3)
+    elseif(OW_MCU STREQUAL "STM32F407xx" OR OW_MCU STREQUAL "STM32F401xC" OR
+           OW_MCU STREQUAL "STM32F401xE" OR OW_MCU STREQUAL "STM32F446xx" OR
+           OW_MCU STREQUAL "STM32F4")
+        set(_ow_family f4)
+        set(_ow_cpu cortex-m4)
+        set(_ow_family_def STM32F4)
+    elseif(OW_MCU STREQUAL "STM32G031xx" OR OW_MCU STREQUAL "STM32G0")
+        set(_ow_family g0)
+        set(_ow_cpu cortex-m0plus)
+        set(_ow_family_def STM32G0)
+    elseif(OW_MCU STREQUAL "STM32G474xx" OR OW_MCU STREQUAL "STM32G4")
+        set(_ow_family g4)
+        set(_ow_cpu cortex-m4)
+        set(_ow_family_def STM32G4)
+    elseif(OW_MCU STREQUAL "STM32H503xx" OR OW_MCU STREQUAL "STM32H5")
+        set(_ow_family h5)
+        set(_ow_cpu cortex-m33)
+        set(_ow_family_def STM32H5)
+    else()
+        message(FATAL_ERROR
+            "ow_add_library(${tgt}): unsupported MCU '${OW_MCU}'. Pass a device "
+            "macro (STM32F030x6, STM32F103xB, STM32F303xC, STM32F407xx, "
+            "STM32F401xC, STM32F401xE, STM32F446xx, STM32G031xx, STM32G474xx, "
+            "STM32H503xx) or a family macro (STM32F0/F1/F3/F4/G0/G4/H5).")
+    endif()
+
+    # --- Sources --------------------------------------------------------------
+    set(_ow_srcs
+        "${OW_SOURCE_DIR}/src/onewire.c"
+        "${OW_SOURCE_DIR}/src/ds18b20.c"
+        "${OW_SOURCE_DIR}/src/ds2431.c"
+        "${OW_SOURCE_DIR}/src/ow_stats.c"
+    )
+    foreach(_ow_s IN LISTS _ow_srcs)
+        if(NOT EXISTS "${_ow_s}")
+            message(FATAL_ERROR
+                "ow_add_library(${tgt}): missing ${_ow_s}. Point SOURCE_DIR at "
+                "the library root (the directory holding inc/ and src/).")
+        endif()
+    endforeach()
+
+    # --- Definitions ----------------------------------------------------------
+    set(_ow_defs "${OW_MCU}")
+    if(NOT _ow_family_def STREQUAL OW_MCU)
+        list(APPEND _ow_defs "${_ow_family_def}")
+    endif()
+    if(OW_SYSCLK_MHZ)
+        list(APPEND _ow_defs "OW_PORT_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
+    endif()
+    if(OW_PARASITE)
+        list(APPEND _ow_defs "OW_PARASITE_POWER=1")
+    endif()
+    if(OW_LOW_POWER)
+        list(APPEND _ow_defs "OW_PORT_LOW_POWER=1")
+    endif()
+    if(OW_ACTIVE_DRIVE)
+        list(APPEND _ow_defs "OW_DRIVE_ACTIVE=1")
+    endif()
+    if(OW_STATS)
+        list(APPEND _ow_defs "OW_STATS_ENABLE=1")
+    endif()
+    if(OW_EXTRA_DEFINITIONS)
+        list(APPEND _ow_defs ${OW_EXTRA_DEFINITIONS})
+    endif()
+
+    # --- gcc-ar for LTO (same convenience as the root CMakeLists.txt) ---------
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        get_filename_component(_ow_ar_name "${CMAKE_AR}" NAME)
+        if(NOT _ow_ar_name MATCHES "gcc-ar")
+            get_filename_component(_ow_bin_dir "${CMAKE_C_COMPILER}" DIRECTORY)
+            find_program(_ow_gcc_ar NAMES arm-none-eabi-gcc-ar HINTS "${_ow_bin_dir}")
+            if(_ow_gcc_ar)
+                set(CMAKE_AR "${_ow_gcc_ar}" PARENT_SCOPE)
+                find_program(_ow_gcc_ranlib NAMES arm-none-eabi-gcc-ranlib HINTS "${_ow_bin_dir}")
+                if(_ow_gcc_ranlib)
+                    set(CMAKE_RANLIB "${_ow_gcc_ranlib}" PARENT_SCOPE)
+                endif()
+            endif()
+        endif()
+    endif()
+
+    # --- Target ---------------------------------------------------------------
+    add_library(${tgt} STATIC ${_ow_srcs})
+
+    target_include_directories(${tgt} PUBLIC
+        "${OW_SOURCE_DIR}/inc"
+        ${OW_CMSIS_INCLUDE_DIRS}
+    )
+    target_compile_definitions(${tgt} PUBLIC ${_ow_defs})
+    target_compile_options(${tgt} PUBLIC
+        -mcpu=${_ow_cpu} -mthumb
+        -Wall -Wextra
+        -ffunction-sections -fdata-sections
+    )
+
+    if(OW_SYSCLK_MHZ)
+        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${_ow_family}, "
+                       "cpu=${_ow_cpu}, clock=${OW_SYSCLK_MHZ}MHz)")
+    else()
+        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${_ow_family}, "
+                       "cpu=${_ow_cpu}, clock=SystemCoreClock)")
+    endif()
+endfunction()
