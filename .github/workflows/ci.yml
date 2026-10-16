@@ -16,7 +16,7 @@ jobs:
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c inc/ow_mcu.h inc/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c inc/ow_mcu.h inc/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c templates/standalone-consumer/*.c templates/standalone-consumer/*.h
 
   host-tests:
     strategy:
@@ -223,18 +223,18 @@ jobs:
           name: api-docs
           path: api-docs
       - name: Merge and filter traces
-          # Union of every backend's trace measures the MCU-independent core;
-          # MCU headers (register plumbing per family: ow_mcu.h plus the
-          # ow_bits.h aliases) stay out of the metric so adding new MCU
-          # ports never dilutes the number.
-          run: |
-            ARGS=""
-            for f in traces/*/coverage-*.info; do
-              ARGS="$ARGS -a $f"
-            done
-            lcov $ARGS --output-file union.info --rc branch_coverage=1
-            lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/ow_bits.h' '*/inc/ow_mcu.h' \
-                  --output-file core.info --rc branch_coverage=1 --ignore-errors unused
+        # Union of every backend's trace measures the MCU-independent core;
+        # MCU headers (register plumbing per family: ow_mcu.h plus the
+        # ow_bits.h aliases) stay out of the metric so adding new MCU
+        # ports never dilutes the number.
+        run: |
+          ARGS=""
+          for f in traces/*/coverage-*.info; do
+            ARGS="$ARGS -a $f"
+          done
+          lcov $ARGS --output-file union.info --rc branch_coverage=1
+          lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/ow_bits.h' '*/inc/ow_mcu.h' \
+                --output-file core.info --rc branch_coverage=1 --ignore-errors unused
           lcov --summary core.info --rc branch_coverage=1 > summary.txt || true
           cat summary.txt
       - name: Generate HTML report and badge SVG
@@ -797,6 +797,41 @@ jobs:
           test -f build/cmake-variants-${{ matrix.backend }}/examples/7_low_power.bin
           test -f build/cmake-variants-${{ matrix.backend }}/examples/8_ds2431.hex
           test -f build/cmake-variants-${{ matrix.backend }}/examples/8_ds2431.bin
+      - name: Build the standalone-consumer template (OW_MCU=${{ matrix.mcu }})
+        if: matrix.backend == 'h5'
+        # The vendored integration path the README documents: a downstream
+        # project that references inc/ + src/ in place and wires them with the
+        # drop-in helper cmake/ow_add_library.cmake. This is the only thing that
+        # exercises the helper's PUBLIC compile *and* link flags end to end -
+        # it links a real ELF, so a missing -mcpu on the link line (which selects
+        # the wrong runtime multilib) fails here. Runs on the H5 leg only; the
+        # template targets STM32H503xx. It reuses the CMSIS this job already
+        # cloned into build/_deps instead of fetching its own.
+        run: |
+          set -euo pipefail
+          TC_DIR="$(dirname "$(command -v arm-none-eabi-gcc)")"
+          CORE="${{ github.workspace }}/build/_deps/cmsis_core-src/CMSIS/Core/Include"
+          DEV="${{ github.workspace }}/build/_deps/cmsis_device-src/Include"
+          SYSTEM="${{ github.workspace }}/build/_deps/cmsis_device-src/Source/Templates/system_stm32h5xx.c"
+          STARTUP="${{ github.workspace }}/build/_deps/cmsis_device-src/Source/Templates/gcc/startup_stm32h503xx.s"
+          test -f "$CORE/cmsis_gcc.h"
+          test -f "$DEV/stm32h5xx.h"
+          test -f "$SYSTEM"
+          test -f "$STARTUP"
+          cmake -S templates/standalone-consumer \
+                -B build/consumer-template \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+                -DCMAKE_C_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_ASM_COMPILER="$TC_DIR/arm-none-eabi-gcc" \
+                -DCMAKE_AR="$TC_DIR/arm-none-eabi-ar" \
+                -DCMAKE_RANLIB="$TC_DIR/arm-none-eabi-ranlib" \
+                -DOW_CMSIS_CORE_INCLUDE="$CORE" \
+                -DOW_CMSIS_DEVICE_INCLUDE="$DEV" \
+                -DOW_CMSIS_SYSTEM_SRC="$SYSTEM" \
+                -DOW_CMSIS_STARTUP_ASM="$STARTUP"
+          cmake --build build/consumer-template -- -j"$(nproc)"
+          test -f build/consumer-template/ow_consumer.elf
 
   fuzz:
     runs-on: ubuntu-latest
