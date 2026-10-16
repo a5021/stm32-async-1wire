@@ -1090,6 +1090,85 @@ suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
 327 against G0, 328 against G4, plus the same 18 DS2431 tests) and
 `make test-ndebug` (322 / 323 / 324 / 325 + the same 18, asserts off).
 
+### Vendoring (`inc/` + `src/`)
+
+The shortest path to using the library is to copy its two source directories
+into your project — no CMake package, no `lib_deps`, no subproject:
+
+```text
+your-project/
+├── inc/    <- copy of stm32-async-1wire/inc/
+└── src/    <- onewire.c, ds18b20.c, ds2431.c, ow_stats.c from stm32-async-1wire/src/
+```
+
+The copy is self-contained: a consumer only needs `-Iinc`. Everything a
+firmware needs beyond that is the CMSIS device layer, which the library does
+**not** ship. Supply your own (STM32Cube, PlatformIO, or the `make
+download-deps` layout — `CMSIS/core/` and `CMSIS/device/`):
+
+- the CMSIS core header directory (`cmsis_gcc.h`, `core_cm33.h`, ...);
+- the ST device headers for your family (`stm32h5xx.h` + `stm32h503xx.h`);
+- `system_<family>xx.c` and the GCC startup file for your part;
+- your linker script.
+
+Build with **exactly one** macro defining the target: the ST device macro for
+your part (e.g. `STM32H503xx`) or its family macro (`STM32H5`). `OW_PORT_SYSCLK_MHZ`
+is optional — omit it and the port core reads `SystemCoreClock` at startup
+(keep it current with `SystemCoreClockUpdate()`).
+
+Minimal CMake executable target (paths are placeholders for your CMSIS):
+
+```cmake
+add_executable(app
+    main.c
+    src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
+    ${CMSIS}/device/system_stm32h5xx.c
+    ${CMSIS}/device/startup_stm32h503xx.s
+)
+target_include_directories(app PRIVATE inc ${CMSIS}/core ${CMSIS}/device)
+target_compile_definitions(app PRIVATE STM32H503xx)          # add OW_PARASITE_POWER=1 for a parasite bus
+target_compile_options(app PRIVATE -mcpu=cortex-m33 -mthumb -Os -Wall
+                       -ffunction-sections -fdata-sections)
+target_link_options(app PRIVATE -mcpu=cortex-m33 -mthumb -T${LINKER}
+                    -Wl,--gc-sections -specs=nano.specs)
+```
+
+The equivalent Makefile fragment:
+
+```make
+CC      = arm-none-eabi-gcc
+CFLAGS  = -mcpu=cortex-m33 -mthumb -Os -ffunction-sections -fdata-sections \
+          -DSTM32H503xx -Iinc -I$(CMSIS)/core -I$(CMSIS)/device
+LDFLAGS = -mcpu=cortex-m33 -mthumb -T$(LINKER) -Wl,--gc-sections -specs=nano.specs
+SRC     = main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c \
+          $(CMSIS)/device/system_stm32h5xx.c $(CMSIS)/device/startup_stm32h503xx.s
+```
+
+> **Building on Windows.** CMake's Windows-GNU platform appends PE-only link
+> flags (`--out-implib`, `--major-image-version`, ...) that the ARM linker
+> rejects. The repository's root `CMakeLists.txt` overrides the link rule for
+> this; a vendored project needs the same overrides, plus
+> `-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` and an empty
+> `CMAKE_C_STANDARD_LIBRARIES`.
+
+**Common gotchas** (each one is also handled by the repository's own Make/CMake
+builds, which is what the example apps demonstrate):
+
+-   **H5 reset clock.** On STM32H5 the HSI runs at 64 MHz but reset divides it
+    to 32 MHz (`RCC_CR.HSIDIV = /2`). Before relying on 64 MHz, clear `HSIDIV`
+    and set `FLASH_ACR = PRFTEN | LATENCY_3WS`, then call
+    `SystemCoreClockUpdate()`. Skip it and the console runs at half rate and
+    every 1-Wire slot is 2× out of spec.
+-   **Parasite power.** Define `-DOW_PARASITE_POWER=1` **and** call
+    `ds18b20_set_parasite(1)` at runtime; without both, parasite-powered
+    sensors report a fixed error temperature.
+-   **LTO.** If you build with `-flto`, archive with `arm-none-eabi-gcc-ar`
+    (a plain `ar` leaves the LTO symbols out of the index and the link fails
+    with undefined references to the driver API).
+-   **Clock agreement.** If you do pass `OW_PORT_SYSCLK_MHZ`, it must match the
+    clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK),
+    or the bus timing is scaled by the mismatch.
+
 ### PlatformIO
 
 The repository ships with `library.json` and `library.properties` so
