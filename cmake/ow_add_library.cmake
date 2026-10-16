@@ -195,6 +195,13 @@ function(ow_add_library tgt)
         -Wall -Wextra
         -ffunction-sections -fdata-sections
     )
+    # The same core flags on the *link* line, as INTERFACE only. A consumer that
+    # builds an ELF must link with -mcpu/-mthumb too: gcc's driver picks the
+    # runtime multilib from those flags, and without them it links the default
+    # (ARM v4T) libc/libgcc against v8-M objects - "conflicting CPU
+    # architectures". The library is static, so this never applies to ${tgt}
+    # itself, only to the executables that link it.
+    target_link_options(${tgt} INTERFACE -mcpu=${_ow_cpu} -mthumb)
 
     if(OW_SYSCLK_MHZ)
         message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${_ow_family}, "
