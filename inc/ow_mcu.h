@@ -52,7 +52,7 @@
 #elif defined(STM32H503xx) || defined(STM32H5)
 #define OW_PORT_FAMILY_H5
 #else
-#error "ow_mcu: no family selected (define a device macro such as STM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx, or a family macro such as STM32F0/STM32F1/STM32F3/STM32F4/STM32G0/STM32G4/STM32H5)"
+#error "ow_mcu: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H503xx) or its family macro (e.g. -DSTM32H5). This is the ONLY define the library requires; OW_PORT_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx or -DSTM32F0/F1/F3/F4/G0/G4/H5 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
 #endif
 
 /* === STM32F0 ===
