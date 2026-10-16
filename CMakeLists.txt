@@ -87,6 +87,15 @@ if(NOT OW_TARGET)
 endif()
 
 # ---------------------------------------------------------------------------
+# Unified MCU → core/flags table (shared with cmake/ow_add_library.cmake)
+# ---------------------------------------------------------------------------
+# Derives OW_FAMILY / OW_CPU / OW_FAMILY_DEF / OW_MCU_FLAGS / OW_SYSTEM_SRC /
+# OW_DEVICE_REPO from OW_MCU (device or family macro), falling back to OW_TARGET
+# when OW_MCU is unset. This is the single source of truth so the two build
+# systems can never disagree about which core flags a given MCU gets.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ow_flags.cmake)
+
+# ---------------------------------------------------------------------------
 # FetchContent: ARM CMSIS Core + STM32 device headers
 # ---------------------------------------------------------------------------
 # Pinned SHAs come from config/cmsis_pins.mk, which the Makefile includes
@@ -128,45 +137,11 @@ FetchContent_MakeAvailable(cmsis_core)
 # CMSIS Core headers live under CMSIS/Core/Include in the repo
 set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
 
-# Device-specific repo and defines
-if(OW_TARGET STREQUAL "f0")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f0.git")
-    set(OW_FAMILY_DEF      "STM32F0")
-    set(MCU_FLAGS          -mcpu=cortex-m0 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f0xx.c")
-elseif(OW_TARGET STREQUAL "f1")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f1.git")
-    set(OW_FAMILY_DEF      "STM32F1")
-    set(MCU_FLAGS          -mcpu=cortex-m3 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f1xx.c")
-elseif(OW_TARGET STREQUAL "f3")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis-device-f3.git")
-    set(OW_FAMILY_DEF      "STM32F3")
-    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f3xx.c")
-elseif(OW_TARGET STREQUAL "f4")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_f4.git")
-    set(OW_FAMILY_DEF      "STM32F4")
-    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(SYSTEM_SRC         "system_stm32f4xx.c")
-elseif(OW_TARGET STREQUAL "g0")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g0.git")
-    set(OW_FAMILY_DEF      "STM32G0")
-    set(MCU_FLAGS          -mcpu=cortex-m0plus -mthumb)
-    set(SYSTEM_SRC         "system_stm32g0xx.c")
-elseif(OW_TARGET STREQUAL "g4")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_g4.git")
-    set(OW_FAMILY_DEF      "STM32G4")
-    set(MCU_FLAGS          -mcpu=cortex-m4 -mthumb)
-    set(SYSTEM_SRC         "system_stm32g4xx.c")
-elseif(OW_TARGET STREQUAL "h5")
-    set(CMSIS_DEVICE_REPO "https://github.com/STMicroelectronics/cmsis_device_h5.git")
-    set(OW_FAMILY_DEF      "STM32H5")
-    set(MCU_FLAGS          -mcpu=cortex-m33 -mthumb)
-    set(SYSTEM_SRC         "system_stm32h5xx.c")
-else()
-    message(FATAL_ERROR "OW_TARGET must be f0, f1, f3, f4, g0, g4 or h5 (got: ${OW_TARGET})")
-endif()
+# Device-specific repo and defines — from cmake/ow_flags.cmake (included above).
+set(CMSIS_DEVICE_REPO "${OW_DEVICE_REPO}")
+set(OW_FAMILY_DEF     "${OW_FAMILY_DEF}")
+set(MCU_FLAGS         "${OW_MCU_FLAGS}")
+set(SYSTEM_SRC        "${OW_SYSTEM_SRC}")
 
 # The device checkout follows the pinned SHA from config/cmsis_pins.mk, so a
 # fresh clone resolves byte-identical headers years later. The per-family key

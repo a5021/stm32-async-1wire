@@ -58,6 +58,9 @@ get_filename_component(_ow_add_library_dir "${CMAKE_CURRENT_LIST_FILE}" DIRECTOR
 get_filename_component(OW_LIBRARY_ROOT "${_ow_add_library_dir}" DIRECTORY)
 
 function(ow_add_library tgt)
+    # Unified MCU → core/flags table (shared with the root CMakeLists.txt).
+    # OW_SOURCE_DIR is resolved below, so the include goes here where it is
+    # available.
     set(_ow_opts PARASITE LOW_POWER ACTIVE_DRIVE STATS)
     set(_ow_one  MCU SYSCLK_MHZ SOURCE_DIR)
     set(_ow_multi CMSIS_INCLUDE_DIRS EXTRA_DEFINITIONS)
@@ -82,50 +85,8 @@ function(ow_add_library tgt)
         endif()
     endif()
 
-    # --- MCU macro -> family, core and family macro ---------------------------
-    # Mirrors inc/ow_mcu.h: the device macro picks the family, and the family
-    # macro (STM32F1, ...) is accepted as an alias. Same table as the root
-    # CMakeLists.txt so the two cannot disagree about the core flags.
-    set(_ow_family "")
-    set(_ow_cpu "")
-    set(_ow_family_def "")
-    if(OW_MCU STREQUAL "STM32F030x6" OR OW_MCU STREQUAL "STM32F0")
-        set(_ow_family f0)
-        set(_ow_cpu cortex-m0)
-        set(_ow_family_def STM32F0)
-    elseif(OW_MCU STREQUAL "STM32F103xB" OR OW_MCU STREQUAL "STM32F1")
-        set(_ow_family f1)
-        set(_ow_cpu cortex-m3)
-        set(_ow_family_def STM32F1)
-    elseif(OW_MCU STREQUAL "STM32F303xC" OR OW_MCU STREQUAL "STM32F3")
-        set(_ow_family f3)
-        set(_ow_cpu cortex-m4)
-        set(_ow_family_def STM32F3)
-    elseif(OW_MCU STREQUAL "STM32F407xx" OR OW_MCU STREQUAL "STM32F401xC" OR
-           OW_MCU STREQUAL "STM32F401xE" OR OW_MCU STREQUAL "STM32F446xx" OR
-           OW_MCU STREQUAL "STM32F4")
-        set(_ow_family f4)
-        set(_ow_cpu cortex-m4)
-        set(_ow_family_def STM32F4)
-    elseif(OW_MCU STREQUAL "STM32G031xx" OR OW_MCU STREQUAL "STM32G0")
-        set(_ow_family g0)
-        set(_ow_cpu cortex-m0plus)
-        set(_ow_family_def STM32G0)
-    elseif(OW_MCU STREQUAL "STM32G474xx" OR OW_MCU STREQUAL "STM32G4")
-        set(_ow_family g4)
-        set(_ow_cpu cortex-m4)
-        set(_ow_family_def STM32G4)
-    elseif(OW_MCU STREQUAL "STM32H503xx" OR OW_MCU STREQUAL "STM32H5")
-        set(_ow_family h5)
-        set(_ow_cpu cortex-m33)
-        set(_ow_family_def STM32H5)
-    else()
-        message(FATAL_ERROR
-            "ow_add_library(${tgt}): unsupported MCU '${OW_MCU}'. Pass a device "
-            "macro (STM32F030x6, STM32F103xB, STM32F303xC, STM32F407xx, "
-            "STM32F401xC, STM32F401xE, STM32F446xx, STM32G031xx, STM32G474xx, "
-            "STM32H503xx) or a family macro (STM32F0/F1/F3/F4/G0/G4/H5).")
-    endif()
+    # Unified MCU → core/flags table (shared with the root CMakeLists.txt).
+    include(${OW_SOURCE_DIR}/cmake/ow_flags.cmake)
 
     # --- Sources --------------------------------------------------------------
     set(_ow_srcs
@@ -144,8 +105,8 @@ function(ow_add_library tgt)
 
     # --- Definitions ----------------------------------------------------------
     set(_ow_defs "${OW_MCU}")
-    if(NOT _ow_family_def STREQUAL OW_MCU)
-        list(APPEND _ow_defs "${_ow_family_def}")
+    if(NOT OW_FAMILY_DEF STREQUAL OW_MCU)
+        list(APPEND _ow_defs "${OW_FAMILY_DEF}")
     endif()
     if(OW_SYSCLK_MHZ)
         list(APPEND _ow_defs "OW_PORT_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
@@ -191,7 +152,7 @@ function(ow_add_library tgt)
     )
     target_compile_definitions(${tgt} PUBLIC ${_ow_defs})
     target_compile_options(${tgt} PUBLIC
-        -mcpu=${_ow_cpu} -mthumb
+        ${OW_MCU_FLAGS}
         -Wall -Wextra
         -ffunction-sections -fdata-sections
     )
@@ -201,13 +162,13 @@ function(ow_add_library tgt)
     # (ARM v4T) libc/libgcc against v8-M objects - "conflicting CPU
     # architectures". The library is static, so this never applies to ${tgt}
     # itself, only to the executables that link it.
-    target_link_options(${tgt} INTERFACE -mcpu=${_ow_cpu} -mthumb)
+    target_link_options(${tgt} INTERFACE ${OW_MCU_FLAGS})
 
     if(OW_SYSCLK_MHZ)
-        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${_ow_family}, "
-                       "cpu=${_ow_cpu}, clock=${OW_SYSCLK_MHZ}MHz)")
+        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${OW_FAMILY}, "
+                       "cpu=${OW_CPU}, clock=${OW_SYSCLK_MHZ}MHz)")
     else()
-        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${_ow_family}, "
-                       "cpu=${_ow_cpu}, clock=SystemCoreClock)")
+        message(STATUS "ow_add_library: ${tgt} (MCU=${OW_MCU}, family=${OW_FAMILY}, "
+                       "cpu=${OW_CPU}, clock=SystemCoreClock)")
     endif()
 endfunction()

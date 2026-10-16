@@ -311,6 +311,14 @@ Q = $(if $(findstring $(space),$(1)),"$(1)",$(1))
 CC = $(call Q,$(TOOLCHAIN)gcc)
 LD = $(call Q,$(TOOLCHAIN)ld)
 AS = $(call Q,$(TOOLCHAIN)gcc) -x assembler-with-cpp
+AR = $(call Q,$(TOOLCHAIN)ar)
+# Prefer gcc-ar so LTO symbols survive in the archive (mirrors
+# cmake/ow_add_library.cmake). Plain arm-none-eabi-ar drops the LTO symbol
+# table from the archive index, which breaks -flto builds.
+GCC_AR := $(shell command -v arm-none-eabi-gcc-ar 2>/dev/null)
+ifneq ($(GCC_AR),)
+AR = $(call Q,arm-none-eabi-gcc-ar)
+endif
 CP = $(call Q,$(TOOLCHAIN)objcopy)
 SZ = $(call Q,$(TOOLCHAIN)size)
 
@@ -858,6 +866,38 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@
 
+# --- Library-only target ------------------------------------------------------
+# Builds just the four driver sources into a static archive, using the same
+# flags (CPU core, device macro, clock, includes, optimization) as the
+# firmware build. A downstream project links this archive into its own
+# firmware and supplies its own CMSIS headers, startup file, linker script
+# and syscalls. No examples, no app layer, no vector table needed.
+#
+#   make OW_MCU=STM32H503xx lib            # build libstm32_async_1wire.a
+#   make OW_MCU=STM32H503xx SYSCLK_MHZ=250 lib
+#   make OW_TARGET=f1 lib                  # legacy family selector
+#
+# Link example (plain GCC):
+#   arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -T my_app.ld \
+#       -Ipath/to/inc -Ipath/to/CMSIS/core -Ipath/to/CMSIS/device \
+#       -DSTM32H503xx my_app.c build/libstm32_async_1wire.a \
+#       -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
+#
+LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
+LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
+LIB_OBJ = $(addprefix $(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_,$(notdir $(LIB_SRC:.c=.o)))
+LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire.a
+
+lib: download-deps $(LIB_ARCHIVE)
+
+$(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_%.o: %.c $(OW_INC_HDRS) Makefile | $(BUILD_DIR)
+	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
+
+$(LIB_ARCHIVE): $(LIB_OBJ) Makefile | $(BUILD_DIR)
+	$(AR) rc $@ $^
+
+.PHONY: lib
+
 # Create the build directory if it doesn't exist
 $(BUILD_DIR):
 	mkdir $@
@@ -882,7 +922,7 @@ jprogram: $(BUILD_DIR)/$(TARGET).hex
 # ci.yml cmake job installs under build/, a local one need not). The glob
 # matches nothing on a fresh tree and rm -f on a non-existent path exits 0,
 # so this is safe in a 'make clean && make' chain.
-.PHONY: clean
+.PHONY: clean lib
 clean:
 	rm -fR $(BUILD_DIR) prefix*/
 
@@ -1469,6 +1509,7 @@ help:
 	@echo "  download-licenses - Download third-party license files to CMSIS/"
 	@echo "  clean-deps      - Remove downloaded dependencies (CMSIS/, CMake _deps/)"
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
+	@echo "  lib             - Build only libstm32_async_1wire.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"

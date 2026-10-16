@@ -1090,125 +1090,118 @@ suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
 327 against G0, 328 against G4, plus the same 18 DS2431 tests) and
 `make test-ndebug` (322 / 323 / 324 / 325 + the same 18, asserts off).
 
-### Vendoring (`inc/` + `src/`)
+### Integration: four ways to use the library
 
-The shortest path to using the library is to copy its two source directories
-into your project — no CMake package, no `lib_deps`, no subproject:
+Pick the path that matches your build system:
+
+| Path | When to choose |
+|------|---------------|
+| **CMake subproject / FetchContent** | Recommended. Zero-copy: the library is pulled as a subproject and brings its own CMSIS. |
+| **CMake `find_package`** | You consume a pre-installed tree; you supply your own CMSIS headers. |
+| **Vendored copy + `ow_add_library.cmake`** | You copy `inc/` + `src/` into your tree and drive the build with CMake. |
+| **Plain Make / `make lib`** | You build with plain GCC/make and link a static archive into your firmware. |
+| **PlatformIO** | You use PlatformIO's library discovery (`lib_deps`). |
+
+#### 1. CMake subproject / FetchContent (recommended)
+
+No files are copied: the library is added as a subproject and manages its own CMSIS dependencies through FetchContent.
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(stm32_async_1wire
+    GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
+    GIT_TAG        v2.3.0
+)
+FetchContent_MakeAvailable(stm32_async_1wire)
+target_link_libraries(your_app PRIVATE stm32_async_1wire)
+```
+
+Pass the device macro (or family macro) on the command line:
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_MCU=STM32H503xx -B build .
+cmake --build build
+```
+
+This is the path to prefer: nothing has to be downloaded or configured first, and CI builds it against every family on every change.
+
+#### 2. CMake `find_package`
+
+Install the library once, then consume it from an install prefix:
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_MCU=STM32H503xx -DCMAKE_BUILD_TYPE=Release -B build .
+cmake --build build
+cmake --install build --prefix build/prefix
+```
+
+```cmake
+find_package(stm32_async_1wire REQUIRED)
+target_link_libraries(your_app PRIVATE stm32_async_1wire::stm32_async_1wire)
+```
+
+Two things to know:
+
+- **The consumer provides CMSIS.** The include paths the library compiled against were FetchContent checkouts inside its build tree; they are not baked into the install export. Add your own CMSIS `core` and device include directories (from STM32Cube, PlatformIO, or a manual checkout) on top of the imported target.
+- **The package carries its part selection.** The device macro (`STM32H503xx`) and clock (`OW_PORT_SYSCLK_MHZ`) are baked into the installed target as public definitions. Build the package for the part your firmware is for.
+
+#### 3. Vendored copy + `ow_add_library.cmake`
+
+Copy `inc/` and `src/` into your project tree, then use the drop-in CMake helper:
 
 ```text
 your-project/
-├── inc/    <- copy of stm32-async-1wire/inc/
-└── src/    <- onewire.c, ds18b20.c, ds2431.c, ow_stats.c from stm32-async-1wire/src/
+├── inc/     <- copy of stm32-async-1wire/inc/
+└── src/     <- onewire.c, ds18b20.c, ds2431.c, ow_stats.c
 ```
-
-The copy is self-contained: a consumer only needs `-Iinc`. Everything a
-firmware needs beyond that is the CMSIS device layer, which the library does
-**not** ship. Supply your own (STM32Cube, PlatformIO, or the `make
-download-deps` layout — `CMSIS/core/` and `CMSIS/device/`):
-
-- the CMSIS core header directory (`cmsis_gcc.h`, `core_cm33.h`, ...);
-- the ST device headers for your family (`stm32h5xx.h` + `stm32h503xx.h`);
-- `system_<family>xx.c` and the GCC startup file for your part;
-- your linker script.
-
-Build with **exactly one** macro defining the target: the ST device macro for
-your part (e.g. `STM32H503xx`) or its family macro (`STM32H5`). `OW_PORT_SYSCLK_MHZ`
-is optional — omit it and the port core reads `SystemCoreClock` at startup
-(keep it current with `SystemCoreClockUpdate()`).
-
-Minimal CMake executable target (paths are placeholders for your CMSIS):
-
-```cmake
-add_executable(app
-    main.c
-    src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
-    ${CMSIS}/device/system_stm32h5xx.c
-    ${CMSIS}/device/startup_stm32h503xx.s
-)
-target_include_directories(app PRIVATE inc ${CMSIS}/core ${CMSIS}/device)
-target_compile_definitions(app PRIVATE STM32H503xx)          # add OW_PARASITE_POWER=1 for a parasite bus
-target_compile_options(app PRIVATE -mcpu=cortex-m33 -mthumb -Os -Wall
-                       -ffunction-sections -fdata-sections)
-target_link_options(app PRIVATE -mcpu=cortex-m33 -mthumb -T${LINKER}
-                    -Wl,--gc-sections -specs=nano.specs)
-```
-
-The equivalent Makefile fragment:
-
-```make
-CC      = arm-none-eabi-gcc
-CFLAGS  = -mcpu=cortex-m33 -mthumb -Os -ffunction-sections -fdata-sections \
-          -DSTM32H503xx -Iinc -I$(CMSIS)/core -I$(CMSIS)/device
-LDFLAGS = -mcpu=cortex-m33 -mthumb -T$(LINKER) -Wl,--gc-sections -specs=nano.specs
-SRC     = main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c \
-          $(CMSIS)/device/system_stm32h5xx.c $(CMSIS)/device/startup_stm32h503xx.s
-```
-
-> **Building on Windows.** CMake's Windows-GNU platform appends PE-only link
-> flags (`--out-implib`, `--major-image-version`, ...) that the ARM linker
-> rejects. The repository's root `CMakeLists.txt` overrides the link rule for
-> this; a vendored project needs the same overrides, plus
-> `-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` and an empty
-> `CMAKE_C_STANDARD_LIBRARIES`.
-
-**Common gotchas** (each one is also handled by the repository's own Make/CMake
-builds, which is what the example apps demonstrate):
-
--   **H5 reset clock.** On STM32H5 the HSI runs at 64 MHz but reset divides it
-    to 32 MHz (`RCC_CR.HSIDIV = /2`). Before relying on 64 MHz, clear `HSIDIV`
-    and set `FLASH_ACR = PRFTEN | LATENCY_3WS`, then call
-    `SystemCoreClockUpdate()`. Skip it and the console runs at half rate and
-    every 1-Wire slot is 2× out of spec.
--   **Parasite power.** Define `-DOW_PARASITE_POWER=1` **and** call
-    `ds18b20_set_parasite(1)` at runtime; without both, parasite-powered
-    sensors report a fixed error temperature.
--   **LTO.** If you build with `-flto`, archive with `arm-none-eabi-gcc-ar`
-    (a plain `ar` leaves the LTO symbols out of the index and the link fails
-    with undefined references to the driver API).
--   **Clock agreement.** If you do pass `OW_PORT_SYSCLK_MHZ`, it must match the
-    clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK),
-    or the bus timing is scaled by the mismatch.
-
-### CMake helper (`ow_add_library`)
-
-If you vendor the sources but still drive the build with CMake, the drop-in
-helper `cmake/ow_add_library.cmake` wraps the CMake boilerplate above:
 
 ```cmake
 include(path/to/stm32-async-1wire/cmake/ow_add_library.cmake)
-ow_add_library(owlib
+ow_add_library(stm32_async_1wire
     MCU STM32H503xx
     SYSCLK_MHZ 64                                     # optional; omit for the SystemCoreClock path
     PARASITE                                          # -DOW_PARASITE_POWER=1
-    CMSIS_INCLUDE_DIRS ${CMSIS}/core ${CMSIS}/device)
-target_link_libraries(app PRIVATE owlib)
+    CMSIS_INCLUDE_DIRS ${CMSIS_CORE} ${CMSIS_DEVICE})
+target_link_libraries(your_app PRIVATE stm32_async_1wire)
 ```
 
-It creates a static library from the four driver sources, adds `inc/` and your
-CMSIS include directories, and attaches the device macro, the optional clock,
-the feature defines you select (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`,
-`STATS`) and the family's `-mcpu` — all `PUBLIC`, so your own sources compile
-against the same target. It does **not** fetch CMSIS: pass your own include
-directories through `CMSIS_INCLUDE_DIRS`. `SOURCE_DIR` defaults to the checkout
-the helper lives in; set it if you vendored `inc/` + `src/` somewhere else.
+It creates a static library from the four driver sources, adds `inc/` and your CMSIS include directories, and attaches the device macro, the clock define, the feature defines (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`, `STATS`) and the family's `-mcpu`/`-mthumb` — all `PUBLIC`, so your own sources compile against the same target. It does **not** fetch CMSIS: pass your own include directories through `CMSIS_INCLUDE_DIRS`.
 
-This helper is for the vendored layout only. On the FetchContent /
-`add_subdirectory` path you do not need it — the library's own `CMakeLists.txt`
-already provides the `stm32_async_1wire` target with CMSIS managed.
+**The copy is not self-contained.** A consumer also needs:
 
-### PlatformIO
+- CMSIS core headers (`cmsis_gcc.h`, `core_cm*.h`, ...)
+- ST device headers for your family (`stm32h5xx.h` + `stm32h503xx.h`)
+- `system_<family>xx.c` and the GCC startup file for your part
+- Your linker script
 
-The repository ships with `library.json` and `library.properties` so
-PlatformIO can discover the library automatically.
+And **exactly one** target macro: the ST device macro (`STM32H503xx`) or its family macro (`STM32H5`). `OW_PORT_SYSCLK_MHZ` is optional — omit it and the port reads `SystemCoreClock` at startup (keep it current with `SystemCoreClockUpdate()`).
+
+This helper is for the vendored layout only. On the FetchContent / `add_subdirectory` path you do not need it — the library's own `CMakeLists.txt` already provides the `stm32_async_1wire` target with CMSIS managed.
+
+#### 4. Plain Make / `make lib`
+
+If you build with plain GCC/make (no CMake), use `make lib` to compile just the four driver sources into a static archive:
 
 ```bash
-# One-time: fetch CMSIS headers (the ststm32 platform provides its own
-# copy, but the driver's ow_port_* headers expect the standard layout
-# under CMSIS/core/ and CMSIS/device/).
-make download-deps
+make OW_MCU=STM32H503xx lib
 ```
 
-Minimal `platformio.ini`:
+This produces `build/libstm32_async_1wire.a` with the same flags as the firmware build (`-mcpu`, device macro, clock define, includes, optimization). Link it into your own firmware:
+
+```bash
+arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -T my_app.ld \
+    -Ipath/to/inc -Ipath/to/CMSIS/core -Ipath/to/CMSIS/device \
+    -DSTM32H503xx my_app.c build/libstm32_async_1wire.a \
+    -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
+```
+
+The archive is built with the same part/clock/optimization stamping as the firmware, so `make OW_MCU=STM32H503xx SYSCLK_MHZ=250 lib` produces a different archive from the 64 MHz default — there is no silent object reuse across clock variants.
+
+#### 5. PlatformIO
+
+The repository ships with `library.json` and `library.properties` so PlatformIO can discover the library automatically:
 
 ```ini
 [env:bluepill]
@@ -1224,125 +1217,14 @@ Or point to a local checkout:
 lib_deps = symlink:///path/to/stm32-async-1wire
 ```
 
-The library is also compatible with the Arduino Library Manager (see
-`library.properties`).
+A ready-made consumer lives in `tests/integration/platformio/` — copy that directory as a starting point. CI does not run PlatformIO itself; it checks `library.json` consistency and that the consumer compiles with the manifest's own include set via `make test-manifest`.
 
-A ready-made consumer lives in `tests/integration/platformio/` — copy that
-directory as a starting point. CI does not run PlatformIO itself (it would mean
-downloading the `ststm32` platform and the STM32Cube framework for every run);
-what CI checks instead is that `library.json` is self-consistent and that the
-same consumer compiles with the include set the manifest itself declares, via
-`make test-manifest`. See the comments in `platformio.ini` for exactly what that
-does and does not cover.
+#### Common gotchas
 
-### CMake (FetchContent)
-
-The root `CMakeLists.txt` provides a `stm32_async_1wire` static library
-target with FetchContent-managed CMSIS dependencies — no pre-downloaded
-headers needed. A bare-metal toolchain file is included.
-
-```bash
-# ARM GCC must be on PATH
-cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_MCU=STM32F103xB -B build .
-cmake --build build
-```
-
-Keep the build directory and any install prefix inside `build/`
-(`cmake --install build --prefix build/prefix`), as the `ci.yml` `cmake` job
-does. `build/` is ignored and `make clean` removes it; a `--prefix` at the
-repository root works too but leaves a directory that `make clean` has to glob
-for.
-
-Add `-DOW_BUILD_EXAMPLES=ON` to build the eight example applications. They are
-built with the same per-example `UART_TX_BUF_SIZE` and, for `6_statistics`, the
-same `OW_STATS_ENABLE` as `make APP=<ex>`, and
-each one also gets a `.hex` and a `.bin` next to the executable in
-`build/examples/`.
-
-`-DOW_EXTRA_DEFINES` is the CMake counterpart of the Makefile's `EXT="..."`: it
-applies extra definitions to every library and example, so the same firmware
-variants can be selected without a dedicated option each.
-
-```bash
-cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_MCU=STM32F407xx -DOW_BUILD_EXAMPLES=ON \
-      -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" \
-      -B build .
-cmake --build build
-```
-
-`CMAKE_BUILD_TYPE` defaults to `Release` when a single-config generator leaves
-it empty, and the profiles are the Makefile's own rather than CMake's defaults:
-`Release` is `-Os -flto -g0`, `Debug` is `-Og -g3 -gdwarf`. LTO is on for every
-family: the old Cortex-M0/M0+ exclusion (GCC 14's thin-LTO partitioner failed
-there) was removed after the F0/G0 firmware linked cleanly under Arm GNU
-Toolchain 15.2. When LTO is on
-the build points the archiver at `arm-none-eabi-gcc-ar`, because a plain `ar`
-leaves the LTO symbols out of the archive index and the link then fails with
-undefined references to the driver API. CMake's own `Release` (`-O3 -DNDEBUG`)
-is deliberately not used — `-O3` is not what the hardware numbers were taken
-with, and `NDEBUG` is a separate mode in this project.
-
-Select the device with the standard STMicroelectronics part macro: `-DOW_MCU=STM32F103xB` (default), `STM32F030x6`, `STM32F303xC`,
-`STM32F407xx`, `STM32F401xC`, `STM32F401xE`, `STM32F446xx`, `STM32G031xx`,
-`STM32G474xx` or `STM32H503xx` (e.g. `-DOW_MCU=STM32F401xC`; `-DOW_SYSCLK_MHZ=N` overrides the
-part's clock). The legacy family/part pair `-DOW_TARGET=<family>` /
-`-DOW_CHIP=<part>` (e.g. `-DOW_TARGET=f4 -DOW_CHIP=f401xc`) is still accepted
-as an alias. CMake reads the same `chips/<part>.mk` the Makefile build does,
-so the two cannot disagree about the device macro, startup file, linker script
-or clock.
-
-In a downstream project:
-
-```cmake
-FetchContent_Declare(stm32_1wire
-    GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v2.3.0
-)
-FetchContent_MakeAvailable(stm32_1wire)
-target_link_libraries(your_app PRIVATE stm32_async_1wire)
-```
-
-This is the path to prefer: the library brings its own CMSIS through
-FetchContent, so nothing has to be downloaded or configured first. Build the
-library as a subproject, the target name is un-namespaced
-(`stm32_async_1wire`), not the `stm32_async_1wire::` form below.
-
-### CMake (`find_package`)
-
-The alternative, when you would rather consume a fixed install tree than vendor
-the sources. Install once with the same toolchain, then point `find_package` at
-the prefix:
-
-```bash
-cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
-      -DOW_MCU=STM32F407xx -DCMAKE_BUILD_TYPE=Release -B build .
-cmake --build build
-cmake --install build --prefix build/prefix
-```
-
-```cmake
-find_package(stm32_async_1wire REQUIRED)
-target_link_libraries(your_app PRIVATE stm32_async_1wire::stm32_async_1wire)
-```
-
-Two things to know, both consequences of how a package can be built:
-
-- **The consumer provides CMSIS.** The include paths the library compiled
-  against were FetchContent checkouts inside its build tree; baking them into
-  the install export would tie the package to the machine that built it. So
-  add your own CMSIS `core` and device include directories on top of the
-  imported target — from STM32Cube, PlatformIO, or a manual checkout.
-- **The package carries its part selection.** The part macros (`STM32F407xx`,
-  `STM32F4`, `OW_PORT_SYSCLK_MHZ=168`) are
-  baked into the installed target as public definitions, because `ow_port.h` picks its
-  backend from them and `#error`s without them. Build the package for the part
-  your firmware is for; there is no way to change it afterwards.
-
-Both integration paths are built by CI against this repository on every change
-for all seven families (`tests/integration/cmake/`), so neither can rot the way
-the install-tree file checks alone would not catch.
+- **H5 reset clock.** On STM32H5 the HSI runs at 64 MHz but reset divides it to 32 MHz (`RCC_CR.HSIDIV = /2`). Before relying on 64 MHz, clear `HSIDIV` and set `FLASH_ACR = PRFTEN | LATENCY_3WS`, then call `SystemCoreClockUpdate()`. Skip it and the console runs at half rate and every 1-Wire slot is 2× out of spec.
+- **Parasite power.** Define `-DOW_PARASITE_POWER=1` **and** call `ds18b20_set_parasite(1)` at runtime; without both, parasite-powered sensors report a fixed error temperature.
+- **LTO.** If you build with `-flto`, archive with `arm-none-eabi-gcc-ar` (a plain `ar` leaves the LTO symbols out of the index and the link fails with undefined references to the driver API). The Makefile and CMake builds do this automatically.
+- **Clock agreement.** If you do pass `OW_PORT_SYSCLK_MHZ`, it must match the clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK), or the bus timing is scaled by the mismatch.
 
 ### STM32CubeIDE
 
