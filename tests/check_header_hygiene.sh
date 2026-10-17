@@ -1,7 +1,7 @@
 #!/bin/sh
 # tests/check_header_hygiene.sh - the public headers must not leave the port's
-# register vocabulary (the T1/PA/RC/D13 single-letter aliases, the BITS() mask
-# machinery and the register shortcuts) defined in a consumer's translation
+# register vocabulary (the T1/PA/RC/D13 single-letter aliases, the OW_BITFIELDS()
+# mask machinery and the register shortcuts) defined in a consumer's translation
 # unit.
 #
 # Why this exists: onewire.h pulls in the port engine, which is header-only and
@@ -42,7 +42,7 @@ MOCK=tests/mock
 # terminator class must be '[ (]': gcc -dM prints a function-like macro as
 # "#define F(" with no space after the name, an object-like one as "#define A "
 # with one.
-PATTERN='^#define (RCC_BITS|RCC_AHBENR|RCC_APB2ENR|GPIO_CRH|TIM_CR1|TIM_DIER|TIM_BDTR|TIM_SR|TIM_EGR|TIM_CCMR2|TIM_CCER|DMA_CCR|DMA_LIFCR|DMA_HIFCR|DMA_SxCR|_BITS_CHOOSER2|_BITS_CHOOSER1|_BITS_CHOOSER|_BITS_NARG_|_BITS_NARG|_BITS_ONE|_BITS_8|_BITS_7|_BITS_6|_BITS_5|_BITS_4|_BITS_3|_BITS_2|_BITS_1|BITS|D13|D14|D2|PA|RC|T1)[ (]'
+PATTERN='^#define (RCC_BITS|RCC_AHBENR|RCC_APB2ENR|GPIO_CRH|TIM_CR1|TIM_DIER|TIM_BDTR|TIM_SR|TIM_EGR|TIM_CCMR2|TIM_CCER|DMA_CCR|DMA_LIFCR|DMA_HIFCR|DMA_SxCR|OW_BITFIELDS|OW_BF_CHOOSER2|OW_BF_CHOOSER1|OW_BF_CHOOSER|OW_BF_NARG_|OW_BF_NARG|OW_BF_ONE|OW_BF_8|OW_BF_7|OW_BF_6|OW_BF_5|OW_BF_4|OW_BF_3|OW_BF_2|OW_BF_1|D13|D14|D2|PA|RC|T1)[ (]'
 
 FAMS="STM32F0 STM32F1 STM32F3 STM32F4 STM32G0 STM32G4 STM32H5"
 fail=0

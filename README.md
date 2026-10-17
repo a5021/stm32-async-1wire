@@ -1536,7 +1536,7 @@ do not "fix" them without re-reading the reasoning:
   `port/stm32f4/HARDWARE-NOTES.md`). Zero cost unless a backend defines it.
 - **The port's register vocabulary is defined and withdrawn inside
   `ow_port.h`.** The port engine is header-only and written in the
-  single-letter register aliases (`T1`, `PA`, `RC`, `D13`, ...), the `BITS()`
+  single-letter register aliases (`T1`, `PA`, `RC`, `D13`, ...), the `OW_BITFIELDS()`
   mask machinery and the register shortcuts (`RCC_AHBENR`, `TIM_CR1`, ...).
   Every macro body and inline body must see the vocabulary while it is
   parsed, so `inc/ow_port.h` defines it at the top of the chain and

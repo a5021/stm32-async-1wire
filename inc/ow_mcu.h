@@ -485,8 +485,8 @@ typedef uint16_t ow_pulse_t;
  * tests/test/test_dma_contract.c::test_dma_cr_value_macros.  Every
  * OW_PORT_DMA_CR_* definition (here and in ow_port.h) spells explicit CMSIS
  * masks instead of the DMA_CCR/DMA_SxCR sugar: the contract tests expand
- * these macros in their own TU, after ow_port.h has withdrawn the BITS()
- * helpers. */
+ * these macros in their own TU, after ow_port.h has withdrawn the
+ * OW_BITFIELDS() helpers. */
 #define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
 #define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~(DMA_SxCR_PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR_EN)
 #define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)

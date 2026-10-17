@@ -65,7 +65,7 @@ extern "C" {
 /* --- Register vocabulary of the port core --------------------------------
  *  The family hooks from ow_mcu.h and the engine below are header-only and
  *  written in single-letter register aliases (T1, PA, RC, D13, ...), the
- *  BITS() mask helpers and their register shortcuts.  All of it must be
+ *  OW_BITFIELDS() mask helpers and their register shortcuts.  All of it must be
  *  visible while every macro body and inline body is parsed, so it is
  *  defined here - the top of the last header in the chain - and #undef'd at
  *  this file's end (the withdraw block below).  make test-header-hygiene
@@ -80,53 +80,53 @@ extern "C" {
 #define T1 (*TIM1) /* 0x40012C00 */
 
 // Mask machinery: paste PREFIX_, REG, BF into a CMSIS bitfield name and OR them
-#define _BITS_ONE(PREFIX_, REG, BF) (PREFIX_##REG##_##BF)
+#define OW_BF_ONE(PREFIX_, REG, BF) (PREFIX_##REG##_##BF)
 
 // Recursive macros to combine 1-8 bitfields using the '|' operator
-#define _BITS_1(PREFIX_, REG, BF) (_BITS_ONE(PREFIX_, REG, BF))
-#define _BITS_2(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_1(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_3(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_2(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_4(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_3(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_5(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_4(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_6(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_5(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_7(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_6(PREFIX_, REG, __VA_ARGS__))
-#define _BITS_8(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_7(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_1(PREFIX_, REG, BF) (OW_BF_ONE(PREFIX_, REG, BF))
+#define OW_BF_2(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_1(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_3(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_2(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_4(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_3(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_5(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_4(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_6(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_5(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_7(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_6(PREFIX_, REG, __VA_ARGS__))
+#define OW_BF_8(PREFIX_, REG, BF, ...) (OW_BF_ONE(PREFIX_, REG, BF) | OW_BF_7(PREFIX_, REG, __VA_ARGS__))
 
 // Count bitfield arguments (up to 8; the widest call in the tree uses 5)
-#define _BITS_NARG(...) _BITS_NARG_(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1)
-#define _BITS_NARG_(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
+#define OW_BF_NARG(...) OW_BF_NARG_(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1)
+#define OW_BF_NARG_(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
 
-// Macro dispatcher: picks the _BITS_n macro matching the argument count
-#define _BITS_CHOOSER2(count) _BITS_##count
-#define _BITS_CHOOSER1(count) _BITS_CHOOSER2(count)
-#define _BITS_CHOOSER(count) _BITS_CHOOSER1(count)
+// Macro dispatcher: picks the OW_BF_n macro matching the argument count
+#define OW_BF_CHOOSER2(count) OW_BF_##count
+#define OW_BF_CHOOSER1(count) OW_BF_CHOOSER2(count)
+#define OW_BF_CHOOSER(count) OW_BF_CHOOSER1(count)
 
-// BITS(PREFIX_, REG, BF, ...): a mask of the requested bitfields of one register
-#define BITS(PREFIX_, REG, ...)                                               \
-    (                                                                         \
-        (void)sizeof(struct {                                                 \
-            _Static_assert(sizeof(#__VA_ARGS__) > 1,                          \
-                           "BITS(): at least one bitfield must be provided"); \
-            int _dummy;                                                       \
-        }),                                                                   \
-        _BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__))
+// OW_BITFIELDS(PREFIX_, REG, BF, ...): a mask of the bitfields of one register
+#define OW_BITFIELDS(PREFIX_, REG, ...)                                               \
+    (                                                                                 \
+        (void)sizeof(struct {                                                         \
+            _Static_assert(sizeof(#__VA_ARGS__) > 1,                                  \
+                           "OW_BITFIELDS(): at least one bitfield must be provided"); \
+            int _dummy;                                                               \
+        }),                                                                           \
+        OW_BF_CHOOSER(OW_BF_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__))
 
-// Register shortcuts: BITS() for one fixed register, as the engine spells them
-#define RCC_BITS(reg, ...) BITS(RCC_, reg, __VA_ARGS__)
-#define RCC_AHBENR(...) BITS(RCC_, AHBENR, __VA_ARGS__)
-#define RCC_APB2ENR(...) BITS(RCC_, APB2ENR, __VA_ARGS__)
-#define GPIO_CRH(...) BITS(GPIO_, CRH, __VA_ARGS__)
-#define TIM_CR1(...) BITS(TIM_, CR1, __VA_ARGS__)
-#define TIM_DIER(...) BITS(TIM_, DIER, __VA_ARGS__)
-#define TIM_BDTR(...) BITS(TIM_, BDTR, __VA_ARGS__)
-#define TIM_SR(...) BITS(TIM_, SR, __VA_ARGS__)
-#define TIM_EGR(...) BITS(TIM_, EGR, __VA_ARGS__)
-#define TIM_CCMR2(...) BITS(TIM_, CCMR2, __VA_ARGS__)
-#define TIM_CCER(...) BITS(TIM_, CCER, __VA_ARGS__)
-#define DMA_CCR(...) BITS(DMA_, CCR, __VA_ARGS__)
-#define DMA_LIFCR(...) BITS(DMA_, LIFCR, __VA_ARGS__)
-#define DMA_HIFCR(...) BITS(DMA_, HIFCR, __VA_ARGS__)
-#define DMA_SxCR(...) BITS(DMA_Sx, CR, __VA_ARGS__)
+// Register shortcuts: OW_BITFIELDS() for one fixed register, as the engine spells them
+#define RCC_BITS(reg, ...) OW_BITFIELDS(RCC_, reg, __VA_ARGS__)
+#define RCC_AHBENR(...) OW_BITFIELDS(RCC_, AHBENR, __VA_ARGS__)
+#define RCC_APB2ENR(...) OW_BITFIELDS(RCC_, APB2ENR, __VA_ARGS__)
+#define GPIO_CRH(...) OW_BITFIELDS(GPIO_, CRH, __VA_ARGS__)
+#define TIM_CR1(...) OW_BITFIELDS(TIM_, CR1, __VA_ARGS__)
+#define TIM_DIER(...) OW_BITFIELDS(TIM_, DIER, __VA_ARGS__)
+#define TIM_BDTR(...) OW_BITFIELDS(TIM_, BDTR, __VA_ARGS__)
+#define TIM_SR(...) OW_BITFIELDS(TIM_, SR, __VA_ARGS__)
+#define TIM_EGR(...) OW_BITFIELDS(TIM_, EGR, __VA_ARGS__)
+#define TIM_CCMR2(...) OW_BITFIELDS(TIM_, CCMR2, __VA_ARGS__)
+#define TIM_CCER(...) OW_BITFIELDS(TIM_, CCER, __VA_ARGS__)
+#define DMA_CCR(...) OW_BITFIELDS(DMA_, CCR, __VA_ARGS__)
+#define DMA_LIFCR(...) OW_BITFIELDS(DMA_, LIFCR, __VA_ARGS__)
+#define DMA_HIFCR(...) OW_BITFIELDS(DMA_, HIFCR, __VA_ARGS__)
+#define DMA_SxCR(...) OW_BITFIELDS(DMA_Sx, CR, __VA_ARGS__)
 
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
  * least-significant byte via the DMA memory-store width.  How the offsets are
@@ -418,7 +418,7 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #ifndef OW_PORT_DMA_CR_TX
 /* Explicit CMSIS masks (same style as RX16/RX8 above), not DMA_CCR(...):
  * contract tests expand OW_PORT_DMA_CR_* in their own TU, after ow_port.h
- * has withdrawn the BITS() helpers. */
+ * has withdrawn the OW_BITFIELDS() helpers. */
 #define OW_PORT_DMA_CR_TX (DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 #endif
 
@@ -914,7 +914,7 @@ __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
 /* --- Withdraw the register vocabulary from the consumer namespace ---------
  *  The ow_mcu.h family hooks expanded in the engine above and the engine
  *  bodies themselves are written in the vocabulary block at the top of this
- *  file: single-letter aliases (T1, PA, RC, D13, ...), the BITS() mask
+ *  file: single-letter aliases (T1, PA, RC, D13, ...), the OW_BITFIELDS() mask
  *  machinery and the register shortcuts (RCC_AHBENR, TIM_CR1, ...).  The
  *  chain is header-only, so all of it had to stay visible while every inline
  *  body was parsed; this is where the last body is in, so this is where a TU
@@ -939,21 +939,21 @@ __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
 #undef DMA_SxCR
 
 // Mask machinery
-#undef _BITS_ONE
-#undef _BITS_1
-#undef _BITS_2
-#undef _BITS_3
-#undef _BITS_4
-#undef _BITS_5
-#undef _BITS_6
-#undef _BITS_7
-#undef _BITS_8
-#undef _BITS_NARG
-#undef _BITS_NARG_
-#undef _BITS_CHOOSER
-#undef _BITS_CHOOSER1
-#undef _BITS_CHOOSER2
-#undef BITS
+#undef OW_BF_ONE
+#undef OW_BF_1
+#undef OW_BF_2
+#undef OW_BF_3
+#undef OW_BF_4
+#undef OW_BF_5
+#undef OW_BF_6
+#undef OW_BF_7
+#undef OW_BF_8
+#undef OW_BF_NARG
+#undef OW_BF_NARG_
+#undef OW_BF_CHOOSER
+#undef OW_BF_CHOOSER1
+#undef OW_BF_CHOOSER2
+#undef OW_BITFIELDS
 
 // Single-letter aliases
 #undef D13

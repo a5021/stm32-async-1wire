@@ -695,7 +695,7 @@ test-mcu-dispatch:
 
 # --- Do the public headers leak the port's register vocabulary? ---
 # onewire.h pulls the header-only port engine, which is written in the
-# register aliases (T1, PA, RC, D13, ...), the BITS() machinery and the
+# register aliases (T1, PA, RC, D13, ...), the OW_BITFIELDS() machinery and the
 # register shortcuts; ow_port.h defines them at its top and withdraws them at
 # its end because every body must see them first. Nothing tied that block to
 # the definitions, so a moved include can silently resurrect them - which is
