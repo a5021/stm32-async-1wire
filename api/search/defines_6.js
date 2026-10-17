@@ -1,7 +1,11 @@
 var searchData=
 [
-  ['rc_0',['RC',['../ow__port_8h.html#a9de40e06982123e40c3c92b5db6d7640',1,'ow_port.h']]],
-  ['rcc_5fahbenr_1',['RCC_AHBENR',['../ow__port_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c',1,'ow_port.h']]],
-  ['rcc_5fapb2enr_2',['RCC_APB2ENR',['../ow__port_8h.html#a768c19149973a577a2f6a53f372d904c',1,'ow_port.h']]],
-  ['rcc_5fbits_3',['RCC_BITS',['../ow__port_8h.html#a46898aeaf8d68a178e82587fac5b4e38',1,'ow_port.h']]]
+  ['t1_0',['T1',['../ow__port_8h.html#ac16509a75e3d3fc46b9df1726be486ec',1,'ow_port.h']]],
+  ['tim_5fbdtr_1',['TIM_BDTR',['../ow__port_8h.html#ad73864d0c7c46ff996e1d6778e6b9b76',1,'ow_port.h']]],
+  ['tim_5fccer_2',['TIM_CCER',['../ow__port_8h.html#a572a7c2efcb63f5eeda436487e1ea56d',1,'ow_port.h']]],
+  ['tim_5fccmr2_3',['TIM_CCMR2',['../ow__port_8h.html#a1b5c482907ada37a945fb106dad4891d',1,'ow_port.h']]],
+  ['tim_5fcr1_4',['TIM_CR1',['../ow__port_8h.html#a3b9938c44205df3c81107f4f8215caa5',1,'ow_port.h']]],
+  ['tim_5fdier_5',['TIM_DIER',['../ow__port_8h.html#abcd3a3fb734b5aa5847ddc5db49097b2',1,'ow_port.h']]],
+  ['tim_5fegr_6',['TIM_EGR',['../ow__port_8h.html#a667ecdcff9c6a9e0fbb60bff3a403b29',1,'ow_port.h']]],
+  ['tim_5fsr_7',['TIM_SR',['../ow__port_8h.html#a5d72d72f61d5c4539897612eaaad83a6',1,'ow_port.h']]]
 ];

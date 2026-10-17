@@ -1,17 +1,11 @@
 var searchData=
 [
-  ['_5fbits_5f1_0',['_BITS_1',['../ow__port_8h.html#abbeec95d57d7044dfaf1b8e7ee7b151f',1,'ow_port.h']]],
-  ['_5fbits_5f2_1',['_BITS_2',['../ow__port_8h.html#a856feedfd9d557d9ce56919d176c459d',1,'ow_port.h']]],
-  ['_5fbits_5f3_2',['_BITS_3',['../ow__port_8h.html#ab0b1f45940bc8aaf45652010fb522e31',1,'ow_port.h']]],
-  ['_5fbits_5f4_3',['_BITS_4',['../ow__port_8h.html#a962984d53dac1a1d908232fb4878a3cb',1,'ow_port.h']]],
-  ['_5fbits_5f5_4',['_BITS_5',['../ow__port_8h.html#a201954a4871a967c0762ae233563cde7',1,'ow_port.h']]],
-  ['_5fbits_5f6_5',['_BITS_6',['../ow__port_8h.html#aa87e0d1ec33abc7be2cbe454d5562394',1,'ow_port.h']]],
-  ['_5fbits_5f7_6',['_BITS_7',['../ow__port_8h.html#a6cfae9dfb7641bd66886d874f222174d',1,'ow_port.h']]],
-  ['_5fbits_5f8_7',['_BITS_8',['../ow__port_8h.html#a23cb247856646c7e61f1458481f6ff22',1,'ow_port.h']]],
-  ['_5fbits_5fchooser_8',['_BITS_CHOOSER',['../ow__port_8h.html#abc97ef71191c9edff02ae8566a23415a',1,'ow_port.h']]],
-  ['_5fbits_5fchooser1_9',['_BITS_CHOOSER1',['../ow__port_8h.html#a1b7638f7c6485468330a651d82553dea',1,'ow_port.h']]],
-  ['_5fbits_5fchooser2_10',['_BITS_CHOOSER2',['../ow__port_8h.html#a2ab9c1613ba5acc76c0a4ddaae80c037',1,'ow_port.h']]],
-  ['_5fbits_5fnarg_11',['_BITS_NARG',['../ow__port_8h.html#a07e8d58118a167b81d942c70d2a3ed97',1,'ow_port.h']]],
-  ['_5fbits_5fnarg_5f_12',['_BITS_NARG_',['../ow__port_8h.html#acdfa9dc67200a5cc90b0e01b1997ba9c',1,'ow_port.h']]],
-  ['_5fbits_5fone_13',['_BITS_ONE',['../ow__port_8h.html#aa0d1bcf202725318c5bc2b83dfa981c9',1,'ow_port.h']]]
+  ['d13_0',['D13',['../ow__port_8h.html#aa65d06b9eef04346a095f2f0d90b309a',1,'ow_port.h']]],
+  ['d14_1',['D14',['../ow__port_8h.html#af8121fbeaf3b2496d9de66a640b7763c',1,'ow_port.h']]],
+  ['d2_2',['D2',['../ow__port_8h.html#a7537ecd0f0af6ccc5b85d5df80f4aee7',1,'ow_port.h']]],
+  ['dma_5fccr_3',['DMA_CCR',['../ow__port_8h.html#a1e6631cefd5d108eccbd6c4475233afc',1,'ow_port.h']]],
+  ['dma_5fhifcr_4',['DMA_HIFCR',['../ow__port_8h.html#a01c22c50ea7ab3779108c94bd38d63ba',1,'ow_port.h']]],
+  ['dma_5flifcr_5',['DMA_LIFCR',['../ow__port_8h.html#a5e1c4bb228878c8c9d916223515471aa',1,'ow_port.h']]],
+  ['dma_5fsxcr_6',['DMA_SxCR',['../ow__port_8h.html#a732d02f24dad866330005ab07f22bfa9',1,'ow_port.h']]],
+  ['ds18b20_5fmax_5fdevices_7',['DS18B20_MAX_DEVICES',['../ow__config_8h.html#abe0f6a81aa740fdee2eb2568b94b0f3b',1,'ow_config.h']]]
 ];

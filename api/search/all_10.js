@@ -1,13 +1,14 @@
 var searchData=
 [
-  ['search_0',['search',['../group__DS18B20__Alarm__Search.html',1,'DS18B20 Non-Blocking Alarm Search'],['../group__DS18B20__Search.html',1,'DS18B20 Non-Blocking Device Search']]],
-  ['search_20rom_20engine_1',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]],
-  ['sensor_5fcount_2',['sensor_count',['../structow__stats__t.html#ab0a649c638571987e524704b696c8563',1,'ow_stats_t']]],
-  ['sensors_3',['sensors',['../structow__stats__t.html#a233a7bd587a3f8804fd44bb63e798000',1,'ow_stats_t']]],
-  ['simultaneous_20multi_20device_20conversion_4',['DS18B20 Simultaneous Multi-Device Conversion',['../group__DS18B20__Scan.html',1,'']]],
-  ['stm32_5fasync_5f1wire_5fversion_5fmajor_5',['STM32_ASYNC_1WIRE_VERSION_MAJOR',['../ds18b20_8h.html#ae902f9e9e581ad5c31f6fa394fdabce8',1,'ds18b20.h']]],
-  ['stm32_5fasync_5f1wire_5fversion_5fminor_6',['STM32_ASYNC_1WIRE_VERSION_MINOR',['../ds18b20_8h.html#ae4187096d177aa6733d53cd1edbcea7c',1,'ds18b20.h']]],
-  ['stm32_5fasync_5f1wire_5fversion_5fpatch_7',['STM32_ASYNC_1WIRE_VERSION_PATCH',['../ds18b20_8h.html#aa558359da455aa9621b0cbe76a55078e',1,'ds18b20.h']]],
-  ['stm32_5fasync_5f1wire_5fversion_5fstring_8',['STM32_ASYNC_1WIRE_VERSION_STRING',['../ds18b20_8h.html#aa2ee7eda6f8678729d1cf3f7f9eb8002',1,'ds18b20.h']]],
-  ['systemcoreclock_9',['SystemCoreClock',['../ow__port_8h.html#aa3cd3e43291e81e795d642b79b6088e6',1,'ow_port.h']]]
+  ['t1_0',['T1',['../ow__port_8h.html#ac16509a75e3d3fc46b9df1726be486ec',1,'ow_port.h']]],
+  ['tim_5fbdtr_1',['TIM_BDTR',['../ow__port_8h.html#ad73864d0c7c46ff996e1d6778e6b9b76',1,'ow_port.h']]],
+  ['tim_5fccer_2',['TIM_CCER',['../ow__port_8h.html#a572a7c2efcb63f5eeda436487e1ea56d',1,'ow_port.h']]],
+  ['tim_5fccmr2_3',['TIM_CCMR2',['../ow__port_8h.html#a1b5c482907ada37a945fb106dad4891d',1,'ow_port.h']]],
+  ['tim_5fcr1_4',['TIM_CR1',['../ow__port_8h.html#a3b9938c44205df3c81107f4f8215caa5',1,'ow_port.h']]],
+  ['tim_5fdier_5',['TIM_DIER',['../ow__port_8h.html#abcd3a3fb734b5aa5847ddc5db49097b2',1,'ow_port.h']]],
+  ['tim_5fegr_6',['TIM_EGR',['../ow__port_8h.html#a667ecdcff9c6a9e0fbb60bff3a403b29',1,'ow_port.h']]],
+  ['tim_5fsr_7',['TIM_SR',['../ow__port_8h.html#a5d72d72f61d5c4539897612eaaad83a6',1,'ow_port.h']]],
+  ['total_5fcycles_8',['total_cycles',['../structow__stats__t.html#ac7b6f359933a7a276a8b553f3c0df7af',1,'ow_stats_t']]],
+  ['total_5ferrors_9',['total_errors',['../structow__stats__t.html#a062efb7903cfcde49e49ecaa247ad434',1,'ow_stats_t']]],
+  ['transactions_10',['DS18B20 Non-Blocking Command Transactions',['../group__DS18B20__Commands.html',1,'']]]
 ];

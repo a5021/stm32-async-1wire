@@ -1,6 +1,6 @@
 var indexSectionsWithContent =
 {
-  0: "1_abcdefghimnoprstw",
+  0: "1abcdefghimnoprstw",
   1: "o",
   2: "do",
   3: "do",
@@ -8,7 +8,7 @@ var indexSectionsWithContent =
   5: "do",
   6: "d",
   7: "d",
-  8: "_bdgoprst",
+  8: "dgoprst",
   9: "1abcdefgimnprstw"
 };
 

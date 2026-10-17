@@ -571,8 +571,8 @@ $(document).ready(function(){initNavTree('ow__mcu_8h_source.html',''); initResiz
 <div class="line"><a id="l00485" name="l00485"></a><span class="lineno">  485</span><span class="comment"> * tests/test/test_dma_contract.c::test_dma_cr_value_macros.  Every</span></div>
 <div class="line"><a id="l00486" name="l00486"></a><span class="lineno">  486</span><span class="comment"> * OW_PORT_DMA_CR_* definition (here and in ow_port.h) spells explicit CMSIS</span></div>
 <div class="line"><a id="l00487" name="l00487"></a><span class="lineno">  487</span><span class="comment"> * masks instead of the DMA_CCR/DMA_SxCR sugar: the contract tests expand</span></div>
-<div class="line"><a id="l00488" name="l00488"></a><span class="lineno">  488</span><span class="comment"> * these macros in their own TU, after ow_port.h has withdrawn the BITS()</span></div>
-<div class="line"><a id="l00489" name="l00489"></a><span class="lineno">  489</span><span class="comment"> * helpers. */</span></div>
+<div class="line"><a id="l00488" name="l00488"></a><span class="lineno">  488</span><span class="comment"> * these macros in their own TU, after ow_port.h has withdrawn the</span></div>
+<div class="line"><a id="l00489" name="l00489"></a><span class="lineno">  489</span><span class="comment"> * OW_BITFIELDS() helpers. */</span></div>
 <div class="line"><a id="l00490" name="l00490"></a><span class="lineno">  490</span><span class="preprocessor">#define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)</span></div>
 <div class="line"><a id="l00491" name="l00491"></a><span class="lineno">  491</span><span class="preprocessor">#define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE &amp; ~(DMA_SxCR_PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR_EN)</span></div>
 <div class="line"><a id="l00492" name="l00492"></a><span class="lineno">  492</span><span class="preprocessor">#define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)</span></div>
