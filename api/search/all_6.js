@@ -1,14 +1,6 @@
 var searchData=
 [
   ['engine_0',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]],
-  ['ex_1',['EX',['../ow__bits_8h.html#a6c2e35fdcd9091ccada629895fa1d034',1,'ow_bits.h']]],
-  ['exported_20constants_2',['exported constants',['../group__DS18B20__Exported__Constants.html',1,'DS18B20 Exported Constants'],['../group__DS2431__Exported__Constants.html',1,'DS2431 Exported Constants']]],
-  ['exported_20functions_3',['exported functions',['../group__DS18B20__Exported__Functions.html',1,'DS18B20 Exported Functions'],['../group__DS2431__Exported__Functions.html',1,'DS2431 Exported Functions']]],
-  ['exti_5fbits_4',['EXTI_BITS',['../ow__bits_8h.html#a1093bd2ecaad12cf951f3b1660b15aad',1,'ow_bits.h']]],
-  ['exti_5femr_5',['EXTI_EMR',['../ow__bits_8h.html#af7157e460fbe9de2f2ce839a42114b98',1,'ow_bits.h']]],
-  ['exti_5fftsr_6',['EXTI_FTSR',['../ow__bits_8h.html#ab1d011c1e02783effdbbaede968e560c',1,'ow_bits.h']]],
-  ['exti_5fimr_7',['EXTI_IMR',['../ow__bits_8h.html#a33c4d096f6c690a0bb66287260657cdb',1,'ow_bits.h']]],
-  ['exti_5fpr_8',['EXTI_PR',['../ow__bits_8h.html#a0d8911e79c35d187987c6adfaa6889cd',1,'ow_bits.h']]],
-  ['exti_5frtsr_9',['EXTI_RTSR',['../ow__bits_8h.html#a8955a871693d18c59a25e4f3e35d5949',1,'ow_bits.h']]],
-  ['exti_5fswier_10',['EXTI_SWIER',['../ow__bits_8h.html#a8e202a03be44171c59f20a6049bb5326',1,'ow_bits.h']]]
+  ['exported_20constants_1',['exported constants',['../group__DS18B20__Exported__Constants.html',1,'DS18B20 Exported Constants'],['../group__DS2431__Exported__Constants.html',1,'DS2431 Exported Constants']]],
+  ['exported_20functions_2',['exported functions',['../group__DS18B20__Exported__Functions.html',1,'DS18B20 Exported Functions'],['../group__DS2431__Exported__Functions.html',1,'DS2431 Exported Functions']]]
 ];

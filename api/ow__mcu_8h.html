@@ -99,8 +99,7 @@ $(document).ready(function(){initNavTree('ow__mcu_8h.html',''); initResizable();
 
 <p>Target-microcontroller facts for the non-blocking 1-Wire engine.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &quot;<a class="el" href="ow__bits_8h_source.html">ow_bits.h</a>&quot;</code><br />
-<code>#include &lt;stdint.h&gt;</code><br />
+<div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
 <code>#include &quot;stm32f1xx.h&quot;</code><br />
 </div>
 <p><a href="ow__mcu_8h_source.html">Go to the source code of this file.</a></p>
@@ -113,9 +112,9 @@ Macros</h2></td></tr>
 <tr class="separator:a91fb00c5ac532c8266007273025f316b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adf739d4af85cb019c39b357f5868827b" id="r_adf739d4af85cb019c39b357f5868827b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#adf739d4af85cb019c39b357f5868827b">OW_PORT_SET_PIN_MODE</a>(push_pull)</td></tr>
 <tr class="separator:adf739d4af85cb019c39b357f5868827b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a94eabb24e36a1a9429025e542f91fc69" id="r_a94eabb24e36a1a9429025e542f91fc69"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#a94eabb24e36a1a9429025e542f91fc69">OW_PORT_DMA_FEED</a>&#160;&#160;&#160;<a class="el" href="ow__bits_8h.html#aa65d06b9eef04346a095f2f0d90b309a">D13</a></td></tr>
+<tr class="memitem:a94eabb24e36a1a9429025e542f91fc69" id="r_a94eabb24e36a1a9429025e542f91fc69"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#a94eabb24e36a1a9429025e542f91fc69">OW_PORT_DMA_FEED</a>&#160;&#160;&#160;<a class="el" href="ow__port_8h.html#aa65d06b9eef04346a095f2f0d90b309a">D13</a></td></tr>
 <tr class="separator:a94eabb24e36a1a9429025e542f91fc69"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2ae68e0d2a3f1ec8c5162073fa6bde89" id="r_a2ae68e0d2a3f1ec8c5162073fa6bde89"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#a2ae68e0d2a3f1ec8c5162073fa6bde89">OW_PORT_DMA_CAPTURE</a>&#160;&#160;&#160;<a class="el" href="ow__bits_8h.html#af8121fbeaf3b2496d9de66a640b7763c">D14</a></td></tr>
+<tr class="memitem:a2ae68e0d2a3f1ec8c5162073fa6bde89" id="r_a2ae68e0d2a3f1ec8c5162073fa6bde89"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#a2ae68e0d2a3f1ec8c5162073fa6bde89">OW_PORT_DMA_CAPTURE</a>&#160;&#160;&#160;<a class="el" href="ow__port_8h.html#af8121fbeaf3b2496d9de66a640b7763c">D14</a></td></tr>
 <tr class="separator:a2ae68e0d2a3f1ec8c5162073fa6bde89"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a03b2fd34bb7c10669b739c053f99c834" id="r_a03b2fd34bb7c10669b739c053f99c834"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__mcu_8h.html#a03b2fd34bb7c10669b739c053f99c834">OW_PORT_ROUTE_CAPTURE</a>()</td></tr>
 <tr class="separator:a03b2fd34bb7c10669b739c053f99c834"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -148,11 +147,11 @@ Typedefs</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> {                                               \</div>
-<div class="line">        <a class="code hl_define" href="ow__bits_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH = (<a class="code hl_define" href="ow__bits_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH &amp; ~GPIO_CRH(MODE10, CNF10)) | \</div>
-<div class="line">                 <a class="code hl_define" href="ow__bits_8h.html#a7e5032dfb922a0a663de109f62bddb71">GPIO_CRH</a>(MODE10_1, CNF10_0, CNF10_1); \</div>
+<div class="line">        <a class="code hl_define" href="ow__port_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH = (<a class="code hl_define" href="ow__port_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH &amp; ~GPIO_CRH(MODE10, CNF10)) | \</div>
+<div class="line">                 <a class="code hl_define" href="ow__port_8h.html#a7e5032dfb922a0a663de109f62bddb71">GPIO_CRH</a>(MODE10_1, CNF10_0, CNF10_1); \</div>
 <div class="line">    } <span class="keywordflow">while</span> (0)</div>
-<div class="ttc" id="aow__bits_8h_html_a74cb3af6041b109c53743b600ebbcf4c"><div class="ttname"><a href="ow__bits_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a></div><div class="ttdeci">#define PA</div><div class="ttdef"><b>Definition</b> ow_bits.h:27</div></div>
-<div class="ttc" id="aow__bits_8h_html_a7e5032dfb922a0a663de109f62bddb71"><div class="ttname"><a href="ow__bits_8h.html#a7e5032dfb922a0a663de109f62bddb71">GPIO_CRH</a></div><div class="ttdeci">#define GPIO_CRH(...)</div><div class="ttdef"><b>Definition</b> ow_bits.h:145</div></div>
+<div class="ttc" id="aow__port_8h_html_a74cb3af6041b109c53743b600ebbcf4c"><div class="ttname"><a href="ow__port_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a></div><div class="ttdeci">#define PA</div><div class="ttdef"><b>Definition</b> ow_port.h:78</div></div>
+<div class="ttc" id="aow__port_8h_html_a7e5032dfb922a0a663de109f62bddb71"><div class="ttname"><a href="ow__port_8h.html#a7e5032dfb922a0a663de109f62bddb71">GPIO_CRH</a></div><div class="ttdeci">#define GPIO_CRH(...)</div><div class="ttdef"><b>Definition</b> ow_port.h:118</div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -163,7 +162,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">#define OW_PORT_DMA_CAPTURE&#160;&#160;&#160;<a class="el" href="ow__bits_8h.html#af8121fbeaf3b2496d9de66a640b7763c">D14</a></td>
+          <td class="memname">#define OW_PORT_DMA_CAPTURE&#160;&#160;&#160;<a class="el" href="ow__port_8h.html#af8121fbeaf3b2496d9de66a640b7763c">D14</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -177,7 +176,7 @@ Typedefs</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">#define OW_PORT_DMA_FEED&#160;&#160;&#160;<a class="el" href="ow__bits_8h.html#aa65d06b9eef04346a095f2f0d90b309a">D13</a></td>
+          <td class="memname">#define OW_PORT_DMA_FEED&#160;&#160;&#160;<a class="el" href="ow__port_8h.html#aa65d06b9eef04346a095f2f0d90b309a">D13</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -199,12 +198,12 @@ Typedefs</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> {                                           \</div>
-<div class="line">        <a class="code hl_define" href="ow__bits_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a>.APB2ENR |= <a class="code hl_define" href="ow__bits_8h.html#a768c19149973a577a2f6a53f372d904c">RCC_APB2ENR</a>(IOPAEN, TIM1EN); \</div>
-<div class="line">        <a class="code hl_define" href="ow__bits_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a>.AHBENR |= <a class="code hl_define" href="ow__bits_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c">RCC_AHBENR</a>(DMA1EN);           \</div>
+<div class="line">        <a class="code hl_define" href="ow__port_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a>.APB2ENR |= <a class="code hl_define" href="ow__port_8h.html#a768c19149973a577a2f6a53f372d904c">RCC_APB2ENR</a>(IOPAEN, TIM1EN); \</div>
+<div class="line">        <a class="code hl_define" href="ow__port_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a>.AHBENR |= <a class="code hl_define" href="ow__port_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c">RCC_AHBENR</a>(DMA1EN);           \</div>
 <div class="line">    } <span class="keywordflow">while</span> (0)</div>
-<div class="ttc" id="aow__bits_8h_html_a1e40959eaeea8acd4f6fd2d6fc0d6d9c"><div class="ttname"><a href="ow__bits_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c">RCC_AHBENR</a></div><div class="ttdeci">#define RCC_AHBENR(...)</div><div class="ttdef"><b>Definition</b> ow_bits.h:137</div></div>
-<div class="ttc" id="aow__bits_8h_html_a768c19149973a577a2f6a53f372d904c"><div class="ttname"><a href="ow__bits_8h.html#a768c19149973a577a2f6a53f372d904c">RCC_APB2ENR</a></div><div class="ttdeci">#define RCC_APB2ENR(...)</div><div class="ttdef"><b>Definition</b> ow_bits.h:138</div></div>
-<div class="ttc" id="aow__bits_8h_html_a9de40e06982123e40c3c92b5db6d7640"><div class="ttname"><a href="ow__bits_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a></div><div class="ttdeci">#define RC</div><div class="ttdef"><b>Definition</b> ow_bits.h:39</div></div>
+<div class="ttc" id="aow__port_8h_html_a1e40959eaeea8acd4f6fd2d6fc0d6d9c"><div class="ttname"><a href="ow__port_8h.html#a1e40959eaeea8acd4f6fd2d6fc0d6d9c">RCC_AHBENR</a></div><div class="ttdeci">#define RCC_AHBENR(...)</div><div class="ttdef"><b>Definition</b> ow_port.h:116</div></div>
+<div class="ttc" id="aow__port_8h_html_a768c19149973a577a2f6a53f372d904c"><div class="ttname"><a href="ow__port_8h.html#a768c19149973a577a2f6a53f372d904c">RCC_APB2ENR</a></div><div class="ttdeci">#define RCC_APB2ENR(...)</div><div class="ttdef"><b>Definition</b> ow_port.h:117</div></div>
+<div class="ttc" id="aow__port_8h_html_a9de40e06982123e40c3c92b5db6d7640"><div class="ttname"><a href="ow__port_8h.html#a9de40e06982123e40c3c92b5db6d7640">RC</a></div><div class="ttdeci">#define RC</div><div class="ttdef"><b>Definition</b> ow_port.h:79</div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -262,7 +261,7 @@ Typedefs</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> {                                                          \</div>
-<div class="line">        <a class="code hl_define" href="ow__bits_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH = (<a class="code hl_define" href="ow__bits_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH &amp; ~GPIO_CRH_CNF10) |                     \</div>
+<div class="line">        <a class="code hl_define" href="ow__port_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH = (<a class="code hl_define" href="ow__port_8h.html#a74cb3af6041b109c53743b600ebbcf4c">PA</a>.CRH &amp; ~GPIO_CRH_CNF10) |                     \</div>
 <div class="line">                 (push_pull ? GPIO_CRH_CNF10_1 : GPIO_CRH_CNF10); \</div>
 <div class="line">    } <span class="keywordflow">while</span> (0)</div>
 </div><!-- fragment -->
