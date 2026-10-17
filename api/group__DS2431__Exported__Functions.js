@@ -11,6 +11,6 @@ var group__DS2431__Exported__Functions =
     [ "ds2431_read_scratchpad_poll", "group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d", null ],
     [ "ds2431_select", "group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd", null ],
     [ "ds2431_set_parasite", "group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d", null ],
-    [ "ds2431_write_scratchpad", "group__DS2431__Exported__Functions.html#gaaa37c72a0eb2b02e953f63d8bea44d71", null ],
+    [ "ds2431_write_scratchpad", "group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21", null ],
     [ "ds2431_write_scratchpad_poll", "group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2", null ]
 ];

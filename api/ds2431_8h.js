@@ -12,6 +12,7 @@ var ds2431_8h =
     [ "DS2431_READ_SCRATCHPAD", "group__DS2431__Exported__Constants.html#ga6735151daab3babf640b8f6d64aba606", null ],
     [ "DS2431_ROM_BYTES", "group__DS2431__Exported__Constants.html#ga4b4c268311a72a1bc4b82710250ac7f6", null ],
     [ "DS2431_SCRATCH_FRAME", "group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f", null ],
+    [ "DS2431_SCRATCH_FRAME_CRC", "group__DS2431__Exported__Constants.html#ga39469b2ea9ddd10443fda9c337f41ddc", null ],
     [ "DS2431_SCRATCH_SIZE", "group__DS2431__Exported__Constants.html#gae93683c49ede8de0d83bd9ef9fc065f5", null ],
     [ "DS2431_SKIP_ROM", "group__DS2431__Exported__Constants.html#ga4b83192312e807d025218c305334b246", null ],
     [ "DS2431_TPROG_US", "group__DS2431__Exported__Constants.html#ga7879f7aee9227ad3a17a29484db95c1c", null ],
@@ -27,6 +28,6 @@ var ds2431_8h =
     [ "ds2431_read_scratchpad_poll", "group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d", null ],
     [ "ds2431_select", "group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd", null ],
     [ "ds2431_set_parasite", "group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d", null ],
-    [ "ds2431_write_scratchpad", "group__DS2431__Exported__Functions.html#gaaa37c72a0eb2b02e953f63d8bea44d71", null ],
+    [ "ds2431_write_scratchpad", "group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21", null ],
     [ "ds2431_write_scratchpad_poll", "group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2", null ]
 ];

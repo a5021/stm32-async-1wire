@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-16 16:18:15</td>
+            <td class="headerValue">2026-10-17 07:06:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -82,8 +82,8 @@
 <span id="L11"><span class="lineNum">      11</span>                 :             : #define DS2431_CMD_MAX_BYTES ((1 + DS2431_ROM_BYTES) + 1 + 2 + DS2431_SCRATCH_SIZE)</span>
 <span id="L12"><span class="lineNum">      12</span>                 :             : /** @brief Bit slots for the longest command write (DS2431_CMD_MAX_BYTES x 8) */</span>
 <span id="L13"><span class="lineNum">      13</span>                 :             : #define DS2431_CMD_SLOTS (DS2431_CMD_MAX_BYTES * DS2431_BITS_PER_BYTE)</span>
-<span id="L14"><span class="lineNum">      14</span>                 :             : /** @brief Bit slots for the skip-rom prefix of the scratchpad frame read */</span>
-<span id="L15"><span class="lineNum">      15</span>                 :             : #define DS2431_FRAME_SLOTS (DS2431_SCRATCH_FRAME * DS2431_BITS_PER_BYTE)</span>
+<span id="L14"><span class="lineNum">      14</span>                 :             : /** @brief Bit slots for the scratchpad frame read, CRC included */</span>
+<span id="L15"><span class="lineNum">      15</span>                 :             : #define DS2431_FRAME_SLOTS (DS2431_SCRATCH_FRAME_CRC * DS2431_BITS_PER_BYTE)</span>
 <span id="L16"><span class="lineNum">      16</span>                 :             : </span>
 <span id="L17"><span class="lineNum">      17</span>                 :             : /**</span>
 <span id="L18"><span class="lineNum">      18</span>                 :             :  * @}</span>
@@ -128,9 +128,9 @@
 <span id="L57"><span class="lineNum">      57</span>                 :             :     union {</span>
 <span id="L58"><span class="lineNum">      58</span>                 :             :         ow_pulse_t cmd[DS2431_CMD_SLOTS + 1]; /**&lt; command write build (DMA feed) */</span>
 <span id="L59"><span class="lineNum">      59</span>                 :             :         volatile uint16_t cap[2]; /**&lt; reset + presence pulse durations */</span>
-<span id="L60"><span class="lineNum">      60</span>                 :             :         volatile uint8_t pulse[DS2431_SCRATCH_FRAME * DS2431_BITS_PER_BYTE]; /**&lt; read capture (≤ 11 bytes x 8 bits) */</span>
+<span id="L60"><span class="lineNum">      60</span>                 :             :         volatile uint8_t pulse[DS2431_SCRATCH_FRAME_CRC * DS2431_BITS_PER_BYTE]; /**&lt; read capture (&lt;= 13 bytes x 8 bits) */</span>
 <span id="L61"><span class="lineNum">      61</span>                 :             :     } u;</span>
-<span id="L62"><span class="lineNum">      62</span>                 :             :     uint8_t raw[DS2431_SCRATCH_FRAME]; /**&lt; Decoded read result (TA1, TA2, ES, data..8) */</span>
+<span id="L62"><span class="lineNum">      62</span>                 :             :     uint8_t raw[DS2431_SCRATCH_FRAME_CRC]; /**&lt; Decoded read result (TA1, TA2, ES, data..8, CRC16) */</span>
 <span id="L63"><span class="lineNum">      63</span>                 :             :     uint8_t phase; /**&lt; Current phase (ds2431_phase_t values, packed) */</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             :     uint8_t flags; /**&lt; DS2431_FLAG_* bits */</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             :     uint8_t command; /**&lt; DS2431 function command byte (0xF0/0x0F/0xAA/0x55) */</span>
@@ -179,92 +179,94 @@
 <span id="L108"><span class="lineNum">     108</span>                 :             :                &quot;scratchpad frame read must fit one RCR window&quot;);</span>
 <span id="L109"><span class="lineNum">     109</span>                 :             : _Static_assert(DS2431_READ_PASS &lt;= ONEWIRE_MAX_READ_BYTES,</span>
 <span id="L110"><span class="lineNum">     110</span>                 :             :                &quot;a Read Memory pass must fit one read window&quot;);</span>
-<span id="L111"><span class="lineNum">     111</span>                 :             : /* B1: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final</span>
-<span id="L112"><span class="lineNum">     112</span>                 :             :  * transfer must always be present. Every build writes it at [slots], and slots</span>
-<span id="L113"><span class="lineNum">     113</span>                 :             :  * never exceeds DS2431_CMD_SLOTS, so [DS2431_CMD_SLOTS] is always in range. */</span>
-<span id="L114"><span class="lineNum">     114</span>                 :             : </span>
-<span id="L115"><span class="lineNum">     115</span>                 :             : /**</span>
-<span id="L116"><span class="lineNum">     116</span>                 :             :  * @}</span>
-<span id="L117"><span class="lineNum">     117</span>                 :             :  */</span>
-<span id="L118"><span class="lineNum">     118</span>                 :             : </span>
-<span id="L119"><span class="lineNum">     119</span>                 :             : /**</span>
-<span id="L120"><span class="lineNum">     120</span>                 :             :  * @defgroup DS2431_Public_Functions DS2431 Public Functions</span>
-<span id="L121"><span class="lineNum">     121</span>                 :             :  * @{</span>
-<span id="L122"><span class="lineNum">     122</span>                 :             :  */</span>
-<span id="L123"><span class="lineNum">     123</span>                 :             : </span>
-<span id="L124"><span class="lineNum">     124</span>                 :             : /**</span>
-<span id="L125"><span class="lineNum">     125</span>                 :             :  * @brief Initialize DS2431 driver - configure clocks and peripherals</span>
-<span id="L126"><span class="lineNum">     126</span>                 :             :  * @pre Call exactly once after MCU reset, after the system clock is configured</span>
-<span id="L127"><span class="lineNum">     127</span>                 :             :  *      and before any 1-Wire bus operation or DS2431 driver activity.</span>
-<span id="L128"><span class="lineNum">     128</span>                 :             :  * @note Calls onewire_init(), which takes exclusive ownership of the shared</span>
-<span id="L129"><span class="lineNum">     129</span>                 :             :  *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset),</span>
-<span id="L130"><span class="lineNum">     130</span>                 :             :  *       and parks the driver at DS2431_PH_IDLE: nothing runs until the</span>
-<span id="L131"><span class="lineNum">     131</span>                 :             :  *       application schedules a Read Memory, a Write Scratchpad cycle or a</span>
-<span id="L132"><span class="lineNum">     132</span>                 :             :  *       Copy Scratchpad. The DS18B20 driver and the DS2431 driver share that</span>
-<span id="L133"><span class="lineNum">     133</span>                 :             :  *       bus ownership, so call ds2431_init() INSTEAD of ds18b20_init().</span>
-<span id="L134"><span class="lineNum">     134</span>                 :             :  * @warning This function is a bootstrap operation, not a reinitialization hook.</span>
-<span id="L135"><span class="lineNum">     135</span>                 :             :  *          A second call is unsupported and does not fully reset the timer,</span>
-<span id="L136"><span class="lineNum">     136</span>                 :             :  *          DMA, low-power or DS2431 software state.</span>
-<span id="L137"><span class="lineNum">     137</span>                 :             :  */</span>
-<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC tlaBgGNC">         252 : void ds2431_init(void) {</span></span>
-<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         252 :     onewire_init();</span></span>
-<span id="L140"><span class="lineNum">     140</span>                 :             :     /* No operation running after init; a poll without a scheduled op must</span>
-<span id="L141"><span class="lineNum">     141</span>                 :             :      * still report &quot;finished&quot; (the FINISHED flag is set like the DS18B20</span>
-<span id="L142"><span class="lineNum">     142</span>                 :             :      * transaction engine does). External power is the default wiring</span>
-<span id="L143"><span class="lineNum">     143</span>                 :             :      * assumption; parasite-powered setups opt in via ds2431_set_parasite().</span>
-<span id="L144"><span class="lineNum">     144</span>                 :             :      * The flag byte starts clear (address/parasite/ok/finished/pending/echo</span>
-<span id="L145"><span class="lineNum">     145</span>                 :             :      * all zero) before FINISHED is raised. */</span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">         252 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">         252 :     ctx.phase = DS2431_PH_IDLE;</span></span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">         252 :     ctx.command = 0;</span></span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         252 :     ctx.len = 0;</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">         252 :     ctx.plen = 0;</span></span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         252 :     ctx.es = 0;</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         252 : }</span></span>
-<span id="L153"><span class="lineNum">     153</span>                 :             : </span>
-<span id="L154"><span class="lineNum">     154</span>                 :             : /**</span>
-<span id="L155"><span class="lineNum">     155</span>                 :             :  * @brief Select which DS2431 device to address by its ROM address</span>
-<span id="L156"><span class="lineNum">     156</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
-<span id="L157"><span class="lineNum">     157</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
-<span id="L158"><span class="lineNum">     158</span>                 :             :  * @note Accepted only while the driver is idle (nothing owns the timer);</span>
-<span id="L159"><span class="lineNum">     159</span>                 :             :  *       mid-operation calls are ignored. Changing the selection clears the</span>
-<span id="L160"><span class="lineNum">     160</span>                 :             :  *       pending write-cycle state (the latched TA/ES belongs to the addressed</span>
-<span id="L161"><span class="lineNum">     161</span>                 :             :  *       device), so a select() must not be interleaved into a running</span>
-<span id="L162"><span class="lineNum">     162</span>                 :             :  *       write_scratchpad -&gt; read_scratchpad -&gt; copy_scratchpad cycle.</span>
-<span id="L163"><span class="lineNum">     163</span>                 :             :  */</span>
-<span id="L164"><span class="lineNum">     164</span>                 :<span class="tlaGNC">          28 : void ds2431_select(const uint8_t* rom) {</span></span>
-<span id="L165"><span class="lineNum">     165</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          28 :     if (ctx.phase != DS2431_PH_IDLE &amp;&amp; ctx.phase != DS2431_PH_DONE) {</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         return;</span></span>
-<span id="L167"><span class="lineNum">     167</span>                 :             :     }</span>
-<span id="L168"><span class="lineNum">     168</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          28 :     if (onewire_search_active()) {</span></span>
-<span id="L169"><span class="lineNum">     169</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
-<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         return;</span></span>
-<span id="L171"><span class="lineNum">     171</span>                 :             :     }</span>
-<span id="L172"><span class="lineNum">     172</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          28 :     if (rom == 0) {</span></span>
-<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ctx.flags &amp;= (uint8_t)~(DS2431_FLAG_ADDRESS_MODE | DS2431_FLAG_PENDING);</span></span>
-<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
-<span id="L175"><span class="lineNum">     175</span>                 :             :     }</span>
-<span id="L176"><span class="lineNum">     176</span>         [<span class="tlaGBC" title="Branch 0 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">         252 :     for (uint8_t i = 0; i &lt; DS2431_ROM_BYTES; i++) {</span></span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaGNC">         224 :         ctx.selected_rom[i] = rom[i];</span></span>
-<span id="L178"><span class="lineNum">     178</span>                 :             :     }</span>
-<span id="L179"><span class="lineNum">     179</span>                 :             :     /* The Match ROM table itself is rebuilt from selected_rom on every</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             :      * operation (ds2431_build), so select only stores the ROM. */</span>
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">          28 :     ctx.flags |= DS2431_FLAG_ADDRESS_MODE;</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">          28 :     ctx.flags &amp;= (uint8_t)~DS2431_FLAG_PENDING;</span></span>
-<span id="L183"><span class="lineNum">     183</span>                 :             : }</span>
-<span id="L184"><span class="lineNum">     184</span>                 :             : </span>
-<span id="L185"><span class="lineNum">     185</span>                 :             : /**</span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :  * @}</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :  */</span>
-<span id="L188"><span class="lineNum">     188</span>                 :             : </span>
-<span id="L189"><span class="lineNum">     189</span>                 :             : /* Include-only driver part: the non-blocking operation engine and the four</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             :  * commands (Read Memory, Write/Read Scratchpad, Copy Scratchpad) plus the</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :  * parasite configuration live in their own part file and are compiled in here</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             :  * so the whole driver stays one object file. The part references the file-</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :  * scope ctx static defined above (DS2431_DRIVER_BUILD gate).</span>
-<span id="L194"><span class="lineNum">     194</span>                 :             :  *</span>
-<span id="L195"><span class="lineNum">     195</span>                 :             :  * clang-format must not reorder this include. */</span>
-<span id="L196"><span class="lineNum">     196</span>                 :             : #include &quot;ds2431_txn.c&quot;</span>
+<span id="L111"><span class="lineNum">     111</span>                 :             : _Static_assert(DS2431_SCRATCH_FRAME_CRC &lt;= ONEWIRE_MAX_READ_BYTES,</span>
+<span id="L112"><span class="lineNum">     112</span>                 :             :                &quot;a scratchpad frame read (incl. CRC) must fit one read window&quot;);</span>
+<span id="L113"><span class="lineNum">     113</span>                 :             : /* B1: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final</span>
+<span id="L114"><span class="lineNum">     114</span>                 :             :  * transfer must always be present. Every build writes it at [slots], and slots</span>
+<span id="L115"><span class="lineNum">     115</span>                 :             :  * never exceeds DS2431_CMD_SLOTS, so [DS2431_CMD_SLOTS] is always in range. */</span>
+<span id="L116"><span class="lineNum">     116</span>                 :             : </span>
+<span id="L117"><span class="lineNum">     117</span>                 :             : /**</span>
+<span id="L118"><span class="lineNum">     118</span>                 :             :  * @}</span>
+<span id="L119"><span class="lineNum">     119</span>                 :             :  */</span>
+<span id="L120"><span class="lineNum">     120</span>                 :             : </span>
+<span id="L121"><span class="lineNum">     121</span>                 :             : /**</span>
+<span id="L122"><span class="lineNum">     122</span>                 :             :  * @defgroup DS2431_Public_Functions DS2431 Public Functions</span>
+<span id="L123"><span class="lineNum">     123</span>                 :             :  * @{</span>
+<span id="L124"><span class="lineNum">     124</span>                 :             :  */</span>
+<span id="L125"><span class="lineNum">     125</span>                 :             : </span>
+<span id="L126"><span class="lineNum">     126</span>                 :             : /**</span>
+<span id="L127"><span class="lineNum">     127</span>                 :             :  * @brief Initialize DS2431 driver - configure clocks and peripherals</span>
+<span id="L128"><span class="lineNum">     128</span>                 :             :  * @pre Call exactly once after MCU reset, after the system clock is configured</span>
+<span id="L129"><span class="lineNum">     129</span>                 :             :  *      and before any 1-Wire bus operation or DS2431 driver activity.</span>
+<span id="L130"><span class="lineNum">     130</span>                 :             :  * @note Calls onewire_init(), which takes exclusive ownership of the shared</span>
+<span id="L131"><span class="lineNum">     131</span>                 :             :  *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset),</span>
+<span id="L132"><span class="lineNum">     132</span>                 :             :  *       and parks the driver at DS2431_PH_IDLE: nothing runs until the</span>
+<span id="L133"><span class="lineNum">     133</span>                 :             :  *       application schedules a Read Memory, a Write Scratchpad cycle or a</span>
+<span id="L134"><span class="lineNum">     134</span>                 :             :  *       Copy Scratchpad. The DS18B20 driver and the DS2431 driver share that</span>
+<span id="L135"><span class="lineNum">     135</span>                 :             :  *       bus ownership, so call ds2431_init() INSTEAD of ds18b20_init().</span>
+<span id="L136"><span class="lineNum">     136</span>                 :             :  * @warning This function is a bootstrap operation, not a reinitialization hook.</span>
+<span id="L137"><span class="lineNum">     137</span>                 :             :  *          A second call is unsupported and does not fully reset the timer,</span>
+<span id="L138"><span class="lineNum">     138</span>                 :             :  *          DMA, low-power or DS2431 software state.</span>
+<span id="L139"><span class="lineNum">     139</span>                 :             :  */</span>
+<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC tlaBgGNC">         308 : void ds2431_init(void) {</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">         308 :     onewire_init();</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :             :     /* No operation running after init; a poll without a scheduled op must</span>
+<span id="L143"><span class="lineNum">     143</span>                 :             :      * still report &quot;finished&quot; (the FINISHED flag is set like the DS18B20</span>
+<span id="L144"><span class="lineNum">     144</span>                 :             :      * transaction engine does). External power is the default wiring</span>
+<span id="L145"><span class="lineNum">     145</span>                 :             :      * assumption; parasite-powered setups opt in via ds2431_set_parasite().</span>
+<span id="L146"><span class="lineNum">     146</span>                 :             :      * The flag byte starts clear (address/parasite/ok/finished/pending/echo</span>
+<span id="L147"><span class="lineNum">     147</span>                 :             :      * all zero) before FINISHED is raised. */</span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">         308 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         308 :     ctx.phase = DS2431_PH_IDLE;</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">         308 :     ctx.command = 0;</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         308 :     ctx.len = 0;</span></span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         308 :     ctx.plen = 0;</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         308 :     ctx.es = 0;</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">         308 : }</span></span>
+<span id="L155"><span class="lineNum">     155</span>                 :             : </span>
+<span id="L156"><span class="lineNum">     156</span>                 :             : /**</span>
+<span id="L157"><span class="lineNum">     157</span>                 :             :  * @brief Select which DS2431 device to address by its ROM address</span>
+<span id="L158"><span class="lineNum">     158</span>                 :             :  * @param[in] rom Pointer to the 8-byte ROM address (LSB first), or NULL to</span>
+<span id="L159"><span class="lineNum">     159</span>                 :             :  *                return to Skip ROM (broadcast) addressing</span>
+<span id="L160"><span class="lineNum">     160</span>                 :             :  * @note Accepted only while the driver is idle (nothing owns the timer);</span>
+<span id="L161"><span class="lineNum">     161</span>                 :             :  *       mid-operation calls are ignored. Changing the selection clears the</span>
+<span id="L162"><span class="lineNum">     162</span>                 :             :  *       pending write-cycle state (the latched TA/ES belongs to the addressed</span>
+<span id="L163"><span class="lineNum">     163</span>                 :             :  *       device), so a select() must not be interleaved into a running</span>
+<span id="L164"><span class="lineNum">     164</span>                 :             :  *       write_scratchpad -&gt; read_scratchpad -&gt; copy_scratchpad cycle.</span>
+<span id="L165"><span class="lineNum">     165</span>                 :             :  */</span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">          28 : void ds2431_select(const uint8_t* rom) {</span></span>
+<span id="L167"><span class="lineNum">     167</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          28 :     if (ctx.phase != DS2431_PH_IDLE &amp;&amp; ctx.phase != DS2431_PH_DONE) {</span></span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         return;</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :             :     }</span>
+<span id="L170"><span class="lineNum">     170</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          28 :     if (onewire_search_active()) {</span></span>
+<span id="L171"><span class="lineNum">     171</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         return;</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :             :     }</span>
+<span id="L174"><span class="lineNum">     174</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">          28 :     if (rom == 0) {</span></span>
+<span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ctx.flags &amp;= (uint8_t)~(DS2431_FLAG_ADDRESS_MODE | DS2431_FLAG_PENDING);</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
+<span id="L177"><span class="lineNum">     177</span>                 :             :     }</span>
+<span id="L178"><span class="lineNum">     178</span>         [<span class="tlaGBC" title="Branch 0 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC tlaBgGNC">         252 :     for (uint8_t i = 0; i &lt; DS2431_ROM_BYTES; i++) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaGNC">         224 :         ctx.selected_rom[i] = rom[i];</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :     }</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             :     /* The Match ROM table itself is rebuilt from selected_rom on every</span>
+<span id="L182"><span class="lineNum">     182</span>                 :             :      * operation (ds2431_build), so select only stores the ROM. */</span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">          28 :     ctx.flags |= DS2431_FLAG_ADDRESS_MODE;</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">          28 :     ctx.flags &amp;= (uint8_t)~DS2431_FLAG_PENDING;</span></span>
+<span id="L185"><span class="lineNum">     185</span>                 :             : }</span>
+<span id="L186"><span class="lineNum">     186</span>                 :             : </span>
+<span id="L187"><span class="lineNum">     187</span>                 :             : /**</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             :  * @}</span>
+<span id="L189"><span class="lineNum">     189</span>                 :             :  */</span>
+<span id="L190"><span class="lineNum">     190</span>                 :             : </span>
+<span id="L191"><span class="lineNum">     191</span>                 :             : /* Include-only driver part: the non-blocking operation engine and the four</span>
+<span id="L192"><span class="lineNum">     192</span>                 :             :  * commands (Read Memory, Write/Read Scratchpad, Copy Scratchpad) plus the</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             :  * parasite configuration live in their own part file and are compiled in here</span>
+<span id="L194"><span class="lineNum">     194</span>                 :             :  * so the whole driver stays one object file. The part references the file-</span>
+<span id="L195"><span class="lineNum">     195</span>                 :             :  * scope ctx static defined above (DS2431_DRIVER_BUILD gate).</span>
+<span id="L196"><span class="lineNum">     196</span>                 :             :  *</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :  * clang-format must not reorder this include. */</span>
+<span id="L198"><span class="lineNum">     198</span>                 :             : #include &quot;ds2431_txn.c&quot;</span>
         </pre>
               </td>
             </tr>

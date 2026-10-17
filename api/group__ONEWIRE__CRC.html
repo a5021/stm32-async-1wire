@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>stm32-async-1wire: CRC-8</title>
+<title>stm32-async-1wire: CRC Checksums</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -92,7 +92,7 @@ $(document).ready(function(){initNavTree('group__ONEWIRE__CRC.html',''); initRes
 <div class="header">
   <div class="summary">
 <a href="#func-members">Functions</a>  </div>
-  <div class="headertitle"><div class="title">CRC-8</div></div>
+  <div class="headertitle"><div class="title">CRC Checksums</div></div>
 </div><!--header-->
 <div class="contents">
 <table class="memberdecls">
@@ -101,9 +101,51 @@ Functions</h2></td></tr>
 <tr class="memitem:gac9e2cf3aba30d3216ccbfc8cbacb1a2d" id="r_gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__CRC.html#gac9e2cf3aba30d3216ccbfc8cbacb1a2d">onewire_crc8</a> (const uint8_t *data, uint8_t len)</td></tr>
 <tr class="memdesc:gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculate the Dallas/Maxim 1-Wire CRC-8 over a byte buffer.  <br /></td></tr>
 <tr class="separator:gac9e2cf3aba30d3216ccbfc8cbacb1a2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga4abe86f4843489d2df124eb11fdfca07" id="r_ga4abe86f4843489d2df124eb11fdfca07"><td class="memItemLeft" align="right" valign="top">uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ONEWIRE__CRC.html#ga4abe86f4843489d2df124eb11fdfca07">onewire_crc16</a> (const uint8_t *data, uint8_t len)</td></tr>
+<tr class="memdesc:ga4abe86f4843489d2df124eb11fdfca07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculate the Maxim 1-Wire CRC-16 over a byte buffer.  <br /></td></tr>
+<tr class="separator:ga4abe86f4843489d2df124eb11fdfca07"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Function Documentation</h2>
+<a id="ga4abe86f4843489d2df124eb11fdfca07" name="ga4abe86f4843489d2df124eb11fdfca07"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga4abe86f4843489d2df124eb11fdfca07">&#9670;&#160;</a></span>onewire_crc16()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint16_t onewire_crc16 </td>
+          <td>(</td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Calculate the Maxim 1-Wire CRC-16 over a byte buffer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>Input buffer </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">len</td><td>Number of bytes to process </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>16-bit CRC remainder (CRC-16/ARC parameters: polynomial 0x8005, reflected 0xA001, initial value 0x0000, no final XOR) </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>This is the raw remainder (the value that, appended low-byte-first, drives a re-check to 0). Devices such as the DS2431 transmit the inverted form (~value); the caller complements when comparing against the bytes on the bus. </dd></dl>
+
+</div>
+</div>
 <a id="gac9e2cf3aba30d3216ccbfc8cbacb1a2d" name="gac9e2cf3aba30d3216ccbfc8cbacb1a2d"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gac9e2cf3aba30d3216ccbfc8cbacb1a2d">&#9670;&#160;</a></span>onewire_crc8()</h2>
 

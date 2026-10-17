@@ -46,6 +46,6 @@ var searchData=
   ['ds2431_5fread_5fscratchpad_5fpoll_43',['ds2431_read_scratchpad_poll',['../group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d',1,'ds2431.h']]],
   ['ds2431_5fselect_44',['ds2431_select',['../group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd',1,'ds2431.h']]],
   ['ds2431_5fset_5fparasite_45',['ds2431_set_parasite',['../group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d',1,'ds2431.h']]],
-  ['ds2431_5fwrite_5fscratchpad_46',['ds2431_write_scratchpad',['../group__DS2431__Exported__Functions.html#gaaa37c72a0eb2b02e953f63d8bea44d71',1,'ds2431.h']]],
+  ['ds2431_5fwrite_5fscratchpad_46',['ds2431_write_scratchpad',['../group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21',1,'ds2431.h']]],
   ['ds2431_5fwrite_5fscratchpad_5fpoll_47',['ds2431_write_scratchpad_poll',['../group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2',1,'ds2431.h']]]
 ];

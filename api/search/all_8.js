@@ -1,14 +1,13 @@
 var searchData=
 [
-  ['fl_0',['FL',['../ow__bits_8h.html#a2bebd3800fadbad87d4ae76050dc7191',1,'ow_bits.h']]],
-  ['flash_5facr_1',['FLASH_ACR',['../ow__bits_8h.html#a3beb2332546dcba7c07cc30b7ac7b9db',1,'ow_bits.h']]],
-  ['flash_5far_2',['FLASH_AR',['../ow__bits_8h.html#af477bda28e29a04848a7366347cbcba6',1,'ow_bits.h']]],
-  ['flash_5fbits_3',['FLASH_BITS',['../ow__bits_8h.html#abf9fbd00b1b934bf301b0ea2567f3379',1,'ow_bits.h']]],
-  ['flash_5fcr_4',['FLASH_CR',['../ow__bits_8h.html#a6003054fb00555c4052bb109820b0ba7',1,'ow_bits.h']]],
-  ['flash_5fkeyr_5',['FLASH_KEYR',['../ow__bits_8h.html#abdc3d63f6ce1e411a73ba39e14c46501',1,'ow_bits.h']]],
-  ['flash_5fobr_6',['FLASH_OBR',['../ow__bits_8h.html#a0c223d30bb5b594c4bfc6fad3c50a3f6',1,'ow_bits.h']]],
-  ['flash_5foptkeyr_7',['FLASH_OPTKEYR',['../ow__bits_8h.html#a9a67570f5ac773fad811b0b32c871559',1,'ow_bits.h']]],
-  ['flash_5fsr_8',['FLASH_SR',['../ow__bits_8h.html#a5657a77ffef767d4f91118aceceb40ad',1,'ow_bits.h']]],
-  ['flash_5fwrpr_9',['FLASH_WRPR',['../ow__bits_8h.html#a325e776286ff11eaeba1fcaf9df87f93',1,'ow_bits.h']]],
-  ['functions_10',['functions',['../group__DS18B20__Exported__Functions.html',1,'DS18B20 Exported Functions'],['../group__DS2431__Exported__Functions.html',1,'DS2431 Exported Functions']]]
+  ['generic_20non_20blocking_20search_20rom_20engine_0',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]],
+  ['generic_5ferr_1',['generic_err',['../structow__stats__sensor__t.html#ae386a24667c942f15b290983993d0f4b',1,'ow_stats_sensor_t']]],
+  ['gpio_5fbits_2',['GPIO_BITS',['../ow__bits_8h.html#a1756324325c4c8b867749ece6ff633fa',1,'ow_bits.h']]],
+  ['gpio_5fbrr_3',['GPIO_BRR',['../ow__bits_8h.html#a09b0d480575814bd1d41152ef619e5f7',1,'ow_bits.h']]],
+  ['gpio_5fbsrr_4',['GPIO_BSRR',['../ow__bits_8h.html#a3efbeba0d93c4c990534b70eb78c8312',1,'ow_bits.h']]],
+  ['gpio_5fcrh_5',['GPIO_CRH',['../ow__bits_8h.html#a7e5032dfb922a0a663de109f62bddb71',1,'ow_bits.h']]],
+  ['gpio_5fcrl_6',['GPIO_CRL',['../ow__bits_8h.html#a2a322feafe23a27c600836c50c7f3aea',1,'ow_bits.h']]],
+  ['gpio_5fidr_7',['GPIO_IDR',['../ow__bits_8h.html#a15a7e427fd94a97e7a72074535788bb1',1,'ow_bits.h']]],
+  ['gpio_5flckr_8',['GPIO_LCKR',['../ow__bits_8h.html#a62eedade80edd6278401f9e57dd57b88',1,'ow_bits.h']]],
+  ['gpio_5fodr_9',['GPIO_ODR',['../ow__bits_8h.html#ab7003fd5db034f3bb56e98870ff10c76',1,'ow_bits.h']]]
 ];

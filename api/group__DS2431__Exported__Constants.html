@@ -122,6 +122,9 @@ Macros</h2></td></tr>
 <tr class="memitem:gab8538cd35083840f6ebf5550a7db7d5f" id="r_gab8538cd35083840f6ebf5550a7db7d5f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f">DS2431_SCRATCH_FRAME</a>&#160;&#160;&#160;(<a class="el" href="group__DS2431__Exported__Constants.html#gae93683c49ede8de0d83bd9ef9fc065f5">DS2431_SCRATCH_SIZE</a> + 3)</td></tr>
 <tr class="memdesc:gab8538cd35083840f6ebf5550a7db7d5f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Length of the Read Scratchpad reply frame in bytes.  <br /></td></tr>
 <tr class="separator:gab8538cd35083840f6ebf5550a7db7d5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga39469b2ea9ddd10443fda9c337f41ddc" id="r_ga39469b2ea9ddd10443fda9c337f41ddc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2431__Exported__Constants.html#ga39469b2ea9ddd10443fda9c337f41ddc">DS2431_SCRATCH_FRAME_CRC</a>&#160;&#160;&#160;(<a class="el" href="group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f">DS2431_SCRATCH_FRAME</a> + 2)</td></tr>
+<tr class="memdesc:ga39469b2ea9ddd10443fda9c337f41ddc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wire length of the Read Scratchpad reply in bytes, CRC included.  <br /></td></tr>
+<tr class="separator:ga39469b2ea9ddd10443fda9c337f41ddc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2961abaa912c8e5cf3f7caf06027ca50" id="r_ga2961abaa912c8e5cf3f7caf06027ca50"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2431__Exported__Constants.html#ga2961abaa912c8e5cf3f7caf06027ca50">DS2431_READ_MEMORY</a>&#160;&#160;&#160;0xF0</td></tr>
 <tr class="memdesc:ga2961abaa912c8e5cf3f7caf06027ca50"><td class="mdescLeft">&#160;</td><td class="mdescRight">DS2431 Read Memory command.  <br /></td></tr>
 <tr class="separator:ga2961abaa912c8e5cf3f7caf06027ca50"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -313,7 +316,7 @@ Takes the same byte value (0x55) as the 1-Wire Match ROM ROM-level command; the 
 </div><div class="memdoc">
 
 <p>DS2431 Read Scratchpad command. </p>
-<dl class="section note"><dt>Note</dt><dd>Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes. The frame carries no CRC (unlike the DS18B20 scratchpad read): the write cycle is verified by the TA/ES echo, which the driver compares against what the last Write Scratchpad latched. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes. On the bus the reply continues with an inverted CRC-16 over the command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with <a class="el" href="group__ONEWIRE__CRC.html#ga4abe86f4843489d2df124eb11fdfca07" title="Calculate the Maxim 1-Wire CRC-16 over a byte buffer.">onewire_crc16()</a> before reporting the frame as valid. The TA/ES echo is additionally compared against what the last Write Scratchpad latched. </dd></dl>
 
 </div>
 </div>
@@ -347,6 +350,23 @@ Takes the same byte value (0x55) as the 1-Wire Match ROM ROM-level command; the 
 
 <p>Length of the Read Scratchpad reply frame in bytes. </p>
 <dl class="section note"><dt>Note</dt><dd>3-byte header (TA1, TA2, ES) + 8 scratchpad bytes; used by <a class="el" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0" title="Read the 11-byte scratchpad frame (non-blocking)">ds2431_read_scratchpad()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="ga39469b2ea9ddd10443fda9c337f41ddc" name="ga39469b2ea9ddd10443fda9c337f41ddc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga39469b2ea9ddd10443fda9c337f41ddc">&#9670;&#160;</a></span>DS2431_SCRATCH_FRAME_CRC</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define DS2431_SCRATCH_FRAME_CRC&#160;&#160;&#160;(<a class="el" href="group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f">DS2431_SCRATCH_FRAME</a> + 2)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Wire length of the Read Scratchpad reply in bytes, CRC included. </p>
+<dl class="section note"><dt>Note</dt><dd>The 11-byte frame (DS2431_SCRATCH_FRAME) followed by the two inverted CRC-16 bytes the device transmits (datasheet Read Scratchpad [AAh]). The driver reads and verifies both; only the 11-byte frame is returned to the caller. </dd></dl>
 
 </div>
 </div>

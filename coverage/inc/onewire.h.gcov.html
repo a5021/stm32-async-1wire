@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-16 16:18:15</td>
+            <td class="headerValue">2026-10-17 07:06:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -289,8 +289,8 @@
 <span id="L218"><span class="lineNum">     218</span>                 :             :  * @return 1 if the pulse is short (bit value '1'), 0 if long (bit value '0')</span>
 <span id="L219"><span class="lineNum">     219</span>                 :             :  * @note A pulse duration `&lt;= ONEWIRE_SHORT_PULSE_MAX` is the short ('1') slot.</span>
 <span id="L220"><span class="lineNum">     220</span>                 :             :  */</span>
-<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC tlaBgGNC">      169268 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
-<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="Branch 0 was taken 74778 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 94490 times"> + </span>]:<span class="tlaGNC">      169268 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC tlaBgGNC">      171620 : static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {</span></span>
+<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="Branch 0 was taken 75786 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 95834 times"> + </span>]:<span class="tlaGNC">      171620 :     return (dur &lt;= ONEWIRE_SHORT_PULSE_MAX) ? 1u : 0u;</span></span>
 <span id="L223"><span class="lineNum">     223</span>                 :             : }</span>
 <span id="L224"><span class="lineNum">     224</span>                 :             : </span>
 <span id="L225"><span class="lineNum">     225</span>                 :             : /**</span>
@@ -418,7 +418,7 @@
 <span id="L347"><span class="lineNum">     347</span>                 :             : /** @} */</span>
 <span id="L348"><span class="lineNum">     348</span>                 :             : </span>
 <span id="L349"><span class="lineNum">     349</span>                 :             : /**</span>
-<span id="L350"><span class="lineNum">     350</span>                 :             :  * @defgroup ONEWIRE_CRC CRC-8</span>
+<span id="L350"><span class="lineNum">     350</span>                 :             :  * @defgroup ONEWIRE_CRC CRC Checksums</span>
 <span id="L351"><span class="lineNum">     351</span>                 :             :  * @{</span>
 <span id="L352"><span class="lineNum">     352</span>                 :             :  */</span>
 <span id="L353"><span class="lineNum">     353</span>                 :             : </span>
@@ -430,13 +430,26 @@
 <span id="L359"><span class="lineNum">     359</span>                 :             :  */</span>
 <span id="L360"><span class="lineNum">     360</span>                 :             : uint8_t onewire_crc8(const uint8_t* data, uint8_t len);</span>
 <span id="L361"><span class="lineNum">     361</span>                 :             : </span>
-<span id="L362"><span class="lineNum">     362</span>                 :             : /** @} */</span>
-<span id="L363"><span class="lineNum">     363</span>                 :             : </span>
-<span id="L364"><span class="lineNum">     364</span>                 :             : #ifdef __cplusplus</span>
-<span id="L365"><span class="lineNum">     365</span>                 :             : }</span>
-<span id="L366"><span class="lineNum">     366</span>                 :             : #endif</span>
-<span id="L367"><span class="lineNum">     367</span>                 :             : </span>
-<span id="L368"><span class="lineNum">     368</span>                 :             : #endif /* ONEWIRE_H */</span>
+<span id="L362"><span class="lineNum">     362</span>                 :             : /**</span>
+<span id="L363"><span class="lineNum">     363</span>                 :             :  * @brief Calculate the Maxim 1-Wire CRC-16 over a byte buffer</span>
+<span id="L364"><span class="lineNum">     364</span>                 :             :  * @param[in] data Input buffer</span>
+<span id="L365"><span class="lineNum">     365</span>                 :             :  * @param[in] len Number of bytes to process</span>
+<span id="L366"><span class="lineNum">     366</span>                 :             :  * @return 16-bit CRC remainder (CRC-16/ARC parameters: polynomial 0x8005,</span>
+<span id="L367"><span class="lineNum">     367</span>                 :             :  *         reflected 0xA001, initial value 0x0000, no final XOR)</span>
+<span id="L368"><span class="lineNum">     368</span>                 :             :  * @note This is the raw remainder (the value that, appended low-byte-first,</span>
+<span id="L369"><span class="lineNum">     369</span>                 :             :  *       drives a re-check to 0). Devices such as the DS2431 transmit the</span>
+<span id="L370"><span class="lineNum">     370</span>                 :             :  *       inverted form (~value); the caller complements when comparing against</span>
+<span id="L371"><span class="lineNum">     371</span>                 :             :  *       the bytes on the bus.</span>
+<span id="L372"><span class="lineNum">     372</span>                 :             :  */</span>
+<span id="L373"><span class="lineNum">     373</span>                 :             : uint16_t onewire_crc16(const uint8_t* data, uint8_t len);</span>
+<span id="L374"><span class="lineNum">     374</span>                 :             : </span>
+<span id="L375"><span class="lineNum">     375</span>                 :             : /** @} */</span>
+<span id="L376"><span class="lineNum">     376</span>                 :             : </span>
+<span id="L377"><span class="lineNum">     377</span>                 :             : #ifdef __cplusplus</span>
+<span id="L378"><span class="lineNum">     378</span>                 :             : }</span>
+<span id="L379"><span class="lineNum">     379</span>                 :             : #endif</span>
+<span id="L380"><span class="lineNum">     380</span>                 :             : </span>
+<span id="L381"><span class="lineNum">     381</span>                 :             : #endif /* ONEWIRE_H */</span>
         </pre>
               </td>
             </tr>

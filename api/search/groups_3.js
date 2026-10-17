@@ -1,10 +1,9 @@
 var searchData=
 [
-  ['blocking_201_20wire_20bus_20primitives_0',['Non-Blocking 1-Wire Bus Primitives',['../group__ONEWIRE__Bus.html',1,'']]],
-  ['blocking_20alarm_20search_1',['DS18B20 Non-Blocking Alarm Search',['../group__DS18B20__Alarm__Search.html',1,'']]],
-  ['blocking_20command_20transactions_2',['DS18B20 Non-Blocking Command Transactions',['../group__DS18B20__Commands.html',1,'']]],
-  ['blocking_20device_20search_3',['DS18B20 Non-Blocking Device Search',['../group__DS18B20__Search.html',1,'']]],
-  ['blocking_20resolution_20change_4',['DS18B20 Non-Blocking Resolution Change',['../group__DS18B20__Resolution.html',1,'']]],
-  ['blocking_20search_20rom_20engine_5',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]],
-  ['bus_20primitives_6',['Non-Blocking 1-Wire Bus Primitives',['../group__ONEWIRE__Bus.html',1,'']]]
+  ['change_0',['DS18B20 Non-Blocking Resolution Change',['../group__DS18B20__Resolution.html',1,'']]],
+  ['checksums_1',['CRC Checksums',['../group__ONEWIRE__CRC.html',1,'']]],
+  ['command_20transactions_2',['DS18B20 Non-Blocking Command Transactions',['../group__DS18B20__Commands.html',1,'']]],
+  ['constants_3',['constants',['../group__ONEWIRE__Protocol.html',1,'1-Wire Protocol Constants'],['../group__DS18B20__Exported__Constants.html',1,'DS18B20 Exported Constants'],['../group__DS2431__Exported__Constants.html',1,'DS2431 Exported Constants']]],
+  ['conversion_4',['DS18B20 Simultaneous Multi-Device Conversion',['../group__DS18B20__Scan.html',1,'']]],
+  ['crc_20checksums_5',['CRC Checksums',['../group__ONEWIRE__CRC.html',1,'']]]
 ];

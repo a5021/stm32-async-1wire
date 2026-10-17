@@ -1,5 +1,7 @@
 var NAVTREEINDEX1 =
 {
+"ow__bits_8h.html#a4363b1f6d1c80aa9073391c2e2ec7ae5":[2,0,0,3,49],
+"ow__bits_8h.html#a44779f18d87e71c78fc9fbf9dc88537d":[2,0,0,3,60],
 "ow__bits_8h.html#a463dc30aee037e7e75f8dd8b8d7ca882":[2,0,0,3,59],
 "ow__bits_8h.html#a46898aeaf8d68a178e82587fac5b4e38":[2,0,0,3,147],
 "ow__bits_8h.html#a4a7db5f7da7413add19614d5252f9edc":[2,0,0,3,120],
@@ -247,6 +249,5 @@ var NAVTREEINDEX1 =
 "structow__stats__t.html#a233a7bd587a3f8804fd44bb63e798000":[1,0,1,2],
 "structow__stats__t.html#a7e006cd3249cc844b67c6990ffd2492e":[1,0,1,0],
 "structow__stats__t.html#ab0a649c638571987e524704b696c8563":[1,0,1,1],
-"structow__stats__t.html#ac7b6f359933a7a276a8b553f3c0df7af":[1,0,1,3],
-"topics.html":[0]
+"structow__stats__t.html#ac7b6f359933a7a276a8b553f3c0df7af":[1,0,1,3]
 };

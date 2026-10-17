@@ -13,5 +13,5 @@ var topics =
     [ "Init", "group__ONEWIRE__Init.html", "group__ONEWIRE__Init" ],
     [ "Non-Blocking 1-Wire Bus Primitives", "group__ONEWIRE__Bus.html", "group__ONEWIRE__Bus" ],
     [ "Generic Non-Blocking Search ROM Engine", "group__ONEWIRE__Search.html", "group__ONEWIRE__Search" ],
-    [ "CRC-8", "group__ONEWIRE__CRC.html", "group__ONEWIRE__CRC" ]
+    [ "CRC Checksums", "group__ONEWIRE__CRC.html", "group__ONEWIRE__CRC" ]
 ];

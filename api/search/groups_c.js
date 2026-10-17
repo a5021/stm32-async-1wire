@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['primitives_0',['Non-Blocking 1-Wire Bus Primitives',['../group__ONEWIRE__Bus.html',1,'']]],
-  ['protocol_20constants_1',['1-Wire Protocol Constants',['../group__ONEWIRE__Protocol.html',1,'']]]
+  ['resolution_20change_0',['DS18B20 Non-Blocking Resolution Change',['../group__DS18B20__Resolution.html',1,'']]],
+  ['rom_20engine_1',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]]
 ];

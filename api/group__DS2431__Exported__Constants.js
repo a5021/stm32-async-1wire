@@ -12,6 +12,7 @@ var group__DS2431__Exported__Constants =
     [ "DS2431_READ_SCRATCHPAD", "group__DS2431__Exported__Constants.html#ga6735151daab3babf640b8f6d64aba606", null ],
     [ "DS2431_ROM_BYTES", "group__DS2431__Exported__Constants.html#ga4b4c268311a72a1bc4b82710250ac7f6", null ],
     [ "DS2431_SCRATCH_FRAME", "group__DS2431__Exported__Constants.html#gab8538cd35083840f6ebf5550a7db7d5f", null ],
+    [ "DS2431_SCRATCH_FRAME_CRC", "group__DS2431__Exported__Constants.html#ga39469b2ea9ddd10443fda9c337f41ddc", null ],
     [ "DS2431_SCRATCH_SIZE", "group__DS2431__Exported__Constants.html#gae93683c49ede8de0d83bd9ef9fc065f5", null ],
     [ "DS2431_SKIP_ROM", "group__DS2431__Exported__Constants.html#ga4b83192312e807d025218c305334b246", null ],
     [ "DS2431_TPROG_US", "group__DS2431__Exported__Constants.html#ga7879f7aee9227ad3a17a29484db95c1c", null ],
