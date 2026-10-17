@@ -26,10 +26,11 @@
  * Device model (DS2431 datasheet): 128 bytes of EEPROM = 4 pages x 32 bytes,
  * written through an 8-byte scratchpad in page-aligned 8-byte blocks. The
  * scratchpad holds the block being written plus the latched target address
- * and the end-offset status byte ES = (address + length - 1) & 0x07. Unlike
- * the DS18B20 scratchpad frame, the Read Scratchpad reply carries no CRC: the
- * write cycle is verified by comparing the TA1/TA2/ES echo against what the
- * last Write Scratchpad latched.
+ * and the end-offset status byte ES = (address + length - 1) & 0x07. The Read
+ * Scratchpad reply ends with an inverted CRC-16 over the command, the target
+ * address (TA1/TA2), the E/S byte and the 8 scratchpad data bytes; the driver
+ * reads and verifies it (onewire_crc16()) and additionally compares the
+ * TA1/TA2/ES echo against what the last Write Scratchpad latched.
  *
  * Usage:
  * 1. Call ds2431_init() once at startup (instead of ds18b20_init(): the two
@@ -109,6 +110,15 @@ extern "C" {
 #define DS2431_SCRATCH_FRAME (DS2431_SCRATCH_SIZE + 3)
 
 /**
+ * @brief Wire length of the Read Scratchpad reply in bytes, CRC included
+ * @note The 11-byte frame (DS2431_SCRATCH_FRAME) followed by the two inverted
+ *       CRC-16 bytes the device transmits (datasheet Read Scratchpad [AAh]).
+ *       The driver reads and verifies both; only the 11-byte frame is returned
+ *       to the caller.
+ */
+#define DS2431_SCRATCH_FRAME_CRC (DS2431_SCRATCH_FRAME + 2)
+
+/**
  * @brief DS2431 Read Memory command
  * @note Reads memory starting at the address given by the TA1/TA2 argument;
  *       the read must stay within EEPROM_SIZE and the driver caps one read
@@ -127,9 +137,11 @@ extern "C" {
 /**
  * @brief DS2431 Read Scratchpad command
  * @note Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes.
- *       The frame carries no CRC (unlike the DS18B20 scratchpad read): the
- *       write cycle is verified by the TA/ES echo, which the driver compares
- *       against what the last Write Scratchpad latched.
+ *       On the bus the reply continues with an inverted CRC-16 over the
+ *       command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads
+ *       those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with
+ *       onewire_crc16() before reporting the frame as valid. The TA/ES echo is
+ *       additionally compared against what the last Write Scratchpad latched.
  */
 #define DS2431_READ_SCRATCHPAD 0xAA
 
@@ -260,14 +272,17 @@ uint8_t ds2431_read_memory_poll(void);
  * @param[in] data Data to write to the scratchpad
  * @param[in] len Bytes to write, 1 .. DS2431_SCRATCH_SIZE; addr + len must not
  *                exceed DS2431_EEPROM_SIZE
+ * @return 1 if the Write Scratchpad was scheduled, 0 if the request was
+ *         rejected (NULL data, len out of range, addr + len beyond the EEPROM,
+ *         addr not 8-byte aligned, or an operation is already in flight / a
+ *         search is running)
  * @note The EEPROM is programmed in 8-byte blocks: addr must be 8-byte
- *       aligned and len should be the full block (a shorter len leaves the
- *       remaining scratchpad bytes stale). The write only fills the volatile
- *       scratchpad; run ds2431_read_scratchpad() to verify and
- *       ds2431_copy_scratchpad() to program the EEPROM.
- * @note Ops to nothing while an operation is in flight or out of range.
+ *       aligned (a misaligned addr is rejected) and len should be the full
+ *       block (a shorter len leaves the remaining scratchpad bytes stale). The
+ *       write only fills the volatile scratchpad; run ds2431_read_scratchpad()
+ *       to verify and ds2431_copy_scratchpad() to program the EEPROM.
  */
-void ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len);
+uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len);
 
 /**
  * @brief Advance the non-blocking Write Scratchpad operation

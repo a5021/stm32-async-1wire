@@ -11,8 +11,9 @@
  *   data[0] & 0x03 -> command index 0..3:
  *       0 Read Memory  (0xF0, reads len 1..8 bytes)
  *       1 Write Scratchpad (0x0F, no response; latches a pending write cycle)
- *       2 Read Scratchpad (0xAA, reads the 11-byte frame; optional TA/ES echo
- *          check when the pending-write state is armed)
+ *       2 Read Scratchpad (0xAA, reads an 13-byte reply: 11-byte frame +
+ *          inverted CRC-16, which must verify; optional TA/ES echo check when
+ *          the pending-write state is armed)
  *       3 Copy Scratchpad (0x55, timed t_PROG hold-off; requires a pending
  *          write cycle, which this harness always arms)
  *   data[0] & 0x04 -> Match ROM addressing (Skip ROM otherwise)
@@ -26,7 +27,7 @@
  * The capture source decodes the running operation from mock_tim1.RCR:
  *   rcr == 0      -> reset op (idx0 reset pulse, idx1 presence)
  *   rcr == 7..63  -> len-byte Read Memory read (len = (rcr>>3)+1)
- *   rcr == 87     -> 11-byte Read Scratchpad frame read
+ *   rcr == 103    -> 13-byte Read Scratchpad reply read (11-byte frame + CRC-16)
  *   (command writes and the Copy Scratchpad hold-off never capture)
  *
  * Properties (each checked with abort()):
@@ -35,7 +36,8 @@
  * 2. Reference model: ds2431_last_command_ok(), the parasite flag and the
  *    copied out-buffer equal a from-scratch model of the transaction rules
  *    (no presence -> abort without OK and an untouched buffer; scratchpad
- *    frame read -> OK only when the TA/ES echo matches the latched write).
+ *    frame read -> OK only when the trailing CRC-16 verifies and the TA/ES
+ *    echo matches the latched write).
  * 3. Determinism: the same input reproduces the same outcome.
  */
 
@@ -54,7 +56,7 @@
 #include <stdio.h>
 
 #define POLL_GUARD 5000u
-#define MAX_READ_BYTES 11u
+#define MAX_READ_BYTES 13u /* Read Scratchpad reads the 11-byte frame + CRC-16 */
 #define MAX_PAYLOAD 8u
 
 static const uint8_t* g_data;
@@ -177,6 +179,19 @@ static void model_run(ds_model_t* m) {
         if (!g_read_seen) {
             fprintf(stderr, "model: no read record (cmd2)\n");
             abort();
+        }
+        {
+            /* The reply's trailing inverted CRC-16 must cover command + frame. */
+            uint8_t crc_in[DS2431_SCRATCH_FRAME + 1];
+            crc_in[0] = DS2431_READ_SCRATCHPAD;
+            memcpy(&crc_in[1], g_cur_read, DS2431_SCRATCH_FRAME);
+            uint16_t expected = (uint16_t)(~onewire_crc16(crc_in, DS2431_SCRATCH_FRAME + 1));
+            uint16_t got = (uint16_t)((uint16_t)g_cur_read[DS2431_SCRATCH_FRAME] |
+                                      ((uint16_t)g_cur_read[DS2431_SCRATCH_FRAME + 1] << 8));
+            if (got != expected) {
+                m->ok = 0u; /* CRC mismatch: the scratchpad read is corrupt */
+                break;
+            }
         }
         if (g_pending != 0u &&
             (g_cur_read[0] != g_alo || g_cur_read[1] != g_ahi ||
@@ -424,6 +439,16 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 }
 
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+/* Append the DS2431's inverted CRC-16 after an 11-byte frame at @p frame. */
+static void set_reply_crc(uint8_t* frame) {
+    uint8_t crc_in[DS2431_SCRATCH_FRAME + 1];
+    crc_in[0] = DS2431_READ_SCRATCHPAD;
+    memcpy(&crc_in[1], frame, DS2431_SCRATCH_FRAME);
+    uint16_t crc = (uint16_t)(~onewire_crc16(crc_in, DS2431_SCRATCH_FRAME + 1));
+    frame[DS2431_SCRATCH_FRAME] = (uint8_t)(crc & 0xffu);
+    frame[DS2431_SCRATCH_FRAME + 1] = (uint8_t)(crc >> 8);
+}
+
 static void txn_smoke(const uint8_t* in, size_t len) {
     /* Aborts on any property violation; the oracle inside runs twice. */
     (void)LLVMFuzzerTestOneInput(in, len);
@@ -467,7 +492,7 @@ int main(void) {
     in[11] = 0x01; /* presence on */
     txn_smoke(in, 12u);
 
-    /* Read Scratchpad: pending armed, matching TA/ES echo. */
+    /* Read Scratchpad: pending armed, matching TA/ES echo, valid CRC -> OK. */
     memset(in, 0, sizeof(in));
     in[0] = 0x02 | 0x10; /* cmd 2, arm pending */
     in[1] = 0x10; /* pending addr */
@@ -479,9 +504,10 @@ int main(void) {
     for (uint8_t i = 7u; i < 7u + 8u; i++) {
         in[i] = (uint8_t)(0xA0u + i);
     }
-    txn_smoke(in, 7u + 8u);
+    set_reply_crc(&in[4]); /* append the matching inverted CRC-16 */
+    txn_smoke(in, 4u + DS2431_SCRATCH_FRAME_CRC);
 
-    /* Read Scratchpad: pending armed, mismatching echo -> no OK. */
+    /* Read Scratchpad: pending armed, mismatching echo (valid CRC) -> no OK. */
     memset(in, 0, sizeof(in));
     in[0] = 0x02 | 0x10;
     in[1] = 0x10;
@@ -493,7 +519,24 @@ int main(void) {
     for (uint8_t i = 7u; i < 7u + 8u; i++) {
         in[i] = (uint8_t)(0xA0u + i);
     }
-    txn_smoke(in, 7u + 8u);
+    set_reply_crc(&in[4]);
+    txn_smoke(in, 4u + DS2431_SCRATCH_FRAME_CRC);
+
+    /* Read Scratchpad: matching echo but corrupted CRC -> no OK. */
+    memset(in, 0, sizeof(in));
+    in[0] = 0x02 | 0x10;
+    in[1] = 0x10;
+    in[2] = 0x05;
+    in[3] = 0x01;
+    in[4] = 0x10;
+    in[5] = 0x00;
+    in[6] = 0x05;
+    for (uint8_t i = 7u; i < 7u + 8u; i++) {
+        in[i] = (uint8_t)(0xA0u + i);
+    }
+    set_reply_crc(&in[4]);
+    in[4 + DS2431_SCRATCH_FRAME] ^= 0xFFu; /* break the trailing CRC */
+    txn_smoke(in, 4u + DS2431_SCRATCH_FRAME_CRC);
 
     /* Copy Scratchpad: parasite, timed hold-off, no data. */
     memset(in, 0, sizeof(in));

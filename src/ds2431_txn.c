@@ -87,13 +87,15 @@ static uint8_t ds2431_build(uint8_t command) {
  * @brief Schedule a new non-blocking DS2431 operation
  * @param[in] command DS2431 function command byte
  * @param[in] out User result buffer (may be NULL; only written on success)
+ * @return 1 if the operation was scheduled, 0 if it was rejected (the driver
+ *         is busy or a device search owns the timer)
  * @note Ignored unless the driver is parked (IDLE/DONE) and the device search
  *       is finished. The result buffer must stay valid until the operation
  *       completes (ds2431_*_poll() reports 1).
  */
-static void ds2431_start(uint8_t command, uint8_t* out) {
+static uint8_t ds2431_start(uint8_t command, uint8_t* out) {
     if (!ds2431_can_start()) {
-        return; // the timer belongs to someone else right now
+        return 0; // the timer belongs to someone else right now
     }
     ctx.command = command;
     ctx.out = out;
@@ -104,6 +106,27 @@ static void ds2431_start(uint8_t command, uint8_t* out) {
     onewire_strong_pullup(0);
     ctx.phase = DS2431_PH_RESET;
     onewire_reset((volatile uint16_t*)ctx.u.cap); // Schedule the first hardware operation
+    return 1;
+}
+
+/**
+ * @brief Verify the inverted CRC-16 the DS2431 appends to a Read Scratchpad reply
+ * @param[in] frame Decoded 13-byte reply: TA1, TA2, E/S, 8 data, CRC_lo, CRC_hi
+ * @return 1 when the trailing inverted CRC-16 matches the command + frame
+ * @note CRC input is the command (0xAA) followed by the 11-byte frame, per the
+ *       DS2431 datasheet Read Scratchpad [AAh]; the device transmits the
+ *       bitwise complement of the Maxim CRC-16, low byte first.
+ */
+static uint8_t ds2431_scratchpad_crc_ok(const uint8_t* frame) {
+    uint8_t crc_in[DS2431_SCRATCH_FRAME + 1];
+    crc_in[0] = DS2431_READ_SCRATCHPAD;
+    for (uint8_t i = 0; i < DS2431_SCRATCH_FRAME; i++) {
+        crc_in[i + 1] = frame[i];
+    }
+    uint16_t expected = (uint16_t)(~onewire_crc16(crc_in, DS2431_SCRATCH_FRAME + 1));
+    uint16_t got = (uint16_t)((uint16_t)frame[DS2431_SCRATCH_FRAME] |
+                              ((uint16_t)frame[DS2431_SCRATCH_FRAME + 1] << 8));
+    return (uint8_t)(got == expected);
 }
 
 /**
@@ -193,6 +216,13 @@ static uint8_t ds2431_poll(void) {
     case DS2431_PH_READ:
         // Data read completed: decode the captured pulse durations.
         onewire_decode_pulses(ctx.raw, (const volatile uint8_t*)ctx.u.pulse, ctx.len);
+        if (ctx.command == DS2431_READ_SCRATCHPAD &&
+            !ds2431_scratchpad_crc_ok(ctx.raw)) {
+            // The reply's trailing inverted CRC-16 does not cover the frame:
+            // the scratchpad read is corrupt. Finish without the success flag.
+            ctx.phase = DS2431_PH_DONE;
+            break;
+        }
         if (((ctx.flags & (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) ==
              (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) &&
             (ctx.raw[0] != ctx.addr_lo || ctx.raw[1] != ctx.addr_hi ||
@@ -271,15 +301,24 @@ uint8_t ds2431_read_memory_poll(void) {
  * @param[in] addr Block-aligned target address in EEPROM
  * @param[in] data Data to write to the scratchpad
  * @param[in] len Bytes to write, 1 .. DS2431_SCRATCH_SIZE
- * @note Out-of-range requests are ignored.
+ * @return 1 if the write was scheduled, 0 if rejected (NULL data, len out of
+ *         range, addr + len beyond the EEPROM, addr not 8-byte aligned, or
+ *         the driver is busy / a search owns the timer)
+ * @note A misaligned addr is rejected: the EEPROM programs in 8-byte blocks.
  */
-void ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len) {
+uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len) {
     if (data == 0) {
-        return;
+        return 0;
     }
     if (len < 1u || len > DS2431_SCRATCH_SIZE || addr >= DS2431_EEPROM_SIZE ||
-        (uint16_t)addr + len > DS2431_EEPROM_SIZE) {
-        return;
+        (uint16_t)addr + len > DS2431_EEPROM_SIZE || (addr & 0x07u) != 0u) {
+        return 0;
+    }
+    /* Schedule first: on a busy/search reject nothing is latched, so a
+     * previous write cycle's pending TA/ES is never silently replaced by a
+     * write that never ran. */
+    if (!ds2431_start(DS2431_WRITE_SCRATCHPAD, 0)) {
+        return 0;
     }
     ctx.addr_lo = (uint8_t)(addr & 0xffu);
     ctx.addr_hi = (uint8_t)(addr >> 8);
@@ -293,7 +332,7 @@ void ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len) {
         ctx.payload[i] = data[i];
     }
     ctx.flags |= DS2431_FLAG_PENDING;
-    ds2431_start(DS2431_WRITE_SCRATCHPAD, 0);
+    return 1;
 }
 
 /**
@@ -305,12 +344,15 @@ uint8_t ds2431_write_scratchpad_poll(void) { return ds2431_poll(); }
 /**
  * @brief Read the 11-byte scratchpad frame (TA1, TA2, ES, data..8)
  * @param[in,out] buf Buffer for the frame; written on success
+ * @note The driver reads the full wire reply (DS2431_SCRATCH_FRAME_CRC bytes,
+ *       incl. the inverted CRC-16) and verifies it; only the 11-byte frame is
+ *       copied to @p buf.
  */
 void ds2431_read_scratchpad(uint8_t* buf) {
     if (buf == 0) {
         return;
     }
-    ctx.len = DS2431_SCRATCH_FRAME;
+    ctx.len = DS2431_SCRATCH_FRAME_CRC;
     ctx.plen = 0;
     ds2431_start(DS2431_READ_SCRATCHPAD, buf);
     ctx.flags |= DS2431_FLAG_ECHO;

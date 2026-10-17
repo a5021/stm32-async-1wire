@@ -11,8 +11,8 @@
 #define DS2431_CMD_MAX_BYTES ((1 + DS2431_ROM_BYTES) + 1 + 2 + DS2431_SCRATCH_SIZE)
 /** @brief Bit slots for the longest command write (DS2431_CMD_MAX_BYTES x 8) */
 #define DS2431_CMD_SLOTS (DS2431_CMD_MAX_BYTES * DS2431_BITS_PER_BYTE)
-/** @brief Bit slots for the skip-rom prefix of the scratchpad frame read */
-#define DS2431_FRAME_SLOTS (DS2431_SCRATCH_FRAME * DS2431_BITS_PER_BYTE)
+/** @brief Bit slots for the scratchpad frame read, CRC included */
+#define DS2431_FRAME_SLOTS (DS2431_SCRATCH_FRAME_CRC * DS2431_BITS_PER_BYTE)
 
 /**
  * @}
@@ -57,9 +57,9 @@ typedef struct {
     union {
         ow_pulse_t cmd[DS2431_CMD_SLOTS + 1]; /**< command write build (DMA feed) */
         volatile uint16_t cap[2]; /**< reset + presence pulse durations */
-        volatile uint8_t pulse[DS2431_SCRATCH_FRAME * DS2431_BITS_PER_BYTE]; /**< read capture (≤ 11 bytes x 8 bits) */
+        volatile uint8_t pulse[DS2431_SCRATCH_FRAME_CRC * DS2431_BITS_PER_BYTE]; /**< read capture (<= 13 bytes x 8 bits) */
     } u;
-    uint8_t raw[DS2431_SCRATCH_FRAME]; /**< Decoded read result (TA1, TA2, ES, data..8) */
+    uint8_t raw[DS2431_SCRATCH_FRAME_CRC]; /**< Decoded read result (TA1, TA2, ES, data..8, CRC16) */
     uint8_t phase; /**< Current phase (ds2431_phase_t values, packed) */
     uint8_t flags; /**< DS2431_FLAG_* bits */
     uint8_t command; /**< DS2431 function command byte (0xF0/0x0F/0xAA/0x55) */
@@ -108,6 +108,8 @@ _Static_assert(DS2431_FRAME_SLOTS <= ONEWIRE_MAX_SLOTS,
                "scratchpad frame read must fit one RCR window");
 _Static_assert(DS2431_READ_PASS <= ONEWIRE_MAX_READ_BYTES,
                "a Read Memory pass must fit one read window");
+_Static_assert(DS2431_SCRATCH_FRAME_CRC <= ONEWIRE_MAX_READ_BYTES,
+               "a scratchpad frame read (incl. CRC) must fit one read window");
 /* B1: the trailing ONEWIRE_RELEASE_PULSE consumed by the CCR3-feed DMA's final
  * transfer must always be present. Every build writes it at [slots], and slots
  * never exceeds DS2431_CMD_SLOTS, so [DS2431_CMD_SLOTS] is always in range. */

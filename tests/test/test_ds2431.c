@@ -45,7 +45,7 @@ static uint16_t de_capture_absent(uint32_t idx) {
     return 100u;
 }
 
-static uint16_t de_read_pulses[DS2431_SCRATCH_FRAME * DS2431_BITS_PER_BYTE];
+static uint16_t de_read_pulses[DS2431_SCRATCH_FRAME_CRC * DS2431_BITS_PER_BYTE];
 static uint16_t de_read_capture(uint32_t idx) { return de_read_pulses[idx]; }
 
 /* Encode len bytes (LSB-first) into the per-bit pulse buffer. */
@@ -56,6 +56,25 @@ static void set_read_bytes(const uint8_t* data, uint8_t len) {
                 ((data[i] >> b) & 1u) ? ONE : ZERO;
         }
     }
+}
+
+/* CRC-16 the DS2431 appends to a Read Scratchpad reply: the bitwise
+ * complement of the Maxim CRC-16 over the command (0xAA) + 11-byte frame. */
+static uint16_t reply_crc16(const uint8_t* frame11) {
+    uint8_t buf[DS2431_SCRATCH_FRAME + 1];
+    buf[0] = DS2431_READ_SCRATCHPAD;
+    memcpy(&buf[1], frame11, DS2431_SCRATCH_FRAME);
+    return (uint16_t)(~onewire_crc16(buf, DS2431_SCRATCH_FRAME + 1));
+}
+
+/* Feed a valid 13-byte Read Scratchpad reply (frame + inverted CRC-16). */
+static void set_scratchpad_reply(const uint8_t* frame11) {
+    uint8_t wire[DS2431_SCRATCH_FRAME_CRC];
+    memcpy(wire, frame11, DS2431_SCRATCH_FRAME);
+    uint16_t crc = reply_crc16(frame11);
+    wire[DS2431_SCRATCH_FRAME] = (uint8_t)(crc & 0xffu);
+    wire[DS2431_SCRATCH_FRAME + 1] = (uint8_t)(crc >> 8);
+    set_read_bytes(wire, DS2431_SCRATCH_FRAME_CRC);
 }
 
 /* Step exactly one hardware operation (reset/write/read/hold-off): the
@@ -141,6 +160,18 @@ void test_ds2431_init_state(void) {
      * success flag clear. */
     TEST_ASSERT_EQUAL_UINT8(1, ds2431_read_memory_poll());
     TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
+}
+
+/*-------------------------------------------------------------
+ *  1b. CRC-16 primitive
+ * -----------------------------------------------------------*/
+
+void test_crc16_maxim_vector(void) {
+    /* CRC-16/ARC check value: Maxim 1-Wire CRC-16 of "123456789" = 0xBB3D. */
+    const uint8_t v[] = "123456789";
+    TEST_ASSERT_EQUAL_HEX16(0xBB3D, onewire_crc16(v, 9));
+    /* Empty input returns the initial value (0). */
+    TEST_ASSERT_EQUAL_HEX16(0x0000, onewire_crc16(v, 0));
 }
 
 /*-------------------------------------------------------------
@@ -287,8 +318,32 @@ void test_write_scratchpad_short_write(void) {
     assert_cmd_bytes(k_bytes, sizeof(k_bytes));
 }
 
+void test_write_scratchpad_returns_status(void) {
+    /* The start call reports accept (1) / reject (0) instead of silently
+     * swallowing an out-of-range or misaligned request. */
+    const uint8_t data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    hw_set_capture_source(de_capture_present);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_write_scratchpad(0x40, data, 8));
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x40, 0, 8)); /* NULL data */
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x40, data, 0)); /* len too small */
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x40, data, 9)); /* len too large */
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x7F, data, 4)); /* addr+len beyond EEPROM */
+}
+
+void test_write_scratchpad_misaligned_rejected(void) {
+    const uint8_t data[8] = {0};
+    hw_set_capture_source(de_capture_present);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x43, data, 4)); /* not 8-byte aligned */
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, hw_ccr3_feed_log()->count); /* nothing scheduled */
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
+}
+
 /*-------------------------------------------------------------
- *  4. Read Scratchpad (frame + echo verification)
+ *  4. Read Scratchpad (frame + echo + CRC verification)
  * -----------------------------------------------------------*/
 
 void test_read_scratchpad_echo_verified(void) {
@@ -306,7 +361,7 @@ void test_read_scratchpad_echo_verified(void) {
     frame[1] = 0x00;
     frame[2] = 0x07; /* ES = (0x40 + 8 - 1) & 0x07 */
     memcpy(&frame[3], data, 8);
-    set_read_bytes(frame, DS2431_SCRATCH_FRAME);
+    set_scratchpad_reply(frame);
     ds2431_read_scratchpad(got);
     drive_ops(ds2431_read_scratchpad_poll, 2); /* reset + command write */
     assert_cmd_bytes((const uint8_t[]){0xCC, 0xAA}, 2);
@@ -332,7 +387,34 @@ void test_read_scratchpad_echo_mismatch(void) {
     frame[1] = 0x00;
     frame[2] = 0x00; /* wrong ES: the latched value is 7 */
     memcpy(&frame[3], data, 8);
-    set_read_bytes(frame, DS2431_SCRATCH_FRAME);
+    set_scratchpad_reply(frame); /* valid CRC: the abort must be the echo check */
+    ds2431_read_scratchpad(got);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
+}
+
+void test_read_scratchpad_crc_mismatch(void) {
+    /* A reply whose trailing CRC-16 does not cover the frame (a corrupted
+     * scratchpad read) must clear the success flag even though TA/ES echo
+     * matches. */
+    const uint8_t data[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    uint8_t frame[DS2431_SCRATCH_FRAME];
+    uint8_t got[DS2431_SCRATCH_FRAME];
+    hw_set_capture_source(de_capture_present);
+    ds2431_write_scratchpad(0x40, data, 8);
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
+    frame[0] = 0x40;
+    frame[1] = 0x00;
+    frame[2] = 0x07;
+    memcpy(&frame[3], data, 8);
+    set_scratchpad_reply(frame);
+    /* Corrupt one data bit in the captured reply: TA/ES echo still matches,
+     * so only the CRC-16 can catch it. */
+    de_read_pulses[3 * DS2431_BITS_PER_BYTE + 0] =
+        (de_read_pulses[3 * DS2431_BITS_PER_BYTE + 0] == ONE) ? ZERO : ONE;
+
     ds2431_read_scratchpad(got);
     drive(ds2431_read_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
@@ -344,7 +426,7 @@ void test_read_scratchpad_raw_without_pending_write(void) {
     const uint8_t frame[DS2431_SCRATCH_FRAME] = {0x00, 0x00, 0x00,
                                                  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     uint8_t got[DS2431_SCRATCH_FRAME];
-    set_read_bytes(frame, DS2431_SCRATCH_FRAME);
+    set_scratchpad_reply(frame);
     hw_set_capture_source(de_capture_present);
     ds2431_read_scratchpad(got);
     drive(ds2431_read_scratchpad_poll);
@@ -427,7 +509,7 @@ void test_write_cycle_e2e(void) {
     frame[1] = 0x00;
     frame[2] = 0x07; /* ES = (0x28 + 8 - 1) & 0x07 */
     memcpy(&frame[3], data, 8);
-    set_read_bytes(frame, DS2431_SCRATCH_FRAME);
+    set_scratchpad_reply(frame);
     ds2431_read_scratchpad(got);
     drive_ops(ds2431_read_scratchpad_poll, 2);
     assert_cmd_bytes((const uint8_t[]){0xCC, 0xAA}, 2);
@@ -465,6 +547,7 @@ void test_write_cycle_e2e(void) {
 
 void run_test_ds2431(void) {
     TEST_RUN(test_ds2431_init_state);
+    TEST_RUN(test_crc16_maxim_vector);
     TEST_RUN(test_read_memory_skip_rom);
     TEST_RUN(test_read_memory_match_rom);
     TEST_RUN(test_read_memory_no_presence_aborts);
@@ -475,8 +558,11 @@ void run_test_ds2431(void) {
     TEST_RUN(test_write_scratchpad_no_presence_aborts);
     TEST_RUN(test_write_scratchpad_out_of_range_ignored);
     TEST_RUN(test_write_scratchpad_short_write);
+    TEST_RUN(test_write_scratchpad_returns_status);
+    TEST_RUN(test_write_scratchpad_misaligned_rejected);
     TEST_RUN(test_read_scratchpad_echo_verified);
     TEST_RUN(test_read_scratchpad_echo_mismatch);
+    TEST_RUN(test_read_scratchpad_crc_mismatch);
     TEST_RUN(test_read_scratchpad_raw_without_pending_write);
     TEST_RUN(test_copy_scratchpad_requires_pending_write);
     TEST_RUN(test_copy_scratchpad_waits_tprog);
