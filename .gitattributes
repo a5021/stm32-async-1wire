@@ -11,7 +11,7 @@
 
 # The Makefile is read by make, which tolerates CRLF, and it is edited on
 # Windows; keep the native endings rather than fighting the working tree.
-Makefile text eol=crlf
+Makefile text eol=lf
 CMakeLists.txt text eol=lf
 
 # Sources and headers: normalise to LF in the repository, accept either on
