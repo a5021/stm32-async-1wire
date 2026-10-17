@@ -840,6 +840,54 @@ __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
     ow_port_set_pin_mode(on);
 }
 
+/* --- Withdraw the ow_bits.h register aliases from the consumer namespace ---
+ *  ow_bits.h defines ~38 single-letter register shortcuts (T1, PA, RC, D13, ...)
+ *  that the MCU sections above and the engine below are written in. Because the
+ *  engine is header-only, those aliases must stay visible while every inline
+ *  body is parsed - they cannot be #undef'd in ow_bits.h itself. This header is
+ *  the last one in the include chain that uses them, so this is the point where
+ *  a TU that merely includes onewire.h is cleaned of them. The BITS() and the
+ *  RCC_, TIM_ register shortcuts remain (the port's own vocabulary); this only
+ *  removes the collision-prone one- and two-letter names. */
+#undef D11
+#undef D12
+#undef D13
+#undef D14
+#undef D15
+#undef D16
+#undef D17
+#undef D2
+#undef A1
+#undef A2
+#undef A
+#undef BK
+#undef C1
+#undef DB
+#undef EX
+#undef FL
+#undef PA
+#undef PB
+#undef PC
+#undef PD
+#undef I1
+#undef I2
+#undef IW
+#undef O
+#undef PW
+#undef RC
+#undef RT
+#undef S1
+#undef S2
+#undef T1
+#undef T2
+#undef T3
+#undef T4
+#undef U
+#undef U1
+#undef U2
+#undef U3
+#undef W
+
 #ifdef __cplusplus
 }
 #endif

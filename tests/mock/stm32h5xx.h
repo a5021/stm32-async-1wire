@@ -129,7 +129,7 @@ typedef struct {
     volatile uint32_t TDR;
 } USART_TypeDef;
 
-/* Instances: pointers so ow_bits.h's (*TIM1), (*GPDMA1_Channel2), etc. work.
+/* Instances: pointers so the port core's (*TIM1), (*GPDMA1_Channel2), etc. work.
  * H5 routes peripheral DMA requests per channel through REQSEL in CTR2 (no
  * DMAMUX): feed rides GPDMA1_Channel2 (TIM1_CH2, REQSEL 59), capture rides
  * GPDMA1_Channel3 (TIM1_CH4, REQSEL 61). The storage objects keep their

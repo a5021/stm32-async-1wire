@@ -85,7 +85,7 @@ typedef struct {
     volatile uint32_t TDR;
 } USART_TypeDef;
 
-/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA1_Channel3), etc. work.
+/* Instances: pointers so the port core's (*TIM1), (*DMA1_Channel3), etc. work.
  * STM32F303 has a fixed request map and no DMAMUX. Bench-verified on MB1035B:
  * TIM1's CC2 feed rides channel 3 and the CH4 capture channel 4 (D13/D14),
  * the same pair as F0/F1. The storage objects keep their legacy names so tests and

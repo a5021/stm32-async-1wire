@@ -131,7 +131,7 @@ typedef struct {
     volatile uint32_t GTPR;
 } USART_TypeDef;
 
-/* Instances: pointers so ow_bits.h's (*TIM1), (*DMA2_Stream2), etc. work.
+/* Instances: pointers so the port core's (*TIM1), (*DMA2_Stream2), etc. work.
  * F4 fixed request map (RM0368 §9.3.3): feed rides DMA2_Stream2 (TIM1_CH2),
  * capture rides DMA2_Stream4 (TIM1_CH4), each with its own CHSEL=6. The
  * storage objects keep their legacy names so tests and hw_model stay
