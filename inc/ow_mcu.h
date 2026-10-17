@@ -22,7 +22,6 @@
 #ifndef OW_MCU_H
 #define OW_MCU_H
 
-#include "ow_bits.h"
 #include <stdint.h>
 
 /* ------------------------------------------------------------------
@@ -468,7 +467,7 @@ typedef uint16_t ow_pulse_t;
  *       break by stream number, feed wins).  Note the F4 DIR field is two
  *       bits wide: the generic single-bit DMA_SxCR_DIR macro would write the
  *       reserved 0b11. */
-#define OW_PORT_DMA_CR_CAPTURE DMA_SxCR(MINC, PSIZE_0)
+#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
@@ -476,17 +475,21 @@ typedef uint16_t ow_pulse_t;
  *       above).  The caller also sets MSIZE_0: direct mode forces the memory
  *       width to PSIZE, so the source must be a matching halfword
  *       (ow_pulse_t) buffer. */
-#define OW_PORT_DMA_CR_FEED DMA_SxCR(DIR_0, MINC, PSIZE_0)
+#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (see the
  * defaults in inc/ow_port.h): same three transfer classes in stream
  * spelling.  Each equals the per-site expression used by the migrated
  * bodies (capture, read pair and merged capture share RX16; feed and merged
- * feed share TX) — pinned by
- * tests/test/test_dma_contract.c::test_dma_cr_value_macros. */
-#define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))
-#define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~DMA_SxCR(PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR(EN))
-#define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR(MSIZE_0, EN))
+ * feed share TX) - pinned by
+ * tests/test/test_dma_contract.c::test_dma_cr_value_macros.  Every
+ * OW_PORT_DMA_CR_* definition (here and in ow_port.h) spells explicit CMSIS
+ * masks instead of the DMA_CCR/DMA_SxCR sugar: the contract tests expand
+ * these macros in their own TU, after ow_port.h has withdrawn the BITS()
+ * helpers. */
+#define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
+#define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~(DMA_SxCR_PSIZE_0)) | OW_PORT_DMA_CHSEL | DMA_SxCR_EN)
+#define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
 
 /* Stream-spelling overrides for the DISABLE/PROG vocabulary (defaults in
  * inc/ow_port.h).  DISABLE is disable + bounded EN wait
@@ -999,15 +1002,17 @@ typedef uint8_t ow_pulse_t;
 #endif /* OW_PORT_FAMILY_H5 */
 
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
- * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
+ * rides TIM1_CH4 -> channel 4 (D13/D14: register aliases from ow_port.h).
+ * These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
  * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA,
  * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
- * deliberately no #error here: D13/D14 resolve through ow_bits.h, included
- * at the top of this file, so a TU that forgot its device header still
- * fails loudly on the missing device macros. */
+ * deliberately no #error here: D13/D14 expand through ow_port.h's register
+ * vocabulary, whose engine is where this default gets used, so a TU that
+ * forgot its device macros still fails loudly on the missing device
+ * macros. */
 #ifndef OW_PORT_DMA_FEED
 #define OW_PORT_DMA_FEED D13
 #endif

@@ -62,6 +62,72 @@ extern "C" {
 #include "onewire.h"
 #include "ow_mcu.h"
 
+/* --- Register vocabulary of the port core --------------------------------
+ *  The family hooks from ow_mcu.h and the engine below are header-only and
+ *  written in single-letter register aliases (T1, PA, RC, D13, ...), the
+ *  BITS() mask helpers and their register shortcuts.  All of it must be
+ *  visible while every macro body and inline body is parsed, so it is
+ *  defined here - the top of the last header in the chain - and #undef'd at
+ *  this file's end (the withdraw block below).  make test-header-hygiene
+ *  pins both halves; no other header in the tree uses these names. */
+
+// Single-letter register aliases: the engine's shorthand for whole registers
+#define D13 (*DMA1_Channel3) /* 0x40020030 */
+#define D14 (*DMA1_Channel4) /* 0x40020044 */
+#define D2 (*DMA2) /* 0x40026400 */
+#define PA (*GPIOA) /* 0x40010800 */
+#define RC (*RCC) /* 0x40021000 */
+#define T1 (*TIM1) /* 0x40012C00 */
+
+// Mask machinery: paste PREFIX_, REG, BF into a CMSIS bitfield name and OR them
+#define _BITS_ONE(PREFIX_, REG, BF) (PREFIX_##REG##_##BF)
+
+// Recursive macros to combine 1-8 bitfields using the '|' operator
+#define _BITS_1(PREFIX_, REG, BF) (_BITS_ONE(PREFIX_, REG, BF))
+#define _BITS_2(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_1(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_3(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_2(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_4(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_3(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_5(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_4(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_6(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_5(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_7(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_6(PREFIX_, REG, __VA_ARGS__))
+#define _BITS_8(PREFIX_, REG, BF, ...) (_BITS_ONE(PREFIX_, REG, BF) | _BITS_7(PREFIX_, REG, __VA_ARGS__))
+
+// Count bitfield arguments (up to 8; the widest call in the tree uses 5)
+#define _BITS_NARG(...) _BITS_NARG_(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1)
+#define _BITS_NARG_(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
+
+// Macro dispatcher: picks the _BITS_n macro matching the argument count
+#define _BITS_CHOOSER2(count) _BITS_##count
+#define _BITS_CHOOSER1(count) _BITS_CHOOSER2(count)
+#define _BITS_CHOOSER(count) _BITS_CHOOSER1(count)
+
+// BITS(PREFIX_, REG, BF, ...): a mask of the requested bitfields of one register
+#define BITS(PREFIX_, REG, ...)                                               \
+    (                                                                         \
+        (void)sizeof(struct {                                                 \
+            _Static_assert(sizeof(#__VA_ARGS__) > 1,                          \
+                           "BITS(): at least one bitfield must be provided"); \
+            int _dummy;                                                       \
+        }),                                                                   \
+        _BITS_CHOOSER(_BITS_NARG(__VA_ARGS__))(PREFIX_, REG, __VA_ARGS__))
+
+// Register shortcuts: BITS() for one fixed register, as the engine spells them
+#define RCC_BITS(reg, ...) BITS(RCC_, reg, __VA_ARGS__)
+#define RCC_AHBENR(...) BITS(RCC_, AHBENR, __VA_ARGS__)
+#define RCC_APB2ENR(...) BITS(RCC_, APB2ENR, __VA_ARGS__)
+#define GPIO_CRH(...) BITS(GPIO_, CRH, __VA_ARGS__)
+#define TIM_CR1(...) BITS(TIM_, CR1, __VA_ARGS__)
+#define TIM_DIER(...) BITS(TIM_, DIER, __VA_ARGS__)
+#define TIM_BDTR(...) BITS(TIM_, BDTR, __VA_ARGS__)
+#define TIM_SR(...) BITS(TIM_, SR, __VA_ARGS__)
+#define TIM_EGR(...) BITS(TIM_, EGR, __VA_ARGS__)
+#define TIM_CCMR2(...) BITS(TIM_, CCMR2, __VA_ARGS__)
+#define TIM_CCER(...) BITS(TIM_, CCER, __VA_ARGS__)
+#define DMA_CCR(...) BITS(DMA_, CCR, __VA_ARGS__)
+#define DMA_LIFCR(...) BITS(DMA_, LIFCR, __VA_ARGS__)
+#define DMA_HIFCR(...) BITS(DMA_, HIFCR, __VA_ARGS__)
+#define DMA_SxCR(...) BITS(DMA_Sx, CR, __VA_ARGS__)
+
 /* The byte-read capture path (ow_port_read_data, width==8) stores CCR4's
  * least-significant byte via the DMA memory-store width.  How the offsets are
  * expressed differs per backend: the basic-DMA backends keep PSIZE=16 (CCR4 is
@@ -126,9 +192,10 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *
  *  The family facts above (ow_mcu.h: ow_pulse_t, OW_PORT_SYSCLK_MHZ /
  *  SystemCoreClock, OW_PORT_TIM1_UPD_IRQn, DMA spelling) must precede this
- *  core: ow_bits.h supplies the T1/PA/RC/D1x aliases used below (including
- *  the D13/D14 channel defaults), and the family section supplies
- *  ow_pulse_t and the init hooks.  Concretely the core requires:
+ *  core: the register vocabulary at the top of this file supplies the
+ *  T1/PA/RC/D1x aliases used below (including the D13/D14 channel defaults),
+ *  and the family section supplies ow_pulse_t and the init hooks.
+ *  Concretely the core requires:
  *
  *    - define OW_PORT_ENABLE_BUS_CLOCKS(), which gates this family's clocks;
  *    - define OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE(push_pull),
@@ -164,15 +231,16 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  * request routing have defaults a family overrides only when its hardware
  * differs. */
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
- * rides TIM1_CH4 -> channel 4 (D13/D14 from ow_bits.h).  These are not
+ * rides TIM1_CH4 -> channel 4 (D13/D14 from the vocabulary block above).
+ * These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
  * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA,
  * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
- * deliberately no #error here: D13/D14 resolve through ow_bits.h, included
- * via ow_mcu.h above, so a TU that forgot its device macros still fails
- * loudly on the missing family selection. */
+ * deliberately no #error here: D13/D14 resolve through the vocabulary block
+ * above, so a TU that forgot its device macros still fails loudly on the
+ * missing family selection. */
 #ifndef OW_PORT_DMA_FEED
 #define OW_PORT_DMA_FEED D13
 #endif
@@ -348,7 +416,10 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #define OW_PORT_DMA_CR_RX8 (DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 #endif
 #ifndef OW_PORT_DMA_CR_TX
-#define OW_PORT_DMA_CR_TX DMA_CCR(DIR, MINC, PSIZE_0, EN)
+/* Explicit CMSIS masks (same style as RX16/RX8 above), not DMA_CCR(...):
+ * contract tests expand OW_PORT_DMA_CR_* in their own TU, after ow_port.h
+ * has withdrawn the BITS() helpers. */
+#define OW_PORT_DMA_CR_TX (DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN)
 #endif
 
 /* DMA disable + programming statement macros (port-unification vocabulary):
@@ -840,53 +911,57 @@ __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
     ow_port_set_pin_mode(on);
 }
 
-/* --- Withdraw the ow_bits.h register aliases from the consumer namespace ---
- *  ow_bits.h defines ~38 single-letter register shortcuts (T1, PA, RC, D13, ...)
- *  that the MCU sections above and the engine below are written in. Because the
- *  engine is header-only, those aliases must stay visible while every inline
- *  body is parsed - they cannot be #undef'd in ow_bits.h itself. This header is
- *  the last one in the include chain that uses them, so this is the point where
- *  a TU that merely includes onewire.h is cleaned of them. The BITS() and the
- *  RCC_, TIM_ register shortcuts remain (the port's own vocabulary); this only
- *  removes the collision-prone one- and two-letter names. */
-#undef D11
-#undef D12
+/* --- Withdraw the register vocabulary from the consumer namespace ---------
+ *  The ow_mcu.h family hooks expanded in the engine above and the engine
+ *  bodies themselves are written in the vocabulary block at the top of this
+ *  file: single-letter aliases (T1, PA, RC, D13, ...), the BITS() mask
+ *  machinery and the register shortcuts (RCC_AHBENR, TIM_CR1, ...).  The
+ *  chain is header-only, so all of it had to stay visible while every inline
+ *  body was parsed; this is where the last body is in, so this is where a TU
+ *  that merely includes onewire.h is cleaned of the whole vocabulary.
+ *  Nothing else in the tree uses these names (make test-header-hygiene
+ *  pins every one of them). */
+// Register shortcuts
+#undef RCC_BITS
+#undef RCC_AHBENR
+#undef RCC_APB2ENR
+#undef GPIO_CRH
+#undef TIM_CR1
+#undef TIM_DIER
+#undef TIM_BDTR
+#undef TIM_SR
+#undef TIM_EGR
+#undef TIM_CCMR2
+#undef TIM_CCER
+#undef DMA_CCR
+#undef DMA_LIFCR
+#undef DMA_HIFCR
+#undef DMA_SxCR
+
+// Mask machinery
+#undef _BITS_ONE
+#undef _BITS_1
+#undef _BITS_2
+#undef _BITS_3
+#undef _BITS_4
+#undef _BITS_5
+#undef _BITS_6
+#undef _BITS_7
+#undef _BITS_8
+#undef _BITS_NARG
+#undef _BITS_NARG_
+#undef _BITS_CHOOSER
+#undef _BITS_CHOOSER1
+#undef _BITS_CHOOSER2
+#undef BITS
+
+// Single-letter aliases
 #undef D13
 #undef D14
-#undef D15
-#undef D16
-#undef D17
 #undef D2
-#undef A1
-#undef A2
-#undef A
-#undef BK
-#undef C1
-#undef DB
-#undef EX
-#undef FL
 #undef PA
-#undef PB
-#undef PC
-#undef PD
-#undef I1
-#undef I2
-#undef IW
-#undef O
-#undef PW
 #undef RC
-#undef RT
-#undef S1
-#undef S2
 #undef T1
-#undef T2
-#undef T3
-#undef T4
-#undef U
-#undef U1
-#undef U2
-#undef U3
-#undef W
 
 #ifdef __cplusplus
 }

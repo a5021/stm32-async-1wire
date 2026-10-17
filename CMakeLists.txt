@@ -466,7 +466,6 @@ install(FILES
     inc/ow_mcu.h
     inc/ow_stats.h
     inc/ow_config.h
-    inc/ow_bits.h  # included by ow_mcu.h (register aliases) and ow_port.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire
 )
 

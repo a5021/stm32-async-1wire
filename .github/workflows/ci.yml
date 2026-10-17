@@ -224,16 +224,15 @@ jobs:
           path: api-docs
       - name: Merge and filter traces
         # Union of every backend's trace measures the MCU-independent core;
-        # MCU headers (register plumbing per family: ow_mcu.h plus the
-        # ow_bits.h aliases) stay out of the metric so adding new MCU
-        # ports never dilutes the number.
+        # MCU headers (the per-family register plumbing in ow_mcu.h) stay out
+        # of the metric so adding new MCU ports never dilutes the number.
         run: |
           ARGS=""
           for f in traces/*/coverage-*.info; do
             ARGS="$ARGS -a $f"
           done
           lcov $ARGS --output-file union.info --rc branch_coverage=1
-          lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/ow_bits.h' '*/inc/ow_mcu.h' \
+          lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/ow_mcu.h' \
                 --output-file core.info --rc branch_coverage=1 --ignore-errors unused
           lcov --summary core.info --rc branch_coverage=1 > summary.txt || true
           cat summary.txt
