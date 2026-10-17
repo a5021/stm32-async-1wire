@@ -1535,6 +1535,16 @@ do not "fix" them without re-reading the reasoning:
 - **`OW_PORT_MARKER_TOGGLE` is an opt-in hook.** Default no-op, used once
   (merged-pass start marker for a logic-analyzer decoder, see
   `port/stm32f4/HARDWARE-NOTES.md`). Zero cost unless a backend defines it.
+- **The `ow_bits.h` register aliases are withdrawn at the end of
+  `ow_port.h`.** The port engine is header-only and written in ~38 one/two-letter
+  shortcuts (`T1`, `PA`, `RC`, `D13`, ...) that `ow_bits.h` defines, so they must
+  stay visible while every inline body is parsed; `inc/ow_port.h` `#undef`s them
+  once its last body is in, which is what keeps a `#include "onewire.h"`
+  translation unit free of them. `make test-header-hygiene` pins it - the
+  `8dba9d2` refactor moved the backend include into `onewire.h` and the leak
+  shipped in v2.1.0. Including `inc/ow_mcu.h` directly is not a supported
+  consumer entry: it is the family-facts half of the port, reached through
+  `onewire.h`/`ow_port.h`, and does not carry the withdrawal.
 
 Two more closures, for the record: stats emission stays in the driver
 because pulse widths, ROM addresses and `DS18B20_TEMP_ERROR_*` codes are
