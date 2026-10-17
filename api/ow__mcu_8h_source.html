@@ -1042,7 +1042,7 @@ $(document).ready(function(){initNavTree('ow__mcu_8h_source.html',''); initResiz
 <div class="line"><a id="l00956" name="l00956"></a><span class="lineno">  956</span><span class="comment">         * 2 bytes per element, so BNDT = count * 2. RX8 keeps   \</span></div>
 <div class="line"><a id="l00957" name="l00957"></a><span class="lineno">  957</span><span class="comment">         * the halfword CCR4 source (reading the low byte) and   \</span></div>
 <div class="line"><a id="l00958" name="l00958"></a><span class="lineno">  958</span><span class="comment">         * needs the same x2; the feed below is byte-sourced     \</span></div>
-<div class="line"><a id="l00959" name="l00959"></a><span class="lineno">  959</span><span class="comment">         * (SDW_LOG2 = 0) and stays BNDT = count bytes. */</span><span class="preprocessor">          \</span></div>
+<div class="line"><a id="l00959" name="l00959"></a><span class="lineno">  959</span><span class="comment">         * (SDW_LOG2 = 0) and stays BNDT = count bytes. */</span><span class="preprocessor">           \</span></div>
 <div class="line"><a id="l00960" name="l00960"></a><span class="lineno">  960</span><span class="preprocessor">        OW_PORT_DMA_CAPTURE.CBR1 =                                           \</span></div>
 <div class="line"><a id="l00961" name="l00961"></a><span class="lineno">  961</span><span class="preprocessor">            ((uint32_t)(count) &lt;&lt; (((cr) &gt;&gt; DMA_CTR1_SDW_LOG2_Pos) &amp; 0x3u)); \</span></div>
 <div class="line"><a id="l00962" name="l00962"></a><span class="lineno">  962</span><span class="preprocessor">        OW_PORT_DMA_CAPTURE.CTR2 =                                           \</span></div>
