@@ -128,8 +128,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (17 ow_port_* functions) + family select
-│   ├── ow_mcu.h            # Per-MCU facts for the engine (7 family sections: clocks, PA10 mux, DMA assignment)
-│   └── ow_bits.h           # STM32 register access macros (shared)
+│   └── ow_mcu.h            # Per-MCU facts for the engine (7 family sections: clocks, PA10 mux, DMA assignment)
 ├── port/                   # Per-MCU build artifacts for the examples (linker scripts, debug projects)
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
@@ -1535,16 +1534,20 @@ do not "fix" them without re-reading the reasoning:
 - **`OW_PORT_MARKER_TOGGLE` is an opt-in hook.** Default no-op, used once
   (merged-pass start marker for a logic-analyzer decoder, see
   `port/stm32f4/HARDWARE-NOTES.md`). Zero cost unless a backend defines it.
-- **The `ow_bits.h` register aliases are withdrawn at the end of
-  `ow_port.h`.** The port engine is header-only and written in ~38 one/two-letter
-  shortcuts (`T1`, `PA`, `RC`, `D13`, ...) that `ow_bits.h` defines, so they must
-  stay visible while every inline body is parsed; `inc/ow_port.h` `#undef`s them
-  once its last body is in, which is what keeps a `#include "onewire.h"`
-  translation unit free of them. `make test-header-hygiene` pins it - the
-  `8dba9d2` refactor moved the backend include into `onewire.h` and the leak
-  shipped in v2.1.0. Including `inc/ow_mcu.h` directly is not a supported
-  consumer entry: it is the family-facts half of the port, reached through
-  `onewire.h`/`ow_port.h`, and does not carry the withdrawal.
+- **The port's register vocabulary is defined and withdrawn inside
+  `ow_port.h`.** The port engine is header-only and written in the
+  single-letter register aliases (`T1`, `PA`, `RC`, `D13`, ...), the `BITS()`
+  mask machinery and the register shortcuts (`RCC_AHBENR`, `TIM_CR1`, ...).
+  Every macro body and inline body must see the vocabulary while it is
+  parsed, so `inc/ow_port.h` defines it at the top of the chain and
+  `#undef`s it in its withdraw block once the last body is in - which is what
+  keeps a `#include "onewire.h"` translation unit free of the whole
+  vocabulary. `make test-header-hygiene` pins both halves across every
+  public header and every family - the `8dba9d2` refactor moved the backend
+  include into `onewire.h` and the leak shipped in v2.1.0. Including
+  `inc/ow_mcu.h` directly defines none of it: its family hooks only expand
+  inside `ow_port.h`, and it is the family-facts half of the port, reached
+  through `onewire.h`/`ow_port.h`.
 
 Two more closures, for the record: stats emission stays in the driver
 because pulse widths, ROM addresses and `DS18B20_TEMP_ERROR_*` codes are

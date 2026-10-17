@@ -441,11 +441,12 @@ jobs:
         # so a part added to one side could take the other's -mcpu and still
         # link. Repo-side text parse, no toolchain (see tests/check_mcu_dispatch.sh).
         run: make test-mcu-dispatch
-      - name: Check the public headers do not leak ow_bits aliases
+      - name: Check the public headers do not leak the port register vocabulary
         # onewire.h pulls the header-only port engine, which is written in the
-        # ow_bits.h register aliases; ow_port.h withdraws them at its end and
-        # nothing else guards that block, so a moved include resurrected the
-        # leak once already (v2.1.0, 8dba9d2). Host-gcc preprocessor check.
+        # register vocabulary at the top of ow_port.h; ow_port.h withdraws it
+        # at its end and nothing else guards that block, so a moved include
+        # resurrected the leak once already (v2.1.0, 8dba9d2). Host-gcc
+        # preprocessor check.
         run: make test-header-hygiene
       - name: Check the PlatformIO library manifest
         # PlatformIO resolves consumers through library.json rather than an

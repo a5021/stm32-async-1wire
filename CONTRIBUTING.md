@@ -61,7 +61,7 @@ interrupt-free, minimal CPU usage).
 
 - Follow the existing naming conventions in `inc/` and `src/`.
 - Keep functions short and focused on a single responsibility.
-- Prefer explicit register access via the macros in `ow_bits.h`.
+- Prefer explicit register access via the register macros in `ow_port.h`.
 - Do not introduce `delay_us()` calls or interrupt handlers.
 
 ## Build checklist

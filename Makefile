@@ -693,12 +693,13 @@ test-chips:
 test-mcu-dispatch:
 	@sh tests/check_mcu_dispatch.sh
 
-# --- Do the public headers leak the ow_bits register aliases? ---
-# onewire.h pulls the header-only port engine, which is written in ~38 short
-# register aliases (T1, PA, RC, D13, ...) from ow_bits.h; ow_port.h withdraws
-# them at its end because the inline bodies need them first. Nothing tied that
-# block to the definitions, so a moved include can silently resurrect them -
-# which is exactly what shipped in v2.1.0 (8dba9d2). Host compiler only.
+# --- Do the public headers leak the port's register vocabulary? ---
+# onewire.h pulls the header-only port engine, which is written in the
+# register aliases (T1, PA, RC, D13, ...), the BITS() machinery and the
+# register shortcuts; ow_port.h defines them at its top and withdraws them at
+# its end because every body must see them first. Nothing tied that block to
+# the definitions, so a moved include can silently resurrect them - which is
+# exactly what shipped in v2.1.0 (8dba9d2). Host compiler only.
 # See tests/check_header_hygiene.sh.
 .PHONY: test-header-hygiene
 test-header-hygiene:
@@ -1538,7 +1539,7 @@ help:
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"
-	@echo "  test-header-hygiene - Check the public headers do not leak ow_bits aliases (host gcc)"
+	@echo "  test-header-hygiene - Check the public headers do not leak the port register vocabulary (host gcc)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
