@@ -684,6 +684,15 @@ test-mocks:
 test-chips:
 	@sh tests/check_chips.sh
 
+# --- Do the Makefile and CMake MCU tables agree? ---
+# The MCU macro -> family/core-flags/system-source mapping is written down twice
+# (Makefile OW_MCU_* + the family chain, and cmake/ow_flags.cmake). A new part
+# added to only one side would otherwise take the other side's core flags and
+# still link. See tests/check_mcu_dispatch.sh - repo-side, no toolchain needed.
+.PHONY: test-mcu-dispatch
+test-mcu-dispatch:
+	@sh tests/check_mcu_dispatch.sh
+
 # --- Does a build produce the firmware it was asked for? ---
 # Needs the ARM toolchain, so it cannot live in test-chips or the other
 # repo-side checks: it builds two families and compares the resulting bytes.
@@ -1235,7 +1244,7 @@ clock-ref-check:
 	$(foreach c,$(F4_PART_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o $(TEST_OUT)/test_sysclk_nodefault_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
-test-clocks: test-chips test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
+test-clocks: test-chips test-mcu-dispatch test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
 # Every per-part F4 check, via the list above; kept as a target so the aggregate
 # and `make test` reach the same check by a name a reader can find.
 test-clocks-f4: clock-ref-check
@@ -1517,6 +1526,7 @@ help:
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
+	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"

@@ -436,6 +436,12 @@ jobs:
       - uses: actions/checkout@v5
       - name: Check the part matrix
         run: make test-chips
+      - name: Check the Makefile/CMake MCU tables agree
+        # The MCU macro -> family/core-flags/system-source mapping is written
+        # down twice (Makefile and cmake/ow_flags.cmake); nothing compared them,
+        # so a part added to one side could take the other's -mcpu and still
+        # link. Repo-side text parse, no toolchain (see tests/check_mcu_dispatch.sh).
+        run: make test-mcu-dispatch
       - name: Check the PlatformIO library manifest
         # PlatformIO resolves consumers through library.json rather than an
         # install tree, and nothing was reading it. This is a host-gcc check of
