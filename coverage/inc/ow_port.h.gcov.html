@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-17 07:06:40</td>
+            <td class="headerValue">2026-10-17 12:08:55</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">-</td>
@@ -931,11 +931,59 @@
 <span id="L840"><span class="lineNum">     840</span>         [<span class="tlaGBC" title="Branch 0 was taken 452 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2090 times"> + </span>]:<span class="tlaGNC">        2542 :     ow_port_set_pin_mode(on);</span></span>
 <span id="L841"><span class="lineNum">     841</span>                 :<span class="tlaGNC">        2542 : }</span></span>
 <span id="L842"><span class="lineNum">     842</span>                 :             : </span>
-<span id="L843"><span class="lineNum">     843</span>                 :             : #ifdef __cplusplus</span>
-<span id="L844"><span class="lineNum">     844</span>                 :             : }</span>
-<span id="L845"><span class="lineNum">     845</span>                 :             : #endif</span>
-<span id="L846"><span class="lineNum">     846</span>                 :             : </span>
-<span id="L847"><span class="lineNum">     847</span>                 :             : #endif /* OW_PORT_H */</span>
+<span id="L843"><span class="lineNum">     843</span>                 :             : /* --- Withdraw the ow_bits.h register aliases from the consumer namespace ---</span>
+<span id="L844"><span class="lineNum">     844</span>                 :             :  *  ow_bits.h defines ~38 single-letter register shortcuts (T1, PA, RC, D13, ...)</span>
+<span id="L845"><span class="lineNum">     845</span>                 :             :  *  that the MCU sections above and the engine below are written in. Because the</span>
+<span id="L846"><span class="lineNum">     846</span>                 :             :  *  engine is header-only, those aliases must stay visible while every inline</span>
+<span id="L847"><span class="lineNum">     847</span>                 :             :  *  body is parsed - they cannot be #undef'd in ow_bits.h itself. This header is</span>
+<span id="L848"><span class="lineNum">     848</span>                 :             :  *  the last one in the include chain that uses them, so this is the point where</span>
+<span id="L849"><span class="lineNum">     849</span>                 :             :  *  a TU that merely includes onewire.h is cleaned of them. The BITS() and the</span>
+<span id="L850"><span class="lineNum">     850</span>                 :             :  *  RCC_, TIM_ register shortcuts remain (the port's own vocabulary); this only</span>
+<span id="L851"><span class="lineNum">     851</span>                 :             :  *  removes the collision-prone one- and two-letter names. */</span>
+<span id="L852"><span class="lineNum">     852</span>                 :             : #undef D11</span>
+<span id="L853"><span class="lineNum">     853</span>                 :             : #undef D12</span>
+<span id="L854"><span class="lineNum">     854</span>                 :             : #undef D13</span>
+<span id="L855"><span class="lineNum">     855</span>                 :             : #undef D14</span>
+<span id="L856"><span class="lineNum">     856</span>                 :             : #undef D15</span>
+<span id="L857"><span class="lineNum">     857</span>                 :             : #undef D16</span>
+<span id="L858"><span class="lineNum">     858</span>                 :             : #undef D17</span>
+<span id="L859"><span class="lineNum">     859</span>                 :             : #undef D2</span>
+<span id="L860"><span class="lineNum">     860</span>                 :             : #undef A1</span>
+<span id="L861"><span class="lineNum">     861</span>                 :             : #undef A2</span>
+<span id="L862"><span class="lineNum">     862</span>                 :             : #undef A</span>
+<span id="L863"><span class="lineNum">     863</span>                 :             : #undef BK</span>
+<span id="L864"><span class="lineNum">     864</span>                 :             : #undef C1</span>
+<span id="L865"><span class="lineNum">     865</span>                 :             : #undef DB</span>
+<span id="L866"><span class="lineNum">     866</span>                 :             : #undef EX</span>
+<span id="L867"><span class="lineNum">     867</span>                 :             : #undef FL</span>
+<span id="L868"><span class="lineNum">     868</span>                 :             : #undef PA</span>
+<span id="L869"><span class="lineNum">     869</span>                 :             : #undef PB</span>
+<span id="L870"><span class="lineNum">     870</span>                 :             : #undef PC</span>
+<span id="L871"><span class="lineNum">     871</span>                 :             : #undef PD</span>
+<span id="L872"><span class="lineNum">     872</span>                 :             : #undef I1</span>
+<span id="L873"><span class="lineNum">     873</span>                 :             : #undef I2</span>
+<span id="L874"><span class="lineNum">     874</span>                 :             : #undef IW</span>
+<span id="L875"><span class="lineNum">     875</span>                 :             : #undef O</span>
+<span id="L876"><span class="lineNum">     876</span>                 :             : #undef PW</span>
+<span id="L877"><span class="lineNum">     877</span>                 :             : #undef RC</span>
+<span id="L878"><span class="lineNum">     878</span>                 :             : #undef RT</span>
+<span id="L879"><span class="lineNum">     879</span>                 :             : #undef S1</span>
+<span id="L880"><span class="lineNum">     880</span>                 :             : #undef S2</span>
+<span id="L881"><span class="lineNum">     881</span>                 :             : #undef T1</span>
+<span id="L882"><span class="lineNum">     882</span>                 :             : #undef T2</span>
+<span id="L883"><span class="lineNum">     883</span>                 :             : #undef T3</span>
+<span id="L884"><span class="lineNum">     884</span>                 :             : #undef T4</span>
+<span id="L885"><span class="lineNum">     885</span>                 :             : #undef U</span>
+<span id="L886"><span class="lineNum">     886</span>                 :             : #undef U1</span>
+<span id="L887"><span class="lineNum">     887</span>                 :             : #undef U2</span>
+<span id="L888"><span class="lineNum">     888</span>                 :             : #undef U3</span>
+<span id="L889"><span class="lineNum">     889</span>                 :             : #undef W</span>
+<span id="L890"><span class="lineNum">     890</span>                 :             : </span>
+<span id="L891"><span class="lineNum">     891</span>                 :             : #ifdef __cplusplus</span>
+<span id="L892"><span class="lineNum">     892</span>                 :             : }</span>
+<span id="L893"><span class="lineNum">     893</span>                 :             : #endif</span>
+<span id="L894"><span class="lineNum">     894</span>                 :             : </span>
+<span id="L895"><span class="lineNum">     895</span>                 :             : #endif /* OW_PORT_H */</span>
         </pre>
               </td>
             </tr>
