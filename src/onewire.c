@@ -43,6 +43,8 @@
 #define PRESENCE_PULSE_MAX (RESET_PULSE_MAX + POSITIVE_WIDTH_MAX + NEGATIVE_WIDTH_MAX)
 /** @brief CRC8 polynomial of the Dallas/Maxim 1-Wire algorithm */
 #define ONEWIRE_CRC8_POLY 0x8C
+/** @brief CRC16 polynomial of the Maxim 1-Wire algorithm (reflected 0x8005) */
+#define ONEWIRE_CRC16_POLY 0xA001u
 
 /* Hardware contract: TIM1 RCR is 8-bit (RCR = slots - 1), so one pass is
  * limited to 256 slots / 32 bytes. Locks the public limits against drift. */
@@ -269,6 +271,23 @@ uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {
             crc >>= 1;
             if (mix) crc ^= ONEWIRE_CRC8_POLY;
             inByte >>= 1;
+        }
+    }
+    return crc;
+}
+
+uint16_t onewire_crc16(const uint8_t* data, uint8_t len) {
+    uint16_t crc = 0;
+    // Process each byte in the buffer
+    for (uint8_t i = 0; i < len; i++) {
+        crc ^= data[i];
+        // Process each bit LSB-first (reflected Maxim CRC-16, polynomial 0xA001)
+        for (uint8_t b = 0; b < ONEWIRE_BITS_PER_BYTE; b++) {
+            if (crc & 0x0001u) {
+                crc = (uint16_t)((crc >> 1) ^ ONEWIRE_CRC16_POLY);
+            } else {
+                crc >>= 1;
+            }
         }
     }
     return crc;

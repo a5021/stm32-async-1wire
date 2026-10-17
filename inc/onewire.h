@@ -347,7 +347,7 @@ uint8_t onewire_search_active(void);
 /** @} */
 
 /**
- * @defgroup ONEWIRE_CRC CRC-8
+ * @defgroup ONEWIRE_CRC CRC Checksums
  * @{
  */
 
@@ -358,6 +358,19 @@ uint8_t onewire_search_active(void);
  * @return CRC-8 checksum value
  */
 uint8_t onewire_crc8(const uint8_t* data, uint8_t len);
+
+/**
+ * @brief Calculate the Maxim 1-Wire CRC-16 over a byte buffer
+ * @param[in] data Input buffer
+ * @param[in] len Number of bytes to process
+ * @return 16-bit CRC remainder (CRC-16/ARC parameters: polynomial 0x8005,
+ *         reflected 0xA001, initial value 0x0000, no final XOR)
+ * @note This is the raw remainder (the value that, appended low-byte-first,
+ *       drives a re-check to 0). Devices such as the DS2431 transmit the
+ *       inverted form (~value); the caller complements when comparing against
+ *       the bytes on the bus.
+ */
+uint16_t onewire_crc16(const uint8_t* data, uint8_t len);
 
 /** @} */
 
