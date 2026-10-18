@@ -735,6 +735,22 @@ test-version:
 test-ram:
 	@sh tests/check_ram_budget.sh
 
+# --- Hardware-in-the-loop on a real STM32H503CB (see tests/hil/) ---
+# Not in CI: a hosted runner has no ST-Link and no sensors. Builds the chosen
+# example for the H503, flashes it with the STM32CubeProgrammer CLI and reads
+# the UART. Skips (exit 0) when no probe or target is attached, so it is safe
+# to run anywhere. HIL_SCRIPT=smoke|scan|stats|lowpower (default smoke),
+# EXPECTED_DEVICES (optional floor on the device count), HIL_PORT, HIL_BAUD.
+PYTHON ?= python
+HIL_SCRIPT ?= smoke
+EXPECTED_DEVICES ?=
+HIL_PORT ?=
+HIL_BAUD ?= 115200
+
+.PHONY: test-hil
+test-hil:
+	@HIL_SCRIPT='$(HIL_SCRIPT)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
+
 # =============================================================================
 # BUILD TARGETS
 # =============================================================================
@@ -1545,6 +1561,7 @@ help:
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
+	@echo "  test-hil        - HIL on a real STM32H503CB (ST-Link + UART); skips without hardware"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"

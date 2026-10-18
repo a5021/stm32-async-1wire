@@ -100,3 +100,7 @@ docs/api/
 # (archived per-target matrices) and bench_logs/ (raw capture staging).
 docs/bench/
 bench_logs/
+
+# Python bytecode from the HIL harness
+__pycache__/
+*.pyc
