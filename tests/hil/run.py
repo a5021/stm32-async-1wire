@@ -137,6 +137,13 @@ def main(argv):
     log_path = common.save_log(script, ctx.lines)
     print("log: %s" % os.path.relpath(log_path, common.REPO))
     print(("PASS: " if ok else "FAIL: ") + message)
+    if not ok and window.fixed is not None:
+        # The window was pinned by hand, so a too-short pin is a plausible
+        # cause of its own - name it before the bench gets blamed.
+        print(
+            "note: fixed HIL_TIMEOUT=%g window; the default scheme grows with "
+            "the bus if left unset" % window.fixed
+        )
     return 0 if ok else 1
 
 
