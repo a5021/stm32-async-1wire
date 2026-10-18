@@ -7,13 +7,14 @@ the capture under bench_logs/hil/. Skips (exit 0) when no ST-Link or target is
 attached.
 
 Scripts: smoke (2_device_search), scan (4_scan_mode), stats (6_statistics),
-lowpower (7_low_power).
+lowpower (7_low_power), ds2431 (8_ds2431).
 """
 
 import os
 import sys
 
 import common
+import ds2431
 import lowpower
 import scan
 import smoke
@@ -24,6 +25,7 @@ SCRIPTS = {
     "scan": ("4_scan_mode", scan.run, scan.BANNER),
     "stats": ("6_statistics", stats.run, stats.BANNER),
     "lowpower": ("7_low_power", lowpower.run, lowpower.BANNER),
+    "ds2431": ("8_ds2431", ds2431.run, ds2431.BANNER),
 }
 
 # Capture windows for a bus of unknown size: the first number covers the boot
@@ -36,6 +38,7 @@ WINDOWS = {
     "scan": (5.0, 2.0),
     "stats": (15.0, 9.0),
     "lowpower": (15.0, 2.5),
+    "ds2431": (15.0, 0.0),
 }
 
 

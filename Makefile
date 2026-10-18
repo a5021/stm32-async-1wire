@@ -742,7 +742,7 @@ test-ram:
 # the harness was written on), builds the chosen example for it, flashes it
 # with the STM32CubeProgrammer CLI and reads the UART. Skips (exit 0) when no
 # probe or target is attached, so it is safe to run anywhere.
-# HIL_SCRIPT=smoke|scan|stats|lowpower (default smoke), EXPECTED_DEVICES
+# HIL_SCRIPT=smoke|scan|stats|lowpower|ds2431 (default smoke), EXPECTED_DEVICES
 # (optional floor on the device count), HIL_PORT (else the harness scans the
 # COM ports), HIL_BAUD, HIL_TIMEOUT (fixed window instead of the default
 # per-device budget), HIL_EXT (override the bench's EXT; empty means no
