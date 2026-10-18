@@ -55,8 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs a full EEPROM write cycle: Read Memory (baseline), Write Scratchpad,
   Read Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG hold-off), then
   Read Memory again to confirm the data landed. Uses `onewire_search_start()`
-  to discover the bus, then `ds2431_select()` + the four DS2431 commands.
-  Build with `make APP=8_ds2431`.
+  to discover the bus, then `ds2431_select()` + the four DS2431 commands. The
+  write cycle is one-shot; afterwards the example keeps re-running the
+  family-filtered search once a second, streaming its `Found N device(s)`
+  census and ROMs instead of falling idle (which is also what lets the HIL
+  harness find the COM port by scanning). Build with `make APP=8_ds2431`.
 
 - **`8_ds2431` wired through the build systems, docs and release.** The example
   joins the CMake example list (`-DOW_BUILD_EXAMPLES=ON`, its own

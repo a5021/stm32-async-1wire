@@ -209,7 +209,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 │   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
 │   ├── 6_statistics/main.c # Device search + stats dump every N cycles
 │   ├── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
-│   └── 8_ds2431/main.c     # DS2431 EEPROM: Read/Write/Read/Copy scratchpad cycle
+│   └── 8_ds2431/main.c     # DS2431: one EEPROM write cycle, then a repeating search
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)
@@ -269,7 +269,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
-| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface and leaves the bus idle when done. |
+| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf

@@ -1,24 +1,36 @@
 /**
  * @file main.c
- * @brief DS2431 EEPROM demo: Read Memory, Write/Read/Copy Scratchpad cycle
+ * @brief DS2431 EEPROM demo: one Read/Write/Read/Copy cycle, then a repeating search
  *
  * Demonstrates the non-blocking DS2431 driver. The shared platform layer
  * (app.h/app.c) hides the UART, the clock and the polled millisecond clock.
  *
- * The demo runs the full EEPROM write cycle on every DS2431 the family
- * filtered search finds: Read Memory (baseline), Write Scratchpad, Read
- * Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG hold-off), then
- * Read Memory again to confirm the data landed in EEPROM. Every operation
- * runs and leaves the bus idle when done, so a command never starts another
- * on its own. All low-level bus operations live in the shared 1-Wire layer
- * (onewire.h/onewire.c); this example only uses the public high-level
- * interface.
+ * On the first search the demo runs the full EEPROM write cycle on every
+ * DS2431 the family-filtered search finds: Read Memory (baseline), Write
+ * Scratchpad, Read Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG
+ * hold-off), then Read Memory again to confirm the data landed in EEPROM. The
+ * write cycle is deliberately one-shot: once every device has been served the
+ * demo announces itself and then keeps re-running the search once a second,
+ * so the bench goes on streaming its `Found N device(s)` census and ROMs
+ * instead of falling silent. That steady identification stream is what the
+ * HIL harness scans the COM ports for - a firmware that has gone idle carries
+ * nothing to find - and it also keeps the demo readable on a terminal.
+ *
+ * Every operation runs and leaves the bus idle when done, so a command never
+ * starts another on its own. All low-level bus operations live in the shared
+ * 1-Wire layer (onewire.h/onewire.c); this example only uses the public
+ * high-level interface.
  */
 
 #include "app.h"
 #include "ds2431.h"
 
 #define DS2431_SEARCH_MAX_DEVICES 8u
+
+/* Delay between the identification searches that follow the one-shot EEPROM
+ * cycle. Kept below the harness's shortest COM-port scan pass (2 s) so a scan
+ * always catches a burst of census and ROM lines. */
+#define IDENTIFY_INTERVAL_MS 1000u
 
 typedef enum {
     STEP_SEARCH = 0,
@@ -33,6 +45,8 @@ typedef enum {
 static step_t step = STEP_SEARCH;
 static uint8_t search_running = 1;
 static uint8_t cmd_running = 0;
+static uint8_t demo_done = 0;
+static uint32_t next_search_ms = 0;
 static uint8_t found_roms[DS2431_SEARCH_MAX_DEVICES][DS2431_ROM_BYTES];
 static uint8_t rom_count = 0;
 static uint8_t dev_idx = 0;
@@ -144,16 +158,28 @@ static void finish_step(step_t s) {
     }
 }
 
+/* Reset the per-round identification state and start a family-filtered search.
+ * Safe to call between rounds: the search engine only runs while the one-wire
+ * layer is idle, and by this point the previous command has left the driver in
+ * DONE. */
+static void start_search(void) {
+    rom_count = 0;
+    dev_idx = 0;
+    step = STEP_SEARCH;
+    uart_write_str("Searching 1-Wire bus...\r\n");
+    onewire_search_start(device_found_sink, DS2431_SEARCH_MAX_DEVICES, 0xF0, DS2431_FAMILY_CODE);
+    search_running = 1;
+}
+
 int main(void) {
     app_init();
 
     uart_write_str("DS2431 8_ds2431 starting...\r\n");
-    uart_write_str("Searching 1-Wire bus...\r\n");
     ds2431_init();
 #if OW_PARASITE_POWER
     ds2431_set_parasite(1);
 #endif
-    onewire_search_start(device_found_sink, DS2431_SEARCH_MAX_DEVICES, 0xF0, DS2431_FAMILY_CODE);
+    start_search();
 
     for (;;) {
         if (search_running) {
@@ -162,8 +188,9 @@ int main(void) {
                 uart_write_str("Found ");
                 uart_write_int(onewire_search_count());
                 uart_write_str(" device(s).\r\n");
-                if (rom_count != 0u) {
-                    dev_idx = 0;
+                if (!demo_done && rom_count != 0u) {
+                    // The one-shot EEPROM cycle: serve the first device here,
+                    // the READ_BACK branch walks on to the rest.
                     uart_write_str("Selected ROM: ");
                     print_rom(found_roms[0]);
                     uart_write_str("\r\n");
@@ -172,14 +199,22 @@ int main(void) {
                     start_step(step);
                     cmd_running = 1;
                 } else {
-                    uart_write_str("No DS2431 found.\r\n");
+                    if (rom_count == 0u) {
+                        uart_write_str("No DS2431 found.\r\n");
+                    }
+                    // Identification only: report this round's census, then
+                    // search again after the interval.
+                    next_search_ms = app_millis() + IDENTIFY_INTERVAL_MS;
                     step = STEP_DONE;
                 }
             }
         } else if (step == STEP_DONE) {
-            uart_write_str("Demo done.\r\n");
-            for (;;) {
-                uart_poll_tx();
+            if (!demo_done) {
+                demo_done = 1;
+                uart_write_str("Demo done.\r\n");
+            }
+            if ((int32_t)(app_millis() - next_search_ms) >= 0) {
+                start_search();
             }
         } else if (!cmd_running) {
             start_step(step);
@@ -196,6 +231,7 @@ int main(void) {
                 dev_idx++;
                 if (dev_idx >= rom_count) {
                     step = STEP_DONE;
+                    next_search_ms = app_millis() + IDENTIFY_INTERVAL_MS;
                 } else {
                     uart_write_str("Selected ROM: ");
                     print_rom(found_roms[dev_idx]);
