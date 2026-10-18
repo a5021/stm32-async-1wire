@@ -19,6 +19,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 
 ## Table of Contents
 
+- [Supported Devices](#supported-devices)
 - [Features](#features)
 - [Requirements](#requirements)
 - [File Structure](#file-structure)
@@ -40,6 +41,21 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
 - [Support](#support)
 - [References](#references)
 
+## Supported Devices
+
+Two 1-Wire slaves ship with their own non-blocking driver; any other slave can
+be driven directly from the shared bus layer.
+
+| Device | Type | Family code | Driver | Example |
+|--------|------|-------------|--------|---------|
+| **DS18B20** | Digital temperature sensor, 9-12-bit, ±0.5 °C, parasite or external power | `0x28` | `inc/ds18b20.h` + `src/ds18b20.c` | `1_basic` … `7_low_power` |
+| **DS2431** | 1 kbit (128-byte) EEPROM, 4 × 32-byte pages via an 8-byte scratchpad | `0x2D` | `inc/ds2431.h` + `src/ds2431.c` | `8_ds2431` |
+
+Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer, so they
+share one bus: each driver's search filters on the family code, keeping the two
+device types apart. Slaves without a driver here (DS2413, ...) can be driven by
+including `"onewire.h"` and building on the bus primitives.
+
 ## Features
 
 - Pure Bare-Metal: direct register manipulation, no HAL or LL libraries.
@@ -55,6 +71,12 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a s
     `make OW_MCU=STM32F407xx` / `make OW_MCU=STM32G031xx` /
     `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx`
     (STM32F103xB is the default).
+- DS2431 EEPROM Driver: `inc/ds2431.h` + `src/ds2431.c` — the four DS2431
+  commands (Read Memory 0xF0, Write/Read Scratchpad 0x0F/0xAA, Copy Scratchpad
+  0x55) as non-blocking, polled state machines on the same shared 1-Wire layer
+  and TIM1/DMA backend, with external and parasite power (strong pull-up
+  hold-off for Copy Scratchpad) — see
+  [DS2431 EEPROM Driver](#ds2431-eeprom-driver) and `examples/8_ds2431`.
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -392,9 +414,14 @@ console). Measurement logs are deliberately not kept in the repo.
 
 ### STM32F103C8T6 (Blue Pill)
 
-Reference setup: STM32F103C8T6 (Blue Pill), 8 × DS18B20 on one 1-Wire bus
-(PA10), flashed via ST-Link, USART1 TX at 115200 8N1 via a CP2102 USB-UART
-adapter.
+Reference setup: STM32F103C8T6 (Blue Pill), a DS18B20 temperature bus and a
+DS2431 EEPROM sharing one 1-Wire line (PA10, external VDD), flashed via
+ST-Link, USART1 TX at 115200 8N1 via a CP2102 USB-UART adapter. The DS2431
+path is exercised by `make APP=8_ds2431` — a Read Memory / Write Scratchpad /
+Read Scratchpad / Copy Scratchpad / Read Memory cycle on every DS2431 the
+search finds — and re-checked on demand with the HIL harness
+(`make test-hil HIL_SCRIPT=ds2431`); the read-back matched the write pattern on
+every device.
 
 ### STM32F030F4P6 (TSSOP20)
 
@@ -590,6 +617,20 @@ make OW_MCU=STM32G031xx APP=7_low_power                              # same exam
 | GND           | Ground       | GND         |
 
 Note: A 4.7kΩ pull-up resistor is required between the PA10 and 3.3V lines.
+
+#### DS2431 EEPROM
+
+Same bus as the DS18B20 (one 1-Wire line, shared pull-up):
+
+| STM32F103 Pin | Function    | DS2431 Pin |
+|---------------|-------------|------------|
+| PA10          | 1-Wire Data | DQ (Data)  |
+| 3.3V          | Power       | VDD        |
+| GND           | Ground      | GND        |
+
+Both slaves can sit on the same bus: each driver's search filters on the family
+code (0x28 vs 0x2D), so the sensors never appear in the DS2431 census and vice
+versa. See `examples/8_ds2431`.
 
 #### Debug UART (optional)
 
@@ -984,6 +1025,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (18 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
@@ -1088,6 +1130,31 @@ tests + the 18-test DS2431 suite, every family), `make test-lowpower` (full
 suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
 327 against G0, 328 against G4, plus the same 18 DS2431 tests) and
 `make test-ndebug` (322 / 323 / 324 / 325 + the same 18, asserts off).
+
+### Hardware-in-the-Loop (HIL)
+
+An optional, on-demand harness (`tests/hil/`) drives the examples on a real
+bench. It is **not** part of CI — a hosted runner has neither an ST-Link nor
+sensors. It identifies the attached board from the ST-Link probe, builds the
+matching example, flashes it with the STM32CubeProgrammer CLI, reads the UART
+and checks the capture:
+
+```bash
+make test-hil                       # smoke: 2_device_search on the reference bench
+make test-hil HIL_SCRIPT=scan       # 4_scan_mode
+make test-hil HIL_SCRIPT=stats      # 6_statistics
+make test-hil HIL_SCRIPT=lowpower   # 7_low_power
+make test-hil HIL_SCRIPT=ds2431     # 8_ds2431 — the EEPROM cycle on every DS2431 found
+```
+
+The board is auto-detected (`STM32F103xB` reference bench, or the
+`STM32H503xx`); pin it with `HIL_MCU=` — a mismatch against the attached target
+fails rather than flashing the wrong part. The COM port is scanned unless
+`HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (empty
+means an externally powered bus), and `HIL_TIMEOUT=` forces a fixed window
+instead of the per-device budget. When no probe or target is attached the
+harness skips and exits 0, so it is safe to run anywhere. Raw captures land
+under `bench_logs/hil/` (gitignored).
 
 ### Integration: four ways to use the library
 
@@ -2412,6 +2479,47 @@ Called when a measurement cycle completes — provides temperature data in tenth
 - `DS18B20_TEMP_ERROR_NO_SENSOR`: No sensor detected on the bus.
 - `DS18B20_TEMP_ERROR_CRC_FAIL`: Data corruption detected via CRC mismatch.
 - `DS18B20_TEMP_ERROR_GENERIC`: Unspecified communication error.
+
+### DS2431 EEPROM Driver
+
+The DS2431 1 kbit EEPROM has its own non-blocking driver (`inc/ds2431.h` +
+`src/ds2431.c`) on the shared 1-Wire layer. Call `ds2431_init()` **instead of**
+`ds18b20_init()` — the two drivers share the bus engine, so mixing them on one
+bus is unsupported — and address devices with `ds2431_select()`.
+
+```C
+void    ds2431_init(void);
+void    ds2431_select(const uint8_t* rom);
+void    ds2431_set_parasite(uint8_t parasite);
+uint8_t ds2431_parasite_mode(void);
+uint8_t ds2431_last_command_ok(void);
+```
+
+- `ds2431_select()` — Match ROM to one device (8-byte ROM); accepted only while
+  the driver is idle.
+- `ds2431_set_parasite(1)` — strong pull-up hold-off for Copy Scratchpad under
+  parasite power; `ds2431_parasite_mode()` reads it back.
+- `ds2431_last_command_ok()` — 1 when the last command completed cleanly (e.g.
+  the Read Scratchpad TA/ES echo matched).
+
+```C
+void    ds2431_read_memory(uint8_t* dst, uint16_t addr, uint8_t len);
+uint8_t ds2431_read_memory_poll(void);
+uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len);
+uint8_t ds2431_write_scratchpad_poll(void);
+void    ds2431_read_scratchpad(uint8_t* buf);
+uint8_t ds2431_read_scratchpad_poll(void);
+void    ds2431_copy_scratchpad(void);
+uint8_t ds2431_copy_scratchpad_poll(void);
+```
+
+Each operation is a non-blocking state machine: start it, then poll `*_poll()`
+from the main loop until it returns 1. Read Memory (0xF0) reads 1-8 bytes;
+Write Scratchpad (0x0F) fills the 8-byte page-aligned block, Read Scratchpad
+(0xAA) reads it back plus the TA/ES echo, and Copy Scratchpad (0x55) programs
+the EEPROM page, its poll honouring the t_PROG hold-off. The full cycle — Read
+Memory → Write Scratchpad → Read Scratchpad → Copy Scratchpad → Read Memory —
+is in `examples/8_ds2431`.
 
 ## Performance
 
