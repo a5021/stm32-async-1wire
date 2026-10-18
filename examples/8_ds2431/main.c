@@ -5,13 +5,14 @@
  * Demonstrates the non-blocking DS2431 driver. The shared platform layer
  * (app.h/app.c) hides the UART, the clock and the polled millisecond clock.
  *
- * The demo runs a full EEPROM write cycle: Read Memory (baseline), Write
- * Scratchpad, Read Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG
- * hold-off), then Read Memory again to confirm the data landed in EEPROM.
- * Every operation runs and leaves the bus idle when done, so a command never
- * starts another on its own. All low-level bus operations live in the shared
- * 1-Wire layer (onewire.h/onewire.c); this example only uses the public
- * high-level interface.
+ * The demo runs the full EEPROM write cycle on every DS2431 the family
+ * filtered search finds: Read Memory (baseline), Write Scratchpad, Read
+ * Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG hold-off), then
+ * Read Memory again to confirm the data landed in EEPROM. Every operation
+ * runs and leaves the bus idle when done, so a command never starts another
+ * on its own. All low-level bus operations live in the shared 1-Wire layer
+ * (onewire.h/onewire.c); this example only uses the public high-level
+ * interface.
  */
 
 #include "app.h"
@@ -32,12 +33,13 @@ typedef enum {
 static step_t step = STEP_SEARCH;
 static uint8_t search_running = 1;
 static uint8_t cmd_running = 0;
+static uint8_t found_roms[DS2431_SEARCH_MAX_DEVICES][DS2431_ROM_BYTES];
+static uint8_t rom_count = 0;
+static uint8_t dev_idx = 0;
 
 static uint8_t eeprom_data[DS2431_EEPROM_SIZE];
 static uint8_t scratch_frame[DS2431_SCRATCH_FRAME];
 static uint8_t write_data[DS2431_SCRATCH_SIZE] = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04};
-static uint8_t selected_rom[DS2431_ROM_BYTES];
-static uint8_t rom_found = 0;
 
 static void print_rom(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS2431_ROM_BYTES; i++) {
@@ -56,11 +58,11 @@ static void print_bytes(const char* label, const uint8_t* data, uint8_t len) {
 }
 
 static uint8_t device_found_sink(const uint8_t* found_rom) {
-    if (!rom_found) {
+    if (rom_count < DS2431_SEARCH_MAX_DEVICES) {
         for (uint8_t i = 0; i < DS2431_ROM_BYTES; i++) {
-            selected_rom[i] = found_rom[i];
+            found_roms[rom_count][i] = found_rom[i];
         }
-        rom_found = 1;
+        rom_count++;
     }
     uart_write_str("  ROM: ");
     print_rom(found_rom);
@@ -160,11 +162,12 @@ int main(void) {
                 uart_write_str("Found ");
                 uart_write_int(onewire_search_count());
                 uart_write_str(" device(s).\r\n");
-                if (rom_found) {
+                if (rom_count != 0u) {
+                    dev_idx = 0;
                     uart_write_str("Selected ROM: ");
-                    print_rom(selected_rom);
+                    print_rom(found_roms[0]);
                     uart_write_str("\r\n");
-                    ds2431_select(selected_rom);
+                    ds2431_select(found_roms[0]);
                     step = STEP_READ_BASELINE;
                     start_step(step);
                     cmd_running = 1;
@@ -184,7 +187,25 @@ int main(void) {
         } else if (poll_step(step)) {
             cmd_running = 0;
             finish_step(step);
-            step = (step_t)(step + 1);
+            if (step == STEP_READ_BACK) {
+                // One device's EEPROM cycle is over; move on to the next
+                // found DS2431, or finish once every device has been served.
+                // select() is accepted here: the previous command completed,
+                // leaving the driver in DONE, and the search is no longer
+                // active.
+                dev_idx++;
+                if (dev_idx >= rom_count) {
+                    step = STEP_DONE;
+                } else {
+                    uart_write_str("Selected ROM: ");
+                    print_rom(found_roms[dev_idx]);
+                    uart_write_str("\r\n");
+                    ds2431_select(found_roms[dev_idx]);
+                    step = STEP_READ_BASELINE;
+                }
+            } else {
+                step = (step_t)(step + 1);
+            }
         }
         uart_poll_tx();
     }
