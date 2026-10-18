@@ -745,17 +745,23 @@ test-ram:
 # HIL_SCRIPT=smoke|scan|stats|lowpower (default smoke), EXPECTED_DEVICES
 # (optional floor on the device count), HIL_PORT (else the harness scans the
 # COM ports), HIL_BAUD, HIL_TIMEOUT (fixed window instead of the default
-# per-device budget).
+# per-device budget), HIL_EXT (override the bench's EXT; empty means no
+# strong pull-up, for an externally powered bus). They are forwarded as
+# env-prefixes because the harness reads them from the process environment;
+# HIL_PORT= passes an empty-but-present value, which a shell one-liner on
+# Windows cannot.
 PYTHON ?= python
 HIL_SCRIPT ?= smoke
 HIL_MCU ?=
 EXPECTED_DEVICES ?=
 HIL_PORT ?=
 HIL_BAUD ?= 115200
+HIL_TIMEOUT ?=
+HIL_EXT ?=
 
 .PHONY: test-hil
 test-hil:
-	@HIL_SCRIPT='$(HIL_SCRIPT)' HIL_MCU='$(HIL_MCU)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
+	@HIL_SCRIPT='$(HIL_SCRIPT)' HIL_MCU='$(HIL_MCU)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' HIL_TIMEOUT='$(HIL_TIMEOUT)' HIL_EXT='$(HIL_EXT)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
 
 # =============================================================================
 # BUILD TARGETS
