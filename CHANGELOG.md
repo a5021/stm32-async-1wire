@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Release artifacts ship as one archive.** Downloads are now a single
+  `firmware-<version>.zip` holding the per-variant `.elf`/`.hex`/`.bin` files
+  plus `LICENSE` and `SHA256SUMS.txt`, instead of ~400 individual release
+  assets. The release workflow packages it after staging the checksums and
+  uploads that one file.
+
 ## [2.4.0] - 2026-10-18
 
 ### Added

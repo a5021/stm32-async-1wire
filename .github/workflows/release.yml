@@ -230,11 +230,21 @@ jobs:
           cp LICENSE dist/LICENSE
           cd dist && sha256sum * > SHA256SUMS.txt
 
+      # Step 8: Ship one archive instead of ~400 loose release assets.
+      # A single upload also keeps us clear of GitHub's secondary rate limit,
+      # which a burst of 400+ asset uploads trips.
+      - name: Package firmware archive
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cd dist
+          zip -9 -X "../firmware-${version}.zip" *
+
       # Step 10: Publish the release with notes and artifacts
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/*
+          files: firmware-*.zip
+          fail_on_unmatched_files: true
           generate_release_notes: true
           body: |
             # stm32-async-1wire
@@ -259,8 +269,7 @@ jobs:
               resolves the family, the part file and the clock defaults;
               `OW_TARGET`/`OW_CHIP` remain the detailed selectors.
             - **Release artifacts for `8_ds2431`**: 9 firmware variants (one
-              per MCU at its default clock) ship as `.elf`/`.hex`/`.bin`
-              below.
+              per MCU at its default clock) ship inside `firmware-2.4.0.zip`.
             - **Unified port headers** (`inc/ow_mcu.h` + `inc/ow_port.h`):
               the family backends and the shared TIM1+DMA core now live in
               `inc/`, so external projects need a single include path
@@ -363,8 +372,9 @@ jobs:
 
             ## Download
 
-            Each example ships as `.bin` / `.hex` / `.elf` (see `SHA256SUMS.txt`
-            for integrity checksums):
+            Everything ships in one archive, `firmware-2.4.0.zip`: `.bin` / `.hex` /
+            `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
+            checks. The table below names the artifact stems in that archive:
 
             | Target | Clock | Artifact stems |
             |--------|-------|----------------|
