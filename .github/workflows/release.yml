@@ -239,15 +239,15 @@ jobs:
           body: |
             # stm32-async-1wire
 
-            Non-blocking 1-Wire master for STM32 with a DS18B20 temperature driver
-            built on top — bare-metal, register-level.
+            Non-blocking 1-Wire master for STM32 with DS18B20 temperature and
+            DS2431 EEPROM drivers built on top — bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA — no interrupts,
             no software delays, minimal CPU usage.             One MCU-independent core and
             seven header-only backends (F0/F1/F3/F4/G0/G4/H5) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx`.
 
-            ## What's new in 2.3.1
+            ## What's new in 2.4.0
 
             - **DS2431 EEPROM driver** (`inc/ds2431.h`, `src/ds2431.c`): the
               DS2431 command-transaction engine (Read Memory, Write/Read
@@ -261,6 +261,18 @@ jobs:
             - **Release artifacts for `8_ds2431`**: 9 firmware variants (one
               per MCU at its default clock) ship as `.elf`/`.hex`/`.bin`
               below.
+            - **Unified port headers** (`inc/ow_mcu.h` + `inc/ow_port.h`):
+              the family backends and the shared TIM1+DMA core now live in
+              `inc/`, so external projects need a single include path
+              (`-Iinc`). Firmware images are byte-identical.
+            - **`SystemCoreClock` auto-detection**: when `OW_PORT_SYSCLK_MHZ`
+              is not passed, the port core derives the prescaler and the
+              filter tier from the CMSIS `SystemCoreClock` instead of a
+              guessed header default.
+            - **Manual integrators**: the `OW_PORT_TARGET_F0` …
+              `OW_PORT_TARGET_H5` macros are gone — select with the CMSIS
+              device macro (`-DSTM32F103xB`) or a family macro (`-DSTM32F1`).
+              Make/CMake builds are unaffected.
 
             ## What's new in 2.3.0
 

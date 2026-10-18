@@ -1,12 +1,15 @@
 # Changelog
 
 All notable changes to stm32-async-1wire — a non-blocking 1-Wire layer for
-STM32 and the DS18B20 driver built on top of it — are documented in this file.
+STM32 and the DS18B20 and DS2431 drivers built on top of it — are documented in
+this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.4.0] - 2026-10-18
 
 ### Added
 
@@ -2021,4 +2024,5 @@ without a section here, and its changes had drifted into the section below.
 [2.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.0...v2.1.1
 [2.2.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...v2.2.0
 [2.3.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...v2.3.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...HEAD
+[2.4.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...v2.4.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...HEAD
