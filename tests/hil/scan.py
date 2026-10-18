@@ -8,14 +8,16 @@ temperature, and rejects the DS18B20 power-on-reset (85.0 C) and brownout
 
 import common
 
+BANNER = "DS18B20 4_scan_mode starting..."
+
 
 def run(uart, ctx):
-    reader = common.LineReader(uart)
+    reader = common.LineReader(uart, initial=ctx.seed)
     rounds = []
     current = []
     errors = []
     search_count = 0
-    for t, line in reader.iter_lines(ctx.timeout, sink=ctx.lines):
+    for t, line in reader.iter_lines(ctx.window, sink=ctx.lines):
         m = common.FOUND_RE.match(line)
         if m:
             search_count = int(m.group(1))

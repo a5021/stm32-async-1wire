@@ -13,12 +13,12 @@ MODE = "OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms"
 
 
 def run(uart, ctx):
-    reader = common.LineReader(uart)
+    reader = common.LineReader(uart, initial=ctx.seed)
     saw_banner = False
     saw_mode = False
     temps = []
     errors = []
-    for t, line in reader.iter_lines(ctx.timeout, sink=ctx.lines):
+    for t, line in reader.iter_lines(ctx.window, sink=ctx.lines):
         if line == BANNER:
             saw_banner = True
         elif line == MODE:

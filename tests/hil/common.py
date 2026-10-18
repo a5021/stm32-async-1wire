@@ -1,9 +1,10 @@
 """Shared helpers for the hardware-in-the-loop harness in tests/hil/.
 
-Builds an example for STM32H503xx, flashes it with the STM32CubeProgrammer CLI
-and reads the example's UART output. Nothing here is wired into CI:
-`make test-hil` is the only entry point, and it skips when no ST-Link or target
-is attached.
+Identifies which bench is attached (the F103 reference board or the H503 WeAct
+the harness was written on; see BENCH_PROFILES), builds the chosen example for
+it, flashes it with the STM32CubeProgrammer CLI and reads the example's UART
+output. Nothing here is wired into CI: `make test-hil` is the only entry
+point, and it skips when no ST-Link or target is attached.
 """
 
 import glob
@@ -17,14 +18,42 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.par
 BUILD_DIR = os.path.join(REPO, "build")
 LOG_DIR = os.path.join(REPO, "bench_logs", "hil")
 
-MCU = "STM32H503xx"
 FLASH_ADDR = "0x08000000"
 
-# The H503CB bench is parasite-powered, so the firmware must engage the strong
-# pull-up during conversion or the sensors brown out (127.9 C) and report their
-# power-on-reset value (85.0 C). Override with HIL_EXT to build a different
-# variant (HIL_EXT= for an externally powered bus).
-BUILD_EXT = os.environ.get("HIL_EXT", "-DOW_PARASITE_POWER=1")
+# The benches the harness knows, keyed by the OW_MCU device macro. STM32F103xB
+# comes first: it is the project's default build part (the Makefile's OW_CHIP
+# fallback and README "STM32F103xB is the default") and the reference bench in
+# the supported-families table; the H503 WeAct board behind it is the
+# parasite-powered bench this harness was written on. run.py reads the profile
+# off the target the probe attached to; HIL_MCU pins one explicitly.
+#
+# Both benches run a parasite-powered bus, so both profiles build with the
+# strong pull-up enabled: without it the sensors brown out mid-conversion
+# (127.9 C) and report their power-on-reset value (85.0 C). HIL_EXT= (empty)
+# opts out for an externally powered bus.
+BENCH_PROFILES = {
+    "STM32F103xB": {
+        # CubeProgrammer prints a family-level name for this part ("STM32F10x
+        # Medium-density devices" on Blue Pill-class boards), so the hints
+        # carry both spellings; device_id is the DBGMCU fallback when the
+        # name line is absent.
+        "hints": ("STM32F103", "STM32F10x"),
+        "device_id": "0x410",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
+    "STM32H503xx": {
+        "hints": ("STM32H503", "STM32H50x"),
+        "device_id": "0x474",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
+}
+
+DEVICE_NAME_RE = re.compile(r"Device name\s+:\s*(.+)")
+DEVICE_ID_RE = re.compile(r"Device ID\s+:\s*(0x[0-9A-Fa-f]+)")
+
+# The bench the build targets; select_bench() sets both before any build.
+MCU = None
+BUILD_EXT = None
 
 # Examples that need an extra define to exercise the path the check is about.
 # 7_low_power only prints its WFE mode line (and only sleeps) when
@@ -39,6 +68,37 @@ def build_ext(app):
     if BUILD_EXT and extra:
         return (BUILD_EXT + " " + extra).strip()
     return BUILD_EXT or extra
+
+
+def select_bench(mcu):
+    """Point the build at a bench profile: the OW_MCU macro and its EXT."""
+    global MCU, BUILD_EXT
+    MCU = mcu
+    BUILD_EXT = (
+        os.environ["HIL_EXT"] if "HIL_EXT" in os.environ else BENCH_PROFILES[mcu]["ext"]
+    )
+
+
+def bench_from_probe(stdout):
+    """Map the CubeProgrammer connect output to a bench profile key, or None.
+
+    CubeProgrammer prints both a device name and a DBGMCU device id; either
+    spelling is accepted, because the name is family-level rather than exact
+    on some exports.
+    """
+    m = DEVICE_NAME_RE.search(stdout)
+    tag = m.group(1).strip() if m else ""
+    ident = DEVICE_ID_RE.search(stdout)
+    for mcu, profile in BENCH_PROFILES.items():
+        if any(hint in tag for hint in profile["hints"]):
+            return mcu
+        if (
+            ident is not None
+            and profile["device_id"]
+            and ident.group(1).lower() == profile["device_id"]
+        ):
+            return mcu
+    return None
 
 # The search prints every ROM in one burst and the examples' default TX ring
 # (256 B) drops the newest bytes when it overflows, so a 7-device bus can lose a
@@ -58,25 +118,78 @@ TEMP_RE = re.compile(r"^(-?\d+\.\d)\s+C$")
 SEPARATOR_RE = re.compile(r"^-{5,}$")
 FOUND_RE = re.compile(r"^Found (\d+) device")
 
+# Anything every example can print: the boot banner, the census line, a sweep
+# separator, or a hex ROM/measurement/statistics line. This is what find_port()
+# looks for among the COM ports when HIL_PORT was left unset.
+FINGERPRINT_RE = re.compile(
+    r"DS18B20|1-Wire|Found \d+ device|^-{3,}$|(?:[0-9A-F]{2} ){7}[0-9A-F]{2}"
+)
+
+
+class Budget:
+    """The capture window for one run.
+
+    A fixed window sized for the H503 bench's six sensors is tight for the
+    eight-sensor F103 reference bench, so by default the window grows with the
+    firmware's own `Found N device(s)` census: LineReader hands every line to
+    note_line(), which widens the window to cover what the bus actually
+    reports. An explicit HIL_TIMEOUT overrides the whole scheme with a fixed
+    window, as before.
+    """
+
+    def __init__(self, base=0.0, per_device=0.0, expected=0, fixed=None):
+        self.base = base
+        self.per_device = per_device
+        self.devices = max(expected, 0)
+        self.fixed = fixed
+        self.start = None
+
+    def remaining(self):
+        now = time.monotonic()
+        if self.start is None:
+            self.start = now
+        spent = now - self.start
+        if self.fixed is not None:
+            return self.fixed - spent
+        return self.base + self.per_device * self.devices - spent
+
+    def note_line(self, line):
+        if self.fixed is not None:
+            return
+        m = FOUND_RE.match(line)
+        found = int(m.group(1)) if m else 0
+        if found > self.devices:
+            self.devices = found
+
 
 class Ctx:
     """Everything a check needs: identity, expectations and the captured log."""
 
-    def __init__(self, script, app, expected_devices, port, baud, timeout):
+    def __init__(self, script, app, expected_devices, port, baud, window,
+                 seed=b""):
         self.script = script
         self.app = app
         self.expected_devices = expected_devices
         self.port = port
         self.baud = baud
-        self.timeout = timeout
+        self.window = window
+        # Bytes read by wait_for_banner() up to and including the boot banner;
+        # every check starts its LineReader from here so the new run's banner
+        # and the lines that arrived with it are not lost.
+        self.seed = seed
         self.lines = []
 
 
 def default_port():
+    """The port the caller pinned, or None when the caller wants a scan.
+
+    A wrong pin is worse than a scan: with HIL_PORT set but silent, opening it
+    must fail loudly instead of quietly binding to another bench's console.
+    """
     for key in ("HIL_PORT", "UART_PORT"):
         if os.environ.get(key):
             return os.environ[key]
-    return "COM5" if os.name == "nt" else "/dev/ttyUSB0"
+    return None
 
 
 def open_uart(port=None, baud=None, timeout=0.2):
@@ -108,6 +221,35 @@ def parse_measurement(line):
     return rom, temp, (None if temp is not None else value)
 
 
+def wait_for_banner(uart, banner, timeout=5.0):
+    """Read until the example's boot banner arrives; return the bytes after it.
+
+    The previous firmware keeps transmitting while the new image is being
+    flashed, so its tail would otherwise be captured as this run's output.
+    Instead of sleeping a fixed interval and hoping the tail has ended before
+    the new firmware's banner does, this reads and throws away complete lines
+    until the banner turns up - the proof that the new image has booted and
+    its own output is now arriving. Returns the banner line plus everything
+    already read after it, so the caller can seed the check's LineReader with
+    it; returns None on timeout (the caller falls back to clearing the RX
+    buffer and proceeding as before).
+    """
+    buf = b""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        uart.timeout = 0.2
+        chunk = uart.read(4096)
+        if chunk:
+            buf += chunk
+        while b"\r\n" in buf:
+            raw, rest = buf.split(b"\r\n", 1)
+            if raw.decode("ascii", "replace").strip() == banner:
+                # Keep the banner line and every byte already read after it.
+                return raw + b"\r\n" + rest
+            buf = rest
+    return None
+
+
 class LineReader:
     """Reads UART lines, tolerating CRLF, partial writes and overrun-split lines.
 
@@ -117,16 +259,30 @@ class LineReader:
     therefore matched independently; a torn fragment simply matches nothing.
     """
 
-    def __init__(self, ser, flush_timeout=1.0):
+    def __init__(self, ser, flush_timeout=1.0, initial=b""):
         self.ser = ser
-        self.buf = b""
+        self.buf = initial
         self.flush_timeout = flush_timeout
         self.last_data = time.monotonic()
 
-    def iter_lines(self, duration, sink=None):
-        end = time.monotonic() + duration
+    def iter_lines(self, window, sink=None):
+        """Yield (poll_stamp, line) while `window` lasts.
+
+        `window` is a number of seconds, or a Budget - usually ctx.window, and
+        always a Budget when the call site left HIL_TIMEOUT unset. A Budget is
+        consulted on every poll instead of a fixed deadline and every
+        delivered line is shown to budget.note_line() first, so the firmware's
+        census line, arriving mid-capture, can extend the window for the
+        devices it reports.
+        """
+        budget = window if hasattr(window, "remaining") else None
+        end = None if budget is not None else time.monotonic() + window
         while True:
-            remaining = end - time.monotonic()
+            remaining = (
+                budget.remaining()
+                if budget is not None
+                else end - time.monotonic()
+            )
             if remaining <= 0:
                 break
             self.ser.timeout = min(0.2, remaining)
@@ -138,6 +294,8 @@ class LineReader:
             while b"\r\n" in self.buf:
                 raw, self.buf = self.buf.split(b"\r\n", 1)
                 line = raw.decode("ascii", "replace").strip()
+                if budget is not None:
+                    budget.note_line(line)
                 if sink is not None:
                     sink.append((now, line))
                 yield now, line
@@ -145,9 +303,46 @@ class LineReader:
                 raw, self.buf = self.buf, b""
                 self.last_data = now
                 line = raw.decode("ascii", "replace").strip()
+                if budget is not None:
+                    budget.note_line(line)
                 if sink is not None:
                     sink.append((now, line))
                 yield now, line
+
+
+def find_port(baud=None, window=2.0):
+    """Scan the COM ports for one that carries example output.
+
+    Returns (device, tried); device is None when no port matched. The firmware
+    is transmit-only, so reading a port cannot disturb it, and ports that
+    refuse to open belong to someone else's session and are skipped. The scan
+    runs twice: a short pass for consoles that stream steadily, then a longer
+    one for the gaps between (7_low_power prints every ~5 s). `tried` lists
+    every candidate, for the caller's error message.
+    """
+    import serial
+    from serial.tools import list_ports
+
+    baud = int(baud or os.environ.get("HIL_BAUD", "115200"))
+    tried = []
+    for pass_window in (window, window * 3.0):
+        for info in sorted(list_ports.comports(), key=lambda p: p.device):
+            if info.device not in tried:
+                tried.append(info.device)
+            try:
+                ser = serial.Serial(info.device, baud, timeout=0.2)
+            except Exception:
+                continue
+            try:
+                reader = LineReader(ser, flush_timeout=0.8)
+                for _, line in reader.iter_lines(pass_window):
+                    if FINGERPRINT_RE.search(line):
+                        return info.device, tried
+            except Exception:
+                continue
+            finally:
+                ser.close()
+    return None, tried
 
 
 def find_programmer():
@@ -166,6 +361,8 @@ def run_make(app):
     make = shutil.which("make")
     if not make:
         raise RuntimeError("make not found on PATH")
+    if not MCU:
+        raise RuntimeError("no bench selected; select_bench() before building")
     cmd = [make, "APP=%s" % app, "OW_MCU=%s" % MCU, "EXT=%s" % build_ext(app)]
     if UART_TX_SIZE:
         cmd.append("UART_TX_SIZE_%s=%d" % (app, UART_TX_SIZE))

@@ -735,21 +735,27 @@ test-version:
 test-ram:
 	@sh tests/check_ram_budget.sh
 
-# --- Hardware-in-the-loop on a real STM32H503CB (see tests/hil/) ---
-# Not in CI: a hosted runner has no ST-Link and no sensors. Builds the chosen
-# example for the H503, flashes it with the STM32CubeProgrammer CLI and reads
-# the UART. Skips (exit 0) when no probe or target is attached, so it is safe
-# to run anywhere. HIL_SCRIPT=smoke|scan|stats|lowpower (default smoke),
-# EXPECTED_DEVICES (optional floor on the device count), HIL_PORT, HIL_BAUD.
+# --- Hardware-in-the-loop on a real DS18B20 bench (see tests/hil/) ---
+# Not in CI: a hosted runner has no ST-Link and no sensors. Identifies the
+# attached bench from the probe (HIL_MCU pins one explicitly; STM32F103xB is
+# the reference bench and the fallback, STM32H503xx the parasite-powered WeAct
+# the harness was written on), builds the chosen example for it, flashes it
+# with the STM32CubeProgrammer CLI and reads the UART. Skips (exit 0) when no
+# probe or target is attached, so it is safe to run anywhere.
+# HIL_SCRIPT=smoke|scan|stats|lowpower (default smoke), EXPECTED_DEVICES
+# (optional floor on the device count), HIL_PORT (else the harness scans the
+# COM ports), HIL_BAUD, HIL_TIMEOUT (fixed window instead of the default
+# per-device budget).
 PYTHON ?= python
 HIL_SCRIPT ?= smoke
+HIL_MCU ?=
 EXPECTED_DEVICES ?=
 HIL_PORT ?=
 HIL_BAUD ?= 115200
 
 .PHONY: test-hil
 test-hil:
-	@HIL_SCRIPT='$(HIL_SCRIPT)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
+	@HIL_SCRIPT='$(HIL_SCRIPT)' HIL_MCU='$(HIL_MCU)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
 
 # =============================================================================
 # BUILD TARGETS
@@ -1561,7 +1567,7 @@ help:
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
-	@echo "  test-hil        - HIL on a real STM32H503CB (ST-Link + UART); skips without hardware"
+	@echo "  test-hil        - HIL on a real DS18B20 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"

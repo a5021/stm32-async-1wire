@@ -29,6 +29,8 @@ import re
 
 import common
 
+BANNER = "DS18B20 6_statistics (stats) starting..."
+
 HEADER_RE = re.compile(r"^--- stats \[(\d+) c\] ---$")
 SENSOR_RE = re.compile(
     r"^((?:[0-9A-F]{2} ){7}[0-9A-F]{2}):(\d+)-(\d+) n(\d+) e(\d+)$"
@@ -45,12 +47,12 @@ PULSES_PER_CYCLE = 72  # DS18B20_SCRATCHPAD_BITS captured per measurement
 
 
 def run(uart, ctx):
-    reader = common.LineReader(uart)
+    reader = common.LineReader(uart, initial=ctx.seed)
     dumps = []
     cur = None
     temps = []
     found = 0
-    for t, line in reader.iter_lines(ctx.timeout, sink=ctx.lines):
+    for t, line in reader.iter_lines(ctx.window, sink=ctx.lines):
         if cur is not None:
             m = SENSOR_RE.match(line)
             if m:

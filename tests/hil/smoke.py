@@ -8,14 +8,16 @@ check follows the bus actually attached; EXPECTED_DEVICES is an optional floor.
 
 import common
 
+BANNER = "DS18B20 2_device_search starting..."
+
 
 def run(uart, ctx):
-    reader = common.LineReader(uart)
+    reader = common.LineReader(uart, initial=ctx.seed)
     roms = set()
     temps = []
     errors = []
     search_count = 0
-    for t, line in reader.iter_lines(ctx.timeout, sink=ctx.lines):
+    for t, line in reader.iter_lines(ctx.window, sink=ctx.lines):
         m = common.FOUND_RE.match(line)
         if m:
             search_count = int(m.group(1))
