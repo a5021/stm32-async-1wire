@@ -199,6 +199,22 @@ static void model_run(ds_model_t* m) {
             m->ok = 0u; /* echo mismatch: the write did not reach this device */
             break;
         }
+        if (g_pending != 0u) {
+            /* The read-back data must match the payload the write sent: the
+             * device's CRC-16 covers what it stored, so it cannot catch a byte
+             * corrupted on the way to the device. */
+            uint8_t same = 1u;
+            for (uint8_t i = 0; i <= g_es; i++) {
+                if (g_cur_read[3 + i] != g_payload[i]) {
+                    same = 0u;
+                    break;
+                }
+            }
+            if (same == 0u) {
+                m->ok = 0u; /* payload mismatch: byte corrupted in flight */
+                break;
+            }
+        }
         m->out_len = DS2431_SCRATCH_FRAME;
         memcpy(m->out, g_cur_read, DS2431_SCRATCH_FRAME);
         break;
@@ -270,6 +286,11 @@ static void txn_setup(void) {
             g_alo = addr;
             g_ahi = 0u;
             g_es = (uint8_t)(next_byte() & 0x07u);
+            /* The payload the latched write would have sent: the read-back
+             * verification compares the frame data against it. */
+            for (uint8_t i = 0; i <= g_es; i++) {
+                g_payload[i] = next_byte();
+            }
             g_pending = 1u;
         }
         break;
@@ -309,6 +330,7 @@ static void txn_setup(void) {
     case 2u:
         if (g_pending != 0u) {
             ds2431_test_set_pending(g_alo, g_ahi, g_es);
+            ds2431_test_set_payload(g_payload, (uint8_t)(g_es + 1u));
         }
         ds2431_read_scratchpad(g_out);
         break;

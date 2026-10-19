@@ -291,7 +291,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
-| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
+| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -1024,7 +1024,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (22 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (23 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
@@ -1065,7 +1065,7 @@ make test-g0     # same suite against the STM32G0 backend mock
 make test-f4     # same suite against the STM32F4 backend mock
 make test-g4     # same suite against the STM32G4 backend mock
 make test-h5     # same suite against the STM32H5 backend mock
-make test-ds2431 # DS2431 EEPROM suite (22 tests; also runs inside every make test)
+make test-ds2431 # DS2431 EEPROM suite (23 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
@@ -1088,7 +1088,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    runs as an extra, same count) and 313 against H5 (which also runs the
    250 MHz and 8 MHz host variants `ds18b20_test_h5_250mhz.exe` and
    `ds18b20_test_h5_8mhz.exe` as extras, same count). Every wrapper runs
-   the DS2431 suite alongside it (22 tests, see `make test-ds2431`).
+   the DS2431 suite alongside it (23 tests, see `make test-ds2431`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -1121,15 +1121,15 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     (`test_ow_stats`)
 -   DS2431 EEPROM command transactions (`test_ds2431` in the separate
     `make test-ds2431` suite): Read Memory over Skip/Match ROM, Write/Read
-    Scratchpad with TA/ES echo verification, Copy Scratchpad with the t_PROG
-    hold-off, presence-abort and out-of-range paths, plus a full end-to-end
-    write cycle
+    Scratchpad with TA/ES echo and written-data read-back verification, Copy
+    Scratchpad with the t_PROG hold-off, presence-abort and out-of-range paths,
+    plus a full end-to-end write cycle
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 22-test DS2431 suite, every family), `make test-lowpower` (full
+tests + the 23-test DS2431 suite, every family), `make test-lowpower` (full
 suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
-327 against G0, 328 against G4, plus the same 22 DS2431 tests) and
-`make test-ndebug` (322 / 323 / 324 / 325 + the same 22, asserts off).
+327 against G0, 328 against G4, plus the same 23 DS2431 tests) and
+`make test-ndebug` (322 / 323 / 324 / 325 + the same 23, asserts off).
 
 ### Hardware-in-the-Loop (HIL)
 
@@ -2510,7 +2510,7 @@ uint8_t ds2431_last_command_ok(void);
 - `ds2431_set_parasite(1)` — strong pull-up hold-off for Copy Scratchpad under
   parasite power; `ds2431_parasite_mode()` reads it back.
 - `ds2431_last_command_ok()` — 1 when the last command completed cleanly (e.g.
-  the Read Scratchpad TA/ES echo matched).
+  the Read Scratchpad TA/ES echo and the written data both matched).
 
 ```C
 void    ds2431_read_memory(uint8_t* dst, uint16_t addr, uint8_t len);
@@ -2526,8 +2526,9 @@ uint8_t ds2431_copy_scratchpad_poll(void);
 Each operation is a non-blocking state machine: start it, then poll `*_poll()`
 from the main loop until it returns 1. Read Memory (0xF0) reads 1-8 bytes;
 Write Scratchpad (0x0F) fills the 8-byte page-aligned block, Read Scratchpad
-(0xAA) reads it back plus the TA/ES echo, and Copy Scratchpad (0x55) programs
-the EEPROM page, its poll honouring the t_PROG hold-off. The full cycle — Read
+(0xAA) reads it back plus the TA/ES echo and verifies the data against the
+payload that was written, and Copy Scratchpad (0x55) programs the EEPROM page,
+its poll honouring the t_PROG hold-off. The full cycle — Read
 Memory → Write Scratchpad → Read Scratchpad → Copy Scratchpad → Read Memory —
 is in `examples/8_ds2431`.
 

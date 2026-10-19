@@ -7,7 +7,8 @@
  *     path, presence abort, pass-size and range guarding
  *   - Write Scratchpad (0x0F): command build, latch of TA + ES
  *   - Read Scratchpad (0xAA): 11-byte frame data path, TA/ES echo
- *     verification (pass + mismatch), raw read without a pending write
+ *     verification (pass + mismatch), read-back data verification, raw read
+ *     without a pending write
  *   - Copy Scratchpad (0x55): t_PROG 11ms hold-off, requires a pending
  *     write
  *   - full write cycle end-to-end (write -> verify -> copy)
@@ -308,8 +309,10 @@ void test_write_scratchpad_out_of_range_ignored(void) {
 
 void test_write_scratchpad_short_write(void) {
     /* A shorter-than-block write leaves the rest of the 8-byte scratchpad
-     * stale; the driver still latches TA + ES and can be copied. ES for a
-     * 4-byte write at 0x08 is (0x08 + 4 - 1) & 0x07 = 3. */
+     * stale. The device accepts it and latches TA + ES, but sets PF and
+     * blocks Copy Scratchpad (datasheet: a valid copy needs 8 bytes from a
+     * row boundary). ES for a 4-byte write at 0x08 is
+     * (0x08 + 4 - 1) & 0x07 = 3. */
     static const uint8_t k_bytes[] = {0xCC, 0x0F, 0x08, 0x00, 0x0A, 0x0B, 0x0C, 0x0D};
     hw_set_capture_source(de_capture_present);
     ds2431_write_scratchpad(0x08, &k_bytes[4], 4);
@@ -415,6 +418,30 @@ void test_read_scratchpad_crc_mismatch(void) {
     de_read_pulses[3 * DS2431_BITS_PER_BYTE + 0] =
         (de_read_pulses[3 * DS2431_BITS_PER_BYTE + 0] == ONE) ? ZERO : ONE;
 
+    ds2431_read_scratchpad(got);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
+}
+
+void test_read_scratchpad_payload_mismatch(void) {
+    /* A byte corrupted on the way to the device is latched in the scratchpad:
+     * the device computes the reply CRC-16 over what it stored and the TA/ES
+     * echo still matches, so only the payload comparison can catch it before
+     * Copy Scratchpad commits the corrupted byte. */
+    const uint8_t data[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    uint8_t frame[DS2431_SCRATCH_FRAME];
+    uint8_t got[DS2431_SCRATCH_FRAME];
+    hw_set_capture_source(de_capture_present);
+    ds2431_write_scratchpad(0x40, data, 8);
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
+    frame[0] = 0x40;
+    frame[1] = 0x00;
+    frame[2] = 0x07;
+    memcpy(&frame[3], data, 8);
+    frame[3 + 2] ^= 0x01u;       /* byte 2 arrived corrupted */
+    set_scratchpad_reply(frame); /* CRC is valid over the corrupted content */
     ds2431_read_scratchpad(got);
     drive(ds2431_read_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
@@ -529,6 +556,14 @@ void test_write_cycle_e2e(void) {
     drive(ds2431_copy_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
 
+    /* 3b. A scratchpad read after the copy still verifies: Copy must not
+     * disturb the latched write payload the read-back comparison uses. */
+    set_scratchpad_reply(frame);
+    ds2431_read_scratchpad(got);
+    drive_ops(ds2431_read_scratchpad_poll, 2);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
     /* 4. Read the block back from the EEPROM (the harness models the EEPROM
      * contents as the same fed pulses). */
     set_read_bytes(data, 8);
@@ -563,6 +598,7 @@ void run_test_ds2431(void) {
     TEST_RUN(test_read_scratchpad_echo_verified);
     TEST_RUN(test_read_scratchpad_echo_mismatch);
     TEST_RUN(test_read_scratchpad_crc_mismatch);
+    TEST_RUN(test_read_scratchpad_payload_mismatch);
     TEST_RUN(test_read_scratchpad_raw_without_pending_write);
     TEST_RUN(test_copy_scratchpad_requires_pending_write);
     TEST_RUN(test_copy_scratchpad_waits_tprog);

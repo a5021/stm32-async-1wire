@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assets. The release workflow packages it after staging the checksums and
   uploads that one file.
 
+### Fixed
+
+- **DS2431: detect a byte corrupted on the way to the device during Write
+  Scratchpad.** The Read Scratchpad verification now compares the read-back
+  data bytes with the payload that was sent, in addition to the TA/ES echo and
+  the reply CRC-16. The device computes that CRC over what it actually stored,
+  so a write-path bit flip passed both the CRC and the echo and Copy Scratchpad
+  would commit it; `ds2431_last_command_ok()` now reports 0 for such a frame.
+  Copy Scratchpad authorizes from the latched `ctx.es` instead of overwriting
+  the payload, so a scratchpad read after a copy still verifies. Host suite: 23
+  tests.
+
 ## [2.4.0] - 2026-10-18
 
 ### Added

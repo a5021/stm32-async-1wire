@@ -70,10 +70,19 @@ static uint8_t ds2431_build(uint8_t command) {
         p += DS2431_BITS_PER_BYTE;
         bytes++;
     }
-    for (uint8_t i = 0; i < ctx.plen; i++) {
-        onewire_encode_byte(p, ctx.payload[i]);
+    if (command == DS2431_COPY_SCRATCHPAD) {
+        // Copy Scratchpad authorizes with the latched E/S byte. Encode it from
+        // ctx.es so the last write payload stays intact for the read-back
+        // verification (the scratchpad frame read compares against it).
+        onewire_encode_byte(p, ctx.es);
         p += DS2431_BITS_PER_BYTE;
         bytes++;
+    } else {
+        for (uint8_t i = 0; i < ctx.plen; i++) {
+            onewire_encode_byte(p, ctx.payload[i]);
+            p += DS2431_BITS_PER_BYTE;
+            bytes++;
+        }
     }
     const uint8_t slots = (uint8_t)(bytes * DS2431_BITS_PER_BYTE);
     /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
@@ -223,15 +232,32 @@ static uint8_t ds2431_poll(void) {
             ctx.phase = DS2431_PH_DONE;
             break;
         }
-        if (((ctx.flags & (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) ==
-             (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) &&
-            (ctx.raw[0] != ctx.addr_lo || ctx.raw[1] != ctx.addr_hi ||
-             (ctx.raw[2] & 0x07u) != ctx.es)) {
-            // The scratchpad frame echoes neither the latched target address
-            // nor the expected end-offset status byte: the write did not
-            // reach this device. Finish without the success flag.
-            ctx.phase = DS2431_PH_DONE;
-            break;
+        if ((ctx.flags & (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) ==
+            (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) {
+            if (ctx.raw[0] != ctx.addr_lo || ctx.raw[1] != ctx.addr_hi ||
+                (ctx.raw[2] & 0x07u) != ctx.es) {
+                // The scratchpad frame echoes neither the latched target
+                // address nor the expected end-offset status byte: the write
+                // did not reach this device. Finish without the success flag.
+                ctx.phase = DS2431_PH_DONE;
+                break;
+            }
+            // The reply CRC-16 is computed by the device over what it stored,
+            // so a byte corrupted on the way to the device passes it. Compare
+            // the read-back data with the payload that was sent. Writes are
+            // 8-byte aligned, so the payload starts at scratchpad byte 0 and
+            // ES is the index of the last written byte.
+            uint8_t i = 0;
+            while (i <= ctx.es && ctx.raw[3u + i] == ctx.payload[i]) {
+                i++;
+            }
+            if (i <= ctx.es) {
+                // A latched byte differs from the payload: the write was
+                // corrupted in flight. Finish without the success flag so
+                // Copy Scratchpad is not authorized from this frame.
+                ctx.phase = DS2431_PH_DONE;
+                break;
+            }
         }
         ctx.flags |= DS2431_FLAG_OK;
         ctx.phase = DS2431_PH_DONE;
@@ -385,8 +411,7 @@ void ds2431_copy_scratchpad(void) {
         return;
     }
     ctx.len = 0; // no read phase
-    ctx.plen = 1;
-    ctx.payload[0] = ctx.es;
+    ctx.plen = 0; // ES comes from ctx.es; the write payload stays for the echo check
     ds2431_start(DS2431_COPY_SCRATCHPAD, 0);
 }
 
@@ -418,7 +443,8 @@ uint8_t ds2431_parasite_mode(void) { return (uint8_t)((ctx.flags & DS2431_FLAG_P
 /**
  * @brief Result of the last completed DS2431 operation
  * @return 1 when the last ds2431_*_poll() finished an operation that found a
- *         device present (and, for reads, verified its data), 0 when it
+ *         device present (and, for reads, verified its data, including the
+ *         Write Scratchpad payload read back from the scratchpad), 0 when it
  *         aborted or nothing ran yet
  */
 uint8_t ds2431_last_command_ok(void) { return (uint8_t)((ctx.flags & DS2431_FLAG_OK) != 0u); }

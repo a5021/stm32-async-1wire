@@ -41,6 +41,18 @@ void ds2431_test_set_pending(uint8_t addr_lo, uint8_t addr_hi, uint8_t es) {
     ctx.flags |= DS2431_FLAG_PENDING;
 }
 
+void ds2431_test_set_payload(const uint8_t* data, uint8_t len) {
+    if (data == NULL) {
+        return;
+    }
+    if (len > DS2431_SCRATCH_SIZE) {
+        len = DS2431_SCRATCH_SIZE;
+    }
+    for (uint8_t i = 0; i < len; i++) {
+        ctx.payload[i] = data[i];
+    }
+}
+
 uint8_t ds2431_test_is_finished(void) {
     return (uint8_t)((ctx.flags & DS2431_FLAG_FINISHED) != 0u);
 }

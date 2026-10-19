@@ -21,6 +21,11 @@ void ds2431_test_reset_ctx(void);
  * accepted, without having to run the Write Scratchpad operation first. */
 void ds2431_test_set_pending(uint8_t addr_lo, uint8_t addr_hi, uint8_t es);
 
+/* Load the payload the last Write Scratchpad would have sent, so a following
+ * Read Scratchpad verifies it against the read-back scratchpad data without
+ * having to run the write operation first. */
+void ds2431_test_set_payload(const uint8_t* data, uint8_t len);
+
 /* 1 once the driver has finished the last operation (FINISHED flag), i.e. the
  * last ds2431_*_poll() returned 1 and the timer has been handed back. */
 uint8_t ds2431_test_is_finished(void);

@@ -16,8 +16,7 @@
  * - Non-blocking state machine architecture (start/poll pairs)
  * - Read Memory (0xF0) in passes of up to 8 bytes per bus transaction
  * - Full write cycle: Write Scratchpad (0x0F) -> Read Scratchpad (0xAA,
- *   echo-verified against the latched target address and the expected
- *   end-offset status byte) -> Copy Scratchpad (0x55)
+ *   TA/ES echo and written-data read-back verified) -> Copy Scratchpad (0x55)
  * - Parasite-power support: the strong pull-up is engaged for the t_PROG
  *   programming window of Copy Scratchpad (ds2431_set_parasite(1))
  * - Optional Match ROM (0x55 + 8-byte ROM) addressing from a bus search;
@@ -30,7 +29,11 @@
  * Scratchpad reply ends with an inverted CRC-16 over the command, the target
  * address (TA1/TA2), the E/S byte and the 8 scratchpad data bytes; the driver
  * reads and verifies it (onewire_crc16()) and additionally compares the
- * TA1/TA2/ES echo against what the last Write Scratchpad latched.
+ * TA1/TA2/ES echo against what the last Write Scratchpad latched. Because the
+ * device computes that CRC over what it actually stored, the read-back data
+ * bytes are also compared with the payload that was sent: a byte corrupted on
+ * the way to the device during Write Scratchpad passes the CRC and the echo,
+ * so only this comparison catches it before Copy Scratchpad commits it.
  *
  * Usage:
  * 1. Call ds2431_init() once at startup (instead of ds18b20_init(): the two
@@ -41,8 +44,9 @@
  *    ds2431_select() so subsequent operations are addressed to that device
  * 3. Read back memory: ds2431_read_memory() + ds2431_read_memory_poll()
  * 4. Program a page: ds2431_write_scratchpad() (8-byte block) + poll,
- *    then ds2431_read_scratchpad() + poll (verify the TA/ES echo via
- *    ds2431_last_command_ok()), then ds2431_copy_scratchpad() + poll
+ *    then ds2431_read_scratchpad() + poll (verify the TA/ES echo and the
+ *    written data via ds2431_last_command_ok()), then
+ *    ds2431_copy_scratchpad() + poll
  * 5. Partial block writes are read-modify-write at the application level:
  *    read the 8-byte block, modify the bytes of interest, write the whole
  *    block back
@@ -141,7 +145,9 @@ extern "C" {
  *       command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads
  *       those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with
  *       onewire_crc16() before reporting the frame as valid. The TA/ES echo is
- *       additionally compared against what the last Write Scratchpad latched.
+ *       additionally compared against what the last Write Scratchpad latched,
+ *       and the read-back data bytes are compared with the payload that was
+ *       sent, so a write corrupted in flight is not reported as successful.
  */
 #define DS2431_READ_SCRATCHPAD 0xAA
 
