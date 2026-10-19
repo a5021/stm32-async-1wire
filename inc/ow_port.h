@@ -177,7 +177,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *  The 1-Wire bus on all seven of these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
- *  marker that triggers the feed DMA into CCR3.  Those 17 functions are one
+ *  marker that triggers the feed DMA into CCR3.  Those 20 functions are one
  *  piece of code, not four that happen to look alike - they were four, because
  *  each backend was written against its own reference manual and then never
  *  merged.

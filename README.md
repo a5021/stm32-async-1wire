@@ -124,8 +124,8 @@ including `"onewire.h"` and building on the bus primitives.
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F401xE, STM32F446RE,
-  STM32G031x6, STM32G474CB, STM32H503CB; see port backends in `port/`).
-- Sensor: DS18B20 digital temperature sensor
+  STM32G031x6, STM32G474CB, STM32H503CB; see the per-family sections in `inc/ow_mcu.h`).
+- Sensor: DS18B20 temperature sensor and/or a DS2431 EEPROM
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default with `OW_MCU=STM32F401xC`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default with `OW_MCU=STM32F446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default with `OW_MCU=STM32G474xx`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default with `OW_MCU=STM32H503xx`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
@@ -149,7 +149,7 @@ including `"onewire.h"` and building on the bus primitives.
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
 │   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
-│   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (17 ow_port_* functions) + family select
+│   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (20 ow_port_* functions) + family select
 │   └── ow_mcu.h            # Per-MCU facts for the engine (7 family sections: clocks, PA10 mux, DMA assignment)
 ├── port/                   # Per-MCU build artifacts for the examples (linker scripts, debug projects)
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10
@@ -1024,7 +1024,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (18 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (22 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
@@ -1065,7 +1065,7 @@ make test-g0     # same suite against the STM32G0 backend mock
 make test-f4     # same suite against the STM32F4 backend mock
 make test-g4     # same suite against the STM32G4 backend mock
 make test-h5     # same suite against the STM32H5 backend mock
-make test-ds2431 # DS2431 EEPROM suite (18 tests; also runs inside every make test)
+make test-ds2431 # DS2431 EEPROM suite (22 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
@@ -1088,7 +1088,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    runs as an extra, same count) and 313 against H5 (which also runs the
    250 MHz and 8 MHz host variants `ds18b20_test_h5_250mhz.exe` and
    `ds18b20_test_h5_8mhz.exe` as extras, same count). Every wrapper runs
-   the DS2431 suite alongside it (18 tests, see `make test-ds2431`).
+   the DS2431 suite alongside it (22 tests, see `make test-ds2431`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -1126,10 +1126,10 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     write cycle
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 18-test DS2431 suite, every family), `make test-lowpower` (full
+tests + the 22-test DS2431 suite, every family), `make test-lowpower` (full
 suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
-327 against G0, 328 against G4, plus the same 18 DS2431 tests) and
-`make test-ndebug` (322 / 323 / 324 / 325 + the same 18, asserts off).
+327 against G0, 328 against G4, plus the same 22 DS2431 tests) and
+`make test-ndebug` (322 / 323 / 324 / 325 + the same 22, asserts off).
 
 ### Hardware-in-the-Loop (HIL)
 
@@ -1191,6 +1191,16 @@ cmake --build build
 ```
 
 This is the path to prefer: nothing has to be downloaded or configured first, and CI builds it against every family on every change.
+
+The cache variables are:
+
+| Variable | Meaning |
+|----------|---------|
+| `OW_MCU` | Exact STM32 device macro (`STM32F103xB`, `STM32H503xx`, ...); selects the part file automatically |
+| `OW_TARGET` / `OW_CHIP` | Legacy family (`f0`...`h5`) and part (`f401xc`, ...) selectors; still honoured, but `OW_MCU` is the documented interface |
+| `OW_SYSCLK_MHZ` | System clock in MHz; empty = the part's own default from `chips/<part>.mk` (mirrors the Makefile's `SYSCLK_MHZ`) |
+| `OW_EXTRA_DEFINES` | Extra `-D` definitions applied to every target, e.g. `"-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1"` |
+| `OW_BUILD_EXAMPLES` | Build the example applications (`OFF` by default) |
 
 #### 2. CMake `find_package`
 

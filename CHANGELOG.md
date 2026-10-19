@@ -51,9 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Scratchpad (0x0F) latches a pending write cycle (target address + ES); Read
   Scratchpad (0xAA) reads the 11-byte frame and echo-verifies TA/ES when a
   write is pending; Copy Scratchpad (0x55) holds the t_PROG window. Parasite
-  power is supported via `ds2431_set_parasite()`. The context uses a union
-  (cmd/cap/pulse) so the command table, reset capture and read capture share
-  one 161-byte buffer. Host suite: 18 tests in `tests/test/test_ds2431.c`
+  power is supported via `ds2431_set_parasite()`. Host suite: 22 tests in
+  `tests/test/test_ds2431.c`
   (reset/presence, all four commands, echo match/mismatch, parasite, buffer
   safety, full write cycle). Fuzz: `tests/fuzz/fuzz_ds2431_txn.c` mirrors
   `fuzz_txn.c` — single-op-per-input, reference model (ok/parasite/out-buffer),

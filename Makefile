@@ -1573,7 +1573,7 @@ help:
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
-	@echo "  test-hil        - HIL on a real DS18B20 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
+	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
