@@ -448,7 +448,7 @@ void test_read_scratchpad_payload_mismatch(void) {
     frame[1] = 0x00;
     frame[2] = 0x07;
     memcpy(&frame[3], data, 8);
-    frame[3 + 2] ^= 0x01u;       /* byte 2 arrived corrupted */
+    frame[3 + 2] ^= 0x01u; /* byte 2 arrived corrupted */
     set_scratchpad_reply(frame); /* CRC is valid over the corrupted content */
     ds2431_read_scratchpad(got);
     drive(ds2431_read_scratchpad_poll);

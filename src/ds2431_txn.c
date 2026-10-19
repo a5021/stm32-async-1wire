@@ -82,7 +82,6 @@ static uint8_t ds2431_build(uint8_t command) {
         // ctx.es so the last write payload stays intact for the read-back
         // verification (the scratchpad frame read compares against it).
         onewire_encode_byte(p, ctx.es);
-        p += DS2431_BITS_PER_BYTE;
         bytes++;
     } else {
         for (uint8_t i = 0; i < ctx.plen; i++) {
@@ -137,8 +136,8 @@ static uint8_t ds2431_start(uint8_t command, uint8_t* out) {
  *       logic 1 after the CRC - and derives the real length here.
  */
 static uint8_t ds2431_scratchpad_data_len(const uint8_t* frame) {
-    uint8_t last = (uint8_t)((frame[2] & 0x07u) + 1u);  /* E[2:0] + 1, 1 .. 8 */
-    uint8_t first = (uint8_t)(frame[0] & 0x07u);        /* T[2:0],     0 .. 7 */
+    uint8_t last = (uint8_t)((frame[2] & 0x07u) + 1u); /* E[2:0] + 1, 1 .. 8 */
+    uint8_t first = (uint8_t)(frame[0] & 0x07u); /* T[2:0],     0 .. 7 */
     if (last <= first) {
         return 0;
     }
