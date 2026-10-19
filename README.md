@@ -21,7 +21,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public surf
 
 - [Supported Devices](#supported-devices)
 - [Features](#features)
-- [Upgrading to 3.0.0](#upgrading-to-300)
+- [Upgrading: the renamed macros](#upgrading-the-renamed-macros)
 - [Requirements](#requirements)
 - [File Structure](#file-structure)
 - [Examples](#examples)
@@ -119,14 +119,14 @@ including `"onewire.h"` and building on the bus primitives.
   non-blocking UART dump; all stubs inline to nothing in production builds —
   see [Signal Statistics Module](#signal-statistics-module-ow_stats).
 
-## Upgrading to 3.0.0
+## Upgrading: the renamed macros
 
-3.0.0 is a breaking release: the public macros lost the `PORT_` infix, because
-the port layer is private to the library and a public macro named after it
-invited consumers to depend on something they cannot see. There are no
-compatibility aliases — the old names are gone, deliberately.
+The public macros lost the `PORT_` infix, because the port layer is private to
+the library and a public macro named after it invited consumers to depend on
+something they cannot see. There are no compatibility aliases — the old names
+are gone, deliberately.
 
-| 2.4.0 | 3.0.0 | what it is |
+| before | after | what it is |
 | --- | --- | --- |
 | `OW_PORT_FAMILY_F0` … `OW_PORT_FAMILY_H5` | `OW_FAMILY_F0` … `OW_FAMILY_H5` | the family selection token (`inc/ow_board.h`) |
 | `OW_PORT_SYSCLK_MHZ` | `OW_SYSCLK_MHZ` | the system clock the build compiles in |
