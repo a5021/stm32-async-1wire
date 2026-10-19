@@ -90,8 +90,41 @@ check_header ow_mcu.h OW_MCU_H
 check_header ds18b20.h DS18B20_ROM_BYTES
 check_header ds2431.h DS2431_FAMILY_CODE
 
+# ---------------------------------------------------------------------------
+# The public surface must speak in OW_*, never in the engine's vocabulary.
+# ---------------------------------------------------------------------------
+# The public headers are OW_FAMILY_*, OW_SYSCLK_MHZ, OW_LOW_POWER,
+# OW_*_MAX_SYSCLK_MHZ - the board facts a consumer legitimately needs. The
+# engine's own vocabulary (OW_PORT_*, ow_port_*) names its registers, DMA
+# channels and register shortcuts, and it is private: the engine headers are
+# not installed, so a consumer cannot even open what such a name would point
+# at. A public header that mentions it invites a dependency that breaks the
+# moment the engine is refactored.
+#
+# This is the tie for the 3.0.0 rename: the public macros were renamed in one
+# sweep, and this stops a new OW_PORT_* from creeping back into inc/.
+check_public_names() {
+    for hdr in "$INC"/*.h; do
+        hits=$(grep -nE 'OW_PORT_[A-Z0-9_]*|ow_port_[a-z0-9_]*' "$hdr" 2>/dev/null)
+        if [ -n "$hits" ]; then
+            echo "  $hdr: names the private port vocabulary:" >&2
+            printf '%s\n' "$hits" | sed 's/^/    /' >&2
+            fail=1
+        fi
+        pulled=$(grep -nE '#[[:space:]]*include[[:space:]]+"(ow_port|ow_mcu|ow_compiler|ow_glue)\.h"' \
+                 "$hdr" 2>/dev/null)
+        if [ -n "$pulled" ]; then
+            echo "  $hdr: includes a private header:" >&2
+            printf '%s\n' "$pulled" | sed 's/^/    /' >&2
+            fail=1
+        fi
+    done
+}
+
+check_public_names
+
 if [ "$fail" -ne 0 ]; then
     echo "  check_header_hygiene: FAIL" >&2
     exit 1
 fi
-echo "  check_header_hygiene: OK ($checks header x family combinations, no register vocabulary leaked)"
+echo "  check_header_hygiene: OK ($checks header x family combinations, no register vocabulary leaked; the public headers name no private symbol)"

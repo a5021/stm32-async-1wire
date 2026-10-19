@@ -240,7 +240,7 @@ static void check(setup_variant_t v) {
      * F4 build, and comparing against it made this test fail on any other F4
      * clock - the F401 84MHz build included. Everything else stays captured, which
      * is the point of the table. */
-    TEST_ASSERT_EQUAL_HEX32_MESSAGE(OW_PORT_SYSCLK_MHZ - 1u, s.psc, "TIM1 prescaler");
+    TEST_ASSERT_EQUAL_HEX32_MESSAGE(OW_SYSCLK_MHZ - 1u, s.psc, "TIM1 prescaler");
     TEST_ASSERT_EQUAL_HEX32_MESSAGE(row->bdtr, s.bdtr, "TIM1 BDTR");
     TEST_ASSERT_EQUAL_HEX32_MESSAGE(row->pin_mode, s.pin_mode, "bus pin mode");
     TEST_ASSERT_EQUAL_HEX32_MESSAGE(row->pin_otype, s.pin_otype, "bus pin output type");

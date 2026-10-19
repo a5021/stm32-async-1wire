@@ -14,7 +14,7 @@
  *   data[1]          -> RCR (8-bit, as on real TIM1)
  *   data[2..3]       -> ARR (little-endian, 16-bit)
  *
- * Compiled ONLY with -DOW_PORT_LOW_POWER=1. The decision is always covered;
+ * Compiled ONLY with -DOW_LOW_POWER=1. The decision is always covered;
  * the sleep itself (ow_port_sleep_until_done()) is additionally covered when
  * the build also defines -DMOCK_WFE_HOOK, which routes the host __WFE() through
  * mock_wfe_set_hook() so this harness can model the TIM1 update event arriving

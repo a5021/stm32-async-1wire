@@ -17,7 +17,7 @@
  *
  * Nothing here installs an interrupt: the millisecond clock is the SysTick
  * counter read by polling, so an example build has no ISR at all. With
- * -DOW_PORT_LOW_POWER=1 the driver itself sleeps through its long stages
+ * -DOW_LOW_POWER=1 the driver itself sleeps through its long stages
  * (UIE + SEVONPEND, still without an NVIC interrupt).
  */
 
@@ -29,11 +29,11 @@
 #include <stdint.h>
 
 /* The application layer always needs an explicit clock: unlike the port core
- * (which falls back to SystemCoreClock), an undefined OW_PORT_SYSCLK_MHZ
+ * (which falls back to SystemCoreClock), an undefined OW_SYSCLK_MHZ
  * would read as 0 in the #if ladders below and silently select the /1
  * divisors with a vacuous _Static_assert. Fail loudly instead. */
-#ifndef OW_PORT_SYSCLK_MHZ
-#error "app.h: OW_PORT_SYSCLK_MHZ is required (pass -DOW_PORT_SYSCLK_MHZ=<MHz>); the SystemCoreClock fallback lives in the port core only"
+#ifndef OW_SYSCLK_MHZ
+#error "app.h: OW_SYSCLK_MHZ is required (pass -DOW_SYSCLK_MHZ=<MHz>); the SystemCoreClock fallback lives in the port core only"
 #endif
 
 #ifndef UART_TX_BUF_SIZE
@@ -66,11 +66,11 @@
  * differ per part (F407 42/84, F446 45/90) but fall out of the same /4 and /2 -
  * which is exactly why adding a clock to app.c alone is not enough.
  */
-#if defined(OW_PORT_FAMILY_F4)
-#if (OW_PORT_SYSCLK_MHZ) == 180 || (OW_PORT_SYSCLK_MHZ) == 168
+#if defined(OW_FAMILY_F4)
+#if (OW_SYSCLK_MHZ) == 180 || (OW_SYSCLK_MHZ) == 168
 #define OW_F4_APB1_DIV 4u
 #define OW_F4_APB2_DIV 2u
-#elif (OW_PORT_SYSCLK_MHZ) == 84
+#elif (OW_SYSCLK_MHZ) == 84
 #define OW_F4_APB1_DIV 2u
 #define OW_F4_APB2_DIV 2u
 #else
@@ -79,9 +79,9 @@
 #define OW_F4_APB2_DIV 1u
 #endif
 /** @brief APB1 peripheral clock in MHz (USART3 console path) */
-#define OW_F4_PCLK1_MHZ ((OW_PORT_SYSCLK_MHZ) / OW_F4_APB1_DIV)
+#define OW_F4_PCLK1_MHZ ((OW_SYSCLK_MHZ) / OW_F4_APB1_DIV)
 /** @brief APB2 peripheral clock in MHz (USART1 console path) */
-#define OW_F4_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ) / OW_F4_APB2_DIV)
+#define OW_F4_PCLK2_MHZ ((OW_SYSCLK_MHZ) / OW_F4_APB2_DIV)
 /** @brief Console BRR on the default USART1/APB2 path, at 115200 baud */
 #define OW_F4_CONSOLE_BRR USART_BRR_CALC(OW_F4_PCLK2_MHZ * 1000000u, 115200)
 /** @brief Console BRR on the optional OW_UART_USART3/APB1 path */
@@ -90,10 +90,10 @@
 /* PCLK reaches USART_BRR_CALC as integer MHz, so a clock that is not a whole
  * multiple of its prescaler would be rounded here and quietly shift the baud
  * rate. Every supported F4 clock divides evenly; this says so. */
-_Static_assert((OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
-                   (OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB2_DIV == 0,
+_Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
+                   (OW_SYSCLK_MHZ) % (int)OW_F4_APB2_DIV == 0,
                "F4: PCLK is derived as SYSCLK/div in integer MHz, so SYSCLK must divide by both APB prescalers");
-#endif /* OW_PORT_FAMILY_F4 */
+#endif /* OW_FAMILY_F4 */
 
 /* --- G4 console divisor ----------------------------------------------------
  *
@@ -103,12 +103,12 @@ _Static_assert((OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
  * than in app.c for the same reason: the register write it feeds is inside
  * hardware_init(), which no host build compiles, so this is the host suite's
  * only reach over it (test_timing.c::test_g4_console_baud_divisor). */
-#if defined(OW_PORT_FAMILY_G4)
+#if defined(OW_FAMILY_G4)
 /** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
-#define OW_G4_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ))
+#define OW_G4_PCLK2_MHZ ((OW_SYSCLK_MHZ))
 /** @brief Console BRR on USART1/APB2 at 115200 baud */
 #define OW_G4_CONSOLE_BRR USART_BRR_CALC(OW_G4_PCLK2_MHZ * 1000000u, 115200)
-#endif /* OW_PORT_FAMILY_G4 */
+#endif /* OW_FAMILY_G4 */
 
 /* --- H5 console divisor ----------------------------------------------------
  *
@@ -117,12 +117,12 @@ _Static_assert((OW_PORT_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
  * reason: the register write it feeds is inside hardware_init(), which no
  * host build compiles, so this is the host suite's only reach over it
  * (test_timing.c::test_h5_console_baud_divisor). */
-#if defined(OW_PORT_FAMILY_H5)
+#if defined(OW_FAMILY_H5)
 /** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
-#define OW_H5_PCLK2_MHZ ((OW_PORT_SYSCLK_MHZ))
+#define OW_H5_PCLK2_MHZ ((OW_SYSCLK_MHZ))
 /** @brief Console BRR on USART1/APB2 at 115200 baud */
 #define OW_H5_CONSOLE_BRR USART_BRR_CALC(OW_H5_PCLK2_MHZ * 1000000u, 115200)
-#endif /* OW_PORT_FAMILY_H5 */
+#endif /* OW_FAMILY_H5 */
 
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
@@ -142,7 +142,7 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5))
 /**
  * @brief Configure system clock (exposed for the F4/G4/H5 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
@@ -153,7 +153,7 @@ uint32_t app_millis(void);
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_PORT_FAMILY_F4) || defined(OW_PORT_FAMILY_G4) || defined(OW_PORT_FAMILY_H5))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5))
 /**
  * @brief Whether the requested clock actually started (F4/G4/H5 harness surface)
  * @note F4/G4/H5 report a clock that never came up through this rather than through a

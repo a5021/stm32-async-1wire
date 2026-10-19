@@ -57,9 +57,9 @@ BUILD_EXT = None
 
 # Examples that need an extra define to exercise the path the check is about.
 # 7_low_power only prints its WFE mode line (and only sleeps) when
-# OW_PORT_LOW_POWER is set, which is what the low-power check asserts.
+# OW_LOW_POWER is set, which is what the low-power check asserts.
 APP_DEFINES = {
-    "7_low_power": "-DOW_PORT_LOW_POWER=1",
+    "7_low_power": "-DOW_LOW_POWER=1",
 }
 
 

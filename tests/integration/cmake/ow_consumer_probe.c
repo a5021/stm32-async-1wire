@@ -18,7 +18,7 @@
  *
  * The checks below have to hold for a consumer that received the package: a
  * CMSIS device/family macro arrived (inc/ow_board.h ends in #error
- * otherwise), the public -D definitions arrived (OW_PORT_SYSCLK_MHZ), and the
+ * otherwise), the public -D definitions arrived (OW_SYSCLK_MHZ), and the
  * pulse tunables are within the feed budget. All of these reach a consumer
  * only through the exported target's INTERFACE_COMPILE_DEFINITIONS, so a build
  * that compiles this file has proved that the package handed over its include
@@ -32,8 +32,8 @@
 #include "ds18b20.h"
 #include "onewire.h"
 
-#ifndef OW_PORT_SYSCLK_MHZ
-#error "ow_consumer_probe: OW_PORT_SYSCLK_MHZ did not reach the consumer; the package lost its public compile definitions"
+#ifndef OW_SYSCLK_MHZ
+#error "ow_consumer_probe: OW_SYSCLK_MHZ did not reach the consumer; the package lost its public compile definitions"
 #endif
 
 _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 256u,

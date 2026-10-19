@@ -31,7 +31,7 @@
 #   MCU <macro>                required; device (STM32H503xx) or family (STM32H5)
 #   SYSCLK_MHZ <n>             optional; omit for the SystemCoreClock runtime path
 #   PARASITE                   -DOW_PARASITE_POWER=1
-#   LOW_POWER                  -DOW_PORT_LOW_POWER=1
+#   LOW_POWER                  -DOW_LOW_POWER=1
 #   ACTIVE_DRIVE               -DOW_DRIVE_ACTIVE=1
 #   STATS                      -DOW_STATS_ENABLE=1 (whole target, including the
 #                              library's own sources - unlike the repo's example
@@ -110,13 +110,13 @@ function(ow_add_library tgt)
         list(APPEND _ow_defs "${OW_FAMILY_DEF}")
     endif()
     if(OW_SYSCLK_MHZ)
-        list(APPEND _ow_defs "OW_PORT_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
+        list(APPEND _ow_defs "OW_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
     endif()
     if(OW_PARASITE)
         list(APPEND _ow_defs "OW_PARASITE_POWER=1")
     endif()
     if(OW_LOW_POWER)
-        list(APPEND _ow_defs "OW_PORT_LOW_POWER=1")
+        list(APPEND _ow_defs "OW_LOW_POWER=1")
     endif()
     if(OW_ACTIVE_DRIVE)
         list(APPEND _ow_defs "OW_DRIVE_ACTIVE=1")

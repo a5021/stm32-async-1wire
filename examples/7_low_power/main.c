@@ -3,7 +3,7 @@
  * @brief Low-power example: the driver sleeps through its long stages
  *
  * Same search + sequential poll architecture as `2_device_search`. The only
- * difference is the build define below: with `-DOW_PORT_LOW_POWER=1` the driver
+ * difference is the build define below: with `-DOW_LOW_POWER=1` the driver
  * itself blocks in `__WFE()` while it waits for a long stage of a measurement
  * cycle (temperature conversion up to 750 ms, scratchpad read ~5 ms) instead of
  * being polled through it. The wake-up is the timer's own update event via
@@ -12,7 +12,7 @@
  * interrupt handler at all.
  *
  * Build requirements:
- *   -DOW_PORT_LOW_POWER=1             (this demo's whole point - enables the
+ *   -DOW_LOW_POWER=1             (this demo's whole point - enables the
  *                                   TIM1 update interrupt source (UIE) +
  *                                   SEVONPEND and the sleep helpers inside
  *                                   ds18b20_poll(); UIE is used only as a WFE
@@ -21,7 +21,7 @@
  *   (the sleep path is not compiled without it).
  *
  * Build:
- *   make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
+ *   make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_LOW_POWER=1"
  *   On a parasite-powered bus add -DOW_PARASITE_POWER=1.
  */
 
@@ -118,10 +118,10 @@ int main(void) {
     uart_write_str("DS18B20 7_low_power (low power) starting...\r\n");
     uart_write_str("Searching 1-Wire bus...\r\n");
     ds18b20_init();
-#if OW_PORT_LOW_POWER
-    uart_write_str("OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n");
+#if OW_LOW_POWER
+    uart_write_str("OW_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n");
 #else
-    uart_write_str("OW_PORT_LOW_POWER disabled - busy-poll only\r\n");
+    uart_write_str("OW_LOW_POWER disabled - busy-poll only\r\n");
 #endif
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1);
@@ -137,7 +137,7 @@ int main(void) {
         } else {
             /* Same loop as every other example: poll the driver, do other
              * work, and request the next cycle once the pause has passed. With
-             * OW_PORT_LOW_POWER=1 the sleep inside a long stage is the
+             * OW_LOW_POWER=1 the sleep inside a long stage is the
              * driver's own business - nothing to do here. */
             ds18b20_poll();
             if ((int32_t)(app_millis() - pause_end_ms) >= 0) {

@@ -190,7 +190,7 @@ static uint8_t ds2431_poll(void) {
     // This is a non-blocking poll, not a busy-wait.
     uint8_t op_done = onewire_bus_done();
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     // Sleep through a long stage of the operation (multi-slot command write,
     // scratchpad frame read, EEPROM programming hold-off) instead of spinning
     // on it - same WFE mechanism as the DS18B20 drivers.

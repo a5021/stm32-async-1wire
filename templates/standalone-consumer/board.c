@@ -9,15 +9,15 @@
 
 /* The clock this template is wired for. 64MHz raw HSI is the H5 bring-up clock:
  * no crystal, no PLL to lock, no wait that can hang, and it already matches the
- * OW_PORT_SYSCLK_MHZ the CMake project passes to the library. Switching to the
+ * OW_SYSCLK_MHZ the CMake project passes to the library. Switching to the
  * 250MHz HSE+PLL clock is a matter of extending board_clock_init() the way
  * examples/app/app.c does and passing -DOW_SYSCLK_MHZ=250 with the right
  * -DOW_HSE_MHZ; the 1-Wire port is already timing-correct for any of them.
  */
-#ifndef OW_PORT_SYSCLK_MHZ
-#error "OW_PORT_SYSCLK_MHZ must be defined (the CMake project sets it from OW_SYSCLK_MHZ)"
+#ifndef OW_SYSCLK_MHZ
+#error "OW_SYSCLK_MHZ must be defined (the CMake project sets it from OW_SYSCLK_MHZ)"
 #endif
-#if (OW_PORT_SYSCLK_MHZ) != 64
+#if (OW_SYSCLK_MHZ) != 64
 #error "This template has only the 64MHz raw-HSI clock implemented; see board.c"
 #endif
 
@@ -51,7 +51,7 @@ static void board_console_init(void) {
     GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
 
     /* USART1 is on APB2, left at /1, so PCLK2 = SYSCLK. */
-    USART1->BRR = CONSOLE_BRR((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000000u);
+    USART1->BRR = CONSOLE_BRR((uint32_t)(OW_SYSCLK_MHZ) * 1000000u);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE;
 }
 
@@ -63,7 +63,7 @@ static void board_console_init(void) {
  */
 static void board_tick_init(void) {
     ms_count = 0;
-    SysTick->LOAD = ((uint32_t)(OW_PORT_SYSCLK_MHZ) * 1000u) - 1u;
+    SysTick->LOAD = ((uint32_t)(OW_SYSCLK_MHZ) * 1000u) - 1u;
     SysTick->VAL = 0;
     SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
 }

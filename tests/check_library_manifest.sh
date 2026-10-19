@@ -120,7 +120,7 @@ INCS=$(cat "$INCS_FILE")
 # path - the per-backend source compiles below are the check that does.
 OBJ="${INCS_FILE}.o"
 gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-    -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+    -DSTM32F1 -DOW_SYSCLK_MHZ=72 -DHOST_BUILD -DDS18B20_TEST_HARNESS \
     $INCS -Itests/mock \
     -c tests/integration/platformio/src/main.c -o "$OBJ" \
     || fail "the consumer did not compile against the include set library.json declares"
@@ -148,7 +148,7 @@ for target in F0 F1 F3 F4 G0 G4 H5; do
     esac
     for src in src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c; do
         gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
-            "-DSTM32$target" -DOW_PORT_SYSCLK_MHZ="$CLK" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
+            "-DSTM32$target" -DOW_SYSCLK_MHZ="$CLK" -DHOST_BUILD -DDS18B20_TEST_HARNESS \
             $INCS -Itests/mock \
             -c "$src" -o "$OBJ" \
             || fail "$src for STM32$target did not compile against the include set library.json declares"

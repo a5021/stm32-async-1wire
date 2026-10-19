@@ -1,7 +1,7 @@
 /* ============================================================
  *  test_sysclk_auto.c - SystemCoreClock auto-path host tests
  *
- *  The only TU built WITHOUT -DOW_PORT_SYSCLK_MHZ (a miswired command
+ *  The only TU built WITHOUT -DOW_SYSCLK_MHZ (a miswired command
  *  line fails loudly on the #error below): exercises the port core's
  *  runtime clock path. Defines its own SystemCoreClock, drives
  *  ow_port_init() through every supported frequency and checks the PSC,
@@ -10,8 +10,8 @@
  *  Built per OW_TARGET by the Makefile (TEST_AUTO_EXE), run by `make test`.
  * ============================================================ */
 
-#ifdef OW_PORT_SYSCLK_MHZ
-#error "test_sysclk_auto: must be built WITHOUT -DOW_PORT_SYSCLK_MHZ (it exercises the SystemCoreClock auto-path)"
+#ifdef OW_SYSCLK_MHZ
+#error "test_sysclk_auto: must be built WITHOUT -DOW_SYSCLK_MHZ (it exercises the SystemCoreClock auto-path)"
 #endif
 
 #include "hw_model.h"

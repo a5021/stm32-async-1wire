@@ -12,17 +12,17 @@
 
 #include <string.h>
 
-#if defined(OW_PORT_FAMILY_F0)
+#if defined(OW_FAMILY_F0)
 #include "stm32f0xx.h"
-#elif defined(OW_PORT_FAMILY_F3)
+#elif defined(OW_FAMILY_F3)
 #include "stm32f3xx.h"
-#elif defined(OW_PORT_FAMILY_F4)
+#elif defined(OW_FAMILY_F4)
 #include "stm32f4xx.h"
-#elif defined(OW_PORT_FAMILY_G0)
+#elif defined(OW_FAMILY_G0)
 #include "stm32g0xx.h"
-#elif defined(OW_PORT_FAMILY_G4)
+#elif defined(OW_FAMILY_G4)
 #include "stm32g4xx.h"
-#elif defined(OW_PORT_FAMILY_H5)
+#elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
 #else
 #include "stm32f1xx.h"

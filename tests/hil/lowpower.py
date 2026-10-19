@@ -9,7 +9,7 @@ device staying alive and converting, not about an exact census.
 import common
 
 BANNER = "DS18B20 7_low_power (low power) starting..."
-MODE = "OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms"
+MODE = "OW_LOW_POWER enabled - WFE sleep on stages > 1ms"
 
 
 def run(uart, ctx):

@@ -143,12 +143,12 @@ extern USART_TypeDef mock_usart1;
 #define __DSB() ((void)0)
 
 /* --- Core primitives needed to compile the opt-in low-power WFE path
- *     (OW_PORT_LOW_POWER) on the host. The real CMSIS headers provide these;
+ *     (OW_LOW_POWER) on the host. The real CMSIS headers provide these;
  *     on the host they are harmless stubs so ow_port_start_timer()/
  *     ow_port_capture()/ow_port_bus_done()/onewire_init() compile and link.
- *     They are only compiled into the low-power test build (-DOW_PORT_LOW_POWER=1),
+ *     They are only compiled into the low-power test build (-DOW_LOW_POWER=1),
  *     so the default busy-poll test build stays byte-identical. --- */
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 /* The update-event IRQ line the driver arms for WFE wake-up (onewire.h
  * maps OW_PORT_TIM1_UPD_IRQn to this on F1). Value is irrelevant on host. */
 #define TIM1_UP_IRQn 0
@@ -173,6 +173,6 @@ void mock_wfe_hook(void);
 #endif
 /* Clear the NVIC pending bit for an IRQ: no-op on the host. */
 #define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
-#endif /* OW_PORT_LOW_POWER */
+#endif /* OW_LOW_POWER */
 
 #endif /* STM32F1XX_MOCK_H */

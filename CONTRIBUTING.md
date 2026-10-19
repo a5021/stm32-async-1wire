@@ -72,7 +72,7 @@ make SYSCLK_MHZ=8   # 8MHz variant
 make debug          # optional, for debugging
 make test           # host test suite; also -f0 / -f1 / -f3 / -f4 / -g0 / -g4 / -h5
 make test-ds2431    # the DS2431 EEPROM driver suite
-make test-lowpower  # same suite with the -DOW_PORT_LOW_POWER=1 WFE path
+make test-lowpower  # same suite with the -DOW_LOW_POWER=1 WFE path
 make test-ndebug    # same suite with asserts compiled out
 make test-clocks    # per-family clock-default compile checks
 make test-chips     # chips/<part>.mk part matrix (needs no toolchain)

@@ -1,7 +1,7 @@
 /* ============================================================
  *  test_lowpower.c - Opt-in low-power WFE path tests
  *
- *  Verifies the OW_PORT_LOW_POWER behaviour that the default
+ *  Verifies the OW_LOW_POWER behaviour that the default
  *  busy-poll test build cannot reach (see CHANGELOG):
  *    - onewire_init() arms SEVONPEND in SCB.SCR
  *    - a "long" stage (running, unfinished, ARR*(RCR+1) > 1000 us)
@@ -15,7 +15,7 @@
  *      for the txn_poll()/res_poll() sleep blocks and still run to
  *      completion through the re-plumbed polls
  *
- *  Compiled ONLY with -DOW_PORT_LOW_POWER=1 (make test-lowpower);
+ *  Compiled ONLY with -DOW_LOW_POWER=1 (make test-lowpower);
  *  without the flag this TU is empty so `make test` stays
  *  a pure busy-poll build. The real __WFE()/__SEV() instructions
  *  are host stubs; we assert the observable driver state, not the
@@ -30,7 +30,7 @@
 #include "ow_port.h"
 #include "unity.h"
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 
 /*-------------------------------------------------------------
  *  init arms SEVONPEND in SCB.SCR
@@ -286,4 +286,4 @@ void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_resolution_long_write_qualifies_and_completes);
 }
 
-#endif /* OW_PORT_LOW_POWER */
+#endif /* OW_LOW_POWER */

@@ -10,7 +10,7 @@
             ],
             "defines": [
                 "STM32F103xB",
-                "OW_PORT_SYSCLK_MHZ=72",
+                "OW_SYSCLK_MHZ=72",
                 "__GNUC__"
             ],
             "cStandard": "c11",
@@ -26,7 +26,7 @@
             ],
             "defines": [
                 "STM32F030x6",
-                "OW_PORT_SYSCLK_MHZ=48",
+                "OW_SYSCLK_MHZ=48",
                 "__GNUC__"
             ],
             "cStandard": "c11",
@@ -42,7 +42,7 @@
             ],
             "defines": [
                 "STM32G031xx",
-                "OW_PORT_SYSCLK_MHZ=64",
+                "OW_SYSCLK_MHZ=64",
                 "__GNUC__"
             ],
             "cStandard": "c11",
@@ -58,7 +58,7 @@
             ],
             "defines": [
                 "STM32F407xx",
-                "OW_PORT_SYSCLK_MHZ=168",
+                "OW_SYSCLK_MHZ=168",
                 "__GNUC__"
             ],
             "cStandard": "c11",
@@ -74,7 +74,7 @@
             ],
             "defines": [
                 "STM32F401xC",
-                "OW_PORT_SYSCLK_MHZ=84",
+                "OW_SYSCLK_MHZ=84",
                 "__GNUC__"
             ],
             "cStandard": "c11",

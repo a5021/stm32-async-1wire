@@ -164,7 +164,7 @@ void onewire_init(void) {
     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.
     ow_port_init();
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
     // event even though no ISR is enabled. Done once here; the corresponding
     // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never
@@ -200,7 +200,7 @@ void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 uint8_t onewire_long_wait_pending(void) {
     return ow_port_long_wait_pending();
 }

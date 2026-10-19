@@ -61,7 +61,7 @@ extern "C" {
  *  for F4; STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
  *  The token is the single point of family selection: app.c takes the device
  *  header and clock configuration from it, and the per-family facts
- *  ow_pulse_t and the OW_HSE_MHZ / OW_PORT_*_MAX_SYSCLK_MHZ defaults live in
+ *  ow_pulse_t and the OW_HSE_MHZ / OW_*_MAX_SYSCLK_MHZ defaults live in
  *  inc/ow_board.h beside it.  The TIM1+DMA engine and the register-level
  *  per-family facts are library-internal and are not needed to use this
  *  API.  To add a family, extend the dispatch in
@@ -265,14 +265,14 @@ void onewire_kick(void);
  */
 void onewire_strong_pullup(uint8_t on);
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 /**
  * @brief Whether the scheduled hardware stage is a long one (WFE eligible)
  * @return 1 while a long stage (> 1 ms: temperature conversion, scratchpad
  *         read, EEPROM hold-off) is in flight, 0 otherwise
  * @note Derived from the scheduled timer duration, so callers stay on the
  *       onewire API. Only meaningful with
- *       OW_PORT_LOW_POWER=1.
+ *       OW_LOW_POWER=1.
  */
 uint8_t onewire_long_wait_pending(void);
 
@@ -281,7 +281,7 @@ uint8_t onewire_long_wait_pending(void);
  * @note Only the timer's own update event wakes the core (SEVONPEND, no ISR,
  *       no NVIC vector), so to the caller this is an ordinary synchronous
  *       wait. Returns immediately when no long stage is running. Only
- *       meaningful with OW_PORT_LOW_POWER=1.
+ *       meaningful with OW_LOW_POWER=1.
  */
 void onewire_sleep_until_done(void);
 #endif

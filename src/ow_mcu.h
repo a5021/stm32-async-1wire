@@ -28,7 +28,7 @@
 #include "ow_board.h"
 #include <stdint.h>
 
-/* ow_pulse_t, the family dispatch (OW_PORT_FAMILY_*) and the board clock
+/* ow_pulse_t, the family dispatch (OW_FAMILY_*) and the board clock
  * defaults live in inc/ow_board.h above; this header adds the CMSIS device
  * header and the per-family register/DMA facts below. */
 
@@ -37,7 +37,7 @@
  *  other six families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F030: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note. */
-#if defined(OW_PORT_FAMILY_F0)
+#if defined(OW_FAMILY_F0)
 #include "stm32f0xx.h"
 
 /* ------------------------------------------------------------------
@@ -48,14 +48,14 @@
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
+ *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
  *    IC4F ladder derive from it.  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
 #endif
 
@@ -109,14 +109,14 @@
  *       D13/D14 defaults.  Request routing needs no programming here;
  *       USART1_TX shares channel 4's request line, which is harmless because
  *       the driver's UART output runs without DMA. */
-#endif /* OW_PORT_FAMILY_F0 */
+#endif /* OW_FAMILY_F0 */
 
 /* === STM32F1 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
  *  other six families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F103: which clocks to gate, and how PA10 is put
  *  into alternate-function open-drain mode (legacy CRH). */
-#if defined(OW_PORT_FAMILY_F1)
+#if defined(OW_FAMILY_F1)
 #include "stm32f1xx.h"
 
 /* ------------------------------------------------------------------
@@ -127,14 +127,14 @@
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
+ *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
  *    IC4F ladder derive from it.  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
 #endif
 
@@ -185,7 +185,7 @@
  *       the core D13/D14 defaults.  Request routing needs no programming
  *       (USART1_TX shares channel 4's request line, which is harmless because
  *       the driver's UART output runs without DMA). */
-#endif /* OW_PORT_FAMILY_F1 */
+#endif /* OW_FAMILY_F1 */
 
 /* === STM32F3 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
@@ -195,7 +195,7 @@
  *
  *  Verified against the STM32F3-DISCOVERY (MB1035B, STM32F303VC), 7 DS18B20
  *  in parasite power on one bus, at 8, 64 and 72 MHz. */
-#if defined(OW_PORT_FAMILY_F3)
+#if defined(OW_FAMILY_F3)
 #include "stm32f3xx.h"
 
 /* ------------------------------------------------------------------
@@ -206,18 +206,18 @@
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
+ *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
  *    IC4F ladder derive from it.  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL input
  *    (this family has no HSI16, so the 72MHz PLL multiplies the crystal by 9).
- *    Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
+ *    Deliberately separate from OW_SYSCLK_MHZ: the crystal belongs to the
  *    *board*, the system clock to the *application*.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
 #endif
 
@@ -295,7 +295,7 @@
  *        is never enabled. Same situation as F1, where USART1_TX shares
  *        channel 4 with nothing the port uses but the capture.
  */
-#endif /* OW_PORT_FAMILY_F3 */
+#endif /* OW_FAMILY_F3 */
 
 /* === STM32F4 ===
  *  Thin shim over the shared TIM1+DMA core.
@@ -325,7 +325,7 @@
  *  Bring-up notes and the alternatives that were tried and rejected:
  *  see port/stm32f4/HARDWARE-NOTES.md.
  */
-#if defined(OW_PORT_FAMILY_F4)
+#if defined(OW_FAMILY_F4)
 #include "stm32f4xx.h"
 
 /* ------------------------------------------------------------------
@@ -336,18 +336,18 @@
  *    mode, where the memory-transfer width is forced to PSIZE, so a feed entry
  *    is a 16-bit halfword here (zero-copy, CNDTR == slots); every other
  *    backend latches 8-bit entries.  Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz, one fact per concrete part;
+ *  - OW_SYSCLK_MHZ: system clock in MHz, one fact per concrete part;
  *    the timer prescaler and the IC4F ladder derive from it.  The build
- *    systems pass it explicitly (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
+ *    systems pass it explicitly (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
  *    from chips/f4<part>.mk); without it the shared core reads the CMSIS
  *    SystemCoreClock at startup instead.  Validate any change against every
  *    supported clock (app.c).
- *  - OW_PORT_F4_MAX_SYSCLK_MHZ: the highest clock this part can take.  app.c
+ *  - OW_F4_MAX_SYSCLK_MHZ: the highest clock this part can take.  app.c
  *    rejects a build that asks for more, so a 180MHz request cannot silently
  *    compile for an F407 (whose cap is 168MHz without over-drive, and whose
  *    flash latency and APB limits differ above it).
  *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL's M
- *    divider.  Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal
+ *    divider.  Deliberately separate from OW_SYSCLK_MHZ: the crystal
  *    belongs to the *board*, the system clock to the *application*.  A wrong
  *    value is not a compile error - the PLL simply never locks.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
@@ -366,12 +366,12 @@
  * (PPRE1=/4 only affects APB1 peripherals — TIM2..5, USART2/3/6, I2C —
  * none of which this port uses.) */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
 #endif
 
 /* IC4F ladder and OC3PE knob: owned by the shared core (identical tiers),
- * which resolves OW_PORT_SYSCLK_MHZ (or SystemCoreClock) before its own
+ * which resolves OW_SYSCLK_MHZ (or SystemCoreClock) before its own
  * definitions. */
 
 /* ------------------------------------------------------------------
@@ -502,7 +502,7 @@
         PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
                      ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
     } while (0)
-#endif /* OW_PORT_FAMILY_F4 */
+#endif /* OW_FAMILY_F4 */
 
 /* === STM32G0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
@@ -510,7 +510,7 @@
  *  all of them here: the bus pins are remapped, the GPIO register macros
  *  have a different spelling, and DMA requests go through DMAMUX instead of
  *  a fixed map. */
-#if defined(OW_PORT_FAMILY_G0)
+#if defined(OW_FAMILY_G0)
 #include "stm32g0xx.h"
 
 /* ------------------------------------------------------------------
@@ -521,14 +521,14 @@
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
+ *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
  *    IC4F ladder derive from it.  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
 #endif
 
@@ -607,7 +607,7 @@
  *       DMA1_Channel3 (TIM1_CC2), capture rides DMAMUX channel 3 paired with
  *       DMA1_Channel4 (TIM1_CH4) - the core D13/D14 defaults; only the
  *       DMAMUX routing above is G0-specific. */
-#endif /* OW_PORT_FAMILY_G0 */
+#endif /* OW_FAMILY_G0 */
 
 /* === STM32G4 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
@@ -615,7 +615,7 @@
  *  all of them here: the clock gates (AHB1 for DMA+DMAMUX, AHB2 for GPIO,
  *  APB2 for TIM1+SYSCFG), the AF number of TIM1_CH3 on PA10, the DMAMUX
  *  request IDs, and the default clock (HSE+PLL to 170MHz). */
-#if defined(OW_PORT_FAMILY_G4)
+#if defined(OW_FAMILY_G4)
 #include "stm32g4xx.h"
 
 /* ------------------------------------------------------------------
@@ -631,16 +631,16 @@
  *    search-ROM matrix on the WeAct board is the experiment - F4's rejected
  *    byte feed (merged slots, all-zero ROMs, see port/stm32f4/HARDWARE-NOTES.md)
  *    is what a failure looks like.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c; 16
+ *  - OW_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c; 16
  *    selects raw HSI16).  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
- *  - OW_PORT_G4_MAX_SYSCLK_MHZ: the part ceiling; app.c rejects more.
+ *  - OW_G4_MAX_SYSCLK_MHZ: the part ceiling; app.c rejects more.
  *  - OW_HSE_MHZ: the board crystal, read by app.c as the PLL's M divider.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (shared with TIM16 on this family). */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
 #endif
 
@@ -723,7 +723,7 @@
  *       DMA1_Channel3 (TIM1_CC2), capture rides DMAMUX channel 3 paired with
  *       DMA1_Channel4 (TIM1_CH4) - the core D13/D14 defaults; only the
  *       DMAMUX routing above is G4-specific. */
-#endif /* OW_PORT_FAMILY_G4 */
+#endif /* OW_FAMILY_G4 */
 
 /* === STM32H5 ===
  *  Vocabulary overrides over the shared TIM1+GPDMA core.
@@ -772,7 +772,7 @@
  *  reset geometry, slot widths and feed reload timing are exercised by the same
  *  suite at all three clocks.
  */
-#if defined(OW_PORT_FAMILY_H5)
+#if defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
 
 /* ------------------------------------------------------------------
@@ -783,9 +783,9 @@
  *    in hardware, so a byte memory cell feeding the halfword CCR3 needs no
  *    packing games (contrast the F4 backend, a uint16_t direct-mode feed on
  *    DMA2 streams).  Capture-side durations are always uint16_t.
- *  - OW_PORT_SYSCLK_MHZ: system clock in MHz (HSI 64MHz direct, see
+ *  - OW_SYSCLK_MHZ: system clock in MHz (HSI 64MHz direct, see
  *    app.c).  The build systems pass it explicitly
- *    (-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    The two other clocks app.c implements for this family are the raw 8MHz
  *    clocks app.c implements for this family are the raw 8MHz HSE (N =
@@ -793,15 +793,15 @@
  *    away from HSI, the 250 path raising VOS to SCALE0 and taking 5 flash
  *    wait states first.  All three are bench-validated and built by the host
  *    suite (the 64MHz default) and its 250/8MHz sibling executables.
- *  - OW_PORT_H5_MAX_SYSCLK_MHZ: the part ceiling (H503: 250MHz).
+ *  - OW_H5_MAX_SYSCLK_MHZ: the part ceiling (H503: 250MHz).
  *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL's
- *    divider input.  Deliberately separate from OW_PORT_SYSCLK_MHZ: the
+ *    divider input.  Deliberately separate from OW_SYSCLK_MHZ: the
  *    crystal belongs to the *board*, the system clock to the *application*.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (split vector on this family: TIM1_UP, not the combined BRK/UP/TRG/COM
  *    of F0/F1/G0). */
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
 #endif
 
@@ -938,7 +938,7 @@
         /* CC4 captures indirect from TI3 (bus); TISEL reset = direct TI4 pad */      \
         T1.TISEL = (T1.TISEL & ~TIM_TISEL_TI4SEL_Msk) | (0u << TIM_TISEL_TI4SEL_Pos); \
     } while (0)
-#endif /* OW_PORT_FAMILY_H5 */
+#endif /* OW_FAMILY_H5 */
 
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
  * rides TIM1_CH4 -> channel 4 (D13/D14: register aliases from ow_port.h).

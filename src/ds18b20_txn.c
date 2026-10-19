@@ -132,7 +132,7 @@ static uint8_t txn_poll(void) {
     // This is a non-blocking poll, not a busy-wait.
     uint8_t txn_done = onewire_bus_done();
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     // Sleep through a long stage of the command transaction (multi-slot
     // command write, scratchpad read, EEPROM hold-off) instead of spinning
     // on it - same WFE mechanism as the measurement cycle in ds18b20_poll().

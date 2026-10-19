@@ -16,8 +16,8 @@ set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own d
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
 # to every library and example, so a CMake build can select the same firmware
 # variants without CMakeLists.txt growing one option per feature.
-#   cmake -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1" ...
-set(OW_EXTRA_DEFINES "" CACHE STRING "Extra definitions applied to all targets, e.g. \"-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1\"")
+#   cmake -DOW_EXTRA_DEFINES="-DOW_PARASITE_POWER=1;-DOW_LOW_POWER=1" ...
+set(OW_EXTRA_DEFINES "" CACHE STRING "Extra definitions applied to all targets, e.g. \"-DOW_PARASITE_POWER=1;-DOW_LOW_POWER=1\"")
 
 option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 
@@ -256,10 +256,16 @@ get_filename_component(STARTUP_ASM "${CHIP_STARTUP}" NAME)
 # its own working directory - the build tree - so hand it an absolute path.
 get_filename_component(LINKER_SCRIPT "${CHIP_LINKER}" ABSOLUTE
                        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+# The clock the build compiles in: the user's override if they gave one, the
+# part's own default otherwise.  It is a separate variable from the
+# OW_SYSCLK_MHZ cache knob on purpose - that knob is the request, this is the
+# resolved answer, and the C macro that carries it is also called
+# OW_SYSCLK_MHZ (the knob and the macro are the same name on purpose, so
+# -DOW_SYSCLK_MHZ=64 means the same thing to CMake and to the compiler).
 if(OW_SYSCLK_MHZ)
-    set(OW_PORT_SYSCLK_MHZ "${OW_SYSCLK_MHZ}")
+    set(OW_EFF_SYSCLK_MHZ "${OW_SYSCLK_MHZ}")
 else()
-    set(OW_PORT_SYSCLK_MHZ "${CHIP_SYSCLK_MHZ}")
+    set(OW_EFF_SYSCLK_MHZ "${CHIP_SYSCLK_MHZ}")
 endif()
 
 FetchContent_Declare(cmsis_device
@@ -422,9 +428,9 @@ function(ow_add_core_library tgt)
         ${CMSIS_DEVICE_DEF}
         ${OW_FAMILY_DEF}
         # The part's default clock, so this build system resolves the same
-        # OW_PORT_SYSCLK_MHZ the Makefile build does instead of relying on the
+        # OW_SYSCLK_MHZ the Makefile build does instead of relying on the
         # fallback in the family headers.
-        OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
+        OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}
         ${OW_EXTRA_DEFINES}
     )
     target_compile_options(${tgt} PUBLIC
@@ -503,7 +509,7 @@ message(STATUS "stm32-async-1wire: OW_MCU=${OW_MCU}  "
                "OW_CHIP=${OW_CHIP}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
                "OW_FAMILY_DEF=${OW_FAMILY_DEF}  "
-               "OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}")
+               "OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}")
 
 # ---------------------------------------------------------------------------
 # Examples (opt-in with -DOW_BUILD_EXAMPLES=ON)
@@ -524,7 +530,7 @@ if(OW_BUILD_EXAMPLES)
     target_compile_definitions(stm32_async_1wire_platform PUBLIC
         ${CMSIS_DEVICE_DEF}
         ${OW_FAMILY_DEF}
-        OW_PORT_SYSCLK_MHZ=${OW_PORT_SYSCLK_MHZ}
+        OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}
         ${OW_EXTRA_DEFINES}
     )
     target_compile_options(stm32_async_1wire_platform PUBLIC

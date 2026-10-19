@@ -217,7 +217,7 @@ DEF = $(CHIP_DEV_DEF)
 # The part's own clock default; SYSCLK_MHZ still wins when passed explicitly
 # (e.g. 16 for a board without an HSE crystal).
 ifndef SYSCLK_MHZ
-DEF += -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
+DEF += -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)
 endif
 ifneq ($(CHIP_HSE_MHZ),)
 ifndef HSE_MHZ
@@ -238,7 +238,7 @@ UART_TX_SIZE_8_ds2431       = 256
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
-# make SYSCLK_MHZ=16  →  -DOW_PORT_SYSCLK_MHZ=16
+# make SYSCLK_MHZ=16  →  -DOW_SYSCLK_MHZ=16
 # (run on the raw internal RC instead of the family default:
 #  STM32F030 = 48MHz HSI/2+PLL x12, STM32F103 = 72MHz HSE+PLL x9,
 #  STM32F303 = 72MHz HSE+PLL (or 64 HSI/2+PLL, 8 raw HSI),
@@ -246,7 +246,7 @@ DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 #  STM32G031 = 64MHz HSI16+PLL, STM32G474 = 170MHz HSE+PLL (or 16 raw HSI16);
 #  e.g. SYSCLK_MHZ=16 for the raw 16MHz RC on families that have one)
 ifdef SYSCLK_MHZ
-DEF += -DOW_PORT_SYSCLK_MHZ=$(SYSCLK_MHZ)
+DEF += -DOW_SYSCLK_MHZ=$(SYSCLK_MHZ)
 endif
 
 # Crystal frequency override for the F4 and G4 backends:
@@ -778,7 +778,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # compile flags differ along both axes and a shared object name would otherwise
 # be reused stale across invocations:
 #   APP=      -DUART_TX_BUF_SIZE
-#   OW_TARGET -mcpu / -DOW_PORT_SYSCLK_MHZ
+#   OW_TARGET -mcpu / -DOW_SYSCLK_MHZ
 #   OW_CHIP   -DSTM32Fxxx, the startup file, the linker script
 # The part component is not optional. With only the app prefix, `make OW_TARGET=f1`
 # followed by `make OW_TARGET=f0` reused the f1 objects: only the startup and
@@ -791,7 +791,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # is ordinary usage, not a corner case.
 #
 # The clock knobs belong in the stamp for the same reason, and harder: SYSCLK_MHZ
-# and HSE_MHZ both reach the firmware as -DOW_PORT_SYSCLK_MHZ / -DOW_HSE_MHZ, so
+# and HSE_MHZ both reach the firmware as -DOW_SYSCLK_MHZ / -DOW_HSE_MHZ, so
 # two builds of the same part that differ only in either are different firmware.
 # Without them in the name, building the 180MHz, raw-HSI 16MHz and raw-HSE 8MHz
 # variants of one part in sequence reused the first build's objects for the other
@@ -1065,10 +1065,10 @@ endif
 TEST_EXTRA_FLAG ?=
 
 # The host suite's clock: mirrors the firmware build, which always passes
-# -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk. Placed before
+# -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk. Placed before
 # $(TEST_EXTRA_FLAG) on purpose, so an explicit TEST_EXTRA_FLAG clock (e.g.
 # the ci 84MHz/25MHz-crystal F4 run) still wins by last-`-D`-wins.
-TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
+TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
@@ -1086,7 +1086,7 @@ TEST_INC  = -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK)
 # ODSWEN, 5 wait states, PLLN=360) are compiled and run at all, and so a
 # regression in that branch cannot hide behind the 168MHz build passing.
 ifneq ($(filter f4,$(OW_TARGET)),)
-TEST_F4_180_FLAG = $(TEST_FLAG) -DSTM32F446xx -DOW_PORT_SYSCLK_MHZ=180
+TEST_F4_180_FLAG = $(TEST_FLAG) -DSTM32F446xx -DOW_SYSCLK_MHZ=180
 TEST_F4_180_EXE = $(TEST_OUT)/ds18b20_test_f4_180mhz.exe
 TEST_EXTRA_EXES = $(TEST_F4_180_EXE)
 endif
@@ -1096,7 +1096,7 @@ endif
 # build already covers 170MHz through the header default, hence the extra
 # executable forces the low clock instead of the high one.
 ifneq ($(filter g4,$(OW_TARGET)),)
-TEST_G4_16_FLAG = $(TEST_FLAG) -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=16
+TEST_G4_16_FLAG = $(TEST_FLAG) -DSTM32G474xx -DOW_SYSCLK_MHZ=16
 TEST_G4_16_EXE = $(TEST_OUT)/ds18b20_test_g4_16mhz.exe
 TEST_EXTRA_EXES = $(TEST_G4_16_EXE)
 endif
@@ -1109,9 +1109,9 @@ endif
 # passing. The 250MHz build also compiles app.c's PLL divider invariants
 # (_Static_assert on HSE/M x 125 / 2 == 250 with M = HSE/4).
 ifneq ($(filter h5,$(OW_TARGET)),)
-TEST_H5_250_FLAG = $(TEST_FLAG) -DOW_PORT_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8
+TEST_H5_250_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8
 TEST_H5_250_EXE = $(TEST_OUT)/ds18b20_test_h5_250mhz.exe
-TEST_H5_8_FLAG = $(TEST_FLAG) -DOW_PORT_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
+TEST_H5_8_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
 TEST_H5_8_EXE = $(TEST_OUT)/ds18b20_test_h5_8mhz.exe
 TEST_EXTRA_EXES = $(TEST_H5_250_EXE) $(TEST_H5_8_EXE)
 endif
@@ -1161,8 +1161,8 @@ $(TEST_DS2431_ACTIVE_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/o
 $(TEST_DS2431_NG_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
 
-# Low-power variant: the same suite re-built with -DOW_PORT_LOW_POWER=1.
-TEST_LP_FLAG = $(TEST_FLAG) -DOW_PORT_LOW_POWER=1
+# Low-power variant: the same suite re-built with -DOW_LOW_POWER=1.
+TEST_LP_FLAG = $(TEST_FLAG) -DOW_LOW_POWER=1
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter h5,$(1)),STM32H5,STM32F1))))))
@@ -1170,11 +1170,11 @@ TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.
 TEST_CLOCK_OBJ = $(TEST_OUT)/test_sysclk_fallback$(or $(TEST_FAM_SUFFIX),_f1).o
-# No-default anti-regression twin: the same source WITHOUT -DOW_PORT_SYSCLK_MHZ,
+# No-default anti-regression twin: the same source WITHOUT -DOW_SYSCLK_MHZ,
 # proving no family header smuggles a fallback default back in.
 TEST_CLOCK_NODEFAULT_OBJ = $(TEST_OUT)/test_sysclk_nodefault$(or $(TEST_FAM_SUFFIX),_f1).o
 # SystemCoreClock auto-path runner: the only host TU built WITHOUT
-# -DOW_PORT_SYSCLK_MHZ (see tests/test/test_sysclk_auto.c).
+# -DOW_SYSCLK_MHZ (see tests/test/test_sysclk_auto.c).
 TEST_AUTO_EXE = $(TEST_OUT)/test_sysclk_auto$(or $(TEST_FAM_SUFFIX),_f1).exe
 # Per-part F4 fallback compile check: always built as part of `make test`,
 # independent of the active OW_TARGET (see F4_PART_CLOCK_CHECKS below).
@@ -1224,15 +1224,15 @@ $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 # --- Family-macro clock-value compile check (see test_sysclk_fallback.c) ---
 # Compile-only, values mode: verifies that selecting a family through the raw
 # family macro (STM32F0/F1/G0, the PlatformIO/STM32CubeMX path) resolves
-# OW_PORT_FAMILY_*, and that the chips/<part>.mk clock passed explicitly via
+# OW_FAMILY_*, and that the chips/<part>.mk clock passed explicitly via
 # -D matches the literal table and the PLL/ceiling invariants. Runs as part
 # of every test build so the part file and the literals can never drift.
 
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- No-default anti-regression twin (see test_sysclk_fallback.c) ---
-# Compile-only, no -DOW_PORT_SYSCLK_MHZ on purpose: fails if any family header
+# Compile-only, no -DOW_SYSCLK_MHZ on purpose: fails if any family header
 # reintroduces a fallback default, and proves the family macro still resolves
 # the backend token (the auto-path a header-less integration gets).
 
@@ -1240,7 +1240,7 @@ $(TEST_CLOCK_NODEFAULT_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- SystemCoreClock auto-path runner (see tests/test/test_sysclk_auto.c) ---
-# The only host TU built WITHOUT -DOW_PORT_SYSCLK_MHZ: defines its own
+# The only host TU built WITHOUT -DOW_SYSCLK_MHZ: defines its own
 # SystemCoreClock, drives ow_port_init() through every supported frequency
 # and checks the PSC plus the runtime IC4F tier. Runs in every `make test`.
 
@@ -1274,7 +1274,7 @@ F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sy
 # part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
 # file changes.
 $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 $(TEST_OUT)/test_sysclk_nodefault_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
 	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
@@ -1292,7 +1292,7 @@ test-clocks: test-chips test-mcu-dispatch test-mocks $(foreach f,$(OW_KNOWN_TARG
 # and `make test` reach the same check by a name a reader can find.
 test-clocks-f4: clock-ref-check
 
-# --- Opt-in low-power WFE path test build (-DOW_PORT_LOW_POWER=1) ---
+# --- Opt-in low-power WFE path test build (-DOW_LOW_POWER=1) ---
 # Compiles the SAME suite with the low-power path enabled so the
 # __WFE()-related code (SEVONPEND, derived long-stage predicate, UIE) is exercised
 # on the host. See tests/test/test_lowpower.c.
@@ -1412,7 +1412,7 @@ $(TEST_NG_EXE): $(TEST_NG_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exam
 FUZZ_CC      ?= clang
 FUZZ_CFLAGS  = -fsanitize=fuzzer,address,undefined -g -O1 \
                 -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
-                -DHOST_BUILD -DSTM32F1 -DOW_PORT_SYSCLK_MHZ=72 -Iinc -Itests/mock \
+                -DHOST_BUILD -DSTM32F1 -DOW_SYSCLK_MHZ=72 -Iinc -Itests/mock \
                 -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 FUZZ_LDFLAGS = -fsanitize=fuzzer,address,undefined
 FUZZ_OUT     = build/fuzz
@@ -1525,13 +1525,13 @@ fuzz-txn: | $(FUZZ_OUT)
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_txn
 	$(call run_fuzz,fuzz_txn)
 
-# Tier 9: opt-in low-power path (compiled -DOW_PORT_LOW_POWER=1). Fuzzes
+# Tier 9: opt-in low-power path (compiled -DOW_LOW_POWER=1). Fuzzes
 # ow_port_long_wait_pending() against its schedule formula, and - with
 # -DMOCK_WFE_HOOK routing the host __WFE() through hw_model - drives the
 # ow_port_sleep_until_done() loop by delivering the update event after a
 # fuzz-chosen number of wake-ups.
 fuzz-lowpower: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -DOW_PORT_LOW_POWER=1 -DMOCK_WFE_HOOK \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK \
 	    tests/fuzz/fuzz_lowpower.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_lowpower
 	$(call run_fuzz,fuzz_lowpower)
@@ -1564,7 +1564,7 @@ help:
 	@echo "  lib             - Build only libstm32_async_1wire.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-h5)"
-	@echo "  test-lowpower   - ... with -DOW_PORT_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"
+	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
@@ -1583,7 +1583,7 @@ help:
 	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"
 	@echo "  fuzz-measure    - Fuzz the DS18B20 measurement state machine"
 	@echo "  fuzz-txn        - Fuzz the DS18B20 command-transaction engine"
-	@echo "  fuzz-lowpower   - Fuzz the low-power predicate + WFE sleep (OW_PORT_LOW_POWER=1)"
+	@echo "  fuzz-lowpower   - Fuzz the low-power predicate + WFE sleep (OW_LOW_POWER=1)"
 	@echo "  fuzz-ds2431-txn - Fuzz the DS2431 EEPROM command-transaction engine"
 	@echo "  program         - Program device using ST-LINK"
 	@echo "  jprogram        - Program device using J-LINK"

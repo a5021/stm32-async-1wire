@@ -93,7 +93,7 @@ void test_bus_wait_conversion(void) { wait_conversion(); }
 void test_bus_start_timer(uint16_t arr, uint8_t rcr) { onewire_start_timer(arr, rcr); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count) {
     /* Capture arms the channels only; the schedule (and therefore the
      * long-stage predicate) belongs to the caller, as ow_port_reset() and

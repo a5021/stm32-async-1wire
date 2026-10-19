@@ -4,7 +4,7 @@
 # What this proves, none of which the install step in the cmake CI job proves by
 # checking that files exist: the installed headers are self-contained, the
 # exported target resolves, and the public compile definitions
-# (CMSIS_DEVICE_DEF / OW_PORT_SYSCLK_MHZ) reach the
+# (CMSIS_DEVICE_DEF / OW_SYSCLK_MHZ) reach the
 # consumer instead of being lost at the install boundary.
 #
 # The probe is shared with the fetchcontent fixture so there is one definition

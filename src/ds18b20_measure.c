@@ -166,7 +166,7 @@ void ds18b20_poll(void) {
     // exactly once per poll and its result reused below.
     uint8_t done = onewire_bus_done();
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     // Sleep through a long stage of the measurement cycle (temperature
     // conversion, scratchpad read) instead of spinning on it. The wake-up is
     // the timer's own update event via SEVONPEND - no ISR, no NVIC interrupt

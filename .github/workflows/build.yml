@@ -59,7 +59,7 @@ jobs:
           make APP=5_commands
           make APP=6_statistics
           make APP=7_low_power
-          make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"
+          make APP=7_low_power EXT="-DOW_LOW_POWER=1"
           make APP=8_ds2431
           # Parasite-power compile-time path: the DS18B20 examples (1-7)
           # call ds18b20_set_parasite(1) under -DOW_PARASITE_POWER=1.

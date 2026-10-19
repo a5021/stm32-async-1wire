@@ -13,12 +13,12 @@
  *
  * Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES,
  * DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the
- * system clock (OW_PORT_SYSCLK_MHZ, passed by the build or resolved from
+ * system clock (OW_SYSCLK_MHZ, passed by the build or resolved from
  * SystemCoreClock by the port core) remain in their respective headers
  * and are intentionally NOT listed here.
  *
  * The four feature flags are value-style: define to 1 to enable, omit or
- * set to 0 to disable.  Old -D presence-only style (-DOW_PORT_LOW_POWER
+ * set to 0 to disable.  Old -D presence-only style (-DOW_LOW_POWER
  * without =1) no longer works with these flags — always pass =1.
  */
 
@@ -150,10 +150,10 @@
  * pending bit is cleared explicitly by the engine so WFE does
  * not degrade into a busy-loop.
  *
- * Enable with -DOW_PORT_LOW_POWER=1.
+ * Enable with -DOW_LOW_POWER=1.
  */
-#ifndef OW_PORT_LOW_POWER
-#define OW_PORT_LOW_POWER 0
+#ifndef OW_LOW_POWER
+#define OW_LOW_POWER 0
 #endif
 
 /**

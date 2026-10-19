@@ -337,7 +337,7 @@ what ships.
 | `4_scan_mode` | 49 measurements, 0 CRC failures |
 | `5_commands` | parasite detected, 4 × scratchpad CRC ok, EEPROM copy/recall round-trip restored TH=0x19/TL=0x0F; the one CRC fail is the expected Read ROM with 7 devices on the bus |
 | `6_statistics` | banner `stats dump every 10 sweeps (70 samples with 7 devices)`, exactly 10 sweep markers per batch, `t=70c 0e`, `n10`/`e0` on all seven, histogram 1814+2307+919 = **5040 = 70 × 72** |
-| `7_low_power` | `OW_PORT_LOW_POWER enabled - WFE sleep on stages > 1ms`, 8 measurements, 0 errors, 24.3–24.6 °C |
+| `7_low_power` | `OW_LOW_POWER enabled - WFE sleep on stages > 1ms`, 8 measurements, 0 errors, 24.3–24.6 °C |
 
 The millisecond counter is the reason to trust the rest: `MEASURE_PERIOD_MS` is
 5000, and ~8 full per-device cycles fit in 60 s, i.e. ~6.0 s each against the

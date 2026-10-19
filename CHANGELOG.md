@@ -11,6 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The public macros lost the `PORT_` infix (breaking).** The port layer is
+  private to the library, so a public macro named after it invited consumers
+  to depend on something they cannot see. The rename is mechanical and
+  complete, with no compatibility aliases — the old names are gone on
+  purpose:
+
+  | before | after |
+  | --- | --- |
+  | `OW_PORT_FAMILY_F0` … `OW_PORT_FAMILY_H5` | `OW_FAMILY_F0` … `OW_FAMILY_H5` |
+  | `OW_PORT_SYSCLK_MHZ` | `OW_SYSCLK_MHZ` |
+  | `OW_PORT_LOW_POWER` | `OW_LOW_POWER` |
+  | `OW_PORT_F4_MAX_SYSCLK_MHZ` | `OW_F4_MAX_SYSCLK_MHZ` |
+  | `OW_PORT_G4_MAX_SYSCLK_MHZ` | `OW_G4_MAX_SYSCLK_MHZ` |
+  | `OW_PORT_H5_MAX_SYSCLK_MHZ` | `OW_H5_MAX_SYSCLK_MHZ` |
+
+  The header names, `ow_pulse_t`, every `ONEWIRE_*` / `OW_STATS_*` /
+  `DS18B20_*` / `DS2431_*` name, the CMake cache knobs, the Makefile knobs
+  and `-Iinc` as the only include path a consumer needs are all unchanged.
+  The engine's own vocabulary (`OW_PORT_*`, `ow_port_*`) is unchanged and
+  still private. `make test-header-hygiene` now also asserts that no public
+  header names a private symbol, so a new `OW_PORT_*` cannot creep back into
+  `inc/`.
+
+  One build-system conflict the rename surfaced and this release fixes: the
+  CMake cache knob `OW_SYSCLK_MHZ` and the compiled-in macro now share a
+  name on purpose, so the resolved value moved to a separate CMake variable
+  (`OW_EFF_SYSCLK_MHZ`). Before the fix, `-DOW_SYSCLK_MHZ=100` was silently
+  overwritten by the part's own default.
+
 - **The MCU layer is private: the public headers no longer leak the port.**
   `onewire.h` used to pull `inc/ow_port.h` (the TIM1+DMA engine) and
   `inc/ow_mcu.h` (the per-family register facts) into every consumer

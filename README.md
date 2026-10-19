@@ -21,6 +21,7 @@ The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public surf
 
 - [Supported Devices](#supported-devices)
 - [Features](#features)
+- [Upgrading to 3.0.0](#upgrading-to-300)
 - [Requirements](#requirements)
 - [File Structure](#file-structure)
 - [Examples](#examples)
@@ -78,7 +79,7 @@ including `"onewire.h"` and building on the bus primitives.
   hold-off for Copy Scratchpad) — see
   [DS2431 EEPROM Driver](#ds2431-eeprom-driver) and `examples/8_ds2431`.
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
-  operation. The optional `-DOW_PORT_LOW_POWER=1` mode enables the timer
+  operation. The optional `-DOW_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
   wakes `WFE()` via `SEVONPEND` — no NVIC interrupt is enabled and no ISR is
   installed.
@@ -118,6 +119,30 @@ including `"onewire.h"` and building on the bus primitives.
   non-blocking UART dump; all stubs inline to nothing in production builds —
   see [Signal Statistics Module](#signal-statistics-module-ow_stats).
 
+## Upgrading to 3.0.0
+
+3.0.0 is a breaking release: the public macros lost the `PORT_` infix, because
+the port layer is private to the library and a public macro named after it
+invited consumers to depend on something they cannot see. There are no
+compatibility aliases — the old names are gone, deliberately.
+
+| 2.4.0 | 3.0.0 | what it is |
+| --- | --- | --- |
+| `OW_PORT_FAMILY_F0` … `OW_PORT_FAMILY_H5` | `OW_FAMILY_F0` … `OW_FAMILY_H5` | the family selection token (`inc/ow_board.h`) |
+| `OW_PORT_SYSCLK_MHZ` | `OW_SYSCLK_MHZ` | the system clock the build compiles in |
+| `OW_PORT_LOW_POWER` | `OW_LOW_POWER` | the opt-in WFE sleep path |
+| `OW_PORT_F4_MAX_SYSCLK_MHZ` | `OW_F4_MAX_SYSCLK_MHZ` | the F4 part ceiling |
+| `OW_PORT_G4_MAX_SYSCLK_MHZ` | `OW_G4_MAX_SYSCLK_MHZ` | the G4 part ceiling |
+| `OW_PORT_H5_MAX_SYSCLK_MHZ` | `OW_H5_MAX_SYSCLK_MHZ` | the H5 part ceiling |
+
+What did **not** change: the header names (`onewire.h`, `ow_board.h`,
+`ow_config.h`, `ow_stats.h`, the driver headers), `ow_pulse_t` and every
+`ONEWIRE_*` / `OW_STATS_*` / `DS18B20_*` / `DS2431_*` name, the CMake cache
+knobs (`OW_MCU`, `OW_SYSCLK_MHZ`, …), the Makefile knobs (`SYSCLK_MHZ`,
+`HSE_MHZ`, `OW_MCU`, `EXT`), and `-Iinc` as the only include path a consumer
+needs. The engine's own vocabulary (`OW_PORT_*`, `ow_port_*`) is unchanged and
+still private.
+
 ## Requirements
 
 - Microcontroller: any STM32 with a single advanced-control timer instance
@@ -134,7 +159,7 @@ including `"onewire.h"` and building on the bus primitives.
   sequence (`ODEN`→`ODRDY`, `ODSWEN`→`ODSWRDY`), its own flash-latency and APB
   values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
   on any other F4 part is rejected at compile time rather than quietly run out of
-  spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in
+  spec — each part's ceiling is `OW_F4_MAX_SYSCLK_MHZ` in
   the `inc/ow_board.h` F4 block.
   APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
   2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
@@ -292,7 +317,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_PORT_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 | `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
 
 ```bash
@@ -302,7 +327,7 @@ make APP=3_round_robin                        # build 3_round_robin -> build/ds1
 make APP=4_scan_mode                          # build 4_scan_mode -> build/ds18b20_4_scan_mode.elf
 make APP=5_commands                           # build 5_commands -> build/ds18b20_5_commands.elf
 make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
-make APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
+make APP=7_low_power EXT="-DOW_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
 make APP=8_ds2431                             # build 8_ds2431 -> build/ds18b20_8_ds2431.elf (DS2431 EEPROM)
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
@@ -552,7 +577,7 @@ make OW_MCU=STM32G031xx APP=6_statistics EXT="-DOW_STATS_ENABLE=1 -DOW_PARASITE_
 ```
 
 **7_low_power — low power** (`examples/7_low_power/main.c`): the same search + sequential loop as
-`2_device_search`, but built with `-DOW_PORT_LOW_POWER=1`.
+`2_device_search`, but built with `-DOW_LOW_POWER=1`.
 
 > **What low-power mode does not change.** Low-power mode does not change
 > 1-Wire execution. TIM+DMA continue to control all bus timing; `WFE` allows
@@ -594,7 +619,7 @@ mechanism and measure the CPU-time saving.
 > only has to hold for the *pauses* between cycles, which is exactly where the
 > application is doing its own work. Caveat: `app_millis()` counts *observed*
 > SysTick wraps (one per read), so it under-counts whenever the loop is blocked
-> for more than a millisecond — which is precisely what `OW_PORT_LOW_POWER=1`
+> for more than a millisecond — which is precisely what `OW_LOW_POWER=1`
 > does inside `ds18b20_poll()` for up to 750 ms. In a low-power build the
 > millisecond figure is therefore valid for the pauses between cycles (where the
 > loop does spin) and deliberately excludes the conversion time.
@@ -602,7 +627,7 @@ mechanism and measure the CPU-time saving.
 Build and run:
 
 ```sh
-make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_PORT_LOW_POWER=1"   # (append -DOW_PARASITE_POWER=1 on a parasite bus)
+make OW_MCU=STM32G031xx APP=7_low_power EXT="-DOW_LOW_POWER=1"   # (append -DOW_PARASITE_POWER=1 on a parasite bus)
 make OW_MCU=STM32G031xx APP=7_low_power                              # same example, but standard polling (define omitted)
 ```
 
@@ -789,15 +814,15 @@ STMicroelectronics device macro for your part (e.g. `-DSTM32H503xx`) or its
 family macro (e.g. `-DSTM32H5`). `src/ow_mcu.h` uses it to include the matching
 CMSIS device header and to pick the backend. Everything else is optional.
 
-The system clock is one such optional setting. `OW_PORT_SYSCLK_MHZ` fixes the
+The system clock is one such optional setting. `OW_SYSCLK_MHZ` fixes the
 TIM1 prescaler that generates the 1-Wire timing at compile time. The Make and
 CMake builds pass it for the part being built
-(`-DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)` from `chips/<part>.mk`: 48 on
+(`-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)` from `chips/<part>.mk`: 48 on
 STM32F0, 72 on STM32F1, 72 on STM32F3, 64 on STM32G0, 170 on STM32G4, and on
 F4 the part's own clock: 168 on F407, 84 on F401, 180 on F446), and the
 examples enable that clock in their `app_init()`. If your firmware runs the
 MCU at a different frequency, pass it explicitly — e.g.
-`-DOW_PORT_SYSCLK_MHZ=8` for an 8 MHz HSI build. If you omit it entirely, the
+`-DOW_SYSCLK_MHZ=8` for an 8 MHz HSI build. If you omit it entirely, the
 port core reads the CMSIS `SystemCoreClock` at startup instead — keep it
 updated with `SystemCoreClockUpdate()` after any clock-tree change. TIM1's
 kernel clock must equal SYSCLK either way.
@@ -1014,7 +1039,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-active-g0` | Same as above against the STM32G0 backend mock |
 | `make test-active-f4` | Same as above against the STM32F4 backend mock |
 | `make test-active-g4` | Same as above against the STM32G4 backend mock |
-| `make test-lowpower` | Same suite rebuilt with `-DOW_PORT_LOW_POWER=1` (WFE path, F1) |
+| `make test-lowpower` | Same suite rebuilt with `-DOW_LOW_POWER=1` (WFE path, F1) |
 | `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
 | `make test-lowpower-f3` | Same as above against the STM32F3 backend mock |
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
@@ -1035,7 +1060,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
 | `make fuzz-txn` | Fuzz the DS18B20 command-transaction engine (ROM/scratchpad/thresholds/copy/recall/power-supply) against a reference model |
 | `make fuzz-ds2431-txn` | Fuzz the DS2431 EEPROM command-transaction engine (Read Memory, Write/Read/Copy Scratchpad) against a reference model |
-| `make fuzz-lowpower` | Fuzz the low-power long-stage predicate and drive the `WFE` sleep loop itself (`OW_PORT_LOW_POWER=1`; the harness models the TIM1 update event via `-DMOCK_WFE_HOOK`; requires host-side Clang) |
+| `make fuzz-lowpower` | Fuzz the low-power long-stage predicate and drive the `WFE` sleep loop itself (`OW_LOW_POWER=1`; the harness models the TIM1 update event via `-DMOCK_WFE_HOOK`; requires host-side Clang) |
 | `make download-licenses` | Download the CMSIS third-party license files into `CMSIS/` |
 | `make gccversion` | Show the detected compiler and linker versions |
 | `make help` | Show all targets |
@@ -1047,7 +1072,7 @@ Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](#timing-1). |
 | `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every DS18B20 example (1-7) with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
-| `EXT="-DOW_PORT_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define builds are byte-identical to the original. |
+| `EXT="-DOW_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define builds are byte-identical to the original. |
 
 ### Flash
 
@@ -1203,7 +1228,7 @@ The cache variables are:
 | `OW_MCU` | Exact STM32 device macro (`STM32F103xB`, `STM32H503xx`, ...); selects the part file automatically |
 | `OW_TARGET` / `OW_CHIP` | Legacy family (`f0`...`h5`) and part (`f401xc`, ...) selectors; still honoured, but `OW_MCU` is the documented interface |
 | `OW_SYSCLK_MHZ` | System clock in MHz; empty = the part's own default from `chips/<part>.mk` (mirrors the Makefile's `SYSCLK_MHZ`) |
-| `OW_EXTRA_DEFINES` | Extra `-D` definitions applied to every target, e.g. `"-DOW_PARASITE_POWER=1;-DOW_PORT_LOW_POWER=1"` |
+| `OW_EXTRA_DEFINES` | Extra `-D` definitions applied to every target, e.g. `"-DOW_PARASITE_POWER=1;-DOW_LOW_POWER=1"` |
 | `OW_BUILD_EXAMPLES` | Build the example applications (`OFF` by default) |
 
 #### 2. CMake `find_package`
@@ -1225,7 +1250,7 @@ target_link_libraries(your_app PRIVATE stm32_async_1wire::stm32_async_1wire)
 Two things to know:
 
 - **The consumer provides CMSIS.** The include paths the library compiled against were FetchContent checkouts inside its build tree; they are not baked into the install export. Add your own CMSIS `core` and device include directories (from STM32Cube, PlatformIO, or a manual checkout) on top of the imported target.
-- **The package carries its part selection.** The device macro (`STM32H503xx`) and clock (`OW_PORT_SYSCLK_MHZ`) are baked into the installed target as public definitions. Build the package for the part your firmware is for.
+- **The package carries its part selection.** The device macro (`STM32H503xx`) and clock (`OW_SYSCLK_MHZ`) are baked into the installed target as public definitions. Build the package for the part your firmware is for.
 
 #### 3. Vendored copy + `ow_add_library.cmake`
 
@@ -1256,7 +1281,7 @@ It creates a static library from the four driver sources, adds `inc/` and your C
 - `system_<family>xx.c` and the GCC startup file for your part
 - Your linker script
 
-And **exactly one** target macro: the ST device macro (`STM32H503xx`) or its family macro (`STM32H5`). `OW_PORT_SYSCLK_MHZ` is optional — omit it and the port reads `SystemCoreClock` at startup (keep it current with `SystemCoreClockUpdate()`).
+And **exactly one** target macro: the ST device macro (`STM32H503xx`) or its family macro (`STM32H5`). `OW_SYSCLK_MHZ` is optional — omit it and the port reads `SystemCoreClock` at startup (keep it current with `SystemCoreClockUpdate()`).
 
 This helper is for the vendored layout only. On the FetchContent / `add_subdirectory` path you do not need it — the library's own `CMakeLists.txt` already provides the `stm32_async_1wire` target with CMSIS managed.
 
@@ -1304,7 +1329,7 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
 - **H5 reset clock.** On STM32H5 the HSI runs at 64 MHz but reset divides it to 32 MHz (`RCC_CR.HSIDIV = /2`). Before relying on 64 MHz, clear `HSIDIV` and set `FLASH_ACR = PRFTEN | LATENCY_3WS`, then call `SystemCoreClockUpdate()`. Skip it and the console runs at half rate and every 1-Wire slot is 2× out of spec.
 - **Parasite power.** Define `-DOW_PARASITE_POWER=1` **and** call `ds18b20_set_parasite(1)` at runtime; without both, parasite-powered sensors report a fixed error temperature.
 - **LTO.** If you build with `-flto`, archive with `arm-none-eabi-gcc-ar` (a plain `ar` leaves the LTO symbols out of the index and the link fails with undefined references to the driver API). The Makefile and CMake builds do this automatically.
-- **Clock agreement.** If you do pass `OW_PORT_SYSCLK_MHZ`, it must match the clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK), or the bus timing is scaled by the mismatch.
+- **Clock agreement.** If you do pass `OW_SYSCLK_MHZ`, it must match the clock your firmware actually runs (TIM1's kernel clock must equal SYSCLK), or the bus timing is scaled by the mismatch.
 
 ### STM32CubeIDE
 
@@ -1368,7 +1393,7 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     default is HSE+PLL (168/84/180MHz per part), and `SYSCLK_MHZ=16` selects
     the raw 16MHz HSI.
 
-    The knob maps to the portable `OW_PORT_SYSCLK_MHZ` define — a single
+    The knob maps to the portable `OW_SYSCLK_MHZ` define — a single
     value in MHz that every clock-dependent setting derives from: the
     timer prescaler, the input-capture filter and the USART baud rate
     adjust automatically. Useful for testing on bare minimum hardware
@@ -1383,13 +1408,13 @@ header.  (These are preprocessor macros, not CMake options: a `cmake
 -DOW_STATS_ENABLE=1` variable would not reach the compiler.  The CMake
 example build enables stats automatically for `6_statistics` — see below.)
 Protocol-inherent values (`ONEWIRE_MAX_SLOTS`,
-`DS18B20_RES_MIN/MAX/DEFAULT`) and the system clock (`OW_PORT_SYSCLK_MHZ`,
+`DS18B20_RES_MIN/MAX/DEFAULT`) and the system clock (`OW_SYSCLK_MHZ`,
 passed by the build or resolved from `SystemCoreClock` by the port core)
 remain outside this file and are NOT listed here.
 
 The four feature flags use **value style**: define to **1** to enable,
 omit or set to 0 to disable.  Old presence-only style
-(`-DOW_PORT_LOW_POWER` without `=1`) no longer compiles correctly.
+(`-DOW_LOW_POWER` without `=1`) no longer compiles correctly.
 
 | Macro | Default | Notes |
 |-------|---------|-------|
@@ -1398,7 +1423,7 @@ omit or set to 0 to disable.  Old presence-only style
 | `ONEWIRE_GUARD_BAND` | 5 (100 when `OW_PARASITE_POWER=1`) | Slot release margin in µs |
 | `ONEWIRE_SHORT_PULSE_MAX` | 10 | Short-pulse detection window in µs |
 | `OW_PARASITE_POWER` | 0 | 1 = set parasite timing defaults (guard band) |
-| `OW_PORT_LOW_POWER` | 0 | 1 = enable opt-in WFE sleep path |
+| `OW_LOW_POWER` | 0 | 1 = enable opt-in WFE sleep path |
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
 | `OW_BUS_DRIVE` | 3 (`OW_BUS_DRIVE_MAX`) | Drive strength of the bus pin: 0 = `WEAK`, 1 = `MEDIUM`, 2 = `STRONG`, 3 = `MAX`. `MAX` is the default because the parasite strong pull-up sources the whole fleet from this pad; F1 has no `OSPEEDR` register, so `MAX` clamps to `STRONG` there. |
@@ -1408,7 +1433,7 @@ omit or set to 0 to disable.  Old presence-only style
 
 ```bash
 make                              # defaults, all flags =0
-make EXT="-DOW_PORT_LOW_POWER=1"  # enable WFE sleep path
+make EXT="-DOW_LOW_POWER=1"  # enable WFE sleep path
 make EXT="-DOW_PARASITE_POWER=1"  # parasite guard-band default
 make EXT="-DONEWIRE_SHORT_PULSE_MAX=15 -DDS18B20_MAX_DEVICES=16"
 ```
@@ -1430,7 +1455,7 @@ Other CMake feature flags can be forwarded to the compiler via a standard
 PlatformIO (`platformio.ini`):
 
 ```ini
-build_flags = -DOW_PORT_LOW_POWER=1 -DOW_STATS_ENABLE=1
+build_flags = -DOW_LOW_POWER=1 -DOW_STATS_ENABLE=1
 ```
 
 Feature flags can also be set via a Makefile knob (no EXT needed):
@@ -1926,7 +1951,7 @@ Rules for correct RTOS use:
 3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
    entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
    polling only increases latency, never causes errors (see *Bus Idle
-   Behaviour*). The one exception is a build with `OW_PORT_LOW_POWER=1`, where
+   Behaviour*). The one exception is a build with `OW_LOW_POWER=1`, where
    that same call blocks in `WFE()` for the duration of a long stage — see
    [Examples](#examples) (`7_low_power`, and the low-power block there). Two
    practical patterns:

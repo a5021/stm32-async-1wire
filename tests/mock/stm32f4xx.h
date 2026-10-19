@@ -293,13 +293,13 @@ extern PWR_TypeDef mock_pwr;
 #endif
 #define __DSB() ((void)0)
 
-/* --- Core primitives for the opt-in low-power WFE path (OW_PORT_LOW_POWER).
+/* --- Core primitives for the opt-in low-power WFE path (OW_LOW_POWER).
  *     Host stubs mirroring the real CMSIS defines; compiled only into the
  *     low-power test build so the default busy-poll build stays byte-identical.
  *     F4 maps OW_PORT_TIM1_UPD_IRQn to TIM1_UP_TIM10_IRQn (TIM1_UP_IRQn does
  *     not exist on this family, so accidentally reusing the F1 mapping must
  *     fail to compile here). --- */
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 #define TIM1_UP_TIM10_IRQn 25
 #define SCB_SCR_SEVONPEND_Msk 0x00000010u
 typedef struct {
@@ -318,6 +318,6 @@ void mock_wfe_hook(void);
 #define __WFE() ((void)0)
 #endif
 #define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
-#endif /* OW_PORT_LOW_POWER */
+#endif /* OW_LOW_POWER */
 
 #endif /* STM32F4XX_MOCK_H */

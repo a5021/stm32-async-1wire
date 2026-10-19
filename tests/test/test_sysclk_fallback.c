@@ -3,17 +3,17 @@
  *
  *  Compile-only (no test harness), built in two modes from this one
  *  source (see the test-clocks Makefile target):
- *  - Values mode (-DOW_SYSCLK_VALUES_CHECK=1, WITH -DOW_PORT_SYSCLK_MHZ
+ *  - Values mode (-DOW_SYSCLK_VALUES_CHECK=1, WITH -DOW_SYSCLK_MHZ
  *    from chips/<part>.mk): verifies that the part file's clock matches
  *    the literal table below and the PLL/ceiling invariants - the check
  *    that would have caught a chips-clock typo (see below).
- *  - No-default mode (WITHOUT -DOW_PORT_SYSCLK_MHZ): anti-regression
+ *  - No-default mode (WITHOUT -DOW_SYSCLK_MHZ): anti-regression
  *    proving no family header guesses a clock default anymore; the
  *    PlatformIO / CubeMX path must reach the port core's SystemCoreClock
  *    auto-path instead of a silent fallback.
  *  Selecting a family through the raw family macro (STM32F0/F1/F3/F4/G0/
  *  G4/H5 - for F4/G4/H5 also the concrete device spellings) must still
- *  resolve the OW_PORT_FAMILY_* token in both modes. Built per OW_TARGET
+ *  resolve the OW_FAMILY_* token in both modes. Built per OW_TARGET
  *  by the test-clocks Makefile target.
  * ============================================================ */
 
@@ -22,7 +22,7 @@
 /* The part file's clock used to have two sources: the #if cascade in the
  * family headers above, and CHIP_SYSCLK_MHZ in the chips/<part>.mk the
  * build selects. They were not connected: the build passes
- * -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the firmware command line,
+ * -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) on the firmware command line,
  * which used to be exactly the #if !defined() guard in the family headers,
  * so on a Make/CMake firmware the header cascade was bypassed and the part
  * file alone decided. Meanwhile this file deliberately omitted that define
@@ -34,7 +34,7 @@
  * and clock-ref-check, test-chips and all sixteen host configurations still
  * passed. The header cascade is now gone (no family header may define a
  * clock), so the values mode below compares the part file's value - passed
- * as both OW_CHIP_SYSCLK_MHZ and OW_PORT_SYSCLK_MHZ - against the literal
+ * as both OW_CHIP_SYSCLK_MHZ and OW_SYSCLK_MHZ - against the literal
  * table instead. Same bug class, one source instead of two.
  */
 #ifndef OW_CHIP_SYSCLK_MHZ
@@ -42,19 +42,19 @@
 #endif
 
 #ifdef OW_SYSCLK_VALUES_CHECK
-/* Values mode: OW_PORT_SYSCLK_MHZ arrives via -D from chips/<part>.mk.
+/* Values mode: OW_SYSCLK_MHZ arrives via -D from chips/<part>.mk.
  * Every check below validates that value against the literals. */
 
 #if defined(STM32F0)
-#if OW_PORT_SYSCLK_MHZ != 48
+#if OW_SYSCLK_MHZ != 48
 #error "F0 family-macro selection must default to a 48 MHz system clock"
 #endif
 #elif defined(STM32F1)
-#if OW_PORT_SYSCLK_MHZ != 72
+#if OW_SYSCLK_MHZ != 72
 #error "F1 family-macro selection must default to a 72 MHz system clock"
 #endif
 #elif defined(STM32F3)
-#if OW_PORT_SYSCLK_MHZ != 72
+#if OW_SYSCLK_MHZ != 72
 #error "F3 family-macro selection must default to a 72 MHz system clock"
 #endif
 /* The F3 default is the part's 72MHz ceiling, and unlike F0/G0 it is not
@@ -76,53 +76,53 @@
 #endif
 #elif defined(STM32F4)
 #if defined(STM32F401xC) || defined(STM32F401xE)
-#if OW_PORT_SYSCLK_MHZ != 84
+#if OW_SYSCLK_MHZ != 84
 #error "F4/STM32F401 family-macro selection must default to an 84 MHz system clock"
 #endif
 #elif defined(STM32F446xx)
-#if OW_PORT_SYSCLK_MHZ != 180
+#if OW_SYSCLK_MHZ != 180
 #error "F4/STM32F446 family-macro selection must default to a 180 MHz system clock"
 #endif
 #else
-#if OW_PORT_SYSCLK_MHZ != 168
+#if OW_SYSCLK_MHZ != 168
 #error "F4 family-macro selection must default to a 168 MHz system clock"
 #endif
 #endif
 #elif defined(STM32G0)
-#if OW_PORT_SYSCLK_MHZ != 64
+#if OW_SYSCLK_MHZ != 64
 #error "G0 family-macro selection must default to a 64 MHz system clock"
 #endif
 #elif defined(STM32G4)
-#if OW_PORT_SYSCLK_MHZ != 170
+#if OW_SYSCLK_MHZ != 170
 #error "G4 family-macro selection must default to a 170 MHz system clock"
 #endif
 #elif defined(STM32H5)
-#if OW_PORT_SYSCLK_MHZ != 64
+#if OW_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
 #endif
 #else
-#error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
+#error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 
 /* The per-part ceiling has to agree with the default this file just checked, or
- * the guard that rejects an out-of-range request (OW_PORT_F4_MAX_SYSCLK_MHZ,
+ * the guard that rejects an out-of-range request (OW_F4_MAX_SYSCLK_MHZ,
  * owned by the ow_board.h F4 section, used by app.c) would reject the part's own
  * default. That pair is the only thing stopping a 180 MHz build for an F407. */
 #if defined(STM32F4)
-#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_F4_MAX_SYSCLK_MHZ)
-#error "the default clock exceeds OW_PORT_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#if (OW_SYSCLK_MHZ) > (OW_F4_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_F4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32G4)
-/* Same pair for G4 (OW_PORT_G4_MAX_SYSCLK_MHZ, owned by the ow_board.h G4 section): the
+/* Same pair for G4 (OW_G4_MAX_SYSCLK_MHZ, owned by the ow_board.h G4 section): the
  * only part tops out at 170MHz. */
-#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_G4_MAX_SYSCLK_MHZ)
-#error "the default clock exceeds OW_PORT_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#if (OW_SYSCLK_MHZ) > (OW_G4_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H5)
-/* Same pair for H5 (OW_PORT_H5_MAX_SYSCLK_MHZ, owned by the ow_board.h H5 section): the
+/* Same pair for H5 (OW_H5_MAX_SYSCLK_MHZ, owned by the ow_board.h H5 section): the
  * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
-#if (OW_PORT_SYSCLK_MHZ) > (OW_PORT_H5_MAX_SYSCLK_MHZ)
-#error "the default clock exceeds OW_PORT_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#if (OW_SYSCLK_MHZ) > (OW_H5_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #endif
 
@@ -141,14 +141,14 @@
 #if (OW_HSE_MHZ) < 2 || (OW_HSE_MHZ) > 63
 #error "F4: PLLM is 5 bits (2..63); OW_HSE_MHZ outside that cannot give a 1MHz PLL input"
 #endif
-#if ((OW_PORT_SYSCLK_MHZ) * 2) < 100 || ((OW_PORT_SYSCLK_MHZ) * 2) > 432
+#if ((OW_SYSCLK_MHZ) * 2) < 100 || ((OW_SYSCLK_MHZ) * 2) > 432
 #error "F4: at a 1MHz PLL input the VCO equals 2*SYSCLK, which must stay in 100..432MHz"
 #endif
 /* The raw-HSE mode bypasses the PLL and runs at the crystal's own frequency, so
  * it is only selected when the requested clock equals the crystal. Requesting 8MHz
  * on a 25MHz board used to compile and run with every 1-Wire timing scaled by
  * 3.125 - now a build error. */
-#if (OW_PORT_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
+#if (OW_SYSCLK_MHZ) == 8 && (OW_HSE_MHZ) != 8
 #error "F4: SYSCLK_MHZ=8 selects raw HSE, which runs at the crystal: pass HSE_MHZ=8, or SYSCLK_MHZ=16 for the internal RC"
 #endif
 #endif /* STM32F4 */
@@ -175,22 +175,22 @@
 #if ((OW_HSE_MHZ) / ((OW_HSE_MHZ) / 4u)) != 4
 #error "G4: HSE divided by the M divider (field+1) must give the 4MHz PLL input"
 #endif
-#if ((OW_PORT_SYSCLK_MHZ) * 2) < 64 || ((OW_PORT_SYSCLK_MHZ) * 2) > 344
+#if ((OW_SYSCLK_MHZ) * 2) < 64 || ((OW_SYSCLK_MHZ) * 2) > 344
 #error "G4: at a 4MHz PLL input the VCO equals 2*SYSCLK, which must stay in 64..344MHz"
 #endif
 /* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
 #endif /* STM32G4 */
 #else /* !defined(OW_SYSCLK_VALUES_CHECK): no-default mode -------------------
- * Compiled WITHOUT -DOW_PORT_SYSCLK_MHZ: proves no family header smuggles
+ * Compiled WITHOUT -DOW_SYSCLK_MHZ: proves no family header smuggles
  * a clock default back in, and that the family macro still resolves the
  * backend token (the PlatformIO / CubeMX selection path). */
 /* The core must see no clock here: any definition would come from a header
  * fallback guess, which must not exist. (The -D the values mode passes is
  * deliberately absent from this object's command line.) */
-#ifdef OW_PORT_SYSCLK_MHZ
-#error "test_sysclk_fallback: OW_PORT_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
+#ifdef OW_SYSCLK_MHZ
+#error "test_sysclk_fallback: OW_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
 #endif
-#if !defined(OW_PORT_FAMILY_F0) && !defined(OW_PORT_FAMILY_F1) && !defined(OW_PORT_FAMILY_F3) && !defined(OW_PORT_FAMILY_F4) && !defined(OW_PORT_FAMILY_G0) && !defined(OW_PORT_FAMILY_G4) && !defined(OW_PORT_FAMILY_H5)
-#error "test_sysclk_fallback: no OW_PORT_FAMILY_* token resolved (family macro not defined)"
+#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_H5)
+#error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 #endif /* OW_SYSCLK_VALUES_CHECK */

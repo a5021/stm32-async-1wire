@@ -192,7 +192,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *  family-owned, not shared).  DMA request routing defaults to a no-op (fixed-map families) and G0/G4
  *  program their DMAMUX through the same two macros.
  *
- *  The family facts above (ow_mcu.h: ow_pulse_t, OW_PORT_SYSCLK_MHZ /
+ *  The family facts above (ow_mcu.h: ow_pulse_t, OW_SYSCLK_MHZ /
  *  SystemCoreClock, OW_PORT_TIM1_UPD_IRQn, DMA spelling) must precede this
  *  core: the register vocabulary at the top of this file supplies the
  *  T1/PA/RC/D1x aliases used below (including the D13/D14 channel defaults),
@@ -298,21 +298,21 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *     be overridden from the build (-DOW_PORT_IC4F_ARGS=...) to sweep the
  *     filter on a bench.
  *     Test: tests/test/test_timing.c::test_ic4f_matches_the_documented_tier() */
-#if defined(OW_PORT_SYSCLK_MHZ)
+#if defined(OW_SYSCLK_MHZ)
 #ifndef OW_PORT_IC4F_ARGS
-#if (OW_PORT_SYSCLK_MHZ) <= 8
+#if (OW_SYSCLK_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
-#elif (OW_PORT_SYSCLK_MHZ) <= 16
+#elif (OW_SYSCLK_MHZ) <= 16
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* 0b0011 = fCK_INT/4, N=1 */
-#elif (OW_PORT_SYSCLK_MHZ) <= 72
+#elif (OW_SYSCLK_MHZ) <= 72
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* 0b0111 = fCK_INT/4, N=2 */
-#elif (OW_PORT_SYSCLK_MHZ) <= 168
+#elif (OW_SYSCLK_MHZ) <= 168
 #define OW_PORT_IC4F_ARGS IC4F_3 /* 0b1000 = fCK_INT/32, N=3 */
 #else
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
 #endif
 #endif
-#endif /* OW_PORT_SYSCLK_MHZ: ladder above is compile-time only; the OC3PE
+#endif /* OW_SYSCLK_MHZ: ladder above is compile-time only; the OC3PE
         * knob below is clock-independent and shared by both paths. */
 
 /* OC3 output-compare preload (OC3PE) knob, see above for the rationale.
@@ -332,7 +332,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #endif
 
 /* Prescaler for 1 us resolution: PSC = SYSCLK / 1MHz - 1, from the shared
- * OW_PORT_SYSCLK_MHZ.  INVARIANT: TIM1's kernel clock must equal SYSCLK.
+ * OW_SYSCLK_MHZ.  INVARIANT: TIM1's kernel clock must equal SYSCLK.
  * How each family gets there is family-specific and documented in its
  * ow_mcu.h section: F0/F1/F3/G0/G4 leave the APB prescaler feeding TIM1 at
  * /1, so TIM1 = PCLK = SYSCLK directly; F4 programs PPRE2=/2 (PPRE1=/4 or
@@ -340,8 +340,8 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  * either way.  Which APB the timer sits on, and why that family's prescalers
  * are what they are, is documented in each section; it is checked by
  * tests/test/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
-#if defined(OW_PORT_SYSCLK_MHZ)
-#define OW_PORT_TIM_PRESCALER ((OW_PORT_SYSCLK_MHZ) - 1u)
+#if defined(OW_SYSCLK_MHZ)
+#define OW_PORT_TIM_PRESCALER ((OW_SYSCLK_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
                "TIM prescaler exceeds 16-bit PSC register width");
 /* CCMR2 capture-mode word shared by the three capture arms below
@@ -351,12 +351,12 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * drift; the DMA-fed merged arm drops the preload bit (see below). */
 #define OW_PORT_CCMR2_CAP TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS
 #define OW_PORT_CCMR2_MRG TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS)
-#else /* !defined(OW_PORT_SYSCLK_MHZ): SystemCoreClock auto-path -------------
+#else /* !defined(OW_SYSCLK_MHZ): SystemCoreClock auto-path -------------
  * For integrations that select a backend without passing a clock -D
  * (PlatformIO/CubeMX family-macro path): the CMSIS SystemCoreClock variable
  * supplies the frequency instead of a header fallback guess, so a CubeMX
  * project at 64MHz can never silently inherit a 72MHz prescaler. The Make
- * and CMake builds always pass -DOW_PORT_SYSCLK_MHZ (from chips/<part>.mk)
+ * and CMake builds always pass -DOW_SYSCLK_MHZ (from chips/<part>.mk)
  * and never reach this branch.
  * @pre SystemCoreClock holds the real SYSCLK in Hz (SystemCoreClockUpdate()
  *      after any clock-tree change), is an integer number of MHz >= 1MHz,
@@ -397,7 +397,7 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
     (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock) | OW_PORT_OC3PE_ARGS)
 #define OW_PORT_CCMR2_MRG \
     (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock))
-#endif /* OW_PORT_SYSCLK_MHZ */
+#endif /* OW_SYSCLK_MHZ */
 
 /* DMA control-value accessors (port-unification vocabulary): the exact
  * CR/CCR word each DMA-programming site writes, split by transfer class.
@@ -531,7 +531,7 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
  */
 __STATIC_FORCEINLINE void ow_port_init(void) {
     OW_PORT_ENABLE_BUS_CLOCKS();
-#if defined(OW_PORT_SYSCLK_MHZ)
+#if defined(OW_SYSCLK_MHZ)
     T1.PSC = OW_PORT_TIM_PRESCALER;
 #else
     T1.PSC = ow_port_psc_from_hz(SystemCoreClock);
@@ -552,7 +552,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
          * feed, and the direct-write/capture operations (reset, read, single
          * slot) use an OC3PE preload of ONEWIRE_RELEASE_PULSE — both applied
          * exactly when the one-pulse timer stops. */
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
         /* The update event both interrupts the low-power WFE sleep and, via
          * SEVONPEND, raises an NVIC pending bit. UIE also latches a pending
          * bit at every ow_port_update_event() re-arm (EGR=UG). Clear the
@@ -573,7 +573,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
     return 0u;
 }
 
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
 /**
  * @brief Whether the currently scheduled operation is a "long" stage
  * @return 1 while a long stage (conversion, scratchpad read, EEPROM hold-off,
@@ -645,7 +645,7 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #endif
     T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
     /* No duration decision here: ow_port_long_wait_pending() derives it from
      * the caller's ARR/RCR, so every capture path (reset, read, long
@@ -685,7 +685,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
     T1.CCER = TIM_CCER(CC3E);
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     T1.DIER = TIM_DIER(CC2DE, UIE);
 #else
     T1.DIER = TIM_DIER(CC2DE);
@@ -707,7 +707,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
 __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
     T1.ARR = arr;
     T1.RCR = rcr;
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     if ((uint32_t)(rcr + 1u) * (uint32_t)arr > OW_PORT_LONG_STAGE_US) {
         /* long stage: conversion / EEPROM hold-off. Enable the update
          * interrupt so the pending bit wakes __WFE() via SEVONPEND.
@@ -766,7 +766,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
          * (hardware bus release). */
         T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2) | OW_PORT_OC3PE_ARGS;
         T1.CCER = TIM_CCER(CC3E);
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
         T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
 #else
         T1.DIER = 0; /* No DMA for a single bit slot */
@@ -789,7 +789,7 @@ __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
     T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, UIE);
 #else
     T1.DIER = TIM_DIER(CC4DE);
@@ -840,7 +840,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * (The end-of-slot CC2 compare event of the previous merged operation can
      * leave a pending request that fires the reload DMA immediately on re-arm,
      * overwriting the freshly written direction pulse in CCR3.) */
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
 #else
     T1.DIER = 0;
@@ -859,7 +859,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
     OW_PORT_DMA_PROG_FEED(read_pulse, 3, OW_PORT_DMA_CR_TX);
-#if OW_PORT_LOW_POWER
+#if OW_LOW_POWER
     T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
 #else
     T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */
