@@ -191,9 +191,7 @@ uint8_t onewire_present(const volatile uint16_t* pulses) {
            (presence >= PRESENCE_PULSE_MIN) && (presence <= PRESENCE_PULSE_MAX);
 }
 
-void ow_glue_start_timer(uint16_t arr, uint8_t rcr) {
-    ow_port_start_timer(arr, rcr);
-}
+void ow_glue_wait_start(uint32_t us) { ow_port_start_wait(us); }
 
 void ow_glue_kick(void) { ow_port_kick(); }
 

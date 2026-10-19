@@ -26,13 +26,12 @@
 #include <stdint.h>
 
 /**
- * @brief Start a hardware-timed wait with the shared one-pulse timer
- * @param[in] arr Auto-reload value (one timer period in µs)
- * @param[in] rcr Repetition counter (number of periods - 1)
- * @note The timer update event fires after (RCR + 1) · ARR microseconds; used
- *       for DS18B20 conversion waits and EEPROM hold-off windows.
+ * @brief Start a hardware-timed wait of a given duration
+ * @param[in] us Requested wait in microseconds
+ * @note The engine picks the timer periods; the caller states a duration.
+ *       See ow_port_plan_wait() for the rule.
  */
-void ow_glue_start_timer(uint16_t arr, uint8_t rcr);
+void ow_glue_wait_start(uint32_t us);
 
 /**
  * @brief Raise the timer update flag so the caller's state machine advances

@@ -66,13 +66,51 @@ void test_timing_wait_conversion_750ms(void) {
 }
 
 void test_timing_long_wait_arr_rcr(void) {
+    uint16_t arr;
+    uint8_t rcr;
     hw_reset_all();
-    /* Generic long idle-HIGH wait: 62500 ticks * 80 periods * 1us = 5s. The
-     * driver no longer has a cycle-pause knob, so the ARR/RCR math of a long
-     * timer pass is covered through the raw ow_glue_start_timer() contract. */
-    test_bus_start_timer(62500, 79);
-    TEST_ASSERT_EQUAL_UINT32(62500, mock_tim1.ARR);
-    TEST_ASSERT_EQUAL_UINT32(79, mock_tim1.RCR);
+    /* Generic long idle-HIGH wait: the caller states a duration, the engine
+     * picks the timer periods. The plan must cover the request and must not
+     * overshoot it by more than one period. The driver no longer has a
+     * cycle-pause knob, so the plan of a long timer pass is covered here. */
+    test_bus_wait_plan(5000000u, &arr, &rcr);
+    TEST_ASSERT_TRUE((uint32_t)(rcr + 1u) * (uint32_t)arr >= 5000000u);
+    TEST_ASSERT_TRUE((uint32_t)(rcr + 1u) * (uint32_t)arr < 5000000u + 65535u);
+    test_bus_wait_start(5000000u);
+    TEST_ASSERT_EQUAL_UINT32(arr, mock_tim1.ARR);
+    TEST_ASSERT_EQUAL_UINT32(rcr, mock_tim1.RCR);
+}
+
+void test_timing_wait_plan_rule(void) {
+    /* The rule, spelled out: the fewest periods the 16-bit ARR allows
+     * (N = ceil(us / 65535)), then the shortest period that still covers the
+     * request (ARR = ceil(us / N)). The total is never short of the request
+     * and overshoots it by less than one period - and N is minimal, so the
+     * wait costs the fewest timer periods the timer can express. */
+    static const struct {
+        uint32_t us;
+        uint16_t arr;
+        uint8_t rcr;
+    } k_plan[] = {
+        {1u, 1u, 0u}, /* one tick                        */
+        {1000u, 1000u, 0u}, /* the scan-mode scheduling bridge */
+        {11000u, 11000u, 0u}, /* the DS2431 EEPROM hold-off    */
+        {93750u, 46875u, 1u}, /* DS18B20 9-bit  tCONV = 93.75 ms */
+        {187500u, 62500u, 2u}, /* DS18B20 10-bit tCONV = 187.5 ms */
+        {375000u, 62500u, 5u}, /* DS18B20 11-bit tCONV = 375 ms */
+        {750000u, 62500u, 11u}, /* DS18B20 12-bit tCONV = 750 ms */
+    };
+    for (unsigned i = 0; i < sizeof(k_plan) / sizeof(k_plan[0]); i++) {
+        uint16_t arr;
+        uint8_t rcr;
+        uint32_t total;
+        test_bus_wait_plan(k_plan[i].us, &arr, &rcr);
+        TEST_ASSERT_EQUAL_UINT16(k_plan[i].arr, arr);
+        TEST_ASSERT_EQUAL_UINT8(k_plan[i].rcr, rcr);
+        total = (uint32_t)(rcr + 1u) * (uint32_t)arr;
+        TEST_ASSERT_TRUE(total >= k_plan[i].us);
+        TEST_ASSERT_TRUE(total < k_plan[i].us + (uint32_t)arr);
+    }
 }
 
 void test_timing_temperature_formula(void) {
@@ -453,6 +491,7 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_read_programs_72_slots);
     TEST_RUN(test_timing_wait_conversion_750ms);
     TEST_RUN(test_timing_long_wait_arr_rcr);
+    TEST_RUN(test_timing_wait_plan_rule);
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
     TEST_RUN(test_ic4f_matches_the_documented_tier);

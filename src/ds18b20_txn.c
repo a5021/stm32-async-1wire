@@ -180,7 +180,7 @@ static uint8_t txn_poll(void) {
             if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
                 onewire_strong_pullup(1);
             }
-            ow_glue_start_timer(txn_ctx.wait_us, 0);
+            ow_glue_wait_start(txn_ctx.wait_us);
             txn_ctx.phase = DS18B20_TXN_WAIT;
         } else {
             if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {

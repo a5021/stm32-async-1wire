@@ -54,7 +54,7 @@ void test_lowpower_conversion_wait_sets_pending_and_uie(void) {
  *  Any long timed wait (> 1 ms) is a long stage too
  * -----------------------------------------------------------*/
 void test_lowpower_long_wait_sets_pending_and_uie(void) {
-    test_bus_start_timer(62500, 79);
+    test_bus_wait_start(5000000);
     TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
     TEST_ASSERT_TRUE(mock_tim1.DIER & TIM_DIER_UIE);
 }

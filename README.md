@@ -1837,8 +1837,9 @@ Explicit-start behavior
 
 - WAIT (state 3)
   - On UIF: wait_conversion() schedules exactly the conversion time of the
-    configured resolution `ctx.resolution` (9-bit: 10×9.375ms; 10-bit:
-    10×18.75ms; 11-bit: 20×18.75ms; 12-bit: 12×62.5ms = 750ms). The
+    configured resolution `ctx.resolution` (9-bit: 93.75ms; 10-bit: 187.5ms;
+    11-bit: 375ms; 12-bit: 750ms). The driver states that duration; the
+    engine picks the timer periods that produce it. The
     resolution is auto-derived from each valid scratchpad read and updated
     by `ds18b20_set_resolution()`; set state=4.
 

@@ -221,10 +221,10 @@ void test_read_pair_standalone_release(void) {
 }
 
 /*-------------------------------------------------------------
- *  Long pure-timer waits (wait_conversion = 750ms, RCR=11;
- *  a generic 5s wait, RCR=79). They never touch CCR3,
- *  so the line stays idle HIGH for the whole wait and the bus
- *  is still released when the timer stops.
+ *  Long pure-timer waits (the DS18B20 conversion wait, and a
+ *  generic 5 s wait). They never touch CCR3, so the line stays
+ *  idle HIGH for the whole wait and the bus is still released
+ *  when the timer stops.
  * -----------------------------------------------------------*/
 void test_long_waits_keep_bus_released(void) {
     ow_pulse_t cmd[17];
@@ -243,9 +243,9 @@ void test_long_waits_keep_bus_released(void) {
     complete_op(100); /* 12 slots */
     assert_bus_released();
 
-    test_bus_start_timer(62500, 79);
-    TEST_ASSERT_EQUAL_UINT8(79, mock_tim1.RCR);
-    complete_op(100); /* 80 slots */
+    test_bus_wait_start(5000000);
+    TEST_ASSERT_TRUE((uint32_t)(mock_tim1.RCR + 1u) * (uint32_t)mock_tim1.ARR >= 5000000u);
+    complete_op(100); /* the wait runs in periods; 100 covers them */
     assert_bus_released();
 }
 

@@ -36,7 +36,6 @@
 /** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
 #define SCAN_DEVICE_GAP_US 1000 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
-#define SCAN_DEVICE_GAP_RCR 0
 /** @brief TH byte written together with the config register by the resolution
  *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
  *         0 disables the alarm trigger threshold. */
@@ -257,32 +256,22 @@ __STATIC_FORCEINLINE int16_t decode_temperature(void) {
 /**
  * @brief Map a conversion resolution to its exact DS18B20 conversion time
  * @param[in] res Resolution in bits (9..12)
- * @param[out] arr Auto-reload value (one timer period in µs)
- * @param[out] rcr Repetition counter (number of periods - 1)
+ * @return The datasheet conversion time in microseconds
  * @note DS18B20 datasheet conversion times: 9-bit 93.75ms, 10-bit 187.5ms,
- *       11-bit 375ms, 12-bit 750ms. The (ARR, RCR) pairs below reproduce
- *       exactly those minimum waits at 1µs/tick with the invariant
- *       (RCR + 1) × ARR = wait in µs.
+ *       11-bit 375ms, 12-bit 750ms. The driver states the duration; how the
+ *       timer is programmed to produce it is the engine's business.
  */
-__STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t* rcr) {
+__STATIC_FORCEINLINE uint32_t resolution_wait_us(uint8_t res) {
     switch (res) {
     case 9:
-        *arr = 9375;
-        *rcr = 9;
-        break; /* 10 × 9.375ms = 93.75ms */
+        return 93750u; /* 93.75ms */
     case 10:
-        *arr = 18750;
-        *rcr = 9;
-        break; /* 10 × 18.75ms = 187.5ms */
+        return 187500u; /* 187.5ms */
     case 11:
-        *arr = 18750;
-        *rcr = 19;
-        break; /* 20 × 18.75ms = 375ms */
+        return 375000u; /* 375ms */
     case 12:
     default:
-        *arr = 62500;
-        *rcr = 11;
-        break; /* 12 × 62.5ms = 750ms */
+        return 750000u; /* 750ms */
     }
 }
 
@@ -293,10 +282,7 @@ __STATIC_FORCEINLINE void resolution_to_wait(uint8_t res, uint16_t* arr, uint8_t
  *       is guaranteed finished: 93.75ms (9 bit) .. 750ms (12 bit).
  */
 __STATIC_FORCEINLINE void wait_conversion(void) {
-    uint16_t arr;
-    uint8_t rcr;
-    resolution_to_wait(ctx.resolution, &arr, &rcr);
-    ow_glue_start_timer(arr, rcr);
+    ow_glue_wait_start(resolution_wait_us(ctx.resolution));
 }
 
 /**

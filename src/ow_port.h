@@ -700,7 +700,49 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
 }
 
 /**
- * @brief Start a hardware-timed wait (conversion wait / EEPROM hold-off)
+ * @brief Plan a hardware-timed wait of a given duration
+ * @param[in] us Requested wait in microseconds
+ * @param[out] arr Auto-reload value (one timer period in µs)
+ * @param[out] rcr Repetition counter (number of periods - 1)
+ * @note The timer synthesises a delay longer than one period with its 8-bit
+ *       repetition counter: the update event fires once, after
+ *       (RCR + 1) x ARR microseconds. ARR is 16-bit, so a wait longer than
+ *       65535 µs needs several periods.
+ *
+ *       The rule: the fewest periods that fit (N = ceil(us / 65535)), then
+ *       the shortest period that still covers the request (ARR = ceil(us /
+ *       N)). The total therefore never falls short of `us` and overshoots it
+ *       by less than one period, and the number of periods is the smallest
+ *       the timer can express - which also means the fewest wake-ups.
+ *
+ *       The caller states a duration; the register arithmetic stays here,
+ *       where the timer's limits live. A request beyond the timer's reach
+ *       (16.8 s: 256 periods of 65535 µs) is clamped to it - no 1-Wire
+ *       device needs more, and the DS18B20 conversion wait tops out at
+ *       750 ms.
+ */
+__STATIC_FORCEINLINE void ow_port_plan_wait(uint32_t us, uint16_t* arr, uint8_t* rcr) {
+    /* N = ceil(us / 65535), written so it cannot overflow. */
+    uint32_t n = us / 65535u + ((us % 65535u) ? 1u : 0u);
+    uint32_t period;
+    if (n == 0u) {
+        n = 1u; /* a zero-length wait is one tick */
+    } else if (n > 256u) {
+        n = 256u; /* RCR is 8-bit: at most 256 periods */
+    }
+    /* ARR = ceil(us / n), again without the overflow of (us + n - 1). */
+    period = us / n + ((us % n) ? 1u : 0u);
+    if (period > 65535u) {
+        period = 65535u; /* beyond the timer's reach: clamp (see @note) */
+    } else if (period == 0u) {
+        period = 1u;
+    }
+    *arr = (uint16_t)period;
+    *rcr = (uint8_t)(n - 1u);
+}
+
+/**
+ * @brief Start a hardware-timed wait from an explicit period plan
  * @param[in] arr Auto-reload value (one timer period in µs)
  * @param[in] rcr Repetition counter (number of periods - 1)
  */
@@ -718,6 +760,20 @@ __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {
 #endif
     ow_port_update_event();
     T1.CR1 = TIM_CR1(OPM, CEN);
+}
+
+/**
+ * @brief Start a hardware-timed wait (conversion wait / EEPROM hold-off)
+ * @param[in] us Requested wait in microseconds
+ * @note The timer is planned for the duration, then armed; see
+ *       ow_port_plan_wait() for the rule and ow_port_start_timer() for the
+ *       register writes.
+ */
+__STATIC_FORCEINLINE void ow_port_start_wait(uint32_t us) {
+    uint16_t arr;
+    uint8_t rcr;
+    ow_port_plan_wait(us, &arr, &rcr);
+    ow_port_start_timer(arr, rcr);
 }
 
 /**

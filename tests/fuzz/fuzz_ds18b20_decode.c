@@ -4,7 +4,8 @@
  * Compiled as single-TU: #include the source to access static inlines.
  * Properties:
  * - res_config_byte: known mapping 9→0x1F, 10→0x3F, 11→0x5F, 12→0x7F
- * - resolution_to_wait: (RCR+1)*ARR = expected conversion time in µs
+ * - the conversion wait: the driver states the datasheet duration, and the
+ *   engine's wait plan covers it exactly
  * - decode_temperature: correct conversion from raw int16 to tenths-C
  * - check_scratchpad_crc: == ds18b20_crc8(scratchpad, 8)
  */
@@ -41,15 +42,18 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         break;
     }
     case 1: {
-        /* Fuzz resolution_to_wait */
+        /* Fuzz the conversion wait: the driver states a duration, the engine
+         * plans the timer periods for it. */
         uint8_t res = data[1];
+        uint32_t us = resolution_wait_us(res);
         uint16_t arr = 0;
         uint8_t rcr = 0;
-        resolution_to_wait(res, &arr, &rcr);
+        ow_port_plan_wait(us, &arr, &rcr);
 
-        /* ARR and RCR must be non-zero for valid resolutions */
+        /* the plan must never be short of the request */
+        if ((uint32_t)(rcr + 1) * arr < us) abort();
+        /* for valid resolutions the wait is the datasheet time, exactly */
         if (res >= 9 && res <= 12) {
-            if (arr == 0) abort();
             /* (RCR+1)*ARR should equal expected conversion time */
             uint32_t total_us = (uint32_t)(rcr + 1) * arr;
             if (res == 9 && total_us != 93750) abort();
@@ -109,12 +113,13 @@ int main(void) {
     if (res_config_byte(11) != 0x5F) abort();
     if (res_config_byte(12) != 0x7F) abort();
 
-    /* resolution_to_wait: verify (RCR+1)*ARR */
+    /* the conversion wait: the plan covers the datasheet time exactly */
     uint16_t arr;
     uint8_t rcr;
-    resolution_to_wait(9, &arr, &rcr);
+    if (resolution_wait_us(9) != 93750) abort();
+    ow_port_plan_wait(resolution_wait_us(9), &arr, &rcr);
     if ((uint32_t)(rcr + 1) * arr != 93750) abort();
-    resolution_to_wait(12, &arr, &rcr);
+    ow_port_plan_wait(resolution_wait_us(12), &arr, &rcr);
     if ((uint32_t)(rcr + 1) * arr != 750000) abort();
 
     /* decode_temperature: 0x0000 → 0 */

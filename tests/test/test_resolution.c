@@ -90,10 +90,10 @@ void test_resolution_wait_timing_matches_table(void) {
         uint8_t rcr;
         uint32_t us;
     } k_wait[] = {
-        {9, 9375, 9, 93750}, /* 10 x 9.375ms = 93.75ms */
-        {10, 18750, 9, 187500}, /* 10 x 18.75ms = 187.5ms */
-        {11, 18750, 19, 375000}, /* 20 x 18.75ms = 375ms */
-        {12, 62500, 11, 750000}, /* 12 x 62.5ms = 750ms */
+        {9, 46875, 1, 93750}, /* 2 x 46.875ms = 93.75ms  */
+        {10, 62500, 2, 187500}, /* 3 x 62.5ms = 187.5ms   */
+        {11, 62500, 5, 375000}, /* 6 x 62.5ms = 375ms     */
+        {12, 62500, 11, 750000}, /* 12 x 62.5ms = 750ms   */
     };
     for (unsigned i = 0; i < sizeof(k_wait) / sizeof(k_wait[0]); i++) {
         hw_reset_all();
@@ -313,8 +313,8 @@ void test_resolution_next_cycle_waits_short(void) {
     /* wait_conversion() must now wait for 9-bit (93.75ms), not 750ms. */
     mock_tim1.SR |= TIM_SR_UIF;
     ds18b20_poll();
-    TEST_ASSERT_EQUAL_UINT32(9375, mock_tim1.ARR);
-    TEST_ASSERT_EQUAL_UINT32(9, mock_tim1.RCR);
+    TEST_ASSERT_EQUAL_UINT32(46875, mock_tim1.ARR);
+    TEST_ASSERT_EQUAL_UINT32(1, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
 }
 

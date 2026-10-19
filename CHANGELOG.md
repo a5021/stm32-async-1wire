@@ -28,6 +28,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **The drivers state a wait in microseconds, not in timer registers.** The
+  DS18B20 driver used to hold a table of TIM1 auto-reload/repetition pairs for
+  the datasheet conversion time — 9-bit `9375/9`, 10-bit `18750/9`, 11-bit
+  `18750/19`, 12-bit `62500/11` — and hand them to the engine. That is a
+  microcontroller-independent driver doing arithmetic on one specific timer's
+  registers: the DS18B20 datasheet says "750 ms", not "12 × 62.5 ms".
+
+  The driver now states a duration (`resolution_wait_us()` returns the
+  datasheet time in microseconds) and the engine picks the timer periods: the
+  fewest the 16-bit ARR allows (N = ceil(us / 65535)), then the shortest
+  period that still covers the request (ARR = ceil(us / N)). The total never
+  falls short of the request and overshoots it by less than one period, and
+  the update event still fires once, at the same moment as before — the wait
+  durations are unchanged, the register values are not.
+
+  Concretely, the DS18B20 conversion wait is now 2 × 46.875 ms (9-bit),
+  3 × 62.5 ms (10-bit), 6 × 62.5 ms (11-bit) and 12 × 62.5 ms (12-bit) —
+  the same 93.75 / 187.5 / 375 / 750 ms, programmed differently. The
+  scan-mode gap and the DS2431 hold-off are unchanged (1 ms and 11 ms, one
+  timer period each, as before).
+
+  Because those constants changed, firmware images are **no longer
+  byte-identical** to 2.4.0 — the STM32F103xB image grows from 2764 to 2800
+  bytes. The timing behaviour is the same. The wait plan is now covered by a
+  test of the rule itself (`test_timing_wait_plan_rule`) rather than by
+  magic numbers.
+
 - **The public macros lost the `PORT_` infix (breaking).** The port layer is
   private to the library, so a public macro named after it invited consumers
   to depend on something they cannot see. The rename is mechanical and

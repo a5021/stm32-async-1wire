@@ -234,7 +234,7 @@ static uint8_t ds2431_poll(void) {
             // Parasite power: the EEPROM programming draws its supply from the
             // bus while the block is written - drive HIGH actively for the
             // t_PROG hold-off window.
-            ow_glue_start_timer(DS2431_TPROG_US, 0);
+            ow_glue_wait_start(DS2431_TPROG_US);
             ctx.phase = DS2431_PH_WAIT;
         } else if (ctx.len) {
             if ((ctx.flags & DS2431_FLAG_PARASITE) != 0u) {
