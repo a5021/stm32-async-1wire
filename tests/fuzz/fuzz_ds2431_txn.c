@@ -151,6 +151,17 @@ typedef struct {
     uint8_t out[MAX_READ_BYTES];
 } ds_model_t;
 
+/* Data byte count of a Read Scratchpad reply, from its own header
+ * (mirrors ds2431_scratchpad_data_len() in the driver). */
+static uint8_t model_scratchpad_data_len(const uint8_t* frame) {
+    uint8_t last = (uint8_t)((frame[2] & 0x07u) + 1u);
+    uint8_t first = (uint8_t)(frame[0] & 0x07u);
+    if (last <= first) {
+        return 0u;
+    }
+    return (uint8_t)(last - first);
+}
+
 static void model_run(ds_model_t* m) {
     memset(m, 0, sizeof(*m));
     m->parasite = g_parasite;
@@ -181,44 +192,65 @@ static void model_run(ds_model_t* m) {
             abort();
         }
         {
-            /* The reply's trailing inverted CRC-16 must cover command + frame. */
-            uint8_t crc_in[DS2431_SCRATCH_FRAME + 1];
+            /* The reply carries (E[2:0] - T[2:0] + 1) data bytes, so the
+             * trailing inverted CRC-16 must cover command + header + those
+             * bytes (not the fixed 11-byte window). */
+            uint8_t n = model_scratchpad_data_len(g_cur_read);
+            if (n == 0u) {
+                m->ok = 0u; /* not a valid scratchpad window */
+                break;
+            }
+            uint8_t crc_in[1 + 3 + MAX_PAYLOAD];
             crc_in[0] = DS2431_READ_SCRATCHPAD;
-            memcpy(&crc_in[1], g_cur_read, DS2431_SCRATCH_FRAME);
-            uint16_t expected = (uint16_t)(~onewire_crc16(crc_in, DS2431_SCRATCH_FRAME + 1));
-            uint16_t got = (uint16_t)((uint16_t)g_cur_read[DS2431_SCRATCH_FRAME] |
-                                      ((uint16_t)g_cur_read[DS2431_SCRATCH_FRAME + 1] << 8));
+            memcpy(&crc_in[1], g_cur_read, (size_t)(3u + n));
+            uint16_t expected = (uint16_t)(~onewire_crc16(crc_in, (uint16_t)(1u + 3u + n)));
+            uint16_t got = (uint16_t)((uint16_t)g_cur_read[3u + n] |
+                                      ((uint16_t)g_cur_read[4u + n] << 8));
             if (got != expected) {
                 m->ok = 0u; /* CRC mismatch: the scratchpad read is corrupt */
                 break;
             }
-        }
-        if (g_pending != 0u &&
-            (g_cur_read[0] != g_alo || g_cur_read[1] != g_ahi ||
-             (uint8_t)(g_cur_read[2] & 0x07u) != g_es)) {
-            m->ok = 0u; /* echo mismatch: the write did not reach this device */
-            break;
-        }
-        if (g_pending != 0u) {
-            /* The read-back data must match the payload the write sent: the
-             * device's CRC-16 covers what it stored, so it cannot catch a byte
-             * corrupted on the way to the device. */
-            uint8_t same = 1u;
-            for (uint8_t i = 0; i <= g_es; i++) {
-                if (g_cur_read[3 + i] != g_payload[i]) {
-                    same = 0u;
+            if (g_pending != 0u &&
+                (g_cur_read[0] != g_alo || g_cur_read[1] != g_ahi ||
+                 (uint8_t)(g_cur_read[2] & 0x07u) != g_es)) {
+                m->ok = 0u; /* echo mismatch: the write did not reach this device */
+                break;
+            }
+            if (g_pending != 0u && (g_cur_read[2] & 0x20u) != 0u) {
+                m->ok = 0u; /* PF set: the scratchpad is not a valid block */
+                break;
+            }
+            if (g_pending != 0u) {
+                /* The read-back data must match the payload the write sent: the
+                 * device's CRC-16 covers what it stored, so it cannot catch a
+                 * byte corrupted on the way to the device. */
+                uint8_t same = 1u;
+                for (uint8_t i = 0; i < n; i++) {
+                    if (g_cur_read[3 + i] != g_payload[i]) {
+                        same = 0u;
+                        break;
+                    }
+                }
+                if (same == 0u) {
+                    m->ok = 0u; /* payload mismatch: byte corrupted in flight */
                     break;
                 }
             }
-            if (same == 0u) {
-                m->ok = 0u; /* payload mismatch: byte corrupted in flight */
-                break;
+            /* The driver hands back the valid window and zeroes the tail. */
+            m->out_len = DS2431_SCRATCH_FRAME;
+            for (uint8_t i = 0; i < DS2431_SCRATCH_FRAME; i++) {
+                m->out[i] = (uint8_t)(i < (uint8_t)(3u + n) ? g_cur_read[i] : 0u);
             }
         }
-        m->out_len = DS2431_SCRATCH_FRAME;
-        memcpy(m->out, g_cur_read, DS2431_SCRATCH_FRAME);
         break;
     case 3u: /* Copy Scratchpad */
+        if (!g_read_seen) {
+            fprintf(stderr, "model: no read record (cmd3)\n");
+            abort(); /* the driver reads the completion pattern */
+        }
+        if (g_cur_read[0] != 0xAAu) {
+            m->ok = 0u; /* logic 1: the device refused the copy */
+        }
         break;
     default:
         fprintf(stderr, "model: bad cmd %u\n", (unsigned)g_cmd);
@@ -518,11 +550,11 @@ int main(void) {
     memset(in, 0, sizeof(in));
     in[0] = 0x02 | 0x10; /* cmd 2, arm pending */
     in[1] = 0x10; /* pending addr */
-    in[2] = 0x05; /* pending ES = 5 */
+    in[2] = 0x07; /* pending ES = 7 (full window) */
     in[3] = 0x01; /* presence on */
     in[4] = 0x10; /* frame TA1 matches */
     in[5] = 0x00; /* frame TA2 matches */
-    in[6] = 0x05; /* frame ES matches */
+    in[6] = 0x07; /* frame ES matches */
     for (uint8_t i = 7u; i < 7u + 8u; i++) {
         in[i] = (uint8_t)(0xA0u + i);
     }
@@ -533,11 +565,11 @@ int main(void) {
     memset(in, 0, sizeof(in));
     in[0] = 0x02 | 0x10;
     in[1] = 0x10;
-    in[2] = 0x05;
+    in[2] = 0x07;
     in[3] = 0x01;
     in[4] = 0x20; /* frame TA1 differs */
     in[5] = 0x00;
-    in[6] = 0x05;
+    in[6] = 0x07;
     for (uint8_t i = 7u; i < 7u + 8u; i++) {
         in[i] = (uint8_t)(0xA0u + i);
     }
@@ -548,11 +580,11 @@ int main(void) {
     memset(in, 0, sizeof(in));
     in[0] = 0x02 | 0x10;
     in[1] = 0x10;
-    in[2] = 0x05;
+    in[2] = 0x07;
     in[3] = 0x01;
     in[4] = 0x10;
     in[5] = 0x00;
-    in[6] = 0x05;
+    in[6] = 0x07;
     for (uint8_t i = 7u; i < 7u + 8u; i++) {
         in[i] = (uint8_t)(0xA0u + i);
     }
@@ -560,13 +592,14 @@ int main(void) {
     in[4 + DS2431_SCRATCH_FRAME] ^= 0xFFu; /* break the trailing CRC */
     txn_smoke(in, 4u + DS2431_SCRATCH_FRAME_CRC);
 
-    /* Copy Scratchpad: parasite, timed hold-off, no data. */
+    /* Copy Scratchpad: parasite, timed hold-off, completion pattern 0xAA. */
     memset(in, 0, sizeof(in));
     in[0] = 0x03 | 0x08; /* cmd 3, parasite */
     in[1] = 0x04;
     in[2] = 0x00;
     in[3] = 0x01; /* presence on */
-    txn_smoke(in, 4u);
+    in[4] = 0xAA; /* copy completed */
+    txn_smoke(in, 5u);
 
     /* Differential walk over all commands. */
     {

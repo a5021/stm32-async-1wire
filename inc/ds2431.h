@@ -107,18 +107,23 @@ extern "C" {
 #define DS2431_SCRATCH_SIZE 8
 
 /**
- * @brief Length of the Read Scratchpad reply frame in bytes
- * @note 3-byte header (TA1, TA2, ES) + 8 scratchpad bytes; used by
- *       ds2431_read_scratchpad().
+ * @brief Maximum length of the Read Scratchpad reply frame in bytes
+ * @note 3-byte header (TA1, TA2, ES) + up to 8 scratchpad bytes. The device
+ *       returns (E[2:0] - T[2:0] + 1) data bytes, so the reply is only
+ *       DS2431_SCRATCH_FRAME long for a full 8-byte window; ds2431_read_scratchpad()
+ *       zero-fills the unused tail and the caller reads the real length from
+ *       the E/S byte.
  */
 #define DS2431_SCRATCH_FRAME (DS2431_SCRATCH_SIZE + 3)
 
 /**
- * @brief Wire length of the Read Scratchpad reply in bytes, CRC included
- * @note The 11-byte frame (DS2431_SCRATCH_FRAME) followed by the two inverted
- *       CRC-16 bytes the device transmits (datasheet Read Scratchpad [AAh]).
- *       The driver reads and verifies both; only the 11-byte frame is returned
- *       to the caller.
+ * @brief Maximum wire length of the Read Scratchpad reply in bytes, CRC included
+ * @note The (up to 11-byte) frame (DS2431_SCRATCH_FRAME) followed by the two
+ *       inverted CRC-16 bytes the device transmits (datasheet Read Scratchpad
+ *       [AAh]). The driver always clocks this many slots - the device drives
+ *       logic 1 once it has finished transmitting - and verifies the CRC over
+ *       the (E[2:0] - T[2:0] + 1) bytes that were actually sent; the valid
+ *       frame is returned to the caller.
  */
 #define DS2431_SCRATCH_FRAME_CRC (DS2431_SCRATCH_FRAME + 2)
 
@@ -140,14 +145,16 @@ extern "C" {
 
 /**
  * @brief DS2431 Read Scratchpad command
- * @note Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes.
- *       On the bus the reply continues with an inverted CRC-16 over the
- *       command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads
- *       those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with
- *       onewire_crc16() before reporting the frame as valid. The TA/ES echo is
- *       additionally compared against what the last Write Scratchpad latched,
- *       and the read-back data bytes are compared with the payload that was
- *       sent, so a write corrupted in flight is not reported as successful.
+ * @note Returns the frame TA1, TA2, ES followed by (E[2:0] - T[2:0] + 1)
+ *       scratchpad data bytes. On the bus the reply continues with an inverted
+ *       CRC-16 over the command (0xAA), TA1, TA2, ES and those data bytes; the
+ *       driver clocks the maximum window (DS2431_SCRATCH_FRAME_CRC) and
+ *       verifies the CRC with onewire_crc16() over the bytes the device
+ *       actually transmitted. The TA/ES echo is additionally compared against
+ *       what the last Write Scratchpad latched, the PF flag (0x20, set when the
+ *       device received fewer bytes than the scratchpad holds) is rejected, and
+ *       the read-back data bytes are compared with the payload that was sent,
+ *       so a write corrupted in flight is not reported as successful.
  */
 #define DS2431_READ_SCRATCHPAD 0xAA
 
@@ -155,8 +162,11 @@ extern "C" {
  * @brief DS2431 Copy Scratchpad command
  * @note Copies the scratchpad into the matching EEPROM block. The EEPROM
  *       programming (t_PROG, 10ms max) writes one block in about 11ms; the
- *       driver waits DS2431_TPROG_US before finishing and engages the strong
- *       pull-up for the whole window in parasite mode.
+ *       driver waits DS2431_TPROG_US, engages the strong pull-up for the whole
+ *       window in parasite mode, then reads the device's completion pattern:
+ *       0xAA means the block was programmed, logic 1 means the device refused
+ *       the copy (PF set, invalid address or copy-protected page) and the
+ *       driver reports failure.
  * @note Takes the same byte value (0x55) as the 1-Wire Match ROM ROM-level
  *       command; the two never collide because the ROM-level command phase
  *       completes before a device-level command is issued.
@@ -248,9 +258,10 @@ uint8_t ds2431_parasite_mode(void);
 /**
  * @brief Result of the last completed DS2431 operation
  * @return 1 when the last ds2431_*_poll() finished an operation that found a
- *         device present (and, for reads, verified its data), 0 when it
- *         aborted (e.g. no device present, a scratchpad echo mismatch) or
- *         nothing ran yet
+ *         device present (and, for reads, verified its data - for Copy
+ *         Scratchpad, the device's 0xAA completion pattern), 0 when it
+ *         aborted (e.g. no device present, a scratchpad echo mismatch, a
+ *         refused copy) or nothing ran yet
  */
 uint8_t ds2431_last_command_ok(void);
 
@@ -284,9 +295,12 @@ uint8_t ds2431_read_memory_poll(void);
  *         search is running)
  * @note The EEPROM is programmed in 8-byte blocks: addr must be 8-byte
  *       aligned (a misaligned addr is rejected) and len should be the full
- *       block (a shorter len leaves the remaining scratchpad bytes stale). The
- *       write only fills the volatile scratchpad; run ds2431_read_scratchpad()
- *       to verify and ds2431_copy_scratchpad() to program the EEPROM.
+ *       block. A shorter len leaves the remaining scratchpad bytes stale, sets
+ *       the device's PF flag, and Copy Scratchpad then refuses the block; the
+ *       driver reports that as a failure (ds2431_read_scratchpad() and
+ *       ds2431_copy_scratchpad() both clear the success flag). The write only
+ *       fills the volatile scratchpad; run ds2431_read_scratchpad() to verify
+ *       and ds2431_copy_scratchpad() to program the EEPROM.
  */
 uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len);
 
@@ -297,14 +311,20 @@ uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len)
 uint8_t ds2431_write_scratchpad_poll(void);
 
 /**
- * @brief Read the 11-byte scratchpad frame (non-blocking)
- * @param[in,out] buf Buffer for TA1, TA2, ES and the 8 scratchpad bytes;
- *                    written on success
- * @note When a Write Scratchpad completed since the last reset/select, the
- *       driver verifies the echoed TA1/TA2/ES against the latched values and
- *       clears the success flag on a mismatch (ds2431_last_command_ok()
- *       reports 0). Without a pending write there is nothing to compare
- *       against, so the frame is returned with the flag set from presence.
+ * @brief Read the scratchpad frame (non-blocking)
+ * @param[in,out] buf Buffer for TA1, TA2, ES and the scratchpad bytes; written
+ *                    on success. The caller reads the real data length from the
+ *                    E/S byte (buf[2] & 0x07); bytes beyond the reply window are
+ *                    zeroed, so the buffer is always DS2431_SCRATCH_FRAME long.
+ * @note The device returns (E[2:0] - T[2:0] + 1) data bytes: the driver clocks
+ *       the maximum reply and verifies the inverted CRC-16 over what was
+ *       actually transmitted. When a Write Scratchpad completed since the last
+ *       reset/select, the driver verifies the echoed TA1/TA2/ES against the
+ *       latched values, rejects a set PF flag (incomplete write) and compares
+ *       the read-back data with the payload that was sent; it clears the
+ *       success flag on any mismatch (ds2431_last_command_ok() reports 0).
+ *       Without a pending write there is nothing to compare against, so the
+ *       frame is returned with the flag set from presence.
  */
 void ds2431_read_scratchpad(uint8_t* buf);
 
@@ -317,10 +337,12 @@ uint8_t ds2431_read_scratchpad_poll(void);
 /**
  * @brief Copy the scratchpad into the EEPROM (non-blocking)
  * @note Programs the EEPROM block selected by the last Write Scratchpad
- *       (target address + ES). The driver waits the t_PROG hold-off (11ms)
- *       before finishing and, in parasite mode, holds the strong pull-up
- *       for the whole window. Ignored unless a Write Scratchpad completed
- *       since the last reset/select.
+ *       (target address + ES). The driver waits the t_PROG hold-off (11ms),
+ *       holds the strong pull-up for the whole window in parasite mode, then
+ *       reads the device's completion pattern and sets the success flag only
+ *       for 0xAA (logic 1 = the device refused the copy: PF set, invalid
+ *       address or copy-protected page). Ignored unless a Write Scratchpad
+ *       completed since the last reset/select.
  */
 void ds2431_copy_scratchpad(void);
 

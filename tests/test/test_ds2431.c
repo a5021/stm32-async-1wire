@@ -60,22 +60,30 @@ static void set_read_bytes(const uint8_t* data, uint8_t len) {
 }
 
 /* CRC-16 the DS2431 appends to a Read Scratchpad reply: the bitwise
- * complement of the Maxim CRC-16 over the command (0xAA) + 11-byte frame. */
-static uint16_t reply_crc16(const uint8_t* frame11) {
-    uint8_t buf[DS2431_SCRATCH_FRAME + 1];
+ * complement of the Maxim CRC-16 over the command (0xAA) + 3 + n reply bytes. */
+static uint16_t reply_crc16(const uint8_t* frame, uint8_t n) {
+    uint8_t buf[1 + 3 + DS2431_SCRATCH_SIZE];
     buf[0] = DS2431_READ_SCRATCHPAD;
-    memcpy(&buf[1], frame11, DS2431_SCRATCH_FRAME);
-    return (uint16_t)(~onewire_crc16(buf, DS2431_SCRATCH_FRAME + 1));
+    memcpy(&buf[1], frame, (size_t)(3u + n));
+    return (uint16_t)(~onewire_crc16(buf, (uint16_t)(1u + 3u + n)));
 }
 
-/* Feed a valid 13-byte Read Scratchpad reply (frame + inverted CRC-16). */
-static void set_scratchpad_reply(const uint8_t* frame11) {
+/* Feed a Read Scratchpad reply of n data bytes: the frame + inverted CRC-16
+ * followed by 1s up to the 13-byte wire window (the device stops driving after
+ * the CRC, so the driver reads logic 1 in the unused slots). */
+static void set_scratchpad_reply_n(const uint8_t* frame, uint8_t n) {
     uint8_t wire[DS2431_SCRATCH_FRAME_CRC];
-    memcpy(wire, frame11, DS2431_SCRATCH_FRAME);
-    uint16_t crc = reply_crc16(frame11);
-    wire[DS2431_SCRATCH_FRAME] = (uint8_t)(crc & 0xffu);
-    wire[DS2431_SCRATCH_FRAME + 1] = (uint8_t)(crc >> 8);
+    memset(wire, 0xFF, sizeof(wire));
+    memcpy(wire, frame, (size_t)(3u + n));
+    uint16_t crc = reply_crc16(frame, n);
+    wire[3u + n] = (uint8_t)(crc & 0xffu);
+    wire[3u + n + 1u] = (uint8_t)(crc >> 8);
     set_read_bytes(wire, DS2431_SCRATCH_FRAME_CRC);
+}
+
+/* Feed a full 8-byte-window reply (13-byte wire, ES = 7). */
+static void set_scratchpad_reply(const uint8_t* frame11) {
+    set_scratchpad_reply_n(frame11, DS2431_SCRATCH_SIZE);
 }
 
 /* Step exactly one hardware operation (reset/write/read/hold-off): the
@@ -450,7 +458,7 @@ void test_read_scratchpad_payload_mismatch(void) {
 void test_read_scratchpad_raw_without_pending_write(void) {
     /* Without a pending write there is no latch to compare against: the raw
      * frame is returned with the flag set from presence alone. */
-    const uint8_t frame[DS2431_SCRATCH_FRAME] = {0x00, 0x00, 0x00,
+    const uint8_t frame[DS2431_SCRATCH_FRAME] = {0x00, 0x00, 0x07,
                                                  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     uint8_t got[DS2431_SCRATCH_FRAME];
     set_scratchpad_reply(frame);
@@ -461,6 +469,49 @@ void test_read_scratchpad_raw_without_pending_write(void) {
     for (uint8_t i = 0; i < DS2431_SCRATCH_FRAME; i++) {
         TEST_ASSERT_EQUAL_UINT8(frame[i], got[i]);
     }
+}
+
+void test_read_scratchpad_short_reply(void) {
+    /* The device returns (E[2:0] - T[2:0] + 1) data bytes, so a raw read of a
+     * device whose scratchpad window is not full is shorter than 11 bytes: the
+     * driver must verify the CRC over that shorter reply and zero the tail. */
+    uint8_t frame[DS2431_SCRATCH_FRAME] = {0x48, 0x00, 0x03, /* TA1, TA2, ES = 3 */
+                                           0x10, 0x20, 0x30, 0x40};
+    uint8_t got[DS2431_SCRATCH_FRAME];
+    set_scratchpad_reply_n(frame, 4); /* 3 + 4 = 7 reply bytes, then the CRC */
+    hw_set_capture_source(de_capture_present);
+    ds2431_read_scratchpad(got);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+    for (uint8_t i = 0; i < 7; i++) {
+        TEST_ASSERT_EQUAL_UINT8(frame[i], got[i]);
+    }
+    for (uint8_t i = 7; i < DS2431_SCRATCH_FRAME; i++) {
+        TEST_ASSERT_EQUAL_UINT8(0, got[i]); /* unused tail is zeroed */
+    }
+}
+
+void test_read_scratchpad_short_write_pf(void) {
+    /* A short Write Scratchpad sets the device's PF flag: the latched data is
+     * not a full block and Copy Scratchpad would refuse it, so the read-back
+     * verification must not report success even though the echo and payload
+     * match. */
+    const uint8_t data[4] = {0x11, 0x22, 0x33, 0x44};
+    uint8_t frame[DS2431_SCRATCH_FRAME];
+    uint8_t got[DS2431_SCRATCH_FRAME];
+    hw_set_capture_source(de_capture_present);
+    ds2431_write_scratchpad(0x08, data, 4); /* ES = 3 */
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
+    frame[0] = 0x08;
+    frame[1] = 0x00;
+    frame[2] = 0x23; /* PF (0x20) | ES = 3 */
+    memcpy(&frame[3], data, 4);
+    set_scratchpad_reply_n(frame, 4);
+    ds2431_read_scratchpad(got);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok()); /* PF rejects the write */
 }
 
 /*-------------------------------------------------------------
@@ -488,11 +539,36 @@ void test_copy_scratchpad_waits_tprog(void) {
     ds2431_copy_scratchpad();
     drive_ops(ds2431_copy_scratchpad_poll, 2); /* reset + command write */
     assert_cmd_bytes(k_bytes, sizeof(k_bytes));
-    drive(ds2431_copy_scratchpad_poll); /* finish the hold-off */
-    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
-    /* The last scheduled op was the t_PROG hold-off timer: 11ms @ 1us/tick. */
+    drive_ops(ds2431_copy_scratchpad_poll, 1); /* run the t_PROG hold-off timer */
+    /* The hold-off timer is 11ms @ 1us/tick. */
     TEST_ASSERT_EQUAL_UINT32(DS2431_TPROG_US, mock_tim1.ARR);
     TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.RCR);
+    /* After the hold-off the device reports the copy outcome on the bus. */
+    {
+        const uint8_t status = 0xAA;
+        set_read_bytes(&status, 1);
+    }
+    drive(ds2431_copy_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+}
+
+void test_copy_scratchpad_reports_refusal(void) {
+    /* The device drives logic 1 when it refuses the copy (PF set, invalid
+     * address or copy-protected page): the driver must not report success. */
+    const uint8_t data[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    hw_set_capture_source(de_capture_present);
+    ds2431_write_scratchpad(0x40, data, 8);
+    drive(ds2431_write_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
+
+    ds2431_copy_scratchpad();
+    drive_ops(ds2431_copy_scratchpad_poll, 2); /* reset + command write */
+    {
+        const uint8_t status = 0xFF; /* device refused */
+        set_read_bytes(&status, 1);
+    }
+    drive(ds2431_copy_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
 }
 
 void test_copy_scratchpad_no_presence_aborts(void) {
@@ -553,12 +629,17 @@ void test_write_cycle_e2e(void) {
     ds2431_copy_scratchpad();
     drive_ops(ds2431_copy_scratchpad_poll, 2);
     assert_cmd_bytes((const uint8_t[]){0xCC, 0x55, 0x28, 0x00, 0x07}, 5);
+    {
+        const uint8_t status = 0xAA; /* the held-off program completed */
+        set_read_bytes(&status, 1);
+    }
     drive(ds2431_copy_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
 
     /* 3b. A scratchpad read after the copy still verifies: Copy must not
      * disturb the latched write payload the read-back comparison uses. */
     set_scratchpad_reply(frame);
+    hw_set_capture_source(de_capture_present); /* the copy-status read re-routed it */
     ds2431_read_scratchpad(got);
     drive_ops(ds2431_read_scratchpad_poll, 2);
     drive(ds2431_read_scratchpad_poll);
@@ -600,8 +681,11 @@ void run_test_ds2431(void) {
     TEST_RUN(test_read_scratchpad_crc_mismatch);
     TEST_RUN(test_read_scratchpad_payload_mismatch);
     TEST_RUN(test_read_scratchpad_raw_without_pending_write);
+    TEST_RUN(test_read_scratchpad_short_reply);
+    TEST_RUN(test_read_scratchpad_short_write_pf);
     TEST_RUN(test_copy_scratchpad_requires_pending_write);
     TEST_RUN(test_copy_scratchpad_waits_tprog);
+    TEST_RUN(test_copy_scratchpad_reports_refusal);
     TEST_RUN(test_copy_scratchpad_no_presence_aborts);
     TEST_RUN(test_write_cycle_e2e);
 }

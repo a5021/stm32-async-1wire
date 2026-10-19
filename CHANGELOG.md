@@ -26,8 +26,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so a write-path bit flip passed both the CRC and the echo and Copy Scratchpad
   would commit it; `ds2431_last_command_ok()` now reports 0 for such a frame.
   Copy Scratchpad authorizes from the latched `ctx.es` instead of overwriting
-  the payload, so a scratchpad read after a copy still verifies. Host suite: 23
-  tests.
+  the payload, so a scratchpad read after a copy still verifies.
+
+- **DS2431: verify Read Scratchpad replies of any length.** The device returns
+  `(E[2:0] - T[2:0] + 1)` data bytes, so the reply is only 11 bytes for a full
+  8-byte scratchpad window. The driver now clocks the maximum wire reply,
+  derives the real length from the E/S byte, verifies the inverted CRC-16 over
+  the bytes the device actually sent and returns the valid window (zero-filling
+  the unused tail). Previously a short reply — or a raw read of a device whose
+  window is not full — was rejected as a CRC error.
+
+- **DS2431: reject a scratchpad the device flags invalid (PF).** A Write
+  Scratchpad that does not fill the whole 8-byte block (or a power loss) sets
+  the device's PF flag; the read-back verification now clears
+  `ds2431_last_command_ok()` for such a frame, and Copy Scratchpad refuses the
+  block anyway.
+
+- **DS2431: verify the Copy Scratchpad completion pattern.** After the t_PROG
+  hold-off the device transmits a completion pattern on the bus: 0xAA when the
+  block was programmed, logic 1 when it refused the copy (PF set, invalid
+  address or copy-protected page). The driver now reads that byte and reports
+  success only for 0xAA; a refused copy used to be reported as successful.
+  Host suite: 26 tests.
 
 ## [2.4.0] - 2026-10-18
 
