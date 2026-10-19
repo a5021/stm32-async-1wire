@@ -126,7 +126,7 @@ Functions</h2></td></tr>
 <tr class="memdesc:gab6176e021c0980a2d71775b093be43d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the non-blocking Write Scratchpad operation.  <br /></td></tr>
 <tr class="separator:gab6176e021c0980a2d71775b093be43d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaf8b5929a4ff272d33661dc7ab1efc0c0" id="r_gaf8b5929a4ff272d33661dc7ab1efc0c0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0">ds2431_read_scratchpad</a> (uint8_t *buf)</td></tr>
-<tr class="memdesc:gaf8b5929a4ff272d33661dc7ab1efc0c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read the 11-byte scratchpad frame (non-blocking)  <br /></td></tr>
+<tr class="memdesc:gaf8b5929a4ff272d33661dc7ab1efc0c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read the scratchpad frame (non-blocking)  <br /></td></tr>
 <tr class="separator:gaf8b5929a4ff272d33661dc7ab1efc0c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga58a6c9a55ba2e0cc569ae2be4862002d" id="r_ga58a6c9a55ba2e0cc569ae2be4862002d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d">ds2431_read_scratchpad_poll</a> (void)</td></tr>
 <tr class="memdesc:ga58a6c9a55ba2e0cc569ae2be4862002d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the non-blocking scratchpad frame read.  <br /></td></tr>
@@ -157,7 +157,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Copy the scratchpad into the EEPROM (non-blocking) </p>
-<dl class="section note"><dt>Note</dt><dd>Programs the EEPROM block selected by the last Write Scratchpad (target address + ES). The driver waits the t_PROG hold-off (11ms) before finishing and, in parasite mode, holds the strong pull-up for the whole window. Ignored unless a Write Scratchpad completed since the last reset/select. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Programs the EEPROM block selected by the last Write Scratchpad (target address + ES). The driver waits the t_PROG hold-off (11ms), holds the strong pull-up for the whole window in parasite mode, then reads the device's completion pattern and sets the success flag only for 0xAA (logic 1 = the device refused the copy: PF set, invalid address or copy-protected page). Ignored unless a Write Scratchpad completed since the last reset/select. </dd></dl>
 
 </div>
 </div>
@@ -222,7 +222,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Result of the last completed DS2431 operation. </p>
-<dl class="section return"><dt>Returns</dt><dd>1 when the last ds2431_*_poll() finished an operation that found a device present (and, for reads, verified its data), 0 when it aborted (e.g. no device present, a scratchpad echo mismatch) or nothing ran yet </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>1 when the last ds2431_*_poll() finished an operation that found a device present (and, for reads, verified its data - for Copy Scratchpad, the device's 0xAA completion pattern), 0 when it aborted (e.g. no device present, a scratchpad echo mismatch, a refused copy) or nothing ran yet </dd></dl>
 
 </div>
 </div>
@@ -329,14 +329,14 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Read the 11-byte scratchpad frame (non-blocking) </p>
+<p>Read the scratchpad frame (non-blocking) </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[in,out]</td><td class="paramname">buf</td><td>Buffer for TA1, TA2, ES and the 8 scratchpad bytes; written on success </td></tr>
+    <tr><td class="paramdir">[in,out]</td><td class="paramname">buf</td><td>Buffer for TA1, TA2, ES and the scratchpad bytes; written on success. The caller reads the real data length from the E/S byte (buf[2] &amp; 0x07); bytes beyond the reply window are zeroed, so the buffer is always DS2431_SCRATCH_FRAME long. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>When a Write Scratchpad completed since the last reset/select, the driver verifies the echoed TA1/TA2/ES against the latched values and clears the success flag on a mismatch (<a class="el" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f" title="Result of the last completed DS2431 operation.">ds2431_last_command_ok()</a> reports 0). Without a pending write there is nothing to compare against, so the frame is returned with the flag set from presence. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The device returns (E[2:0] - T[2:0] + 1) data bytes: the driver clocks the maximum reply and verifies the inverted CRC-16 over what was actually transmitted. When a Write Scratchpad completed since the last reset/select, the driver verifies the echoed TA1/TA2/ES against the latched values, rejects a set PF flag (incomplete write) and compares the read-back data with the payload that was sent; it clears the success flag on any mismatch (<a class="el" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f" title="Result of the last completed DS2431 operation.">ds2431_last_command_ok()</a> reports 0). Without a pending write there is nothing to compare against, so the frame is returned with the flag set from presence. </dd></dl>
 
 </div>
 </div>
@@ -459,7 +459,7 @@ Applies only while the driver is idle. A select() clears the latched write-cycle
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>1 if the Write Scratchpad was scheduled, 0 if the request was rejected (NULL data, len out of range, addr + len beyond the EEPROM, addr not 8-byte aligned, or an operation is already in flight / a search is running) </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>The EEPROM is programmed in 8-byte blocks: addr must be 8-byte aligned (a misaligned addr is rejected) and len should be the full block (a shorter len leaves the remaining scratchpad bytes stale). The write only fills the volatile scratchpad; run <a class="el" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0" title="Read the 11-byte scratchpad frame (non-blocking)">ds2431_read_scratchpad()</a> to verify and <a class="el" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c" title="Copy the scratchpad into the EEPROM (non-blocking)">ds2431_copy_scratchpad()</a> to program the EEPROM. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The EEPROM is programmed in 8-byte blocks: addr must be 8-byte aligned (a misaligned addr is rejected) and len should be the full block. A shorter len leaves the remaining scratchpad bytes stale, sets the device's PF flag, and Copy Scratchpad then refuses the block; the driver reports that as a failure (<a class="el" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0" title="Read the scratchpad frame (non-blocking)">ds2431_read_scratchpad()</a> and <a class="el" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c" title="Copy the scratchpad into the EEPROM (non-blocking)">ds2431_copy_scratchpad()</a> both clear the success flag). The write only fills the volatile scratchpad; run <a class="el" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0" title="Read the scratchpad frame (non-blocking)">ds2431_read_scratchpad()</a> to verify and <a class="el" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c" title="Copy the scratchpad into the EEPROM (non-blocking)">ds2431_copy_scratchpad()</a> to program the EEPROM. </dd></dl>
 
 </div>
 </div>
