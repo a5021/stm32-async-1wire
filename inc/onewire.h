@@ -63,8 +63,8 @@ extern "C" {
  *  header and clock configuration from it, and the per-family facts
  *  ow_pulse_t and the OW_HSE_MHZ / OW_PORT_*_MAX_SYSCLK_MHZ defaults live in
  *  inc/ow_board.h beside it.  The TIM1+DMA engine and the register-level
- *  per-family facts are library-internal (src/ow_port.h, src/ow_mcu.h) and
- *  are not needed to use this API.  To add a family, extend the dispatch in
+ *  per-family facts are library-internal and are not needed to use this
+ *  API.  To add a family, extend the dispatch in
  *  inc/ow_board.h (plus the \#error spelling list), the app.c clock/UART
  *  config, a chips/<part>.mk part file, the Makefile (OW_KNOWN_TARGETS, the
  *  OW_TARGET family block, the OW_MCU mapping entries, TEST_CLOCK_FLAG) and
@@ -271,7 +271,7 @@ void onewire_strong_pullup(uint8_t on);
  * @return 1 while a long stage (> 1 ms: temperature conversion, scratchpad
  *         read, EEPROM hold-off) is in flight, 0 otherwise
  * @note Derived from the scheduled timer duration, so callers stay on the
- *       onewire API and need not include ow_port.h. Only meaningful with
+ *       onewire API. Only meaningful with
  *       OW_PORT_LOW_POWER=1.
  */
 uint8_t onewire_long_wait_pending(void);

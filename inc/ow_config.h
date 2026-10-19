@@ -147,7 +147,7 @@
  * long hardware stages (> 1 ms) so that the application can block in
  * __WFE() without an ISR; the driver itself stays non-blocking.
  * No ISR is ever installed and NVIC_EnableIRQ is never called; the
- * pending bit is cleared explicitly in ow_port_bus_done() so WFE does
+ * pending bit is cleared explicitly by the engine so WFE does
  * not degrade into a busy-loop.
  *
  * Enable with -DOW_PORT_LOW_POWER=1.

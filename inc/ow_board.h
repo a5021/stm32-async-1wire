@@ -15,13 +15,13 @@
  *     the OW_PORT_*_MAX_SYSCLK_MHZ part ceilings).
  *
  * The CMSIS device header, the per-family register/DMA facts and the
- * TIM1+DMA engine are private to the library (src/ow_mcu.h, src/ow_port.h)
- * and are never reached from the public headers.
+ * TIM1+DMA engine are private to the library and are never reached from
+ * the public headers.
  *
- * Include order: onewire.h includes this header for ow_pulse_t, and
- * ow_mcu.h includes it for the dispatch, so the token is defined exactly
- * once and nothing depends on which is included first.  It is the single
- * point of family selection.
+ * Include order: onewire.h includes this header for ow_pulse_t, and the
+ * engine's family header includes it for the dispatch, so the token is
+ * defined exactly once and nothing depends on which is included first.
+ * It is the single point of family selection.
  */
 
 #ifndef OW_BOARD_H
