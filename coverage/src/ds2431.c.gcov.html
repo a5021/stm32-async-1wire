@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-19 04:23:18</td>
+            <td class="headerValue">2026-10-19 16:31:25</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -208,21 +208,21 @@
 <span id="L137"><span class="lineNum">     137</span>                 :             :  *          A second call is unsupported and does not fully reset the timer,</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :  *          DMA, low-power or DS2431 software state.</span>
 <span id="L139"><span class="lineNum">     139</span>                 :             :  */</span>
-<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC tlaBgGNC">         308 : void ds2431_init(void) {</span></span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">         308 :     onewire_init();</span></span>
+<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC tlaBgGNC">         322 : void ds2431_init(void) {</span></span>
+<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaGNC">         322 :     onewire_init();</span></span>
 <span id="L142"><span class="lineNum">     142</span>                 :             :     /* No operation running after init; a poll without a scheduled op must</span>
 <span id="L143"><span class="lineNum">     143</span>                 :             :      * still report &quot;finished&quot; (the FINISHED flag is set like the DS18B20</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             :      * transaction engine does). External power is the default wiring</span>
 <span id="L145"><span class="lineNum">     145</span>                 :             :      * assumption; parasite-powered setups opt in via ds2431_set_parasite().</span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :      * The flag byte starts clear (address/parasite/ok/finished/pending/echo</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :      * all zero) before FINISHED is raised. */</span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">         308 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         308 :     ctx.phase = DS2431_PH_IDLE;</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">         308 :     ctx.command = 0;</span></span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         308 :     ctx.len = 0;</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         308 :     ctx.plen = 0;</span></span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         308 :     ctx.es = 0;</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">         308 : }</span></span>
+<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">         322 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">         322 :     ctx.phase = DS2431_PH_IDLE;</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">         322 :     ctx.command = 0;</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         322 :     ctx.len = 0;</span></span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         322 :     ctx.plen = 0;</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         322 :     ctx.es = 0;</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">         322 : }</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             : </span>
 <span id="L156"><span class="lineNum">     156</span>                 :             : /**</span>
 <span id="L157"><span class="lineNum">     157</span>                 :             :  * @brief Select which DS2431 device to address by its ROM address</span>

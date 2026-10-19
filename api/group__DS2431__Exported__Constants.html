@@ -316,7 +316,7 @@ Takes the same byte value (0x55) as the 1-Wire Match ROM ROM-level command; the 
 </div><div class="memdoc">
 
 <p>DS2431 Read Scratchpad command. </p>
-<dl class="section note"><dt>Note</dt><dd>Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes. On the bus the reply continues with an inverted CRC-16 over the command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with <a class="el" href="group__ONEWIRE__CRC.html#ga4abe86f4843489d2df124eb11fdfca07" title="Calculate the Maxim 1-Wire CRC-16 over a byte buffer.">onewire_crc16()</a> before reporting the frame as valid. The TA/ES echo is additionally compared against what the last Write Scratchpad latched. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Returns the 11-byte frame TA1, TA2, ES and the 8 scratchpad bytes. On the bus the reply continues with an inverted CRC-16 over the command (0xAA), TA1, TA2, ES and the 8 data bytes; the driver reads those two bytes (DS2431_SCRATCH_FRAME_CRC) and verifies them with <a class="el" href="group__ONEWIRE__CRC.html#ga4abe86f4843489d2df124eb11fdfca07" title="Calculate the Maxim 1-Wire CRC-16 over a byte buffer.">onewire_crc16()</a> before reporting the frame as valid. The TA/ES echo is additionally compared against what the last Write Scratchpad latched, and the read-back data bytes are compared with the payload that was sent, so a write corrupted in flight is not reported as successful. </dd></dl>
 
 </div>
 </div>
