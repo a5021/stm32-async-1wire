@@ -251,7 +251,7 @@ static void measure_setup(void) {
         }
         ds18b20_start_measure();
     }
-    /* The mock does not model the EGR=UG write of onewire_kick(); the
+    /* The mock does not model the EGR=UG write of ow_glue_kick(); the
      * driver arms the START reset on the resulting update event, so supply
      * it as the functional tests do. */
     mock_tim1.SR |= TIM_SR_UIF;

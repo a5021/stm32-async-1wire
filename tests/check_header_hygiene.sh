@@ -87,6 +87,7 @@ check_header onewire.h ONEWIRE_ROM_BYTES
 check_header ow_board.h OW_BOARD_H
 check_header ow_port.h OW_PORT_LONG_STAGE_US
 check_header ow_mcu.h OW_MCU_H
+check_header ow_glue.h OW_GLUE_H
 check_header ds18b20.h DS18B20_ROM_BYTES
 check_header ds2431.h DS2431_FAMILY_CODE
 

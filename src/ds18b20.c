@@ -4,6 +4,9 @@
  * and nothing else from CMSIS; this private shim supplies them without pulling
  * in a device header. See src/ow_compiler.h. */
 #include "ow_compiler.h"
+/* The driver schedules the bus waits and kicks its own state machine through
+ * the engine; that bridge is library-internal. See src/ow_glue.h. */
+#include "ow_glue.h"
 /* Intra-stack instrumentation, not a layer leak: stats emission needs
  * driver-owned concepts (device ROM, DS18B20_TEMP_ERROR_*) that the onewire
  * layer must not know, so the driver is the rightful emitter. Compiles away
@@ -293,7 +296,7 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
     uint16_t arr;
     uint8_t rcr;
     resolution_to_wait(ctx.resolution, &arr, &rcr);
-    onewire_start_timer(arr, rcr);
+    ow_glue_start_timer(arr, rcr);
 }
 
 /**

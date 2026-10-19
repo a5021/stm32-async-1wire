@@ -69,7 +69,7 @@ void test_timing_long_wait_arr_rcr(void) {
     hw_reset_all();
     /* Generic long idle-HIGH wait: 62500 ticks * 80 periods * 1us = 5s. The
      * driver no longer has a cycle-pause knob, so the ARR/RCR math of a long
-     * timer pass is covered through the raw onewire_start_timer() contract. */
+     * timer pass is covered through the raw ow_glue_start_timer() contract. */
     test_bus_start_timer(62500, 79);
     TEST_ASSERT_EQUAL_UINT32(62500, mock_tim1.ARR);
     TEST_ASSERT_EQUAL_UINT32(79, mock_tim1.RCR);

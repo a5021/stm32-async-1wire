@@ -1,4 +1,5 @@
 ﻿#include "onewire.h"
+#include "ow_glue.h"
 #include "ow_port.h"
 
 #include <string.h>
@@ -190,11 +191,11 @@ uint8_t onewire_present(const volatile uint16_t* pulses) {
            (presence >= PRESENCE_PULSE_MIN) && (presence <= PRESENCE_PULSE_MAX);
 }
 
-void onewire_start_timer(uint16_t arr, uint8_t rcr) {
+void ow_glue_start_timer(uint16_t arr, uint8_t rcr) {
     ow_port_start_timer(arr, rcr);
 }
 
-void onewire_kick(void) { ow_port_kick(); }
+void ow_glue_kick(void) { ow_port_kick(); }
 
 void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
@@ -384,7 +385,7 @@ uint8_t onewire_search_poll(void) {
     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {
         // No hardware operation is pending at the end of the search: the timer
         // stays idle until the owner asks for the next operation (a new search
-        // schedules its own reset, a measurement calls onewire_kick()).
+        // schedules its own reset, a measurement calls ow_glue_kick()).
         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
         return 1;
     }

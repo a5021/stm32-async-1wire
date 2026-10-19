@@ -302,7 +302,7 @@ static void union_run_current_op(void) {
 static void union_run_measurement_snapshot(uint16_t* out80, uint8_t* captured) {
     *captured = 0;
     ds18b20_start_measure();
-    /* Seed the UIF that onewire_kick() raises on hardware (EGR=UG): the
+    /* Seed the UIF that ow_glue_kick() raises on hardware (EGR=UG): the
      * model does not raise UIF on UG, so without this the first poll sees
      * no completion and never schedules the reset pass. Every later pass
      * gets a real UIF from the pumped timer. Same seed as test_parasite. */

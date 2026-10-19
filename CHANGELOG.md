@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The timed-wait and state-machine-kick calls are no longer public API
+  (breaking).** `onewire_start_timer()` and `onewire_kick()` were declared in
+  `inc/onewire.h`, which made them look like part of the bus API — but they
+  are the DS18B20/DS2431 driver's calls into the engine: one schedules a
+  hardware-timed wait (a conversion wait, an EEPROM hold-off), the other
+  raises the timer's update flag so the *owner's* state machine advances.
+  Their own documentation said so ("Used by the DS18B20 driver", "No
+  hardware timing is involved"). A consumer has no business scheduling a bus
+  wait in timer registers, and those values belong to the device's timing,
+  not to the application.
+
+  They now live in the private `src/ow_glue.h` — the bridge between the
+  driver sources and the engine — and are named `ow_glue_start_timer()` and
+  `ow_glue_kick()`. Every call site was already inside the library, so
+  nothing else had to change; the README's API list no longer advertises
+  them.
+
 - **The public macros lost the `PORT_` infix (breaking).** The port layer is
   private to the library, so a public macro named after it invited consumers
   to depend on something they cannot see. The rename is mechanical and

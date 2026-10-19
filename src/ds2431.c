@@ -1,5 +1,8 @@
 #include "ds2431.h"
 #include "onewire.h"
+/* The driver schedules the EEPROM hold-off window through the engine; that
+ * bridge is library-internal. See src/ow_glue.h. */
+#include "ow_glue.h"
 
 /**
  * @defgroup DS2431_Private_Constants DS2431 Private Constants

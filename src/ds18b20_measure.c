@@ -38,7 +38,7 @@ static void scan_finish_or_next(void) {
          * drive the CONTINUE state again (single-device rounds get their UIF
          * from ds18b20_start_measure()). Arm a short scheduling delay: its UIF
          * is the bridge to CONTINUE, which then arms the real bus reset. */
-        onewire_start_timer(SCAN_DEVICE_GAP_US, SCAN_DEVICE_GAP_RCR);
+        ow_glue_start_timer(SCAN_DEVICE_GAP_US, SCAN_DEVICE_GAP_RCR);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
         // Parasite power: keep the strong pull-up engaged while parked.
@@ -65,7 +65,7 @@ void ds18b20_start_measure(void) {
         return; // the search, a resolution change or a command owns the timer
     }
     ctx.current_state = DS18B20_ST_START;
-    onewire_kick();
+    ow_glue_kick();
 }
 
 /**

@@ -1584,7 +1584,7 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
    `onewire_write_slots()`, `onewire_encode_byte()`,
    `onewire_write_bit()`, `onewire_read_pair()`, `onewire_write_then_read()`,
    `onewire_pair_bits()`, `onewire_read_data()`, `onewire_decode_pulses()`,
-   `onewire_bit_from_pulse()`, `onewire_start_timer()`, `onewire_kick()`,
+   `onewire_bit_from_pulse()`,
    `onewire_strong_pullup()`, `onewire_bus_done()` — the
    TIM1/DMA bus primitives.
 - `onewire_search_start()`, `onewire_search_poll()`,
@@ -1818,7 +1818,7 @@ Explicit-start behavior
 - The driver measures **only when asked**: after `ds18b20_init()` the bus stays idle, and one `ds18b20_start_measure()` call requests exactly one conversion + scratchpad-read cycle. Afterwards the driver parks at IDLE again — it never restarts a cycle on its own, so the measurement cadence, the retry policy and any idle interval are the application's decision. Nothing else starts a conversion either: finishing a device search, a resolution change or a command transaction leaves the bus idle.
 
 - IDLE (state 0)
-  - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()` via `onewire_kick()`) falls through into START, which turns the busy indicator **on** and arms the bus reset. The data union is not touched here: `capture[]`, `pulse[]` and `scratchpad[]` are three views of one union, and decoding must consume `pulse[]` before writing `scratchpad[]`.
+  - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()`) falls through into START, which turns the busy indicator **on** and arms the bus reset. The data union is not touched here: `capture[]`, `pulse[]` and `scratchpad[]` are three views of one union, and decoding must consume `pulse[]` before writing `scratchpad[]`.
   - Set state=1.
 
 - START (state 1)
@@ -2029,8 +2029,6 @@ void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
                                  uint8_t nbytes);
 void        onewire_encode_byte(ow_pulse_t *out, uint8_t byte);
 static inline uint8_t onewire_bit_from_pulse(uint16_t dur);
-void        onewire_start_timer(uint16_t arr, uint8_t rcr);
-void        onewire_kick(void);
 void        onewire_strong_pullup(uint8_t on);
 uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
 void        onewire_search_start(onewire_search_sink_t sink,
