@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-19 18:52:48</td>
+            <td class="headerValue">2026-10-19 19:40:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">64.3&nbsp;%</td>
@@ -83,17 +83,17 @@
 <span id="L12"><span class="lineNum">      12</span>                 :             : </span>
 <span id="L13"><span class="lineNum">      13</span>                 :             : #include &lt;string.h&gt;</span>
 <span id="L14"><span class="lineNum">      14</span>                 :             : </span>
-<span id="L15"><span class="lineNum">      15</span>                 :             : #if defined(OW_PORT_FAMILY_F0)</span>
+<span id="L15"><span class="lineNum">      15</span>                 :             : #if defined(OW_FAMILY_F0)</span>
 <span id="L16"><span class="lineNum">      16</span>                 :             : #include &quot;stm32f0xx.h&quot;</span>
-<span id="L17"><span class="lineNum">      17</span>                 :             : #elif defined(OW_PORT_FAMILY_F3)</span>
+<span id="L17"><span class="lineNum">      17</span>                 :             : #elif defined(OW_FAMILY_F3)</span>
 <span id="L18"><span class="lineNum">      18</span>                 :             : #include &quot;stm32f3xx.h&quot;</span>
-<span id="L19"><span class="lineNum">      19</span>                 :             : #elif defined(OW_PORT_FAMILY_F4)</span>
+<span id="L19"><span class="lineNum">      19</span>                 :             : #elif defined(OW_FAMILY_F4)</span>
 <span id="L20"><span class="lineNum">      20</span>                 :             : #include &quot;stm32f4xx.h&quot;</span>
-<span id="L21"><span class="lineNum">      21</span>                 :             : #elif defined(OW_PORT_FAMILY_G0)</span>
+<span id="L21"><span class="lineNum">      21</span>                 :             : #elif defined(OW_FAMILY_G0)</span>
 <span id="L22"><span class="lineNum">      22</span>                 :             : #include &quot;stm32g0xx.h&quot;</span>
-<span id="L23"><span class="lineNum">      23</span>                 :             : #elif defined(OW_PORT_FAMILY_G4)</span>
+<span id="L23"><span class="lineNum">      23</span>                 :             : #elif defined(OW_FAMILY_G4)</span>
 <span id="L24"><span class="lineNum">      24</span>                 :             : #include &quot;stm32g4xx.h&quot;</span>
-<span id="L25"><span class="lineNum">      25</span>                 :             : #elif defined(OW_PORT_FAMILY_H5)</span>
+<span id="L25"><span class="lineNum">      25</span>                 :             : #elif defined(OW_FAMILY_H5)</span>
 <span id="L26"><span class="lineNum">      26</span>                 :             : #include &quot;stm32h5xx.h&quot;</span>
 <span id="L27"><span class="lineNum">      27</span>                 :             : #else</span>
 <span id="L28"><span class="lineNum">      28</span>                 :             : #include &quot;stm32f1xx.h&quot;</span>
@@ -144,10 +144,10 @@
 <span id="L73"><span class="lineNum">      73</span>                 :             : </span>
 <span id="L74"><span class="lineNum">      74</span>                 :             : /* ---- public API ---- */</span>
 <span id="L75"><span class="lineNum">      75</span>                 :             : </span>
-<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">        6014 : void ow_stats_init(void) {</span></span>
-<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">        6014 :     memset(&amp;st, 0, sizeof(st));</span></span>
-<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">        6014 :     dump_phase = 0;</span></span>
-<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">        6014 : }</span></span>
+<span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">        6032 : void ow_stats_init(void) {</span></span>
+<span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">        6032 :     memset(&amp;st, 0, sizeof(st));</span></span>
+<span id="L78"><span class="lineNum">      78</span>                 :<span class="tlaGNC">        6032 :     dump_phase = 0;</span></span>
+<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">        6032 : }</span></span>
 <span id="L80"><span class="lineNum">      80</span>                 :             : </span>
 <span id="L81"><span class="lineNum">      81</span>                 :<span class="tlaGNC">     1260990 : void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,</span></span>
 <span id="L82"><span class="lineNum">      82</span>                 :             :                             const uint8_t* rom) {</span>

@@ -105,7 +105,7 @@ $(document).ready(function(){initNavTree('ow__board_8h_source.html',''); initRes
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="preprocessor">#include &lt;stdint.h&gt;</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">/* ------------------------------------------------------------------</span></div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment"> *  Family selection: a single OW_PORT_FAMILY_* token resolved from</span></div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment"> *  Family selection: a single OW_FAMILY_* token resolved from</span></div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment"> *  the CMSIS device macro of the target (e.g. -DSTM32F030x6) or, for</span></div>
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment"> *  host-test mocks, PlatformIO and STM32CubeMX projects, from a family</span></div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment"> *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5).</span></div>
@@ -115,25 +115,25 @@ $(document).ready(function(){initNavTree('ow__board_8h_source.html',''); initRes
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span><span class="comment"> *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).</span></div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment"> * ------------------------------------------------------------------ */</span></div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="preprocessor">#if defined(STM32F030x6) || defined(STM32F0)</span></div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="preprocessor">#define OW_PORT_FAMILY_F0</span></div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="preprocessor">#define OW_FAMILY_F0</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="preprocessor">#elif defined(STM32F103xB) || defined(STM32F1)</span></div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="preprocessor">#define OW_PORT_FAMILY_F1</span></div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="preprocessor">#define OW_FAMILY_F1</span></div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="preprocessor">#elif defined(STM32F303xC) || defined(STM32F3)</span></div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="preprocessor">#define OW_PORT_FAMILY_F3</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="preprocessor">#define OW_FAMILY_F3</span></div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="preprocessor">#elif defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \</span></div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="preprocessor">    defined(STM32F446xx) || defined(STM32F4)</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">#define OW_PORT_FAMILY_F4</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">#define OW_FAMILY_F4</span></div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="preprocessor">#elif defined(STM32G031xx) || defined(STM32G0)</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="preprocessor">#define OW_PORT_FAMILY_G0</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="preprocessor">#define OW_FAMILY_G0</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="preprocessor">#elif defined(STM32G474xx) || defined(STM32G4)</span></div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="preprocessor">#define OW_PORT_FAMILY_G4</span></div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="preprocessor">#define OW_FAMILY_G4</span></div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="preprocessor">#elif defined(STM32H503xx) || defined(STM32H5)</span></div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="preprocessor">#define OW_PORT_FAMILY_H5</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="preprocessor">#define OW_FAMILY_H5</span></div>
 <div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span><span class="preprocessor">#error &quot;ow_board: no MCU selected. Pass your part&#39;s STMicroelectronics device macro (e.g. -DSTM32H503xx) or its family macro (e.g. -DSTM32H5). This is the ONLY define the library requires; OW_PORT_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx or -DSTM32F0/F1/F3/F4/G0/G4/H5 are accepted. The Make/CMake builds supply it from OW_MCU/chips/&lt;part&gt;.mk.&quot;</span></div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span><span class="preprocessor">#error &quot;ow_board: no MCU selected. Pass your part&#39;s STMicroelectronics device macro (e.g. -DSTM32H503xx) or its family macro (e.g. -DSTM32H5). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx or -DSTM32F0/F1/F3/F4/G0/G4/H5 are accepted. The Make/CMake builds supply it from OW_MCU/chips/&lt;part&gt;.mk.&quot;</span></div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F4)</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#if defined(OW_FAMILY_F4)</span></div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="keyword">typedef</span> uint16_t <a class="code hl_typedef" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a>;</div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="preprocessor">#else</span></div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">   74</a></span><span class="keyword">typedef</span> uint8_t <a class="code hl_typedef" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a>;</div>
@@ -142,39 +142,39 @@ $(document).ready(function(){initNavTree('ow__board_8h_source.html',''); initRes
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="comment">/* ------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="comment"> *  Board clock defaults.  The external crystal belongs to the board and</span></div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="comment"> *  the system clock to the application, so they are separate knobs; the</span></div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment"> *  build passes OW_PORT_SYSCLK_MHZ for the part, and app.c reads these.</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment"> *  build passes OW_SYSCLK_MHZ for the part, and app.c reads these.</span></div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="comment"> *  A wrong OW_HSE_MHZ is not a compile error - the PLL simply never</span></div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment"> *  locks.  The *_MAX_SYSCLK_MHZ ceilings let app.c reject a request</span></div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="comment"> *  above what the concrete part can take.</span></div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="comment"> * ------------------------------------------------------------------ */</span></div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span><span class="preprocessor">#if defined(OW_PORT_FAMILY_F3)</span></div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span><span class="preprocessor">#if defined(OW_FAMILY_F3)</span></div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment">/* No HSI16 on this family: the 72MHz PLL multiplies the crystal by 9. */</span></div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="preprocessor">#define OW_HSE_MHZ 8</span></div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_F4)</span></div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="preprocessor">#if !defined(OW_PORT_F4_MAX_SYSCLK_MHZ)</span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="preprocessor">#elif defined(OW_FAMILY_F4)</span></div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="preprocessor">#if !defined(OW_F4_MAX_SYSCLK_MHZ)</span></div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="preprocessor">#if defined(STM32F446xx)</span></div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="preprocessor">#define OW_PORT_F4_MAX_SYSCLK_MHZ 180 </span><span class="comment">/* F446: the only part here that needs the over-drive sequence */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="preprocessor">#define OW_F4_MAX_SYSCLK_MHZ 180 </span><span class="comment">/* F446: the only part here that needs the over-drive sequence */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span><span class="preprocessor">#elif defined(STM32F401xC) || defined(STM32F401xE)</span></div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#define OW_PORT_F4_MAX_SYSCLK_MHZ 84 </span><span class="comment">/* F401 parts top out at 84MHz */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="preprocessor">#define OW_F4_MAX_SYSCLK_MHZ 84 </span><span class="comment">/* F401 parts top out at 84MHz */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 </span><span class="comment">/* F405/F407 cap */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="preprocessor">#define OW_F4_MAX_SYSCLK_MHZ 168 </span><span class="comment">/* F405/F407 cap */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span><span class="preprocessor">#define OW_HSE_MHZ 8</span></div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_G4)</span></div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="preprocessor">#if !defined(OW_PORT_G4_MAX_SYSCLK_MHZ)</span></div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span><span class="preprocessor">#define OW_PORT_G4_MAX_SYSCLK_MHZ 170 </span><span class="comment">/* G474 ceiling, voltage Range 1 Boost */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="preprocessor">#elif defined(OW_FAMILY_G4)</span></div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="preprocessor">#if !defined(OW_G4_MAX_SYSCLK_MHZ)</span></div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span><span class="preprocessor">#define OW_G4_MAX_SYSCLK_MHZ 170 </span><span class="comment">/* G474 ceiling, voltage Range 1 Boost */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span><span class="preprocessor">#define OW_HSE_MHZ 8 </span><span class="comment">/* WeAct STM32G474CBT6 Long: 8MHz crystal */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="preprocessor">#elif defined(OW_PORT_FAMILY_H5)</span></div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="preprocessor">#if !defined(OW_PORT_H5_MAX_SYSCLK_MHZ)</span></div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span><span class="preprocessor">#define OW_PORT_H5_MAX_SYSCLK_MHZ 250 </span><span class="comment">/* H503 ceiling */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="preprocessor">#elif defined(OW_FAMILY_H5)</span></div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span><span class="preprocessor">#if !defined(OW_H5_MAX_SYSCLK_MHZ)</span></div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span><span class="preprocessor">#define OW_H5_MAX_SYSCLK_MHZ 250 </span><span class="comment">/* H503 ceiling */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
 <div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span><span class="preprocessor">#define OW_HSE_MHZ 8 </span><span class="comment">/* WeAct STM32H503Cx Core Board: 8MHz crystal (Y2) */</span><span class="preprocessor"></span></div>

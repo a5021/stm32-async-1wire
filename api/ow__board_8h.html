@@ -112,12 +112,12 @@ Typedefs</h2></td></tr>
 <div class="textblock"><p>Public board-level facts for the non-blocking 1-Wire layer. </p>
 <p>The small part of the port that the public API and the application layer legitimately need, with no CMSIS device header and no register vocabulary:</p>
 <ul>
-<li>the family selection token (OW_PORT_FAMILY_*), resolved from the STMicroelectronics device macro of the target (e.g. -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5);</li>
+<li>the family selection token (OW_FAMILY_*), resolved from the STMicroelectronics device macro of the target (e.g. -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5);</li>
 <li>ow_pulse_t, the DMA feed entry the public write API hands to the hardware: 8-bit on F0/F1/F3/G0/G4/H5, 16-bit on F4 (direct-mode feed);</li>
-<li>the board clock defaults read by the application layer (OW_HSE_MHZ and the OW_PORT_*_MAX_SYSCLK_MHZ part ceilings).</li>
+<li>the board clock defaults read by the application layer (OW_HSE_MHZ and the OW_*_MAX_SYSCLK_MHZ part ceilings).</li>
 </ul>
-<p>The CMSIS device header, the per-family register/DMA facts and the TIM1+DMA engine are private to the library (src/ow_mcu.h, src/ow_port.h) and are never reached from the public headers.</p>
-<p>Include order: <a class="el" href="onewire_8h.html" title="Universal non-blocking 1-Wire bus layer for STM32.">onewire.h</a> includes this header for ow_pulse_t, and ow_mcu.h includes it for the dispatch, so the token is defined exactly once and nothing depends on which is included first. It is the single point of family selection. </p>
+<p>The CMSIS device header, the per-family register/DMA facts and the TIM1+DMA engine are private to the library and are never reached from the public headers.</p>
+<p>Include order: <a class="el" href="onewire_8h.html" title="Universal non-blocking 1-Wire bus layer for STM32.">onewire.h</a> includes this header for ow_pulse_t, and the engine's family header includes it for the dispatch, so the token is defined exactly once and nothing depends on which is included first. It is the single point of family selection. </p>
 </div><h2 class="groupheader">Typedef Documentation</h2>
 <a id="a35b3e90dbfdcc12fdb0c11f4af9647dd" name="a35b3e90dbfdcc12fdb0c11f4af9647dd"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a35b3e90dbfdcc12fdb0c11f4af9647dd">&#9670;&#160;</a></span>ow_pulse_t</h2>

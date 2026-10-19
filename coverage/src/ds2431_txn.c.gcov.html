@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-19 18:52:48</td>
+            <td class="headerValue">2026-10-19 19:40:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -262,7 +262,7 @@
 <span id="L190"><span class="lineNum">     190</span>                 :             :     // This is a non-blocking poll, not a busy-wait.</span>
 <span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">        1624 :     uint8_t op_done = onewire_bus_done();</span></span>
 <span id="L192"><span class="lineNum">     192</span>                 :             : </span>
-<span id="L193"><span class="lineNum">     193</span>                 :             : #if OW_PORT_LOW_POWER</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             : #if OW_LOW_POWER</span>
 <span id="L194"><span class="lineNum">     194</span>                 :             :     // Sleep through a long stage of the operation (multi-slot command write,</span>
 <span id="L195"><span class="lineNum">     195</span>                 :             :     // scratchpad frame read, EEPROM programming hold-off) instead of spinning</span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :     // on it - same WFE mechanism as the DS18B20 drivers.</span>
@@ -307,7 +307,7 @@
 <span id="L234"><span class="lineNum">     234</span>                 :             :             // Parasite power: the EEPROM programming draws its supply from the</span>
 <span id="L235"><span class="lineNum">     235</span>                 :             :             // bus while the block is written - drive HIGH actively for the</span>
 <span id="L236"><span class="lineNum">     236</span>                 :             :             // t_PROG hold-off window.</span>
-<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">          42 :             onewire_start_timer(DS2431_TPROG_US, 0);</span></span>
+<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">          42 :             ow_glue_wait_start(DS2431_TPROG_US);</span></span>
 <span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">          42 :             ctx.phase = DS2431_PH_WAIT;</span></span>
 <span id="L239"><span class="lineNum">     239</span>         [<span class="tlaGBC" title="Branch 0 was taken 196 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 182 times"> + </span>]:<span class="tlaGNC">         378 :         } else if (ctx.len) {</span></span>
 <span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="Branch 0 was taken 42 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">         196 :             if ((ctx.flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>

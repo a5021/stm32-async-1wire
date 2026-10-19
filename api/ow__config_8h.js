@@ -11,6 +11,6 @@ var ow__config_8h =
     [ "OW_BUS_DRIVE_STRONG", "ow__config_8h.html#a13fba53645cd8e4b8f63368f08a36360", null ],
     [ "OW_BUS_DRIVE_WEAK", "ow__config_8h.html#ac9acff48ab5c0d41bc1ed88afe58f80d", null ],
     [ "OW_DRIVE_ACTIVE", "ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20", null ],
-    [ "OW_PARASITE_POWER", "ow__config_8h.html#a2aad532fa0eb3d852d91fc8178bf4e59", null ],
-    [ "OW_PORT_LOW_POWER", "ow__config_8h.html#a3e288937a7a78f8aae146c25a71cdb40", null ]
+    [ "OW_LOW_POWER", "ow__config_8h.html#a3289a910c64682ab8868ef0dd64de8c0", null ],
+    [ "OW_PARASITE_POWER", "ow__config_8h.html#a2aad532fa0eb3d852d91fc8178bf4e59", null ]
 ];

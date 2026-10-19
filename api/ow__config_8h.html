@@ -129,9 +129,9 @@ Macros</h2></td></tr>
 <tr class="separator:a0bbd77139ad1bdce5e59047e4f0e305e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a589b0391b16deab952f1f3e3ba03d91b" id="r_a589b0391b16deab952f1f3e3ba03d91b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__config_8h.html#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a>&#160;&#160;&#160;<a class="el" href="ow__config_8h.html#a0bbd77139ad1bdce5e59047e4f0e305e">OW_BUS_DRIVE_MAX</a></td></tr>
 <tr class="separator:a589b0391b16deab952f1f3e3ba03d91b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3e288937a7a78f8aae146c25a71cdb40" id="r_a3e288937a7a78f8aae146c25a71cdb40"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__config_8h.html#a3e288937a7a78f8aae146c25a71cdb40">OW_PORT_LOW_POWER</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memdesc:a3e288937a7a78f8aae146c25a71cdb40"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in low-power WFE sleep path.  <br /></td></tr>
-<tr class="separator:a3e288937a7a78f8aae146c25a71cdb40"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3289a910c64682ab8868ef0dd64de8c0" id="r_a3289a910c64682ab8868ef0dd64de8c0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__config_8h.html#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a>&#160;&#160;&#160;0</td></tr>
+<tr class="memdesc:a3289a910c64682ab8868ef0dd64de8c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in low-power WFE sleep path.  <br /></td></tr>
+<tr class="separator:a3289a910c64682ab8868ef0dd64de8c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a65c4f063ff3b00e9625c2febd7d6fe20" id="r_a65c4f063ff3b00e9625c2febd7d6fe20"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a>&#160;&#160;&#160;0</td></tr>
 <tr class="memdesc:a65c4f063ff3b00e9625c2febd7d6fe20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in active-drive (push-pull) write path.  <br /></td></tr>
 <tr class="separator:a65c4f063ff3b00e9625c2febd7d6fe20"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -142,8 +142,8 @@ Macros</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Central compile-time configuration for the 1-Wire stack. </p>
 <p>All genuinely tunable build constants are collected here. Every macro carries its own <code>#ifndef</code> guard so that a <code>-D</code> on the command line (Makefile EXT, PlatformIO build_flags) overrides the default without touching this file — the existing override mechanism is unchanged. Note that these are preprocessor macros, not CMake options: the CMake project does not forward <code>-D&lt;macro&gt;=...</code> cache variables to the compiler, so pass the flags via the C flags (CMAKE_C_FLAGS / toolchain file) or, for the stats example, rely on the example target.</p>
-<p>Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES, DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the system clock (OW_PORT_SYSCLK_MHZ, passed by the build or resolved from SystemCoreClock by the port core) remain in their respective headers and are intentionally NOT listed here.</p>
-<p>The four feature flags are value-style: define to 1 to enable, omit or set to 0 to disable. Old -D presence-only style (-DOW_PORT_LOW_POWER without =1) no longer works with these flags — always pass =1. </p>
+<p>Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES, DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the system clock (OW_SYSCLK_MHZ, passed by the build or resolved from SystemCoreClock by the port core) remain in their respective headers and are intentionally NOT listed here.</p>
+<p>The four feature flags are value-style: define to 1 to enable, omit or set to 0 to disable. Old -D presence-only style (-DOW_LOW_POWER without =1) no longer works with these flags — always pass =1. </p>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="abe0f6a81aa740fdee2eb2568b94b0f3b" name="abe0f6a81aa740fdee2eb2568b94b0f3b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">&#9670;&#160;</a></span>DS18B20_MAX_DEVICES</h2>
@@ -327,6 +327,24 @@ Macros</h2></td></tr>
 
 </div>
 </div>
+<a id="a3289a910c64682ab8868ef0dd64de8c0" name="a3289a910c64682ab8868ef0dd64de8c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3289a910c64682ab8868ef0dd64de8c0">&#9670;&#160;</a></span>OW_LOW_POWER</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_LOW_POWER&#160;&#160;&#160;0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Opt-in low-power WFE sleep path. </p>
+<p>When 1 the TIM1 update interrupt (UIE) and SEVONPEND are armed for long hardware stages (&gt; 1 ms) so that the application can block in __WFE() without an ISR; the driver itself stays non-blocking. No ISR is ever installed and NVIC_EnableIRQ is never called; the pending bit is cleared explicitly by the engine so WFE does not degrade into a busy-loop.</p>
+<p>Enable with -DOW_LOW_POWER=1. </p>
+
+</div>
+</div>
 <a id="a2aad532fa0eb3d852d91fc8178bf4e59" name="a2aad532fa0eb3d852d91fc8178bf4e59"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">&#9670;&#160;</a></span>OW_PARASITE_POWER</h2>
 
@@ -342,24 +360,6 @@ Macros</h2></td></tr>
 <p>Compile-time flag: bus is wired for parasite power. </p>
 <p>When 1 the default ONEWIRE_GUARD_BAND is raised from 5 µs to 100 µs to leave enough time for the bus-pull-up capacitor to charge. The Makefile TIMING= presets override GUARD_BAND directly and are unaffected.</p>
 <p>Example applications use this flag to automatically call ds18b20_set_parasite(1) at startup — a runtime per-bus override that is independent of the compile-time guard-band default. </p>
-
-</div>
-</div>
-<a id="a3e288937a7a78f8aae146c25a71cdb40" name="a3e288937a7a78f8aae146c25a71cdb40"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3e288937a7a78f8aae146c25a71cdb40">&#9670;&#160;</a></span>OW_PORT_LOW_POWER</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_PORT_LOW_POWER&#160;&#160;&#160;0</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Opt-in low-power WFE sleep path. </p>
-<p>When 1 the TIM1 update interrupt (UIE) and SEVONPEND are armed for long hardware stages (&gt; 1 ms) so that the application can block in __WFE() without an ISR; the driver itself stays non-blocking. No ISR is ever installed and NVIC_EnableIRQ is never called; the pending bit is cleared explicitly in ow_port_bus_done() so WFE does not degrade into a busy-loop.</p>
-<p>Enable with -DOW_PORT_LOW_POWER=1. </p>
 
 </div>
 </div>

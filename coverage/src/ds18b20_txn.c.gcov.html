@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-19 18:52:48</td>
+            <td class="headerValue">2026-10-19 19:40:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -203,7 +203,7 @@
 <span id="L132"><span class="lineNum">     132</span>                 :             :     // This is a non-blocking poll, not a busy-wait.</span>
 <span id="L133"><span class="lineNum">     133</span>                 :<span class="tlaGNC">        2062 :     uint8_t txn_done = onewire_bus_done();</span></span>
 <span id="L134"><span class="lineNum">     134</span>                 :             : </span>
-<span id="L135"><span class="lineNum">     135</span>                 :             : #if OW_PORT_LOW_POWER</span>
+<span id="L135"><span class="lineNum">     135</span>                 :             : #if OW_LOW_POWER</span>
 <span id="L136"><span class="lineNum">     136</span>                 :             :     // Sleep through a long stage of the command transaction (multi-slot</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :     // command write, scratchpad read, EEPROM hold-off) instead of spinning</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :     // on it - same WFE mechanism as the measurement cycle in ds18b20_poll().</span>
@@ -252,7 +252,7 @@
 <span id="L180"><span class="lineNum">     180</span>         [<span class="tlaGBC" title="Branch 0 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 115 times"> + </span>]:<span class="tlaGNC">         151 :             if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
 <span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">          36 :                 onewire_strong_pullup(1);</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :             :             }</span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         151 :             onewire_start_timer(txn_ctx.wait_us, 0);</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">         151 :             ow_glue_wait_start(txn_ctx.wait_us);</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         151 :             txn_ctx.phase = DS18B20_TXN_WAIT;</span></span>
 <span id="L185"><span class="lineNum">     185</span>                 :             :         } else {</span>
 <span id="L186"><span class="lineNum">     186</span>         [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 90 times"> + </span>]:<span class="tlaGNC">         108 :             if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
