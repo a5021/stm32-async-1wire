@@ -2,8 +2,9 @@
  * @file board.h
  * @brief Minimal H503 board support for the standalone-consumer template
  *
- * The library itself carries the whole 1-Wire port (inc/ow_port.h is a header
- * of static inline register writes), so a consumer needs no glue beyond a
+ * The library itself carries the whole 1-Wire port (src/ow_port.h is a header
+ * of static inline register writes, private to the library), so a consumer
+ * needs no glue beyond a
  * system clock, a console and a millisecond tick. This file is that glue for
  * the WeAct STM32H503CB: 64MHz raw HSI, USART1 TX on PA9 at 115200 8N1, and a
  * polled 1 kHz SysTick with its interrupt disabled.

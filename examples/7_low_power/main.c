@@ -27,7 +27,6 @@
 
 #include "app.h"
 #include "ds18b20.h"
-#include "ow_port.h"
 
 #ifndef DS18B20_SEARCH_MAX_DEVICES
 #define DS18B20_SEARCH_MAX_DEVICES 8u

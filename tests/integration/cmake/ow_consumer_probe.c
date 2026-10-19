@@ -4,18 +4,24 @@
  * .../fetchcontent) build this one file, so "the consumer compiles" has a
  * single definition rather than one per fixture.
  *
- * It deliberately references both layers a real application needs:
+ * It references the public headers only:
  *
  *   ds18b20.h   the driver API;
- *   ow_port.h   the port layer, which is what a consumer needs in order to
- *               configure the bus at all.
+ *   onewire.h   the bus API, which pulls in ow_board.h (family dispatch,
+ *               ow_pulse_t and the board clock defaults).
  *
- * ow_port.h is self-checking, which is why this file needs no assertions of
- * its own. It ends in `#error` unless a CMSIS device macro (e.g. STM32F103xB)
- * or family macro (e.g. STM32F1) arrived (inc/onewire.h), it compares against OW_PORT_SYSCLK_MHZ, and it
- * _Static_asserts the pulse-timing sum. All three reach a consumer only
- * through the exported target's INTERFACE_COMPILE_DEFINITIONS, so a build that
- * compiles this file has proved that the package handed over its include
+ * It doubles as the encapsulation probe: the TIM1+DMA engine and the
+ * register-level per-family facts (src/ow_port.h, src/ow_mcu.h) are
+ * library-internal, so a consumer that compiles this file has proved the
+ * installed package carries the whole public API and nothing it would have to
+ * reach behind.
+ *
+ * The checks below have to hold for a consumer that received the package: a
+ * CMSIS device/family macro arrived (inc/ow_board.h ends in #error
+ * otherwise), the public -D definitions arrived (OW_PORT_SYSCLK_MHZ), and the
+ * pulse tunables are within the feed budget. All of these reach a consumer
+ * only through the exported target's INTERFACE_COMPILE_DEFINITIONS, so a build
+ * that compiles this file has proved that the package handed over its include
  * paths, its public -D definitions and its device macro.
  *
  * Built as a static library, not an executable: this checks headers, defines
@@ -24,7 +30,14 @@
  */
 
 #include "ds18b20.h"
-#include "ow_port.h"
+#include "onewire.h"
+
+#ifndef OW_PORT_SYSCLK_MHZ
+#error "ow_consumer_probe: OW_PORT_SYSCLK_MHZ did not reach the consumer; the package lost its public compile definitions"
+#endif
+
+_Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 256u,
+               "the slot word does not fit one feed entry (ow_config.h tunables)");
 
 uint8_t ow_consumer_probe(void);
 

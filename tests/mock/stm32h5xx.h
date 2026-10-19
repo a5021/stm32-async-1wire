@@ -7,7 +7,7 @@
  * (GPDMA CTR1/CTR2/CBR1/CSAR/CDAR channel registers, REQSEL in CTR2,
  * G0-style GPIO MODE10/OT10 spellings, TIM1_UP split vector) so tests catch
  * wrong-symbol bugs and test-mocks can compare every literal macro.
- * Defines the family macro like the real stm32h5xx.h so the ow_port.h
+ * Defines the family macro like the real stm32h5xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32H5 1
 #include "ow_config.h"

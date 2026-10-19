@@ -127,10 +127,12 @@ gcc -std=c11 -Wall -Wextra -Werror -Wno-pointer-to-int-cast -Wno-int-to-pointer-
 
 # The manifest's own sources must compile per backend with the manifest's own
 # include set and nothing else (beyond the mock device headers): src/onewire.c
-# pulls the port layer through onewire.h's bare quote-include
-# (#include "ow_port.h"), which reaches the MCU facts through another bare
-# quote-include (#include "ow_mcu.h") - so a missing -Iinc fails here instead
-# of in a real project. Every backend earns its compile (F0/F1/F3/F4/G0/G4/H5).
+# pulls the port layer through a same-directory quote-include
+# (#include "ow_port.h", resolved in src/), which reaches the MCU facts through
+# another same-directory quote-include (#include "ow_mcu.h") and the public
+# board facts through #include "ow_board.h" (-Iinc). So a missing -Iinc or a
+# mis-located engine header fails here instead of in a real project. Every
+# backend earns its compile (F0/F1/F3/F4/G0/G4/H5).
 # The clock each backend compiles against mirrors the chips/<part>.mk default
 # (single source; test_sysclk_fallback.c guards the values). The family
 # headers no longer guess a default, so without this the sources below would

@@ -16,6 +16,7 @@
 
 #include "hw_model.h"
 #include "onewire.h"
+#include "ow_port.h"
 #include "unity.h"
 
 uint32_t SystemCoreClock = 72000000u;

@@ -1,5 +1,9 @@
 #include "ds18b20.h"
 #include "onewire.h"
+/* The driver needs two CMSIS compiler spellings (__WEAK, __STATIC_FORCEINLINE)
+ * and nothing else from CMSIS; this private shim supplies them without pulling
+ * in a device header. See src/ow_compiler.h. */
+#include "ow_compiler.h"
 /* Intra-stack instrumentation, not a layer leak: stats emission needs
  * driver-owned concepts (device ROM, DS18B20_TEMP_ERROR_*) that the onewire
  * layer must not know, so the driver is the rightful emitter. Compiles away

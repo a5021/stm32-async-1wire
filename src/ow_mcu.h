@@ -1,17 +1,20 @@
 /**
  * @file ow_mcu.h
- * @brief Target-microcontroller facts for the non-blocking 1-Wire engine.
+ * @brief Private per-family register/DMA facts for the 1-Wire engine.
  *
- * Consolidates the family-specific halves of the former port backends
- * (port/stm32f0/ow_port_f0.h ... port/stm32h5/ow_port_h5.h): which clocks to
- * gate, the PA10 pin-mux tokens, the DMA channel/stream assignment and the
- * request-routing macros, plus the ow_pulse_t width. Everything else,
- * including the merged write+read pass, is the shared TIM1+DMA body in
- * inc/ow_port.h, which includes this file first.
+ * Library-internal: this header is not part of the public API and is reached
+ * only by src/onewire.c through src/ow_port.h.  It consolidates the
+ * family-specific halves of the former port backends
+ * (port/stm32f0/ow_port_f0.h ... port/stm32h5/ow_port_h5.h): the CMSIS device
+ * header, which clocks to gate, the PA10 pin-mux tokens, the DMA
+ * channel/stream assignment and the request-routing macros.  The family
+ * dispatch, the ow_pulse_t width and the board clock defaults are public and
+ * live in inc/ow_board.h, which this header includes; the shared TIM1+DMA
+ * engine is src/ow_port.h.
  *
- * Include order (linear, acyclic): a TU includes onewire.h (or ow_port.h
- * directly), which reaches this file before any engine code, so the family
- * facts are always in scope where the engine uses them.
+ * Include order (linear, acyclic): src/ow_port.h includes this file before any
+ * engine code, so the family facts are always in scope where the engine uses
+ * them.
  *
  * The CMSIS device header is included per family branch below: on target
  * builds it resolves through the CMSIS device include path, on host-test
@@ -22,50 +25,25 @@
 #ifndef OW_MCU_H
 #define OW_MCU_H
 
+#include "ow_board.h"
 #include <stdint.h>
 
-/* ------------------------------------------------------------------
- *  Family selection: a single OW_PORT_FAMILY_* token resolved from
- *  the CMSIS device macro of the target (e.g. -DSTM32F030x6) or, for
- *  host-test mocks, PlatformIO and STM32CubeMX projects, from a family
- *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5).
- *  Concrete device spellings are accepted for the parts this project
- *  supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
- *  STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4;
- *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
- *  (Moved here from onewire.h; the single point of family selection.)
- * ------------------------------------------------------------------ */
-#if defined(STM32F030x6) || defined(STM32F0)
-#define OW_PORT_FAMILY_F0
-#elif defined(STM32F103xB) || defined(STM32F1)
-#define OW_PORT_FAMILY_F1
-#elif defined(STM32F303xC) || defined(STM32F3)
-#define OW_PORT_FAMILY_F3
-#elif defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \
-    defined(STM32F446xx) || defined(STM32F4)
-#define OW_PORT_FAMILY_F4
-#elif defined(STM32G031xx) || defined(STM32G0)
-#define OW_PORT_FAMILY_G0
-#elif defined(STM32G474xx) || defined(STM32G4)
-#define OW_PORT_FAMILY_G4
-#elif defined(STM32H503xx) || defined(STM32H5)
-#define OW_PORT_FAMILY_H5
-#else
-#error "ow_mcu: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H503xx) or its family macro (e.g. -DSTM32H5). This is the ONLY define the library requires; OW_PORT_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx or -DSTM32F0/F1/F3/F4/G0/G4/H5 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
-#endif
+/* ow_pulse_t, the family dispatch (OW_PORT_FAMILY_*) and the board clock
+ * defaults live in inc/ow_board.h above; this header adds the CMSIS device
+ * header and the per-family register/DMA facts below. */
 
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in inc/ow_port.h; what is left here is the
+ *  other six families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F030: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note. */
 #if defined(OW_PORT_FAMILY_F0)
 #include "stm32f0xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
@@ -76,7 +54,6 @@
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
-typedef uint8_t ow_pulse_t;
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
@@ -136,16 +113,16 @@ typedef uint8_t ow_pulse_t;
 
 /* === STM32F1 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in inc/ow_port.h; what is left here is the
+ *  other six families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F103: which clocks to gate, and how PA10 is put
  *  into alternate-function open-drain mode (legacy CRH). */
 #if defined(OW_PORT_FAMILY_F1)
 #include "stm32f1xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
@@ -156,7 +133,6 @@ typedef uint8_t ow_pulse_t;
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
-typedef uint8_t ow_pulse_t;
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
@@ -213,7 +189,7 @@ typedef uint8_t ow_pulse_t;
 
 /* === STM32F3 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in inc/ow_port.h; what is left here is the
+ *  other six families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F303: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note.
  *
@@ -223,9 +199,9 @@ typedef uint8_t ow_pulse_t;
 #include "stm32f3xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
@@ -240,11 +216,6 @@ typedef uint8_t ow_pulse_t;
  *    Deliberately separate from OW_PORT_SYSCLK_MHZ: the crystal belongs to the
  *    *board*, the system clock to the *application*.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
-typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_HSE_MHZ)
-#define OW_HSE_MHZ 8
-#endif
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
@@ -333,10 +304,11 @@ typedef uint8_t ow_pulse_t;
  *  function AF1); CH4 captures in indirect mode on the same pin (CC4S routes IC4 to TI3) and drains CCR4 via
  *  DMA2_Stream4, while the CC2 slot-end marker (DMA2_Stream2) reloads CCR3.
  *
- *  This section owns only the F4 facts (ow_pulse_t, clocks, pin mux, DMA
- *  stream assignment, the OW_PORT_DMA_xx overrides).  Everything else,
- *  including the merged write+read pass, is the shared body in
- *  inc/ow_port.h, included after this file once the macros above are defined.
+ *  This section owns only the F4 facts (pin mux, DMA stream assignment, the
+ *  OW_PORT_DMA_xx overrides); ow_pulse_t and the clock defaults are public
+ *  and live in inc/ow_board.h.  Everything else, including the merged
+ *  write+read pass, is the shared body in src/ow_port.h, included after this
+ *  file once the macros above are defined.
  *
  *  HARDWARE CONTRACT (see the "Required Timer Capabilities" section of README):
  *  - DMA2 streams run in direct mode (no FIFO): the memory transfer width is
@@ -357,9 +329,9 @@ typedef uint8_t ow_pulse_t;
 #include "stm32f4xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 16-bit feed entry.  The F4 backend feeds CCR3 in DMA direct
  *    mode, where the memory-transfer width is forced to PSIZE, so a feed entry
  *    is a 16-bit halfword here (zero-copy, CNDTR == slots); every other
@@ -379,7 +351,6 @@ typedef uint8_t ow_pulse_t;
  *    belongs to the *board*, the system clock to the *application*.  A wrong
  *    value is not a compile error - the PLL simply never locks.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
-typedef uint16_t ow_pulse_t;
 
 /* F4 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
  * gives a 1us tick here): TIM1 is on APB2 (RM0090 §7), and when the APB
@@ -394,20 +365,6 @@ typedef uint16_t ow_pulse_t;
  *    TIM1 = PCLK2 = SYSCLK directly.
  * (PPRE1=/4 only affects APB1 peripherals — TIM2..5, USART2/3/6, I2C —
  * none of which this port uses.) */
-
-#if !defined(OW_PORT_F4_MAX_SYSCLK_MHZ)
-#if defined(STM32F446xx)
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
-#elif defined(STM32F401xC) || defined(STM32F401xE)
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 84 /* F401 parts top out at 84MHz */
-#else
-#define OW_PORT_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap */
-#endif
-#endif
-
-#if !defined(OW_HSE_MHZ)
-#define OW_HSE_MHZ 8
-#endif
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM10_IRQn
@@ -478,7 +435,7 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (see the
- * defaults in inc/ow_port.h): same three transfer classes in stream
+ * defaults in src/ow_port.h): same three transfer classes in stream
  * spelling.  Each equals the per-site expression used by the migrated
  * bodies (capture, read pair and merged capture share RX16; feed and merged
  * feed share TX) - pinned by
@@ -492,7 +449,7 @@ typedef uint16_t ow_pulse_t;
 #define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | OW_PORT_DMA_CHSEL | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
 
 /* Stream-spelling overrides for the DISABLE/PROG vocabulary (defaults in
- * inc/ow_port.h).  DISABLE is disable + bounded EN wait
+ * src/ow_port.h).  DISABLE is disable + bounded EN wait
  * (shared ow_port_dma_disable(), same request path as the old rearm) plus
  * the per-stream flag retirement: Stream2 retires LIFCR, Stream4 HIFCR, all
  * five flags each so the next EN starts from a clean state.  No request
@@ -549,7 +506,7 @@ typedef uint16_t ow_pulse_t;
 
 /* === STM32G0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in inc/ow_port.h.  G0 differs in three ways,
+ *  other six families and lives in src/ow_port.h.  G0 differs in three ways,
  *  all of them here: the bus pins are remapped, the GPIO register macros
  *  have a different spelling, and DMA requests go through DMAMUX instead of
  *  a fixed map. */
@@ -557,9 +514,9 @@ typedef uint16_t ow_pulse_t;
 #include "stm32g0xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
  *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
@@ -570,7 +527,6 @@ typedef uint16_t ow_pulse_t;
  *    it the shared core reads the CMSIS SystemCoreClock at startup instead.
  *    Validate any change against every supported clock (app.c).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
-typedef uint8_t ow_pulse_t;
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_BRK_UP_TRG_COM_IRQn
@@ -655,7 +611,7 @@ typedef uint8_t ow_pulse_t;
 
 /* === STM32G4 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in inc/ow_port.h.  G4 differs in four ways,
+ *  other six families and lives in src/ow_port.h.  G4 differs in four ways,
  *  all of them here: the clock gates (AHB1 for DMA+DMAMUX, AHB2 for GPIO,
  *  APB2 for TIM1+SYSCFG), the AF number of TIM1_CH3 on PA10, the DMAMUX
  *  request IDs, and the default clock (HSE+PLL to 170MHz). */
@@ -663,9 +619,9 @@ typedef uint8_t ow_pulse_t;
 #include "stm32g4xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The classic-DMA backends (F0/F1/F3/G0)
  *    feed CCR3 with a 16-bit peripheral read narrowed to byte memory (the
  *    RX8/TX defaults in the shared core), and the G4 DMA is the same classic
@@ -683,15 +639,6 @@ typedef uint8_t ow_pulse_t;
  *  - OW_HSE_MHZ: the board crystal, read by app.c as the PLL's M divider.
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (shared with TIM16 on this family). */
-typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_PORT_G4_MAX_SYSCLK_MHZ)
-#define OW_PORT_G4_MAX_SYSCLK_MHZ 170 /* G474 ceiling, voltage Range 1 Boost */
-#endif
-
-#if !defined(OW_HSE_MHZ)
-#define OW_HSE_MHZ 8 /* WeAct STM32G474CBT6 Long: 8MHz crystal */
-#endif
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
@@ -786,10 +733,11 @@ typedef uint8_t ow_pulse_t;
  *  to TI3) and drains CCR4 via GPDMA1_Channel3, while the CC2 slot-end marker
  *  (GPDMA1_Channel2) reloads CCR3.
  *
- *  This section owns only the H5 facts (ow_pulse_t, clocks, pin mux, GPDMA
- *  channel assignment, the CTR1 templates below).  Everything else, including
- *  the merged write+read pass, is the shared body in
- *  inc/ow_port.h, included after this file once the macros above are defined.
+ *  This section owns only the H5 facts (pin mux, GPDMA channel assignment, the
+ *  CTR1 templates below); ow_pulse_t and the clock defaults are public and
+ *  live in inc/ow_board.h.  Everything else, including the merged write+read
+ *  pass, is the shared body in src/ow_port.h, included after this file once
+ *  the macros above are defined.
  *
  *  HARDWARE CONTRACT (see the "Required Timer Capabilities" section of README):
  *  - GPDMA1 channels run in direct register mode (no linked list): each
@@ -828,9 +776,9 @@ typedef uint8_t ow_pulse_t;
 #include "stm32h5xx.h"
 
 /* ------------------------------------------------------------------
- *  Per-family facts owned by this port.  onewire.h delegates them here so the
- *  core headers carry no family knowledge; the dispatch at the top of this
- *  file is the only other place a family appears.
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  GPDMA converts source/destination widths
  *    in hardware, so a byte memory cell feeding the halfword CCR3 needs no
  *    packing games (contrast the F4 backend, a uint16_t direct-mode feed on
@@ -852,15 +800,6 @@ typedef uint8_t ow_pulse_t;
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (split vector on this family: TIM1_UP, not the combined BRK/UP/TRG/COM
  *    of F0/F1/G0). */
-typedef uint8_t ow_pulse_t;
-
-#if !defined(OW_PORT_H5_MAX_SYSCLK_MHZ)
-#define OW_PORT_H5_MAX_SYSCLK_MHZ 250 /* H503 ceiling */
-#endif
-
-#if !defined(OW_HSE_MHZ)
-#define OW_HSE_MHZ 8 /* WeAct STM32H503Cx Core Board: 8MHz crystal (Y2) */
-#endif
 
 #if OW_PORT_LOW_POWER
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
@@ -929,7 +868,7 @@ typedef uint8_t ow_pulse_t;
 #define OW_PORT_GPDMA_REQ_TIM1_CH4 61u
 
 /* GPDMA-spelling overrides for the DISABLE/PROG vocabulary (defaults in
- * inc/ow_port.h).  DISABLE is disable + bounded EN wait
+ * src/ow_port.h).  DISABLE is disable + bounded EN wait
  * (shared ow_port_dma_disable(), same contract as the classic path) plus
  * flag retirement: TCF (transfer done) and SUSPF (our own mid-transfer
  * suspend on underrun re-arms).  Error flags are deliberately NOT retired

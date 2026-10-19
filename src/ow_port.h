@@ -14,9 +14,10 @@
  * shared timer/DMA engine and returns immediately; the caller advances by
  * polling ow_port_bus_done(). The CPU is never in the timing-critical path.
  *
- * Layout: protocol constants, then the target facts (ow_mcu.h: family
- * dispatch plus the seven MCU sections), then the shared TIM1+DMA engine
- * below. A consumer only needs -Iinc.
+ * Layout: protocol constants, then the target facts (ow_mcu.h: the seven MCU
+ * sections, plus the family dispatch and ow_pulse_t from the public
+ * ow_board.h), then the shared TIM1+DMA engine below.  Library-internal:
+ * src/onewire.c is the only consumer, and the public headers never reach it.
  */
 
 #ifndef OW_PORT_H
@@ -55,10 +56,11 @@ extern "C" {
 #endif
 
 /* onewire.h for the protocol constants (ONEWIRE_*) the engine uses, then
- * the target facts (ow_pulse_t, clocks, pin mux, DMA assignment) from
- * ow_mcu.h.  Both are in scope before the shared engine body that follows.
- * (onewire.h includes this header back, guarded — the same cycle the old
- * backend headers had; ow_mcu.h itself stays dependency-free.) */
+ * the target facts (the family dispatch and ow_pulse_t from ow_board.h,
+ * plus the register/DMA facts from ow_mcu.h).  All are in scope before the
+ * shared engine body that follows.  Unlike the old backend headers this is
+ * acyclic: onewire.h -> ow_board.h, and this header -> onewire.h + ow_mcu.h,
+ * each of which includes ow_board.h through its own guard. */
 #include "onewire.h"
 #include "ow_mcu.h"
 

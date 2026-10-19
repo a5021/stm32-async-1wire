@@ -11,6 +11,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The MCU layer is private: the public headers no longer leak the port.**
+  `onewire.h` used to pull `inc/ow_port.h` (the TIM1+DMA engine) and
+  `inc/ow_mcu.h` (the per-family register facts) into every consumer
+  translation unit, so a plain `#include "onewire.h"` dragged in the CMSIS
+  device header and the engine's register vocabulary — an abstraction leak,
+  not a style question. The engine and the per-family facts move to `src/`
+  (`src/ow_port.h`, `src/ow_mcu.h`) and are reached only by `src/onewire.c`;
+  the facts a consumer genuinely needs — the `OW_PORT_FAMILY_*` selection
+  token, `ow_pulse_t` and the board clock defaults — move to the new public
+  `inc/ow_board.h`. `onewire.h` now includes only `ow_config.h` and
+  `ow_board.h`, and the public/private header graph is acyclic (the old
+  `onewire.h` ↔ `ow_port.h` cycle is gone). The driver's two CMSIS compiler
+  helpers (`__WEAK`, `__STATIC_FORCEINLINE`) come from a private
+  `src/ow_compiler.h` instead of the device header, so the driver stays
+  MCU-independent.
+
+  Measured: preprocessing `onewire.h` for F1 drops from 1265 lines / 48.9 KB
+  to 123 lines / 5.5 KB, and the header now preprocesses with `-Iinc` alone —
+  before, it could not be preprocessed at all without the CMSIS device header
+  on the include path. The installed package carries the public set only
+  (`onewire.h`, `ow_board.h`, `ow_config.h`, `ow_stats.h` and the driver
+  headers); the engine headers are no longer installed or advertised, and the
+  installed-package consumer probe now compiles against the public surface
+  alone. Firmware images are byte-identical before and after (verified for
+  F103xB and F407xx), and `-Iinc` still suffices.
+
 - **Release artifacts ship as one archive.** Downloads are now a single
   `firmware-<version>.zip` holding the per-variant `.elf`/`.hex`/`.bin` files
   plus `LICENSE` and `SHA256SUMS.txt`, instead of ~400 individual release

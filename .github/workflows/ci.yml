@@ -16,7 +16,7 @@ jobs:
       - name: Check code formatting
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c inc/ow_mcu.h inc/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c templates/standalone-consumer/*.c templates/standalone-consumer/*.h
+        run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_board.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c src/ow_compiler.h src/ow_mcu.h src/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c templates/standalone-consumer/*.c templates/standalone-consumer/*.h
 
   host-tests:
     strategy:
@@ -86,7 +86,7 @@ jobs:
           done
       - name: Compile-check the clock defaults
         # Pins each chips/<part>.mk CHIP_SYSCLK_MHZ to the family default in
-        # ow_port.h, which the firmware build otherwise overrides.
+        # ow_board.h, which the firmware build otherwise overrides.
         run: make test-clocks-${{ matrix.backend }}
 
       - name: Run the F4 suite at the F401 clock and a 25MHz crystal
@@ -232,7 +232,7 @@ jobs:
             ARGS="$ARGS -a $f"
           done
           lcov $ARGS --output-file union.info --rc branch_coverage=1
-          lcov --remove union.info '*/tests/*' '/usr/*' '*/inc/ow_mcu.h' \
+          lcov --remove union.info '*/tests/*' '/usr/*' '*/src/ow_mcu.h' \
                 --output-file core.info --rc branch_coverage=1 --ignore-errors unused
           lcov --summary core.info --rc branch_coverage=1 > summary.txt || true
           cat summary.txt
@@ -357,23 +357,22 @@ jobs:
           make OW_MCU=STM32F407xx download-deps
           make OW_MCU=STM32G474xx download-deps
           make OW_MCU=STM32H503xx download-deps
-      # onewire.h pulls in the port layer with a bare sibling quote-include
-      # (#include "ow_port.h", which reaches ow_mcu.h the same way) - required
-      # bare so the flattened CMake install (all headers into one include
-      # dir) keeps working - so inc/ must be on the include path here exactly
-      # as CMakeLists exports it for the build tree (BUILD_INTERFACE) and the
-      # Makefile does with -I.
+      # src/onewire.c pulls the port layer with a same-directory quote-include
+      # (#include "ow_port.h"; ow_port.h reaches "ow_mcu.h" the same way), so
+      # the engine needs no extra -I beyond inc/ for the public ow_board.h.
+      # inc/ is still required here exactly as CMakeLists exports it for the
+      # build tree (BUILD_INTERFACE) and the Makefile does with -I.
       # The per-family clock facts used to live in ow_port_fX.h as #ifndef
       # fallbacks (no longer: the headers must not guess a clock), which is
       # why every pass below carries its clock explicitly - omitting it makes
       # cppcheck fall to examples/app/app.c's "#error Unsupported
       # OW_PORT_SYSCLK_MHZ" branch (and app.h now #errors even earlier).
       - name: Run static analysis (F1)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F103xB -DOW_PORT_SYSCLK_MHZ=72 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F103xB -DOW_PORT_SYSCLK_MHZ=72 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       - name: Run static analysis (F0)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F030x6 -DOW_PORT_SYSCLK_MHZ=48 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F030x6 -DOW_PORT_SYSCLK_MHZ=48 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       - name: Run static analysis (G0)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_PORT_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_PORT_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The F3 PLL branch is a genuinely different code path from every other
       # family's: it drives PLLSRC/PLLMUL out of CFGR rather than a dedicated
       # PLLCFGR, has no PLLN, and its 72MHz default is the only one that cannot
@@ -381,33 +380,33 @@ jobs:
       # which is what proves the F3 spellings it depends on actually exist -
       # GPIO_OSPEEDER_* (with the E) and GPIO_AFRH_AFRH2 for PA10 among them.
       - name: Run static analysis (F3 at 72MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F303xC -DOW_PORT_SYSCLK_MHZ=72 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F303xC -DOW_PORT_SYSCLK_MHZ=72 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       - name: Run static analysis (F4)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_PORT_SYSCLK_MHZ=168 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_PORT_SYSCLK_MHZ=168 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The F446's 180MHz branch exists in no other configuration, so the F4 pass
       # above never sees it. cppcheck reads the real CMSIS headers, which is also
       # what makes it the one check that proves PWR_CR_ODEN/ODSWEN and
       # PWR_CSR_ODRDY/ODSWRDY are spelled as stm32f446xx.h spells them.
       - name: Run static analysis (F446 at 180MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F446xx -DOW_PORT_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F446xx -DOW_PORT_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The G4 backend: default 170MHz HSE+PLL branch. cppcheck reads the real
       # stm32g474xx.h, which is what proves the G4 register spellings the port
       # depends on actually exist - RCC_AHB1ENR_DMAMUX1EN, the AHB2/APB2 gates,
       # TIM1_UP_TIM16_IRQn, the PLLCFGR M/N/R fields and the ACR latency row.
       - name: Run static analysis (G4 at 170MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=170 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=170 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The G4 16MHz raw-HSI16 branch: no PLL, no flash-latency change, SWS
       # stays on HSI - a genuinely different code path from the 170MHz default,
       # so it gets its own pass rather than riding along.
       - name: Run static analysis (G4 at 16MHz HSI)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=16 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_PORT_SYSCLK_MHZ=16 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The H5 backend: 64MHz raw-HSI default. cppcheck reads the real
       # stm32h503xx.h, which is what proves the H5 register spellings the port
       # depends on actually exist - RCC_AHB1ENR_GPDMA1EN, the AHB2/APB2 gates,
       # TIM1_UP_IRQn, the G0-style GPIO MODE10/OT10 spellings and the GPDMA
       # CTR1/CTR2/CBR1/CSAR/CDAR channel layout.
       - name: Run static analysis (H5 at 64MHz HSI)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The H5 250MHz HSE+PLL1 branch exists in no other configuration: VOS0
       # through PWR, 5 flash wait states, the PLL1CFGR/PLL1DIVR fields and the
       # CFGR1 switch. cppcheck reads the real stm32h503xx.h, which is what
@@ -415,12 +414,12 @@ jobs:
       # RCC_PLL1DIVR_PLL1N/PLL1P and RCC_CFGR1_SW/SWS spellings the path
       # depends on actually exist.
       - name: Run static analysis (H5 at 250MHz HSE+PLL)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
       # The H5 8MHz raw-HSE branch: an HSERDY wait and the CFGR1 switch, no PLL,
       # 0 flash wait states - a genuinely different path from both the 64MHz
       # default and the 250MHz PLL clock, so it gets its own pass.
       - name: Run static analysis (H5 at 8MHz raw HSE)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_PORT_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
 
   part-matrix:
     # Every chips/<part>.mk must name repository files that exist and well-formed
@@ -442,11 +441,12 @@ jobs:
         # link. Repo-side text parse, no toolchain (see tests/check_mcu_dispatch.sh).
         run: make test-mcu-dispatch
       - name: Check the public headers do not leak the port register vocabulary
-        # onewire.h pulls the header-only port engine, which is written in the
-        # register vocabulary at the top of ow_port.h; ow_port.h withdraws it
-        # at its end and nothing else guards that block, so a moved include
-        # resurrected the leak once already (v2.1.0, 8dba9d2). Host-gcc
-        # preprocessor check.
+        # The engine is library-internal (src/ow_port.h, reached only by
+        # src/onewire.c) and written in the register vocabulary at the top of
+        # src/ow_port.h; ow_port.h withdraws it at its end and nothing else
+        # guards that block, so a moved include resurrected the leak once
+        # already (v2.1.0, 8dba9d2). Host-gcc preprocessor check over the four
+        # public headers plus the two engine headers.
         run: make test-header-hygiene
       - name: Check the PlatformIO library manifest
         # PlatformIO resolves consumers through library.json rather than an
@@ -724,17 +724,21 @@ jobs:
           test -f build/prefix-${{ matrix.backend }}/lib/libstm32_async_1wire.a
           test -f build/prefix-${{ matrix.backend }}/lib/cmake/stm32_async_1wire/stm32_async_1wireConfig.cmake
           test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ds18b20.h
-          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_mcu.h
-          # ow_port.h reaches the MCU facts through ow_mcu.h, so a
-          # package without it would hand consumers a broken header.
+          test -f build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_board.h
+          # The public surface is onewire.h + ow_board.h; the engine headers
+          # are library-internal and must not be installed. The consumer below
+          # proves the public set is sufficient on its own.
+          test ! -e build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_port.h
+          test ! -e build/prefix-${{ matrix.backend }}/include/stm32-async-1wire/ow_mcu.h
       - name: Build the installed-package consumer (OW_MCU=${{ matrix.mcu }})
-        # The step above checks that the install tree contains certain files.
-        # This builds a downstream consumer against it, which is the only thing
-        # that proves the installed headers still compile on their own, that the
-        # exported target resolves, and that the part selection reaches the
-        # consumer: CMSIS_DEVICE_DEF, the STM32Fx family macro and OW_PORT_SYSCLK_MHZ
-        # are PUBLIC on the library target, so they travel in
-        # INTERFACE_COMPILE_DEFINITIONS and ow_port.h #errors without them.
+        # The step above checks that the install tree contains the public
+        # headers. This builds a downstream consumer against it, which is the
+        # only thing that proves the installed headers still compile on their
+        # own, that the exported target resolves, and that the part selection
+        # reaches the consumer: CMSIS_DEVICE_DEF, the STM32Fx family macro and
+        # OW_PORT_SYSCLK_MHZ are PUBLIC on the library target, so they travel in
+        # INTERFACE_COMPILE_DEFINITIONS and ow_board.h #errors without them.
+        # That the probe names no engine header is the encapsulation half.
         #
         # The consumer supplies CMSIS itself, which is the contract the package
         # documents: those include paths were FetchContent checkouts in this

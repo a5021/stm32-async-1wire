@@ -694,12 +694,12 @@ test-mcu-dispatch:
 	@sh tests/check_mcu_dispatch.sh
 
 # --- Do the public headers leak the port's register vocabulary? ---
-# onewire.h pulls the header-only port engine, which is written in the
-# register aliases (T1, PA, RC, D13, ...), the OW_BITFIELDS() machinery and the
-# register shortcuts; ow_port.h defines them at its top and withdraws them at
-# its end because every body must see them first. Nothing tied that block to
-# the definitions, so a moved include can silently resurrect them - which is
-# exactly what shipped in v2.1.0 (8dba9d2). Host compiler only.
+# The engine is library-internal (src/ow_port.h, reached only by src/onewire.c)
+# and written in the register aliases (T1, PA, RC, D13, ...), the OW_BITFIELDS()
+# machinery and the register shortcuts; src/ow_port.h defines them at its top and
+# withdraws them at its end because every body must see them first. Nothing tied
+# that block to the definitions, so a moved include can silently resurrect them -
+# which is exactly what shipped in v2.1.0 (8dba9d2). Host compiler only.
 # See tests/check_header_hygiene.sh.
 .PHONY: test-header-hygiene
 test-header-hygiene:
@@ -784,7 +784,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # followed by `make OW_TARGET=f0` reused the f1 objects: only the startup and
 # system files, whose basenames happen to differ per part, were recompiled, so
 # the f0 firmware went on to link Cortex-M3 code compiled against
-# inc/ow_mcu.h (F1 section) with a 72 MHz prescaler - the two families' bit-slot
+# src/ow_mcu.h (F1 section) with a 72 MHz prescaler - the two families' bit-slot
 # timings differ by that factor. It showed up as a confusing assembler failure
 # ("invalid constant after fixup") on the one freshly-named file rather than as
 # the stale link it actually was, and switching families within one build tree
@@ -854,7 +854,7 @@ vpath %.s $(sort $(dir $(ASM))) # Set the search path for A source files
 #
 # So the dependencies are listed explicitly instead. Cost: one extra stat per
 # header per object, which is negligible next to the compile it may trigger.
-OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h)
+OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard src/*.h) $(wildcard examples/app/*.h)
 
 # src/ds18b20.c and src/ds2431.c are umbrella translation units: each #includes
 # its driver part below, so editing one of them must rebuild the object file.
@@ -1072,7 +1072,10 @@ TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_
             -Werror=discarded-qualifiers \
             -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
             $(if $(COVERAGE),--coverage,)
-TEST_INC  = -Iinc -Iexamples/app -I$(TEST_MOCK)
+# -Isrc exposes the library-internal engine headers (ow_port.h, ow_mcu.h) to
+# the host tests that drive the port directly; the library itself reaches them
+# by same-directory quote include.  Public consumers never see them.
+TEST_INC  = -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK)
 
 # Extra host executables for this family, built and run alongside $(TEST_EXE).
 # Empty for every family but F4, which carries a second clock that is a
@@ -1271,10 +1274,10 @@ F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sy
 # part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
 # file changes.
 $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_PORT_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 $(TEST_OUT)/test_sysclk_nodefault_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Iexamples/app -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
 # Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
@@ -1310,10 +1313,10 @@ DS18B20_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
 # build gets this from -MMD depfiles, but the host build is a single gcc call
 # producing one .exe, so there is no depfile to read - and without this, editing
 # a header leaves the executables untouched. That is not a nuisance: it produced
-# a *false pass*. Mutating the 180MHz IC4F tier in inc/ow_port.h and re-running
+# a *false pass*. Mutating the 180MHz IC4F tier in src/ow_port.h and re-running
 # `make test` reported success, because the binary was stale; only a forced
 # rebuild failed. A test that cannot be made to run is worse than no test.
-TEST_HDRS = $(wildcard inc/*.h) $(wildcard examples/app/*.h) \
+TEST_HDRS = $(wildcard inc/*.h) $(wildcard src/*.h) $(wildcard examples/app/*.h) \
             $(wildcard $(TEST_MOCK)/*.h)
 
 $(TEST_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)

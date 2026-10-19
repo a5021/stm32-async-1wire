@@ -313,7 +313,7 @@ void test_search_start_ignored_while_running(void) {
 }
 
 /*-------------------------------------------------------------
- *  The IC4F bits must be the ones the tier table in ow_port.h
+ *  The IC4F bits must be the ones the tier table in src/ow_port.h
  *  documents, not merely *some* filter.
  *
  *  ICxF is a 4-bit ladder, so almost any wrong value still

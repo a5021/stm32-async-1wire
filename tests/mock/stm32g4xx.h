@@ -6,7 +6,7 @@
  * Register/bit names follow the real stm32g474xx.h spelling (MODER10,
  * OT_10, AHB1ENR/AHB2ENR/APB2ENR, DMAMUX channel type) so tests catch
  * wrong-symbol bugs of the kind the F0 BSRR fix exposed.
- * Defines the family macro like the real stm32g4xx.h so the ow_port.h
+ * Defines the family macro like the real stm32g4xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32G4 1
 #include "ow_config.h"

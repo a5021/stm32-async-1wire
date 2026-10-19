@@ -18,9 +18,9 @@ they manage CMSIS for you and this template's glue is unnecessary.
 | `main.c` | The application: `board_init()`, `ds18b20_init()`, non-blocking poll loop. |
 | `board.c` / `board.h` | Board bring-up the library does **not** provide: 64MHz clock, USART1 console, polled 1ms tick. Replace with your own. |
 
-The library owns the whole 1-Wire port (`inc/ow_port.h` is a header of static
-inline register writes), so there is no port glue to write - only the clock, a
-console and a tick, which any board already has.
+The library owns the whole 1-Wire port (`src/ow_port.h` is a header of static
+inline register writes, private to the library), so there is no port glue to
+write - only the clock, a console and a tick, which any board already has.
 
 ## Requirements
 

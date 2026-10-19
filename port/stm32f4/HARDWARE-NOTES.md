@@ -1,6 +1,6 @@
 # STM32F4 backend (STM32F407 / STM32F401 / STM32F446) — hardware notes
 
-Bring-up notes for the F4 backend (now the `ow_mcu.h` F4 section): the peripheral topology that works, and the
+Bring-up notes for the F4 backend (now the `src/ow_mcu.h` F4 section): the peripheral topology that works, and the
 alternatives that were tested on real hardware and rejected. The operating
 invariants live in the code comments and in the "Required Timer Capabilities"
 section of `README.md`; this file keeps the experiments. Most of it was
@@ -161,7 +161,7 @@ of each recorded after the dash:
    (T_f ≈ 533ns) — the F407 tier was picked for 84MHz and undershoots the
    ~500ns target as the clock rises, so the F446 needed its own row rather than
    inheriting one that no longer fits. That is arithmetic from the ICxF
-   encoding table in `inc/ow_port.h`, not a measurement, and it is the one
+   encoding table in `src/ow_port.h`, not a measurement, and it is the one
    choice on this part that has still never been swept on a board. It is only
    worth sweeping if the captures are actually wrong: the F407's 286ns is the
    empirically proven setting for this bus, so `SYSCLK_MHZ=180
@@ -172,7 +172,7 @@ of each recorded after the dash:
     *Correction: the ladder has since changed — the code now programs
     `IC4F_3` (fCK_INT/32, N=3) at and below 168MHz and
     `IC4F_0|IC4F_1|IC4F_3` (fCK_INT/4, N=3) above it (see the ladder comment
-    in `inc/ow_port.h`; the driver never sets CKD, so fDTS
+    in `src/ow_port.h`; the driver never sets CKD, so fDTS
     here equals fCK_INT). The fDTS/N values recorded above describe the older
     ladder, including the fallback advice — read this item as bench history,
     and the core comment as the current reference.*
@@ -268,7 +268,7 @@ should note that 1-Wire slot widths are deliberately *not* scaled by the clock �
 
 ### IC4F: the tier table was misread, and it is not what limits this part
 
-The ICxF ladder in `inc/ow_port.h` was transcribed wrong and the entries do not
+The ICxF ladder in `src/ow_port.h` was transcribed wrong and the entries do not
 mean what the comments claimed. ICxF is a 4-bit ladder whose N only reaches 5, so
 the documented "N=6" and "N=8" values do not exist, and the values actually
 written decode to `fCK_INT/16 N=1`, `fCK_INT/4 N=1`, `fCK_INT/4 N=2`,
@@ -418,7 +418,7 @@ back and, if EN is still set, waits (bounded) until the stream retires it.
 Because on every healthy path the previous transfer drained before
 `ow_port_bus_done()` returned, EN is already 0 when this runs and the wait is
 zero iterations — no healthy-path cost. Same change on the shared core
-(`ow_port_dma_disable()`, all five disarm sites in `inc/ow_port.h`) for
+(`ow_port_dma_disable()`, all five disarm sites in `src/ow_port.h`) for
 F0/F1/F3/G0, where the only difference is the DMA1 semantics.
 
 The host model cannot observe the wait (flat register store, CR=0 → EN=0

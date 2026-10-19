@@ -4,12 +4,19 @@
 # mask machinery and the register shortcuts) defined in a consumer's translation
 # unit.
 #
-# Why this exists: onewire.h pulls in the port engine, which is header-only and
-# written in that vocabulary. The vocabulary is defined at the top of
-# inc/ow_port.h: every macro body and inline body must see it while it is
-# parsed, so nothing earlier in the chain can withdraw it, and inc/ow_port.h -
-# the last header in the chain that uses it - withdraws the whole vocabulary at
-# its end. Nothing tied that block to the definitions, so this check is the tie.
+# Why this exists: the TIM1+DMA engine is header-only and written in that
+# vocabulary, defined at the top of src/ow_port.h. Every macro body and inline
+# body must see it while it is parsed, so nothing earlier in the chain can
+# withdraw it, and src/ow_port.h - the last header in the chain that uses it -
+# withdraws the whole vocabulary at its end. Nothing tied that block to the
+# definitions, so this check is the tie.
+#
+# The engine is library-internal: src/ow_port.h is reached only by
+# src/onewire.c, and the public headers - onewire.h, ow_board.h, ds18b20.h,
+# ds2431.h - must never carry a single one of these names. The engine headers
+# are checked too: ow_port.h's own TU must show the vocabulary fully withdrawn
+# by its end, and ow_mcu.h's family hooks only expand inside ow_port.h, so its
+# TU carries none either.
 #
 # It is not hypothetical. Commit 8dba9d2 moved the backend #include from
 # ow_port.h into onewire.h ("single family chain in onewire.h"); that pulled
@@ -18,10 +25,9 @@
 #
 # The check preprocesses a one-line TU per header/family with -dM and fails if
 # any vocabulary name is defined. A marker macro proves the include actually
-# took effect, so a broken include path cannot pass vacuously. All five public
-# headers are covered, including ow_mcu.h: its family hooks only expand inside
-# ow_port.h, so its own TU carries none of the vocabulary either (documented in
-# the README "Layer Contracts").
+# took effect, so a broken include path cannot pass vacuously. All six headers
+# are covered - the four public ones, plus the two engine headers under src/
+# (reached with -Isrc).
 #
 # Run: make test-header-hygiene
 
@@ -34,9 +40,10 @@ cd "$(dirname "$0")/.." || exit 1
 
 CC=${CC:-gcc}
 INC=inc
+SRC=src
 MOCK=tests/mock
 
-# The port's register vocabulary (inc/ow_port.h: the vocabulary block at the
+# The port's register vocabulary (src/ow_port.h: the vocabulary block at the
 # top); kept in sync by hand with the withdraw block at the end of the same
 # file. Longest alternation first for the overlapping machinery names, and the
 # terminator class must be '[ (]': gcc -dM prints a function-like macro as
@@ -55,7 +62,7 @@ check_header() {
     for fam in $FAMS; do
         checks=$((checks + 1))
         out=$(printf '#include "%s"\n' "$hdr" |
-            "$CC" -E -dM -x c - -I"$INC" -I"$MOCK" -D"$fam" 2>/dev/null) || {
+            "$CC" -E -dM -x c - -I"$INC" -I"$SRC" -I"$MOCK" -D"$fam" 2>/dev/null) || {
             echo "  $hdr ($fam): preprocess failed - is $CC usable?" >&2
             fail=1
             continue
@@ -77,6 +84,7 @@ check_header() {
 }
 
 check_header onewire.h ONEWIRE_ROM_BYTES
+check_header ow_board.h OW_BOARD_H
 check_header ow_port.h OW_PORT_LONG_STAGE_US
 check_header ow_mcu.h OW_MCU_H
 check_header ds18b20.h DS18B20_ROM_BYTES

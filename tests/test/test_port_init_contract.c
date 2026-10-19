@@ -266,7 +266,7 @@ static void test_port_setup_open_drain(void) {
  * F4 does not have - on F4 those bits are reserved. The shared core assigns
  * the whole register and passes no IC4PSC bit, so it lands at 0, which is
  * "no prescaler" and therefore leaves the IC4F tier arithmetic in
- * inc/ow_port.h exactly as valid here as on the other families.
+ * src/ow_port.h exactly as valid here as on the other families.
  *
  * This is asserted rather than assumed because nothing else would notice: a
  * non-zero IC4PSC divides the *filter* clock without changing any of the

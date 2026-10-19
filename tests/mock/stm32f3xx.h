@@ -6,7 +6,7 @@
  * Register/bit names follow the real stm32f303xc.h spelling (GPIO_OSPEEDER_,
  * GPIO_AFRH_AFRH2 for pin 10, RCC_AHBENR holding both the GPIO and DMA1 gates)
  * so tests catch wrong-symbol bugs of the kind the F0 BSRR fix exposed.
- * Defines the family macro like the real stm32f3xx.h so the ow_port.h
+ * Defines the family macro like the real stm32f3xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32F3 1
 #include "ow_config.h"

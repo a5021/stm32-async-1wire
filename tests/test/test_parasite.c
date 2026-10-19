@@ -22,6 +22,7 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
+#include "ow_port.h"
 #include "unity.h"
 #include <string.h>
 

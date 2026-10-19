@@ -3,7 +3,7 @@
 /* Host-build stand-in for the STM32F1 CMSIS device header.
  * Provides just enough register types, instance symbols and bit-field
  * constants for the DS18B20 driver, plus the compiler helpers it expects.
- * Defines the family macro like the real stm32f1xx.h so the ow_port.h
+ * Defines the family macro like the real stm32f1xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32F1 1
 #include "ow_config.h"

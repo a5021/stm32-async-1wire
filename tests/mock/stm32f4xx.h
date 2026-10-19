@@ -11,7 +11,7 @@
  * TIM1_CH4). The stream struct keeps the legacy F1-style field aliases
  * (CCR/CNDTR/CPAR/CMAR) in anonymous unions so the target-agnostic hw_model
  * and the register-level tests read one storage through either spelling.
- * Defines the family macro like the real stm32f4xx.h so the ow_port.h
+ * Defines the family macro like the real stm32f4xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32F4 1
 #include "ow_config.h"

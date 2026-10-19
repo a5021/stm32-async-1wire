@@ -97,10 +97,10 @@ foreach(_ow_var OW_CMSIS_CORE_INCLUDE OW_CMSIS_DEVICE_INCLUDE)
             "own (STM32Cube, PlatformIO, or a manual checkout).")
     endif()
 endforeach()
-if(NOT EXISTS "${OW_LIBRARY_DIR}/inc/ow_port.h")
+if(NOT EXISTS "${OW_LIBRARY_DIR}/inc/ow_board.h")
     message(FATAL_ERROR
         "OW_LIBRARY_DIR='${OW_LIBRARY_DIR}' does not look like the library "
-        "checkout (no inc/ow_port.h). Point it at the stm32-async-1wire root.")
+        "checkout (no inc/ow_board.h). Point it at the stm32-async-1wire root.")
 endif()
 foreach(_ow_file OW_CMSIS_SYSTEM_SRC OW_CMSIS_STARTUP_ASM OW_LINKER_SCRIPT)
     if(NOT EXISTS "${${_ow_file}}")

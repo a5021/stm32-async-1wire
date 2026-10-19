@@ -10,6 +10,7 @@
 #include "ds18b20.h"
 #include "ds18b20_test_access.h"
 #include "mock_target.h"
+#include "ow_port.h"
 #include "unity.h"
 
 #define RESET_MIN 480u

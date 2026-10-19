@@ -7,15 +7,15 @@
 
 Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431 EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...) can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent and rides on a small port interface (`inc/ow_port.h`); per-MCU facts are header-only sections in `inc/ow_mcu.h` (one per family), and the shared TIM1+DMA engine lives in `inc/ow_port.h` — external projects need only `-Iinc`. Seven families ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public surface is the headers under `inc/`: `onewire.h` (the bus API), `ow_board.h` (the family selection token, `ow_pulse_t` and the board clock defaults), `ow_config.h` (the compile-time tunables), `ow_stats.h` (the optional statistics module) and the per-driver headers. The TIM1+DMA engine (`src/ow_port.h`) and the register-level per-family facts (`src/ow_mcu.h`) are library-internal: a consumer needs only `-Iinc` and never sees the port. Seven families ship today:
 
-- `inc/ow_mcu.h` (STM32F1 section) — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `inc/ow_mcu.h` (STM32F0 section) — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `inc/ow_mcu.h` (STM32F3 section) — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F0/F1 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
-- `inc/ow_mcu.h` (STM32G0 section) — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `inc/ow_mcu.h` (STM32G4 section) — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
-- `inc/ow_mcu.h` (STM32F4 section) — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same section for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
-- `inc/ow_mcu.h` (STM32H5 section) — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock, default), raw 8MHz HSE (crystal Y2), or HSE+PLL1 to 250MHz (VOS0, 5 flash wait states). USART1 TX on PA9 (AF7). Bench-validated on the WeAct board — all seven examples flashed and captured at each clock with correct 22.8-23.1C readings and 0 errors in 6_statistics.
+- `src/ow_mcu.h` (STM32F1 section) — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `src/ow_mcu.h` (STM32F0 section) — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
+- `src/ow_mcu.h` (STM32F3 section) — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F0/F1 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
+- `src/ow_mcu.h` (STM32G0 section) — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
+- `src/ow_mcu.h` (STM32G4 section) — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
+- `src/ow_mcu.h` (STM32F4 section) — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same section for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see Clocking invariant below).
+- `src/ow_mcu.h` (STM32H5 section) — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock, default), raw 8MHz HSE (crystal Y2), or HSE+PLL1 to 250MHz (VOS0, 5 flash wait states). USART1 TX on PA9 (AF7). Bench-validated on the WeAct board — all seven examples flashed and captured at each clock with correct 22.8-23.1C readings and 0 errors in 6_statistics.
 
 ## Table of Contents
 
@@ -124,7 +124,7 @@ including `"onewire.h"` and building on the bus primitives.
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F401xE, STM32F446RE,
-  STM32G031x6, STM32G474CB, STM32H503CB; see the per-family sections in `inc/ow_mcu.h`).
+  STM32G031x6, STM32G474CB, STM32H503CB; see the per-family sections in `src/ow_mcu.h`).
 - Sensor: DS18B20 temperature sensor and/or a DS2431 EEPROM
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default with `OW_MCU=STM32F401xC`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default with `OW_MCU=STM32F446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default with `OW_MCU=STM32G474xx`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default with `OW_MCU=STM32H503xx`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
@@ -135,7 +135,7 @@ including `"onewire.h"` and building on the bus primitives.
   values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
   on any other F4 part is rejected at compile time rather than quietly run out of
   spec — each part's ceiling is `OW_PORT_F4_MAX_SYSCLK_MHZ` in
-  the `inc/ow_mcu.h` F4 section.
+  the `inc/ow_board.h` F4 block.
   APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
   2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
   unchanged.
@@ -143,14 +143,13 @@ including `"onewire.h"` and building on the bus primitives.
 ## File Structure
 
 ```
-├── inc/                    # Project header files
+├── inc/                    # Public headers: the whole consumer surface
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── ds2431.h            # DS2431 EEPROM driver interface (commands + async API)
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
+│   ├── ow_board.h          # Board facts: family select, ow_pulse_t, clock defaults
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
-│   ├── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
-│   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (20 ow_port_* functions) + family select
-│   └── ow_mcu.h            # Per-MCU facts for the engine (7 family sections: clocks, PA10 mux, DMA assignment)
+│   └── ow_stats.h          # Optional signal statistics module (histogram, per-sensor)
 ├── port/                   # Per-MCU build artifacts for the examples (linker scripts, debug projects)
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
@@ -202,7 +201,10 @@ including `"onewire.h"` and building on the bus primitives.
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 │   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
 │   └── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
-├── src/                    # Project source files
+├── src/                    # Library sources (the engine headers are private to the library)
+│   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
+│   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 7 family sections)
+│   ├── ow_compiler.h       # Private compiler-attribute shim for the driver sources
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
@@ -478,7 +480,7 @@ The F4-specific DMA topology and timing choices are documented in
 
 ### STM32F401CC (F401 Black Pill)
 
-The **same ow_mcu.h F4 section** drives the 84 MHz-capped STM32F401 family: TIM1,
+The **same `src/ow_mcu.h` F4 section** drives the 84 MHz-capped STM32F401 family: TIM1,
 the DMA2 dual-stream topology and the `CHSEL=6` request map are identical to
 the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
 port layer is chip-generic. The chip-specific parts (CMSIS device header
@@ -784,7 +786,7 @@ via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 
 The **only** define the library requires is the MCU selection: the
 STMicroelectronics device macro for your part (e.g. `-DSTM32H503xx`) or its
-family macro (e.g. `-DSTM32H5`). `ow_mcu.h` uses it to include the matching
+family macro (e.g. `-DSTM32H5`). `src/ow_mcu.h` uses it to include the matching
 CMSIS device header and to pick the backend. Everything else is optional.
 
 The system clock is one such optional setting. `OW_PORT_SYSCLK_MHZ` fixes the
@@ -1591,20 +1593,25 @@ feed and timer waits), so multi-slot writes sleep instead of busy-polling.
 The following five look like leaks but are deliberate, reviewed decisions —
 do not "fix" them without re-reading the reasoning:
 
-- **Backend selection lives in `onewire.h`.** One chain, one `#include`
+- **Backend selection lives in `inc/ow_board.h`.** One chain, one `#include`
   branch, `#error` on no family — so the backend and its defaults cannot
   drift (`8dba9d2`). Header-side selection is the integration contract:
   consumers define their CMSIS device macro (e.g. `STM32F030x6`; CubeMX
-  defines `STM32F*` itself) and the headers pick the backend. Moving
-  selection into the build system would break the CubeIDE path.
+  defines `STM32F*` itself) and `ow_board.h` picks the family. Moving
+  selection into the build system would break the CubeIDE path. The token is
+  public because the application layer (`app.c`) needs it too; what it selects
+  — the register-level per-family facts — stays private in `src/ow_mcu.h`.
 - **`ow_pulse_t` is family-sized.** F4 feeds CCR3 in DMA direct mode
   (halfword, `uint16_t`); the other families use `uint8_t`. An
   always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;
-  casts would hide the F4 halfword requirement the backends document.
-- **The `onewire.h` ↔ `ow_port.h` include cycle is intentional.** It is
-  guard-protected and order-independent (`ow_port.h` stays self-contained
-  whatever the TU includes first). Breaking it means either duplicating the
-  selection chain or forcing an include order on users.
+  casts would hide the F4 halfword requirement the backends document. It is
+  declared next to the family token, in `inc/ow_board.h`.
+- **The public/private header split is acyclic.** `onewire.h` includes only
+  `ow_config.h` and `ow_board.h`; the engine `src/ow_port.h` includes
+  `onewire.h` and `src/ow_mcu.h`, and both of those include `ow_board.h`
+  through their own guard. No header is included by a header that includes it
+  back, so nothing depends on include order. The old `onewire.h` ↔ `ow_port.h`
+  cycle left with the engine from the public tree.
 - **`onewire_strong_pullup()` stays in the generic layer.** It is a thin
   wrapper like every other `onewire_*` primitive, and the strong pull-up is
   a bus-line mode owned by the layer that owns the hardware operations —
@@ -1613,26 +1620,26 @@ do not "fix" them without re-reading the reasoning:
 - **`OW_PORT_MARKER_TOGGLE` is an opt-in hook.** Default no-op, used once
   (merged-pass start marker for a logic-analyzer decoder, see
   `port/stm32f4/HARDWARE-NOTES.md`). Zero cost unless a backend defines it.
-- **The port's register vocabulary is defined and withdrawn inside
-  `ow_port.h`.** The port engine is header-only and written in the
-  single-letter register aliases (`T1`, `PA`, `RC`, `D13`, ...), the `OW_BITFIELDS()`
-  mask machinery and the register shortcuts (`RCC_AHBENR`, `TIM_CR1`, ...).
-  Every macro body and inline body must see the vocabulary while it is
-  parsed, so `inc/ow_port.h` defines it at the top of the chain and
-  `#undef`s it in its withdraw block once the last body is in - which is what
-  keeps a `#include "onewire.h"` translation unit free of the whole
-  vocabulary. `make test-header-hygiene` pins both halves across every
-  public header and every family - the `8dba9d2` refactor moved the backend
-  include into `onewire.h` and the leak shipped in v2.1.0. Including
-  `inc/ow_mcu.h` directly defines none of it: its family hooks only expand
-  inside `ow_port.h`, and it is the family-facts half of the port, reached
-  through `onewire.h`/`ow_port.h`.
+- **The port's register vocabulary is defined and withdrawn inside the private
+  engine header, `src/ow_port.h`.** The engine is header-only and written in
+  the single-letter register aliases (`T1`, `PA`, `RC`, `D13`, ...), the
+  `OW_BITFIELDS()` mask machinery and the register shortcuts (`RCC_AHBENR`,
+  `TIM_CR1`, ...). Every macro body and inline body must see the vocabulary
+  while it is parsed, so `src/ow_port.h` defines it at the top and `#undef`s it
+  in its withdraw block once the last body is in. The engine is now
+  library-internal — only `src/onewire.c` includes it — so a
+  `#include "onewire.h"` translation unit can never carry it; but
+  `make test-header-hygiene` still pins both halves across the four public
+  headers and the two engine headers, every family. The `8dba9d2` refactor
+  moved a backend include into `onewire.h` and the leak shipped in v2.1.0.
+  `src/ow_mcu.h` defines none of it on its own: its family hooks only expand
+  inside `src/ow_port.h`.
 
 Two more closures, for the record: stats emission stays in the driver
 because pulse widths, ROM addresses and `DS18B20_TEMP_ERROR_*` codes are
 driver-owned concepts the onewire layer must not know (see the note at the
 `ow_stats.h` include in `src/ds18b20.c`); the reset-geometry macros stay in
-`inc/ow_port.h` because they are the port's own schedule parameters
+`src/ow_port.h` because they are the port's own schedule parameters
 published as port contract (see the comment there).
 
 ### Required Timer Capabilities
@@ -1658,7 +1665,7 @@ sufficient.  The topology is:
 The driver does not care which timer is used — it cares about what the timer
 can do.  The following capabilities are hard requirements; a timer that lacks
 any one of them cannot run this driver, which is why the port layer
-(the `inc/ow_mcu.h` family sections) pins each family to one specific timer
+(the `src/ow_mcu.h` family sections) pins each family to one specific timer
 rather than letting the user choose.
 
 #### 1. Advanced-control timer (not general-purpose)
@@ -1743,7 +1750,7 @@ are identical across all families.
   rather than misreporting. Each backend's channel pair is read out of its own
   reference manual and recorded in the assignment's comment.
   
-All seven families share one TIM1/DMA core in `inc/ow_port.h` (F0/F1/F3/G0/G4
+All seven families share one TIM1/DMA core in `src/ow_port.h` (F0/F1/F3/G0/G4
 with DMA1 defaults, F4 as a thin shim overriding the DMA spelling, H5 with GPDMA
 CTR1/CTR2/REQSEL overrides): DMA2's per-stream `CHSEL` mux
 travels inside the control-register word (GPDMA's `REQSEL` in CTR2 likewise),
@@ -2574,11 +2581,11 @@ The macro does two jobs at once, and the split between them is the whole
 point of how the project is laid out:
 
 - **Family** — the last part of the macro (`F4`, `F0`, `G0`, ...) picks the
-  driver code: the `ow_mcu.h` section, the timer and DMA resources, the bus
+  driver code: the `src/ow_mcu.h` section, the timer and DMA resources, the bus
   pin. One family section per family. This is where the
   driver code differs.
 - **Part** — the full macro names a file in `chips/`. The parts of one
-  family share an `ow_mcu.h` section — the F4 section has no per-part conditional at
+  family share an `src/ow_mcu.h` section — the F4 section has no per-part conditional at
   all, because TIM1/DMA2 and `CHSEL=6` map identically across the F4 parts.
   What actually differs is the CMSIS device layer, the linker script
   (memory sizes), the debugger projects and the default clock, so that is
@@ -2675,7 +2682,7 @@ leave the bus idle-HIGH at the terminal update (capture, read-pair, single-slot
 write) gate the `TIM_CCMR2` preload bit behind `-DOW_PORT_OC3PE=1` (default) /
 `-DOW_PORT_OC3PE=0`. The DMA-fed paths leave it off unconditionally, because
 their reload must act immediately — preload would break it. The knob exists so
-a bench can sweep the bit without editing code; see `inc/ow_port.h` for the
+a bench can sweep the bit without editing code; see `src/ow_port.h` for the
 rationale.
 
 ## Troubleshooting

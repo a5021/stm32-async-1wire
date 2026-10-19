@@ -50,35 +50,28 @@ extern "C" {
 #define ONEWIRE_SEARCH_ROM 0xF0
 /** @brief 1-Wire ROM command: Alarm Search (only alarming devices respond) */
 #define ONEWIRE_ALARM_SEARCH 0xEC
-/** @brief Family selection: a single OW_PORT_FAMILY_* token resolved from
- *  the CMSIS device macro of the target (e.g. -DSTM32F030x6) or, for
- *  host-test mocks, PlatformIO and STM32CubeMX projects, from a family
- *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5).
- *  Concrete device spellings are accepted for the parts this project
- *  supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
- *  STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4;
- *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
- *  The token is the single point of family selection: it picks the MCU
- *  section in inc/ow_mcu.h (included below via ow_port.h), app.c takes
- *  the device header and clock configuration from it, and the per-family
- *  facts ow_pulse_t, the OW_PORT_SYSCLK_MHZ / OW_HSE_MHZ /
- *  OW_PORT_F4_MAX_SYSCLK_MHZ defaults and the low-power TIM1 update IRQ
- *  live in the ow_mcu.h sections, not here, so the facts and their defaults
- *  cannot drift. To add a family, extend the dispatch in inc/ow_mcu.h
- *  (plus the \#error spelling list), the app.c clock/UART config, a
- *  chips/<part>.mk part file, the Makefile (OW_KNOWN_TARGETS, the OW_TARGET
- *  family block, the OW_MCU mapping entries, TEST_CLOCK_FLAG) and
+/** @brief Board facts: the family selection token and ow_pulse_t.
+ *
+ *  The token resolves from the CMSIS device macro of the target (e.g.
+ *  -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX
+ *  projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4,
+ *  STM32G0, STM32G4, STM32H5).  Concrete device spellings are accepted for
+ *  the parts this project supports (STM32F030x6 for F0; STM32F103xB for F1;
+ *  STM32F303xC for F3; STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx
+ *  for F4; STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
+ *  The token is the single point of family selection: app.c takes the device
+ *  header and clock configuration from it, and the per-family facts
+ *  ow_pulse_t and the OW_HSE_MHZ / OW_PORT_*_MAX_SYSCLK_MHZ defaults live in
+ *  inc/ow_board.h beside it.  The TIM1+DMA engine and the register-level
+ *  per-family facts are library-internal (src/ow_port.h, src/ow_mcu.h) and
+ *  are not needed to use this API.  To add a family, extend the dispatch in
+ *  inc/ow_board.h (plus the \#error spelling list), the app.c clock/UART
+ *  config, a chips/<part>.mk part file, the Makefile (OW_KNOWN_TARGETS, the
+ *  OW_TARGET family block, the OW_MCU mapping entries, TEST_CLOCK_FLAG) and
  *  CMakeLists.txt (the OW_MCU mapping, the OW_TARGET branch, the default
  *  chip) wiring, the tests/mock device header, and a case in
  *  tests/test/test_sysclk_fallback.c. */
-/** @brief Pull in the port layer (MCU facts + TIM1+DMA engine).
- *
- *  ow_mcu.h comes first so ow_pulse_t is defined before the prototypes
- *  below no matter which header the TU includes first; ow_port.h then
- *  provides the engine (it reuses ow_mcu.h through its guard).  The clock
- *  defaults travel the same way (used by app.c and the host tests). */
-#include "ow_mcu.h"
-#include "ow_port.h"
+#include "ow_board.h"
 
 /** @} */
 

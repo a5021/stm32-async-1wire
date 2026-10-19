@@ -411,7 +411,7 @@ function(ow_add_core_library tgt)
     target_include_directories(${tgt} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
         $<INSTALL_INTERFACE:include/stm32-async-1wire>
-        # Device/CMSIS headers are required to compile the library (ow_mcu.h
+        # Device/CMSIS headers are required to compile the library (src/ow_mcu.h
         # pulls in stm32f1xx.h).  BUILD_INTERFACE: the _deps paths live in the
         # build tree and must not leak into install exports — consumers of the
         # installed lib provide their own CMSIS/device headers.
@@ -462,8 +462,7 @@ install(FILES
     inc/onewire.h
     inc/ds18b20.h
     inc/ds2431.h
-    inc/ow_port.h
-    inc/ow_mcu.h
+    inc/ow_board.h
     inc/ow_stats.h
     inc/ow_config.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/stm32-async-1wire

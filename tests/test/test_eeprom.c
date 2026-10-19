@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "onewire.h"
+#include "ow_port.h"
 #define ONE ONEWIRE_ONE_PULSE
 #define ZERO ONEWIRE_ZERO_PULSE
 

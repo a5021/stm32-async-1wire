@@ -6,7 +6,7 @@
  * Register/bit names follow the real stm32g031xx.h spelling (MODE10,
  * OT10, BS10, IOPENR, APBENR2, SYSCFG_CFGR1_*_RMP) so tests catch
  * wrong-symbol bugs of the kind the F0 BSRR fix exposed.
- * Defines the family macro like the real stm32g0xx.h so the ow_port.h
+ * Defines the family macro like the real stm32g0xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32G0 1
 #include "ow_config.h"

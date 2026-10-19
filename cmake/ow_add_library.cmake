@@ -18,7 +18,8 @@
 #
 # The flags are PUBLIC, so the consumer's own sources get the same -mcpu and
 # the same device macro - a consumer TU that includes ds18b20.h must see them
-# (ds18b20.h -> ow_port.h -> ow_mcu.h is self-checking and #errors otherwise).
+# (ds18b20.h -> onewire.h -> ow_board.h is self-checking and #errors
+# otherwise).
 #
 # This helper does NOT fetch CMSIS. A consumer supplies its own core/device
 # include directories through CMSIS_INCLUDE_DIRS (STM32Cube, PlatformIO, or a
