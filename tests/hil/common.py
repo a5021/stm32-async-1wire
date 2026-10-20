@@ -116,7 +116,25 @@ PROGRAMMER_CANDIDATES = (
 MEAS_RE = re.compile(r"^((?:[0-9A-F]{2} ){7}[0-9A-F]{2}):\s*(.+)$")
 TEMP_RE = re.compile(r"^(-?\d+\.\d)\s+C$")
 SEPARATOR_RE = re.compile(r"^-{5,}$")
-FOUND_RE = re.compile(r"^Found (\d+) device")
+# The census line's count is what the checks need, and a torn line can cut it
+# anywhere after the number - so the match stops at the digits.
+FOUND_RE = re.compile(r"^Found (\d+)")
+
+# The error values the examples write after the ROM prefix. The wording differs
+# per example: "no sensor detected." / "CRC check failed." / "generic failure."
+# in 2/4/7, the short "no sensor" / "CRC fail" / "error" in 6.
+#
+# This list is what separates a device error from a torn line. Anything else
+# that is not a temperature was cut off by the capture and says nothing about
+# the device - see parse_measurement().
+ERROR_VALUES = (
+    "no sensor detected.",
+    "CRC check failed.",
+    "generic failure.",
+    "no sensor",
+    "CRC fail",
+    "error",
+)
 
 # Anything every example can print: the boot banner, the census line, a sweep
 # separator, or a hex ROM/measurement/statistics line. This is what find_port()
@@ -205,20 +223,51 @@ def parse_temp(value):
     return float(m.group(1)) if m else None
 
 
+def line_matches(line, expected):
+    """True if `line` is `expected`, or a torn version of it.
+
+    A UART burst can tear a line in two: the tail is lost, or the next line
+    is glued onto it. Either way the two texts keep a long common prefix, and
+    that prefix is what identifies the line - the rest is noise the capture
+    could not vouch for. The overlap floor keeps a short fragment from passing
+    as a banner.
+
+    A tear that lost the *beginning* is not accepted: without the distinctive
+    start of the text, a fragment proves nothing.
+    """
+    if not line or not expected:
+        return False
+    n = 0
+    for a, b in zip(line, expected):
+        if a != b:
+            break
+        n += 1
+    return n >= max(8, len(expected) // 2)
+
+
 def parse_measurement(line):
     """Return (rom, temp, error) for a `ROM: value` line, else None.
 
     Exactly one of temp/error is non-None. The error wording differs per
     example (`no sensor detected.` / `CRC check failed.` / `generic failure.`
-    in 2/4/7, the short `no sensor` / `CRC fail` / `error` in 6), so the value
-    is compared against the temperature shape rather than against a token list.
+    in 2/4/7, the short `no sensor` / `CRC fail` / `error` in 6), so a value
+    that is not a temperature is compared against those phrases.
+
+    A value that is neither a temperature nor one of those phrases was cut
+    off by the capture. It is not a device error, and it is not a reading
+    either - the line is skipped, so a torn burst cannot be reported as a
+    sensor that failed.
     """
     m = MEAS_RE.match(line)
     if not m:
         return None
     rom, value = m.group(1), m.group(2)
     temp = parse_temp(value)
-    return rom, temp, (None if temp is not None else value)
+    if temp is not None:
+        return rom, temp, None
+    if any(value.strip().startswith(e) for e in ERROR_VALUES):
+        return rom, None, value
+    return None  # torn: the value was cut off mid-flight
 
 
 def wait_for_banner(uart, banner, timeout=5.0):
@@ -243,7 +292,7 @@ def wait_for_banner(uart, banner, timeout=5.0):
             buf += chunk
         while b"\r\n" in buf:
             raw, rest = buf.split(b"\r\n", 1)
-            if raw.decode("ascii", "replace").strip() == banner:
+            if line_matches(raw.decode("ascii", "replace").strip(), banner):
                 # Keep the banner line and every byte already read after it.
                 return raw + b"\r\n" + rest
             buf = rest
@@ -255,8 +304,11 @@ class LineReader:
 
     The examples drive UART through a small non-blocking ring buffer drained one
     byte per main-loop poll, so a burst can tear a line in two - seen on real
-    H503 hardware as `  ROM: 28 F1 39` followed by ` AD 0B 00 00 D9`. Lines are
-    therefore matched independently; a torn fragment simply matches nothing.
+    H503 hardware as `  ROM: 28 F1 39` followed by ` AD 0B 00 00 D9`, and on
+    the F103 bench as a mode line that lost its tail and took the next line
+    with it. Lines are therefore matched independently, and line_matches()
+    accepts a line whose text is a torn version of the expected one; a
+    fragment that lost its beginning matches nothing, as it should.
     """
 
     def __init__(self, ser, flush_timeout=1.0, initial=b""):

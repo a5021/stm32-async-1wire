@@ -19,9 +19,9 @@ def run(uart, ctx):
     temps = []
     errors = []
     for t, line in reader.iter_lines(ctx.window, sink=ctx.lines):
-        if line == BANNER:
+        if common.line_matches(line, BANNER):
             saw_banner = True
-        elif line == MODE:
+        elif common.line_matches(line, MODE):
             saw_mode = True
         m = common.parse_measurement(line)
         if m is None:

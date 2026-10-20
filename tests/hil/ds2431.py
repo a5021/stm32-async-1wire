@@ -71,13 +71,13 @@ def run(uart, ctx):
                     [int(x, 16) for x in m.group(1).split()]
                 )
             continue
-        if line == DONE:
+        if common.line_matches(line, DONE):
             # The example stops streaming once it is done, so nothing more
             # arrives by design; keep the log tidy and the loop short.
             break
-        if line == MISSING:
+        if common.line_matches(line, MISSING):
             missing = True
-        elif line == ABORT:
+        elif common.line_matches(line, ABORT):
             abort = True
 
     if missing:
