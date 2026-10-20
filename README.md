@@ -1139,6 +1139,14 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
       ownership guards and the merged search capture buffers
 -   DMA buffer/transfer contracts (`test_dma`), DMAMUX request routing on G0
     (`test_dmamux`)
+-   DMA per-operation contract table (`test_dma_contract`): for every bus
+    operation the exact source and destination addresses, the transfer counts,
+    the transfer width and direction, the address-increment bit, the timer
+    repetition count, the peripheral request each channel must carry, and the
+    accounting after the run (every scheduled transfer fired, both channels
+    drained). The same table runs on all seven families; the per-family
+    encoding of the same guarantee is pinned separately
+    (`test_dma_cr_value_macros`)
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
@@ -1159,6 +1167,32 @@ tests + the 26-test DS2431 suite, every family), `make test-lowpower` (full
 suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
 327 against G0, 328 against G4, plus the same 26 DS2431 tests) and
 `make test-ndebug` (322 / 323 / 324 / 325 + the same 26, asserts off).
+
+### Does the suite actually notice a broken DMA contract?
+
+A green suite only means something if it *can* go red. `tests/mutation_check.py`
+answers that for the DMA contract: it applies a deliberate defect to the port
+source in a scratch git worktree (the working tree is never touched), builds
+the host suite for a family, and records whether the suite failed.
+
+```bash
+make test-mutations                              # the whole matrix (slow)
+python tests/mutation_check.py --list            # the defects it injects
+python tests/mutation_check.py --families g0,g4   # a subset
+```
+
+The defects are the ones a DMA contract is most likely to break by: a wrong
+buffer, a wrong transfer count, a wrong transfer class (direction/width), a
+wrong timer repetition count, a wrong capture width, a missing request
+routing, and the per-family constants (the DMAMUX request id, the GPDMA
+REQSEL, the F4 stream CHSEL). The last run caught **45 of 45** applied
+defects, on all seven families.
+
+It earned its keep: the run found that the request routing of the merged
+write+read (search) pass was asserted nowhere, and that the contract table's
+rows ran back to back on shared state - the routing register is sticky, so a
+row that forgot to program its routing saw the previous row's value and
+passed. Both are fixed; the matrix has been green since.
 
 ### Hardware-in-the-Loop (HIL)
 

@@ -28,6 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **The DMA contract is now checked per operation, including the request
+  routing, and the contract table's rows no longer share state.** A mutation
+  reconnaissance (`tests/mutation_check.py`, `make test-mutations`) breaks the
+  port on purpose and records whether the host suite notices. It found two
+  gaps: the DMAMUX request routing of the **merged write+read (search) pass**
+  was asserted nowhere - only the reset and the write had it checked - and
+  the contract table's rows ran back to back on shared state, so a row that
+  forgot to program its routing saw the previous row's (sticky) value and
+  passed.
+
+  The request routing is now a field of the per-operation contract table, so
+  every row that arms a channel asserts the peripheral request that channel
+  must carry, and a new row cannot forget it; every row now starts from a
+  clean mock and a clean driver. With those fixed the matrix is green: 45 of
+  45 injected defects are caught, on all seven families.
+
 - **The drivers state a wait in microseconds, not in timer registers.** The
   DS18B20 driver used to hold a table of TIM1 auto-reload/repetition pairs for
   the datasheet conversion time — 9-bit `9375/9`, 10-bit `18750/9`, 11-bit

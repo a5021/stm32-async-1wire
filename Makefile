@@ -705,6 +705,17 @@ test-mcu-dispatch:
 test-header-hygiene:
 	@sh tests/check_header_hygiene.sh
 
+# --- Would the suite notice a broken DMA contract? ---
+# Deliberately break the port and see whether the host suite catches it. The
+# defect is applied in a scratch git worktree, so the working tree is never
+# touched. Slow (a full rebuild per mutation per family), so it is not part of
+# the normal CI run: `make test-mutations` is the on-demand run, and
+# `python tests/mutation_check.py --list` shows the defects it injects.
+# See tests/mutation_check.py.
+.PHONY: test-mutations
+test-mutations:
+	@$(PYTHON) tests/mutation_check.py
+
 # --- Does a build produce the firmware it was asked for? ---
 # Needs the ARM toolchain, so it cannot live in test-chips or the other
 # repo-side checks: it builds two families and compares the resulting bytes.
@@ -1582,6 +1593,7 @@ help:
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"
 	@echo "  test-header-hygiene - Check the public headers do not leak the port register vocabulary (host gcc)"
+	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"

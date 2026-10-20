@@ -89,7 +89,7 @@ static uint16_t presence_src(uint32_t idx) {
 #define ROUTE_FEED_REG mock_feed_ch.CTR2
 #define ROUTE_CAP_REG mock_dma1_ch4.CTR2
 #define ROUTE_FEED_REQ 59u /* TIM1_CH2 (marker feed -> CCR3) */
-#define ROUTE_CAP_REQ 61u  /* TIM1_CH4 (capture drain <- CCR4) */
+#define ROUTE_CAP_REQ 61u /* TIM1_CH4 (capture drain <- CCR4) */
 #elif defined(STM32G4)
 #define ROUTE_FEED_REG mock_dmamux_ch2.CCR
 #define ROUTE_CAP_REG mock_dmamux_ch3.CCR
