@@ -255,6 +255,10 @@ void onewire_strong_pullup(uint8_t on);
  * @note Derived from the scheduled timer duration, so callers stay on the
  *       onewire API. Only meaningful with
  *       OW_LOW_POWER=1.
+ * @note Bus-layer vocabulary, for a slave driver that would rather idle the
+ *       core than spin on a long stage: the bundled drivers call it from
+ *       their poll(). An application never needs it - the driver APIs
+ *       (ds18b20.h, ds2431.h) are start/poll pairs.
  */
 uint8_t onewire_long_wait_pending(void);
 
@@ -264,6 +268,9 @@ uint8_t onewire_long_wait_pending(void);
  *       no NVIC vector), so to the caller this is an ordinary synchronous
  *       wait. Returns immediately when no long stage is running. Only
  *       meaningful with OW_LOW_POWER=1.
+ * @note The blocking counterpart of onewire_long_wait_pending(), for a slave
+ *       driver that wants to sleep rather than poll. The bundled drivers
+ *       call it from their poll(); an application never needs it.
  */
 void onewire_sleep_until_done(void);
 #endif
@@ -278,7 +285,8 @@ void onewire_sleep_until_done(void);
  *        i+1, so the transaction cannot be batched into one DMA pass; the
  *        linear loop is decomposed into states with loop counters kept in the
  *        context. Every state performs exactly one hardware-timed operation,
- *        so a poll call never blocks.
+ *        and no search stage is long enough to become a low-power wait, so a
+ *        poll call returns straight away.
  * @{
  */
 

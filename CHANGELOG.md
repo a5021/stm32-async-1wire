@@ -118,6 +118,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The "the driver never blocks" promise was not true as written.** The
+  README's Layer Contracts said so in one bullet and granted the exception in
+  another, a paragraph apart: in a build with `OW_LOW_POWER=1` the driver
+  *idles the core* in `WFE()` inside `ds18b20_poll()` while a long hardware
+  stage runs, so that `poll()` does not return straight away. The promise is
+  now stated once and is true: the driver never waits for a *result* - there
+  is no `ds18b20_read_temperature_blocking()`, and `ds18b20_poll()` advances
+  the state machine and returns - and the one thing that can delay a poll
+  call is the opt-in core idling, which is a sleep and not a wait for a
+  result. The application's code and the moment the result becomes ready are
+  the same either way.
+
+  The public `OW_LOW_POWER` flag description was wrong about who sleeps: it
+  said "the application can block in `__WFE()` ... the driver itself stays
+  non-blocking", but it is the driver that sleeps, from inside its own poll,
+  and the application never calls `WFE()` at all. It also now says plainly
+  that the application's code does not change.
+
+  `onewire_long_wait_pending()` and `onewire_sleep_until_done()` stay public
+  and are unchanged: they are bus-layer vocabulary for a slave driver written
+  on top of `onewire.c` - the same kind of function as
+  `onewire_write_slots()` or `onewire_read_pair()` - and with the engine
+  private they are now the only way such a driver can idle the core instead
+  of spinning. Their documentation says so, so a reader of the header does
+  not mistake them for something an application should call.
+
 - **DS2431: detect a byte corrupted on the way to the device during Write
   Scratchpad.** The Read Scratchpad verification now compares the read-back
   data bytes with the payload that was sent, in addition to the TA/ES echo and

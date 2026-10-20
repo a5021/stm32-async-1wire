@@ -144,11 +144,15 @@
  * @brief Opt-in low-power WFE sleep path.
  *
  * When 1 the TIM1 update interrupt (UIE) and SEVONPEND are armed for
- * long hardware stages (> 1 ms) so that the application can block in
- * __WFE() without an ISR; the driver itself stays non-blocking.
+ * long hardware stages (> 1 ms), and the driver then idles the core in
+ * __WFE() until the stage is done, so the CPU does not spin instead.
  * No ISR is ever installed and NVIC_EnableIRQ is never called; the
  * pending bit is cleared explicitly by the engine so WFE does
  * not degrade into a busy-loop.
+ *
+ * The application's code is unchanged: the idling happens inside the
+ * driver's poll(), the application never waits for a result, and the
+ * result is ready at the same moment it would be in a spinning build.
  *
  * Enable with -DOW_LOW_POWER=1.
  */

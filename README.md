@@ -317,7 +317,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running. The application loop is unchanged and still fully non-blocking, and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
+| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, so the CPU idles instead of spinning. The application's code and its result timing are unchanged — it never waits for a result — and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 | `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
 
 ```bash
@@ -1952,10 +1952,10 @@ Rules for correct RTOS use:
 3. **Poll cadence vs latency.** Because the 1-Wire bit timing is generated
    entirely by hardware, `ds18b20_poll()` may be called at any rate — slow
    polling only increases latency, never causes errors (see *Bus Idle
-   Behaviour*). The one exception is a build with `OW_LOW_POWER=1`, where
-   that same call blocks in `WFE()` for the duration of a long stage — see
-   [Examples](#examples) (`7_low_power`, and the low-power block there). Two
-   practical patterns:
+   Behaviour*). A build with `OW_LOW_POWER=1` is the one case where the call
+   does not return straight away: the driver then idles the core in `WFE()`
+   while a long stage runs, so the CPU does not spin (rule 5, and
+   [Examples](#examples) — `7_low_power`). Two practical patterns:
    - **Dedicated polling task:** loop `ds18b20_poll(); osDelay(1);` (or
      `vTaskDelay(1)`). This gives low latency without saturating the CPU; the
      750 ms conversion wait is a hardware timer, so the task yields during it.
@@ -1973,13 +1973,22 @@ Rules for correct RTOS use:
    `ds18b20_complete()` to wake a consumer task. No `...FromISR` variant is
    needed.
 
-5. **No built-in blocking API.** The driver never blocks; there is no
-   `ds18b20_read_temperature_blocking()`. If a task must sleep until a result is
-   ready, start the operation (`ds18b20_scan_start()`, `ds18b20_search_start()`
-   or a command transaction), then either poll in a loop that yields
-   (`osDelay(1)`), or block on a semaphore that `ds18b20_complete()` releases.
-   Do **not** add a TIM1 interrupt just to signal completion — polling is
-   sufficient and preserves the zero-interrupt design.
+5. **No blocking result API.** The driver never waits for a measurement:
+   there is no `ds18b20_read_temperature_blocking()`, and `ds18b20_poll()`
+   never waits for a result — it advances the state machine and returns. If a
+   task must sleep until a result is ready, start the operation
+   (`ds18b20_scan_start()`, `ds18b20_search_start()` or a command
+   transaction), then either poll in a loop that yields (`osDelay(1)`), or
+   block on a semaphore that `ds18b20_complete()` releases. Do **not** add a
+   TIM1 interrupt just to signal completion — polling is sufficient and
+   preserves the zero-interrupt design.
+
+   The one thing that can delay a `poll()` call is the opt-in low-power
+   build: with `OW_LOW_POWER=1` the driver *idles the core* in `WFE()` while
+   a long hardware stage runs, so the CPU does not spin. That is a sleep, not
+   a wait for a result — the application's code is unchanged, and the result
+   is ready at the same moment either way (see [Examples](#examples),
+   `7_low_power`).
 
 6. **Preemption mid-byte is safe.** A task may be preempted while a byte is
    being transmitted: the DMA completes the whole byte in hardware and the bus
@@ -2499,7 +2508,7 @@ Example — drop to 9-bit to measure 8× faster:
 ```C
 ds18b20_set_resolution(9);
 while (!ds18b20_set_resolution_poll()) {
-    /* keep calling from the main loop; never blocks */
+    /* keep calling from the main loop; the poll never waits for a result */
 }
 /* ds18b20_get_resolution() == 9; the next ds18b20_start_measure() uses the
    fast wait */
@@ -2724,7 +2733,7 @@ rationale.
 
 2. Temperature readings are infrequent
    - Cause: The ds18b20_poll() function is called slowly from the main loop. The driver operates correctly but advances through its states (e.g., the 750ms conversion wait) at a slower pace.
-   - Fix: This is often not a problem if a slow update rate is acceptable. If faster updates are needed, ensure the main loop runs frequently and avoids other blocking code. The driver itself is non-blocking and will not cause this slowdown.
+   - Fix: This is often not a problem if a slow update rate is acceptable. If faster updates are needed, ensure the main loop runs frequently and avoids other blocking code. The driver never waits for a result and does not cause this slowdown; the one build that can delay a `poll()` call is the opt-in `OW_LOW_POWER=1` one, where the driver idles the core until the stage is done (see [Examples](#examples), `7_low_power`).
 
 ### Debugging Tips
 
