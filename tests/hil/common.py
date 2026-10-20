@@ -223,26 +223,19 @@ def parse_temp(value):
     return float(m.group(1)) if m else None
 
 
-def line_matches(line, expected):
-    """True if `line` is `expected`, or a torn version of it.
+def line_has(line, marker):
+    """True if `line` contains `marker`.
 
-    A UART burst can tear a line in two: the tail is lost, or the next line
-    is glued onto it. Either way the two texts keep a long common prefix, and
-    that prefix is what identifies the line - the rest is noise the capture
-    could not vouch for. The overlap floor keeps a short fragment from passing
-    as a banner.
+    The capture can mangle a line in more than one way. The tail can be lost
+    (the next line then follows it), or noise on the wire can corrupt a run of
+    characters in the middle of it - on the F103 bench both were seen, the
+    second one replacing "nabled - WFE " with eight bytes of rubbish.
 
-    A tear that lost the *beginning* is not accepted: without the distinctive
-    start of the text, a fragment proves nothing.
+    Either way the line's *marker* - the distinctive part that says which
+    line this is - is what the check is about, and it usually survives. A
+    line that lost its marker proves nothing and is not accepted.
     """
-    if not line or not expected:
-        return False
-    n = 0
-    for a, b in zip(line, expected):
-        if a != b:
-            break
-        n += 1
-    return n >= max(8, len(expected) // 2)
+    return bool(marker) and marker in line
 
 
 def parse_measurement(line):
@@ -292,7 +285,7 @@ def wait_for_banner(uart, banner, timeout=5.0):
             buf += chunk
         while b"\r\n" in buf:
             raw, rest = buf.split(b"\r\n", 1)
-            if line_matches(raw.decode("ascii", "replace").strip(), banner):
+            if line_has(raw.decode("ascii", "replace").strip(), banner):
                 # Keep the banner line and every byte already read after it.
                 return raw + b"\r\n" + rest
             buf = rest
@@ -306,9 +299,10 @@ class LineReader:
     byte per main-loop poll, so a burst can tear a line in two - seen on real
     H503 hardware as `  ROM: 28 F1 39` followed by ` AD 0B 00 00 D9`, and on
     the F103 bench as a mode line that lost its tail and took the next line
-    with it. Lines are therefore matched independently, and line_matches()
-    accepts a line whose text is a torn version of the expected one; a
-    fragment that lost its beginning matches nothing, as it should.
+    with it, and as one whose middle was replaced by noise. Lines are
+    therefore matched independently, and line_has() accepts a line that
+    still carries its marker; a fragment that lost its marker matches
+    nothing, as it should.
     """
 
     def __init__(self, ser, flush_timeout=1.0, initial=b""):

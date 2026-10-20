@@ -8,7 +8,7 @@ temperature, and rejects the DS18B20 power-on-reset (85.0 C) and brownout
 
 import common
 
-BANNER = "DS18B20 4_scan_mode starting..."
+BANNER = "4_scan_mode"
 
 
 def run(uart, ctx):

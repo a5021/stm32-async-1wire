@@ -29,7 +29,7 @@ import re
 
 import common
 
-BANNER = "DS18B20 6_statistics (stats) starting..."
+BANNER = "6_statistics"
 
 HEADER_RE = re.compile(r"^--- stats \[(\d+) c\] ---$")
 SENSOR_RE = re.compile(

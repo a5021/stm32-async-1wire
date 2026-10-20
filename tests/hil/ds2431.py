@@ -29,7 +29,7 @@ import re
 
 import common
 
-BANNER = "DS2431 8_ds2431 starting..."
+BANNER = "8_ds2431"
 
 SELECTED_RE = re.compile(r"^Selected ROM: ((?:[0-9A-F]{2} ){7}[0-9A-F]{2})$")
 EEPROM_RE = re.compile(r"^EEPROM: ((?:[0-9A-F]{2} ){7}[0-9A-F]{2})$")
@@ -71,13 +71,13 @@ def run(uart, ctx):
                     [int(x, 16) for x in m.group(1).split()]
                 )
             continue
-        if common.line_matches(line, DONE):
+        if common.line_has(line, DONE):
             # The example stops streaming once it is done, so nothing more
             # arrives by design; keep the log tidy and the loop short.
             break
-        if common.line_matches(line, MISSING):
+        if common.line_has(line, MISSING):
             missing = True
-        elif common.line_matches(line, ABORT):
+        elif common.line_has(line, ABORT):
             abort = True
 
     if missing:

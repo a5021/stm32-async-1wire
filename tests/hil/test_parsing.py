@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Parsing tests for the HIL harness: a torn UART line must not fail a run.
+"""Parsing tests for the HIL harness: a mangled UART line must not fail a run.
 
 Run: python tests/hil/test_parsing.py   (make test-hil-parsing)
 
-Why this exists: the capture can tear a line in the middle of a burst - the
-tail is lost, or the next line is glued onto it. On the F103 parasite bench
-that happened to the low-power mode line, and the checks compared lines for
-equality, so one lost tail failed the whole run. Worse, a torn *measurement*
-line was reported as a sensor error, because "not a temperature" was read as
-"an error" - a line the capture mangled was counted as a device that failed.
+Why this exists: the capture can mangle a line in more than one way, and both
+were seen on the F103 parasite bench. The tail of the low-power mode line was
+lost and the next line followed it; in another capture, noise on the wire
+replaced "nabled - WFE " with eight bytes of rubbish. The checks compared
+lines for equality, so either one failed the whole run. Worse, a mangled
+*measurement* line was reported as a sensor error, because "not a
+temperature" was read as "an error" - a line the capture mangled was counted
+as a device that failed.
 
-The cases below replay the artefact that was actually captured
-(bench_logs/hil/lowpower_*.log), not a synthetic one.
+The cases below replay the artefacts that were actually captured
+(bench_logs/hil/lowpower_*.log), not synthetic ones.
 """
 
 import os
@@ -30,6 +32,16 @@ TORN_MODE_LINE = (
     "�"
     "  ROM: 28 20 78 92 07 00 00 67"
 )
+
+# The other captured artefact: noise on the wire replaced the middle of the
+# mode line - "nabled - WFE " - with rubbish. The marker at the start of the
+# line survived, which is what the check is about.
+CORRUPTED_MODE_LINE = (
+    "OW_LOW_POWER e\x05j\x02�\x19\x15�sleep on stages > 1ms"
+)
+
+# What the firmware prints when the low-power path is off.
+DISABLED_MODE_LINE = "OW_LOW_POWER disabled - busy-poll only"
 
 # A measurement line cut off in the middle of the value.
 TORN_MEASUREMENT = "28 20 78 92 07 00 00 67: 26."
@@ -51,32 +63,40 @@ def check(what, condition):
         failures.append(what)
 
 
-def test_line_matches():
-    print("line_matches")
+def test_line_has():
+    print("line_has")
     check(
-        "a torn mode line still matches the mode text",
-        common.line_matches(TORN_MODE_LINE, lowpower.MODE),
+        "a corrupted mode line still carries its marker",
+        common.line_has(CORRUPTED_MODE_LINE, lowpower.MODE),
     )
     check(
-        "an intact line matches",
-        common.line_matches(lowpower.MODE, lowpower.MODE),
+        "a torn mode line still carries its marker",
+        common.line_has(TORN_MODE_LINE, lowpower.MODE),
     )
     check(
-        "a line with the next one glued on still matches",
-        common.line_matches(lowpower.MODE + "  ROM: 28 20 78", lowpower.MODE),
+        "an intact line carries its marker",
+        common.line_has(lowpower.MODE, lowpower.MODE),
     )
     check(
-        "a head-torn line does not match",
-        not common.line_matches("sleep on stages > 1ms", lowpower.MODE),
+        "a corrupted mode line is not read as the disabled variant",
+        not common.line_has(CORRUPTED_MODE_LINE, lowpower.MODE_DISABLED),
+    )
+    check(
+        "the disabled variant is recognised",
+        common.line_has(DISABLED_MODE_LINE, lowpower.MODE_DISABLED),
+    )
+    check(
+        "the disabled variant carries the common marker too",
+        common.line_has(DISABLED_MODE_LINE, lowpower.MODE),
+    )
+    check(
+        "a line that lost its marker does not match",
+        not common.line_has("sleep on stages > 1ms", lowpower.MODE),
     )
     check(
         "an unrelated line does not match",
-        not common.line_matches("Found 7 device(s). Measuring each in turn.",
-                                lowpower.MODE),
-    )
-    check(
-        "a short fragment does not match a banner",
-        not common.line_matches("DS", lowpower.BANNER),
+        not common.line_has("Found 7 device(s). Measuring each in turn.",
+                            lowpower.MODE),
     )
 
 
@@ -132,38 +152,38 @@ class _Ctx:
         self.lines = []
 
 
-def test_lowpower_check_survives_a_torn_banner():
+def _capture(mode_line):
+    return (
+        "DS18B20 7_low_power (low power) starting...\r\n"
+        "Searching 1-Wire bus...\r\n" + mode_line + "\r\n"
+        "28 20 78 92 07 00 00 67: 26.2 C\r\n"
+    ).encode("ascii", "replace")
+
+
+def test_lowpower_check():
     print("lowpower check, end to end")
-    capture = (
-        "DS18B20 7_low_power (low power) starting...\r\n"
-        "Searching 1-Wire bus...\r\n"
-        + TORN_MODE_LINE
-        + "\r\n"
-        "28 20 78 92 07 00 00 67: 26.2 C\r\n"
-    ).encode("ascii", "replace")
+    for name, mode_line in (
+        ("a corrupted mode line", CORRUPTED_MODE_LINE),
+        ("a torn mode line", TORN_MODE_LINE),
+        ("an intact mode line", lowpower.MODE + " - WFE sleep on stages > 1ms"),
+    ):
+        ctx = _Ctx(b"")
+        ok, detail = lowpower.run(_StubSerial(_capture(mode_line)), ctx)
+        check("the check passes with %s (%s)" % (name, detail), ok)
 
+    # A firmware built without the low-power define must still be rejected:
+    # the marker is shared by both variants, so the wording is what tells
+    # them apart.
     ctx = _Ctx(b"")
-    ok, detail = lowpower.run(_StubSerial(capture), ctx)
-    check("the check passes on a torn capture (%s)" % detail, ok)
-
-    # The same capture without the tear must pass too - the tolerance must not
-    # have broken the ordinary case.
-    capture = (
-        "DS18B20 7_low_power (low power) starting...\r\n"
-        "Searching 1-Wire bus...\r\n"
-        "OW_LOW_POWER enabled - WFE sleep on stages > 1ms\r\n"
-        "28 20 78 92 07 00 00 67: 26.2 C\r\n"
-    ).encode("ascii", "replace")
-    ctx = _Ctx(b"")
-    ok, detail = lowpower.run(_StubSerial(capture), ctx)
-    check("the check passes on an intact capture (%s)" % detail, ok)
+    ok, detail = lowpower.run(_StubSerial(_capture(DISABLED_MODE_LINE)), ctx)
+    check("the check rejects the disabled variant (%s)" % detail, not ok)
 
 
 def main():
-    test_line_matches()
+    test_line_has()
     test_parse_measurement()
     test_census()
-    test_lowpower_check_survives_a_torn_banner()
+    test_lowpower_check()
     if failures:
         print("test_parsing: FAILED (%d)" % len(failures))
         return 1

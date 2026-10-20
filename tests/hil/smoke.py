@@ -8,7 +8,7 @@ check follows the bus actually attached; EXPECTED_DEVICES is an optional floor.
 
 import common
 
-BANNER = "DS18B20 2_device_search starting..."
+BANNER = "2_device_search"
 
 
 def run(uart, ctx):
