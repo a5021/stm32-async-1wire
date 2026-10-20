@@ -75,6 +75,60 @@ static uint16_t presence_src(uint32_t idx) {
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
 #endif
 
+/* Request routing: the peripheral request each DMA channel must carry.
+ * G0/G4 have no fixed request map - the request is the DMAMUX channel's CCR.
+ * H5 has no DMAMUX either: the GPDMA transfer register's REQSEL carries it.
+ * The families with a fixed map (F0/F1/F3/F4) program nothing, and nothing
+ * is asserted for them.
+ *
+ * This is asserted per operation, from the contract table, and not in a
+ * separate file: the merged write+read (search) pass routes BOTH channels,
+ * and before this only the reset and the write had their routing checked -
+ * the merged pass could lose its routing unnoticed on G0 and G4. */
+#if defined(STM32H5)
+#define ROUTE_FEED_REG mock_feed_ch.CTR2
+#define ROUTE_CAP_REG mock_dma1_ch4.CTR2
+#define ROUTE_FEED_REQ 59u /* TIM1_CH2 (marker feed -> CCR3) */
+#define ROUTE_CAP_REQ 61u  /* TIM1_CH4 (capture drain <- CCR4) */
+#elif defined(STM32G4)
+#define ROUTE_FEED_REG mock_dmamux_ch2.CCR
+#define ROUTE_CAP_REG mock_dmamux_ch3.CCR
+#define ROUTE_FEED_REQ 43u
+#define ROUTE_CAP_REQ 45u
+#elif defined(STM32G0)
+#define ROUTE_FEED_REG mock_dmamux_ch2.CCR
+#define ROUTE_CAP_REG mock_dmamux_ch3.CCR
+#define ROUTE_FEED_REQ 21u
+#define ROUTE_CAP_REQ 23u
+#else
+#define ROUTE_FEED_REG 0
+#define ROUTE_CAP_REG 0
+#define ROUTE_FEED_REQ 0u
+#define ROUTE_CAP_REQ 0u
+#endif
+
+/* The request id a channel carries, read from the register that holds it on
+ * this family. Zero on the families with a fixed request map. */
+static uint32_t route_feed_id(void) {
+#if defined(STM32H5)
+    return (ROUTE_FEED_REG >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32G0) || defined(STM32G4)
+    return ROUTE_FEED_REG;
+#else
+    return 0u;
+#endif
+}
+
+static uint32_t route_cap_id(void) {
+#if defined(STM32H5)
+    return (ROUTE_CAP_REG >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32G0) || defined(STM32G4)
+    return ROUTE_CAP_REG;
+#else
+    return 0u;
+#endif
+}
+
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -349,6 +403,21 @@ static dma_contract_row_t k_contracts[] = {
 /* ----------------------- one row runner ----------------------- */
 
 static void run_contract_row(const dma_contract_row_t* row) {
+    /* Every row starts from a clean mock and a clean driver.
+     *
+     * The rows used to run back to back on shared state, and that hides
+     * defects: the request routing is sticky (the DMAMUX channel keeps the
+     * request id the previous operation programmed), so a row that forgot
+     * to program its routing saw the previous row's value and passed. The
+     * routing assertion only means something against a freshly reset mux.
+     */
+    hw_reset_all();
+    ds18b20_test_register_buffers();
+    ds18b20_test_reset_ctx();
+    ds18b20_test_reset_search();
+    ds18b20_test_reset_resolution();
+    ds18b20_test_reset_txn();
+
     row->schedule();
 
     TEST_ASSERT_EQUAL_UINT32(row->exp_rcr, (uint32_t)(mock_tim1.RCR & 0xFFu));
@@ -366,6 +435,8 @@ static void run_contract_row(const dma_contract_row_t* row) {
         TEST_ASSERT_EQUAL_UINT32(row->exp_feed_cndtr, mock_feed_ch.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_feed_ccr_hi, mock_feed_ch.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_feed_ccr_lo, mock_feed_ch.CCR);
+        /* the peripheral request this channel must carry */
+        TEST_ASSERT_EQUAL_UINT32(ROUTE_FEED_REQ, route_feed_id());
     } else {
         TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
         TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
@@ -386,6 +457,8 @@ static void run_contract_row(const dma_contract_row_t* row) {
         TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(row->exp_cap_cndtr), mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_cap_ccr_hi, mock_dma1_ch4.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_cap_ccr_lo, mock_dma1_ch4.CCR);
+        /* the peripheral request this channel must carry */
+        TEST_ASSERT_EQUAL_UINT32(ROUTE_CAP_REQ, route_cap_id());
     } else {
         TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
