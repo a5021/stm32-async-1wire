@@ -97,7 +97,7 @@ $(document).ready(function(){initNavTree('group__ONEWIRE__Search.html',''); init
 </div><!--header-->
 <div class="contents">
 
-<p>Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC) algorithm as a polled state machine. The direction bit written at position i determines which devices keep participating at position i+1, so the transaction cannot be batched into one DMA pass; the linear loop is decomposed into states with loop counters kept in the context. Every state performs exactly one hardware-timed operation, so a poll call never blocks.  
+<p>Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC) algorithm as a polled state machine. The direction bit written at position i determines which devices keep participating at position i+1, so the transaction cannot be batched into one DMA pass; the linear loop is decomposed into states with loop counters kept in the context. Every state performs exactly one hardware-timed operation, and no search stage is long enough to become a low-power wait, so a poll call returns straight away.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
@@ -122,7 +122,7 @@ Functions</h2></td></tr>
 <tr class="separator:gac43fdc2950ddc11a3ca7afe317812440"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC) algorithm as a polled state machine. The direction bit written at position i determines which devices keep participating at position i+1, so the transaction cannot be batched into one DMA pass; the linear loop is decomposed into states with loop counters kept in the context. Every state performs exactly one hardware-timed operation, so a poll call never blocks. </p>
+<p>Implements the Maxim Search ROM (0xF0) / Alarm Search (0xEC) algorithm as a polled state machine. The direction bit written at position i determines which devices keep participating at position i+1, so the transaction cannot be batched into one DMA pass; the linear loop is decomposed into states with loop counters kept in the context. Every state performs exactly one hardware-timed operation, and no search stage is long enough to become a low-power wait, so a poll call returns straight away. </p>
 <h2 class="groupheader">Typedef Documentation</h2>
 <a id="gaca009becf75c297ae69b4274a7f6abaf" name="gaca009becf75c297ae69b4274a7f6abaf"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gaca009becf75c297ae69b4274a7f6abaf">&#9670;&#160;</a></span>onewire_search_sink_t</h2>
