@@ -1530,8 +1530,11 @@ fuzz-txn: | $(FUZZ_OUT)
 # -DMOCK_WFE_HOOK routing the host __WFE() through hw_model - drives the
 # ow_port_sleep_until_done() loop by delivering the update event after a
 # fuzz-chosen number of wake-ups.
+# -Isrc: the harness asserts against the engine's own long-stage threshold
+# (OW_PORT_LONG_STAGE_US), which lives in the private src/ow_port.h. It used
+# to arrive through onewire.h, back when the engine was still public.
 fuzz-lowpower: | $(FUZZ_OUT)
-	$(FUZZ_CC) $(FUZZ_CFLAGS) -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK \
+	$(FUZZ_CC) $(FUZZ_CFLAGS) -Isrc -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK \
 	    tests/fuzz/fuzz_lowpower.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_lowpower
 	$(call run_fuzz,fuzz_lowpower)

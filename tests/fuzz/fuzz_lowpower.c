@@ -36,6 +36,10 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
+/* The engine's own long-stage threshold. The harness asserts against the same
+ * constant the port uses, so it needs the private header - the same access
+ * the host test suite has (tests/test/test_lowpower.c). */
+#include "ow_port.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
