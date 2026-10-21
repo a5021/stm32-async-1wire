@@ -43,6 +43,14 @@ void hw_set_capture_edges(uint32_t n);
  * when the driver feeds from cmd[1]). */
 void hw_register_buf(const void* ptr);
 
+/* The buffer the feed DMA reads from and the one the capture DMA writes to,
+ * resolved back to host pointers (NULL when the channel is disarmed or the
+ * address is not registered). The DMA registers hold a truncated 32-bit
+ * address, so a test that asserts on the register value alone cannot say
+ * *which* buffer the driver pointed at; these can. */
+const void* hw_feed_source(void);
+const void* hw_capture_destination(void);
+
 /* Log of output-compare values written by the feed DMA (per operation).
  * Sized for the longest DMA-fed write (the Match ROM resolution config
  * write: 104 slots). */

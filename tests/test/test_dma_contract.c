@@ -129,6 +129,21 @@ static uint32_t route_cap_id(void) {
 #endif
 }
 
+/* A pointer comparison with a message that names the buffer.
+ *
+ * The DMA registers hold a truncated 32-bit address, so two different
+ * buffers can print as the same number on a 64-bit host, and the mock's
+ * Unity shim prints the expression rather than the values. The model
+ * resolves the address back to the real buffer, so the mismatch can name
+ * it. */
+static void assert_dma_buffer(const char* what, const void* expected, const void* got) {
+    if (expected != got) {
+        printf("FAIL %s:%d  %s: expected %p, got %p\n", __FILE__, __LINE__, what,
+               expected, got);
+        unity_failures++;
+    }
+}
+
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -435,6 +450,9 @@ static void run_contract_row(const dma_contract_row_t* row) {
         TEST_ASSERT_EQUAL_UINT32(row->exp_feed_cndtr, mock_feed_ch.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_feed_ccr_hi, mock_feed_ch.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_feed_ccr_lo, mock_feed_ch.CCR);
+        /* which buffer the driver actually pointed the feed at */
+        assert_dma_buffer("feed source", (const void*)row->exp_feed_cmar,
+                          hw_feed_source());
         /* the peripheral request this channel must carry */
         TEST_ASSERT_EQUAL_UINT32(ROUTE_FEED_REQ, route_feed_id());
     } else {
@@ -457,6 +475,9 @@ static void run_contract_row(const dma_contract_row_t* row) {
         TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(row->exp_cap_cndtr), mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_HIGH(row->exp_cap_ccr_hi, mock_dma1_ch4.CCR);
         TEST_ASSERT_BITS_LOW(row->exp_cap_ccr_lo, mock_dma1_ch4.CCR);
+        /* which buffer the driver actually pointed the capture at */
+        assert_dma_buffer("capture destination", (const void*)row->exp_cap_cmar,
+                          hw_capture_destination());
         /* the peripheral request this channel must carry */
         TEST_ASSERT_EQUAL_UINT32(ROUTE_CAP_REQ, route_cap_id());
     } else {

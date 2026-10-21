@@ -2,6 +2,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "ow_config.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -77,26 +78,65 @@ static void* hw_resolve(uint32_t lo) {
     return NULL;
 }
 
+/* A model invariant was violated: the model cannot behave like the silicon
+ * from here, so every conclusion drawn from it would be unsound. That is not
+ * a test failure to be reported and stepped over - it is the model saying it
+ * does not know what the hardware would do. Abort, loudly, with the address
+ * that could not be resolved. */
+static void hw_fatal(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    fputs("hw_model: FATAL: ", stderr);
+    vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
+    va_end(ap);
+    abort();
+}
+
 void hw_register_buf(const void* ptr) {
     uint32_t lo = (uint32_t)(uintptr_t)ptr;
     if (hw_resolve(lo) == ptr) {
         return; /* already registered */
     }
     if (hw_resolve(lo) != NULL) {
-        fprintf(stderr, "hw_model: FATAL: distinct host buffers truncate to the "
-                        "same 32-bit CMAR value 0x%08lX\n",
-                (unsigned long)lo);
-        abort();
+        hw_fatal("distinct host buffers truncate to the same 32-bit CMAR "
+                 "value 0x%08lX",
+                 (unsigned long)lo);
     }
     if (addr_count >= HW_ADDR_TABLE_MAX) {
-        fprintf(stderr, "hw_model: FATAL: registered-buffer table exhausted "
-                        "(%u entries)\n",
-                (unsigned)HW_ADDR_TABLE_MAX);
-        abort();
+        hw_fatal("registered-buffer table exhausted (%u entries)",
+                 (unsigned)HW_ADDR_TABLE_MAX);
     }
     addr_lo[addr_count] = lo;
     addr_table[addr_count] = ptr;
     addr_count++;
+}
+
+/* The memory address the feed DMA reads from, and the one the capture DMA
+ * writes to, as the silicon sees it: the direction-relative registers on
+ * GPDMA (H5), the classic CMAR everywhere else. */
+static uint32_t hw_feed_addr(void) {
+#if defined(STM32H5)
+    return (uint32_t)MOCK_DMA_FEED.CSAR;
+#else
+    return (uint32_t)MOCK_DMA_FEED.CMAR;
+#endif
+}
+
+static uint32_t hw_cap_addr(void) {
+#if defined(STM32H5)
+    return (uint32_t)MOCK_DMA_CAP.CDAR;
+#else
+    return (uint32_t)MOCK_DMA_CAP.CMAR;
+#endif
+}
+
+const void* hw_feed_source(void) {
+    return hw_resolve(hw_feed_addr());
+}
+
+const void* hw_capture_destination(void) {
+    return hw_resolve(hw_cap_addr());
 }
 
 void hw_reset_all(void) {
@@ -179,10 +219,14 @@ static void dma16_transfer(void) {
         return;
     }
     if (d16_cur == NULL) {
-        fprintf(stderr, "hw_model: unresolved feed source address\n");
-        d->CNDTR = 0;
-        d->CCR &= ~MOCK_DMA_FEED_EN;
-        return;
+        /* The driver programmed a memory address the model does not know.
+         * Continuing would mean inventing a source, and every conclusion
+         * drawn from a fabricated transfer is unsound - the feed would
+         * simply stop and the test would read that as "no feed happened".
+         * Refuse instead. */
+        hw_fatal("unresolved feed source address 0x%08lX - register the "
+                 "buffer the driver feeds from with hw_register_buf()",
+                 (unsigned long)hw_feed_addr());
     }
     uint16_t val = *d16_cur;
     MOCK_TIM_OUT_CCR = val;
@@ -204,10 +248,9 @@ static void dma13_transfer(void) {
         return;
     }
     if (d13_cur == NULL) {
-        fprintf(stderr, "hw_model: unresolved capture destination address\n");
-        d->CNDTR = 0;
-        d->CCR &= ~MOCK_DMA_CAP_EN;
-        return;
+        hw_fatal("unresolved capture destination address 0x%08lX - register "
+                 "the buffer the driver captures into with hw_register_buf()",
+                 (unsigned long)hw_cap_addr());
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
 #if defined(STM32H5)
@@ -238,15 +281,18 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
     feed_log.total = 0;
     op_capture_count = 0;
     /* Resolve the DMA buffer addresses exactly as the driver stored them. */
-#if defined(STM32H5)
-    /* GPDMA SAR/DAR are direction-relative: feed memory lives in CSAR,
-     * capture memory in CDAR. */
-    d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
-    d13_cur = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
-#else
-    d16_cur = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
-    d13_cur = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
-#endif
+    d16_cur = (ow_pulse_t*)hw_resolve(hw_feed_addr());
+    d13_cur = (uint8_t*)hw_resolve(hw_cap_addr());
+    if (d16_cur == NULL && (MOCK_DMA_FEED.CCR & MOCK_DMA_FEED_EN) && MOCK_DMA_FEED.CNDTR > 0u) {
+        hw_fatal("unresolved feed source address 0x%08lX - register the "
+                 "buffer the driver feeds from with hw_register_buf()",
+                 (unsigned long)hw_feed_addr());
+    }
+    if (d13_cur == NULL && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) && MOCK_DMA_CAP.CNDTR > 0u) {
+        hw_fatal("unresolved capture destination address 0x%08lX - register "
+                 "the buffer the driver captures into with hw_register_buf()",
+                 (unsigned long)hw_cap_addr());
+    }
     uint32_t slots = (uint32_t)(t->RCR & 0xFFu) + 1u;
     if (slots > max_slots) {
         slots = max_slots;
@@ -342,16 +388,11 @@ void hw_tim_init(void) {
         MOCK_DMA_FEED.CNDTR > 0u) {
         g_tim.feed_en = 1u;
         g_tim.feed_rem = MOCK_DMA_FEED.CNDTR;
-#if defined(STM32H5)
-        g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CSAR);
-#else
-        g_tim.feed_ptr = (ow_pulse_t*)hw_resolve((uint32_t)MOCK_DMA_FEED.CMAR);
-#endif
+        g_tim.feed_ptr = (ow_pulse_t*)hw_resolve(hw_feed_addr());
         if (g_tim.feed_ptr == NULL) {
-            fprintf(stderr, "hw_model: unresolved feed source address\n");
-            g_tim.feed_en = 0u;
-            MOCK_DMA_FEED.CNDTR = 0;
-            MOCK_DMA_FEED.CCR &= ~MOCK_DMA_FEED_EN;
+            hw_fatal("unresolved feed source address 0x%08lX - register the "
+                     "buffer the driver feeds from with hw_register_buf()",
+                     (unsigned long)hw_feed_addr());
         }
     }
     if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) && (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) &&
@@ -359,16 +400,12 @@ void hw_tim_init(void) {
         g_tim.cap_en = 1u;
         g_tim.cap_total = MOCK_CAP_TRANSFERS(MOCK_DMA_CAP.CNDTR);
         g_tim.cps = (g_tim.cap_total + g_tim.slots - 1u) / g_tim.slots;
-#if defined(STM32H5)
-        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CDAR);
-#else
-        g_tim.cap_ptr = (uint8_t*)hw_resolve((uint32_t)MOCK_DMA_CAP.CMAR);
-#endif
+        g_tim.cap_ptr = (uint8_t*)hw_resolve(hw_cap_addr());
         if (g_tim.cap_ptr == NULL) {
-            fprintf(stderr, "hw_model: unresolved capture destination address\n");
-            g_tim.cap_en = 0u;
-            MOCK_DMA_CAP.CNDTR = 0;
-            MOCK_DMA_CAP.CCR &= ~MOCK_DMA_CAP_EN;
+            hw_fatal("unresolved capture destination address 0x%08lX - "
+                     "register the buffer the driver captures into with "
+                     "hw_register_buf()",
+                     (unsigned long)hw_cap_addr());
         }
     }
 }
