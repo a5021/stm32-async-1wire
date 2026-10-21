@@ -113,6 +113,121 @@ void test_timing_wait_plan_rule(void) {
     }
 }
 
+/*-------------------------------------------------------------
+ *  The wait plan over the whole domain, not a table of values
+ *
+ *  The rule (ow_port_plan_wait) is N = ceil(us / 65535) periods of
+ *  ARR = ceil(us / N) microseconds. The table test above pins the exact
+ *  values the driver happens to use; the tests below pin what the rule
+ *  MEANS, for every duration the timer can reach.
+ *
+ *  The reachable domain is 256 * 65535 = 16776960 microseconds, so the
+ *  sweep is exhaustive rather than sampled - and it costs a fraction of a
+ *  second. The Unity assertions stay OUT of the loop (16.8 million
+ *  assertion calls would dominate the run): the sweep records the first
+ *  violation and the test reports it once.
+ * -----------------------------------------------------------*/
+#define OW_WAIT_REACH_US (256u * 65535u)
+
+void test_timing_wait_plan_property(void) {
+    uint32_t violations = 0u;
+    uint32_t bad_us = 0u;
+    uint16_t bad_arr = 0u;
+    uint8_t bad_rcr = 0u;
+
+    /* us = 0 is the documented degenerate case: one tick, one period. */
+    {
+        uint16_t arr;
+        uint8_t rcr;
+        test_bus_wait_plan(0u, &arr, &rcr);
+        TEST_ASSERT_EQUAL_UINT16(1u, arr);
+        TEST_ASSERT_EQUAL_UINT8(0u, rcr);
+    }
+
+    for (uint32_t us = 1u; us <= OW_WAIT_REACH_US; us++) {
+        uint16_t arr;
+        uint8_t rcr;
+        uint32_t n;
+        uint32_t total;
+        test_bus_wait_plan(us, &arr, &rcr);
+        n = (uint32_t)rcr + 1u;
+        total = n * (uint32_t)arr;
+        /* I1 the total is never shorter than the request; I2 the overshoot is
+         * less than one period; I3 N is minimal (fewer periods could not
+         * cover the request); I4 the periods fit the timer's reach; I5 ARR is
+         * minimal for that N (a shorter period could not cover the request).
+         * I3 and I4 give N = ceil(us / 65535) exactly, I1 and I5 give
+         * ARR = ceil(us / N) exactly. */
+        if (n >= 1u && n <= 256u && arr >= 1u && total >= us &&
+            (total - us) < (uint32_t)arr && ((n - 1u) * 65535u) < us &&
+            (n * 65535u) >= us && (n * ((uint32_t)arr - 1u)) < us) {
+            continue;
+        }
+        violations++;
+        if (violations == 1u) {
+            bad_us = us;
+            bad_arr = arr;
+            bad_rcr = rcr;
+        }
+    }
+
+    if (violations != 0u) {
+        printf("  wait plan breaks its invariants at us=%lu: ARR=%lu RCR=%lu\n",
+               (unsigned long)bad_us, (unsigned long)bad_arr, (unsigned long)bad_rcr);
+    }
+    TEST_ASSERT_EQUAL_UINT32(0u, violations);
+}
+
+/* The plan a request beyond the timer's reach must get: the reach itself. */
+typedef struct {
+    uint32_t count;
+    uint32_t us;
+    uint16_t arr;
+    uint8_t rcr;
+} wait_violation_t;
+
+static void wait_plan_expect_clamp(uint32_t us, wait_violation_t* v) {
+    uint16_t arr;
+    uint8_t rcr;
+    test_bus_wait_plan(us, &arr, &rcr);
+    /* 256 periods of 65535 us: the reach, and not a truncated register. */
+    if (((uint32_t)rcr + 1u) == 256u && arr == 65535u) {
+        return;
+    }
+    v->count++;
+    if (v->count == 1u) {
+        v->us = us;
+        v->arr = arr;
+        v->rcr = rcr;
+    }
+}
+
+void test_timing_wait_plan_clamp(void) {
+    wait_violation_t v = {0u, 0u, 0u, 0u};
+
+    /* The window right above the reach, where the clamp first bites. */
+    for (uint32_t us = OW_WAIT_REACH_US + 1u; us <= OW_WAIT_REACH_US + 4096u; us++) {
+        wait_plan_expect_clamp(us, &v);
+    }
+    /* A stride across the rest of the range, up to the last value that can
+     * be added to without wrapping. */
+    for (uint32_t us = OW_WAIT_REACH_US + 4097u; us <= 0xFFFFFFFFu - 65537u; us += 65537u) {
+        wait_plan_expect_clamp(us, &v);
+    }
+    /* The top of the range, where an unclamped period would wrap the 16-bit
+     * ARR around to zero. */
+    for (uint32_t us = 0xFFFFFFFFu - 4095u; us < 0xFFFFFFFFu; us++) {
+        wait_plan_expect_clamp(us, &v);
+    }
+    wait_plan_expect_clamp(0xFFFFFFFFu, &v);
+
+    if (v.count != 0u) {
+        printf("  wait plan not clamped at us=%lu: ARR=%lu RCR=%lu\n", (unsigned long)v.us,
+               (unsigned long)v.arr, (unsigned long)v.rcr);
+    }
+    TEST_ASSERT_EQUAL_UINT32(0u, v.count);
+}
+
 void test_timing_temperature_formula(void) {
     /* raw = 0x0164 = 356 -> 22.25°C -> 223 tenths (round-half-away-from-zero) */
     TEST_ASSERT_EQUAL_INT(223, (int)(((int32_t)0x0164 * 10 + 8) / 16));
@@ -492,6 +607,8 @@ void run_test_timing(void) {
     TEST_RUN(test_timing_wait_conversion_750ms);
     TEST_RUN(test_timing_long_wait_arr_rcr);
     TEST_RUN(test_timing_wait_plan_rule);
+    TEST_RUN(test_timing_wait_plan_property);
+    TEST_RUN(test_timing_wait_plan_clamp);
     TEST_RUN(test_timing_temperature_formula);
     TEST_RUN(test_apb_prescaler_div1_for_tim1);
     TEST_RUN(test_ic4f_matches_the_documented_tier);
