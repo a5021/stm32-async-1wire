@@ -266,8 +266,11 @@ uint8_t onewire_long_wait_pending(void);
  * @brief Block in WFE until the currently scheduled long stage completes
  * @note Only the timer's own update event wakes the core (SEVONPEND, no ISR,
  *       no NVIC vector), so to the caller this is an ordinary synchronous
- *       wait. Returns immediately when no long stage is running. Only
- *       meaningful with OW_LOW_POWER=1.
+ *       wait. Only meaningful with OW_LOW_POWER=1.
+ * @pre A long stage must be in flight - the caller checks
+ *       onewire_long_wait_pending() first, which is exactly what the bundled
+ *       drivers do. Called with nothing armed, the call does not return: the
+ *       sleep waits for the timer's update event, and none is coming.
  * @note The blocking counterpart of onewire_long_wait_pending(), for a slave
  *       driver that wants to sleep rather than poll. The bundled drivers
  *       call it from their poll(); an application never needs it.
