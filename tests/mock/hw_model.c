@@ -367,7 +367,7 @@ typedef struct {
     uint32_t cap_total; /* total capture transfers scheduled */
     uint32_t cap_done; /* capture transfers performed so far */
     uint32_t cps; /* captures per slot (ceil) */
-    uint8_t slots; /* number of slots (RCR + 1) */
+    uint32_t slots; /* number of slots (RCR + 1); 256 must fit (RCR = 255) */
     uint8_t period; /* current slot, 0-based */
     uint32_t tick; /* current counter position */
     uint16_t shadow; /* active output value (preload shadow or CCR3) */
@@ -380,7 +380,7 @@ void hw_tim_init(void) {
     g_tim.arr = (uint16_t)mock_tim1.ARR;
     g_tim.ccr2 = (uint16_t)mock_tim1.CCR2;
     g_tim.pe = (uint8_t)((MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE) ? 1u : 0u);
-    g_tim.slots = (uint8_t)((mock_tim1.RCR & 0xFFu) + 1u);
+    g_tim.slots = (uint32_t)((mock_tim1.RCR & 0xFFu) + 1u);
     g_tim.tick = 0;
     g_tim.period = 0;
     g_tim.shadow = (uint16_t)mock_tim1.CCR3;

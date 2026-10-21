@@ -108,6 +108,22 @@ MUTATIONS = [
         "families": ["g0", "g4"],
     },
     {
+        "id": "M13",
+        "what": "model: the CCR3 reload no longer waits for the slot-end compare",
+        "file": "tests/mock/hw_model.c",
+        "find": "if (kind == 1u) {\n        g_tim.feed_pend = 1u;\n        return HW_TIM_EV_CC2;\n    }",
+        "replace": "if (kind == 1u) {\n        return HW_TIM_EV_CC2;\n    }",
+        "families": None,
+    },
+    {
+        "id": "M14",
+        "what": "model: the operation completes without setting UIF",
+        "file": "tests/mock/hw_model.c",
+        "find": "mock_tim1.SR |= TIM_SR_UIF;",
+        "replace": "mock_tim1.SR |= 0u;",
+        "families": None,
+    },
+    {
         "id": "M7",
         "what": "DMAMUX request id for the feed (G0)",
         "file": "src/ow_mcu.h",

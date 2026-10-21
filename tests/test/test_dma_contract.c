@@ -417,6 +417,59 @@ static dma_contract_row_t k_contracts[] = {
 
 /* ----------------------- one row runner ----------------------- */
 
+/* The temporal contract of one scheduled operation.
+ *
+ * The register checks say *what* the driver programmed; this says *when*:
+ * the CCR3 reload follows the slot-end compare and never precedes it, the
+ * slot boundaries fall where the repetition count says, and the operation
+ * ends on the terminal update - with UIF set and the timer stopped.
+ *
+ * There are no per-row expectations: the counts follow from the row's own
+ * fields (the repetition count gives the slots, the feed transfer count
+ * gives the reloads), so every operation is checked the same way. */
+static void assert_temporal_contract(uint32_t slots, uint32_t feeds) {
+    uint32_t cc2 = 0, feed = 0, updates = 0, terminal = 0, idle = 0;
+    hw_tim_event_t prev = HW_TIM_EV_IDLE;
+    uint16_t slot_pulse = 0;
+    int in_slot = 0;
+    hw_tim_init();
+    for (uint32_t k = 0; k < 8192u; k++) {
+        hw_tim_event_t e = hw_tim_step();
+        if (e == HW_TIM_EV_CC2) {
+            cc2++;
+            /* the compare must not have moved the pulse in effect: the
+             * slot's value holds for the whole slot */
+            if (in_slot) {
+                TEST_ASSERT_EQUAL_UINT16(slot_pulse, hw_tim_active());
+            }
+        } else if (e == HW_TIM_EV_FEED) {
+            feed++;
+            /* a reload only ever follows the compare */
+            TEST_ASSERT_EQUAL_INT(HW_TIM_EV_CC2, prev);
+        } else if (e == HW_TIM_EV_UPDATE) {
+            updates++;
+            slot_pulse = hw_tim_active();
+            in_slot = 1;
+        } else if (e == HW_TIM_EV_TERMINAL) {
+            terminal++;
+        } else {
+            idle++;
+            break;
+        }
+        prev = e;
+    }
+    /* one slot-end compare per fed slot, and one reload right behind it */
+    TEST_ASSERT_EQUAL_UINT32(feeds, cc2);
+    TEST_ASSERT_EQUAL_UINT32(feeds, feed);
+    /* one slot boundary between slots, the last overflow is the terminal */
+    TEST_ASSERT_EQUAL_UINT32(slots - 1u, updates);
+    TEST_ASSERT_EQUAL_UINT32(1u, terminal);
+    TEST_ASSERT_EQUAL_UINT32(1u, idle);
+    /* the operation is complete exactly at the terminal update */
+    TEST_ASSERT_BITS_HIGH(TIM_SR_UIF, mock_tim1.SR);
+    TEST_ASSERT_BITS_LOW(TIM_CR1_CEN, mock_tim1.CR1);
+}
+
 static void run_contract_row(const dma_contract_row_t* row) {
     /* Every row starts from a clean mock and a clean driver.
      *
@@ -488,9 +541,18 @@ static void run_contract_row(const dma_contract_row_t* row) {
     /* the DMA-enable bits this operation must NOT use */
     TEST_ASSERT_BITS_LOW(row->exp_dier_lo, mock_tim1.DIER);
 
+    uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
+
+    /* The temporal shape of the operation, walked on the model: the CCR3
+     * reloads follow the slot-end compares, the slot boundaries fall where
+     * the repetition count says, and the operation ends on the terminal
+     * update. The walk *finishes* the operation, so the accounting run
+     * below re-arms it. */
+    assert_temporal_contract(slots, row->exp_feed_xfer);
+    row->schedule();
+
     /* run the timer to its terminal update and verify the accounting:
        every scheduled transfer fired, everything drained */
-    uint32_t slots = (uint32_t)(mock_tim1.RCR & 0xFFu) + 1u;
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_TRUE(hw_run_until_uif(slots));
     TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
