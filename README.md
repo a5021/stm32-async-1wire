@@ -1262,6 +1262,20 @@ instead of the per-device budget. When no probe or target is attached the
 harness skips and exits 0, so it is safe to run anywhere. Raw captures land
 under `bench_logs/hil/` (gitignored).
 
+**The wire itself can be measured too.** `tests/hil/la_capture.py` captures
+the 1-Wire line (PA10) with a logic analyzer and checks the measured pulse
+widths and slot period against the configuration in `inc/ow_config.h` — the
+schedule a consumer's bus has to live with, checked on the wire and not only
+in a register. It needs `sigrok-cli` (set `SIGROK_CLI` to point at it) and
+numpy:
+
+```bash
+python tests/hil/la_capture.py --parasite   # the parasite bus: guard 100 us
+```
+
+The measured geometry of the F1 bench, and what it is for, are in
+`port/stm32f1/HARDWARE-NOTES.md`.
+
 ### Integration: four ways to use the library
 
 Pick the path that matches your build system:
