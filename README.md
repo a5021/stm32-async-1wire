@@ -1147,6 +1147,11 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     drained). The same table runs on all seven families; the per-family
     encoding of the same guarantee is pinned separately
     (`test_dma_cr_value_macros`)
+-   the temporal contract of every operation (`test_dma_contract`): the CCR3
+    reload follows the slot-end compare and never precedes it, the pulse in
+    effect holds for the whole slot, the slot boundaries fall where the
+    repetition count says, and the operation ends on the terminal update with
+    UIF set and the timer stopped
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
@@ -1185,8 +1190,9 @@ The defects are the ones a DMA contract is most likely to break by: a wrong
 buffer, a wrong transfer count, a wrong transfer class (direction/width), a
 wrong timer repetition count, a wrong capture width, a missing request
 routing, and the per-family constants (the DMAMUX request id, the GPDMA
-REQSEL, the F4 stream CHSEL). The last run caught **45 of 45** applied
-defects, on all seven families.
+REQSEL, the F4 stream CHSEL), plus two against the model itself, to show
+that the temporal claims are not vacuous. The last run caught **59 of 59**
+applied defects, on all seven families.
 
 It earned its keep: the run found that the request routing of the merged
 write+read (search) pass was asserted nowhere, that the contract table's
@@ -1195,6 +1201,11 @@ row that forgot to program its routing saw the previous row's value and
 passed - and that the model used to answer an unresolvable DMA address by
 quietly skipping the transfer. All three are fixed; the matrix has been
 green since.
+
+It also caught a bug in the model itself: the temporal slot count was
+computed as `(uint8_t)((RCR & 0xFF) + 1)`, so the 256-slot case truncated
+to zero and the walk ran away. Nothing had ever pointed the temporal model
+at a long operation.
 
 ### Hardware-in-the-Loop (HIL)
 

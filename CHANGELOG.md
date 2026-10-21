@@ -28,6 +28,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **Every operation's temporal contract is now checked, and the model had a
+  slot-count bug that only a long operation could reach.** The per-operation
+  contract table said *what* the driver programmed; it did not say *when*. The
+  temporal model could check that, but it was only ever pointed at two
+  hand-picked operations.
+
+  The table now walks the temporal model for every operation and asserts the
+  same things for all of them: the CCR3 reload follows the slot-end compare
+  and never precedes it, the pulse in effect holds for the whole slot, the
+  slot boundaries fall where the repetition count says, and the operation
+  ends on the terminal update with UIF set and the timer stopped. There are
+  no per-row expectations to maintain — the counts follow from the row's own
+  fields — so every operation is checked the same way.
+
+  Walking the long operations found a bug in the model: the slot count was
+  computed as `(uint8_t)((RCR & 0xFF) + 1)`, so the 256-slot case truncated
+  to zero. The walk then never reached a terminal update, ran away, and
+  corrupted the heap. The temporal model had never been pointed at a
+  256-slot operation, so nothing noticed. The count is a `uint32_t` now.
+
+  Two more mutations were added to the reconnaissance, both against the
+  model, to show that the temporal claims are not vacuous: one that takes the
+  reload off the slot-end compare, one that completes the operation without
+  setting UIF. Both are caught.
+
 - **The behavioural model no longer invents a DMA source.** It resolves the
   DMA source and destination addresses through the buffers the tests
   register, because the DMA registers hold a truncated 32-bit address. When
