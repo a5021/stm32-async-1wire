@@ -28,6 +28,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **The DMA channels are now armed before the timer starts, and that order is
+  checked.** A mutation reconnaissance found a hole nothing could see: the
+  port started the timer and programmed the DMA in an order the tests could
+  not check. The model reads the *final* register state, and the final state
+  is the same whichever order the writes came in — but the hardware is not:
+  an edge that arrives while the channel is still disarmed is lost, and the
+  first slot of the operation would silently capture nothing.
+
+  The port now starts the timer through a vocabulary step
+  (`OW_PORT_TIMER_START()`, like `OW_PORT_ROUTE_FEED()`), so the host model
+  sees the exact moment the timer begins to run and checks the one thing the
+  final state cannot show: if the timer says it will use a DMA channel — the
+  DIER enable bits — that channel must be armed. On a target the step is the
+  plain register write.
+
+  Making that check work needed one fix in the port: the timed-wait path set
+  DIER with `|=`, so the DMA-request enable bits of the *previous* operation
+  survived into the wait, and "does this operation use DMA?" was unreadable
+  from the registers. The wait now states exactly what it uses — nothing, or
+  UIE for the WFE path. That is also the more correct behaviour on hardware:
+  the timer no longer asks for DMA transfers that nothing is armed for.
+
+  Two mutations were added for this (the timer started before the capture
+  DMA is armed, and before the feed DMA is armed); both are caught now, on
+  every family, and the matrix is at 74 of 74. The tool also learned to match
+  a multi-line defect on a CRLF checkout, where it silently did nothing
+  before.
+
 - **A canary now proves the DMA contract test can still fail.** A green
   suite proves nothing if it cannot go red. The `contract-canary` CI job
   applies one deliberate defect to the port — a wrong timer repetition count

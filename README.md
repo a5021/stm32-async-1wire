@@ -1203,8 +1203,9 @@ buffer, a wrong transfer count, a wrong transfer class (direction/width), a
 wrong timer repetition count, a wrong capture width, a missing request
 routing, and the per-family constants (the DMAMUX request id, the GPDMA
 REQSEL, the F4 stream CHSEL), plus two against the model itself, to show
-that the temporal claims are not vacuous. The last run caught **60 of 60**
-applied defects, on all seven families.
+that the temporal claims are not vacuous, and two that start the timer before
+the DMA is armed, to show that the arming order is checked. The last run
+caught **74 of 74** applied defects, on all seven families.
 
 It earned its keep: the run found that the request routing of the merged
 write+read (search) pass was asserted nowhere, that the contract table's
@@ -1218,6 +1219,16 @@ It also caught a bug in the model itself: the temporal slot count was
 computed as `(uint8_t)((RCR & 0xFF) + 1)`, so the 256-slot case truncated
 to zero and the walk ran away. Nothing had ever pointed the temporal model
 at a long operation.
+
+And it caught a hole nothing else could see: the port started the timer and
+programmed the DMA in an order no test could check, because the model reads
+the *final* register state and the final state is the same either way. On
+hardware that order matters - an edge that arrives while the channel is
+still disarmed is lost, and the first slot of the operation would silently
+capture nothing. The port now starts the timer through a vocabulary step
+(`OW_PORT_TIMER_START()`), so the model sees the exact moment the timer
+begins to run and can check that the channels the operation arms are armed
+*before* that moment.
 
 Which guarantees hold on which family is stated in one table - the DMA
 guarantee ledger in `test_dma_contract.c` - and it is checked, not
