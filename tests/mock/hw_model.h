@@ -14,10 +14,20 @@ uint16_t hw_effective_ccr3(void);
  * elapsed. Returns 1 if UIF became set (operation complete), 0 otherwise. */
 uint8_t hw_run_until_uif(uint32_t max_slots);
 
-/* Capture source hook: called for every capture slot (0-based index)
+/* Set the capture source hook: called for every capture slot (0-based index)
  * of the current operation. May be NULL (captures 0). */
 typedef uint16_t (*hw_capture_fn)(uint32_t slot_index);
 void hw_set_capture_source(hw_capture_fn fn);
+
+/* Start the timer, checking the arming order on the way.
+ *
+ * The port starts the timer through OW_PORT_TIMER_START() so that the model
+ * sees the moment the timer begins to run. It checks that the DMA channels
+ * the operation arms are armed *before* that moment: the final register
+ * state is the same either way, but an edge that arrives while a channel is
+ * still disarmed is lost, and the first slot of the operation would
+ * silently capture nothing. */
+void hw_model_timer_start(void);
 
 /* Limit the number of capture transfers the model performs in one operation.
  * 0 (the default) means unlimited: as many captures run as the DMA counter

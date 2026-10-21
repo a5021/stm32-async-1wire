@@ -220,6 +220,35 @@ void hw_reset_all(void) {
 
 void hw_set_capture_source(hw_capture_fn fn) { capture_source = fn; }
 
+/* The moment the timer starts running.
+ *
+ * The model stands in for the port's OW_PORT_TIMER_START(). It is the only
+ * place where the *order* of the register writes is visible: the final state
+ * of the registers is the same whether the driver armed the DMA before
+ * starting the timer or after.
+ *
+ * What is checked here is the one property the final state cannot show: if
+ * the timer says it will use a DMA channel - the DIER enable bits - that
+ * channel must be armed. An edge that arrives while the channel is still
+ * disarmed is lost, and the first slot of the operation would silently
+ * capture nothing.
+ */
+void hw_model_timer_start(void) {
+    if ((mock_tim1.DIER & MOCK_TIM_CAP_DE) &&
+        (!(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN) || MOCK_DMA_CAP.CNDTR == 0u)) {
+        hw_fatal("the timer started before the capture DMA was armed "
+                 "(DIER says the capture is in use)");
+    }
+    if ((mock_tim1.DIER & MOCK_TIM_FEED_DE) &&
+        (!(MOCK_DMA_FEED.CCR & MOCK_DMA_FEED_EN) || MOCK_DMA_FEED.CNDTR == 0u)) {
+        hw_fatal("the timer started before the feed DMA was armed "
+                 "(DIER says the feed is in use)");
+    }
+    /* The same word the port writes: TIM_CR1(OPM, CEN) is the port's own
+     * field-packing macro, so the raw masks are used here. */
+    mock_tim1.CR1 = TIM_CR1_OPM | TIM_CR1_CEN;
+}
+
 void hw_set_capture_edges(uint32_t n) { capture_edges = n; }
 
 const hw_ccr3_feed_log_t* hw_ccr3_feed_log(void) { return &feed_log; }

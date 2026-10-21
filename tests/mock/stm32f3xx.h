@@ -9,6 +9,7 @@
  * Defines the family macro like the real stm32f3xx.h so the ow_board.h
  * PlatformIO/CubeMX fallback path is exercised on the host too. */
 #define STM32F3 1
+#include "mock_port_hooks.h"
 #include "ow_config.h"
 #include <stdint.h>
 

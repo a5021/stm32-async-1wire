@@ -124,6 +124,22 @@ MUTATIONS = [
         "families": None,
     },
     {
+        "id": "M16",
+        "what": "the timer starts before the capture DMA is armed",
+        "file": "src/ow_port.h",
+        "find": "    OW_PORT_DMA_PROG_CAPTURE(dst, count, ((width == 16) ? OW_PORT_DMA_CR_RX16 : OW_PORT_DMA_CR_RX8));\n    OW_PORT_TIMER_START();",
+        "replace": "    OW_PORT_TIMER_START();\n    OW_PORT_DMA_PROG_CAPTURE(dst, count, ((width == 16) ? OW_PORT_DMA_CR_RX16 : OW_PORT_DMA_CR_RX8));",
+        "families": None,
+    },
+    {
+        "id": "M17",
+        "what": "the timer starts before the feed DMA is armed",
+        "file": "src/ow_port.h",
+        "find": "    OW_PORT_DMA_PROG_FEED(&cmd[1], slots, OW_PORT_DMA_CR_TX);\n    OW_PORT_TIMER_START();",
+        "replace": "    OW_PORT_TIMER_START();\n    OW_PORT_DMA_PROG_FEED(&cmd[1], slots, OW_PORT_DMA_CR_TX);",
+        "families": None,
+    },
+    {
         "id": "M15",
         "what": "the guarantee ledger names the wrong request id (G0)",
         "file": "tests/test/test_dma_contract.c",
@@ -196,12 +212,20 @@ def drop_worktree(path):
 def apply_mutation(wt, mut):
     path = os.path.join(wt, mut["file"])
     with open(path, "r", encoding="utf-8", newline="") as f:
-        text = f.read()
+        raw = f.read()
+    # The checkout may be CRLF (autocrlf on Windows) while a multi-line
+    # mutation is written with LF. Match and replace on the normalised text,
+    # then put the file's own line endings back.
+    crlf = "\r\n" in raw
+    text = raw.replace("\r\n", "\n")
     n = text.count(mut["find"])
     if n != 1:
         return False, "find matched %d times" % n
+    text = text.replace(mut["find"], mut["replace"])
+    if crlf:
+        text = text.replace("\n", "\r\n")
     with open(path, "w", encoding="utf-8", newline="") as f:
-        f.write(text.replace(mut["find"], mut["replace"]))
+        f.write(text)
     return True, ""
 
 
