@@ -1152,6 +1152,11 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     effect holds for the whole slot, the slot boundaries fall where the
     repetition count says, and the operation ends on the terminal update with
     UIF set and the timer stopped
+-   the DMA guarantee ledger (`test_dma_contract`): which DMA guarantees hold
+    on the family under test and which are vacuous there and why. It is
+    checked, not documented — a family that is not on the list fails the
+    suite, and the request ids it claims are read back from the live
+    registers after a real operation is armed
 -   Scratchpad decode and temperature conversion (incl. negative values)
 -   Timing configuration and register setup
 -   Bus release behaviour between slots
@@ -1191,7 +1196,7 @@ buffer, a wrong transfer count, a wrong transfer class (direction/width), a
 wrong timer repetition count, a wrong capture width, a missing request
 routing, and the per-family constants (the DMAMUX request id, the GPDMA
 REQSEL, the F4 stream CHSEL), plus two against the model itself, to show
-that the temporal claims are not vacuous. The last run caught **59 of 59**
+that the temporal claims are not vacuous. The last run caught **60 of 60**
 applied defects, on all seven families.
 
 It earned its keep: the run found that the request routing of the merged
@@ -1206,6 +1211,13 @@ It also caught a bug in the model itself: the temporal slot count was
 computed as `(uint8_t)((RCR & 0xFF) + 1)`, so the 256-slot case truncated
 to zero and the walk ran away. Nothing had ever pointed the temporal model
 at a long operation.
+
+Which guarantees hold on which family is stated in one table - the DMA
+guarantee ledger in `test_dma_contract.c` - and it is checked, not
+documented: a family that is not on the list fails the suite, and the
+request ids it claims are read back from the live registers. The "n/a" cells
+in the matrix above are the families whose request map is fixed in the
+silicon: the port programs nothing there, so there is nothing to assert.
 
 ### Hardware-in-the-Loop (HIL)
 

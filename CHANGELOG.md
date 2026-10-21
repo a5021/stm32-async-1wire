@@ -28,6 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **Which DMA guarantees hold on which family is now stated in code and
+  checked.** "Every family passes the same tests" is not the same as "every
+  family is held to the same guarantees", and nothing said which was which.
+  The routing is the one family-dependent guarantee: G0 and G4 select the
+  peripheral request in the DMAMUX channel, H5 in the GPDMA transfer
+  register, and on F0/F1/F3/F4 the request map is fixed in the silicon, so
+  the port programs nothing and there is nothing to assert.
+
+  That is now one table with the reason in each row, and it is checked: the
+  family under test must be on the list — a new port fails the suite until it
+  says what it proves, instead of joining silently in the group where the
+  checks are vacuous — the request ids the ledger claims are read back from
+  the live registers after a real operation is armed, and the table is the
+  single source of the routing expectation the contract table uses, so the
+  two cannot drift apart.
+
 - **Every operation's temporal contract is now checked, and the model had a
   slot-count bug that only a long operation could reach.** The per-operation
   contract table said *what* the driver programmed; it did not say *when*. The

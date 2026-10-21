@@ -124,6 +124,14 @@ MUTATIONS = [
         "families": None,
     },
     {
+        "id": "M15",
+        "what": "the guarantee ledger names the wrong request id (G0)",
+        "file": "tests/test/test_dma_contract.c",
+        "find": "{\"g0\", 21u, 23u,",
+        "replace": "{\"g0\", 20u, 23u,",
+        "families": ["g0"],
+    },
+    {
         "id": "M7",
         "what": "DMAMUX request id for the feed (G0)",
         "file": "src/ow_mcu.h",
