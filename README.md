@@ -1189,10 +1189,12 @@ REQSEL, the F4 stream CHSEL). The last run caught **45 of 45** applied
 defects, on all seven families.
 
 It earned its keep: the run found that the request routing of the merged
-write+read (search) pass was asserted nowhere, and that the contract table's
+write+read (search) pass was asserted nowhere, that the contract table's
 rows ran back to back on shared state - the routing register is sticky, so a
 row that forgot to program its routing saw the previous row's value and
-passed. Both are fixed; the matrix has been green since.
+passed - and that the model used to answer an unresolvable DMA address by
+quietly skipping the transfer. All three are fixed; the matrix has been
+green since.
 
 ### Hardware-in-the-Loop (HIL)
 

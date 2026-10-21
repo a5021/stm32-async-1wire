@@ -28,6 +28,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **The behavioural model no longer invents a DMA source.** It resolves the
+  DMA source and destination addresses through the buffers the tests
+  register, because the DMA registers hold a truncated 32-bit address. When
+  an address was not in the table, the model printed a line to stderr and
+  then quietly did the silicon's next best thing: it disabled the channel
+  and skipped the transfer. That was the one path where a guarantee could
+  evaporate without a failure - the transfer-count assertion in the contract
+  table caught most of it, but a test asserting on something else (the bus
+  staying idle, the line released) read "the feed never happened" as a pass,
+  and a driver regression pointing the feed at the wrong buffer was reported
+  as a missing transfer rather than as a wrong address.
+
+  The model now refuses: an unresolvable address is a model invariant
+  violation, so it aborts with the address and what to do about it, in the
+  same style as the two violations it already treated as fatal. No test
+  relied on the degradation. The model also hands the resolved buffer back
+  (`hw_feed_source()`, `hw_capture_destination()`), and the contract table
+  asserts the pointer rather than the truncated register value, so a mismatch
+  names the buffer instead of two hex numbers that could be the same buffer
+  on a 64-bit host.
+
 - **The DMA contract is now checked per operation, including the request
   routing, and the contract table's rows no longer share state.** A mutation
   reconnaissance (`tests/mutation_check.py`, `make test-mutations`) breaks the
