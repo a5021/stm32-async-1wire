@@ -168,8 +168,9 @@ void onewire_init(void) {
 #if OW_LOW_POWER
     // WFE Sleep Triggering: a pending interrupt wakes the core from WFE as an
     // event even though no ISR is enabled. Done once here; the corresponding
-    // pending bit is cleared in ow_port_bus_done(). NVIC_EnableIRQ is never
-    // called вЂ” the project has no ISR vector for TIM1 at all.
+    // pending bit is cleared by the engine wherever it stops depending on it -
+    // around the sleep and in ow_port_bus_done(). NVIC_EnableIRQ is never
+    // called - the project has no ISR vector for TIM1 at all.
     SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
 #endif
 }

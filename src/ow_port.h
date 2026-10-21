@@ -616,8 +616,17 @@ __STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {
 /**
  * @brief Block in WFE until the scheduled long stage completes
  * @note Only the update event wakes the core (SEVONPEND, no ISR). Valid only
- *       while a long stage (> 1 ms) is running; the pending bit is cleared in
- *       ow_port_bus_done().
+ *       while a long stage (> 1 ms) is running.
+ * @pre A long stage must be armed and unfinished (ow_port_long_wait_pending()
+ *       must be 1). With nothing armed the loop below waits for an update
+ *       event that never comes.
+ * @note The NVIC pending bit is the wake-up source, and it is cleared in
+ *       three places, each for its own reason: before the sleep (a leftover
+ *       pending bit would make every __WFE() return at once - a silent
+ *       busy-loop), on the way out (the event that woke us), and in
+ *       ow_port_bus_done() (the completion the non-low-power path consumes).
+ *       The completion flag UIF is not touched here: it stays set for
+ *       ow_port_bus_done(), which is what the callers consume.
  */
 __STATIC_FORCEINLINE void ow_port_sleep_until_done(void) {
     /* Prepare for sleep: clear any stale NVIC pending bit so a leftover
