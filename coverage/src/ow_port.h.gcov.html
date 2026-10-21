@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.1&nbsp;%</td>
+            <td class="headerCovTableEntryHi">95.8&nbsp;%</td>
             <td class="headerCovTableEntry">144</td>
-            <td class="headerCovTableEntry">134</td>
+            <td class="headerCovTableEntry">138</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-21 19:04:35</td>
+            <td class="headerValue">2026-10-21 19:24:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">-</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryLo">46.6&nbsp;%</td>
+            <td class="headerCovTableEntryLo">49.4&nbsp;%</td>
             <td class="headerCovTableEntry">174</td>
-            <td class="headerCovTableEntry">81</td>
+            <td class="headerCovTableEntry">86</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -841,23 +841,23 @@
 <span id="L750"><span class="lineNum">     750</span>                 :             :  */</span>
 <span id="L751"><span class="lineNum">     751</span>                 :             : __STATIC_FORCEINLINE void ow_port_plan_wait(uint32_t us, uint16_t* arr, uint8_t* rcr) {</span>
 <span id="L752"><span class="lineNum">     752</span>                 :             :     /* N = ceil(us / 65535), written so it cannot overflow. */</span>
-<span id="L753"><span class="lineNum">     753</span>   [<span class="tlaGBC" title="Branch 0 was taken 186 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 827 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1013 :     uint32_t n = us / 65535u + ((us % 65535u) ? 1u : 0u);</span></span>
+<span id="L753"><span class="lineNum">     753</span>   [<span class="tlaGBC" title="Branch 0 was taken 303303282 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4662 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 827 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">   303308771 :     uint32_t n = us / 65535u + ((us % 65535u) ? 1u : 0u);</span></span>
 <span id="L754"><span class="lineNum">     754</span>                 :             :     uint32_t period;</span>
-<span id="L755"><span class="lineNum">     755</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">        1013 :     if (n == 0u) {</span></span>
-<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         n = 1u; /* a zero-length wait is one tick */</span></span>
-<span id="L757"><span class="lineNum">     757</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC tlaBgGNC">        1013 :     } else if (n &gt; 256u) {</span></span>
-<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         n = 256u; /* RCR is 8-bit: at most 256 periods */</span></span>
+<span id="L755"><span class="lineNum">     755</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 303307926 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">   303308771 :     if (n == 0u) {</span></span>
+<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaGNC">          18 :         n = 1u; /* a zero-length wait is one tick */</span></span>
+<span id="L757"><span class="lineNum">     757</span>   [<span class="tlaGBC" title="Branch 0 was taken 1322460 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 301985466 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">   303308753 :     } else if (n &gt; 256u) {</span></span>
+<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaGNC">     1322460 :         n = 256u; /* RCR is 8-bit: at most 256 periods */</span></span>
 <span id="L759"><span class="lineNum">     759</span>                 :             :     }</span>
 <span id="L760"><span class="lineNum">     760</span>                 :             :     /* ARR = ceil(us / n), again without the overflow of (us + n - 1). */</span>
-<span id="L761"><span class="lineNum">     761</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 168 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 43 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 784 times"> + </span>]:<span class="tlaGNC tlaBgGNC">        1013 :     period = us / n + ((us % n) ? 1u : 0u);</span></span>
-<span id="L762"><span class="lineNum">     762</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">        1013 :     if (period &gt; 65535u) {</span></span>
-<span id="L763"><span class="lineNum">     763</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         period = 65535u; /* beyond the timer's reach: clamp (see @note) */</span></span>
-<span id="L764"><span class="lineNum">     764</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 186 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC tlaBgGNC">        1013 :     } else if (period == 0u) {</span></span>
-<span id="L765"><span class="lineNum">     765</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         period = 1u;</span></span>
+<span id="L761"><span class="lineNum">     761</span>   [<span class="tlaGBC" title="Branch 0 was taken 296075718 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 7232226 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 43 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 784 times"> + </span>]:<span class="tlaGNC">   303308771 :     period = us / n + ((us % n) ? 1u : 0u);</span></span>
+<span id="L762"><span class="lineNum">     762</span>   [<span class="tlaGBC" title="Branch 0 was taken 1322460 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 301985484 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">   303308771 :     if (period &gt; 65535u) {</span></span>
+<span id="L763"><span class="lineNum">     763</span>                 :<span class="tlaGNC">     1322460 :         period = 65535u; /* beyond the timer's reach: clamp (see @note) */</span></span>
+<span id="L764"><span class="lineNum">     764</span>   [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 301985466 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 827 times"> + </span>]:<span class="tlaGNC">   301986311 :     } else if (period == 0u) {</span></span>
+<span id="L765"><span class="lineNum">     765</span>                 :<span class="tlaGNC">          18 :         period = 1u;</span></span>
 <span id="L766"><span class="lineNum">     766</span>                 :             :     }</span>
-<span id="L767"><span class="lineNum">     767</span>                 :<span class="tlaGNC tlaBgGNC">        1013 :     *arr = (uint16_t)period;</span></span>
-<span id="L768"><span class="lineNum">     768</span>                 :<span class="tlaGNC">        1013 :     *rcr = (uint8_t)(n - 1u);</span></span>
-<span id="L769"><span class="lineNum">     769</span>                 :<span class="tlaGNC">        1013 : }</span></span>
+<span id="L767"><span class="lineNum">     767</span>                 :<span class="tlaGNC">   303308771 :     *arr = (uint16_t)period;</span></span>
+<span id="L768"><span class="lineNum">     768</span>                 :<span class="tlaGNC">   303308771 :     *rcr = (uint8_t)(n - 1u);</span></span>
+<span id="L769"><span class="lineNum">     769</span>                 :<span class="tlaGNC">   303308771 : }</span></span>
 <span id="L770"><span class="lineNum">     770</span>                 :             : </span>
 <span id="L771"><span class="lineNum">     771</span>                 :             : /**</span>
 <span id="L772"><span class="lineNum">     772</span>                 :             :  * @brief Start a hardware-timed wait from an explicit period plan</span>
