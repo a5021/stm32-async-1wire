@@ -140,6 +140,42 @@ MUTATIONS = [
         "families": None,
     },
     {
+        "id": "M18",
+        "what": "wait plan: the period is rounded down, so the wait can come up short",
+        "file": "src/ow_port.h",
+        "find": "    period = us / n + ((us % n) ? 1u : 0u);",
+        "replace": "    period = us / n;",
+        "families": None,
+    },
+    {
+        "id": "M19",
+        "what": "wait plan: the period is not clamped, so the 16-bit register truncates it",
+        "file": "src/ow_port.h",
+        "find": "    if (period > 65535u) {\n"
+                "        period = 65535u; /* beyond the timer's reach: clamp (see @note) */\n"
+                "    } else if (period == 0u) {\n"
+                "        period = 1u;\n"
+                "    }",
+        "replace": "    if (period == 0u) {\n"
+                    "        period = 1u;\n"
+                    "    }",
+        "families": None,
+    },
+    {
+        "id": "M20",
+        "what": "wait plan: the period count is not clamped, so RCR truncates it",
+        "file": "src/ow_port.h",
+        "find": "    if (n == 0u) {\n"
+                "        n = 1u; /* a zero-length wait is one tick */\n"
+                "    } else if (n > 256u) {\n"
+                "        n = 256u; /* RCR is 8-bit: at most 256 periods */\n"
+                "    }",
+        "replace": "    if (n == 0u) {\n"
+                    "        n = 1u; /* a zero-length wait is one tick */\n"
+                    "    }",
+        "families": None,
+    },
+    {
         "id": "M15",
         "what": "the guarantee ledger names the wrong request id (G0)",
         "file": "tests/test/test_dma_contract.c",
