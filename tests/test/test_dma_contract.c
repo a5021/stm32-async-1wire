@@ -75,58 +75,19 @@ static uint16_t presence_src(uint32_t idx) {
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
 #endif
 
-/* Request routing: the peripheral request each DMA channel must carry.
- * G0/G4 have no fixed request map - the request is the DMAMUX channel's CCR.
- * H5 has no DMAMUX either: the GPDMA transfer register's REQSEL carries it.
- * The families with a fixed map (F0/F1/F3/F4) program nothing, and nothing
- * is asserted for them.
+/* The request id a channel carries, read from the live registers through the
+ * model - it knows each family's register layout (the DMAMUX channel on
+ * G0/G4, the GPDMA transfer register on H5), and reports 0 where the request
+ * map is fixed in silicon and nothing is programmed at all.
  *
- * This is asserted per operation, from the contract table, and not in a
- * separate file: the merged write+read (search) pass routes BOTH channels,
- * and before this only the reset and the write had their routing checked -
- * the merged pass could lose its routing unnoticed on G0 and G4. */
-#if defined(STM32H5)
-#define ROUTE_FEED_REG mock_feed_ch.CTR2
-#define ROUTE_CAP_REG mock_dma1_ch4.CTR2
-#define ROUTE_FEED_REQ 59u /* TIM1_CH2 (marker feed -> CCR3) */
-#define ROUTE_CAP_REQ 61u /* TIM1_CH4 (capture drain <- CCR4) */
-#elif defined(STM32G4)
-#define ROUTE_FEED_REG mock_dmamux_ch2.CCR
-#define ROUTE_CAP_REG mock_dmamux_ch3.CCR
-#define ROUTE_FEED_REQ 43u
-#define ROUTE_CAP_REQ 45u
-#elif defined(STM32G0)
-#define ROUTE_FEED_REG mock_dmamux_ch2.CCR
-#define ROUTE_CAP_REG mock_dmamux_ch3.CCR
-#define ROUTE_FEED_REQ 21u
-#define ROUTE_CAP_REQ 23u
-#else
-#define ROUTE_FEED_REG 0
-#define ROUTE_CAP_REG 0
-#define ROUTE_FEED_REQ 0u
-#define ROUTE_CAP_REQ 0u
-#endif
-
-/* The request id a channel carries, read from the register that holds it on
- * this family. Zero on the families with a fixed request map. */
+ * The *expectation* comes from the guarantee ledger above, so the two live
+ * families and the five vacuous ones are stated in one place. */
 static uint32_t route_feed_id(void) {
-#if defined(STM32H5)
-    return (ROUTE_FEED_REG >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
-#elif defined(STM32G0) || defined(STM32G4)
-    return ROUTE_FEED_REG;
-#else
-    return 0u;
-#endif
+    return hw_feed_request();
 }
 
 static uint32_t route_cap_id(void) {
-#if defined(STM32H5)
-    return (ROUTE_CAP_REG >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
-#elif defined(STM32G0) || defined(STM32G4)
-    return ROUTE_CAP_REG;
-#else
-    return 0u;
-#endif
+    return hw_capture_request();
 }
 
 /* A pointer comparison with a message that names the buffer.
@@ -142,6 +103,89 @@ static void assert_dma_buffer(const char* what, const void* expected, const void
                expected, got);
         unity_failures++;
     }
+}
+
+/* ------------------------------------------------------------------
+ *  The DMA guarantee ledger
+ * ------------------------------------------------------------------
+ *  Which DMA guarantees hold on the family under test, and which are
+ *  vacuous here and why.
+ *
+ *  This is checked, not documented. A family that is not on this list
+ *  fails the suite - a new port has to say what it proves - and a row
+ *  that no longer matches what the family does fails too, so the ledger
+ *  cannot rot silently.
+ *
+ *  The routing rows are the only family-dependent ones: the other
+ *  guarantees (the exact source and destination, the transfer counts,
+ *  the width, the direction, the increment, the repetition count, the
+ *  temporal sequence) hold everywhere and are checked for every
+ *  operation by the contract table below.
+ */
+typedef struct {
+    const char* family;
+    uint32_t feed_request; /* the request the feed channel must carry; 0 =
+                               the family has a fixed request map and the
+                               port programs nothing */
+    uint32_t cap_request; /* the same for the capture channel */
+    const char* routing; /* how the request is selected on this family */
+} dma_ledger_row_t;
+
+static const dma_ledger_row_t k_ledger[] = {
+    /* F0/F1/F3/F4: the request map is fixed in the silicon (TIM1_CH2
+     * reaches the feed channel, TIM1_CH4 the capture channel), so the port
+     * programs nothing and there is nothing to assert. */
+    {"f0", 0u, 0u, "fixed request map in the silicon"},
+    {"f1", 0u, 0u, "fixed request map in the silicon"},
+    {"f3", 0u, 0u, "fixed request map in the silicon"},
+    {"f4", 0u, 0u, "fixed request map in the silicon"},
+    /* G0/G4: no fixed map - the request is selected in the DMAMUX
+     * channel (TIM1_CH2 -> 21/43, TIM1_CH4 -> 23/45). */
+    {"g0", 21u, 23u, "DMAMUX channel request id"},
+    {"g4", 43u, 45u, "DMAMUX channel request id"},
+    /* H5: no DMAMUX - the GPDMA transfer register's REQSEL carries the
+     * request (TIM1_CH2 -> 59, TIM1_CH4 -> 61). */
+    {"h5", 59u, 61u, "GPDMA transfer register REQSEL"},
+};
+
+#if defined(STM32F0)
+#define CURRENT_FAMILY "f0"
+#elif defined(STM32F1)
+#define CURRENT_FAMILY "f1"
+#elif defined(STM32F3)
+#define CURRENT_FAMILY "f3"
+#elif defined(STM32F4)
+#define CURRENT_FAMILY "f4"
+#elif defined(STM32G0)
+#define CURRENT_FAMILY "g0"
+#elif defined(STM32G4)
+#define CURRENT_FAMILY "g4"
+#elif defined(STM32H5)
+#define CURRENT_FAMILY "h5"
+#else
+#error "test_dma_contract: unknown family - add it to the DMA guarantee ledger"
+#endif
+
+static const dma_ledger_row_t* ledger_row(void) {
+    for (unsigned i = 0; i < sizeof(k_ledger) / sizeof(k_ledger[0]); i++) {
+        if (strcmp(k_ledger[i].family, CURRENT_FAMILY) == 0) {
+            return &k_ledger[i];
+        }
+    }
+    return NULL;
+}
+
+/* The request ids this family must carry, from the ledger. A family that is
+ * not on the ledger yields 0, and the ledger test below says so loudly
+ * rather than letting the checks pass vacuously. */
+static uint32_t ledger_feed_request(void) {
+    const dma_ledger_row_t* row = ledger_row();
+    return (row != NULL) ? row->feed_request : 0u;
+}
+
+static uint32_t ledger_cap_request(void) {
+    const dma_ledger_row_t* row = ledger_row();
+    return (row != NULL) ? row->cap_request : 0u;
 }
 
 /* ------------------------------------------------------------------ */
@@ -507,7 +551,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
         assert_dma_buffer("feed source", (const void*)row->exp_feed_cmar,
                           hw_feed_source());
         /* the peripheral request this channel must carry */
-        TEST_ASSERT_EQUAL_UINT32(ROUTE_FEED_REQ, route_feed_id());
+        TEST_ASSERT_EQUAL_UINT32(ledger_feed_request(), route_feed_id());
     } else {
         TEST_ASSERT_EQUAL_UINT32(0u, mock_feed_ch.CNDTR);
         TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
@@ -532,7 +576,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
         assert_dma_buffer("capture destination", (const void*)row->exp_cap_cmar,
                           hw_capture_destination());
         /* the peripheral request this channel must carry */
-        TEST_ASSERT_EQUAL_UINT32(ROUTE_CAP_REQ, route_cap_id());
+        TEST_ASSERT_EQUAL_UINT32(ledger_cap_request(), route_cap_id());
     } else {
         TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
         TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
@@ -629,7 +673,52 @@ void test_dma_contract_table(void) {
     }
 }
 
+/* The ledger must list this family, and what it lists must be what the
+ * family actually does: the request ids are read back from the live
+ * registers after a real operation is armed. A family that is not on the
+ * list fails here - a new port has to say what it proves - and a row that
+ * no longer matches the hardware fails with it. */
+void test_dma_guarantee_ledger(void) {
+    const dma_ledger_row_t* row = ledger_row();
+    if (row == NULL) {
+        printf("FAIL %s:%d  family '%s' is not on the DMA guarantee ledger - "
+               "add it with the guarantees it holds\n",
+               __FILE__, __LINE__, CURRENT_FAMILY);
+        unity_failures++;
+        return;
+    }
+
+    /* Arm a write and read the request the feed channel carries back. */
+    {
+        ow_pulse_t pulses[ONEWIRE_BITS_PER_BYTE + 1];
+        hw_reset_all();
+        for (uint16_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
+            pulses[i] = (ow_pulse_t)ONEWIRE_ONE_PULSE;
+        }
+        pulses[ONEWIRE_BITS_PER_BYTE] = 0u;
+        hw_register_buf(&pulses[1]);
+        onewire_write_slots(pulses, ONEWIRE_BITS_PER_BYTE);
+        TEST_ASSERT_EQUAL_UINT32(row->feed_request, hw_feed_request());
+    }
+
+    /* Arm a capture and read the request the capture channel carries back. */
+    {
+        static uint16_t capture[OW_PORT_CAPTURE_BUF_SIZE];
+        hw_reset_all();
+        hw_register_buf(capture);
+        onewire_reset(capture);
+        TEST_ASSERT_EQUAL_UINT32(row->cap_request, hw_capture_request());
+    }
+
+    /* A family with a fixed request map programs nothing, so the live value
+     * is 0 there and the ledger says 0 - the equality above is the whole
+     * check. A family with a mux must program its request, or the routing
+     * guarantee would be vacuous while claiming to be live: the equality
+     * catches that too, because the live value would stay 0. */
+}
+
 void run_test_dma_contract(void) {
     TEST_RUN(test_dma_cr_value_macros);
+    TEST_RUN(test_dma_guarantee_ledger);
     TEST_RUN(test_dma_contract_table);
 }

@@ -139,6 +139,31 @@ const void* hw_capture_destination(void) {
     return hw_resolve(hw_cap_addr());
 }
 
+/* The peripheral request the channel carries, as the silicon sees it: the
+ * DMAMUX channel's request id on G0/G4, the GPDMA transfer register's REQSEL
+ * on H5, and nothing at all on the families whose request map is fixed in
+ * silicon (there the port programs nothing, and there is nothing to read
+ * back). */
+uint32_t hw_feed_request(void) {
+#if defined(STM32H5)
+    return (mock_feed_ch.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32G0) || defined(STM32G4)
+    return (uint32_t)mock_dmamux_ch2.CCR;
+#else
+    return 0u;
+#endif
+}
+
+uint32_t hw_capture_request(void) {
+#if defined(STM32H5)
+    return (mock_dma1_ch4.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32G0) || defined(STM32G4)
+    return (uint32_t)mock_dmamux_ch3.CCR;
+#else
+    return 0u;
+#endif
+}
+
 void hw_reset_all(void) {
     mock_tim1 = (TIM1_TypeDef){0};
     mock_dma1_ch4 = (DMA1_Channel_TypeDef){0};

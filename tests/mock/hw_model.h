@@ -51,6 +51,13 @@ void hw_register_buf(const void* ptr);
 const void* hw_feed_source(void);
 const void* hw_capture_destination(void);
 
+/* The peripheral request the channel carries: the DMAMUX channel's request
+ * id on G0/G4, the GPDMA transfer register's REQSEL on H5, and 0 on the
+ * families whose request map is fixed in silicon (the port programs nothing
+ * there, so there is nothing to read back). */
+uint32_t hw_feed_request(void);
+uint32_t hw_capture_request(void);
+
 /* Log of output-compare values written by the feed DMA (per operation).
  * Sized for the longest DMA-fed write (the Match ROM resolution config
  * write: 104 slots). */
