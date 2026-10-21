@@ -24,6 +24,23 @@ jobs:
         # as a sensor error. No hardware needed.
         run: make test-hil-parsing
 
+  contract-canary:
+    # A green suite proves nothing if it cannot go red. This job applies one
+    # deliberate defect to the port - a wrong timer repetition count - and
+    # requires the host suite to notice it. The defect is applied in a scratch
+    # git worktree, so the checkout itself is never touched.
+    #
+    # Two families, one per DMA IP generation (the classic channels and the
+    # GPDMA transfer registers), so the canary is not blind to one of them.
+    # The full matrix (make test-mutations) is far too slow for a pull
+    # request and runs on demand instead; this is the cheap, always-on part
+    # of the same idea.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check the DMA contract test can still fail
+        run: python3 tests/mutation_check.py --families f1,h5 --mutations M4 --no-control --strict
+
   host-tests:
     strategy:
       fail-fast: false

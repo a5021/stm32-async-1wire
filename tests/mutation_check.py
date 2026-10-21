@@ -253,6 +253,10 @@ def main():
     ap.add_argument("--mutations", default="")
     ap.add_argument("--json", default="")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--strict", action="store_true",
+                    help="exit non-zero if any applied mutation survived")
+    ap.add_argument("--no-control", action="store_true",
+                    help="skip the unmutated control run (CI already has it)")
     args = ap.parse_args()
 
     if args.list:
@@ -265,21 +269,28 @@ def main():
     if args.mutations:
         want = set(args.mutations.split(","))
         muts = [m for m in MUTATIONS if m["id"] in want]
+    if not muts:
+        print("no mutation selected")
+        return 1
 
     wt = os.path.join(tempfile.gettempdir(), "ow-mutation-scratch")
     make_worktree(wt)
     results = []
     try:
         # Control: the unmutated suite must pass, or "not caught" means nothing.
-        for fam in fams:
-            ok, out = test_family(wt, fam)
-            if not ok:
-                print("CONTROL FAILED on %s - the unmutated suite does not pass"
-                      % fam)
-                print(out[-3000:])
-                return 1
-        print("control: all %d families pass unmutated\n" % len(fams))
-        control_digest = binary_digest(wt)
+        control_digest = ""
+        if args.no_control:
+            print("control: skipped (--no-control)\n")
+        else:
+            for fam in fams:
+                ok, out = test_family(wt, fam)
+                if not ok:
+                    print("CONTROL FAILED on %s - the unmutated suite does not pass"
+                          % fam)
+                    print(out[-3000:])
+                    return 1
+            print("control: all %d families pass unmutated\n" % len(fams))
+            control_digest = binary_digest(wt)
 
         for mut in muts:
             for fam in fams:
@@ -353,6 +364,13 @@ def main():
                        "mutations": [{"id": m["id"], "what": m["what"]}
                                      for m in MUTATIONS]}, f, indent=2)
         print("\njson: %s" % args.json)
+
+    if args.strict and holes:
+        # The canary: a mutation that the suite does not notice is a dead
+        # check, and the build must say so.
+        print("\n%d mutation(s) survived - the suite cannot see them"
+              % len(holes))
+        return 1
     return 0
 
 

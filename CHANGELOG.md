@@ -28,6 +28,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing else had to change; the README's API list no longer advertises
   them.
 
+- **A canary now proves the DMA contract test can still fail.** A green
+  suite proves nothing if it cannot go red. The `contract-canary` CI job
+  applies one deliberate defect to the port — a wrong timer repetition count
+  — to two families, one per DMA IP generation (the classic channels and the
+  GPDMA transfer registers), and requires the host suite to notice it. The
+  defect goes into a scratch git worktree, so the checkout is never touched.
+
+  The tool gained the two flags this needs: `--strict` (exit non-zero if a
+  mutation survives) and `--no-control` (skip the unmutated control run — the
+  ordinary CI already has it, and skipping halves the canary's cost). Both
+  directions were checked: the defect is caught and the job is green, and a
+  deliberately dead check (a mutation that changes nothing) is reported as
+  surviving and turns the job red.
+
+  The full matrix stays on demand (`make test-mutations`): it is far too slow
+  for a pull request.
+
 - **Which DMA guarantees hold on which family is now stated in code and
   checked.** "Every family passes the same tests" is not the same as "every
   family is held to the same guarantees", and nothing said which was which.

@@ -1191,6 +1191,13 @@ python tests/mutation_check.py --list            # the defects it injects
 python tests/mutation_check.py --families g0,g4   # a subset
 ```
 
+A canary runs it on every pull request: the `contract-canary` job applies one
+deliberate defect - a wrong timer repetition count - to two families, one per
+DMA IP generation, and requires the suite to notice it. The defect goes into
+a scratch git worktree, so the checkout is never touched. It is the cheap,
+always-on part of the same idea; the full matrix is far too slow for a pull
+request and stays on demand.
+
 The defects are the ones a DMA contract is most likely to break by: a wrong
 buffer, a wrong transfer count, a wrong transfer class (direction/width), a
 wrong timer repetition count, a wrong capture width, a missing request

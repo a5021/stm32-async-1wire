@@ -708,9 +708,11 @@ test-header-hygiene:
 # --- Would the suite notice a broken DMA contract? ---
 # Deliberately break the port and see whether the host suite catches it. The
 # defect is applied in a scratch git worktree, so the working tree is never
-# touched. Slow (a full rebuild per mutation per family), so it is not part of
-# the normal CI run: `make test-mutations` is the on-demand run, and
-# `python tests/mutation_check.py --list` shows the defects it injects.
+# touched. The full matrix is slow (a full rebuild per mutation per family),
+# so it is not part of the normal CI run: `make test-mutations` is the
+# on-demand run, and `python tests/mutation_check.py --list` shows the defects
+# it injects. The cheap always-on part is the CI canary, which runs one
+# mutation on two families with --strict (non-zero exit if it survives).
 # See tests/mutation_check.py.
 .PHONY: test-mutations
 test-mutations:
