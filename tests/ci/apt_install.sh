@@ -69,16 +69,17 @@ sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' \
     /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
 
 apt_opts=(-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
-for i in 1 2; do
-    if sudo timeout 120 apt-get update "${apt_opts[@]}"; then
-        break
-    fi
-    if [ "$i" -eq 2 ]; then
-        echo "apt: update failed after $i attempts" >&2
-        exit 1
-    fi
-    sleep 10
-done
+
+if ! sudo timeout 120 apt-get update "${apt_opts[@]}"; then
+    # The Azure-local mirror is the one that stalls (endless "Ign" retries,
+    # 14+ minutes with no output). Fall back to the canonical archive - and
+    # rewrite the mirrorlist the sources actually point at, not only
+    # sources.list: on 24.04 the URI lives in apt-mirrors.txt.
+    sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' \
+        /etc/apt/sources.list /etc/apt/sources.list.d/* \
+        /etc/apt/apt-mirrors.txt 2>/dev/null || true
+    sudo timeout 120 apt-get update "${apt_opts[@]}"
+fi
 
 sudo timeout 240 apt-get install -y --download-only "${apt_opts[@]}" "${packages[@]}"
 if compgen -G "/var/cache/apt/archives/*.deb" >/dev/null; then
