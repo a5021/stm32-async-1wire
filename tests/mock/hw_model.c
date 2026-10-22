@@ -434,6 +434,11 @@ void hw_tim_init(void) {
     g_tim.arr = (uint16_t)mock_tim1.ARR;
     g_tim.ccr2 = (uint16_t)mock_tim1.CCR2;
     g_tim.pe = (uint8_t)((MOCK_TIM_OUT_CCMR & MOCK_TIM_OUT_PE) ? 1u : 0u);
+    /* RCR is 8 bits, so the count is 1..256 and the type must stay wide
+     * enough for 256. RCR = 255 is not an idle corner: the 256-slot rows in
+     * test_dma_contract.c schedule exactly that, and the temporal contract
+     * there counts the 255 boundaries plus the terminal update. M21 in
+     * tests/mutation_check.py narrows this to 8 bits. */
     g_tim.slots = (uint32_t)((mock_tim1.RCR & 0xFFu) + 1u);
     g_tim.tick = 0;
     g_tim.period = 0;
