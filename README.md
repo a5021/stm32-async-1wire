@@ -1281,8 +1281,36 @@ passes every host test; on the wire it is a gap of the wrong length, one
 period being 62.5 ms for a 12-bit conversion. The F1 bench measured 750.31 ms
 against a 750 ms plan.
 
-The measured geometry of the F1 bench, and what it is for, are in
-`port/stm32f1/HARDWARE-NOTES.md`.
+`tests/hil/la_decode.py` reads the **content** of the same capture - the bits,
+the ROM search, the command bytes and the scratchpad - and checks them against
+the CRC the device computed. With `--log` it compares the temperature decoded
+from the wire with the one the application printed: two independent
+computations of the same physical value. That is the one comparison the host
+model cannot make, because there it is the same code on both sides.
+
+Arm the capture first (its own shell), then flash - the boot search is what
+puts the whole run on the wire:
+
+```bash
+python tests/hil/la_capture.py --seconds 30 --out bench_logs/hil/la_search.bin
+# in another shell, while it captures:
+make test-hil HIL_SCRIPT=smoke
+
+python tests/hil/la_decode.py bench_logs/hil/la_search.bin \
+    --log bench_logs/hil/smoke_20261022-165226.log
+```
+
+It is strict on purpose: a slot width between '1' and '0', an unknown command
+or a CRC mismatch is a failure, not a guess or a skipped transaction. A search
+(`0xF0`) is rebuilt from the directions the master wrote, and its ROM set must
+equal the log's. The readings are paired conversion by conversion from the
+boot the log covers - the wire's 1/16 C value must round to the tenth the
+application printed, which is an equality, not a tolerance. A capture armed
+before the flash also holds the previous image's round; the pairing starts at
+the last search, and the capture must cover the run the log came from.
+
+The measured geometry and decoded frames of the F1 bench, and what they are
+for, are in `port/stm32f1/HARDWARE-NOTES.md`.
 
 ### Integration: four ways to use the library
 

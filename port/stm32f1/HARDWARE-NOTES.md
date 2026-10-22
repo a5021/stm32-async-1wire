@@ -95,6 +95,48 @@ resets and presence pulses and nothing else, and the firmware reported
 "no sensor detected" - the image was stale, not the bus. `make test-hil`
 flashes the tree, so run it (or flash the same way) before trusting a capture.
 
+### The content on the wire
+
+Geometry and duration say the line was driven correctly; they say nothing
+about *what* was driven. `tests/hil/la_decode.py` reads the bits and rebuilds
+the frames. Run against the 2026-10-22 capture of the wait run, it produced:
+
+```
+транзакция 1: reset 481.8 мкс, presence 128.8 мкс (через 29.0)
+  MATCH ROM 28 20 78 92 07 00 00 67  CRC ok
+  READ SCRATCHPAD: 70 01 19 0F 7F FF 10 10 BB  CRC ok. 23.0000 C
+транзакция 2: ...
+  MATCH ROM 28 78 B8 AC 0B 00 00 2C  CRC ok
+  CONVERT (0x44)
+транзакция 3: ...
+  MATCH ROM 28 78 B8 AC 0B 00 00 2C  CRC ok
+  READ SCRATCHPAD: 72 01 4B 46 7F FF 0E 10 57  CRC ok. 23.1250 C
+```
+
+The CRC bytes are computed by the device, not by the master: a correctly
+decoded frame with a matching CRC means the ROM and the scratchpad are the
+bytes the part actually sent. The two temperatures were 23.0 and 23.125 C,
+and the application's log of the same image printed 23.0 and 23.1.
+
+A second run, with the analyzer armed before `make test-hil` so the capture
+starts at the flash, held the boot search as well: 9 devices enumerated (7
+DS18B20 at `28`, 2 DS2431 at `2D`), every ROM CRC valid, and the example
+reported the 7 sensors it filters for. Four readings paired exactly with the
+application's output - 24.5625 -> 24.6, 24.6875 -> 24.7 twice, 24.75 -> 24.8.
+
+**Why this is not the host model again.** The host model and the engine are
+the same code; a shared misreading is invisible there. Here the analyzer sees
+what the sensor put on the wire, the application prints what its own parser
+made of it, and the two are compared. The capture also contained one round
+from the previous image before the flash - the comparison starts at the last
+search, which is the boot the log belongs to, so that round is not mixed in.
+
+**What is not covered yet.** The decoder understands the ROM commands
+(`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`) and the DS18B20 functions (`0x44`,
+`0xBE`); a DS2431 memory command (`0x0F`, `0xAA`, and `0x55` in function
+position) is refused as unknown rather than decoded. The DS2431s appear in
+the search - their ROMs are checked - but their EEPROM traffic is not.
+
 ## The bench as it stands
 
 | | |
