@@ -184,6 +184,14 @@ MUTATIONS = [
         "families": None,
     },
     {
+        "id": "M23",
+        "what": "wait plan: the repetition count is one too many",
+        "file": "src/ow_port.h",
+        "find": "    *rcr = (uint8_t)(n - 1u);",
+        "replace": "    *rcr = (uint8_t)n;",
+        "families": None,
+    },
+    {
         "id": "M22",
         "what": "model: the terminal update arrives one period late",
         "file": "tests/mock/hw_model.c",
