@@ -1309,6 +1309,15 @@ application printed, which is an equality, not a tolerance. A capture armed
 before the flash also holds the previous image's round; the pairing starts at
 the last search, and the capture must cover the run the log came from.
 
+The DS2431 cycle is read the same way. The function table follows the family
+byte of the selected ROM, because `0x55` and `0xF0` are ROM commands at the
+start of a transaction and memory commands later, and they mean different
+things on a `28` and a `2D`; a function sent after SKIP ROM is refused as
+ambiguous instead of guessed. The Read Scratchpad reply is 13 bytes, and the
+inverted CRC-16 the device appends is recomputed from `0xAA` plus the eleven
+frame bytes. With `--log`, the pattern the example wrote, the frame it
+verified and the EEPROM it read back must match the wire byte for byte.
+
 The measured geometry and decoded frames of the F1 bench, and what they are
 for, are in `port/stm32f1/HARDWARE-NOTES.md`.
 

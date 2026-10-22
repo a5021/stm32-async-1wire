@@ -13,6 +13,7 @@ CRC, a shifted frame must be an error, an unknown command must be refused.
 
 import os
 import sys
+import tempfile
 
 import numpy as np
 
@@ -31,6 +32,9 @@ SLOT = 166.0
 ROM_A = bytes.fromhex("28 78 B8 AC 0B 00 00 2C")
 ROM_B = bytes.fromhex("28 20 78 92 07 00 00 67")
 SCRATCHPAD = bytes.fromhex("72 01 4B 46 7F FF 0E 10 57")  # 23.125 C, CRC 0x57
+
+ROM_D = bytes.fromhex("2D F8 47 60 26 00 00 69")  # DS2431, ROM CRC valid
+PATTERN = bytes.fromhex("DE AD BE EF 01 02 03 04")  # the example's write pattern
 
 failures = []
 
@@ -97,6 +101,167 @@ def search_pass(rom, collisions=()):
             out += [("slot", bit, "r"), ("slot", 1 - bit, "r"),
                     ("slot", bit, "w")]
     return out
+
+
+def scratch_frame(pattern=PATTERN, ta1=0x00, es=0x07):
+    """TA1 TA2 ES + data, then the inverted CRC-16 the device appends."""
+    frame = bytes([ta1, 0x00, es]) + pattern
+    crc = (~la_decode.crc16(bytes([0xAA]) + frame)) & 0xFFFF
+    return frame + bytes([crc & 0xFF, crc >> 8])
+
+
+def ds2431_read_memory(data=PATTERN):
+    return exchange(slots(b"\x55" + ROM_D),
+                    slots(b"\xF0\x00\x00", "w") + slots(data, "r"))
+
+
+def ds2431_write(pattern=PATTERN):
+    return exchange(slots(b"\x55" + ROM_D),
+                    slots(b"\x0F\x00\x00", "w") + slots(pattern, "w"))
+
+
+def ds2431_frame(frame=None):
+    return exchange(slots(b"\x55" + ROM_D),
+                    slots(b"\xAA", "w") + slots(frame or scratch_frame(), "r"))
+
+
+def ds2431_copy(es=0x07):
+    return exchange(slots(b"\x55" + ROM_D),
+                    slots(b"\x55\x00\x00" + bytes([es]), "w"))
+
+
+def test_ds2431_read_memory():
+    print("a DS2431 Read Memory window")
+    txns, _, _ = decode([ds2431_read_memory()])
+    f = txns[0].frames[1]
+    check("the window is rebuilt", f.data == PATTERN)
+    check("the address is TA1=00 TA2=00", f.addr == b"\x00\x00")
+    check("a memory read has no CRC of its own", f.crc_ok is None)
+
+
+def test_ds2431_write_and_copy():
+    print("Write Scratchpad, then Copy Scratchpad")
+    txns, _, _ = decode([ds2431_write(), ds2431_copy()])
+    w = txns[0].frames[1]
+    check("the write carries the pattern", w.data == PATTERN)
+    check("the write has no CRC", w.crc_ok is None)
+    c = txns[1].frames[1]
+    check("the copy carries TA1 TA2 ES", c.payload == b"\x00\x00\x07")
+    check("ES=0x07 is accepted", c.problem is None)
+
+
+def test_ds2431_scratchpad_crc16():
+    print("Read Scratchpad with the device's inverted CRC-16")
+    txns, _, _ = decode([ds2431_frame()])
+    f = txns[0].frames[1]
+    check("13 bytes on the wire", len(f.payload) == 13)
+    check("the CRC-16 matches", f.crc_ok is True)
+    check("the 8 data bytes are the pattern", f.data == PATTERN)
+
+
+def test_ds2431_bad_crc16_fails():
+    print("a flipped bit in the scratchpad frame")
+    broken = bytearray(scratch_frame())
+    broken[5] ^= 0x01
+    txns, _, _ = decode([ds2431_frame(bytes(broken))])
+    f = txns[0].frames[1]
+    check("the bit was decoded as sent", f.data != PATTERN)
+    check("the CRC-16 is false", f.crc_ok is False)
+    check("failures() counts it", la_decode.failures(txns) == 1)
+
+
+def test_ds2431_wrong_es_fails():
+    print("Copy Scratchpad with an ending offset that is not a full row")
+    txns, _, _ = decode([ds2431_copy(0x06)])
+    check("the violation is noted", txns[0].frames[1].problem is not None)
+    check("failures() counts it", la_decode.failures(txns) == 1)
+
+
+def test_ds2431_read_memory_needs_whole_bytes():
+    print("a Read Memory window that is not whole bytes")
+    widths, gaps = build([ds2431_read_memory()])
+    widths = np.delete(widths, len(widths) - 1)  # one slot short
+    try:
+        la_decode.decode(widths, gaps, cfg())
+        check("the decoder refuses it", False)
+    except la_decode.DecodeError as e:
+        check("the decoder refuses it (%s)" % e, True)
+
+
+def test_ds2431_skip_rom_is_ambiguous():
+    print("SKIP ROM followed by a function command")
+    try:
+        decode([exchange(slots(b"\xCC"), slots(b"\xF0\x00\x00", "w"))])
+        check("the decoder refuses it", False)
+    except la_decode.DecodeError as e:
+        check("the decoder refuses it (%s)" % e, True)
+
+
+def test_ds2431_rejects_a_ds18b20_function():
+    print("CONVERT addressed to a DS2431")
+    try:
+        decode([exchange(slots(b"\x55" + ROM_D), slots(b"\x44"))])
+        check("the decoder refuses it", False)
+    except la_decode.DecodeError as e:
+        check("the decoder refuses it (%s)" % e, True)
+
+
+def ds2431_log_text():
+    # The harness prefixes every line with a timestamp; the decoder must not
+    # care (a "^frame:" anchor would have silently dropped the frame).
+    lines = [
+        "DS2431 8_ds2431 starting...",
+        "Searching 1-Wire bus...",
+        "Found 1 device(s).",
+        "Selected ROM: " + la_decode.hexs(ROM_D),
+        "Read Memory (0xF0) - baseline:",
+        "  EEPROM: " + la_decode.hexs(PATTERN),
+        "Write Scratchpad (0x0F): " + la_decode.hexs(PATTERN),
+        "  scratchpad written",
+        "Read Scratchpad (0xAA):",
+        "  frame: " + la_decode.hexs(scratch_frame()[:11]),
+        "Copy Scratchpad (0x55) -> EEPROM (t_PROG hold-off):",
+        "  copied to EEPROM",
+        "Read Memory (0xF0) - after copy:",
+        "  EEPROM: " + la_decode.hexs(PATTERN),
+        "",
+    ]
+    return "\n".join("[477964.34] " + line if line else "" for line in lines)
+
+
+def with_log(text):
+    fd, path = tempfile.mkstemp(suffix=".log")
+    os.close(fd)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return path
+
+
+def test_ds2431_log_matches_bytes():
+    print("the DS2431 cycle against the application's log")
+    path = with_log(ds2431_log_text())
+    try:
+        roms, readings, found, events = la_decode.parse_log(path)
+        check("the selected ROM is the log's device", roms == {ROM_D})
+        check("the cycle has 5 printed events", len(events) == 5)
+        txns, _, _ = decode([
+            ds2431_read_memory(), ds2431_write(), ds2431_frame(),
+            ds2431_copy(), ds2431_read_memory(),
+        ])
+        check("the wire matches the log byte for byte",
+              la_decode.compare_log(txns, roms, readings, found, events) == 0)
+
+        broken = ds2431_log_text().replace(
+            la_decode.hexs(PATTERN), "DE AD BE EF 01 02 03 05")
+        path2 = with_log(broken)
+        try:
+            _, _, _, bad_events = la_decode.parse_log(path2)
+            check("a wrong EEPROM byte fails",
+                  la_decode.compare_log(txns, roms, [], found, bad_events) > 0)
+        finally:
+            os.unlink(path2)
+    finally:
+        os.unlink(path)
 
 
 def test_a_full_exchange_decodes():
@@ -290,6 +455,12 @@ def test_another_family_on_the_wire_is_fine():
     # absent from the log by design, and that is not a failure.
     check("the other family does not fail the comparison",
           la_decode.compare_log(txns, {ROM_A}, [(ROM_A, 23.1)], 1) == 0)
+    # And the other way round: a DS2431 log ignores the DS18B20s.
+    txns, _, _ = decode([
+        exchange(slots(b"\xF0"), search_pass(ROM_D), search_pass(ROM_A)),
+    ])
+    check("a 0x28 device is not a DS2431 log's business",
+          la_decode.compare_log(txns, {ROM_D}, [], 1, []) == 0)
 
 
 def main():
@@ -308,6 +479,15 @@ def main():
     test_the_reads_after_the_boot_are_paired()
     test_the_search_set_is_the_log_set()
     test_another_family_on_the_wire_is_fine()
+    test_ds2431_read_memory()
+    test_ds2431_write_and_copy()
+    test_ds2431_scratchpad_crc16()
+    test_ds2431_bad_crc16_fails()
+    test_ds2431_wrong_es_fails()
+    test_ds2431_read_memory_needs_whole_bytes()
+    test_ds2431_skip_rom_is_ambiguous()
+    test_ds2431_rejects_a_ds18b20_function()
+    test_ds2431_log_matches_bytes()
     print("")
     if failures:
         print("test_la_decode: %d FAIL" % len(failures))

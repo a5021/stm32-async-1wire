@@ -131,11 +131,45 @@ made of it, and the two are compared. The capture also contained one round
 from the previous image before the flash - the comparison starts at the last
 search, which is the boot the log belongs to, so that round is not mixed in.
 
+**The DS2431 memory cycle.** A third capture (`make test-hil HIL_SCRIPT=ds2431`,
+also armed before the flash) decoded the EEPROM traffic of both `2D` parts:
+
+```
+  MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+  READ MEMORY  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
+  MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+  WRITE SCRATCHPAD  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
+  MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+  READ SCRATCHPAD  TA1=00 TA2=00: DE AD BE EF 01 02 03 04  CRC16 ok
+  MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+  COPY SCRATCHPAD  TA1=00 TA2=00  ES=07
+  MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+  READ MEMORY  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
+```
+
+The same five commands ran on the second part, and all ten matched the
+application's log byte for byte: the pattern it printed, the scratchpad frame
+it verified, the `ES=07` it copied. The Read Scratchpad reply is 13 bytes -
+`TA1 TA2 ES` plus 8 data plus the inverted CRC-16 the device appends - and
+the analyzer recomputes that CRC over `0xAA` followed by the eleven frame
+bytes, so the frame is the device's, not the master's guess.
+
+**Caveat on the read-back.** The bench EEPROM already held `DE AD BE EF 01 02
+03 04` from earlier runs, so the baseline read equals the pattern. The capture
+therefore proves the command sequence, the addresses, the bytes and `ES=07`,
+and that the read-back still holds the pattern - not that a blank row was
+programmed by this run. A capture of a blank part (or a pattern derived from
+the ROM) would close that last gap.
+
 **What is not covered yet.** The decoder understands the ROM commands
-(`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`) and the DS18B20 functions (`0x44`,
-`0xBE`); a DS2431 memory command (`0x0F`, `0xAA`, and `0x55` in function
-position) is refused as unknown rather than decoded. The DS2431s appear in
-the search - their ROMs are checked - but their EEPROM traffic is not.
+(`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`), the DS18B20 functions (`0x44`,
+`0xBE`), and the DS2431 functions `0x0F`, `0xAA`, `0x55` (copy position) and
+`0xF0` (memory read). The function table is chosen by the family byte of the
+selected ROM, because `0x55` and `0xF0` mean different things on a `28` and a
+`2D`; a function sent after SKIP ROM is refused as ambiguous rather than
+guessed. Not decoded: the DS2431's `0x33`/`0x55` in *function* position for
+other families, overdrive timing, and alarm-search results beyond the ROM.
+
 
 ## The bench as it stands
 

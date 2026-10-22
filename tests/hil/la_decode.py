@@ -19,6 +19,12 @@ The decode is strict on purpose. A slot width in the gap between a '1' and a
 skipped transaction; a CRC that does not match fails the run. A decoder that
 guesses would turn a red capture green.
 
+Understood: Read ROM / Skip ROM / Match ROM / Search ROM / Alarm Search, the
+DS18B20 Convert and Read Scratchpad, and the DS2431 Write Scratchpad, Read
+Scratchpad (with its inverted CRC-16), Copy Scratchpad and Read Memory. The
+function table is chosen by the ROM family byte, because 0x55 and 0xF0 mean
+different things on a DS2431 and a DS18B20.
+
 Requires numpy (via la_capture) and a capture from la_capture.py.
 """
 
@@ -42,14 +48,27 @@ ROM_COMMANDS = {
     0xCC: ("SKIP ROM", 0),
     0x55: ("MATCH ROM", 8),
 }
+# Function commands depend on the family the master selected: 0x55 and 0xF0
+# mean different things on a DS2431 and on a DS18B20, and the ROM byte says
+# which device the transaction is talking to.
 FUNCTION_COMMANDS = {
-    0x44: ("CONVERT", 0),
-    0xBE: ("READ SCRATCHPAD", 9),
+    0x28: {
+        0x44: ("CONVERT", 0),
+        0xBE: ("READ SCRATCHPAD", 9),   # 8 data + CRC8
+    },
+    0x2D: {
+        0x0F: ("WRITE SCRATCHPAD", 10),  # TA1 TA2 + 8 data
+        0xAA: ("READ SCRATCHPAD", 13),   # TA1 TA2 ES + 8 data + CRC16
+        0x55: ("COPY SCRATCHPAD", 3),    # TA1 TA2 ES
+        0xF0: ("READ MEMORY", 2),        # TA1 TA2 + the rest of the slots
+    },
 }
 SEARCH_COMMANDS = {
     0xF0: "SEARCH ROM",
     0xEC: "ALARM SEARCH",
 }
+# DS2431 Copy Scratchpad requires the ending offset of a full row.
+COPY_ES = 0x07
 
 
 class DecodeError(Exception):
@@ -88,6 +107,19 @@ def crc8(data):
     return c
 
 
+def crc16(data):
+    """Maxim CRC-16 (reflected 0x8005, init 0, no final XOR)."""
+    c = 0
+    for b in data:
+        for _ in range(8):
+            mix = (c ^ b) & 1
+            c >>= 1
+            if mix:
+                c ^= 0xA001
+            b >>= 1
+    return c
+
+
 def temperature(scratchpad):
     """DS18B20 scratchpad bytes 0-1, signed 1/16 degree."""
     raw = (scratchpad[1] << 8) | scratchpad[0]
@@ -111,7 +143,7 @@ class Slot:
 
 class Frame:
     __slots__ = ("command", "name", "rom", "payload", "crc_ok", "value",
-                 "passes", "empty_terminator")
+                 "passes", "empty_terminator", "addr", "data", "problem")
 
     def __init__(self, command, name):
         self.command = command
@@ -122,6 +154,9 @@ class Frame:
         self.value = None
         self.passes = []
         self.empty_terminator = False
+        self.addr = b""      # DS2431 TA1 TA2
+        self.data = b""      # the memory/scratchpad bytes, without address
+        self.problem = None  # a protocol violation that has no CRC of its own
 
 
 class Transaction:
@@ -195,19 +230,38 @@ def slot_period(cfg, gaps):
            " / ".join("%.0f" % c for c in candidates)))
 
 
+def take_bytes(slots, i, count):
+    """Read count whole bytes from the slot cursor, LSB first."""
+    need = count * BITS_PER_BYTE
+    if len(slots) - i < need:
+        raise DecodeError("обрыв: %d слотов на %d байт" % (len(slots) - i, count))
+    data = bytes(
+        sum(slots[i + b * BITS_PER_BYTE + k].bit << k
+            for k in range(BITS_PER_BYTE))
+        for b in range(count))
+    return data, i + need
+
+
+def scratchpad_data_len(ta1, es):
+    """Bytes the DS2431 actually transmitted: E[2:0] - T[2:0] + 1, 1..8."""
+    n = (es & 0x07) - (ta1 & 0x07) + 1
+    if n <= 0:
+        n += 8
+    if n > 8:
+        raise DecodeError("READ SCRATCHPAD: окно %d байт (TA1=%02X ES=%02X)"
+                          % (n, ta1, es))
+    return n
+
+
 def parse_transaction(slots, cfg):
     """Frames of one transaction, starting with its ROM command."""
     frames = []
     i = 0
     first = True
+    family = None
     while i < len(slots):
-        if len(slots) - i < BITS_PER_BYTE:
-            raise DecodeError("транзакция обрывается: %d слотов на неполный байт"
-                              % (len(slots) - i))
-        command = 0
-        for k in range(BITS_PER_BYTE):
-            command |= slots[i + k].bit << k
-        i += BITS_PER_BYTE
+        command, i = take_bytes(slots, i, 1)
+        command = command[0]
 
         if first and command in SEARCH_COMMANDS:
             passes, used, empty = parse_search(slots[i:])
@@ -225,35 +279,55 @@ def parse_transaction(slots, cfg):
             name, nbytes = ROM_COMMANDS[command]
             frame = Frame(command, name)
             if nbytes:
-                need = nbytes * BITS_PER_BYTE
-                if len(slots) - i < need:
-                    raise DecodeError("%s: нет %d байт ROM" % (name, nbytes))
-                frame.rom = bytes(
-                    sum(slots[i + b * BITS_PER_BYTE + k].bit << k
-                        for k in range(BITS_PER_BYTE))
-                    for b in range(nbytes))
-                i += need
+                frame.rom, i = take_bytes(slots, i, nbytes)
                 frame.crc_ok = crc8(frame.rom[:7]) == frame.rom[7]
+                family = frame.rom[0]
             frames.append(frame)
             first = False
             continue
 
-        if command not in FUNCTION_COMMANDS:
-            raise DecodeError("неизвестная функция 0x%02X (ROM-команда "
-                              "ожидается только первой)" % command)
-        name, nbytes = FUNCTION_COMMANDS[command]
+        table = FUNCTION_COMMANDS.get(family)
+        if table is None:
+            raise DecodeError(
+                "функция 0x%02X без MATCH ROM: семейство неизвестно (0x55 и "
+                "0xF0 означают разное у 28 и 2D)" % command)
+        if command not in table:
+            raise DecodeError("неизвестная функция 0x%02X для семейства %02X"
+                              % (command, family))
+        name, nbytes = table[command]
         frame = Frame(command, name)
-        if nbytes:
-            need = nbytes * BITS_PER_BYTE
-            if len(slots) - i < need:
-                raise DecodeError("%s: нет %d байт ответа" % (name, nbytes))
-            frame.payload = bytes(
-                sum(slots[i + b * BITS_PER_BYTE + k].bit << k
-                    for k in range(BITS_PER_BYTE))
-                for b in range(nbytes))
-            i += need
-            frame.crc_ok = crc8(frame.payload[:8]) == frame.payload[8]
-            frame.value = temperature(frame.payload)
+
+        if family == 0x2D and command == 0xF0:
+            # Read Memory: two address bytes, then the window the master
+            # clocks. Its length is the master's choice, so it is whatever is
+            # left of the transaction - not a guess, just the frame boundary.
+            frame.addr, i = take_bytes(slots, i, 2)
+            rest = len(slots) - i
+            if rest <= 0 or rest % BITS_PER_BYTE:
+                raise DecodeError("READ MEMORY: хвост из %d слотов" % rest)
+            frame.data, i = take_bytes(slots, i, rest // BITS_PER_BYTE)
+            frame.payload = frame.addr + frame.data
+        else:
+            payload, i = take_bytes(slots, i, nbytes)
+            frame.payload = payload
+            if family == 0x28 and command == 0xBE:
+                frame.crc_ok = crc8(payload[:8]) == payload[8]
+                frame.value = temperature(payload)
+            elif family == 0x2D and command == 0xAA:
+                frame.addr = payload[:2]
+                n = scratchpad_data_len(payload[0], payload[2])
+                frame.data = payload[3:3 + n]
+                got = payload[3 + n] | (payload[4 + n] << 8)
+                expected = (~crc16(bytes([0xAA]) + payload[:3 + n])) & 0xFFFF
+                frame.crc_ok = got == expected
+                tail = payload[3 + n + 2:]
+                if tail and any(b != 0xFF for b in tail):
+                    frame.problem = "после CRC16 не 0xFF"
+            elif family == 0x2D and command in (0x0F, 0x55):
+                frame.addr, frame.data = payload[:2], payload[2:]
+                if command == 0x55 and payload[2] != COPY_ES:
+                    frame.problem = ("ES=0x%02X, ожидалось 0x%02X"
+                                     % (payload[2], COPY_ES))
         frames.append(frame)
     if not frames:
         raise DecodeError("транзакция без команд")
@@ -381,7 +455,9 @@ def report(transactions, orphan, dropped):
         print("  транзакция %d: reset %.1f мкс, presence %.1f мкс (через %.1f)"
               % (k, txn.reset, txn.presence, txn.presence_delay))
         for f in txn.frames:
-            if f.command in SEARCH_COMMANDS:
+            # 0xF0 is SEARCH ROM in the first position and READ MEMORY later;
+            # a search frame carries passes, a memory read carries bytes.
+            if f.command in SEARCH_COMMANDS and not f.payload:
                 print("    %s (0x%02X): %d проходов%s"
                       % (f.name, f.command, len(f.passes),
                          ", пустой терминатор" if f.empty_terminator else ""))
@@ -392,6 +468,16 @@ def report(transactions, orphan, dropped):
             elif f.rom:
                 print("    %s %s  CRC %s"
                       % (f.name, hexs(f.rom), "ok" if f.crc_ok else "FAIL"))
+            elif f.addr:
+                where = "TA1=%02X TA2=%02X" % (f.addr[0], f.addr[1])
+                if f.command == 0x55:  # Copy Scratchpad: address and ES only
+                    print("    %s  %s  ES=%02X" % (f.name, where, f.payload[2]))
+                else:
+                    crc = ""
+                    if f.crc_ok is not None:
+                        crc = "  CRC16 %s" % ("ok" if f.crc_ok else "FAIL")
+                    print("    %s  %s: %s%s"
+                          % (f.name, where, hexs(f.data), crc))
             elif f.payload:
                 extra = ". %.4f C" % f.value if f.value is not None else ""
                 print("    %s: %s  CRC %s%s"
@@ -409,6 +495,9 @@ def failures(transactions):
                 bad += 1
                 print("  FAIL CRC: %s %s"
                       % (f.name, hexs(f.rom or f.payload)))
+            if f.problem:
+                bad += 1
+                print("  FAIL %s: %s" % (f.name, f.problem))
             for p in f.passes:
                 if not p.crc_ok:
                     bad += 1
@@ -416,26 +505,65 @@ def failures(transactions):
     return bad
 
 
+HEX8 = r"((?:[0-9A-Fa-f]{2}\s+){7}[0-9A-Fa-f]{2})"
+HEX11 = r"((?:[0-9A-Fa-f]{2}\s+){10}[0-9A-Fa-f]{2})"
+
+
+def as_bytes(text):
+    return bytes(int(x, 16) for x in text.split())
+
+
 def parse_log(path):
-    """ROMs found and readings printed by the application, in its order."""
+    """What the application reported, in its order.
+
+    Returns (ROMs, temperature readings, census, DS2431 events). The events
+    are the EEPROM traffic the example printed: the baseline read, the written
+    pattern, the scratchpad frame, the copy and the read-back - each one is a
+    known byte string that the wire has to carry unchanged.
+    """
     roms = set()
     readings = []
+    events = []
     found = None
+    device = None
     with open(path, encoding="utf-8", errors="replace") as fh:
         for line in fh:
             m = re.search(r"Found (\d+) device", line)
             if m:
                 found = int(m.group(1))
-            m = re.search(r"ROM:\s+((?:[0-9A-Fa-f]{2}\s+){7}[0-9A-Fa-f]{2})", line)
+            m = re.search(r"Selected ROM:\s+" + HEX8, line)
             if m:
-                roms.add(bytes(int(x, 16) for x in m.group(1).split()))
+                device = as_bytes(m.group(1))
+                roms.add(device)
                 continue
-            m = re.search(r"((?:[0-9A-Fa-f]{2}\s+){7}[0-9A-Fa-f]{2}):\s+"
-                          r"(-?\d+\.\d+)\s+C", line)
+            # "EEPROM: ..." contains "ROM:", so the EEPROM line is claimed
+            # before the ROM line is looked for.
+            m = re.search(r"EEPROM:\s+" + HEX8, line)
             if m:
-                rom = bytes(int(x, 16) for x in m.group(1).split())
-                readings.append((rom, float(m.group(2))))
-    return roms, readings, found
+                if device is not None:
+                    events.append((device, "read", as_bytes(m.group(1))))
+                continue
+            m = re.search(r"(?<!EEP)ROM:\s+" + HEX8, line)
+            if m:
+                roms.add(as_bytes(m.group(1)))
+                continue
+            m = re.search(r"Write Scratchpad \(0x0F\):\s+" + HEX8, line)
+            if m:
+                if device is not None:
+                    events.append((device, "write", as_bytes(m.group(1))))
+                continue
+            m = re.search(r"frame:\s+" + HEX11, line)
+            if m:
+                if device is not None:
+                    events.append((device, "frame", as_bytes(m.group(1))))
+                continue
+            if "copied to EEPROM" in line and device is not None:
+                events.append((device, "copy", b""))
+                continue
+            m = re.search(HEX8 + r":\s+(-?\d+\.\d+)\s+C", line)
+            if m:
+                readings.append((as_bytes(m.group(1)), float(m.group(2))))
+    return roms, readings, found, events
 
 
 def tenths(value):
@@ -444,15 +572,75 @@ def tenths(value):
     return int(scaled + 0.5) if scaled >= 0 else -int(-scaled + 0.5)
 
 
-def compare_log(transactions, roms, readings, found):
-    """The analyzer's bytes and the application's numbers, conversion by conversion.
+def wire_events(transactions):
+    """DS2431 memory traffic on the wire, in transaction order.
 
-    Both start at the boot the log covers: the application searches once, so
-    the last search in the capture is that boot, and the reads after it are the
-    log's reads in the app's order. They must match ROM for ROM and round to
-    the same tenth - the wire's own temperature is exact (1/16 C), so this is
-    an equality, not a tolerance. Drift only appears between different
-    conversions, and this pairs the same one.
+    Only the bytes the device carries matter: the address window and the data
+    (or the scratchpad frame, CRC included).
+    """
+    events = []
+    for txn in transactions:
+        rom = next((f.rom for f in txn.frames if f.rom), None)
+        if rom is None or rom[0] != 0x2D:
+            continue
+        for f in txn.frames:
+            # 0x55 is MATCH ROM as the first byte and COPY SCRATCHPAD later;
+            # a frame with a ROM is the former.
+            if f.rom:
+                continue
+            if f.command == 0xF0:
+                events.append((rom, "read", f.data))
+            elif f.command == 0x0F:
+                events.append((rom, "write", f.data))
+            elif f.command == 0xAA:
+                events.append((rom, "frame", f.payload[:11]))
+            elif f.command == 0x55:
+                events.append((rom, "copy", b""))
+    return events
+
+
+def compare_events(wire, log):
+    """The DS2431 cycle, byte for byte.
+
+    The log prints the pattern it wrote, the frame it read and the EEPROM it
+    read back; those are constants, so the comparison is an equality and needs
+    no clock alignment. A capture armed before the flash can hold the previous
+    image's cycle too, so the log is searched as a contiguous run anywhere in
+    the wire's sequence.
+    """
+    if not log:
+        print("  FAIL на проводе трафик DS2431, а в логе его нет")
+        return 1
+    for start in range(len(wire) - len(log) + 1):
+        if all(wire[start + k] == log[k] for k in range(len(log))):
+            print("  DS2431: %d команд совпали с логом байт в байт" % len(log))
+            return 0
+
+    print("  FAIL последовательность DS2431 не совпала (%d команд на проводе, "
+          "%d в логе)" % (len(wire), len(log)))
+    for k in range(min(len(wire), len(log))):
+        if wire[k] != log[k]:
+            print("    команда %d: провод %s, лог %s"
+                  % (k + 1, event_str(wire[k]), event_str(log[k])))
+            break
+    return 1
+
+
+def event_str(event):
+    rom, kind, data = event
+    return "%s %s %s" % (hexs(rom), kind, hexs(data) if data else "-")
+
+
+def compare_log(transactions, roms, readings, found, events=()):
+    """The analyzer's bytes and the application's report, item by item.
+
+    Temperatures: both start at the boot the log covers - the application
+    searches once, so the last search in the capture is that boot - and the
+    reads after it must match ROM for ROM and round to the same tenth. The
+    wire's value is exact (1/16 C), so this is an equality, not a tolerance.
+
+    DS2431: the EEPROM cycle is a fixed sequence of byte strings the example
+    printed, compared as one contiguous run (see compare_events()).
     """
     bad = 0
     wire_roms = set()
@@ -496,10 +684,18 @@ def compare_log(transactions, roms, readings, found):
             bad += 1
         paired += 1
 
+    wire_ds2431 = wire_events(transactions)
+    if events or wire_ds2431:
+        bad += compare_events(wire_ds2431, list(events))
+
+    # The example filters for one family; a device of another family is
+    # expected to be on the wire and absent from its report. A device of the
+    # family the log is about, missing from the log, is a real miss.
+    families = {r[0] for r in roms}
     extra = wire_roms - roms
-    other = [r for r in extra if r[0] != 0x28]
+    other = [r for r in extra if r[0] not in families]
     for rom in sorted(extra):
-        if rom[0] == 0x28:
+        if rom[0] in families:
             print("  FAIL %s есть на проводе, но не в логе" % hexs(rom))
             bad += 1
     if other:
@@ -507,8 +703,9 @@ def compare_log(transactions, roms, readings, found):
               "пример их не печатает"
               % (len(other), ", ".join("%02X" % r[0] for r in sorted(other))))
     if not bad:
+        extra = ", %d команд DS2431" % len(events) if events else ""
         print("  приложение и провод согласны: %d ROM, %d измерений совпали "
-              "точно" % (len(roms), paired))
+              "точно%s" % (len(roms), paired, extra))
     elif paired < len(readings):
         print("  сверено %d из %d измерений лога" % (paired, len(readings)))
     return bad
@@ -549,8 +746,8 @@ def main():
 
     print("\n=== сверка с приложением ===")
     if args.log:
-        roms, readings, found = parse_log(args.log)
-        bad += compare_log(transactions, roms, readings, found)
+        roms, readings, found, events = parse_log(args.log)
+        bad += compare_log(transactions, roms, readings, found, events)
     else:
         print("  лог не задан (--log): сверено только внутреннее (CRC)")
 
