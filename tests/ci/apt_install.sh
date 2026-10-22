@@ -18,6 +18,9 @@
 # Usage: apt_install.sh CACHE_DIR PACKAGE...
 set -euo pipefail
 
+# A silent exit is what makes a CI failure expensive: say where it stopped.
+trap 'echo "apt_install.sh: failed at line $LINENO" >&2' ERR
+
 cache=${1:?usage: apt_install.sh CACHE_DIR PACKAGE...}
 shift
 packages=("$@")
@@ -57,26 +60,27 @@ if compgen -G "$cache/*.deb" >/dev/null; then
 fi
 
 # Miss. Keep the .debs this time (docker-clean would delete them), and keep the
-# Google source and the Azure mirror from failing the index update.
+# Google source and the Azure mirror from failing the index update. Both
+# guards end in `|| true`: under pipefail an empty grep is a failure.
 sudo rm -f /etc/apt/apt.conf.d/docker-clean
-sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null \
-    | xargs -r sudo rm -f
+{ sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null \
+    | xargs -r sudo rm -f; } || true
 sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' \
     /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
 
 apt_opts=(-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
-for i in 1 2 3; do
-    if sudo timeout 180 apt-get update "${apt_opts[@]}"; then
+for i in 1 2; do
+    if sudo timeout 120 apt-get update "${apt_opts[@]}"; then
         break
     fi
-    if [ "$i" -eq 3 ]; then
+    if [ "$i" -eq 2 ]; then
         echo "apt: update failed after $i attempts" >&2
         exit 1
     fi
     sleep 10
 done
 
-sudo timeout 300 apt-get install -y --download-only "${apt_opts[@]}" "${packages[@]}"
+sudo timeout 240 apt-get install -y --download-only "${apt_opts[@]}" "${packages[@]}"
 if compgen -G "/var/cache/apt/archives/*.deb" >/dev/null; then
     sudo cp /var/cache/apt/archives/*.deb "$cache"/
 fi
