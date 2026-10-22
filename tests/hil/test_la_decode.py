@@ -264,6 +264,22 @@ def test_ds2431_log_matches_bytes():
         os.unlink(path)
 
 
+def test_ds2431_read_memory_is_not_a_search():
+    print("a Read Memory (0xF0) after the boot search")
+    # The DS2431 cycle runs after the boot search; if its 0xF0 were taken for
+    # a search, the log's reading (before it) would no longer be paired.
+    txns, _, _ = decode([
+        exchange(slots(b"\xF0"), search_pass(ROM_A)),
+        exchange(slots(b"\x55" + ROM_A), slots(b"\x44")),
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"),
+                 slots(SCRATCHPAD, "r")),
+        ds2431_read_memory(),
+    ])
+    check("the reading is still paired with the log",
+          la_decode.compare_log(txns, {ROM_A}, [(ROM_A, 23.125)], 1,
+                                [(ROM_D, "read", PATTERN)]) == 0)
+
+
 def test_a_full_exchange_decodes():
     print("a MATCH ROM + CONVERT, then a MATCH ROM + READ SCRATCHPAD")
     txns, orphan, dropped = decode([
@@ -434,9 +450,13 @@ def test_the_search_set_is_the_log_set():
     print("a full search against the log")
     txns, _, _ = decode([
         exchange(slots(b"\xF0"), search_pass(ROM_A), search_pass(ROM_B)),
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"),
+                 slots(SCRATCHPAD, "r")),
+        exchange(slots(b"\x55" + ROM_B), slots(b"\xBE"),
+                 slots(SCRATCHPAD, "r")),
     ])
     roms = {ROM_A, ROM_B}
-    readings = [(ROM_A, 23.1), (ROM_B, 23.0)]
+    readings = [(ROM_A, 23.1), (ROM_B, 23.1)]
     check("both ROMs agree with the log",
           la_decode.compare_log(txns, roms, readings, 2) == 0)
     check("a missing device in the log fails",
@@ -450,11 +470,13 @@ def test_another_family_on_the_wire_is_fine():
     ds2431 = bytes.fromhex("2D F8 47 60 26 00 00 69")
     txns, _, _ = decode([
         exchange(slots(b"\xF0"), search_pass(ROM_A), search_pass(ds2431)),
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"),
+                 slots(SCRATCHPAD, "r")),
     ])
     # The example reports DS18B20s only; the 0x2D device is on the wire but
     # absent from the log by design, and that is not a failure.
     check("the other family does not fail the comparison",
-          la_decode.compare_log(txns, {ROM_A}, [(ROM_A, 23.1)], 1) == 0)
+          la_decode.compare_log(txns, {ROM_A}, [(ROM_A, 23.125)], 1) == 0)
     # And the other way round: a DS2431 log ignores the DS18B20s.
     txns, _, _ = decode([
         exchange(slots(b"\xF0"), search_pass(ROM_D), search_pass(ROM_A)),
@@ -488,6 +510,7 @@ def main():
     test_ds2431_skip_rom_is_ambiguous()
     test_ds2431_rejects_a_ds18b20_function()
     test_ds2431_log_matches_bytes()
+    test_ds2431_read_memory_is_not_a_search()
     print("")
     if failures:
         print("test_la_decode: %d FAIL" % len(failures))

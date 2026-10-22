@@ -649,7 +649,9 @@ def compare_log(transactions, roms, readings, found, events=()):
     for k, txn in enumerate(transactions):
         rom = next((f.rom for f in txn.frames if f.rom), None)
         for f in txn.frames:
-            if f.command in SEARCH_COMMANDS:
+            # 0xF0 is READ MEMORY when the family is 0x2D: only a frame with
+            # passes is the search that starts the log's run.
+            if f.command in SEARCH_COMMANDS and not f.payload:
                 last_search = k
                 for p in f.passes:
                     wire_roms.add(p.rom)
@@ -684,6 +686,15 @@ def compare_log(transactions, roms, readings, found, events=()):
             bad += 1
         paired += 1
 
+    # zip() stops at the shorter list, and a capture may be shorter than the
+    # logged run - but a comparison that paired nothing at all is not a pass.
+    if readings and not paired:
+        print("  FAIL ни одно из %d измерений лога не сверено" % len(readings))
+        bad += 1
+    elif paired < len(readings):
+        print("  сверено %d из %d измерений лога (захват короче прогона)"
+              % (paired, len(readings)))
+
     wire_ds2431 = wire_events(transactions)
     if events or wire_ds2431:
         bad += compare_events(wire_ds2431, list(events))
@@ -706,8 +717,6 @@ def compare_log(transactions, roms, readings, found, events=()):
         extra = ", %d команд DS2431" % len(events) if events else ""
         print("  приложение и провод согласны: %d ROM, %d измерений совпали "
               "точно%s" % (len(roms), paired, extra))
-    elif paired < len(readings):
-        print("  сверено %d из %d измерений лога" % (paired, len(readings)))
     return bad
 
 
