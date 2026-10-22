@@ -45,6 +45,12 @@ jobs:
     # ordinary suite never asks for a wait beyond the timer's reach), so it
     # is what proves that the property test is not vacuous - a property test
     # that cannot go red is a comment with a runtime.
+    #
+    # M21 is the third: the model's slot count narrowed to 8 bits, so the
+    # 256-period edge plans zero periods - the bug the model actually had
+    # once, silent because no ordinary operation asks for 256 periods. The
+    # 256-slot rows of the DMA contract ledger catch it; this keeps that
+    # guard from quietly disappearing.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -52,6 +58,8 @@ jobs:
         run: python3 tests/mutation_check.py --families f1,h5 --mutations M4 --no-control --strict
       - name: Check the wait-plan property test can still fail
         run: python3 tests/mutation_check.py --families f1,h5 --mutations M20 --no-control --strict
+      - name: Check the model's period count can still fail
+        run: python3 tests/mutation_check.py --families f1,h5 --mutations M21 --no-control --strict
 
   host-tests:
     strategy:
