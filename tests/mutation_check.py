@@ -176,6 +176,22 @@ MUTATIONS = [
         "families": None,
     },
     {
+        "id": "M21",
+        "what": "model: the slot count narrows to 8 bits, so RCR=255 plans 0 periods",
+        "file": "tests/mock/hw_model.c",
+        "find": "    g_tim.slots = (uint32_t)((mock_tim1.RCR & 0xFFu) + 1u);",
+        "replace": "    g_tim.slots = (uint8_t)((mock_tim1.RCR & 0xFFu) + 1u);",
+        "families": None,
+    },
+    {
+        "id": "M22",
+        "what": "model: the terminal update arrives one period late",
+        "file": "tests/mock/hw_model.c",
+        "find": "        if (g_tim.period >= (uint32_t)g_tim.slots - 1u) {",
+        "replace": "        if (g_tim.period > (uint32_t)g_tim.slots - 1u) {",
+        "families": None,
+    },
+    {
         "id": "M15",
         "what": "the guarantee ledger names the wrong request id (G0)",
         "file": "tests/test/test_dma_contract.c",
