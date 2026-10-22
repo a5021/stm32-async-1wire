@@ -6,6 +6,7 @@ Run:
     python tests/hil/la_capture.py --seconds 30 --rate 8M
     python tests/hil/la_capture.py --parasite         # expect the wider guard band
     python tests/hil/la_capture.py --wait-ms 750      # also check the conversion wait
+    python tests/hil/la_capture.py --wait-ms 750 --wait-tol-ms 20   # a slow poll loop
     python tests/hil/la_capture.py --out bench_logs/hil/slot.bin
 
 What it proves: the wire-level shape of the bus. The port's schedule is
@@ -21,6 +22,11 @@ long wait. The engine and the host model both read the repetition counter as
 "periods - 1" (the reference manual's convention), so a consistently wrong
 convention is invisible in the host suite - both sides agree. On the wire it
 is a gap of the wrong length, and that is measurable.
+
+The tolerance is 2 ms because the gap carries a fixed overhead: the tail of the
+last bit slot (at most 166 us) and the application's poll loop, which is
+1 ms-granular in the examples. A firmware that polls more slowly needs
+--wait-tol-ms; a tighter tolerance would only reject a correct plan.
 
 The capture is the sigrok "binary" output: one byte per sample, with the
 eight channels packed into it, D0 in the least significant bit. The unused
@@ -140,6 +146,10 @@ def main():
     ap.add_argument("--wait-ms", type=float, default=0.0,
                     help="expected long wait in ms (e.g. 750 for a 12-bit "
                          "conversion); 0 = don't check")
+    ap.add_argument("--wait-tol-ms", type=float,
+                    default=WAIT_TOLERANCE_US / 1000.0,
+                    help="tolerance for --wait-ms in ms (default 2: the tail "
+                         "of the last slot plus a 1 ms poll loop)")
     ap.add_argument("--out", default="")
     ap.add_argument("--sigrok", default=os.environ.get("SIGROK_CLI", DEFAULT_SIGROK))
     args = ap.parse_args()
@@ -199,14 +209,17 @@ def main():
     # consistently wrong convention passes every host test. Only the wire
     # knows.
     wait_target = args.wait_ms * 1000.0
+    wait_tol = args.wait_tol_ms * 1000.0
     wait_doubled = None
     if args.wait_ms > 0.0:
         print("\n=== длительность длинного ожидания ===")
         if len(gaps):
             print("  самая длинная пауза: %.3f мс" % (float(gaps.max()) / 1000.0))
-        wait_measured, wait_doubled = wait_measurements(gaps, wait_target)
-        check("ожидание (--wait-ms)", wait_measured, wait_target,
-              WAIT_TOLERANCE_US)
+        wait_measured, wait_doubled = wait_measurements(gaps, wait_target, wait_tol)
+        if wait_measured is not None:
+            print("  отклонение от ожидания: %+.3f мс (допуск ±%.3f мс)"
+                  % ((wait_measured - wait_target) / 1000.0, wait_tol / 1000.0))
+        check("ожидание (--wait-ms)", wait_measured, wait_target, wait_tol)
 
     bad = 0
     for name, measured, expected, good in checks:

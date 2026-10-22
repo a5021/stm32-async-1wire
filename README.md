@@ -1271,7 +1271,15 @@ numpy:
 
 ```bash
 python tests/hil/la_capture.py --parasite   # the parasite bus: guard 100 us
+python tests/hil/la_capture.py --parasite --wait-ms 750   # and the conversion wait
 ```
+
+`--wait-ms` also checks the **duration** of a long wait - the one part of the
+schedule the host tests cannot prove. The engine and the host model both read
+the repetition counter as "periods - 1", so a consistently wrong convention
+passes every host test; on the wire it is a gap of the wrong length, one
+period being 62.5 ms for a 12-bit conversion. The F1 bench measured 750.31 ms
+against a 750 ms plan.
 
 The measured geometry of the F1 bench, and what it is for, are in
 `port/stm32f1/HARDWARE-NOTES.md`.
