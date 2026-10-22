@@ -42,7 +42,8 @@ register. The capture above was taken with the same firmware before and after
 the 3.0.0 work (the encapsulation of the engine, the `OW_PORT_*` → `OW_*`
 rename, the driver stating a wait in microseconds instead of timer
 registers): the measured pulse widths and slot periods were **identical**
-before and after, and the firmware images differ. The wait decomposition
+before and after, and the firmware images differ. The 2026-10-22 capture, taken
+for the wait check below, reproduced the same numbers. The wait decomposition
 changed - the conversion wait is now a different arrangement of the same
 total. That is invisible as *shape* (the line is idle for the whole wait), but
 its *duration* is on the wire as the gap between the command and the next
@@ -67,9 +68,32 @@ latency), and separately requires that **no** gap sits at exactly twice the
 target - that is where a plan with one period too many lands, and it is the
 failure a shared convention would produce.
 
-The check is implemented but **has not been run on this bench yet**; until it
-is, the wait duration on the wire is unmeasured. The rest of the geometry
-above does not depend on it.
+Measured on 2026-10-22 with the current tree (`make test-hil HIL_SCRIPT=smoke`
+first, so the board runs the image under test; 7 devices, parasite power):
+
+| | measured | expected |
+| --- | --- | --- |
+| conversion wait (12-bit) | 750.31 ms | 750 ms |
+| application pause | 5000.48 ms | 5000 ms |
+
+The wait is the gap between the last falling edge of `Convert T` and the first
+falling edge of the read that follows. The 0.31 ms above the nominal 750 ms is
+the tail of the last bit slot (at most 166 µs) plus the application's polling
+and the driver's start-up for the next transaction - fixed overhead, not part
+of the plan.
+
+**What the number rules out.** One period is 62.5 ms and the tolerance is
+2 ms, so a plan one period short or long (687.5 ms or 812.5 ms) cannot pass,
+and a plan with one period too many would put the gap at exactly 1500 ms,
+which the separate doubling check rejects. The wire therefore says the
+repetition counter holds "periods - 1" on real silicon, not only in the host
+model.
+
+**A capture only means something against the image under test.** The first
+capture on this bench was taken against an older image: the wire showed
+resets and presence pulses and nothing else, and the firmware reported
+"no sensor detected" - the image was stale, not the bus. `make test-hil`
+flashes the tree, so run it (or flash the same way) before trusting a capture.
 
 ## The bench as it stands
 
