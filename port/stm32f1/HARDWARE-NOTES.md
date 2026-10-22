@@ -44,8 +44,32 @@ rename, the driver stating a wait in microseconds instead of timer
 registers): the measured pulse widths and slot periods were **identical**
 before and after, and the firmware images differ. The wait decomposition
 changed - the conversion wait is now a different arrangement of the same
-total - and that is not visible on the wire, because the line is idle for the
-whole wait either way.
+total. That is invisible as *shape* (the line is idle for the whole wait), but
+its *duration* is on the wire as the gap between the command and the next
+transaction; `--wait-ms` measures it (below).
+
+### The duration of a long wait
+
+`python tests/hil/la_capture.py --parasite --wait-ms 750` checks the one
+thing the host suite cannot: the length of a long wait.
+
+The engine and the host model both read the repetition counter as
+"periods - 1" (the reference manual's convention). A consistently wrong
+reading of that convention - say, one period too many - passes every host
+test, because the model agrees with the engine by construction: they share the
+convention. Only the wire can tell.
+
+With `examples/2_device_search` (12-bit conversion,
+`MEASURE_PERIOD_MS` = 5 s) a capture holds two long gaps per cycle: the 750 ms
+conversion wait and the 5 s application pause. The check takes the gap nearest
+to the requested wait, allows ±2 ms (the tail of the last pulse plus the poll
+latency), and separately requires that **no** gap sits at exactly twice the
+target - that is where a plan with one period too many lands, and it is the
+failure a shared convention would produce.
+
+The check is implemented but **has not been run on this bench yet**; until it
+is, the wait duration on the wire is unmeasured. The rest of the geometry
+above does not depend on it.
 
 ## The bench as it stands
 

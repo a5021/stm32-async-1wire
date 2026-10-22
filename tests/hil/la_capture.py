@@ -5,6 +5,7 @@ Run:
     python tests/hil/la_capture.py                    # 12 s @ 4 MHz on D0
     python tests/hil/la_capture.py --seconds 30 --rate 8M
     python tests/hil/la_capture.py --parasite         # expect the wider guard band
+    python tests/hil/la_capture.py --wait-ms 750      # also check the conversion wait
     python tests/hil/la_capture.py --out bench_logs/hil/slot.bin
 
 What it proves: the wire-level shape of the bus. The port's schedule is
@@ -14,6 +15,12 @@ OW_PORT_RESET_PULSE_DURATION long. Those are the numbers a consumer's bus has
 to live with, and a change to the port's schedule moves them - which is
 exactly what this measures. The expectations are read from inc/ow_config.h, so
 the check follows the configuration instead of restating it.
+
+--wait-ms adds the one thing the host tests cannot prove: the *duration* of a
+long wait. The engine and the host model both read the repetition counter as
+"periods - 1" (the reference manual's convention), so a consistently wrong
+convention is invisible in the host suite - both sides agree. On the wire it
+is a gap of the wrong length, and that is measurable.
 
 The capture is the sigrok "binary" output: one byte per sample, with the
 eight channels packed into it, D0 in the least significant bit. The unused
@@ -34,6 +41,7 @@ import numpy as np
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_SIGROK = r"C:\tools\sigrok-cli\sigrok-cli.exe"
 TOLERANCE_US = 1.5  # edge quantisation at a few MHz
+WAIT_TOLERANCE_US = 2000.0  # a long wait: pulse tail plus poll latency
 
 
 def read_config():
@@ -96,6 +104,22 @@ def analyse(path, rate_hz, channel):
     return widths, gaps
 
 
+def wait_measurements(gaps, target_us, tol_us=WAIT_TOLERANCE_US):
+    """Find the long wait in the inter-pulse gaps.
+
+    Returns (measured, doubled): `measured` is the gap nearest the requested
+    wait (None when the capture holds no gap at all), and `doubled` is the gap
+    nearest twice the request, but only when it really sits at twice the
+    request - a plan with one period too many lands exactly there.
+    """
+    if len(gaps) == 0:
+        return None, None
+    measured = float(gaps[np.argmin(np.abs(gaps - target_us))])
+    double_gap = float(gaps[np.argmin(np.abs(gaps - 2.0 * target_us))])
+    doubled = double_gap if abs(double_gap - 2.0 * target_us) <= tol_us else None
+    return measured, doubled
+
+
 def histogram(values, label, limit=8):
     if len(values) == 0:
         print("  %s: нет данных" % label)
@@ -113,6 +137,9 @@ def main():
     ap.add_argument("--channel", type=int, default=0)
     ap.add_argument("--parasite", action="store_true",
                     help="the parasite build raises the guard band")
+    ap.add_argument("--wait-ms", type=float, default=0.0,
+                    help="expected long wait in ms (e.g. 750 for a 12-bit "
+                         "conversion); 0 = don't check")
     ap.add_argument("--out", default="")
     ap.add_argument("--sigrok", default=os.environ.get("SIGROK_CLI", DEFAULT_SIGROK))
     args = ap.parse_args()
@@ -141,11 +168,11 @@ def main():
     print("\n=== сверка с конфигурацией ===")
     checks = []
 
-    def check(name, measured, expected):
+    def check(name, measured, expected, tol=TOLERANCE_US):
         if measured is None:
             checks.append((name, None, expected, False))
             return
-        good = abs(measured - expected) <= TOLERANCE_US
+        good = abs(measured - expected) <= tol
         checks.append((name, measured, expected, good))
 
     def nearest(values, target):
@@ -158,6 +185,28 @@ def main():
     check("импульс '0' (ZERO)", nearest(widths, cfg["zero"]), cfg["zero"])
     check("сброс (OW_PORT_RESET_PULSE_DURATION)",
           nearest(widths, 480), 480)
+
+    # ---- the duration of a long wait -------------------------------------
+    #
+    # A wait has no pulse of its own: the line simply stays high until the
+    # timer fires. It is still on the wire, as the gap between the last
+    # falling edge of the command that started it and the first falling edge
+    # of the next transaction - so a wait planned one period short or long is
+    # a gap of the wrong length.
+    #
+    # This is the one measurement the host suite cannot make: the engine and
+    # the host model both read the repetition counter as "periods - 1", so a
+    # consistently wrong convention passes every host test. Only the wire
+    # knows.
+    wait_target = args.wait_ms * 1000.0
+    wait_doubled = None
+    if args.wait_ms > 0.0:
+        print("\n=== длительность длинного ожидания ===")
+        if len(gaps):
+            print("  самая длинная пауза: %.3f мс" % (float(gaps.max()) / 1000.0))
+        wait_measured, wait_doubled = wait_measurements(gaps, wait_target)
+        check("ожидание (--wait-ms)", wait_measured, wait_target,
+              WAIT_TOLERANCE_US)
 
     bad = 0
     for name, measured, expected, good in checks:
@@ -172,8 +221,19 @@ def main():
         if not good:
             bad += 1
 
-    print("\n%s" % ("геометрия соответствует конфигурации"
-                    if bad == 0 else "геометрия РАСХОДИТСЯ с конфигурацией"))
+    # Negative control: a wait planned with one period too many lands at
+    # exactly 2 x the target. It must fail the run even when a correct gap is
+    # also present (a capture that spans a resolution change).
+    if args.wait_ms > 0.0:
+        if wait_doubled is not None:
+            print("  FAIL %-34s пауза %.3f мс" % ("ожидание не удвоено",
+                                                  wait_doubled / 1000.0))
+            bad += 1
+        else:
+            print("  ok   %-34s" % "ожидание не удвоено")
+
+    print("\n%s" % ("провод соответствует конфигурации"
+                    if bad == 0 else "провод РАСХОДИТСЯ с конфигурацией"))
     return 0 if bad == 0 else 1
 
 

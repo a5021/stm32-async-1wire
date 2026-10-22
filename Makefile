@@ -776,13 +776,15 @@ HIL_EXT ?=
 test-hil:
 	@HIL_SCRIPT='$(HIL_SCRIPT)' HIL_MCU='$(HIL_MCU)' EXPECTED_DEVICES='$(EXPECTED_DEVICES)' HIL_PORT='$(HIL_PORT)' HIL_BAUD='$(HIL_BAUD)' HIL_TIMEOUT='$(HIL_TIMEOUT)' HIL_EXT='$(HIL_EXT)' $(PYTHON) tests/hil/run.py '$(HIL_SCRIPT)'
 
-# The harness's parsing, without a bench. A capture can tear a line in the
-# middle of a burst, and the checks must not turn that into a failed run or a
-# bogus sensor error - this replays the artefact that was actually captured.
-# Needs no hardware, so it runs in CI.
+# The harness scripts that need no bench: the UART parsing and the analyzer
+# analysis. A capture can tear a line in the middle of a burst, and the checks
+# must not turn that into a failed run or a bogus sensor error - this replays
+# the artefact that was actually captured. The wait check must be able to go
+# red on a wrong wait, so it is replayed the same way.
 .PHONY: test-hil-parsing
 test-hil-parsing:
 	@$(PYTHON) tests/hil/test_parsing.py
+	@$(PYTHON) tests/hil/test_la_capture.py
 
 # =============================================================================
 # BUILD TARGETS

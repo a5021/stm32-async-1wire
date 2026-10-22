@@ -17,11 +17,15 @@ jobs:
         # src/ds18b20.c is an amalgamated TU that #includes its four functional
         # parts, so the parts must be linted alongside it.
         run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_board.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c src/ow_compiler.h src/ow_glue.h src/ow_mcu.h src/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c templates/standalone-consumer/*.c templates/standalone-consumer/*.h
-      - name: Check the bench harness parses a torn UART line
+      - name: Install numpy (the analyzer analysis needs it)
+        run: python3 -m pip install numpy
+      - name: Check the bench harness scripts offline
         # The HIL checks read the UART, and a capture can tear a line in the
         # middle of a burst. This replays the artefact that was actually
         # captured, so a torn line cannot silently fail a run or be reported
-        # as a sensor error. No hardware needed.
+        # as a sensor error. The analyzer wait check is replayed the same way:
+        # it is the only check that can catch a shared misreading of the
+        # repetition counter, so it must be shown to go red. No hardware.
         run: make test-hil-parsing
 
   contract-canary:
