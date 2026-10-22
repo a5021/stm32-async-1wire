@@ -1292,13 +1292,18 @@ Arm the capture first (its own shell), then flash - the boot search is what
 puts the whole run on the wire:
 
 ```bash
-python tests/hil/la_capture.py --seconds 30 --out bench_logs/hil/la_search.bin
+python tests/hil/la_capture.py --parasite --seconds 30 \
+    --out bench_logs/hil/la_search.bin
 # in another shell, while it captures:
 make test-hil HIL_SCRIPT=smoke
 
 python tests/hil/la_decode.py bench_logs/hil/la_search.bin \
     --log bench_logs/hil/smoke_20261022-165226.log
 ```
+
+`--parasite` matches the bench's build; without it the geometry check expects
+the 70 us default slot and fails on a correct parasite capture (the artifact
+runts also make a "nearest gap" pick the runt instead of the period).
 
 It is strict on purpose: a slot width between '1' and '0', an unknown command
 or a CRC mismatch is a failure, not a guess or a skipped transaction. A search
