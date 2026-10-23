@@ -26,6 +26,12 @@ write agrees with itself while the EEPROM still holds the old byte. When the
 row already held that pattern before the write, the report says so: the read
 path is proven, the copy is not.
 
+The report opens with what makes the run reproducible - the capture and log
+hashes, the slot geometry, and the `# hil:` identity the log carries - and
+ends with one `ИТОГ: PASS/FAIL` line. A capture on its own says what the wire
+did, not which image drove it; the header the HIL run writes into its log
+names the version, the commit and the image hash.
+
 Understood: Read ROM / Skip ROM / Match ROM / Search ROM / Alarm Search, the
 DS18B20 Convert and Read Scratchpad, and the DS2431 Write Scratchpad, Read
 Scratchpad (with its inverted CRC-16), Copy Scratchpad and Read Memory. The
@@ -36,6 +42,8 @@ Requires numpy (via la_capture) and a capture from la_capture.py.
 """
 
 import argparse
+import hashlib
+import os
 import re
 import sys
 
@@ -784,6 +792,80 @@ def compare_log(transactions, roms, readings, found, events=()):
     return bad
 
 
+def parse_log_header(path):
+    """The `# hil:` identity a HIL log carries, as key=value pairs.
+
+    Older logs predate the header; an empty dict is the honest answer for
+    them, and the report says the identity was not recorded instead of
+    assuming the current tree.
+    """
+    facts = {}
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if not line.startswith("# hil:"):
+                continue
+            for word in line[6:].split():
+                key, sep, value = word.partition("=")
+                if sep:
+                    facts[key] = value
+    return facts
+
+
+def hash_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def identity(path, rate_hz, channel, log_path):
+    """Name the exact artifacts and the image the run came from.
+
+    A capture alone is not reproducible: the samples say what the wire did,
+    not which firmware drove it, on which part or at which clock. The hashes
+    fix the files; the header the HIL run writes names the image and the
+    tree, and a dirty tree is called out because the commit alone would then
+    be a lie.
+    """
+    print("=== воспроизводимость ===")
+    print("  захват: %s, %d байт" % (path, os.path.getsize(path)))
+    print("  sha256: %s" % hash_file(path))
+    print("  частота: %g МГц, канал D%d" % (rate_hz / 1e6, channel))
+    cfg = read_config()
+    print("  конфигурация: ONE=%s мкс, ZERO=%s мкс, guard %d/%d мкс"
+          % (cfg["one"], cfg["zero"], cfg["guard_default"],
+             cfg["guard_parasite"]))
+    if not log_path:
+        print("  лог: не задан (--log)")
+        return
+    print("  лог: %s, %d байт" % (log_path, os.path.getsize(log_path)))
+    print("  sha256: %s" % hash_file(log_path))
+    facts = parse_log_header(log_path)
+    if not facts:
+        print("  прошивка: лог не сообщает (нет шапки # hil:)")
+        return
+    dirty = ", дерево изменено" if facts.get("dirty") == "yes" else ""
+    print("  прошивка: %s, коммит %s%s"
+          % (facts.get("fw", "?"), facts.get("commit", "?"), dirty))
+    print("  стенд: %s (%s), SYSCLK %s"
+          % (facts.get("mcu", "?"), facts.get("chip", "?"),
+             facts.get("sysclk", "?")))
+    if facts.get("sha256"):
+        print("  образ: %s, sha256 %s"
+              % (facts.get("hex", "?"), facts["sha256"]))
+
+
+def verdict(bad, message):
+    """One line that says how the run ended, whatever the detail above."""
+    print("")
+    if bad:
+        print("ИТОГ: FAIL - %s" % message)
+        return 1
+    print("ИТОГ: PASS - %s" % message)
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("capture", nargs="?", default="")
@@ -798,10 +880,16 @@ def main():
     if not path:
         raise SystemExit("нужен файл захвата (позиционный аргумент)")
     rate_hz = float(args.rate.upper().replace("M", "e6").replace("K", "e3"))
+    if not os.path.isfile(path):
+        return verdict(1, "захвата нет: %s" % path)
+    if args.log and not os.path.isfile(args.log):
+        return verdict(1, "лога нет: %s" % args.log)
+
+    identity(path, rate_hz, args.channel, args.log)
+
     res = analyse(path, rate_hz, args.channel)
     if res is None:
-        print("шина была простаивающей весь захват - разбирать нечего")
-        return 1
+        return verdict(1, "шина простаивала весь захват - разбирать нечего")
     widths, gaps = res
 
     cfg = read_config()
@@ -809,10 +897,9 @@ def main():
         transactions, orphan, dropped = decode(widths, gaps, cfg)
     except DecodeError as e:
         print("  FAIL разбор: %s" % e)
-        return 1
+        return verdict(1, "разбор прерван")
     if not transactions:
-        print("  FAIL в захвате нет ни одной транзакции")
-        return 1
+        return verdict(1, "в захвате нет ни одной транзакции")
 
     report(transactions, orphan, dropped)
     bad = failures(transactions)
@@ -825,12 +912,9 @@ def main():
         print("  лог не задан (--log): сверено только внутреннее (CRC)")
         bad += ds2431_readback_errors(wire_events(transactions))
 
-    print("")
     if bad:
-        print("провод не соответствует: %d ошибок" % bad)
-        return 1
-    print("провод разобран, CRC и приложение согласны")
-    return 0
+        return verdict(1, "провод не соответствует: %d ошибок" % bad)
+    return verdict(0, "провод разобран, CRC и приложение согласны")
 
 
 if __name__ == "__main__":

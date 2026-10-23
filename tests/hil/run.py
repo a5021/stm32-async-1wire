@@ -137,7 +137,7 @@ def main(argv):
     finally:
         uart.close()
 
-    log_path = common.save_log(script, ctx.lines)
+    log_path = common.save_log(script, ctx.lines, ctx.app, hexpath)
     print("log: %s" % os.path.relpath(log_path, common.REPO))
     print(("PASS: " if ok else "FAIL: ") + message)
     if not ok and window.fixed is not None:

@@ -264,6 +264,36 @@ def test_ds2431_log_matches_bytes():
         os.unlink(path)
 
 
+def test_a_hil_header_is_read_back():
+    print("the # hil: identity a HIL log carries")
+    text = (
+        "# ds2431\n"
+        "# hil: script=ds2431 app=8_ds2431 mcu=STM32F103xB chip=f103xb "
+        "sysclk=72MHz\n"
+        "# hil: fw=2.4.0 commit=ac512b3 dirty=no\n"
+        "[1.00] DS2431 8_ds2431 starting...\n"
+    )
+    path = with_log(text)
+    try:
+        facts = la_decode.parse_log_header(path)
+        check("the image is named",
+              facts.get("fw") == "2.4.0" and facts.get("commit") == "ac512b3")
+        check("the bench and the clock are named",
+              facts.get("mcu") == "STM32F103xB"
+              and facts.get("sysclk") == "72MHz")
+        check("the header does not confuse the traffic parser",
+              la_decode.parse_log(path)[0] == set())
+    finally:
+        os.unlink(path)
+
+    old = with_log("# smoke\n[1.00] nothing here\n")
+    try:
+        check("an older log without the header reads as empty",
+              la_decode.parse_log_header(old) == {})
+    finally:
+        os.unlink(old)
+
+
 def test_ds2431_readback_confirms_the_write():
     print("the cycle's read-back: write, copy, read the row")
     txns, _, _ = decode([
@@ -629,6 +659,7 @@ def main():
     test_ds2431_skip_rom_is_ambiguous()
     test_ds2431_rejects_a_ds18b20_function()
     test_ds2431_log_matches_bytes()
+    test_a_hil_header_is_read_back()
     test_ds2431_readback_confirms_the_write()
     test_ds2431_readback_is_not_the_log_agreeing_with_itself()
     test_ds2431_copy_without_readback_fails()

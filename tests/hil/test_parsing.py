@@ -179,10 +179,37 @@ def test_lowpower_check():
     check("the check rejects the disabled variant (%s)" % detail, not ok)
 
 
+def test_log_identity():
+    print("the run's identity header")
+    check("the version comes from inc/ds18b20.h",
+          common.library_version() == "2.4.0")
+    check("the part comes from the Makefile, not a second table",
+          common.chip_for("STM32F103xB") == "f103xb")
+    check("the clock comes from chips/<part>.mk",
+          common.sysclk_for("f103xb") == 72)
+
+    header = common.log_header("ds2431", "8_ds2431", mcu="STM32F103xB")
+    fields = dict(
+        word.split("=", 1)
+        for line in header
+        if line.startswith("# hil: ")
+        for word in line[6:].split()
+    )
+    check("the bench and the clock are named",
+          fields.get("mcu") == "STM32F103xB"
+          and fields.get("sysclk") == "72MHz")
+    check("the tree identifies itself",
+          fields.get("fw") == "2.4.0"
+          and fields.get("commit") not in (None, "", "?"))
+    check("an image hash is only written when there is an image",
+          "sha256" not in fields)
+
+
 def main():
     test_line_has()
     test_parse_measurement()
     test_census()
+    test_log_identity()
     test_lowpower_check()
     if failures:
         print("test_parsing: FAILED (%d)" % len(failures))

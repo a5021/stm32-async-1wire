@@ -158,8 +158,14 @@ bytes, so the frame is the device's, not the master's guess.
 03 04` from earlier runs, so the baseline read equals the pattern. The capture
 therefore proves the command sequence, the addresses, the bytes and `ES=07`,
 and that the read-back still holds the pattern - not that a blank row was
-programmed by this run. A capture of a blank part (or a pattern derived from
-the ROM) would close that last gap.
+programmed by this run.
+
+`la_decode.py` now checks that last step itself: after Copy it follows the
+read of the same row and fails when the bytes differ from the write, or when a
+copied row is never read. It also compares the baseline with the write, and
+when they are equal it prints the caveat above instead of letting a green run
+imply more than it proves. A capture of a blank part (or a pattern derived
+from the ROM) would close that last gap.
 
 **What is not covered yet.** The decoder understands the ROM commands
 (`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`), the DS18B20 functions (`0x44`,

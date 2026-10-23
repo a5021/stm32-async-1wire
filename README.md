@@ -1262,6 +1262,14 @@ instead of the per-device budget. When no probe or target is attached the
 harness skips and exits 0, so it is safe to run anywhere. Raw captures land
 under `bench_logs/hil/` (gitignored).
 
+**A run names itself.** Every log the harness saves starts with `# hil:` lines
+carrying the script, the example, the part, the clock the build used, the
+library version, the commit, whether the tree was dirty, and the SHA-256 of the
+image that was flashed. The version and the clock are read from the same files
+the build reads (`inc/ds18b20.h`, the Makefile's part mapping,
+`chips/<part>.mk`), so they cannot drift from it. A log with `dirty=yes` does
+not describe a commit - the image hash is what pins that run.
+
 **The wire itself can be measured too.** `tests/hil/la_capture.py` captures
 the 1-Wire line (PA10) with a logic analyzer and checks the measured pulse
 widths and slot period against the configuration in `inc/ow_config.h` — the
@@ -1321,7 +1329,38 @@ things on a `28` and a `2D`; a function sent after SKIP ROM is refused as
 ambiguous instead of guessed. The Read Scratchpad reply is 13 bytes, and the
 inverted CRC-16 the device appends is recomputed from `0xAA` plus the eleven
 frame bytes. With `--log`, the pattern the example wrote, the frame it
-verified and the EEPROM it read back must match the wire byte for byte.
+verified and the EEPROM it read back must match the wire byte for byte - and
+the read-back must carry the written bytes.
+
+Agreeing is not enough on its own: a log that prints the pattern it *meant* to
+write, or a device that ignored Copy Scratchpad, leaves the wire and the log
+identical while the EEPROM still holds the old byte. So the decoder follows
+each device's cycle - write, scratchpad frame, copy, read - and fails when the
+frame returns something else, when the read-back differs from the write, and
+when a copied row is never read at all. If the row already held that pattern
+before the write, the report says so as a note: the read path is proven, the
+copy is not. Proving the copy needs a pattern the row does not hold yet.
+
+The report opens with the capture and log hashes, the sample rate and channel,
+the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/FAIL`
+line, so a stored artifact can be re-checked and the verdict read off without
+reconstructing it from the prose above.
+
+**What each layer can prove.** A green line in one of them is not evidence for
+the next:
+
+| Evidence | Check | Proves | Cannot prove |
+|----------|-------|--------|--------------|
+| Host model | `make test`, `make test-ds2431` against the F0/F1 mock | state machines, command order, CRC math, error paths | timing, electrical behaviour, what a real slave does |
+| Signal geometry | `la_capture.py` | pulse widths, slot period, long waits - the schedule the bus sees | which bytes those pulses carry |
+| Wire content | `la_decode.py` | bits, ROM/search, commands and payloads with the device's CRC; the app and the wire agree | that a write changed the EEPROM (the read-back note covers that) |
+| Real device | `run.py` log + read-back | the driver against an actual part, including the EEPROM read | negative electrical scenarios the bench cannot inject |
+
+The negative controls for the analyzer need no bench and live in
+`tests/hil/test_la_decode.py`: no presence, a silent device (all ones, bad
+CRC), a damaged ROM CRC, a presence inside a frame, a capture cut one slot
+short, a copy with no read-back, and a wire and a log that agree on a write
+that did not take.
 
 The measured geometry and decoded frames of the F1 bench, and what they are
 for, are in `port/stm32f1/HARDWARE-NOTES.md`.

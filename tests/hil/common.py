@@ -8,6 +8,7 @@ point, and it skips when no ST-Link or target is attached.
 """
 
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -77,6 +78,94 @@ def select_bench(mcu):
     BUILD_EXT = (
         os.environ["HIL_EXT"] if "HIL_EXT" in os.environ else BENCH_PROFILES[mcu]["ext"]
     )
+
+
+def _git(*args):
+    """A short git answer, or "" when git is absent or the tree is not one."""
+    try:
+        proc = subprocess.run(
+            ["git"] + list(args), cwd=REPO, capture_output=True, text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def library_version():
+    """STM32_ASYNC_1WIRE_VERSION_STRING from inc/ds18b20.h, or "?".
+
+    Read from the header rather than restated: if the version moves, the log
+    that names it has to move with it.
+    """
+    path = os.path.join(REPO, "inc", "ds18b20.h")
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return "?"
+    m = re.search(r'STM32_ASYNC_1WIRE_VERSION_STRING\s+"([^"]+)"', text)
+    return m.group(1) if m else "?"
+
+
+def chip_for(mcu):
+    """The chips/<part>.mk the Makefile maps OW_MCU to, or None.
+
+    The mapping is read out of the Makefile instead of being copied here: a
+    second table would be one more thing to keep in step with the build.
+    """
+    try:
+        text = open(os.path.join(REPO, "Makefile"), encoding="utf-8",
+                    errors="replace").read()
+    except OSError:
+        return None
+    m = re.search(r"^OW_MCU_CHIP_%s\s*=\s*(\S+)" % re.escape(mcu), text, re.M)
+    return m.group(1) if m else None
+
+
+def sysclk_for(chip):
+    """CHIP_SYSCLK_MHZ from chips/<chip>.mk, in MHz, or None."""
+    try:
+        text = open(os.path.join(REPO, "chips", "%s.mk" % chip),
+                    encoding="utf-8", errors="replace").read()
+    except OSError:
+        return None
+    m = re.search(r"^CHIP_SYSCLK_MHZ\s*=\s*(\d+)", text, re.M)
+    return int(m.group(1)) if m else None
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def log_header(script, app, hexpath="", mcu=None):
+    """The identity of the run, as `# hil:` lines.
+
+    A capture says what the wire did; it does not say which image drove it, on
+    which part, at which clock, or from which tree. The version and the clock
+    are read from the same files the build reads, the commit and the dirty
+    flag say whether the tree was that commit, and the image hash pins the
+    binary even when the tree was dirty. A log without these lines is still
+    parsed - the reader just says the identity was not recorded.
+    """
+    mcu = mcu or MCU or "?"
+    chip = chip_for(mcu) or "?"
+    sysclk = sysclk_for(chip) if chip != "?" else None
+    lines = [
+        "# hil: script=%s app=%s mcu=%s chip=%s sysclk=%s"
+        % (script, app or "?", mcu, chip,
+           "%dMHz" % sysclk if sysclk else "?"),
+        "# hil: fw=%s commit=%s dirty=%s"
+        % (library_version(), _git("rev-parse", "--short", "HEAD") or "?",
+           "yes" if _git("status", "--porcelain") else "no"),
+    ]
+    if hexpath and os.path.isfile(hexpath):
+        lines.append("# hil: hex=%s sha256=%s"
+                     % (os.path.basename(hexpath), sha256(hexpath)))
+    return lines
 
 
 def bench_from_probe(stdout):
@@ -468,12 +557,14 @@ def probe():
     return "ok", conn.stdout
 
 
-def save_log(name, lines):
+def save_log(name, lines, app="", hexpath=""):
     os.makedirs(LOG_DIR, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
     path = os.path.join(LOG_DIR, "%s_%s.log" % (name, stamp))
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write("# %s\n" % name)
+        for line in log_header(name, app, hexpath):
+            fh.write(line + "\n")
         for t, line in lines:
             fh.write("[%7.2f] %s\n" % (t, line))
     return path
