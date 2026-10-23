@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   device header and the engine's register vocabulary — an abstraction leak,
   not a style question. The engine and the per-family facts move to `src/`
   (`src/ow_port.h`, `src/ow_mcu.h`) and are reached only by `src/onewire.c`;
-  the facts a consumer genuinely needs — the `OW_PORT_FAMILY_*` selection
+  the facts a consumer genuinely needs — the `OW_FAMILY_*` selection
   token, `ow_pulse_t` and the board clock defaults — move to the new public
   `inc/ow_board.h`. `onewire.h` now includes only `ow_config.h` and
   `ow_board.h`, and the public/private header graph is acyclic (the old
@@ -359,8 +359,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `build.yml` with the variants job checking its `.hex`/`.bin`). The release
   matrix publishes 9 default-clock variants — one per MCU: F1 72, F0 48, G0 64,
   F3 72, G4 170, H5 64, F407 168, F401 84, F446 180 — as `ds18b20_8_ds2431_*`
-  artifacts, listed in the Download table, with a "What's new in 2.3.1" section
-   in the release body. The README documents the example, the driver and the
+  artifacts. The README documents the example, the driver and the
    test/fuzz targets with the counts measured on this toolchain, and the fuzz
    dictionary gained the DS2431 opcodes.
 
