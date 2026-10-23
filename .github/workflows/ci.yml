@@ -90,7 +90,14 @@ jobs:
           gcc --version | head -1
           make --version | head -1
           python3 --version
+      - name: Cache CMSIS dependencies
+        id: cache-cmsis
+        uses: actions/cache@v5
+        with:
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
       - name: Download CMSIS dependencies
+        if: steps.cache-cmsis.outputs.cache-hit != 'true'
         # All families up front: the host suites compile against mocks, but
         # keeping every backend's dependency set present lets any matrix cell
         # configure either target without re-downloading.
@@ -155,7 +162,14 @@ jobs:
       - name: Install lcov
         # gcc is on the runner image; only lcov comes from the archive.
         run: bash tests/ci/apt_install.sh ~/apt-debs lcov
+      - name: Cache CMSIS dependencies
+        id: cache-cmsis
+        uses: actions/cache@v5
+        with:
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
       - name: Download CMSIS dependencies
+        if: steps.cache-cmsis.outputs.cache-hit != 'true'
         run: |
           make download-deps
           make OW_MCU=STM32F030x6 download-deps
@@ -349,7 +363,14 @@ jobs:
           key: ${{ runner.os }}-apt-cppcheck-v2
       - name: Install cppcheck
         run: bash tests/ci/apt_install.sh ~/apt-debs cppcheck
+      - name: Cache CMSIS dependencies
+        id: cache-cmsis
+        uses: actions/cache@v5
+        with:
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
       - name: Download CMSIS dependencies
+        if: steps.cache-cmsis.outputs.cache-hit != 'true'
         run: |
           make download-deps
           make OW_MCU=STM32F303xC download-deps
