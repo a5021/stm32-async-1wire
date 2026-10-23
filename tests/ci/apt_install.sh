@@ -16,6 +16,11 @@
 # in minutes instead of hanging it, and the next run retries.
 #
 # Usage: apt_install.sh CACHE_DIR PACKAGE...
+#
+# When the runner image moves (ubuntu-latest becomes 26.04 in November 2026),
+# the cached set no longer matches: the check fails, the archive path takes
+# over and the job still passes - but it pays for the download on every run
+# until the workflow cache key is bumped.
 set -euo pipefail
 
 # A silent exit is what makes a CI failure expensive: say where it stopped.
@@ -59,14 +64,12 @@ if compgen -G "$cache/*.deb" >/dev/null; then
     echo "apt: cached set is incomplete, going to the archive"
 fi
 
-# Miss. Keep the .debs this time (docker-clean would delete them), and keep the
-# Google source and the Azure mirror from failing the index update. Both
-# guards end in `|| true`: under pipefail an empty grep is a failure.
+# Miss. Keep the .debs this time (docker-clean would delete them), and drop the
+# Google source, which no package here needs. The guard ends in `|| true`:
+# under pipefail an empty grep is a failure.
 sudo rm -f /etc/apt/apt.conf.d/docker-clean
 { sudo grep -rl 'dl.google.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null \
     | xargs -r sudo rm -f; } || true
-sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' \
-    /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
 
 apt_opts=(-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
 

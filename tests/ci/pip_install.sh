@@ -11,6 +11,12 @@
 # never turn into a source build on the runner.
 #
 # Usage: pip_install.sh CACHE_DIR PACKAGE...
+#
+# When the runner image moves (ubuntu-latest becomes 26.04 in November 2026),
+# the cached wheels stop matching: they are built for the old Python ABI, so
+# the offline install fails, the index path takes over and the job still
+# passes - but it pays for the download on every run until the workflow cache
+# key is bumped.
 set -euo pipefail
 
 trap 'echo "pip_install.sh: failed at line $LINENO" >&2' ERR
