@@ -18,10 +18,12 @@ The cases below replay the artefacts that were actually captured
 
 import os
 import sys
+import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import common  # noqa: E402
+import ds2431  # noqa: E402
 import lowpower  # noqa: E402
 
 # The captured artefact: the mode line lost its tail and the next line was
@@ -229,11 +231,70 @@ def test_log_identity():
           == "-DOW_PARASITE_POWER=1,-DOW_LOW_POWER=1")
 
 
+class _FakeUart:
+    """Just enough of the serial port for LineReader: bytes, then silence."""
+
+    def __init__(self, text):
+        self.data = text.encode("ascii")
+        self.timeout = 0.0
+
+    def read(self, size):
+        chunk, self.data = self.data[:size], self.data[size:]
+        return chunk
+
+
+def _ds2431_transcript(devices, verdict=ds2431.READ_BACK_OK):
+    """The lines examples/8_ds2431 prints for one run, per device."""
+    lines = ["Found %d device(s)." % len(devices)]
+    for rom, baseline, readback in devices:
+        lines += [
+            "Selected ROM: " + rom,
+            "  EEPROM: " + baseline,
+            "  EEPROM: " + readback,
+            "  " + verdict,
+        ]
+    lines.append("Demo done.")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def test_ds2431_check_follows_the_example():
+    print("the ds2431 HIL check reads the example's next value")
+    rom_a = "2D F8 47 60 26 00 00 69"
+    rom_b = "2D C9 AB 5D 26 00 00 9D"
+    base_a = "10 20 30 40 50 60 70 80"
+    next_a = "11 21 31 41 51 61 71 81"
+    base_b = "FF 00 01 02 03 04 05 FE"
+    next_b = "00 01 02 03 04 05 06 FF"
+    ctx = types.SimpleNamespace(seed=b"", window=2.0, lines=[])
+
+    good = _ds2431_transcript(
+        [(rom_a, base_a, next_a), (rom_b, base_b, next_b)])
+    ok, message = ds2431.run(_FakeUart(good), ctx)
+    check("baseline+1 on every device passes (%s)" % message, ok)
+
+    stale = _ds2431_transcript([(rom_a, base_a, base_a)])
+    ok, message = ds2431.run(_FakeUart(stale), ctx)
+    check("a copy that did not take fails the increment",
+          not ok and "baseline+1" in message)
+
+    lying = _ds2431_transcript(
+        [(rom_a, base_a, next_a)], verdict=ds2431.READ_BACK_BAD)
+    ok, message = ds2431.run(_FakeUart(lying), ctx)
+    check("a DIFFERS verdict fails even with the right bytes",
+          not ok and "DIFFERS" in message)
+
+    silent = _ds2431_transcript([(rom_a, base_a, next_a)], verdict="")
+    ok, message = ds2431.run(_FakeUart(silent), ctx)
+    check("a device with no read-back verdict fails",
+          not ok and "no read-back verdict" in message)
+
+
 def main():
     test_line_has()
     test_parse_measurement()
     test_census()
     test_log_identity()
+    test_ds2431_check_follows_the_example()
     test_lowpower_check()
     if failures:
         print("test_parsing: FAILED (%d)" % len(failures))

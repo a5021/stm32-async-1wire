@@ -11,14 +11,18 @@ lines that follow belong to it - and requires every device to be served:
   * all Selected ROMs are distinct (a silently rejected ds2431_select would
     otherwise re-cycle the first device under the same ROM);
   * the family byte is 0x2D;
-  * no abort, and the read-back after each copy equals the pattern the
-    firmware wrote, which pins that the strong pull-up held through t_PROG on a
-    parasite-powered bench and that the EEPROM really took the data.
+  * no abort, and each device has a baseline read and a read-back;
+  * the read-back equals the baseline with every byte incremented, which is
+    the value the example says it writes, and the application's own
+    `read-back matches the write` line agrees.
 
-Known limitation: the firmware's write pattern is fixed, so a broken write
-path only fails the check while the EEPROM does not already hold that pattern -
-after one successful pass a later lost write re-reads the stored pattern and
-would slip through. Presence itself (ROM family + completion) is unaffected.
+The example writes the row's own next value rather than a fixed pattern, so a
+copy that never reached the EEPROM reads back the baseline and fails the
+increment - after one successful pass a fixed pattern would have read back
+what was already stored. The check still shares the firmware's arithmetic
+with the example: it proves that the device holds the value the firmware meant
+to write, not that the wire carried the command. `la_decode.py --log` reads
+the same run from the wire and proves the copy independently.
 
 DS18B20 devices on the same bus do not interfere: the example's search
 filters on the DS2431 family code, so sensors never appear in its output and
@@ -36,12 +40,10 @@ EEPROM_RE = re.compile(r"^EEPROM: ((?:[0-9A-F]{2} ){7}[0-9A-F]{2})$")
 MISSING = "No DS2431 found."
 ABORT = "no device present; operation aborted"
 DONE = "Demo done."
+READ_BACK_OK = "read-back matches the write"
+READ_BACK_BAD = "read-back DIFFERS from the write"
 
 FAMILY_CODE = 0x2D  # DS2431_FAMILY_CODE: the ROM byte the search filters on
-# The firmware's own write pattern (examples/8_ds2431/main.c write_data); a
-# copy that never reached the EEPROM would read back whatever was there, not
-# this.
-PATTERN = [0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04]
 
 
 def run(uart, ctx):
@@ -61,6 +63,7 @@ def run(uart, ctx):
                 {
                     "rom": [int(x, 16) for x in m.group(1).split()],
                     "reads": [],
+                    "claim": None,
                 }
             )
             continue
@@ -70,6 +73,14 @@ def run(uart, ctx):
                 devices[-1]["reads"].append(
                     [int(x, 16) for x in m.group(1).split()]
                 )
+            continue
+        if common.line_has(line, READ_BACK_OK):
+            if devices:
+                devices[-1]["claim"] = True
+            continue
+        if common.line_has(line, READ_BACK_BAD):
+            if devices:
+                devices[-1]["claim"] = False
             continue
         if common.line_has(line, DONE):
             # The example stops streaming once it is done, so nothing more
@@ -100,14 +111,26 @@ def run(uart, ctx):
                 idx + 1,
                 dev["rom"][0],
             )
-        if not dev["reads"]:
-            return False, "device %d produced no EEPROM read" % (idx + 1)
-        if dev["reads"][-1] != PATTERN:
-            return False, "device %d read-back does not match the written pattern: got %s" % (
+        if len(dev["reads"]) < 2:
+            return False, (
+                "device %d produced %d EEPROM read(s), "
+                "expected baseline and read-back" % (idx + 1, len(dev["reads"]))
+            )
+        baseline = dev["reads"][0]
+        expected = [(b + 1) & 0xFF for b in baseline]
+        if dev["reads"][-1] != expected:
+            return False, "device %d read-back %s is not baseline+1 %s" % (
                 idx + 1,
                 " ".join("%02X" % b for b in dev["reads"][-1]),
+                " ".join("%02X" % b for b in expected),
             )
-    return True, "%d DS2431 device(s), %d EEPROM read(s), read-back matches" % (
+        if dev["claim"] is False:
+            return False, "device %d says its read-back DIFFERS from the write" % (
+                idx + 1,
+            )
+        if dev["claim"] is None:
+            return False, "device %d printed no read-back verdict" % (idx + 1)
+    return True, "%d DS2431 device(s), %d EEPROM read(s), read-back is baseline+1" % (
         len(devices),
         sum(len(d["reads"]) for d in devices),
     )
