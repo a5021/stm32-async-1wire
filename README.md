@@ -1256,8 +1256,9 @@ make test-hil HIL_SCRIPT=ds2431     # 8_ds2431 — the EEPROM cycle on every DS2
 The board is auto-detected (`STM32F103xB` reference bench, or the
 `STM32H503xx`); pin it with `HIL_MCU=` — a mismatch against the attached target
 fails rather than flashing the wrong part. The COM port is scanned unless
-`HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (empty
-means an externally powered bus), and `HIL_TIMEOUT=` forces a fixed window
+`HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (unset
+uses the bench profile, an explicit empty value means an externally powered
+bus), and `HIL_TIMEOUT=` forces a fixed window
 instead of the per-device budget. When no probe or target is attached the
 harness skips and exits 0, so it is safe to run anywhere. Raw captures land
 under `bench_logs/hil/` (gitignored).
@@ -1325,6 +1326,17 @@ application printed, which is an equality, not a tolerance. A capture armed
 before the flash also holds the previous image's round; the pairing starts at
 the last search, and the capture must cover the run the log came from.
 
+One truncation is expected rather than a failure: arming the capture before
+`make test-hil` means the programmer resets the previous image, often in the
+middle of a search pass. The master stops writing direction bits, the line
+goes idle and the new image starts with its own reset. Such a pass yields no
+ROMs, so there is nothing to compare and nothing is guessed; the report marks
+the exchange `обмен прерван` and keeps the transactions around it. Every other
+cut stays an error - a half-written command, a frame shorter than its command
+says, a read that stops mid-frame - and a capture with no completed
+transaction at all is FAIL. Both sides are covered in
+`tests/hil/test_la_decode.py`.
+
 The DS2431 cycle is read the same way. The function table follows the family
 byte of the selected ROM, because `0x55` and `0xF0` are ROM commands at the
 start of a transaction and memory commands later, and they mean different
@@ -1350,6 +1362,15 @@ capture from an image that wrote a fixed one - it says so as a note: the read
 path is proven, the copy is not. Without the baseline in view it claims
 neither.
 
+The 2026-10-23 F1 bench capture is the first one that carries the proof. Both
+`2D` parts went `DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05` on the
+wire, the Read Memory after Copy returned the new row with the device's CRC,
+and the report closed with `копирование доказано` for both. The same artifact
+still holds a cycle from the image that preceded the flash: its baseline
+already equalled its write, so it appears only as the equal-baseline note.
+Having both cases in one report is deliberate - it shows what the note and the
+proof look like.
+
 The report opens with the capture and log hashes, the sample rate and channel,
 the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/FAIL`
 line, so a stored artifact can be re-checked and the verdict read off without
@@ -1370,7 +1391,7 @@ the next:
 |----------|-------|--------|--------------|
 | Host model | `make test`, `make test-ds2431` against the F0/F1 mock | state machines, command order, CRC math, error paths | timing, electrical behaviour, what a real slave does |
 | Signal geometry | `la_capture.py` | pulse widths, slot period, long waits - the schedule the bus sees | which bytes those pulses carry |
-| Wire content | `la_decode.py` | bits, ROM/search, commands and payloads with the device's CRC; the app and the wire agree | that a write changed the EEPROM (the read-back note covers that) |
+| Wire content | `la_decode.py` | bits, ROM/search, commands and payloads with the device's CRC; with `--log`, that Copy changed the row and the device's read-back returned the new bytes | retention after power-off, or margin over temperature and voltage (the part's datasheet, not this run) |
 | Real device | `run.py` log + read-back | the driver against an actual part, including the EEPROM read | negative electrical scenarios the bench cannot inject |
 
 The negative controls for the analyzer need no bench and live in

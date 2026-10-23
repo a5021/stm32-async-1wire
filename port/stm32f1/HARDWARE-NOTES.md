@@ -166,10 +166,50 @@ same row, fails when the bytes differ from the write or when a copied row is
 never read, and compares the baseline with the write. An equal baseline is a
 printed note, not a proof.
 
-`8_ds2431` now writes the row's own next value (every byte plus one), so a
-fresh capture has a baseline that differs from the write and the read-back
-after Copy proves the copy. Re-run the sequence above and the report says
-"копирование доказано" instead of the note.
+**The copy, proven on the wire (2026-10-23).** `8_ds2431` now writes the row's
+own next value (every byte plus one), and a fresh 30 s / 4 MHz capture of
+`make test-hil HIL_SCRIPT=ds2431 HIL_EXT=-DOW_PARASITE_POWER=1` decoded:
+
+```
+    MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+    READ MEMORY  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
+    MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+    WRITE SCRATCHPAD  TA1=00 TA2=00: DF AE BF F0 02 03 04 05
+    MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+    READ SCRATCHPAD  TA1=00 TA2=00: DF AE BF F0 02 03 04 05  CRC16 ok
+    MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+    COPY SCRATCHPAD  TA1=00 TA2=00  ES=07
+    MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
+    READ MEMORY  TA1=00 TA2=00: DF AE BF F0 02 03 04 05
+```
+
+The same cycle ran on the second `2D` part. In the report:
+
+```
+DS2431 2D F8 47 60 26 00 00 69: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
+DS2431 2D C9 AB 5D 26 00 00 9D: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
+DS2431: 2 из них изменили ряд - копирование доказано
+```
+
+The read after Copy is the device's answer with its own CRC, and it carries
+the new row, so this is a read that confirms the EEPROM content - not a
+command echo and not the application agreeing with itself. The same artifact
+also holds a cycle from the image that preceded the flash, whose baseline
+already equalled its write; it appears only as
+`записанное уже было в EEPROM - копирование этим прогоном не доказано`. That
+is the intended distinction between a note and a proof.
+
+The capture was armed before the flash, so the programmer's reset cuts the
+previous image's search mid-pass (transactions 54 and 225, the latter at the
+end of the capture). Those two are reported as `обмен прерван`, carry no ROMs
+and fail nothing; every completed transaction around them is decoded and
+CRC-checked as usual. The boot search and the EEPROM cycles all sit after the
+last completed search, which is the boot the log belongs to.
+
+Artifacts: `bench_logs/hil/la_ds2431_20261023.bin` (sha256 `5f215ab8...`),
+`.meta`, and the full report `la_ds2431_20261023.report.txt`; the log is
+`bench_logs/hil/ds2431_20261023-154753.log` (commit `6ce5e75`, `dirty=no`,
+parasite EXT, image sha256 `50b0b5bf...`).
 
 **What is not covered yet.** The decoder understands the ROM commands
 (`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`), the DS18B20 functions (`0x44`,
