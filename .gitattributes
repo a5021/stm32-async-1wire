@@ -1,31 +1,26 @@
-# Line endings are pinned where the toolchain cares, so a Windows checkout with
-# core.autocrlf=true cannot change what gets built.
+# Line endings. One rule for the whole tree, because the alternative costs a
+# review every time: an editor or a zip made on another machine leaves CRLF in
+# the working tree, and the files without a `text` attribute then show up as
+# modified although nothing changed (58 of them when this was written - .py,
+# .ld, .jdebug, .jflash, .json, the dotfiles). The repository stores LF, and
+# this makes every checkout LF too.
 #
-# tests/*.sh are run by sh, and a CRLF in a shell script is not cosmetic: sh
-# reads the \r as part of the command, so `set -e` becomes `set -e<CR>` and the
-# script dies with a usage error. tests/check_chips.sh had exactly that fate
-# locally, and only escaped notice because whichever sh happened to be first on
-# PATH tolerated it. LF is pinned here so the script is the same file on every
-# platform.
+# text=auto lets git decide what is text (a NUL byte says binary). eol=lf
+# checks text out with LF on every platform, so the working tree cannot drift
+# from the index and sh/make see the same bytes everywhere.
+* text=auto eol=lf
+
+# Raw byte blobs: never detect, never convert. The corpus seeds are byte
+# patterns and some of them would pass a "is this text" test.
+tests/fuzz/corpus/* binary
+*.bin binary
+
+# Spelled out on purpose rather than left to the rule above: a CRLF in a shell
+# script is not cosmetic. sh reads the \r as part of the command, so `set -e`
+# becomes `set -e<CR>` and the script dies with a usage error.
+# tests/check_chips.sh had exactly that fate locally, and only escaped notice
+# because whichever sh happened to be first on PATH tolerated it.
 *.sh text eol=lf
-
-# The Makefile is read by make, which tolerates CRLF, and it is edited on
-# Windows; keep the native endings rather than fighting the working tree.
-Makefile text eol=lf
-CMakeLists.txt text eol=lf
-
-# Sources and headers: normalise to LF in the repository, accept either on
-# checkout. Keeps diffs free of end-of-line noise across platforms.
-*.c   text
-*.h   text
-*.mk  text
-*.md  text
-*.yml text
-*.cmake text
 
 # libFuzzer dictionaries are line-oriented; LF keeps the tokens byte-exact.
 *.dict text eol=lf
-
-# Fuzz corpus seeds are raw byte blobs, not text: never touch their bytes,
-# whatever core.autocrlf says on the machine that adds them.
-tests/fuzz/corpus/* binary
