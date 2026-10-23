@@ -264,6 +264,125 @@ def test_ds2431_log_matches_bytes():
         os.unlink(path)
 
 
+def test_ds2431_readback_confirms_the_write():
+    print("the cycle's read-back: write, copy, read the row")
+    txns, _, _ = decode([
+        ds2431_read_memory(), ds2431_write(), ds2431_frame(),
+        ds2431_copy(), ds2431_read_memory(),
+    ])
+    events = la_decode.wire_events(txns)
+    check("the written row is read back unchanged",
+          la_decode.ds2431_readback_errors(events) == 0)
+
+
+def test_ds2431_readback_is_not_the_log_agreeing_with_itself():
+    print("a wire and a log that agree on a write that did not take")
+    # The old failure mode: the log prints what it wrote and the EEPROM it
+    # read, both captured; the wire carries the same two strings. The byte
+    # comparison is green while the device still holds the old byte.
+    stale = bytes.fromhex("DE AD BE EF 01 02 03 05")
+    txns, _, _ = decode([
+        ds2431_read_memory(stale), ds2431_write(), ds2431_frame(),
+        ds2431_copy(), ds2431_read_memory(stale),
+    ])
+    wire = la_decode.wire_events(txns)
+    log = [(ROM_D, "read", stale), (ROM_D, "write", PATTERN),
+           (ROM_D, "frame", scratch_frame()[:11]),
+           (ROM_D, "copy", b""), (ROM_D, "read", stale)]
+    check("the wire matches the log byte for byte",
+          la_decode.compare_events(wire, log) == 0)
+    check("the read-back check still fails it",
+          la_decode.ds2431_readback_errors(log) > 0)
+    check("compare_log fails it",
+          la_decode.compare_log(txns, {ROM_D}, [], 1, log) > 0)
+
+
+def test_ds2431_copy_without_readback_fails():
+    print("a copy with no read afterwards")
+    txns, _, _ = decode([
+        ds2431_read_memory(), ds2431_write(), ds2431_frame(), ds2431_copy(),
+    ])
+    check("an unconfirmed write is an error",
+          la_decode.ds2431_readback_errors(la_decode.wire_events(txns)) == 1)
+
+
+def test_ds2431_frame_must_carry_the_written_bytes():
+    print("a scratchpad frame that returns something else")
+    other = bytes.fromhex("DE AD BE EF 01 02 03 05")
+    txns, _, _ = decode([
+        ds2431_write(), ds2431_frame(scratch_frame(other)),
+        ds2431_copy(), ds2431_read_memory(),
+    ])
+    check("the frame is a valid CRC-16 but the wrong content",
+          txns[1].frames[1].crc_ok is True)
+    check("the mismatch is an error",
+          la_decode.ds2431_readback_errors(la_decode.wire_events(txns)) == 1)
+
+
+def test_a_missing_device_is_an_error():
+    print("a reset that no device answers")
+    widths, gaps = build([[("reset",), ("slot", 0, "w")]])
+    try:
+        la_decode.decode(widths, gaps, cfg())
+        check("a slot where a presence belongs is refused", False)
+    except la_decode.DecodeError as e:
+        check("a slot where a presence belongs is refused (%s)" % e, True)
+
+    try:
+        la_decode.decode(np.array([RESET]), np.array([]), cfg())
+        check("a capture that ends on the reset is refused", False)
+    except la_decode.DecodeError as e:
+        check("a capture that ends on the reset is refused (%s)" % e, True)
+
+
+def test_a_silent_device_fails_the_crc():
+    print("a device that drives nothing: the master reads all ones")
+    txns, _, _ = decode([
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"),
+                 slots(b"\xFF" * 9, "r")),
+    ])
+    read = txns[0].frames[1]
+    check("the bytes are 0xFF", read.payload == b"\xFF" * 9)
+    check("the CRC-8 rejects them", read.crc_ok is False)
+    check("failures() counts it", la_decode.failures(txns) == 1)
+
+
+def test_a_bad_rom_crc_is_counted():
+    print("a MATCH ROM whose ROM byte was damaged")
+    rom = bytearray(ROM_A)
+    rom[3] ^= 0x01
+    txns, _, _ = decode([
+        exchange(slots(b"\x55" + bytes(rom)), slots(b"\x44")),
+    ])
+    check("the ROM CRC is false", txns[0].frames[0].crc_ok is False)
+    check("failures() counts it", la_decode.failures(txns) == 1)
+
+
+def test_a_presence_inside_a_transaction_is_an_error():
+    print("a device answering in the middle of a frame")
+    widths, gaps = build([
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"), slots(SCRATCHPAD, "r")),
+    ])
+    widths[10] = 130.0  # between 2 x ZERO and a reset: a presence, not a slot
+    try:
+        la_decode.decode(widths, gaps, cfg())
+        check("the interruption is refused", False)
+    except la_decode.DecodeError as e:
+        check("the interruption is refused (%s)" % e, True)
+
+
+def test_a_truncated_capture_is_an_error():
+    print("a capture that stops one slot before the end of a frame")
+    widths, gaps = build([
+        exchange(slots(b"\x55" + ROM_A), slots(b"\xBE"), slots(SCRATCHPAD, "r")),
+    ])
+    try:
+        la_decode.decode(widths[:-1], gaps[:-1], cfg())
+        check("a short frame is refused, not zero-filled", False)
+    except la_decode.DecodeError as e:
+        check("a short frame is refused, not zero-filled (%s)" % e, True)
+
+
 def test_ds2431_read_memory_is_not_a_search():
     print("a Read Memory (0xF0) after the boot search")
     # The DS2431 cycle runs after the boot search; if its 0xF0 were taken for
@@ -510,6 +629,15 @@ def main():
     test_ds2431_skip_rom_is_ambiguous()
     test_ds2431_rejects_a_ds18b20_function()
     test_ds2431_log_matches_bytes()
+    test_ds2431_readback_confirms_the_write()
+    test_ds2431_readback_is_not_the_log_agreeing_with_itself()
+    test_ds2431_copy_without_readback_fails()
+    test_ds2431_frame_must_carry_the_written_bytes()
+    test_a_missing_device_is_an_error()
+    test_a_silent_device_fails_the_crc()
+    test_a_bad_rom_crc_is_counted()
+    test_a_presence_inside_a_transaction_is_an_error()
+    test_a_truncated_capture_is_an_error()
     test_ds2431_read_memory_is_not_a_search()
     print("")
     if failures:

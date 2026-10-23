@@ -19,6 +19,13 @@ The decode is strict on purpose. A slot width in the gap between a '1' and a
 skipped transaction; a CRC that does not match fails the run. A decoder that
 guesses would turn a red capture green.
 
+The DS2431 cycle is checked one step further than "the log and the wire
+agree": after Copy Scratchpad the same row is read again and must return what
+was written. Without that, an application that prints the pattern it meant to
+write agrees with itself while the EEPROM still holds the old byte. When the
+row already held that pattern before the write, the report says so: the read
+path is proven, the copy is not.
+
 Understood: Read ROM / Skip ROM / Match ROM / Search ROM / Alarm Search, the
 DS18B20 Convert and Read Scratchpad, and the DS2431 Write Scratchpad, Read
 Scratchpad (with its inverted CRC-16), Copy Scratchpad and Read Memory. The
@@ -631,6 +638,62 @@ def event_str(event):
     return "%s %s %s" % (hexs(rom), kind, hexs(data) if data else "-")
 
 
+def ds2431_readback_errors(events):
+    """The copy is proven by reading the row back, not by saying it worked.
+
+    compare_events() proves the wire and the log agree. It does not prove the
+    write took: a device that ignores Copy Scratchpad, or an application that
+    prints the pattern it meant to write instead of the one it read, leaves
+    both sides identical and the EEPROM holding the old bytes. The device
+    contract is narrow - write P, copy, read the same row, get P - so that is
+    all this checks, over the wire's own bytes.
+
+    A cycle the capture only partly holds is not guessed at: without the Write
+    in view there is nothing to compare the read against, and the copy is not
+    tracked.
+    """
+    bad = 0
+    written = {}
+    awaiting = {}
+    baseline = {}
+    confirmed = 0
+    for rom, kind, data in events:
+        if kind == "write":
+            written[rom] = data
+            awaiting.pop(rom, None)
+        elif kind == "frame" and rom in written:
+            # frame = TA1 TA2 ES + the data the scratchpad returned.
+            if data[3:] != written[rom]:
+                print("  FAIL %s: кадр scratchpad %s, записано %s"
+                      % (hexs(rom), hexs(data[3:]), hexs(written[rom])))
+                bad += 1
+        elif kind == "copy" and rom in written:
+            awaiting[rom] = written[rom]
+        elif kind == "read" and rom in awaiting:
+            want = awaiting.pop(rom)
+            if len(data) < len(want) or data[:len(want)] != want:
+                print("  FAIL %s: после копирования EEPROM %s, записано %s"
+                      % (hexs(rom), hexs(data), hexs(want)))
+                bad += 1
+            else:
+                confirmed += 1
+                if baseline.get(rom) == want:
+                    # Reading the same bytes back proves the read path, but
+                    # not the write: an EEPROM that already held them looks
+                    # identical when the copy is ignored.
+                    print("  примечание %s: записанное уже было в EEPROM - "
+                          "копирование этим прогоном не доказано" % hexs(rom))
+        elif kind == "read":
+            baseline[rom] = data
+    for rom in sorted(awaiting):
+        print("  FAIL %s: запись скопирована, но не прочитана - EEPROM "
+              "не подтверждён" % hexs(rom))
+        bad += 1
+    if confirmed:
+        print("  DS2431: %d записей подтверждены чтением EEPROM" % confirmed)
+    return bad
+
+
 def compare_log(transactions, roms, readings, found, events=()):
     """The analyzer's bytes and the application's report, item by item.
 
@@ -698,6 +761,7 @@ def compare_log(transactions, roms, readings, found, events=()):
     wire_ds2431 = wire_events(transactions)
     if events or wire_ds2431:
         bad += compare_events(wire_ds2431, list(events))
+        bad += ds2431_readback_errors(wire_ds2431)
 
     # The example filters for one family; a device of another family is
     # expected to be on the wire and absent from its report. A device of the
@@ -759,6 +823,7 @@ def main():
         bad += compare_log(transactions, roms, readings, found, events)
     else:
         print("  лог не задан (--log): сверено только внутреннее (CRC)")
+        bad += ds2431_readback_errors(wire_events(transactions))
 
     print("")
     if bad:
