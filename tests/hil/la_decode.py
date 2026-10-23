@@ -665,6 +665,7 @@ def ds2431_readback_errors(events):
     awaiting = {}
     baseline = {}
     confirmed = 0
+    changed = 0
     for rom, kind, data in events:
         if kind == "write":
             written[rom] = data
@@ -685,12 +686,24 @@ def ds2431_readback_errors(events):
                 bad += 1
             else:
                 confirmed += 1
-                if baseline.get(rom) == want:
+                old = baseline.get(rom)
+                if old is None:
+                    # No baseline read in view: the read-back matches the
+                    # write, but whether the row changed cannot be told.
+                    pass
+                elif old == want:
                     # Reading the same bytes back proves the read path, but
                     # not the write: an EEPROM that already held them looks
                     # identical when the copy is ignored.
                     print("  примечание %s: записанное уже было в EEPROM - "
                           "копирование этим прогоном не доказано" % hexs(rom))
+                else:
+                    # The row changed and the device returned the new bytes:
+                    # the Copy cannot have been ignored.
+                    changed += 1
+                    print("  DS2431 %s: ряд %s -> %s, чтение после Copy "
+                          "подтвердило запись"
+                          % (hexs(rom), hexs(old), hexs(want)))
         elif kind == "read":
             baseline[rom] = data
     for rom in sorted(awaiting):
@@ -699,6 +712,9 @@ def ds2431_readback_errors(events):
         bad += 1
     if confirmed:
         print("  DS2431: %d записей подтверждены чтением EEPROM" % confirmed)
+    if changed:
+        print("  DS2431: %d из них изменили ряд - копирование доказано"
+              % changed)
     return bad
 
 

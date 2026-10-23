@@ -9,12 +9,15 @@
  * DS2431 the family-filtered search finds: Read Memory (baseline), Write
  * Scratchpad, Read Scratchpad (verify TA/ES echo), Copy Scratchpad (t_PROG
  * hold-off), then Read Memory again to confirm the data landed in EEPROM. The
- * write cycle is deliberately one-shot: once every device has been served the
- * demo announces itself and then keeps re-running the search once a second,
- * so the bench goes on streaming its `Found N device(s)` census and ROMs
- * instead of falling silent. That steady identification stream is what the
- * HIL harness scans the COM ports for - a firmware that has gone idle carries
- * nothing to find - and it also keeps the demo readable on a terminal.
+ * pattern written is the row's own next value (every byte plus one), so the
+ * read-back after Copy proves the copy rather than re-reading bytes that were
+ * already there. The write cycle is deliberately one-shot: once every device
+ * has been served the demo announces itself and then keeps re-running the
+ * search once a second, so the bench goes on streaming its
+ * `Found N device(s)` census and ROMs instead of falling silent. That steady
+ * identification stream is what the HIL harness scans the COM ports for - a
+ * firmware that has gone idle carries nothing to find - and it also keeps the
+ * demo readable on a terminal.
  *
  * Every operation runs and leaves the bus idle when done, so a command never
  * starts another on its own. All low-level bus operations live in the shared
@@ -53,7 +56,7 @@ static uint8_t dev_idx = 0;
 
 static uint8_t eeprom_data[DS2431_EEPROM_SIZE];
 static uint8_t scratch_frame[DS2431_SCRATCH_FRAME];
-static uint8_t write_data[DS2431_SCRATCH_SIZE] = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04};
+static uint8_t write_data[DS2431_SCRATCH_SIZE];
 
 static void print_rom(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS2431_ROM_BYTES; i++) {
@@ -69,6 +72,13 @@ static void print_bytes(const char* label, const uint8_t* data, uint8_t len) {
         if (i != len - 1) uart_tx_enqueue_byte(' ');
     }
     uart_write_str("\r\n");
+}
+
+static uint8_t bytes_equal(const uint8_t* a, const uint8_t* b, uint8_t len) {
+    for (uint8_t i = 0; i < len; i++) {
+        if (a[i] != b[i]) return 0;
+    }
+    return 1;
 }
 
 static uint8_t device_found_sink(const uint8_t* found_rom) {
@@ -139,6 +149,15 @@ static void finish_step(step_t s) {
     switch (s) {
     case STEP_READ_BASELINE:
         print_bytes("  EEPROM: ", eeprom_data, DS2431_SCRATCH_SIZE);
+        // Write this row's own next value, not a fixed pattern: after Copy
+        // the read-back is compared with the bytes that were written, and a
+        // row that already held them would prove only the read path. With
+        // every byte incremented the row itself is the counter, so each run
+        // and each device writes something the row does not hold yet, and
+        // the read-back proves the copy.
+        for (uint8_t i = 0; i < DS2431_SCRATCH_SIZE; i++) {
+            write_data[i] = (uint8_t)(eeprom_data[i] + 1u);
+        }
         break;
     case STEP_WRITE_SCRATCHPAD:
         uart_write_str("  scratchpad written\r\n");
@@ -151,6 +170,11 @@ static void finish_step(step_t s) {
         break;
     case STEP_READ_BACK:
         print_bytes("  EEPROM: ", eeprom_data, DS2431_SCRATCH_SIZE);
+        if (bytes_equal(eeprom_data, write_data, DS2431_SCRATCH_SIZE)) {
+            uart_write_str("  read-back matches the write\r\n");
+        } else {
+            uart_write_str("  read-back DIFFERS from the write\r\n");
+        }
         break;
     case STEP_SEARCH:
     case STEP_DONE:

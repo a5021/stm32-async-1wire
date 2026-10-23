@@ -318,7 +318,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, so the CPU idles instead of spinning. The application's code and its result timing are unchanged — it never waits for a result — and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
-| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad (8-byte pattern), Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
+| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad, Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. The pattern written is the row's own next value (every byte plus one), so the read-back differs from the baseline and proves the copy instead of re-reading bytes that were already there. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -1337,9 +1337,15 @@ write, or a device that ignored Copy Scratchpad, leaves the wire and the log
 identical while the EEPROM still holds the old byte. So the decoder follows
 each device's cycle - write, scratchpad frame, copy, read - and fails when the
 frame returns something else, when the read-back differs from the write, and
-when a copied row is never read at all. If the row already held that pattern
-before the write, the report says so as a note: the read path is proven, the
-copy is not. Proving the copy needs a pattern the row does not hold yet.
+when a copied row is never read at all.
+
+The example writes the row's own next value (every byte plus one) rather than
+a fixed pattern, so the baseline and the write differ on every run and every
+device. When the row changed and the device returned the new bytes, the report
+says the copy is proven. When the baseline already held the pattern - a
+capture from an image that wrote a fixed one - it says so as a note: the read
+path is proven, the copy is not. Without the baseline in view it claims
+neither.
 
 The report opens with the capture and log hashes, the sample rate and channel,
 the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/FAIL`

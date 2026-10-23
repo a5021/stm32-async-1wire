@@ -154,18 +154,22 @@ it verified, the `ES=07` it copied. The Read Scratchpad reply is 13 bytes -
 the analyzer recomputes that CRC over `0xAA` followed by the eleven frame
 bytes, so the frame is the device's, not the master's guess.
 
-**Caveat on the read-back.** The bench EEPROM already held `DE AD BE EF 01 02
-03 04` from earlier runs, so the baseline read equals the pattern. The capture
-therefore proves the command sequence, the addresses, the bytes and `ES=07`,
-and that the read-back still holds the pattern - not that a blank row was
-programmed by this run.
+**Read-back: what that capture could and could not prove.** The image in the
+transcript wrote the fixed pattern `DE AD BE EF 01 02 03 04`, and the bench
+EEPROM already held it from earlier runs, so the baseline read equals the
+write. That capture therefore proves the command sequence, the addresses, the
+bytes and `ES=07`, and that the read-back still holds the pattern - not that
+this run's Copy changed the row.
 
-`la_decode.py` now checks that last step itself: after Copy it follows the
-read of the same row and fails when the bytes differ from the write, or when a
-copied row is never read. It also compares the baseline with the write, and
-when they are equal it prints the caveat above instead of letting a green run
-imply more than it proves. A capture of a blank part (or a pattern derived
-from the ROM) would close that last gap.
+`la_decode.py` checks that step itself: after Copy it follows the read of the
+same row, fails when the bytes differ from the write or when a copied row is
+never read, and compares the baseline with the write. An equal baseline is a
+printed note, not a proof.
+
+`8_ds2431` now writes the row's own next value (every byte plus one), so a
+fresh capture has a baseline that differs from the write and the read-back
+after Copy proves the copy. Re-run the sequence above and the report says
+"копирование доказано" instead of the note.
 
 **What is not covered yet.** The decoder understands the ROM commands
 (`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`), the DS18B20 functions (`0x44`,

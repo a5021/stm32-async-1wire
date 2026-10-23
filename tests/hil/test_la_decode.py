@@ -11,6 +11,8 @@ advance, and the negative controls are the point: a wrong bit must fail the
 CRC, a shifted frame must be an error, an unknown command must be refused.
 """
 
+import contextlib
+import io
 import json
 import os
 import sys
@@ -35,7 +37,7 @@ ROM_B = bytes.fromhex("28 20 78 92 07 00 00 67")
 SCRATCHPAD = bytes.fromhex("72 01 4B 46 7F FF 0E 10 57")  # 23.125 C, CRC 0x57
 
 ROM_D = bytes.fromhex("2D F8 47 60 26 00 00 69")  # DS2431, ROM CRC valid
-PATTERN = bytes.fromhex("DE AD BE EF 01 02 03 04")  # the example's write pattern
+PATTERN = bytes.fromhex("DE AD BE EF 01 02 03 04")  # what older images wrote
 
 failures = []
 
@@ -346,8 +348,44 @@ def test_ds2431_readback_confirms_the_write():
         ds2431_copy(), ds2431_read_memory(),
     ])
     events = la_decode.wire_events(txns)
-    check("the written row is read back unchanged",
-          la_decode.ds2431_readback_errors(events) == 0)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        bad = la_decode.ds2431_readback_errors(events)
+    check("the written row is read back unchanged", bad == 0)
+    check("a row that already held the bytes is a note, not a proof",
+          "примечание" in buf.getvalue())
+
+
+def test_ds2431_a_changed_row_proves_the_copy():
+    print("a cycle whose baseline differs from the write")
+    old = bytes.fromhex("DE AD BE EF 01 02 03 05")
+    txns, _, _ = decode([
+        ds2431_read_memory(old), ds2431_write(), ds2431_frame(),
+        ds2431_copy(), ds2431_read_memory(),
+    ])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        bad = la_decode.ds2431_readback_errors(la_decode.wire_events(txns))
+    report = buf.getvalue()
+    check("the read-back matches the write", bad == 0)
+    check("the report says the row changed and the copy is proven",
+          "копирование доказано" in report)
+    check("the equal-baseline note is not repeated",
+          "примечание" not in report)
+
+
+def test_ds2431_no_baseline_is_not_a_proof():
+    print("a cycle whose baseline read is not in the capture")
+    txns, _, _ = decode([
+        ds2431_write(), ds2431_frame(), ds2431_copy(), ds2431_read_memory(),
+    ])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        bad = la_decode.ds2431_readback_errors(la_decode.wire_events(txns))
+    report = buf.getvalue()
+    check("the read-back matches the write", bad == 0)
+    check("but a change cannot be claimed without the baseline",
+          "копирование доказано" not in report)
 
 
 def test_ds2431_readback_is_not_the_log_agreeing_with_itself():
@@ -708,6 +746,8 @@ def main():
     test_a_capture_with_no_sidecar_falls_back_to_the_flags()
     test_a_sidecar_is_the_artifacts_own_statement()
     test_ds2431_readback_confirms_the_write()
+    test_ds2431_a_changed_row_proves_the_copy()
+    test_ds2431_no_baseline_is_not_a_proof()
     test_ds2431_readback_is_not_the_log_agreeing_with_itself()
     test_ds2431_copy_without_readback_fails()
     test_ds2431_frame_must_carry_the_written_bytes()
