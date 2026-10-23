@@ -167,9 +167,9 @@ never read, and compares the baseline with the write. An equal baseline is a
 printed note, not a proof.
 
 **The copy, proven on the wire (2026-10-23).** `8_ds2431` now writes the row's
-own next value (every byte plus one), and a fresh 30 s / 4 MHz capture of
-`make test-hil HIL_SCRIPT=ds2431` decoded (the F103 bench profile supplies
-`-DOW_PARASITE_POWER=1`; an explicit `HIL_EXT=` opts out):
+own next value (every byte plus one). The first proof, a 30 s / 4 MHz capture
+taken while the recipe still needed `HIL_EXT=-DOW_PARASITE_POWER=1` explicitly,
+decoded:
 
 ```
     MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
@@ -194,11 +194,22 @@ DS2431: 2 из них изменили ряд - копирование дока�
 
 The read after Copy is the device's answer with its own CRC, and it carries
 the new row, so this is a read that confirms the EEPROM content - not a
-command echo and not the application agreeing with itself. The same artifact
-also holds a cycle from the image that preceded the flash, whose baseline
+command echo and not the application agreeing with itself. The first artifact
+also holds a cycle from the image that preceded its flash, whose baseline
 already equalled its write; it appears only as
 `записанное уже было в EEPROM - копирование этим прогоном не доказано`. That
 is the intended distinction between a note and a proof.
+
+**The same proof without the flag.** Once the recipe stopped exporting an
+empty `HIL_EXT`, the capture was repeated through the documented
+`make test-hil HIL_SCRIPT=ds2431`, with no `HIL_EXT` on the line. The log
+header records `ext=-DOW_PARASITE_POWER=1` and the same image sha256, so the
+default built the same program. Both parts decoded
+`E2 B1 C2 F3 05 06 07 08 -> E3 B2 C3 F4 06 07 08 09`, and the report again
+ended with `копирование доказано`. The example re-searches every
+`IDENTIFY_INTERVAL_MS`, so this artifact also caught the preceding cycle
+(`E1 ... -> E2 ...`) before the flash; all four changed rows were confirmed by
+a read.
 
 The capture was armed before the flash, so the programmer's reset cuts the
 previous image's search mid-pass (transactions 54 and 225, the latter at the
@@ -207,10 +218,14 @@ and fail nothing; every completed transaction around them is decoded and
 CRC-checked as usual. The boot search and the EEPROM cycles all sit after the
 last completed search, which is the boot the log belongs to.
 
-Artifacts: `bench_logs/hil/la_ds2431_20261023.bin` (sha256 `5f215ab8...`),
-`.meta`, and the full report `la_ds2431_20261023.report.txt`; the log is
-`bench_logs/hil/ds2431_20261023-154753.log` (commit `6ce5e75`, `dirty=no`,
-parasite EXT, image sha256 `50b0b5bf...`).
+Artifacts: the first proof `bench_logs/hil/la_ds2431_20261023.bin` (sha256
+`5f215ab8...`), its `.meta`, report `la_ds2431_20261023.report.txt` and log
+`ds2431_20261023-154753.log` (commit `6ce5e75`, `dirty=no`, parasite EXT,
+image sha256 `50b0b5bf...`); the repeat through the default recipe
+`la_ds2431_20261023_default.bin` (sha256 `1afba21b...`), its `.meta`, report
+`la_ds2431_20261023_default.report.txt` and log `ds2431_20261023-162420.log`
+(sha256 `586c3451...`, commit `280fe35`, `dirty=no`,
+`ext=-DOW_PARASITE_POWER=1`, same image sha256).
 
 **What is not covered yet.** The decoder understands the ROM commands
 (`0x33`, `0xCC`, `0x55`, `0xF0`, `0xEC`), the DS18B20 functions (`0x44`,

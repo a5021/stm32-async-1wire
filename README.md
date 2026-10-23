@@ -1371,6 +1371,11 @@ already equalled its write, so it appears only as the equal-baseline note.
 Having both cases in one report is deliberate - it shows what the note and the
 proof look like.
 
+The same proof was repeated through the documented command, with no explicit
+`HIL_EXT`: the header recorded the profile's `-DOW_PARASITE_POWER=1`, both rows
+went `E2 B1 C2 F3 05 06 07 08 -> E3 B2 C3 F4 06 07 08 09`, and the report
+again closed with `копирование доказано`.
+
 The report opens with the capture and log hashes, the sample rate and channel,
 the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/FAIL`
 line, so a stored artifact can be re-checked and the verdict read off without
