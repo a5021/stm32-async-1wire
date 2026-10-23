@@ -93,6 +93,16 @@ class DecodeError(Exception):
     """The capture is not a valid 1-Wire exchange we understand."""
 
 
+class TruncatedExchange(DecodeError):
+    """The exchange stops in the middle of a frame.
+
+    A capture that ends there, or a master reset mid-pass, leaves a frame
+    shorter than its own command says. The caller decides whether that is the
+    edge of a capture (a failure) or a search cut by a reset (a note); the
+    parser only says the slots ran out.
+    """
+
+
 # A master pulse is ONE = 5 us; anything much shorter cannot be one, and the
 # analyzer's last or first edge can leave a fraction of a pulse behind.
 MIN_WIDTH_US = 2.5
@@ -178,7 +188,8 @@ class Frame:
 
 
 class Transaction:
-    __slots__ = ("reset", "presence", "presence_delay", "frames", "recovery")
+    __slots__ = ("reset", "presence", "presence_delay", "frames", "recovery",
+                 "interrupted", "problem")
 
     def __init__(self, reset, presence, presence_delay):
         self.reset = reset
@@ -186,6 +197,8 @@ class Transaction:
         self.presence_delay = presence_delay
         self.frames = []
         self.recovery = None
+        self.interrupted = False
+        self.problem = None
 
 
 class Pass:
@@ -370,7 +383,7 @@ def parse_search(slots):
         ended = False
         for k in range(64):
             if len(slots) - i < 2:
-                raise DecodeError("поиск обрывается на бите %d" % k)
+                raise TruncatedExchange("поиск обрывается на бите %d" % k)
             b, c = slots[i].bit, slots[i + 1].bit
             i += 2
             if b == 1 and c == 1:
@@ -380,8 +393,8 @@ def parse_search(slots):
             if b == 0 and c == 0:
                 collisions += 1
             if len(slots) - i < 1:
-                raise DecodeError("поиск: нет бита направления после пары "
-                                  "на бите %d" % k)
+                raise TruncatedExchange("поиск: нет бита направления после пары "
+                                        "на бите %d" % k)
             d = slots[i].bit
             i += 1
             if b == 1 and d != 1:
@@ -403,7 +416,11 @@ def decode(widths, gaps, cfg):
     """Transactions in time order, plus the slots before the first reset.
 
     The capture may start in the middle of an exchange; that leading partial
-    transaction is reported rather than decoded or silently dropped.
+    transaction is reported rather than decoded or silently dropped. A search
+    cut by a reset (the programmer restarting the target mid-pass) is kept as
+    a transaction with `interrupted` set and no frames: it yields no ROMs, so
+    there is nothing to compare, and the resets around it carry the actual
+    run.
     Returns (transactions, orphan_slots, dropped_artifacts).
     """
     widths, gaps, dropped = clean(widths, gaps)
@@ -456,7 +473,25 @@ def decode(widths, gaps, cfg):
             raise DecodeError("reset без обмена: на шине никто не ответил?")
         inner = [s.period for s in slots[:-1]]  # the last gap leads to the reset
         slot_period(cfg, inner)
-        txn.frames = parse_transaction(slots, cfg)
+        try:
+            txn.frames = parse_transaction(slots, cfg)
+        except TruncatedExchange as exc:
+            # A capture armed before the flash holds the previous image being
+            # reset by the programmer, often in the middle of a search pass:
+            # the master stops writing direction bits, the line goes idle and
+            # the new image starts with its own reset. A cut search yields no
+            # ROMs either way, so there is nothing to guess and nothing that
+            # would have been compared - mark it and keep the transactions
+            # around it. Any other frame is not excused: a half-written
+            # command or a read cut short is a protocol error or a capture
+            # that ended in the middle of the run, and both must fail.
+            if len(slots) < BITS_PER_BYTE:
+                raise
+            command = sum(s.bit << k for k, s in enumerate(slots[:BITS_PER_BYTE]))
+            if command not in SEARCH_COMMANDS:
+                raise
+            txn.interrupted = True
+            txn.problem = str(exc)
         txn.recovery = None if first_gap is None else first_gap - presence
         transactions.append(txn)
     return transactions, orphan, dropped
@@ -472,6 +507,10 @@ def report(transactions, orphan, dropped):
     for k, txn in enumerate(transactions, 1):
         print("  транзакция %d: reset %.1f мкс, presence %.1f мкс (через %.1f)"
               % (k, txn.reset, txn.presence, txn.presence_delay))
+        if txn.interrupted:
+            print("    обмен прерван (сброс или конец захвата): %s"
+                  % txn.problem)
+            continue
         for f in txn.frames:
             # 0xF0 is SEARCH ROM in the first position and READ MEMORY later;
             # a search frame carries passes, a memory read carries bytes.
@@ -1033,8 +1072,8 @@ def main():
     except DecodeError as e:
         print("  FAIL разбор: %s" % e)
         return verdict(1, "разбор прерван")
-    if not transactions:
-        return verdict(1, "в захвате нет ни одной транзакции")
+    if not any(txn.frames for txn in transactions):
+        return verdict(1, "в захвате нет ни одной завершённой транзакции")
 
     report(transactions, orphan, dropped)
     bad = failures(transactions)

@@ -573,6 +573,35 @@ def test_a_presence_inside_a_transaction_is_an_error():
         check("the interruption is refused (%s)" % e, True)
 
 
+def test_a_search_cut_by_a_flash_reset_is_a_note():
+    print("a search the programmer's reset cut mid-pass")
+    txns, _, _ = decode([
+        exchange(slots(b"\xF0"), slots(b"\x00\x01", "r")),
+        exchange(slots(b"\x55" + ROM_A), slots(b"\x44")),
+    ])
+    check("the cut search is kept, not dropped silently", len(txns) == 2)
+    check("it is marked as interrupted",
+          txns[0].interrupted and not txns[0].frames)
+    check("the transaction after the reset still decodes",
+          txns[1].frames[0].command == 0x55)
+    check("the interrupted pass is not a failure",
+          la_decode.failures(txns) == 0)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        la_decode.report(txns, 0, 0)
+    check("the report says the exchange was cut",
+          "прерван" in buf.getvalue())
+
+    try:
+        decode([
+            exchange(slots(b"\x55" + ROM_A[:6])),
+            exchange(slots(b"\x55" + ROM_A), slots(b"\x44")),
+        ])
+        check("a cut command is still an error", False)
+    except la_decode.DecodeError as e:
+        check("a cut command is still an error (%s)" % e, True)
+
+
 def test_a_truncated_capture_is_an_error():
     print("a capture that stops one slot before the end of a frame")
     widths, gaps = build([
@@ -846,6 +875,7 @@ def main():
     test_a_silent_device_fails_the_crc()
     test_a_bad_rom_crc_is_counted()
     test_a_presence_inside_a_transaction_is_an_error()
+    test_a_search_cut_by_a_flash_reset_is_a_note()
     test_a_truncated_capture_is_an_error()
     test_ds2431_read_memory_is_not_a_search()
     print("")
