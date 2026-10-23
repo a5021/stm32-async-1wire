@@ -168,7 +168,8 @@ printed note, not a proof.
 
 **The copy, proven on the wire (2026-10-23).** `8_ds2431` now writes the row's
 own next value (every byte plus one), and a fresh 30 s / 4 MHz capture of
-`make test-hil HIL_SCRIPT=ds2431 HIL_EXT=-DOW_PARASITE_POWER=1` decoded:
+`make test-hil HIL_SCRIPT=ds2431` decoded (the F103 bench profile supplies
+`-DOW_PARASITE_POWER=1`; an explicit `HIL_EXT=` opts out):
 
 ```
     MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok

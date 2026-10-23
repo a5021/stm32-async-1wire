@@ -786,12 +786,15 @@ test-hil:
 # burst, and the checks must not turn that into a failed run or a bogus sensor
 # error - this replays the artefact that was actually captured. The wait check
 # must be able to go red on a wrong wait, and the decoder must not guess a bit
-# or skip a command it does not know, so both are replayed the same way.
+# or skip a command it does not know, so both are replayed the same way. The
+# test-hil recipe is checked too: unset HIL_EXT has to mean "use the bench
+# profile", not "opt out of the pull-up".
 .PHONY: test-hil-parsing
 test-hil-parsing:
 	@$(PYTHON) tests/hil/test_parsing.py
 	@$(PYTHON) tests/hil/test_la_capture.py
 	@$(PYTHON) tests/hil/test_la_decode.py
+	@$(PYTHON) tests/hil/test_make.py
 
 # =============================================================================
 # BUILD TARGETS
@@ -1611,7 +1614,7 @@ help:
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
 	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
-	@echo "  test-hil-parsing - Check the bench harness, analyzer and wire decoder (no hardware needed)"
+	@echo "  test-hil-parsing - Check the bench harness, analyzer, wire decoder and HIL_EXT forwarding (no hardware needed)"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
