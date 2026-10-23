@@ -203,6 +203,30 @@ def test_log_identity():
           and fields.get("commit") not in (None, "", "?"))
     check("an image hash is only written when there is an image",
           "sha256" not in fields)
+    check("a run with no build flags says so",
+          fields.get("ext") == "none")
+    check("the UART buffer the harness asked for is named",
+          fields.get("uart_tx") ==
+          (str(common.UART_TX_SIZE) if common.UART_TX_SIZE else "shipped"))
+
+    saved_mcu, saved_ext = common.MCU, common.BUILD_EXT
+    saved_env = os.environ.pop("HIL_EXT", None)
+    try:
+        common.select_bench("STM32F103xB")
+        bench = common.log_header("low", "7_low_power", mcu="STM32F103xB")
+    finally:
+        common.MCU, common.BUILD_EXT = saved_mcu, saved_ext
+        if saved_env is not None:
+            os.environ["HIL_EXT"] = saved_env
+    bench_fields = dict(
+        word.split("=", 1)
+        for line in bench
+        if line.startswith("# hil: ")
+        for word in line[6:].split()
+    )
+    check("the bench's pull-up and the example's define are both named",
+          bench_fields.get("ext")
+          == "-DOW_PARASITE_POWER=1,-DOW_LOW_POWER=1")
 
 
 def main():

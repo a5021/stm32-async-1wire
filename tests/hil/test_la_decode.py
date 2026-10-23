@@ -227,6 +227,7 @@ def ds2431_log_text():
         "  copied to EEPROM",
         "Read Memory (0xF0) - after copy:",
         "  EEPROM: " + la_decode.hexs(PATTERN),
+        "  read-back matches the write",
         "",
     ]
     return "\n".join("[477964.34] " + line if line else "" for line in lines)
@@ -238,6 +239,41 @@ def with_log(text):
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
     return path
+
+
+def run_main(argv):
+    """Run la_decode.main() on argv, capturing its exit code and report."""
+    old = sys.argv
+    sys.argv = ["la_decode.py"] + argv
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            code = la_decode.main()
+    finally:
+        sys.argv = old
+    return code, buf.getvalue()
+
+
+def test_main_refuses_what_it_cannot_decode():
+    print("la_decode's exit paths")
+    with tempfile.TemporaryDirectory() as d:
+        missing = os.path.join(d, "nope.bin")
+        code, out = run_main([missing])
+        check("a missing capture exits 1", code == 1)
+        check("and says why", "ИТОГ: FAIL" in out and "захвата нет" in out)
+
+        idle = os.path.join(d, "idle.bin")
+        with open(idle, "wb") as fh:
+            fh.write(bytes(64))  # every sample low: no falling edge at all
+        code, out = run_main([idle])
+        check("an idle bus exits 1", code == 1)
+        check("and says the bus was idle",
+              "ИТОГ: FAIL" in out and "простаивала" in out)
+
+        code, out = run_main([idle, "--log", os.path.join(d, "nope.log")])
+        check("a missing --log exits 1", code == 1)
+        check("and names the log",
+              "ИТОГ: FAIL" in out and "лога нет" in out)
 
 
 def test_ds2431_log_matches_bytes():
@@ -408,6 +444,59 @@ def test_ds2431_readback_is_not_the_log_agreeing_with_itself():
           la_decode.ds2431_readback_errors(log) > 0)
     check("compare_log fails it",
           la_decode.compare_log(txns, {ROM_D}, [], 1, log) > 0)
+
+
+def test_ds2431_the_logs_verdict_is_checked_against_the_wire():
+    print("the example's own read-back verdict against the wire")
+    stale = bytes.fromhex("DE AD BE EF 01 02 03 05")
+    honest = ds2431_log_text()
+    path = with_log(honest)
+    try:
+        claims = la_decode.parse_log_claims(path)
+        check("the verdict is read as a claim of a match",
+              claims == {ROM_D: True})
+        txns, _, _ = decode([
+            ds2431_read_memory(), ds2431_write(), ds2431_frame(),
+            ds2431_copy(), ds2431_read_memory(),
+        ])
+        roms, readings, found, events = la_decode.parse_log(path)
+        check("an honest verdict agrees with the wire",
+              la_decode.compare_log(txns, roms, readings, found, events,
+                                    claims) == 0)
+    finally:
+        os.unlink(path)
+
+    # The application's comparison is broken: the old row came back and it
+    # still printed "matches". The wire and the log agree byte for byte, so
+    # only holding the claim against the wire catches it.
+    lying = honest.replace("  EEPROM: " + la_decode.hexs(PATTERN),
+                           "  EEPROM: " + la_decode.hexs(stale))
+    path = with_log(lying)
+    try:
+        txns, _, _ = decode([
+            ds2431_read_memory(stale), ds2431_write(), ds2431_frame(),
+            ds2431_copy(), ds2431_read_memory(stale),
+        ])
+        roms, readings, found, events = la_decode.parse_log(path)
+        claims = la_decode.parse_log_claims(path)
+        wire = la_decode.wire_events(txns)
+        check("the bytes still agree",
+              la_decode.compare_events(wire, events) == 0)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            bad = la_decode.ds2431_readback_errors(wire, claims)
+        check("the contradictory verdict fails both the write and the claim",
+              bad == 2)
+        check("the report names the contradiction",
+              "лог утверждает" in buf.getvalue())
+    finally:
+        os.unlink(path)
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        bad = la_decode.ds2431_readback_errors([], {ROM_D: True})
+    check("a verdict for a cycle outside the capture is only a note", bad == 0)
+    check("and it is printed as one", "примечание" in buf.getvalue())
 
 
 def test_ds2431_copy_without_readback_fails():
@@ -745,10 +834,12 @@ def main():
     test_a_hil_header_is_read_back()
     test_a_capture_with_no_sidecar_falls_back_to_the_flags()
     test_a_sidecar_is_the_artifacts_own_statement()
+    test_main_refuses_what_it_cannot_decode()
     test_ds2431_readback_confirms_the_write()
     test_ds2431_a_changed_row_proves_the_copy()
     test_ds2431_no_baseline_is_not_a_proof()
     test_ds2431_readback_is_not_the_log_agreeing_with_itself()
+    test_ds2431_the_logs_verdict_is_checked_against_the_wire()
     test_ds2431_copy_without_readback_fails()
     test_ds2431_frame_must_carry_the_written_bytes()
     test_a_missing_device_is_an_error()

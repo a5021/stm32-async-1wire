@@ -150,14 +150,25 @@ def log_header(script, app, hexpath="", mcu=None):
     flag say whether the tree was that commit, and the image hash pins the
     binary even when the tree was dirty. A log without these lines is still
     parsed - the reader just says the identity was not recorded.
+
+    The build configuration is part of that identity: the same source compiled
+    with the parasite pull-up, OW_LOW_POWER or a different UART buffer is a
+    different program. `ext` carries the EXT flags the build was handed, with
+    spaces turned into commas so the line stays word-split-able, and `none`
+    when there are none; `uart_tx` is the buffer size the harness asked for,
+    or `shipped` when the example's own size is used. The image hash would
+    already change with these flags - this line lets a reader see why.
     """
     mcu = mcu or MCU or "?"
     chip = chip_for(mcu) or "?"
     sysclk = sysclk_for(chip) if chip != "?" else None
+    ext = ",".join(build_ext(app).split()) or "none"
+    uart_tx = str(UART_TX_SIZE) if UART_TX_SIZE else "shipped"
     lines = [
         "# hil: script=%s app=%s mcu=%s chip=%s sysclk=%s"
         % (script, app or "?", mcu, chip,
            "%dMHz" % sysclk if sysclk else "?"),
+        "# hil: ext=%s uart_tx=%s" % (ext, uart_tx),
         "# hil: fw=%s commit=%s dirty=%s"
         % (library_version(), _git("rev-parse", "--short", "HEAD") or "?",
            "yes" if _git("status", "--porcelain") else "no"),

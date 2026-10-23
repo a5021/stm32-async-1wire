@@ -24,13 +24,16 @@ agree": after Copy Scratchpad the same row is read again and must return what
 was written. Without that, an application that prints the pattern it meant to
 write agrees with itself while the EEPROM still holds the old byte. When the
 row already held that pattern before the write, the report says so: the read
-path is proven, the copy is not.
+path is proven, the copy is not. The example's own "matches/DIFFERS" line is a
+claim, not evidence: it is read separately and held against what the wire
+says, so a comparison that stopped working cannot pass on the bytes alone.
 
 The report opens with what makes the run reproducible - the capture and log
 hashes, the slot geometry, and the `# hil:` identity the log carries - and
 ends with one `ИТОГ: PASS/FAIL` line. A capture on its own says what the wire
 did, not which image drove it; the header the HIL run writes into its log
-names the version, the commit and the image hash.
+names the version, the commit, the build's EXT flags, the UART buffer size and
+the image hash.
 
 Understood: Read ROM / Skip ROM / Match ROM / Search ROM / Alarm Search, the
 DS18B20 Convert and Read Scratchpad, and the DS2431 Write Scratchpad, Read
@@ -535,6 +538,9 @@ def parse_log(path):
     are the EEPROM traffic the example printed: the baseline read, the written
     pattern, the scratchpad frame, the copy and the read-back - each one is a
     known byte string that the wire has to carry unchanged.
+
+    The example's own read-back verdict is not an event: it is a claim about
+    the device, and parse_log_claims() is where it is read.
     """
     roms = set()
     readings = []
@@ -585,6 +591,40 @@ def tenths(value):
     """The value the application prints: its temperature is in tenths."""
     scaled = value * 10.0
     return int(scaled + 0.5) if scaled >= 0 else -int(-scaled + 0.5)
+
+
+# The verdict the example prints after its own read-back comparison. It is a
+# claim about the device, not evidence about it: the wire is what this decoder
+# trusts, and a broken comparison in the application - one that always says
+# "matches" - leaves the bytes correct and the verdict wrong.
+CLAIM_MATCH = "read-back matches the write"
+CLAIM_DIFFER = "read-back DIFFERS from the write"
+
+
+def parse_log_claims(path):
+    """The read-back verdicts the application printed, per selected device.
+
+    A log with the right bytes and a wrong verdict is exactly the failure this
+    check exists to catch: comparing the claim against the wire is the only
+    way to see that the application's own check did not really run. A log from
+    an image that prints no verdict yields an empty dict, and nothing is
+    claimed either way.
+    """
+    claims = {}
+    device = None
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            m = re.search(r"Selected ROM:\s+" + HEX8, line)
+            if m:
+                device = as_bytes(m.group(1))
+                continue
+            if device is None:
+                continue
+            if CLAIM_MATCH in line:
+                claims[device] = True
+            elif CLAIM_DIFFER in line:
+                claims[device] = False
+    return claims
 
 
 def wire_events(transactions):
@@ -646,7 +686,7 @@ def event_str(event):
     return "%s %s %s" % (hexs(rom), kind, hexs(data) if data else "-")
 
 
-def ds2431_readback_errors(events):
+def ds2431_readback_errors(events, claims=None):
     """The copy is proven by reading the row back, not by saying it worked.
 
     compare_events() proves the wire and the log agree. It does not prove the
@@ -658,12 +698,16 @@ def ds2431_readback_errors(events):
 
     A cycle the capture only partly holds is not guessed at: without the Write
     in view there is nothing to compare the read against, and the copy is not
-    tracked.
+    tracked. `claims` is the application's own verdict per device (see
+    parse_log_claims); it is held against the wire's verdict, and a claim the
+    capture cannot cover is a note rather than a failure, because a short
+    capture is not the device lying.
     """
     bad = 0
     written = {}
     awaiting = {}
     baseline = {}
+    results = {}
     confirmed = 0
     changed = 0
     for rom, kind, data in events:
@@ -681,10 +725,12 @@ def ds2431_readback_errors(events):
         elif kind == "read" and rom in awaiting:
             want = awaiting.pop(rom)
             if len(data) < len(want) or data[:len(want)] != want:
+                results[rom] = False
                 print("  FAIL %s: после копирования EEPROM %s, записано %s"
                       % (hexs(rom), hexs(data), hexs(want)))
                 bad += 1
             else:
+                results[rom] = True
                 confirmed += 1
                 old = baseline.get(rom)
                 if old is None:
@@ -710,6 +756,18 @@ def ds2431_readback_errors(events):
         print("  FAIL %s: запись скопирована, но не прочитана - EEPROM "
               "не подтверждён" % hexs(rom))
         bad += 1
+
+    for rom in sorted(claims or {}):
+        if rom not in results:
+            print("  примечание %s: вердикт лога вне захвата - проверить "
+                  "нечем" % hexs(rom))
+        elif claims[rom] != results[rom]:
+            print("  FAIL %s: лог утверждает %s, а провод - %s"
+                  % (hexs(rom),
+                     "совпадение" if claims[rom] else "расхождение",
+                     "совпадение" if results[rom] else "расхождение"))
+            bad += 1
+
     if confirmed:
         print("  DS2431: %d записей подтверждены чтением EEPROM" % confirmed)
     if changed:
@@ -718,7 +776,7 @@ def ds2431_readback_errors(events):
     return bad
 
 
-def compare_log(transactions, roms, readings, found, events=()):
+def compare_log(transactions, roms, readings, found, events=(), claims=None):
     """The analyzer's bytes and the application's report, item by item.
 
     Temperatures: both start at the boot the log covers - the application
@@ -727,7 +785,8 @@ def compare_log(transactions, roms, readings, found, events=()):
     wire's value is exact (1/16 C), so this is an equality, not a tolerance.
 
     DS2431: the EEPROM cycle is a fixed sequence of byte strings the example
-    printed, compared as one contiguous run (see compare_events()).
+    printed, compared as one contiguous run (see compare_events()), and the
+    application's own read-back verdict is held against the wire's.
     """
     bad = 0
     wire_roms = set()
@@ -783,9 +842,9 @@ def compare_log(transactions, roms, readings, found, events=()):
               % (paired, len(readings)))
 
     wire_ds2431 = wire_events(transactions)
-    if events or wire_ds2431:
+    if events or wire_ds2431 or claims:
         bad += compare_events(wire_ds2431, list(events))
-        bad += ds2431_readback_errors(wire_ds2431)
+        bad += ds2431_readback_errors(wire_ds2431, claims)
 
     # The example filters for one family; a device of another family is
     # expected to be on the wire and absent from its report. A device of the
@@ -917,6 +976,9 @@ def identity(path, digest, rate_hz, channel, log_path, meta):
     print("  стенд: %s (%s), SYSCLK %s"
           % (facts.get("mcu", "?"), facts.get("chip", "?"),
              facts.get("sysclk", "?")))
+    if facts.get("ext") or facts.get("uart_tx"):
+        print("  сборка: EXT %s, UART TX %s"
+              % (facts.get("ext", "?"), facts.get("uart_tx", "?")))
     if facts.get("sha256"):
         print("  образ: %s, sha256 %s"
               % (facts.get("hex", "?"), facts["sha256"]))
@@ -980,7 +1042,8 @@ def main():
     print("\n=== сверка с приложением ===")
     if args.log:
         roms, readings, found, events = parse_log(args.log)
-        bad += compare_log(transactions, roms, readings, found, events)
+        claims = parse_log_claims(args.log)
+        bad += compare_log(transactions, roms, readings, found, events, claims)
     else:
         print("  лог не задан (--log): сверено только внутреннее (CRC)")
         bad += ds2431_readback_errors(wire_events(transactions))

@@ -1264,11 +1264,14 @@ under `bench_logs/hil/` (gitignored).
 
 **A run names itself.** Every log the harness saves starts with `# hil:` lines
 carrying the script, the example, the part, the clock the build used, the
-library version, the commit, whether the tree was dirty, and the SHA-256 of the
-image that was flashed. The version and the clock are read from the same files
-the build reads (`inc/ds18b20.h`, the Makefile's part mapping,
-`chips/<part>.mk`), so they cannot drift from it. A log with `dirty=yes` does
-not describe a commit - the image hash is what pins that run.
+build's EXT flags (`ext=none` when there are none, comma-separated otherwise),
+the UART TX buffer size the harness asked for (`uart_tx=shipped` when the
+example's own size is used), the library version, the commit, whether the tree
+was dirty, and the SHA-256 of the image that was flashed. The version and the
+clock are read from the same files the build reads (`inc/ds18b20.h`, the
+Makefile's part mapping, `chips/<part>.mk`), so they cannot drift from it. A
+log with `dirty=yes` does not describe a commit - the image hash is what pins
+that run.
 
 **The wire itself can be measured too.** `tests/hil/la_capture.py` captures
 the 1-Wire line (PA10) with a logic analyzer and checks the measured pulse
