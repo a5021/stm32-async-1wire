@@ -12,6 +12,7 @@ cannot go red proves nothing. The cases below feed the analysis synthetic
 captures whose answer is known in advance.
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -139,6 +140,27 @@ def test_empty_capture():
     check("there is nothing to measure", measured is None and doubled is None)
 
 
+def test_capture_meta_records_what_the_samples_cannot():
+    print("the capture sidecar")
+    check("the rate spelling parses",
+          la_capture.parse_rate("4M") == 4e6
+          and la_capture.parse_rate("8k") == 8e3
+          and la_capture.parse_rate("4000000") == 4e6)
+    with tempfile.TemporaryDirectory() as d:
+        path = synthetic_capture(d, [750000.0])
+        meta_path = la_capture.write_meta(
+            path, 4000000.0, 0, 30, "sigrok-cli")
+        with open(meta_path, encoding="utf-8") as fh:
+            meta = json.load(fh)
+        check("the sidecar is tied to the bytes",
+              meta["sha256"] == la_capture.sha256_file(path)
+              and meta["bytes"] == os.path.getsize(path))
+    check("the sidecar names the rate and the channel",
+          meta["rate_hz"] == 4000000.0 and meta["channel"] == 0)
+    check("the duration and the tool are kept",
+          meta["seconds"] == 30 and meta["tool"] == "sigrok-cli")
+
+
 def main():
     test_gaps_are_read_back()
     test_correct_wait_is_found()
@@ -148,6 +170,7 @@ def main():
     test_the_doubling_check_follows_the_tolerance()
     test_capture_without_the_wait_cannot_pass()
     test_empty_capture()
+    test_capture_meta_records_what_the_samples_cannot()
     if failures:
         print("test_la_capture: FAILED (%d)" % len(failures))
         return 1

@@ -1346,6 +1346,14 @@ the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/F
 line, so a stored artifact can be re-checked and the verdict read off without
 reconstructing it from the prose above.
 
+A capture also writes a `<file>.meta` sidecar next to it with the rate, channel,
+duration, tool and the SHA-256 of the samples. The decoder takes the rate from
+the sidecar and refuses a `--rate` or `--channel` that contradicts it - the
+samples themselves do not say at what rate they were taken, and decoding at
+another rate silently rescales every width. Artifacts older than the sidecar
+still decode: the flags (or 4M/D0) are used, and the report says the metadata
+is absent.
+
 **What each layer can prove.** A green line in one of them is not evidence for
 the next:
 

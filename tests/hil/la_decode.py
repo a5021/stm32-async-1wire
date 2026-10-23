@@ -42,14 +42,14 @@ Requires numpy (via la_capture) and a capture from la_capture.py.
 """
 
 import argparse
-import hashlib
+import json
 import os
 import re
 import sys
 
 import numpy as np
 
-from la_capture import analyse, read_config
+from la_capture import analyse, parse_rate, read_config, sha256_file
 
 # Dallas/Maxim CRC-8: x^8 + x^5 + x^4 + 1.
 CRC8_POLY = 0x8C
@@ -811,27 +811,77 @@ def parse_log_header(path):
     return facts
 
 
-def hash_file(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def resolve_capture(path, rate_text, channel_arg, digest):
+    """Pick the sample rate and channel; refuse flags that fight the artifact.
+
+    The rate is not in the samples: it lives in the `.meta` sidecar the
+    capture wrote, and decoding at another rate silently rescales every width.
+    So an explicit flag that disagrees with the sidecar is an error, not an
+    override. Older artifacts have no sidecar - there the flags (or the 4M/D0
+    defaults) are all there is, and the report says so.
+
+    Returns (rate_hz, channel, meta, error).
+    """
+    meta = None
+    meta_path = path + ".meta"
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as fh:
+                meta = json.load(fh)
+        except (OSError, ValueError) as exc:
+            return None, None, None, "метаданные не читаются: %s" % exc
+        if not isinstance(meta, dict):
+            return None, None, None, "метаданные не читаются: ожидался объект"
+        recorded = meta.get("sha256")
+        if recorded and recorded != digest:
+            return None, None, None, (
+                "%s изменён после записи метаданных - это уже другой захват"
+                % os.path.basename(path))
+
+    try:
+        rate_hz = float(meta["rate_hz"]) if meta and meta.get("rate_hz") else None
+        channel = (int(meta["channel"])
+                   if meta and meta.get("channel") is not None else None)
+    except (KeyError, TypeError, ValueError) as exc:
+        return None, None, None, "метаданные не читаются: %s" % exc
+
+    if rate_text is not None:
+        given = parse_rate(rate_text)
+        if rate_hz is not None and abs(given - rate_hz) > 0.5:
+            return None, None, None, (
+                "частота %s противоречит метаданным захвата (%g МГц)"
+                % (rate_text, rate_hz / 1e6))
+        rate_hz = given
+    if channel_arg is not None:
+        if channel is not None and channel != channel_arg:
+            return None, None, None, (
+                "канал D%d противоречит метаданным захвата (D%d)"
+                % (channel_arg, channel))
+        channel = channel_arg
+
+    return (4e6 if rate_hz is None else rate_hz,
+            0 if channel is None else channel, meta, None)
 
 
-def identity(path, rate_hz, channel, log_path):
+def identity(path, digest, rate_hz, channel, log_path, meta):
     """Name the exact artifacts and the image the run came from.
 
     A capture alone is not reproducible: the samples say what the wire did,
     not which firmware drove it, on which part or at which clock. The hashes
-    fix the files; the header the HIL run writes names the image and the
-    tree, and a dirty tree is called out because the commit alone would then
-    be a lie.
+    fix the files; the sidecar records the rate and channel they were taken
+    at; the header the HIL run writes names the image and the tree, and a
+    dirty tree is called out because the commit alone would then be a lie.
     """
     print("=== воспроизводимость ===")
     print("  захват: %s, %d байт" % (path, os.path.getsize(path)))
-    print("  sha256: %s" % hash_file(path))
+    print("  sha256: %s" % digest)
     print("  частота: %g МГц, канал D%d" % (rate_hz / 1e6, channel))
+    if meta:
+        print("  метаданные: %s.meta, снят %s (%g с, %s)"
+              % (os.path.basename(path), meta.get("captured", "?"),
+                 meta.get("seconds", 0), meta.get("tool", "?")))
+    else:
+        print("  метаданные: нет (.meta) - частота и канал взяты из аргументов")
     cfg = read_config()
     print("  конфигурация: ONE=%s мкс, ZERO=%s мкс, guard %d/%d мкс"
           % (cfg["one"], cfg["zero"], cfg["guard_default"],
@@ -840,7 +890,7 @@ def identity(path, rate_hz, channel, log_path):
         print("  лог: не задан (--log)")
         return
     print("  лог: %s, %d байт" % (log_path, os.path.getsize(log_path)))
-    print("  sha256: %s" % hash_file(log_path))
+    print("  sha256: %s" % sha256_file(log_path))
     facts = parse_log_header(log_path)
     if not facts:
         print("  прошивка: лог не сообщает (нет шапки # hil:)")
@@ -870,8 +920,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("capture", nargs="?", default="")
     ap.add_argument("--out", default="")
-    ap.add_argument("--rate", default="4M")
-    ap.add_argument("--channel", type=int, default=0)
+    ap.add_argument("--rate", default=None,
+                    help="sample rate; default: the capture's .meta, else 4M")
+    ap.add_argument("--channel", type=int, default=None,
+                    help="analyzer channel; default: the capture's .meta, else D0")
     ap.add_argument("--log", default="",
                     help="the application's UART log from the same run")
     args = ap.parse_args()
@@ -879,15 +931,20 @@ def main():
     path = args.capture or args.out
     if not path:
         raise SystemExit("нужен файл захвата (позиционный аргумент)")
-    rate_hz = float(args.rate.upper().replace("M", "e6").replace("K", "e3"))
     if not os.path.isfile(path):
         return verdict(1, "захвата нет: %s" % path)
     if args.log and not os.path.isfile(args.log):
         return verdict(1, "лога нет: %s" % args.log)
 
-    identity(path, rate_hz, args.channel, args.log)
+    digest = sha256_file(path)
+    rate_hz, channel, meta, problem = resolve_capture(
+        path, args.rate, args.channel, digest)
+    if problem:
+        return verdict(1, problem)
 
-    res = analyse(path, rate_hz, args.channel)
+    identity(path, digest, rate_hz, channel, args.log, meta)
+
+    res = analyse(path, rate_hz, channel)
     if res is None:
         return verdict(1, "шина простаивала весь захват - разбирать нечего")
     widths, gaps = res

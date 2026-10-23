@@ -31,16 +31,22 @@ last bit slot (at most 166 us) and the application's poll loop, which is
 The capture is the sigrok "binary" output: one byte per sample, with the
 eight channels packed into it, D0 in the least significant bit. The unused
 channels of an idle analyzer read HIGH, so a byte of 0xFF means "nothing
-happened" on D0.
+happened" on D0. Each capture writes a `<file>.meta` sidecar with the sample
+rate, channel, duration, tool and SHA-256: the samples do not carry those, and
+`la_decode.py` refuses a --rate or --channel that contradicts the sidecar
+instead of silently rescaling the whole decode.
 
 Requires sigrok-cli (set SIGROK_CLI to point at it) and numpy.
 """
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import subprocess
 import sys
+import time
 
 import numpy as np
 
@@ -76,6 +82,44 @@ def read_config():
     }
 
 
+def parse_rate(text):
+    """'4M' / '8k' / '4000000' -> Hz."""
+    return float(str(text).upper().replace("M", "e6").replace("K", "e3"))
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def write_meta(path, rate_hz, channel, seconds, tool):
+    """Record what the samples cannot: the rate and channel they were taken at.
+
+    A wrong --rate at decode time rescales every width, so the artifact and
+    its parameters have to travel together. The hash ties the sidecar to the
+    exact bytes; if the file is later replaced, the sidecar no longer
+    describes it and the decoder refuses it rather than guessing.
+    """
+    meta = {
+        "file": os.path.basename(path),
+        "bytes": os.path.getsize(path),
+        "sha256": sha256_file(path),
+        "rate_hz": rate_hz,
+        "channel": channel,
+        "seconds": seconds,
+        "captured": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "tool": tool,
+    }
+    meta_path = path + ".meta"
+    with open(meta_path, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(meta, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    return meta_path
+
+
 def capture(out_path, seconds, rate, channel, sigrok):
     cmd = [
         sigrok, "-d", "fx2lafw",
@@ -90,6 +134,8 @@ def capture(out_path, seconds, rate, channel, sigrok):
         sys.stderr.write((r.stdout or "") + (r.stderr or ""))
         raise SystemExit("захват не удался")
     print("файл: %s (%d байт)" % (out_path, os.path.getsize(out_path)))
+    meta_path = write_meta(out_path, parse_rate(rate), channel, seconds, sigrok)
+    print("метаданные: %s" % meta_path)
     return out_path
 
 
@@ -154,7 +200,7 @@ def main():
     ap.add_argument("--sigrok", default=os.environ.get("SIGROK_CLI", DEFAULT_SIGROK))
     args = ap.parse_args()
 
-    rate_hz = float(args.rate.upper().replace("M", "e6").replace("K", "e3"))
+    rate_hz = parse_rate(args.rate)
 
     out_path = args.out or os.path.join(
         REPO, "bench_logs", "hil", "la_d0_1wire.bin")

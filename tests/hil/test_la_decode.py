@@ -11,6 +11,7 @@ advance, and the negative controls are the point: a wrong bit must fail the
 CRC, a shifted frame must be an error, an unknown command must be refused.
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -292,6 +293,50 @@ def test_a_hil_header_is_read_back():
               la_decode.parse_log_header(old) == {})
     finally:
         os.unlink(old)
+
+
+def test_a_capture_with_no_sidecar_falls_back_to_the_flags():
+    print("an artifact that predates the .meta sidecar")
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "cap.bin")
+        with open(path, "wb") as fh:
+            fh.write(b"\xff" * 16)
+        digest = la_decode.sha256_file(path)
+        rate, channel, meta, problem = la_decode.resolve_capture(
+            path, None, None, digest)
+        check("the defaults are 4 MHz on D0",
+              (rate, channel, meta, problem) == (4e6, 0, None, None))
+        rate, channel, _, problem = la_decode.resolve_capture(
+            path, "8M", 1, digest)
+        check("the flags are used when nothing contradicts them",
+              rate == 8e6 and channel == 1 and problem is None)
+
+
+def test_a_sidecar_is_the_artifacts_own_statement():
+    print("a capture that carries its .meta")
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "cap.bin")
+        with open(path, "wb") as fh:
+            fh.write(b"\xff" * 16)
+        digest = la_decode.sha256_file(path)
+        with open(path + ".meta", "w", encoding="utf-8") as fh:
+            json.dump({"rate_hz": 8e6, "channel": 1, "sha256": digest}, fh)
+
+        rate, channel, meta, problem = la_decode.resolve_capture(
+            path, None, None, digest)
+        check("the recorded rate and channel win",
+              rate == 8e6 and channel == 1 and problem is None)
+        check("a matching flag is accepted",
+              la_decode.resolve_capture(path, "8M", 1, digest)[3] is None)
+        check("a contradicting rate is refused",
+              "метаданн" in (la_decode.resolve_capture(
+                  path, "4M", 1, digest)[3] or ""))
+        check("a contradicting channel is refused",
+              "метаданн" in (la_decode.resolve_capture(
+                  path, None, 0, digest)[3] or ""))
+        check("a replaced artifact is refused",
+              "изменён" in (la_decode.resolve_capture(
+                  path, None, None, "0" * 64)[3] or ""))
 
 
 def test_ds2431_readback_confirms_the_write():
@@ -660,6 +705,8 @@ def main():
     test_ds2431_rejects_a_ds18b20_function()
     test_ds2431_log_matches_bytes()
     test_a_hil_header_is_read_back()
+    test_a_capture_with_no_sidecar_falls_back_to_the_flags()
+    test_a_sidecar_is_the_artifacts_own_statement()
     test_ds2431_readback_confirms_the_write()
     test_ds2431_readback_is_not_the_log_agreeing_with_itself()
     test_ds2431_copy_without_readback_fails()
