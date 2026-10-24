@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['search_0',['search',['../group__DS18B20__Alarm__Search.html',1,'DS18B20 Non-Blocking Alarm Search'],['../group__DS18B20__Search.html',1,'DS18B20 Non-Blocking Device Search']]],
+  ['search_0',['Search',['../group__DS18B20__Alarm__Search.html',1,'DS18B20 Non-Blocking Alarm Search'],['../group__DS18B20__Search.html',1,'DS18B20 Non-Blocking Device Search']]],
   ['search_20rom_20engine_1',['Generic Non-Blocking Search ROM Engine',['../group__ONEWIRE__Search.html',1,'']]],
   ['sensor_5fcount_2',['sensor_count',['../structow__stats__t.html#ab0a649c638571987e524704b696c8563',1,'ow_stats_t']]],
   ['sensors_3',['sensors',['../structow__stats__t.html#a233a7bd587a3f8804fd44bb63e798000',1,'ow_stats_t']]],

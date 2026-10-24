@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">examples/app</a> - app.c<span style="font-size: 80%;"> (source / <a href="app.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory examples/app">examples/app</a> - app.c<span style="font-size: 80%;"> (source / <a href="app.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
@@ -100,7 +100,7 @@
 <span id="L29"><span class="lineNum">      29</span>                 :             :  * @brief Advance USART1 transmission by at most one byte (non-blocking)</span>
 <span id="L30"><span class="lineNum">      30</span>                 :             :  * @note Must be called periodically to feed the UART from the ring buffer</span>
 <span id="L31"><span class="lineNum">      31</span>                 :             :  */</span>
-<span id="L32"><span class="lineNum">      32</span>                 :<span class="tlaGNC tlaBgGNC">        4230 : void uart_poll_tx(void) {</span></span>
+<span id="L32"><span class="lineNum">      32</span>                 :<span class="tlaGNC">        4230 : void uart_poll_tx(void) {</span></span>
 <span id="L33"><span class="lineNum">      33</span>                 :             : #if defined(OW_FAMILY_F0) || defined(OW_FAMILY_F3)</span>
 <span id="L34"><span class="lineNum">      34</span>                 :             :     // F0 and F3 unified USART naming: TXE lives in ISR, data goes to TDR.</span>
 <span id="L35"><span class="lineNum">      35</span>                 :             :     // F3 spells the flag plain USART_ISR_TXE - unlike G0 there is no TXFNF.</span>
@@ -237,11 +237,11 @@
 <span id="L166"><span class="lineNum">     166</span>                 :             : </span>
 <span id="L167"><span class="lineNum">     167</span>                 :             : /* ---- ow_stats output callbacks (strong definitions) ---- */</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaUNC tlaBgUNC">           0 : void ow_stats_putchar(char c) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaUNC">           0 : void ow_stats_putchar(char c) {</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaUNC">           0 :     uart_tx_enqueue_byte((int)c);</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaUNC">           0 : }</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             : </span>
-<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC tlaBgGNC">         144 : void ow_stats_puts(const char* s) {</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">         144 : void ow_stats_puts(const char* s) {</span></span>
 <span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">         144 :     uart_write_str(s);</span></span>
 <span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaGNC">         144 : }</span></span>
 <span id="L176"><span class="lineNum">     176</span>                 :             : </span>
@@ -328,8 +328,8 @@
 <span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">          16 : static uint8_t ow_wait_flag(volatile uint32_t* reg, uint32_t bit) {</span></span>
 <span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">          16 :     uint32_t n = OW_CLOCK_FLAG_TIMEOUT;</span></span>
 <span id="L259"><span class="lineNum">     259</span>   [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 16 times"> + </span>]:<span class="tlaGNC">          16 :     while (n &amp;&amp; !(*reg &amp; bit))</span></span>
-<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         n--;</span></span>
-<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">          16 :     return (*reg &amp; bit) ? 1u : 0u;</span></span>
+<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaUNC">           0 :         n--;</span></span>
+<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">          16 :     return (*reg &amp; bit) ? 1u : 0u;</span></span>
 <span id="L262"><span class="lineNum">     262</span>                 :             : }</span>
 <span id="L263"><span class="lineNum">     263</span>                 :             : #endif</span>
 <span id="L264"><span class="lineNum">     264</span>                 :             : #endif</span>
@@ -555,19 +555,19 @@
 <span id="L484"><span class="lineNum">     484</span>                 :             :      * further down - not after it. */</span>
 <span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">           1 :     PWR-&gt;CR |= PWR_CR_ODEN;</span></span>
 <span id="L486"><span class="lineNum">     486</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;PWR-&gt;CSR, PWR_CSR_ODRDY)) {</span></span>
-<span id="L487"><span class="lineNum">     487</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L487"><span class="lineNum">     487</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L489"><span class="lineNum">     489</span>                 :             :     }</span>
 <span id="L490"><span class="lineNum">     490</span>                 :             :     /* Over-drive in the power-saving path; required by the same sequence even</span>
 <span id="L491"><span class="lineNum">     491</span>                 :             :      * though this application never enters a low-power mode. */</span>
-<span id="L492"><span class="lineNum">     492</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     PWR-&gt;CR |= PWR_CR_ODSWEN;</span></span>
+<span id="L492"><span class="lineNum">     492</span>                 :<span class="tlaGNC">           1 :     PWR-&gt;CR |= PWR_CR_ODSWEN;</span></span>
 <span id="L493"><span class="lineNum">     493</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;PWR-&gt;CSR, PWR_CSR_ODSWRDY)) {</span></span>
-<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L495"><span class="lineNum">     495</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L496"><span class="lineNum">     496</span>                 :             :     }</span>
 <span id="L497"><span class="lineNum">     497</span>                 :             :     // Flash latency: 5 wait states, the same table row as 168MHz (RM0390): the</span>
 <span id="L498"><span class="lineNum">     498</span>                 :             :     // 180MHz cap moves the voltage-scale-1 limit, not the wait-state count.</span>
-<span id="L499"><span class="lineNum">     499</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span></span>
+<span id="L499"><span class="lineNum">     499</span>                 :<span class="tlaGNC">           1 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span></span>
 <span id="L500"><span class="lineNum">     500</span>                 :             :                  FLASH_ACR_LATENCY_5WS;</span>
 <span id="L501"><span class="lineNum">     501</span>                 :             :     // APB1 /4 = 45MHz, APB2 /2 = 90MHz (both at the F446's datasheet limits -</span>
 <span id="L502"><span class="lineNum">     502</span>                 :             :     // different numbers from the F407's 42/84, which is why this is a separate</span>
@@ -706,34 +706,34 @@
 <span id="L635"><span class="lineNum">     635</span>                 :             : #if (OW_SYSCLK_MHZ) == 170</span>
 <span id="L636"><span class="lineNum">     636</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CR |= RCC_CR_HSEON;</span></span>
 <span id="L637"><span class="lineNum">     637</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :     if (!ow_wait_flag(&amp;RCC-&gt;CR, RCC_CR_HSERDY)) {</span></span>
-<span id="L638"><span class="lineNum">     638</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L638"><span class="lineNum">     638</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L639"><span class="lineNum">     639</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L640"><span class="lineNum">     640</span>                 :             :     }</span>
 <span id="L641"><span class="lineNum">     641</span>                 :             :     /* Range 1 Boost before the PLL starts (see above): PWR clock on first,</span>
 <span id="L642"><span class="lineNum">     642</span>                 :             :      * VOS = 00, then wait out the transition. */</span>
-<span id="L643"><span class="lineNum">     643</span>                 :<span class="tlaGNC tlaBgGNC">           2 :     RCC-&gt;APB1ENR1 |= RCC_APB1ENR1_PWREN;</span></span>
+<span id="L643"><span class="lineNum">     643</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;APB1ENR1 |= RCC_APB1ENR1_PWREN;</span></span>
 <span id="L644"><span class="lineNum">     644</span>                 :<span class="tlaGNC">           2 :     PWR-&gt;CR1 &amp;= (uint32_t)~PWR_CR1_VOS;</span></span>
 <span id="L645"><span class="lineNum">     645</span>                 :             :     {</span>
 <span id="L646"><span class="lineNum">     646</span>                 :<span class="tlaGNC">           2 :         uint32_t vos_guard = OW_CLOCK_FLAG_TIMEOUT;</span></span>
 <span id="L647"><span class="lineNum">     647</span>   [<span class="tlaGBC" title="Branch 0 was taken 2 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :         while (vos_guard &amp;&amp; (PWR-&gt;SR2 &amp; PWR_SR2_VOSF))</span></span>
-<span id="L648"><span class="lineNum">     648</span>                 :<span class="tlaUNC tlaBgUNC">           0 :             vos_guard--;</span></span>
-<span id="L649"><span class="lineNum">     649</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC tlaBgGNC">           2 :         if (PWR-&gt;SR2 &amp; PWR_SR2_VOSF) {</span></span>
-<span id="L650"><span class="lineNum">     650</span>                 :<span class="tlaUNC tlaBgUNC">           0 :             ow_clock_ok = 0u;</span></span>
+<span id="L648"><span class="lineNum">     648</span>                 :<span class="tlaUNC">           0 :             vos_guard--;</span></span>
+<span id="L649"><span class="lineNum">     649</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :         if (PWR-&gt;SR2 &amp; PWR_SR2_VOSF) {</span></span>
+<span id="L650"><span class="lineNum">     650</span>                 :<span class="tlaUNC">           0 :             ow_clock_ok = 0u;</span></span>
 <span id="L651"><span class="lineNum">     651</span>                 :<span class="tlaUNC">           0 :             return;</span></span>
 <span id="L652"><span class="lineNum">     652</span>                 :             :         }</span>
 <span id="L653"><span class="lineNum">     653</span>                 :             :     }</span>
 <span id="L654"><span class="lineNum">     654</span>                 :             :     /* PLLSRC uses the ST selection value (HSE = both bits, HSI16 = bit 1 -</span>
 <span id="L655"><span class="lineNum">     655</span>                 :             :      * the odd-looking encoding both stm32g474xx.h and the Cube HAL agree on),</span>
 <span id="L656"><span class="lineNum">     656</span>                 :             :      * PLLM/PLLN from above, R/2 kept at reset with PLLREN selecting it. */</span>
-<span id="L657"><span class="lineNum">     657</span>                 :<span class="tlaGNC tlaBgGNC">           2 :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (OW_G4_PLLM &lt;&lt; RCC_PLLCFGR_PLLM_Pos) |</span></span>
+<span id="L657"><span class="lineNum">     657</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (OW_G4_PLLM &lt;&lt; RCC_PLLCFGR_PLLM_Pos) |</span></span>
 <span id="L658"><span class="lineNum">     658</span>                 :             :                    (OW_G4_PLLN &lt;&lt; RCC_PLLCFGR_PLLN_Pos) | RCC_PLLCFGR_PLLREN;</span>
 <span id="L659"><span class="lineNum">     659</span>                 :<span class="tlaGNC">           2 :     RCC-&gt;CR |= RCC_CR_PLLON;</span></span>
 <span id="L660"><span class="lineNum">     660</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 2 times"> + </span>]:<span class="tlaGNC">           2 :     if (!ow_wait_flag(&amp;RCC-&gt;CR, RCC_CR_PLLRDY)) {</span></span>
-<span id="L661"><span class="lineNum">     661</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L661"><span class="lineNum">     661</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L662"><span class="lineNum">     662</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L663"><span class="lineNum">     663</span>                 :             :     }</span>
 <span id="L664"><span class="lineNum">     664</span>                 :             :     // Flash latency: 8 wait states + prefetch + caches, before the switch.</span>
-<span id="L665"><span class="lineNum">     665</span>                 :<span class="tlaGNC tlaBgGNC">           2 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span></span>
+<span id="L665"><span class="lineNum">     665</span>                 :<span class="tlaGNC">           2 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |</span></span>
 <span id="L666"><span class="lineNum">     666</span>                 :             :                  FLASH_ACR_LATENCY_8WS;</span>
 <span id="L667"><span class="lineNum">     667</span>                 :             :     // Switch system clock to PLLRCLK. Left unbounded, as on F4: with the PLL</span>
 <span id="L668"><span class="lineNum">     668</span>                 :             :     // already locked and selected this cannot hang. (G4 SW encoding is</span>
@@ -802,33 +802,33 @@
 <span id="L731"><span class="lineNum">     731</span>                 :             :     // VOS0 (VOS = 11 -&gt; PWR_VOSCR_VOS), then wait for the regulator</span>
 <span id="L732"><span class="lineNum">     732</span>                 :<span class="tlaGNC">           1 :     PWR-&gt;VOSCR = (PWR-&gt;VOSCR &amp; ~PWR_VOSCR_VOS) | PWR_VOSCR_VOS;</span></span>
 <span id="L733"><span class="lineNum">     733</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;PWR-&gt;VOSSR, PWR_VOSSR_VOSRDY)) {</span></span>
-<span id="L734"><span class="lineNum">     734</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L734"><span class="lineNum">     734</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L735"><span class="lineNum">     735</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L736"><span class="lineNum">     736</span>                 :             :     }</span>
 <span id="L737"><span class="lineNum">     737</span>                 :             :     // 5 wait states + prefetch in one write, before the clock moves</span>
-<span id="L738"><span class="lineNum">     738</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_5WS;</span></span>
+<span id="L738"><span class="lineNum">     738</span>                 :<span class="tlaGNC">           1 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_5WS;</span></span>
 <span id="L739"><span class="lineNum">     739</span>                 :             :     // HSE on and stable before the PLL locks on it</span>
 <span id="L740"><span class="lineNum">     740</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;CR |= RCC_CR_HSEON;</span></span>
 <span id="L741"><span class="lineNum">     741</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;RCC-&gt;CR, RCC_CR_HSERDY)) {</span></span>
-<span id="L742"><span class="lineNum">     742</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L742"><span class="lineNum">     742</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L743"><span class="lineNum">     743</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L744"><span class="lineNum">     744</span>                 :             :     }</span>
 <span id="L745"><span class="lineNum">     745</span>                 :             :     // PLL1 is off after reset and has not been started, so its dividers are</span>
 <span id="L746"><span class="lineNum">     746</span>                 :             :     // writable now (RM0481: PLL1CFGR/PLL1DIVR only when PLL1ON = 0).  Source</span>
 <span id="L747"><span class="lineNum">     747</span>                 :             :     // is HSE (PLL1SRC = 11), input range RGE = 01 for 4..8MHz, wide VCO, and</span>
 <span id="L748"><span class="lineNum">     748</span>                 :             :     // the P output enabled because that is the one the SYSCLK mux selects.</span>
-<span id="L749"><span class="lineNum">     749</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     RCC-&gt;PLL1CFGR = RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 |</span></span>
+<span id="L749"><span class="lineNum">     749</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;PLL1CFGR = RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 |</span></span>
 <span id="L750"><span class="lineNum">     750</span>                 :             :                     ((OW_H5_PLLM) &lt;&lt; RCC_PLL1CFGR_PLL1M_Pos) | RCC_PLL1CFGR_PLL1PEN;</span>
 <span id="L751"><span class="lineNum">     751</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;PLL1DIVR = ((OW_H5_PLLN - 1u) &lt;&lt; RCC_PLL1DIVR_PLL1N_Pos) |</span></span>
 <span id="L752"><span class="lineNum">     752</span>                 :             :                     ((OW_H5_PLLP - 1u) &lt;&lt; RCC_PLL1DIVR_PLL1P_Pos);</span>
 <span id="L753"><span class="lineNum">     753</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;CR |= RCC_CR_PLL1ON;</span></span>
 <span id="L754"><span class="lineNum">     754</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;RCC-&gt;CR, RCC_CR_PLL1RDY)) {</span></span>
-<span id="L755"><span class="lineNum">     755</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L755"><span class="lineNum">     755</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L757"><span class="lineNum">     757</span>                 :             :     }</span>
 <span id="L758"><span class="lineNum">     758</span>                 :             :     // Switch SYSCLK to PLL1 (SW = 11).  Left unbounded, as on F4/G4: with the</span>
 <span id="L759"><span class="lineNum">     759</span>                 :             :     // PLL already locked and selected this cannot hang.</span>
-<span id="L760"><span class="lineNum">     760</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     RCC-&gt;CFGR1 = (RCC-&gt;CFGR1 &amp; ~RCC_CFGR1_SW) | RCC_CFGR1_SW;</span></span>
+<span id="L760"><span class="lineNum">     760</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;CFGR1 = (RCC-&gt;CFGR1 &amp; ~RCC_CFGR1_SW) | RCC_CFGR1_SW;</span></span>
 <span id="L761"><span class="lineNum">     761</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     while ((RCC-&gt;CFGR1 &amp; RCC_CFGR1_SWS) != RCC_CFGR1_SWS)</span></span>
 <span id="L762"><span class="lineNum">     762</span>                 :             :         ;</span>
 <span id="L763"><span class="lineNum">     763</span>                 :             : #elif (OW_SYSCLK_MHZ) == (OW_HSE_MHZ)</span>
@@ -842,10 +842,10 @@
 <span id="L771"><span class="lineNum">     771</span>                 :<span class="tlaGNC">           1 :     FLASH-&gt;ACR = FLASH_ACR_PRFTEN;</span></span>
 <span id="L772"><span class="lineNum">     772</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;CR |= RCC_CR_HSEON;</span></span>
 <span id="L773"><span class="lineNum">     773</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     if (!ow_wait_flag(&amp;RCC-&gt;CR, RCC_CR_HSERDY)) {</span></span>
-<span id="L774"><span class="lineNum">     774</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ow_clock_ok = 0u;</span></span>
+<span id="L774"><span class="lineNum">     774</span>                 :<span class="tlaUNC">           0 :         ow_clock_ok = 0u;</span></span>
 <span id="L775"><span class="lineNum">     775</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L776"><span class="lineNum">     776</span>                 :             :     }</span>
-<span id="L777"><span class="lineNum">     777</span>                 :<span class="tlaGNC tlaBgGNC">           1 :     RCC-&gt;CFGR1 = (RCC-&gt;CFGR1 &amp; ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10</span></span>
+<span id="L777"><span class="lineNum">     777</span>                 :<span class="tlaGNC">           1 :     RCC-&gt;CFGR1 = (RCC-&gt;CFGR1 &amp; ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10</span></span>
 <span id="L778"><span class="lineNum">     778</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           1 :     while ((RCC-&gt;CFGR1 &amp; RCC_CFGR1_SWS) != RCC_CFGR1_SWS_1)</span></span>
 <span id="L779"><span class="lineNum">     779</span>                 :             :         ;</span>
 <span id="L780"><span class="lineNum">     780</span>                 :             : #else</span>

@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - onewire.c<span style="font-size: 80%;"> (source / <a href="onewire.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - onewire.c<span style="font-size: 80%;"> (source / <a href="onewire.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.8&nbsp;%</td>
@@ -230,7 +230,7 @@
 <span id="L159"><span class="lineNum">     159</span>                 :             :  * @{</span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :  */</span>
 <span id="L161"><span class="lineNum">     161</span>                 :             : </span>
-<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC tlaBgGNC">        1721 : void onewire_init(void) {</span></span>
+<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">        1721 : void onewire_init(void) {</span></span>
 <span id="L163"><span class="lineNum">     163</span>                 :             :     // No search running after init: lets the slave driver own the timer until</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :     // the application starts a search.</span>
 <span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">        1721 :     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
@@ -276,17 +276,17 @@
 <span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC">         588 :     return ow_port_long_wait_pending();</span></span>
 <span id="L206"><span class="lineNum">     206</span>                 :             : }</span>
 <span id="L207"><span class="lineNum">     207</span>                 :             : </span>
-<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaUNC tlaBgUNC">           0 : void onewire_sleep_until_done(void) {</span></span>
+<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaUNC">           0 : void onewire_sleep_until_done(void) {</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :             :     ow_port_sleep_until_done();</span>
 <span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaUNC">           0 : }</span></span>
 <span id="L211"><span class="lineNum">     211</span>                 :             : #endif</span>
 <span id="L212"><span class="lineNum">     212</span>                 :             : </span>
-<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC tlaBgGNC">        4150 : uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {</span></span>
+<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">        4150 : uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {</span></span>
 <span id="L214"><span class="lineNum">     214</span>   [<span class="tlaGBC" title="Branch 0 was taken 4150 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 4150 times"> + </span>]:<span class="tlaGNC">        4150 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)&quot;);</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)&quot;);</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :             :         return 0;</span>
 <span id="L217"><span class="lineNum">     217</span>                 :             :     }</span>
-<span id="L218"><span class="lineNum">     218</span>         [<span class="tlaGBC" title="Branch 0 was taken 4150 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">        8300 :     return ow_port_write_slots(pulses, slots);</span></span>
+<span id="L218"><span class="lineNum">     218</span>         [<span class="tlaGBC" title="Branch 0 was taken 4150 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        8300 :     return ow_port_write_slots(pulses, slots);</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :             : }</span>
 <span id="L220"><span class="lineNum">     220</span>                 :             : </span>
 <span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         817 : uint8_t onewire_write_bit(uint8_t bit) {</span></span>
@@ -309,10 +309,10 @@
 <span id="L238"><span class="lineNum">     238</span>                 :             : </span>
 <span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">        1156 : uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {</span></span>
 <span id="L240"><span class="lineNum">     240</span>   [<span class="tlaGBC" title="Branch 0 was taken 1156 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1156 times"> + </span>]:<span class="tlaGNC">        1156 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
-<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)&quot;);</span></span>
+<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)&quot;);</span></span>
 <span id="L242"><span class="lineNum">     242</span>                 :             :         return 0;</span>
 <span id="L243"><span class="lineNum">     243</span>                 :             :     }</span>
-<span id="L244"><span class="lineNum">     244</span>         [<span class="tlaGBC" title="Branch 0 was taken 1156 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC tlaBgGNC">        2312 :     return ow_port_read_data(dst, bytes);</span></span>
+<span id="L244"><span class="lineNum">     244</span>         [<span class="tlaGBC" title="Branch 0 was taken 1156 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        2312 :     return ow_port_read_data(dst, bytes);</span></span>
 <span id="L245"><span class="lineNum">     245</span>                 :             : }</span>
 <span id="L246"><span class="lineNum">     246</span>                 :             : </span>
 <span id="L247"><span class="lineNum">     247</span>                 :<span class="tlaGNC">        1318 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
@@ -549,16 +549,16 @@
 <span id="L477"><span class="lineNum">     477</span>                 :             :         // instead of walking the same subtree forever.</span>
 <span id="L478"><span class="lineNum">     478</span>         [<span class="tlaGBC" title="Branch 0 was taken 162 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 90 times"> + </span>]:<span class="tlaGNC">         252 :         if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID) != 0u &amp;&amp;</span></span>
 <span id="L479"><span class="lineNum">     479</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 162 times"> + </span>]:<span class="tlaGNC">         162 :             memcmp(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES) == 0) {</span></span>
-<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaUNC tlaBgUNC">           0 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaUNC">           0 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
 <span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
 <span id="L482"><span class="lineNum">     482</span>                 :             :         }</span>
-<span id="L483"><span class="lineNum">     483</span>                 :<span class="tlaGNC tlaBgGNC">         252 :         memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);</span></span>
+<span id="L483"><span class="lineNum">     483</span>                 :<span class="tlaGNC">         252 :         memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);</span></span>
 <span id="L484"><span class="lineNum">     484</span>                 :<span class="tlaGNC">         252 :         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID;</span></span>
 <span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">         252 :         onewire_reset(search_pair_pulse);</span></span>
 <span id="L486"><span class="lineNum">     486</span>                 :<span class="tlaGNC">         252 :         search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
 <span id="L487"><span class="lineNum">     487</span>                 :<span class="tlaGNC">         252 :         break;</span></span>
 <span id="L488"><span class="lineNum">     488</span>                 :             : </span>
-<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case ONEWIRE_SEARCH_DONE:</span></span>
+<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaUNC">           0 :     case ONEWIRE_SEARCH_DONE:</span></span>
 <span id="L490"><span class="lineNum">     490</span>                 :             :         // DONE is handled before the switch (see above); keep as a</span>
 <span id="L491"><span class="lineNum">     491</span>                 :             :         // no-op so -Wswitch-enum stays satisfied.</span>
 <span id="L492"><span class="lineNum">     492</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
@@ -567,7 +567,7 @@
 <span id="L495"><span class="lineNum">     495</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
 <span id="L496"><span class="lineNum">     496</span>                 :             :     }</span>
 <span id="L497"><span class="lineNum">     497</span>                 :             : </span>
-<span id="L498"><span class="lineNum">     498</span>                 :<span class="tlaGNC tlaBgGNC">       48384 :     return 0;</span></span>
+<span id="L498"><span class="lineNum">     498</span>                 :<span class="tlaGNC">       48384 :     return 0;</span></span>
 <span id="L499"><span class="lineNum">     499</span>                 :             : }</span>
 <span id="L500"><span class="lineNum">     500</span>                 :             : </span>
 <span id="L501"><span class="lineNum">     501</span>                 :<span class="tlaGNC">         648 : uint8_t onewire_search_count(void) { return search_ctx.found; }</span></span>

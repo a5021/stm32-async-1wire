@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - ds18b20_txn.c<span style="font-size: 80%;"> (source / <a href="ds18b20_txn.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ds18b20_txn.c<span style="font-size: 80%;"> (source / <a href="ds18b20_txn.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -106,7 +106,7 @@
 <span id="L35"><span class="lineNum">      35</span>                 :             :      * would clobber the in-flight measurement/scan cycle, so it must be</span>
 <span id="L36"><span class="lineNum">      36</span>                 :             :      * rejected. Without this check a command could slip through during the</span>
 <span id="L37"><span class="lineNum">      37</span>                 :             :      * brief IDLE pause between scan rounds. */</span>
-<span id="L38"><span class="lineNum">      38</span>                 :<span class="tlaGNC tlaBgGNC">         979 :     return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &amp;&amp;</span></span>
+<span id="L38"><span class="lineNum">      38</span>                 :<span class="tlaGNC">         979 :     return (uint8_t)(ctx.current_state == DS18B20_ST_IDLE &amp;&amp;</span></span>
 <span id="L39"><span class="lineNum">      39</span>   [<span class="tlaGBC" title="Branch 0 was taken 943 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 925 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">         961 :                      (ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u &amp;&amp; !onewire_search_active() &amp;&amp;</span></span>
 <span id="L40"><span class="lineNum">      40</span>         [<span class="tlaGBC" title="Branch 0 was taken 907 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">        1886 :                      (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) != 0u &amp;&amp;</span></span>
 <span id="L41"><span class="lineNum">      41</span>         [<span class="tlaGBC" title="Branch 0 was taken 871 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">         907 :                      (txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) != 0u);</span></span>
@@ -208,12 +208,12 @@
 <span id="L137"><span class="lineNum">     137</span>                 :             :     // command write, scratchpad read, EEPROM hold-off) instead of spinning</span>
 <span id="L138"><span class="lineNum">     138</span>                 :             :     // on it - same WFE mechanism as the measurement cycle in ds18b20_poll().</span>
 <span id="L139"><span class="lineNum">     139</span>   [<span class="tlaGBC" title="Branch 0 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 595 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 224 times"> + </span>]:<span class="tlaGNC">         819 :     if (!txn_done &amp;&amp; onewire_long_wait_pending()) {</span></span>
-<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         onewire_sleep_until_done();</span></span>
+<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaUNC">           0 :         onewire_sleep_until_done();</span></span>
 <span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaUNC">           0 :         txn_done = onewire_bus_done(); /* consume the event that woke us */</span></span>
 <span id="L142"><span class="lineNum">     142</span>                 :             :     }</span>
 <span id="L143"><span class="lineNum">     143</span>                 :             : #endif</span>
 <span id="L144"><span class="lineNum">     144</span>                 :             : </span>
-<span id="L145"><span class="lineNum">     145</span>         [<span class="tlaGBC" title="Branch 0 was taken 565 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1497 times"> + </span>]:<span class="tlaGNC tlaBgGNC">        2062 :     if (!txn_done) {</span></span>
+<span id="L145"><span class="lineNum">     145</span>         [<span class="tlaGBC" title="Branch 0 was taken 565 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1497 times"> + </span>]:<span class="tlaGNC">        2062 :     if (!txn_done) {</span></span>
 <span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">         565 :         return 0;</span></span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :     }</span>
 <span id="L148"><span class="lineNum">     148</span>                 :             : </span>
@@ -279,12 +279,12 @@
 <span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">         151 :         txn_ctx.phase = DS18B20_TXN_DONE;</span></span>
 <span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaGNC">         151 :         break;</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :             : </span>
-<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case DS18B20_TXN_DONE:</span></span>
+<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaUNC">           0 :     case DS18B20_TXN_DONE:</span></span>
 <span id="L211"><span class="lineNum">     211</span>                 :             :     default:</span>
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :             :     }</span>
 <span id="L214"><span class="lineNum">     214</span>                 :             : </span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC tlaBgGNC">        1497 :     return 0;</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">        1497 :     return 0;</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :             : }</span>
 <span id="L217"><span class="lineNum">     217</span>                 :             : </span>
 <span id="L218"><span class="lineNum">     218</span>                 :             : /**</span>

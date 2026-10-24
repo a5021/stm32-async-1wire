@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - ow_stats.c<span style="font-size: 80%;"> (source / <a href="ow_stats.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ow_stats.c<span style="font-size: 80%;"> (source / <a href="ow_stats.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">64.3&nbsp;%</td>
@@ -109,7 +109,7 @@
 <span id="L38"><span class="lineNum">      38</span>                 :             : </span>
 <span id="L39"><span class="lineNum">      39</span>                 :             : /* ---- histogram helpers ---- */</span>
 <span id="L40"><span class="lineNum">      40</span>                 :             : </span>
-<span id="L41"><span class="lineNum">      41</span>                 :<span class="tlaGNC tlaBgGNC">    10125864 : static uint8_t hist_bucket(uint8_t pulse) {</span></span>
+<span id="L41"><span class="lineNum">      41</span>                 :<span class="tlaGNC">    10125864 : static uint8_t hist_bucket(uint8_t pulse) {</span></span>
 <span id="L42"><span class="lineNum">      42</span>         [<span class="tlaGBC" title="Branch 0 was taken 324 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10125540 times"> + </span>]:<span class="tlaGNC">    10125864 :     if (pulse &lt;= 2) return 0;</span></span>
 <span id="L43"><span class="lineNum">      43</span>         [<span class="tlaGBC" title="Branch 0 was taken 72 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10125468 times"> + </span>]:<span class="tlaGNC">    10125540 :     if (pulse &lt;= 4) return 1;</span></span>
 <span id="L44"><span class="lineNum">      44</span>         [<span class="tlaGBC" title="Branch 0 was taken 19494 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 10105974 times"> + </span>]:<span class="tlaGNC">    10125468 :     if (pulse &lt;= 6) return 2;</span></span>
@@ -277,7 +277,7 @@
 <span id="L205"><span class="lineNum">     205</span>                 :             : </span>
 <span id="L206"><span class="lineNum">     206</span>                 :             : /* ---- weak default output callbacks ---- */</span>
 <span id="L207"><span class="lineNum">     207</span>                 :             : </span>
-<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaUNC tlaBgUNC">           0 : __attribute__((weak)) void ow_stats_putchar(char c) { (void)c; }</span></span>
+<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaUNC">           0 : __attribute__((weak)) void ow_stats_putchar(char c) { (void)c; }</span></span>
 <span id="L209"><span class="lineNum">     209</span>                 :             : </span>
 <span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaUNC">           0 : __attribute__((weak)) void ow_stats_puts(const char* s) { (void)s; }</span></span>
 <span id="L211"><span class="lineNum">     211</span>                 :             : </span>

@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - ds18b20_resolution.c<span style="font-size: 80%;"> (source / <a href="ds18b20_resolution.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ds18b20_resolution.c<span style="font-size: 80%;"> (source / <a href="ds18b20_resolution.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -134,7 +134,7 @@
 <span id="L63"><span class="lineNum">      63</span>                 :             :  * @note 9 bit -&gt; 0x1F, 10 bit -&gt; 0x3F, 11 bit -&gt; 0x5F, 12 bit -&gt; 0x7F.</span>
 <span id="L64"><span class="lineNum">      64</span>                 :             :  */</span>
 <span id="L65"><span class="lineNum">      65</span>                 :             : __STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {</span>
-<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC tlaBgGNC">         234 :     return (uint8_t)(0x1Fu | ((uint8_t)(res - DS18B20_RES_MIN) &lt;&lt; 5));</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">         234 :     return (uint8_t)(0x1Fu | ((uint8_t)(res - DS18B20_RES_MIN) &lt;&lt; 5));</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :             : }</span>
 <span id="L68"><span class="lineNum">      68</span>                 :             : </span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : /**</span>
@@ -238,12 +238,12 @@
 <span id="L167"><span class="lineNum">     167</span>                 :             :     // Sleep through a long resolution-change write instead of spinning on</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             :     // it - same WFE mechanism as the measurement cycle in ds18b20_poll().</span>
 <span id="L169"><span class="lineNum">     169</span>   [<span class="tlaGBC" title="Branch 0 was taken 98 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 231 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 98 times"> + </span>]:<span class="tlaGNC">         329 :     if (!res_done &amp;&amp; onewire_long_wait_pending()) {</span></span>
-<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         onewire_sleep_until_done();</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaUNC">           0 :         onewire_sleep_until_done();</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaUNC">           0 :         res_done = onewire_bus_done(); /* consume the event that woke us */</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :     }</span>
 <span id="L173"><span class="lineNum">     173</span>                 :             : #endif</span>
 <span id="L174"><span class="lineNum">     174</span>                 :             : </span>
-<span id="L175"><span class="lineNum">     175</span>         [<span class="tlaGBC" title="Branch 0 was taken 241 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 572 times"> + </span>]:<span class="tlaGNC tlaBgGNC">         813 :     if (!res_done) {</span></span>
+<span id="L175"><span class="lineNum">     175</span>         [<span class="tlaGBC" title="Branch 0 was taken 241 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 572 times"> + </span>]:<span class="tlaGNC">         813 :     if (!res_done) {</span></span>
 <span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         241 :         return 0;</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :             :     }</span>
 <span id="L178"><span class="lineNum">     178</span>                 :             : </span>
@@ -268,12 +268,12 @@
 <span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         259 :         res_ctx.phase = DS18B20_RES_DONE;</span></span>
 <span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaGNC">         259 :         break;</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : </span>
-<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaUNC tlaBgUNC">           0 :     case DS18B20_RES_DONE:</span></span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaUNC">           0 :     case DS18B20_RES_DONE:</span></span>
 <span id="L201"><span class="lineNum">     201</span>                 :             :     default:</span>
 <span id="L202"><span class="lineNum">     202</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
 <span id="L203"><span class="lineNum">     203</span>                 :             :     }</span>
 <span id="L204"><span class="lineNum">     204</span>                 :             : </span>
-<span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC tlaBgGNC">         572 :     return 0;</span></span>
+<span id="L205"><span class="lineNum">     205</span>                 :<span class="tlaGNC">         572 :     return 0;</span></span>
 <span id="L206"><span class="lineNum">     206</span>                 :             : }</span>
 <span id="L207"><span class="lineNum">     207</span>                 :             : </span>
 <span id="L208"><span class="lineNum">     208</span>                 :             : /**</span>

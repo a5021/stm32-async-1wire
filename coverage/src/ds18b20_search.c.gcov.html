@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - ds18b20_search.c<span style="font-size: 80%;"> (source / <a href="ds18b20_search.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ds18b20_search.c<span style="font-size: 80%;"> (source / <a href="ds18b20_search.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -99,7 +99,7 @@
 <span id="L28"><span class="lineNum">      28</span>                 :             :  * @brief Device-search sink: store the ROM in the scan-mode device table</span>
 <span id="L29"><span class="lineNum">      29</span>                 :             :  *        (capped at DS18B20_MAX_DEVICES), then forward to the user sink.</span>
 <span id="L30"><span class="lineNum">      30</span>                 :             :  */</span>
-<span id="L31"><span class="lineNum">      31</span>                 :<span class="tlaGNC tlaBgGNC">         450 : static uint8_t search_store_sink(const uint8_t* rom) {</span></span>
+<span id="L31"><span class="lineNum">      31</span>                 :<span class="tlaGNC">         450 : static uint8_t search_store_sink(const uint8_t* rom) {</span></span>
 <span id="L32"><span class="lineNum">      32</span>         [<span class="tlaGBC" title="Branch 0 was taken 432 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 18 times"> + </span>]:<span class="tlaGNC">         450 :     if (dev_count &lt; DS18B20_MAX_DEVICES) {</span></span>
 <span id="L33"><span class="lineNum">      33</span>         [<span class="tlaGBC" title="Branch 0 was taken 3456 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 432 times"> + </span>]:<span class="tlaGNC">        3888 :         for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
 <span id="L34"><span class="lineNum">      34</span>                 :<span class="tlaGNC">        3456 :             dev_roms[dev_count][i] = rom[i];</span></span>

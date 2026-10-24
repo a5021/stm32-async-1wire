@@ -19,7 +19,7 @@
                 <table cellpadding=1 border=0 width="100%">
           <tr>
             <td width="10%" class="headerItem">Current view:</td>
-            <td width="10%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">src</a> - ds18b20_measure.c<span style="font-size: 80%;"> (source / <a href="ds18b20_measure.c.func-c.html">functions</a>)</span></td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ds18b20_measure.c<span style="font-size: 80%;"> (source / <a href="ds18b20_measure.c.func-c.html" title="Click to go to function table">functions</a>)</span></td>
             <td width="5%"></td>
             <td width="5%"></td>
             <td width="5%" class="headerCovTableHead">Coverage</td>
@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-23 18:40:23</td>
+            <td class="headerValue">2026-10-24 06:49:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -92,7 +92,7 @@
 <span id="L21"><span class="lineNum">      21</span>                 :             :  *       ds18b20_start_measure(), so the measurement cadence is the</span>
 <span id="L22"><span class="lineNum">      22</span>                 :             :  *       application's decision.</span>
 <span id="L23"><span class="lineNum">      23</span>                 :             :  */</span>
-<span id="L24"><span class="lineNum">      24</span>                 :<span class="tlaGNC tlaBgGNC">         594 : static void scan_finish_or_next(void) {</span></span>
+<span id="L24"><span class="lineNum">      24</span>                 :<span class="tlaGNC">         594 : static void scan_finish_or_next(void) {</span></span>
 <span id="L25"><span class="lineNum">      25</span>         [<span class="tlaGBC" title="Branch 0 was taken 450 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 144 times"> + </span>]:<span class="tlaGNC">         594 :     if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
 <span id="L26"><span class="lineNum">      26</span>                 :             :         // Parasite power: hold the strong pull-up while the driver is parked</span>
 <span id="L27"><span class="lineNum">      27</span>                 :             :         // so the device capacitors stay charged for the next measurement</span>
@@ -133,9 +133,9 @@
 <span id="L62"><span class="lineNum">      62</span>                 :             :     }</span>
 <span id="L63"><span class="lineNum">      63</span>   [<span class="tlaGBC" title="Branch 0 was taken 432 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 432 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         432 :     if (onewire_search_active() || (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u ||</span></span>
 <span id="L64"><span class="lineNum">      64</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 432 times"> + </span>]:<span class="tlaGNC">         432 :         (txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         return; // the search, a resolution change or a command owns the timer</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaUNC">           0 :         return; // the search, a resolution change or a command owns the timer</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :     }</span>
-<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC tlaBgGNC">         432 :     ctx.current_state = DS18B20_ST_START;</span></span>
+<span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         432 :     ctx.current_state = DS18B20_ST_START;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         432 :     ow_glue_kick();</span></span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : }</span>
 <span id="L70"><span class="lineNum">      70</span>                 :             : </span>
@@ -244,12 +244,12 @@
 <span id="L173"><span class="lineNum">     173</span>                 :             :     // - so this is invisible to the application: it just calls ds18b20_poll()</span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :     // and the call returns when the stage is done.</span>
 <span id="L175"><span class="lineNum">     175</span>   [<span class="tlaGBC" title="Branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1351 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 21 times"> + </span>]:<span class="tlaGNC">        1372 :     if (!done &amp;&amp; onewire_long_wait_pending()) {</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaUNC tlaBgUNC">           0 :         onewire_sleep_until_done();</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaUNC">           0 :         onewire_sleep_until_done();</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaUNC">           0 :         done = onewire_bus_done(); /* consume the event that woke us */</span></span>
 <span id="L178"><span class="lineNum">     178</span>                 :             :     }</span>
 <span id="L179"><span class="lineNum">     179</span>                 :             : #endif</span>
 <span id="L180"><span class="lineNum">     180</span>                 :             : </span>
-<span id="L181"><span class="lineNum">     181</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3474 times"> + </span>]:<span class="tlaGNC tlaBgGNC">        3528 :     if (!done) return;</span></span>
+<span id="L181"><span class="lineNum">     181</span>         [<span class="tlaGBC" title="Branch 0 was taken 54 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3474 times"> + </span>]:<span class="tlaGNC">        3528 :     if (!done) return;</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :             : </span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :     // State machine to manage 1-Wire communication sequence</span>
 <span id="L184"><span class="lineNum">     184</span>   [<span class="tlaGBC" title="Branch 0 was taken 108 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 396 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 540 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 432 times"> + </span> :<span class="tlaGNC">        3474 :     switch (ctx.current_state) {</span></span>
@@ -265,9 +265,9 @@
 <span id="L192"><span class="lineNum">     192</span>                 :             :         // actually engages instead of the next round starting on the very</span>
 <span id="L193"><span class="lineNum">     193</span>                 :             :         // next poll.</span>
 <span id="L194"><span class="lineNum">     194</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 108 times"> + </span>]:<span class="tlaGNC">         108 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC tlaBgUNC">           0 :             break;</span></span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :         }</span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC tlaBgGNC">         108 :         ctx.current_state = DS18B20_ST_START;</span></span>
+<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         108 :         ctx.current_state = DS18B20_ST_START;</span></span>
 <span id="L198"><span class="lineNum">     198</span>                 :             :         /* fallthrough to START state immediately */</span>
 <span id="L199"><span class="lineNum">     199</span>                 :             :         __attribute__((fallthrough));</span>
 <span id="L200"><span class="lineNum">     200</span>                 :             : </span>
