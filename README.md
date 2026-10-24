@@ -1027,7 +1027,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make cppcheck` | Static analysis, one pass per compiled configuration (run `make deps-all` first) |
 | `make clean` | Remove build artifacts, including any CMake install prefix outside `build/` |
 | `make download-deps` | Download CMSIS dependencies |
-| `make deps-all` | Download CMSIS for every family at once (needed by `make cppcheck`, and by the full host-test matrix in CI) |
+| `make deps-all` | Download CMSIS for every family at once, including the F446 part the F407 download does not carry (needed by `make cppcheck`, and by the full host-test matrix in CI) |
 | `make clean-deps` | Remove downloaded dependencies (`CMSIS/`, plus a root-level `_deps/`; `build/_deps/` goes with `make clean`) |
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |

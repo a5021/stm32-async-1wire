@@ -776,16 +776,20 @@ format-check:
 
 # --- Every CMSIS family at once ---
 # The cppcheck passes (and the full host matrix in CI) need the device headers
-# of all seven families. Downloads only what is missing, so it is cheap on a
-# tree that already has them; the point is one list instead of a copy in each
-# job, where a job that fetched a subset could still save that subset to the
-# cache the others restore.
+# of all seven families, and within F4 the F446 is a separate download: the
+# pack ships every part header, but the dependency list fetches only the one
+# the selected chip names, so F407xx does not bring stm32f446xx.h with it.
+# Downloads only what is missing, so it is cheap on a tree that already has
+# them; the point is one list instead of a copy in each job, where a job that
+# fetched a subset could still save that subset to the cache the others
+# restore.
 .PHONY: deps-all
 deps-all:
 	@$(MAKE) --no-print-directory download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32F030x6 download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32F303xC download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32F407xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32F446xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32G031xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32G474xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32H503xx download-deps
