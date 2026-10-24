@@ -740,6 +740,124 @@ test-manifest:
 test-version:
 	@sh tests/check_version.sh
 
+# --- Formatting: one file list, the one CI checks ---
+# clang-format is not a build tool, but it is a gate: the `format` job runs it
+# on every public header, engine source, example, mock, test, integration probe
+# and consumer template. That list used to live twice - in the workflow and,
+# shorter, in CONTRIBUTING.md - and the two had already drifted, so following
+# the instructions could leave a diff CI rejects. Wildcards rather than names,
+# so a new public header or test file is covered without editing anything.
+#
+# The version matters more than the list: a different clang-format release
+# reformats the same source differently. Install the release the `format` job
+# pins; `format-check` prints the one it is about to use.
+CLANG_FORMAT ?= clang-format
+FORMAT_FILES = $(wildcard inc/*.h src/*.c src/*.h examples/*/main.c \
+                 examples/app/*.c examples/app/*.h tests/mock/*.h \
+                 tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c \
+                 templates/standalone-consumer/*.c \
+                 templates/standalone-consumer/*.h)
+
+.PHONY: format format-check
+# Rewrite the tree in place.
+format:
+	@command -v $(CLANG_FORMAT) >/dev/null 2>&1 || { \
+		echo "format: clang-format not found - install the release the format job pins" >&2; \
+		exit 1; }
+	@$(CLANG_FORMAT) -i $(FORMAT_FILES)
+
+# Report only: non-zero as soon as one file would change.
+format-check:
+	@command -v $(CLANG_FORMAT) >/dev/null 2>&1 || { \
+		echo "format-check: clang-format not found - install the release the format job pins" >&2; \
+		exit 1; }
+	@$(CLANG_FORMAT) --version
+	@$(CLANG_FORMAT) --dry-run --Werror $(FORMAT_FILES)
+
+# --- Every CMSIS family at once ---
+# The cppcheck passes (and the full host matrix in CI) need the device headers
+# of all seven families. Downloads only what is missing, so it is cheap on a
+# tree that already has them; the point is one list instead of a copy in each
+# job, where a job that fetched a subset could still save that subset to the
+# cache the others restore.
+.PHONY: deps-all
+deps-all:
+	@$(MAKE) --no-print-directory download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32F030x6 download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32F303xC download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32F407xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32G031xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32G474xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32H503xx download-deps
+
+# --- Static analysis: one pass per configuration the preprocessor selects ---
+# Not one pass per family: a representative family would never look at the
+# branches that exist in only one combination of macros. The F3 PLL is driven
+# out of CFGR (PLLSRC/PLLMUL, no PLLN); the F446's 180MHz path is the only
+# over-drive user (PWR_CR_ODEN/ODSWEN and the ODRDY/ODSWRDY waits); the G4 and
+# H5 raw-RC and PLL paths touch different register sets - DMAMUX1EN against
+# GPDMA1EN, TIM1_UP_TIM16_IRQn against TIM1_UP_IRQn, the GPDMA channel layout
+# (CTR1/CTR2/CBR1/CSAR/CDAR). cppcheck reads the real CMSIS headers, so each
+# pass also proves those spellings exist in the device header, not merely that
+# the code compiles for one part.
+#
+# Every pass names its clock explicitly: the headers no longer guess one, so
+# omitting it falls through to app.c's "#error Unsupported OW_SYSCLK_MHZ".
+# Add a pass when a new branch is reachable only through a combination of
+# macros, or when a new family is added: the device macro is what selects the
+# port, so a family without a pass is a family cppcheck never reads.
+CPPCHECK ?= cppcheck
+CPPCHECK_FLAGS = --enable=warning,style,performance,portability --error-exitcode=1 \
+                 --suppress=missingIncludeSystem --suppress=unusedFunction \
+                 --suppress=constVariablePointer --suppress=constParameterPointer \
+                 --suppress=comparePointers --suppress=knownConditionTrueFalse \
+                 --suppress=unsignedLessThanZero
+CPPCHECK_INCLUDES = -I. -Iinc -Isrc -Iexamples/app \
+                    -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
+CPPCHECK_SOURCES = src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c \
+                   examples/app/app.c $(wildcard examples/*/main.c)
+CPPCHECK_DEVICES = stm32f103xb.h stm32f030x6.h stm32g031xx.h stm32f303xc.h \
+                   stm32f407xx.h stm32f446xx.h stm32g474xx.h stm32h503xx.h
+# label|defines (quoted: the shell would read the pipe and the spaces as
+# syntax, and each item must stay one word of the for list)
+CPPCHECK_PASSES = \
+	'f1-72|-DSTM32F103xB -DOW_SYSCLK_MHZ=72 -D__GNUC__' \
+	'f0-48|-DSTM32F030x6 -DOW_SYSCLK_MHZ=48 -D__GNUC__' \
+	'g0-64|-DSTM32G031xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
+	'f3-72|-DSTM32F303xC -DOW_SYSCLK_MHZ=72 -DOW_HSE_MHZ=8 -D__GNUC__' \
+	'f4-168|-DSTM32F407xx -DOW_SYSCLK_MHZ=168 -D__GNUC__' \
+	'f446-180|-DSTM32F446xx -DOW_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__' \
+	'g4-170|-DSTM32G474xx -DOW_SYSCLK_MHZ=170 -D__GNUC__' \
+	'g4-16|-DSTM32G474xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
+	'h5-64|-DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
+	'h5-250|-DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__' \
+	'h5-8|-DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__'
+
+.PHONY: cppcheck
+cppcheck:
+	@command -v $(CPPCHECK) >/dev/null 2>&1 || { \
+		echo "cppcheck: not found - install it (apt install cppcheck)" >&2; \
+		exit 1; }
+	@for h in $(CPPCHECK_DEVICES); do \
+		test -f $(CMSIS_DEVICE_DIR)/$$h || { \
+			echo "cppcheck: $(CMSIS_DEVICE_DIR)/$$h is missing - run 'make deps-all'" >&2; \
+			exit 1; }; \
+	done
+	@for pass in $(CPPCHECK_PASSES); do \
+		label=$${pass%%|*}; \
+		defs=$${pass#*|}; \
+		echo "cppcheck [$$label]"; \
+		$(CPPCHECK) $(CPPCHECK_FLAGS) $(CPPCHECK_INCLUDES) $$defs $(CPPCHECK_SOURCES) || exit 1; \
+	done
+	@echo "cppcheck: all passes OK"
+
+# --- Everything that needs no compiler ---
+# The pre-push gate: formatting, static analysis, the version declarations and
+# the HIL parsers. `make test` is the functional suite and `make` the firmware
+# build; neither is repeated here.
+.PHONY: check
+check: format-check cppcheck test-version test-hil-parsing
+
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
 # Needs the Arm toolchain (GCC_PATH as with firmware builds) and CMSIS deps.
@@ -1594,6 +1712,7 @@ help:
 	@echo "Available targets:"
 	@echo "  all             - Build project (downloads dependencies if needed) [DEFAULT]"
 	@echo "  download-deps   - Download all missing build dependencies"
+	@echo "  deps-all        - Download dependencies for every family (cppcheck, full matrix)"
 	@echo "  download-licenses - Download third-party license files to CMSIS/"
 	@echo "  clean-deps      - Remove downloaded dependencies (CMSIS/, CMake _deps/)"
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
@@ -1611,6 +1730,10 @@ help:
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
+	@echo "  check           - Pre-push gate: formatting, cppcheck, version, HIL parsers (no toolchain)"
+	@echo "  format-check    - Check formatting with the file list the format job uses"
+	@echo "  format          - Rewrite the same files in place"
+	@echo "  cppcheck        - Static analysis, one pass per compiled configuration"
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
 	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"

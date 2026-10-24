@@ -26,14 +26,14 @@ __attribute__((weak)) int _lseek(int file, int ptr, int dir) {
     return -1;
 }
 
-__attribute__((weak)) int _read(int file, char *ptr, int len) {
+__attribute__((weak)) int _read(int file, char* ptr, int len) {
     (void)file;
     (void)ptr;
     (void)len;
     return -1;
 }
 
-__attribute__((weak)) int _write(int file, char *ptr, int len) {
+__attribute__((weak)) int _write(int file, char* ptr, int len) {
     (void)file;
     (void)ptr;
     (void)len;

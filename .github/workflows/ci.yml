@@ -21,9 +21,9 @@ jobs:
         # the same rule as the apt packages (tests/ci/pip_install.sh).
         run: bash tests/ci/pip_install.sh ~/pip-wheels clang-format==23.1.1 numpy
       - name: Check code formatting
-        # src/ds18b20.c is an amalgamated TU that #includes its four functional
-        # parts, so the parts must be linted alongside it.
-        run: clang-format --dry-run --Werror inc/ds18b20.h inc/ds2431.h inc/onewire.h inc/ow_board.h inc/ow_config.h inc/ow_stats.h src/ds18b20.c src/ds18b20_resolution.c src/ds18b20_txn.c src/ds18b20_search.c src/ds18b20_measure.c src/ds2431.c src/ds2431_txn.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c src/ow_compiler.h src/ow_glue.h src/ow_mcu.h src/ow_port.h tests/mock/*.h tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c templates/standalone-consumer/*.c templates/standalone-consumer/*.h
+        # The file list and the pinned version live in the Makefile, so this
+        # job and a developer's `make format-check` cannot drift apart.
+        run: make format-check
       - name: Check the bench harness scripts offline
         # The HIL checks read the UART, and a capture can tear a line in the
         # middle of a burst. This replays the artefact that was actually
@@ -101,14 +101,7 @@ jobs:
         # All families up front: the host suites compile against mocks, but
         # keeping every backend's dependency set present lets any matrix cell
         # configure either target without re-downloading.
-        run: |
-          make download-deps
-          make OW_MCU=STM32F030x6 download-deps
-          make OW_MCU=STM32F303xC download-deps
-          make OW_MCU=STM32F407xx download-deps
-          make OW_MCU=STM32G031xx download-deps
-          make OW_MCU=STM32G474xx download-deps
-          make OW_MCU=STM32H503xx download-deps
+        run: make deps-all
       # One step for all sixteen configurations: the family comes from the job
       # matrix above, so only the variant list is spelled out here. The opt-in
       # variants rebuild the SAME suite with a feature flag changed -
@@ -170,14 +163,7 @@ jobs:
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
       - name: Download CMSIS dependencies
         if: steps.cache-cmsis.outputs.cache-hit != 'true'
-        run: |
-          make download-deps
-          make OW_MCU=STM32F030x6 download-deps
-          make OW_MCU=STM32F303xC download-deps
-          make OW_MCU=STM32F407xx download-deps
-          make OW_MCU=STM32G031xx download-deps
-          make OW_MCU=STM32G474xx download-deps
-          make OW_MCU=STM32H503xx download-deps
+        run: make deps-all
       - name: Build and run host tests with coverage
         # COVERAGE=1 adds --coverage (gcov instrumentation) to the host test
         # build. The test executables run from the repository root, so the
@@ -381,75 +367,13 @@ jobs:
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
       - name: Download CMSIS dependencies
         if: steps.cache-cmsis.outputs.cache-hit != 'true'
-        run: |
-          make download-deps
-          make OW_MCU=STM32F303xC download-deps
-          make OW_MCU=STM32F407xx download-deps
-          make OW_MCU=STM32G474xx download-deps
-          make OW_MCU=STM32H503xx download-deps
-      # src/onewire.c pulls the port layer with a same-directory quote-include
-      # (#include "ow_port.h"; ow_port.h reaches "ow_mcu.h" the same way), so
-      # the engine needs no extra -I beyond inc/ for the public ow_board.h.
-      # inc/ is still required here exactly as CMakeLists exports it for the
-      # build tree (BUILD_INTERFACE) and the Makefile does with -I.
-      # The per-family clock facts used to live in ow_port_fX.h as #ifndef
-      # fallbacks (no longer: the headers must not guess a clock), which is
-      # why every pass below carries its clock explicitly - omitting it makes
-      # cppcheck fall to examples/app/app.c's "#error Unsupported
-      # OW_SYSCLK_MHZ" branch (and app.h now #errors even earlier).
-      - name: Run static analysis (F1)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F103xB -DOW_SYSCLK_MHZ=72 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      - name: Run static analysis (F0)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F030x6 -DOW_SYSCLK_MHZ=48 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      - name: Run static analysis (G0)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G031xx -DOW_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The F3 PLL branch is a genuinely different code path from every other
-      # family's: it drives PLLSRC/PLLMUL out of CFGR rather than a dedicated
-      # PLLCFGR, has no PLLN, and its 72MHz default is the only one that cannot
-      # be reached from the internal RC. cppcheck reads the real stm32f303xc.h,
-      # which is what proves the F3 spellings it depends on actually exist -
-      # GPIO_OSPEEDER_* (with the E) and GPIO_AFRH_AFRH2 for PA10 among them.
-      - name: Run static analysis (F3 at 72MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F303xC -DOW_SYSCLK_MHZ=72 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      - name: Run static analysis (F4)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F407xx -DOW_SYSCLK_MHZ=168 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The F446's 180MHz branch exists in no other configuration, so the F4 pass
-      # above never sees it. cppcheck reads the real CMSIS headers, which is also
-      # what makes it the one check that proves PWR_CR_ODEN/ODSWEN and
-      # PWR_CSR_ODRDY/ODSWRDY are spelled as stm32f446xx.h spells them.
-      - name: Run static analysis (F446 at 180MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32F446xx -DOW_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The G4 backend: default 170MHz HSE+PLL branch. cppcheck reads the real
-      # stm32g474xx.h, which is what proves the G4 register spellings the port
-      # depends on actually exist - RCC_AHB1ENR_DMAMUX1EN, the AHB2/APB2 gates,
-      # TIM1_UP_TIM16_IRQn, the PLLCFGR M/N/R fields and the ACR latency row.
-      - name: Run static analysis (G4 at 170MHz)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_SYSCLK_MHZ=170 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The G4 16MHz raw-HSI16 branch: no PLL, no flash-latency change, SWS
-      # stays on HSI - a genuinely different code path from the 170MHz default,
-      # so it gets its own pass rather than riding along.
-      - name: Run static analysis (G4 at 16MHz HSI)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32G474xx -DOW_SYSCLK_MHZ=16 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The H5 backend: 64MHz raw-HSI default. cppcheck reads the real
-      # stm32h503xx.h, which is what proves the H5 register spellings the port
-      # depends on actually exist - RCC_AHB1ENR_GPDMA1EN, the AHB2/APB2 gates,
-      # TIM1_UP_IRQn, the G0-style GPIO MODE10/OT10 spellings and the GPDMA
-      # CTR1/CTR2/CBR1/CSAR/CDAR channel layout.
-      - name: Run static analysis (H5 at 64MHz HSI)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The H5 250MHz HSE+PLL1 branch exists in no other configuration: VOS0
-      # through PWR, 5 flash wait states, the PLL1CFGR/PLL1DIVR fields and the
-      # CFGR1 switch. cppcheck reads the real stm32h503xx.h, which is what
-      # proves the PWR_VOSCR/VOSSR, RCC_PLL1CFGR_PLL1SRC/PLL1RGE/PLL1M/PLL1PEN,
-      # RCC_PLL1DIVR_PLL1N/PLL1P and RCC_CFGR1_SW/SWS spellings the path
-      # depends on actually exist.
-      - name: Run static analysis (H5 at 250MHz HSE+PLL)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
-      # The H5 8MHz raw-HSE branch: an HSERDY wait and the CFGR1 switch, no PLL,
-      # 0 flash wait states - a genuinely different path from both the 64MHz
-      # default and the 250MHz PLL clock, so it gets its own pass.
-      - name: Run static analysis (H5 at 8MHz raw HSE)
-        run: cppcheck --enable=warning,style,performance,portability --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=constVariablePointer --suppress=constParameterPointer --suppress=comparePointers --suppress=knownConditionTrueFalse --suppress=unsignedLessThanZero -I. -Iinc -Isrc -Iexamples/app -ICMSIS/core -ICMSIS/device -DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__ src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c examples/app/app.c examples/1_basic/main.c examples/2_device_search/main.c examples/3_round_robin/main.c examples/4_scan_mode/main.c examples/5_commands/main.c examples/6_statistics/main.c examples/7_low_power/main.c examples/8_ds2431/main.c
+        run: make deps-all
+      # The passes, their defines and the suppression list live in the
+      # Makefile, so `make cppcheck` runs exactly this check on a
+      # developer's machine; the CMSIS headers downloaded above are the
+      # only input CI adds.
+      - name: Run static analysis
+        run: make cppcheck
 
   part-matrix:
     # Every chips/<part>.mk must name repository files that exist and well-formed
@@ -560,12 +484,7 @@ jobs:
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: |
-          make download-deps
-          make OW_MCU=STM32F303xC download-deps
-          make OW_MCU=STM32F407xx download-deps
-          make OW_MCU=STM32G474xx download-deps
-          make OW_MCU=STM32H503xx download-deps
+        run: make deps-all
       - name: Build release (1_basic)
         run: make
       - name: Build release (3_round_robin)
@@ -884,7 +803,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Clang
-        # Preinstalled on the runner image (16/17/18, with libFuzzer). apt
+        # Preinstalled on the runner image (20/21/22, with libFuzzer). apt
         # used to hang this job for 27+ minutes; only the version is checked.
         run: |
           command -v clang

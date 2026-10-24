@@ -48,10 +48,16 @@ interrupt-free, minimal CPU usage).
    - Register-level access only — no HAL/LL
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
    and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
-4. Run the code quality checks used in CI:
-   - `clang-format --dry-run --Werror inc/ds18b20.h src/ds18b20.c src/ds18b20_search.c src/ds18b20_txn.c src/ds18b20_resolution.c src/ds18b20_measure.c inc/ds2431.h src/ds2431.c src/ds2431_txn.c examples/1_basic/main.c`
-     (the full list, and the version, are in the `format` job above)
-   - `cppcheck --enable=warning,style,performance,portability ...`
+4. Run the code quality checks used in CI. `make check` runs all of them that
+   need no compiler: formatting (`make format-check`, or `make format` to
+   rewrite in place), static analysis (`make cppcheck`), the version
+   declarations and the HIL parsers. The file list, the cppcheck passes and
+   the suppression list live in the Makefile, so this is the same command the
+   workflow runs.
+   - `make cppcheck` needs the CMSIS headers of every family; on a fresh clone
+     run `make deps-all` once.
+   - Use the `clang-format` release the `format` job pins (step 2 above);
+     `make format-check` prints the one it invoked.
 5. Update the README and the [CHANGELOG](CHANGELOG.md) if your change
    affects behavior or usage.
 6. Commit your changes with a concise, descriptive message.

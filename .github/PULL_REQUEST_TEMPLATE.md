@@ -28,8 +28,7 @@
 - [ ] `make test` passes (and `-f0` / `-f4` / `-g0` if a backend was touched)
 - [ ] `make test-clocks` passes (per-family clock defaults)
 - [ ] `make test-chips` passes (after adding or editing a `chips/<part>.mk`)
-- [ ] `clang-format --dry-run --Werror` passes on changed files
-- [ ] `cppcheck` passes
+- [ ] `make check` passes (formatting, `cppcheck`, version declarations, HIL parsers)
 - [ ] README and CHANGELOG updated if behavior/usage changed
 
 ## Hardware testing
