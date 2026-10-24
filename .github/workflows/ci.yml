@@ -8,14 +8,14 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache pip wheels (clang-format, numpy)
         uses: actions/cache@v5
         with:
           path: ~/pip-wheels
-          key: ${{ runner.os }}-pip-format-v1
+          key: ${{ runner.os }}-pip-format-u2604-v1
       - name: Install clang-format and numpy
         # Wheels come from the cache; a stalled index must not hang the job,
         # the same rule as the apt packages (tests/ci/pip_install.sh).
@@ -62,7 +62,7 @@ jobs:
     # value the driver actually writes for a long wait; the wire measurement
     # (la_capture --wait-ms) then covers the convention the host shares with
     # the model and cannot see.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Check the DMA contract test can still fail
@@ -79,11 +79,11 @@ jobs:
       fail-fast: false
       matrix:
         backend: [f0, f1, f3, f4, g0, g4, h5]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Host toolchain
-        # The ubuntu-latest image already ships GCC (13.3 on 24.04) and make.
+        # The ubuntu-26.04 image already ships GCC (15.2) and make.
         # Installing GCC from the archive is what used to hang this job, so
         # the version is printed here and the image is trusted for the rest.
         run: |
@@ -151,14 +151,14 @@ jobs:
       fail-fast: false
       matrix:
         backend: [f0, f1, f3, f4, g0, g4, h5]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache apt packages (lcov)
         uses: actions/cache@v5
         with:
           path: ~/apt-debs
-          key: ${{ runner.os }}-apt-lcov-v2
+          key: ${{ runner.os }}-apt-lcov-u2604-v2
       - name: Install lcov
         # gcc is on the runner image; only lcov comes from the archive.
         run: bash tests/ci/apt_install.sh ~/apt-debs lcov
@@ -230,7 +230,7 @@ jobs:
   coverage-badge:
     needs: [coverage, api-docs]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
@@ -242,7 +242,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/apt-debs
-          key: ${{ runner.os }}-apt-lcov-v2
+          key: ${{ runner.os }}-apt-lcov-u2604-v2
       - name: Install lcov
         run: bash tests/ci/apt_install.sh ~/apt-debs lcov
       - name: Download coverage traces
@@ -334,14 +334,14 @@ jobs:
 
   api-docs:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache apt packages (doxygen)
         uses: actions/cache@v5
         with:
           path: ~/apt-debs
-          key: ${{ runner.os }}-apt-doxygen-v2
+          key: ${{ runner.os }}-apt-doxygen-u2604-v2
       - name: Install doxygen
         run: bash tests/ci/apt_install.sh ~/apt-debs doxygen
       - name: Generate API documentation
@@ -353,14 +353,14 @@ jobs:
           path: docs/api/
 
   cppcheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache apt packages (cppcheck)
         uses: actions/cache@v5
         with:
           path: ~/apt-debs
-          key: ${{ runner.os }}-apt-cppcheck-v2
+          key: ${{ runner.os }}-apt-cppcheck-u2604-v2
       - name: Install cppcheck
         run: bash tests/ci/apt_install.sh ~/apt-debs cppcheck
       - name: Cache CMSIS dependencies
@@ -449,7 +449,7 @@ jobs:
     # checks repo-side paths and expects make to fail at parse time), so it stays
     # fast, runs even when the build jobs are cached or skipped, and its name
     # says which invariant broke.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Check the part matrix
@@ -497,7 +497,7 @@ jobs:
     # job because, unlike the static checks above, it needs the Arm toolchain
     # (nm/size) and CMSIS (it builds 1_basic + 5_commands for f0/f4) — same
     # caches as the build jobs.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache Arm Toolchain
@@ -526,7 +526,7 @@ jobs:
         run: make test-ram
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache Arm Toolchain
@@ -697,7 +697,7 @@ jobs:
             mcu: STM32G474xx
           - backend: h5
             mcu: STM32H503xx
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Cache Arm Toolchain
@@ -870,7 +870,7 @@ jobs:
           test -f build/consumer-template/ow_consumer.elf
 
   fuzz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - name: Clang

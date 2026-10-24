@@ -12,7 +12,7 @@
 #
 # Usage: pip_install.sh CACHE_DIR PACKAGE...
 #
-# When the runner image moves (ubuntu-latest becomes 26.04 in November 2026),
+# When the runner image moves again (the jobs now pin ubuntu-26.04),
 # the cached wheels stop matching: they are built for the old Python ABI, so
 # the offline install fails, the index path takes over and the job still
 # passes - but it pays for the download on every run until the workflow cache

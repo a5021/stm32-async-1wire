@@ -17,7 +17,7 @@
 #
 # Usage: apt_install.sh CACHE_DIR PACKAGE...
 #
-# When the runner image moves (ubuntu-latest becomes 26.04 in November 2026),
+# When the runner image moves again (the jobs now pin ubuntu-26.04),
 # the cached set no longer matches: the check fails, the archive path takes
 # over and the job still passes - but it pays for the download on every run
 # until the workflow cache key is bumped.
@@ -77,7 +77,8 @@ if ! sudo timeout 120 apt-get update "${apt_opts[@]}"; then
     # The Azure-local mirror is the one that stalls (endless "Ign" retries,
     # 14+ minutes with no output). Fall back to the canonical archive - and
     # rewrite the mirrorlist the sources actually point at, not only
-    # sources.list: on 24.04 the URI lives in apt-mirrors.txt.
+    # sources.list: 24.04 keeps the URI in apt-mirrors.txt, and 26.04 keeps
+    # deb822 sources under sources.list.d.
     sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g' \
         /etc/apt/sources.list /etc/apt/sources.list.d/* \
         /etc/apt/apt-mirrors.txt 2>/dev/null || true
