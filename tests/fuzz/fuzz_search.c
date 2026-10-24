@@ -23,9 +23,9 @@
  */
 
 #include "ds18b20.h"
-#include "onewire.h"
 #include "hw_model.h"
 #include "mock_target.h"
+#include "onewire.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +94,7 @@ static void start_search(void) {
     onewire_search_start(fuzz_sink, g_max, g_command, g_family);
 }
 
-static uint8_t run_search(uint8_t(*out)[8]) {
+static uint8_t run_search(uint8_t (*out)[8]) {
     uint16_t guard = 0;
     for (;;) {
         if (onewire_search_poll()) {

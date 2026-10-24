@@ -742,8 +742,9 @@ test-version:
 
 # --- Formatting: one file list, the one CI checks ---
 # clang-format is not a build tool, but it is a gate: the `format` job runs it
-# on every public header, engine source, example, mock, test, integration probe
-# and consumer template. That list used to live twice - in the workflow and,
+# on every first-party C source - public headers, engine sources, examples,
+# app support, mocks, tests, fuzz harnesses, integration probes and the
+# consumer template. That list used to live twice - in the workflow and,
 # shorter, in CONTRIBUTING.md - and the two had already drifted, so following
 # the instructions could leave a diff CI rejects. Wildcards rather than names,
 # so a new public header or test file is covered without editing anything.
@@ -754,7 +755,8 @@ test-version:
 CLANG_FORMAT ?= clang-format
 FORMAT_FILES = $(wildcard inc/*.h src/*.c src/*.h examples/*/main.c \
                  examples/app/*.c examples/app/*.h tests/mock/*.h \
-                 tests/mock/*.c tests/test/*.c tests/integration/cmake/*.c \
+                 tests/mock/*.c tests/test/*.c tests/fuzz/*.c tests/fuzz/*.h \
+                 tests/integration/cmake/*.c \
                  templates/standalone-consumer/*.c \
                  templates/standalone-consumer/*.h)
 

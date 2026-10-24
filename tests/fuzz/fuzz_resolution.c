@@ -22,9 +22,9 @@
  */
 
 #include "ds18b20.h"
-#include "onewire.h"
 #include "hw_model.h"
 #include "mock_target.h"
+#include "onewire.h"
 #include <stdint.h>
 #include <stdlib.h>
 
