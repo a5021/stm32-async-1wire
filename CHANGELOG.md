@@ -385,7 +385,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CMSIS dependencies pinned to commit SHAs.** `config/cmsis_pins.mk` records the exact upstream commits (ARM CMSIS_5, all seven `cmsis_device_*` repos, SVD data); the Makefile builds raw URLs from them and CMake passes them as `GIT_TAG`, replacing floating `master`/`main`. Fresh checkouts now download byte-identical headers years later — previously `system_stm32f3xx.c` drifted upstream (VTOR setup) and moved firmware images without any repository change.
 
-- **Reject-path asserts no longer pull stdio into firmware.** `onewire_write_slots()` / `onewire_read_data()` guard out-of-range sizes with `ONEWIRE_PARAM_CHECK()` (new in `src/onewire.c`): fail-soft `return 0` in every build, `assert()` trap only under `DS18B20_TEST_HARNESS` / `OW_TEST_PARAM_GUARD`. Previously the trap survived LTO in some images, linking `fprintf`/`__sf` (~5 KB text, ~400 B `.bss` at stake); H5 `1_basic` text drops 76 B with identical behaviour.
+- **Reject-path asserts no longer pull stdio into firmware.** `onewire_write_slots()` / `onewire_read_data()` guard out-of-range sizes with `ONEWIRE_PARAM_CHECK()` (new in `src/onewire.c`): fail-soft `return 0` in firmware, `assert()` trap only under `DS18B20_TEST_HARNESS` / `OW_TEST_PARAM_GUARD` (and `NDEBUG` removes it). Previously the trap survived LTO in some images, linking `fprintf`/`__sf` (~5 KB text, ~400 B `.bss` at stake); H5 `1_basic` text drops 76 B with identical behaviour.
 
 ### Removed
 

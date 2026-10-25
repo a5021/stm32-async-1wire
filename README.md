@@ -1059,7 +1059,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
 | `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
 | `make test-lowpower-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) are fail-soft in every build — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
+| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
 | `make test-ndebug-f3` | Same as above against the STM32F3 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
@@ -2289,10 +2289,12 @@ uint8_t     onewire_search_active(void);
 `onewire_write_slots()` and `onewire_read_data()` report whether the operation
 was scheduled: they return **1** on success and **0** when the size argument is
 out of range and nothing was started (`slots` must be 1..256, `bytes` 1..32).
-Debug builds additionally trap the reject path with `assert`; with `NDEBUG` the
-caller observes the 0 instead of a silent no-op, so an invalid size can never
-turn into an undiscovered `onewire_bus_done()` hang. `onewire_write_bit()` has
-no size argument and always returns 1.
+In firmware the reject path returns 0: the caller observes the 0 instead of a
+silent no-op, so an invalid size can never turn into an undiscovered
+`onewire_bus_done()` hang. An `assert` is compiled in only under
+`DS18B20_TEST_HARNESS` or `OW_TEST_PARAM_GUARD` (and is disabled by `NDEBUG`);
+it is not a debug-build feature. `onewire_write_bit()` has no size argument and
+always returns 1.
 
 There is no byte-oriented command helper: a command is encoded by the caller
 with `onewire_encode_byte()` into a slot buffer and then handed to

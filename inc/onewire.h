@@ -148,8 +148,10 @@ uint8_t onewire_present(const volatile uint16_t* pulses);
  *                  8-bit (RCR = slots - 1), so larger counts would truncate and
  *                  desync the timer from the DMA (CNDTR).
  * @return 1 if the write was scheduled, 0 if `slots` is out of range (the
- *         call is rejected and no operation is scheduled). In debug builds the
- *         reject path also traps with an assert; with NDEBUG it only reports 0.
+ *         call is rejected and no operation is scheduled). In firmware the
+ *         reject path returns 0; an assert is compiled in only under
+ *         DS18B20_TEST_HARNESS or OW_TEST_PARAM_GUARD (and is disabled by
+ *         NDEBUG).
  * @note Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so
  *       the buffer must stay valid until onewire_bus_done() reports completion.
  */
@@ -198,8 +200,10 @@ void onewire_write_then_read(uint8_t bit);
  *                  limited to ONEWIRE_MAX_SLOTS (256) slots by the 8-bit TIM1
  *                  RCR (RCR = bytes*8 - 1); larger reads must be split.
  * @return 1 if the read was scheduled, 0 if `bytes` is out of range (the call
- *         is rejected and no operation is scheduled). In debug builds the
- *         reject path also traps with an assert; with NDEBUG it only reports 0.
+ *         is rejected and no operation is scheduled). In firmware the reject
+ *         path returns 0; an assert is compiled in only under
+ *         DS18B20_TEST_HARNESS or OW_TEST_PARAM_GUARD (and is disabled by
+ *         NDEBUG).
  * @note On completion, the caller decodes the 8-bit pulse durations (pulse
  *       `<= ONEWIRE_SHORT_PULSE_MAX` reads as bit 1) into data bytes.
  */
