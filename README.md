@@ -52,10 +52,14 @@ be driven directly from the shared bus layer.
 | **DS18B20** | Digital temperature sensor, 9-12-bit, ±0.5 °C, parasite or external power | `0x28` | `inc/ds18b20.h` + `src/ds18b20.c` | `1_basic` … `7_low_power` |
 | **DS2431** | 1 kbit (128-byte) EEPROM, 4 × 32-byte pages via an 8-byte scratchpad | `0x2D` | `inc/ds2431.h` + `src/ds2431.c` | `8_ds2431` |
 
-Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer, so they
-share one bus: each driver's search filters on the family code, keeping the two
-device types apart. Slaves without a driver here (DS2413, ...) can be driven by
-including `"onewire.h"` and building on the bus primitives.
+Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer, but they
+are alternatives, not companions: each driver's init calls `onewire_init()`,
+which takes exclusive ownership of the timer/DMA/pin, and a second init is
+unsupported. Use one driver per firmware image; the DS2431 example filters the
+shared bus search by family code (`DS2431_FAMILY_CODE`, 0x2D), while the
+DS18B20 driver's own search filters on 0x28. Slaves without a driver here
+(DS2413, ...) can be driven by including `"onewire.h"` and building on the bus
+primitives.
 
 ## Features
 
@@ -150,7 +154,8 @@ still private.
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F401xE, STM32F446RE,
   STM32G031x6, STM32G474CB, STM32H503CB; see the per-family sections in `src/ow_mcu.h`).
-- Sensor: DS18B20 temperature sensor and/or a DS2431 EEPROM
+- Sensor: DS18B20 temperature sensor and/or DS2431 EEPROM; one firmware image
+  drives one of the two drivers (see [DS2431 EEPROM Driver](#ds2431-eeprom-driver))
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default with `OW_MCU=STM32F401xC`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default with `OW_MCU=STM32F446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default with `OW_MCU=STM32G474xx`), or 16MHz via raw HSI16. STM32H503 — 64MHz via raw HSI (default with `OW_MCU=STM32H503xx`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill, `chips/f401xe.mk` says 8MHz — and `HSE_MHZ=N` overrides both. The default is 8MHz everywhere else. A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
 
@@ -442,7 +447,8 @@ console). Measurement logs are deliberately not kept in the repo.
 ### STM32F103C8T6 (Blue Pill)
 
 Reference setup: STM32F103C8T6 (Blue Pill), a DS18B20 temperature bus and a
-DS2431 EEPROM sharing one 1-Wire line (PA10, external VDD), flashed via
+DS2431 EEPROM sharing one 1-Wire line (PA10, external VDD; the two drivers are
+exercised by separate firmware images — see the DS2431 section), flashed via
 ST-Link, USART1 TX at 115200 8N1 via a CP2102 USB-UART adapter. The DS2431
 path is exercised by `make APP=8_ds2431` — a Read Memory / Write Scratchpad /
 Read Scratchpad / Copy Scratchpad / Read Memory cycle on every DS2431 the
@@ -655,9 +661,12 @@ Same bus as the DS18B20 (one 1-Wire line, shared pull-up):
 | 3.3V          | Power       | VDD        |
 | GND           | Ground      | GND        |
 
-Both slaves can sit on the same bus: each driver's search filters on the family
-code (0x28 vs 0x2D), so the sensors never appear in the DS2431 census and vice
-versa. See `examples/8_ds2431`.
+Both slaves can sit on the same line electrically, but one firmware image drives
+one driver at a time: `ds2431_init()` and `ds18b20_init()` both call
+`onewire_init()`, whose second call is unsupported (see the DS2431 section
+below). The DS2431 example runs the shared bus search with
+`DS2431_FAMILY_CODE` (0x2D), so DS18B20s on the line are ignored; the DS18B20
+driver's own search filters on 0x28.
 
 #### Debug UART (optional)
 
@@ -1050,7 +1059,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
 | `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
 | `make test-lowpower-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) are fail-soft in every build — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
+| `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
 | `make test-ndebug-f3` | Same as above against the STM32F3 backend mock |
 | `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
@@ -2280,10 +2289,12 @@ uint8_t     onewire_search_active(void);
 `onewire_write_slots()` and `onewire_read_data()` report whether the operation
 was scheduled: they return **1** on success and **0** when the size argument is
 out of range and nothing was started (`slots` must be 1..256, `bytes` 1..32).
-Debug builds additionally trap the reject path with `assert`; with `NDEBUG` the
-caller observes the 0 instead of a silent no-op, so an invalid size can never
-turn into an undiscovered `onewire_bus_done()` hang. `onewire_write_bit()` has
-no size argument and always returns 1.
+In firmware the reject path returns 0: the caller observes the 0 instead of a
+silent no-op, so an invalid size can never turn into an undiscovered
+`onewire_bus_done()` hang. An `assert` is compiled in only under
+`DS18B20_TEST_HARNESS` or `OW_TEST_PARAM_GUARD` (and is disabled by `NDEBUG`);
+it is not a debug-build feature. `onewire_write_bit()` has no size argument and
+always returns 1.
 
 There is no byte-oriented command helper: a command is encoded by the caller
 with `onewire_encode_byte()` into a slot buffer and then handed to
@@ -2764,8 +2775,10 @@ Called when a measurement cycle completes — provides temperature data in tenth
 
 The DS2431 1 kbit EEPROM has its own non-blocking driver (`inc/ds2431.h` +
 `src/ds2431.c`) on the shared 1-Wire layer. Call `ds2431_init()` **instead of**
-`ds18b20_init()` — the two drivers share the bus engine, so mixing them on one
-bus is unsupported — and address devices with `ds2431_select()`.
+`ds18b20_init()`: both init functions call `onewire_init()`, which takes
+exclusive ownership of the timer/DMA/pin, and a second `onewire_init()` is
+unsupported. The two device types may share the physical line, but not one
+firmware image; address DS2431s with `ds2431_select()`.
 
 ```C
 void    ds2431_init(void);
