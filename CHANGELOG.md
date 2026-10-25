@@ -1013,11 +1013,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2026-09-26
 
 416 commits since v1.8.1, and four breaking changes on the public surface:
-the write API is byte-oriented, the parasite knob is unified, the statistics
-period is counted in sweeps rather than measurements, and the F401 part is
-selected as `f401xc`. The F4 backend and the F401CC are new and validated on
-hardware; the build system gained a per-part matrix and a separate knob for
-the board's crystal frequency.
+the scheduling API now reports rejected sizes (return type changed), the
+parasite knob is unified, the statistics period is counted in sweeps rather
+than measurements, and the F401 part is selected as `f401xc`. The F4 backend
+and the F401CC are new and validated on hardware; the build system gained a
+per-part matrix and a separate knob for the board's crystal frequency.
 
 ### Added
 
@@ -1322,21 +1322,6 @@ the board's crystal frequency.
   *and* causes every example to call `ds18b20_set_parasite(1)` at
    startup.  The old flag names are removed; `-DPARASITE_POWER=1` no
    longer has any effect.
-
-- **Public 1-Wire write API is now byte-oriented.** `onewire_write_slots()`
-  and `onewire_encode_byte()` are replaced on the public surface by
-  `onewire_write_command(const uint8_t *bytes, uint8_t nbytes)` and
-  `onewire_write_command_byte(uint8_t byte)` (`inc/onewire.h`): the command
-  bytes are encoded synchronously (MSB-first wire order, LSB-first bit
-  order) into an internal pulse buffer, the trailing bus-release zero is
-  appended there, and the transfer is scheduled in a single call. An empty
-  command or one longer than `ONEWIRE_CMD_MAX_BYTES` (13) is rejected
-  without starting a transfer. The slot-level encoder and the `ow_pulse_t`
-  type move to the new internal header `inc/onewire_internal.h`, used only
-  by the driver and the test harness. The DS18B20 driver
-  (`addr_bytes`/`txn_ctx.bytes`/`res_ctx.bytes`), the test accessors and the
-  DMA-contract/param-guard tests are updated accordingly; externally the
-  encoded pulse stream and timing are unchanged.
 
 - **STM32F4 backend is now covered by the host-test harness.** New
   `tests/mock/stm32f4xx.h` (TIM1/DMA2/GPIO/RCC/USART register model) plus an
