@@ -302,7 +302,7 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>1 if the read was scheduled, 0 if <span class="tt">bytes</span> is out of range (the call is rejected and no operation is scheduled). In debug builds the reject path also traps with an assert; with NDEBUG it only reports 0. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the read was scheduled, 0 if <span class="tt">bytes</span> is out of range (the call is rejected and no operation is scheduled). In firmware the reject path returns 0; an assert is compiled in only under DS18B20_TEST_HARNESS or OW_TEST_PARAM_GUARD (and is disabled by NDEBUG). </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>On completion, the caller decodes the 8-bit pulse durations (pulse <span class="tt">&lt;= <a class="el" href="ow__config_8h.html#aa381644a5db469d0471052139ceb7de0" title="Upper bound (in µs) for the short-pulse detection window.">ONEWIRE_SHORT_PULSE_MAX</a></span> reads as bit 1) into data bytes. </dd></dl>
 
 </div>
@@ -438,7 +438,7 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>1 if the write was scheduled, 0 if <span class="tt">slots</span> is out of range (the call is rejected and no operation is scheduled). In debug builds the reject path also traps with an assert; with NDEBUG it only reports 0. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>1 if the write was scheduled, 0 if <span class="tt">slots</span> is out of range (the call is rejected and no operation is scheduled). In firmware the reject path returns 0; an assert is compiled in only under DS18B20_TEST_HARNESS or OW_TEST_PARAM_GUARD (and is disabled by NDEBUG). </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>Non-blocking: the DMA feeds CCR3 from the buffer asynchronously, so the buffer must stay valid until <a class="el" href="#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> reports completion. </dd></dl>
 
 </div>
