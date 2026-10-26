@@ -3009,9 +3009,11 @@ rationale.
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
-- Inspect Captured Data: Examine the driver context's `ctx.capture[]` after a reset
-  or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
-  data.
+- Inspect Captured Data: after a reset, call `onewire_reset_captured()` and
+  require 2 before trusting `ctx.capture[1]`; with no device the second slot
+  is stale and may look like a valid presence. `ctx.capture[0]` is the reset
+  pulse and `ctx.capture[1]` the reset-to-presence capture; after a read,
+  inspect `ctx.pulse[]` (both in `src/ds18b20.c`).
 
 ## License
 
