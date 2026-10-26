@@ -359,11 +359,11 @@ Functions</h2></td></tr>
 <p>Schedule a 1-Wire bus reset (presence pulse captured via DMA). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[out]</td><td class="paramname">reset_pulses</td><td>Buffer for the captured reset + presence pulse durations (2 x 16-bit) </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">reset_pulses</td><td>Buffer for the captured reset + presence pulse durations (2 x 16-bit; entry 1 is only valid when <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Number of bus edges captured by the last reset.">onewire_reset_captured()</a> returns 2) </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>On completion, decode the presence pulse with <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a>. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>On completion, call <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Number of bus edges captured by the last reset.">onewire_reset_captured()</a> and pass its count, together with this buffer, to <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a>. </dd></dl>
 
 </div>
 </div>
