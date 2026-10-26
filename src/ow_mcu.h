@@ -480,6 +480,9 @@
         OW_PORT_DMA_FEED.CR = (cr);                \
     } while (0)
 
+/* F4 streams count transfers in NDTR, like the classic CNDTR. */
+#define OW_PORT_CAPTURE_REMAINING() (OW_PORT_DMA_CAPTURE.NDTR)
+
 /* Core-required init hooks: the shared ow_port_init() calls these.
  * Statements moved verbatim from the former F4 ow_port_init().
  * Bus pin: alternate function, open-drain, AF1 (TIM1_CH3).  Drive strength:
@@ -915,6 +918,12 @@
         OW_PORT_DMA_FEED.CTR1 = (uint32_t)(cr);                              \
         OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos);                       \
     } while (0)
+
+/* GPDMA counts source bytes in CBR1.BNDT; the reset capture source is the
+ * halfword CCR4 (SDW_LOG2 = 1), so one element consumes two BNDT bytes. */
+#define OW_PORT_CAPTURE_REMAINING()                               \
+    ((uint16_t)((OW_PORT_DMA_CAPTURE.CBR1 & DMA_CBR1_BNDT_Msk) >> \
+                (DMA_CBR1_BNDT_Pos + 1u)))
 
 /* Core-required init hooks: bus clocks and the bus pin.
  * Bus pin: alternate function, open-drain, AF1 (TIM1_CH3, Arduino-variant

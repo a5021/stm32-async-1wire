@@ -7,6 +7,7 @@
 #include "../src/ds18b20.c"
 #include "../src/onewire.c"
 #include "hw_model.h"
+#include "mock_target.h"
 #include <stddef.h>
 
 void ds18b20_test_register_buffers(void) {
@@ -45,7 +46,15 @@ void ds18b20_test_reset_resolution(void) {
     res_ctx.flags = DS18B20_RES_FLAG_FINISHED;
 }
 
-void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) { ctx.capture[i] = v; }
+void ds18b20_test_set_capture_pulse(uint8_t i, uint16_t v) {
+    ctx.capture[i] = v;
+    /* Writing a capture slot models the edge having arrived, so also advance
+     * the capture DMA's remaining count: onewire_present() reads presence
+     * validity from the transfer count, not from the buffer. After slot 1 the
+     * counter is drained (two edges), after slot 0 only one edge happened. */
+    MOCK_DMA_CAP.CNDTR =
+        MOCK_CAP_CNDTR((uint32_t)(OW_PORT_CAPTURE_BUF_SIZE - i - 1u));
+}
 uint16_t ds18b20_test_get_capture_pulse(uint8_t i) { return ctx.capture[i]; }
 void ds18b20_test_set_pulse(uint8_t i, uint8_t v) { ctx.pulse[i] = v; }
 uint8_t ds18b20_test_get_scratchpad(uint8_t i) { return ctx.scratchpad[i]; }
@@ -65,7 +74,7 @@ void ds18b20_test_set_address_mode(uint8_t m) {
 }
 
 int16_t ds18b20_test_decode_temperature(void) { return decode_temperature(); }
-unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture); }
+unsigned ds18b20_test_check_presence(void) { return onewire_present(ctx.capture, onewire_reset_captured()); }
 uint8_t ds18b20_test_check_scratchpad_crc(void) { return check_scratchpad_crc(); }
 void ds18b20_test_encode_byte_pulses(ow_pulse_t* out, uint8_t byte) { onewire_encode_byte(out, byte); }
 void ds18b20_test_build_addr_cmd(uint8_t cmd_byte) { build_addr_cmd(cmd_byte); }
@@ -93,7 +102,7 @@ void test_bus_wait_conversion(void) { wait_conversion(); }
 void test_bus_wait_start(uint32_t us) { ow_glue_wait_start(us); }
 void test_bus_wait_plan(uint32_t us, uint16_t* arr, uint8_t* rcr) { ow_port_plan_wait(us, arr, rcr); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
-uint8_t test_bus_present(void) { return onewire_present(ctx.capture); }
+uint8_t test_bus_present(void) { return onewire_present(ctx.capture, onewire_reset_captured()); }
 #if OW_LOW_POWER
 void test_bus_arm_capture_n(uint16_t count) {
     /* Capture arms the channels only; the schedule (and therefore the

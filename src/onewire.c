@@ -183,7 +183,15 @@ void onewire_reset(volatile uint16_t* reset_pulses) {
     ow_port_reset(reset_pulses);
 }
 
-uint8_t onewire_present(const volatile uint16_t* pulses) {
+uint8_t onewire_reset_captured(void) { return ow_port_reset_captured(); }
+
+uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured) {
+    // A device is only proven by the presence edge itself: a reset that captured
+    // just the master-release edge leaves pulses[1] at whatever the shared
+    // buffer held before, and that value may sit inside the presence window.
+    if (captured != OW_PORT_CAPTURE_BUF_SIZE) {
+        return 0;
+    }
     uint16_t reset = pulses[0];
     uint16_t presence = pulses[1];
     // Validate that reset pulse duration is within specification
@@ -403,7 +411,7 @@ uint8_t onewire_search_poll(void) {
         // pre-encoded in flash; only these two protocol commands ever reach
         // this layer (ds18b20_search_start/alarm_search_start pass the
         // DS18B20_* constants, and the tests/fuzz cover both).
-        if (!onewire_present(search_pair_pulse)) {
+        if (!onewire_present(search_pair_pulse, onewire_reset_captured())) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }

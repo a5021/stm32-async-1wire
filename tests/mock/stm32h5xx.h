@@ -250,6 +250,7 @@ extern USART_TypeDef mock_usart1;
 #define DMA_CTR2_REQSEL_Pos 0u
 #define DMA_CTR2_DREQ_Pos 10u
 #define DMA_CBR1_BNDT_Pos 0u
+#define DMA_CBR1_BNDT_Msk 0x0000FFFFu
 #define DMA_CCR_EN_Pos 0u
 #define DMA_CFCR_TCF_Pos 8u
 #define DMA_CFCR_SUSPF_Pos 13u

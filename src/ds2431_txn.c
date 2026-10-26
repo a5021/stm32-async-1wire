@@ -209,7 +209,7 @@ static uint8_t ds2431_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so build and send the command for this operation.
         {
-            uint8_t present = onewire_present((const volatile uint16_t*)ctx.u.cap);
+            uint8_t present = onewire_present((const volatile uint16_t*)ctx.u.cap, onewire_reset_captured());
             if (!present) {
                 ctx.phase = DS2431_PH_DONE;
                 break;

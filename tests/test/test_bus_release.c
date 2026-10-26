@@ -278,14 +278,14 @@ void test_reset_absent_then_present_no_stale_capture(void) {
     TEST_ASSERT_FALSE(test_bus_present());
     /* The reset underruns: OW_PORT_CAPTURE_BUF_SIZE slots were armed and only
      * one edge arrived, so the stream ends the operation with transfers still
-  * pending and EN latched. That is exactly the state the next operation's
-  * re-arm has to cope with - ow_port_dma_disable() acknowledges the disable
-     * before the reprogram - and it is why the buffer is wider than the two
-     * edges a timeslot produces. reset_pulses[1] was zeroed by ow_port_reset
-     * and never rewritten: a non-event, not a phantom. */
+     * pending and EN latched. That is exactly the state the next operation's
+     * re-arm has to cope with - ow_port_dma_disable() acknowledges the disable
+     * before the reprogram. The remaining transfer is also why presence is
+     * absent: the count says only the master-release edge arrived, so pulse[1]
+     * must not be interpreted whatever the shared buffer still holds. */
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
-    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_reset_captured());
 
     /* A presence reset right after must recover on the same bus: the re-arm
      * reprograms a fresh slot count (no stale accumulation) and decodes a real
@@ -295,6 +295,7 @@ void test_reset_absent_then_present_no_stale_capture(void) {
     test_bus_reset();
     complete_op(4);
     TEST_ASSERT_TRUE(test_bus_present());
+    TEST_ASSERT_EQUAL_UINT8(2, onewire_reset_captured());
     TEST_ASSERT_EQUAL_UINT32(2, hw_capture_count());
     TEST_ASSERT_EQUAL_UINT32(0u, MOCK_DMA_CAP.CNDTR);
     assert_bus_released();
@@ -317,14 +318,14 @@ void test_reset_absent_twice_in_a_row(void) {
     TEST_ASSERT_FALSE(test_bus_present());
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
-    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_reset_captured());
 
     test_bus_reset();
     complete_op(4);
     TEST_ASSERT_FALSE(test_bus_present());
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), MOCK_DMA_CAP.CNDTR);
     TEST_ASSERT_TRUE(MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_EN);
-    TEST_ASSERT_EQUAL_UINT16(0, ds18b20_test_get_capture_pulse(1));
+    TEST_ASSERT_EQUAL_UINT8(1, onewire_reset_captured());
 
     hw_set_capture_edges(0);
 }

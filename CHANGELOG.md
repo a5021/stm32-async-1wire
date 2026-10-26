@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Presence is proved by the captured edge count, not by a zeroed buffer
+  (breaking).** `ow_port_reset()` used to write zeros into both capture slots
+  before arming the DMA, so that a reset with no device would leave
+  `reset_pulses[1] == 0` and `onewire_present()` would not mistake stale memory
+  for a presence pulse. That encoded validity as a sentinel in the data — and
+  `onewire_present()` had no way to tell a real 0 µs measurement from "the
+  transfer never happened".
+
+  The capture engine already knows the answer: its remaining-transfer count
+  (`CNDTR`/`NDTR`, `CBR1.BNDT` on the H5 GPDMA, which counts source bytes and
+  so is halved for the halfword capture) says exactly how many edges arrived.
+  `onewire_present()` now takes that count:
+
+  ```C
+  uint8_t onewire_reset_captured(void);
+  uint8_t onewire_present(const volatile uint16_t *pulses, uint8_t captured);
+  ```
+
+  A reset that captured only the master-release edge reports `captured == 1`
+  and cannot produce a device, whatever the untouched second slot still holds.
+  The zeroing writes are gone; the validity no longer lives in the buffer. Call
+  `onewire_reset_captured()` after `onewire_bus_done()` reports the reset
+  complete and before the next capture is armed. The bundled DS18B20/DS2431
+  drivers and the search engine already do so.
+
 - **The timed-wait and state-machine-kick calls are no longer public API
   (breaking).** `onewire_start_timer()` and `onewire_kick()` were declared in
   `inc/onewire.h`, which made them look like part of the bus API — but they

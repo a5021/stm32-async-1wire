@@ -1817,7 +1817,8 @@ The 1-Wire layer uses a hybrid of several hardware features:
 All bus-level protocol lives in `src/onewire.c` (interface in `inc/onewire.h`),
 a reusable 1-Wire master that the DS18B20 driver builds on:
 
-- `onewire_init()`, `onewire_reset()`, `onewire_present()`,
+- `onewire_init()`, `onewire_reset()`, `onewire_reset_captured()`,
+   `onewire_present()`,
    `onewire_write_slots()`, `onewire_encode_byte()`,
    `onewire_write_bit()`, `onewire_read_pair()`, `onewire_write_then_read()`,
    `onewire_pair_bits()`, `onewire_read_data()`, `onewire_decode_pulses()`,
@@ -2065,7 +2066,7 @@ Explicit-start behavior
   - Set state=2.
 
 - CONVERT (state 2)
-  - On UIF, check_presence() with ctx.capture[].
+  - On UIF, check_presence() with ctx.capture[] and onewire_reset_captured().
     - If present: send convert command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
       device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
@@ -2084,7 +2085,7 @@ Explicit-start behavior
   - On UIF: run reset_bus() again; set state=5.
 
 - REQUEST (state 5)
-  - On UIF, check_presence().
+  - On UIF, check_presence() with ctx.capture[] and onewire_reset_captured().
     - If present: send read command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
       selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
@@ -2264,7 +2265,9 @@ driver — they live in the shared 1-Wire layer (`inc/onewire.h` +
 void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
 void        onewire_reset(volatile uint16_t *reset_pulses);
-uint8_t     onewire_present(const volatile uint16_t *pulses);
+uint8_t     onewire_reset_captured(void);
+uint8_t     onewire_present(const volatile uint16_t *pulses,
+                            uint8_t captured);
 uint8_t     onewire_write_slots(const ow_pulse_t *pulses, uint16_t slots);
 uint8_t     onewire_write_bit(uint8_t bit);
 void        onewire_read_pair(volatile uint16_t *pair_pulses);
@@ -2295,6 +2298,16 @@ silent no-op, so an invalid size can never turn into an undiscovered
 `DS18B20_TEST_HARNESS` or `OW_TEST_PARAM_GUARD` (and is disabled by `NDEBUG`);
 it is not a debug-build feature. `onewire_write_bit()` has no size argument and
 always returns 1.
+
+`onewire_present()` takes the capture buffer **and** the number of edges that
+reset actually captured, which `onewire_reset_captured()` reads from the capture
+DMA's remaining-transfer count. A reset with no device leaves the second slot
+untouched, so its contents are whatever the shared buffer held before — possibly
+a perfectly valid-looking presence duration. The captured count is the hardware
+fact that separates "no second edge" from "a presence pulse was measured":
+`onewire_present()` requires both edges before it reports a device. Call
+`onewire_reset_captured()` after `onewire_bus_done()` reports the reset complete
+and before the next capture is armed.
 
 There is no byte-oriented command helper: a command is encoded by the caller
 with `onewire_encode_byte()` into a slot buffer and then handed to

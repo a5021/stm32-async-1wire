@@ -477,6 +477,30 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
     } while (0)
 #endif
 
+/* Capture transfers still pending, in elements: classic CNDTR/NDTR count
+ * transfers, GPDMA's BNDT counts source bytes (the capture source is the
+ * halfword CCR4, so a halfword element is two BNDT bytes).  Backends that
+ * spell the count differently override this next to their PROG macros. */
+#ifndef OW_PORT_CAPTURE_REMAINING
+#define OW_PORT_CAPTURE_REMAINING() (OW_PORT_DMA_CAPTURE.CNDTR)
+#endif
+
+/**
+ * @brief Number of bus edges captured by the last reset
+ * @return 0..OW_PORT_CAPTURE_BUF_SIZE; 2 means the presence pulse was captured
+ * @note The transfer engine already knows whether the second capture happened,
+ *       so "no presence" is read from its remaining count instead of being
+ *       encoded as a sentinel in the capture buffer. Must be called after the
+ *       reset completed and before the next capture is armed.
+ */
+__STATIC_FORCEINLINE uint8_t ow_port_reset_captured(void) {
+    uint16_t remaining = (uint16_t)OW_PORT_CAPTURE_REMAINING();
+    if (remaining > OW_PORT_CAPTURE_BUF_SIZE) {
+        remaining = OW_PORT_CAPTURE_BUF_SIZE;
+    }
+    return (uint8_t)(OW_PORT_CAPTURE_BUF_SIZE - remaining);
+}
+
 /* Disable-path contract: the wait algorithm below is DMA-IP-agnostic (write
  * 0, poll the EN bit to 0, bounded) and intentionally shared; each backend
  * supplies only the operands (control register + EN bit) through its DISABLE
@@ -826,13 +850,9 @@ __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {
     T1.RCR = 0;
     T1.ARR = OW_PORT_RESET_TIMEOUT;
     T1.CCR3 = OW_PORT_RESET_PULSE_DURATION;
-    /* Clear the capture buffer: only reset_pulses[0] (master release) is always
-     * written by the DMA, so a no-presence reset would otherwise leave a stale
-     * reset_pulses[1] from a previous presence reset and onewire_present() would
-     * report a false device. Zeroing makes a single-capture reset report "no
-     * device". */
-    reset_pulses[0] = 0;
-    reset_pulses[1] = 0;
+    /* Only the master-release edge is guaranteed; whether the presence edge
+     * arrived is read from the capture engine by ow_port_reset_captured(),
+     * not inferred from stale buffer contents. */
     ow_port_capture(reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);
 }
 

@@ -129,11 +129,26 @@ uint8_t onewire_bus_done(void);
 void onewire_reset(volatile uint16_t* reset_pulses);
 
 /**
+ * @brief Number of bus edges captured by the last reset
+ * @return 0..2; 2 means the presence edge arrived, less means the reset
+ *         captured only the master-release edge
+ * @note Read from the capture DMA's remaining count. Valid once
+ *       onewire_bus_done() reported the reset complete and before the next
+ *       capture is armed. Pass the result to onewire_present().
+ */
+uint8_t onewire_reset_captured(void);
+
+/**
  * @brief Decode the presence pulse captured by onewire_reset()
  * @param[in] pulses Reset + presence pulse durations captured by onewire_reset()
+ * @param[in] captured Edges captured by that reset; pass
+ *                     onewire_reset_captured()
  * @return 1 if at least one device answered, 0 otherwise
+ * @note A reset that captured only the master-release edge has no presence
+ *       entry; `captured` is what distinguishes it from a stale pulse[1],
+ *       whose value may otherwise fall inside the presence window.
  */
-uint8_t onewire_present(const volatile uint16_t* pulses);
+uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured);
 
 /**
  * @brief Schedule a write of `slots` bit slots
