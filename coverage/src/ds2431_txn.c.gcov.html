@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-25 14:00:11</td>
+            <td class="headerValue">2026-10-26 04:04:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -282,7 +282,7 @@
 <span id="L209"><span class="lineNum">     209</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L210"><span class="lineNum">     210</span>                 :             :         // the bus, so build and send the command for this operation.</span>
 <span id="L211"><span class="lineNum">     211</span>                 :             :         {</span>
-<span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">         462 :             uint8_t present = onewire_present((const volatile uint16_t*)ctx.u.cap);</span></span>
+<span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">         462 :             uint8_t present = onewire_present((const volatile uint16_t*)ctx.u.cap, onewire_reset_captured());</span></span>
 <span id="L213"><span class="lineNum">     213</span>         [<span class="tlaGBC" title="Branch 0 was taken 42 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 420 times"> + </span>]:<span class="tlaGNC">         462 :             if (!present) {</span></span>
 <span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">          42 :                 ctx.phase = DS2431_PH_DONE;</span></span>
 <span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">          42 :                 break;</span></span>

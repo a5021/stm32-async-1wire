@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-25 14:00:11</td>
+            <td class="headerValue">2026-10-26 04:04:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -252,7 +252,7 @@
 <span id="L181"><span class="lineNum">     181</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L182"><span class="lineNum">     182</span>                 :             :         // the bus, so send the config write for the requested resolution.</span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :         {</span>
-<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         313 :             uint8_t res_present = onewire_present(ctx.capture);</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         313 :             uint8_t res_present = onewire_present(ctx.capture, onewire_reset_captured());</span></span>
 <span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 295 times"> + </span>]:<span class="tlaGNC">         313 :             if (!res_present) {</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">          18 :                 res_ctx.phase = DS18B20_RES_DONE;</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          18 :                 break;</span></span>
