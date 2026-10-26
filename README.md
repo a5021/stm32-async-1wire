@@ -2579,9 +2579,11 @@ the pull-up must also source the conversion current:
 - Budget ~1.5mA per simultaneously converting sensor against the pin's drive
   capability (~25mA source on F0/F1/F3/F4/G0/G4) and the VOH droop across your pull-up
   arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
-- For longer buses or larger fleets add an external P-MOSFET (or a dedicated
-  strong pull-up IC) as the high-side switch and treat the MCU pin as its gate
-  driver — the software interface stays exactly the same.
+- For longer buses or larger fleets use a dedicated strong-pull-up IC, or add
+  a P-MOSFET high-side switch driven by its own GPIO. The current API cannot
+  drive a separate gate: `onewire_strong_pullup()` only switches the bus pin
+  itself to push-pull HIGH, while a P-MOSFET needs a LOW gate to conduct. A
+  gate-pin option would be a port/API extension, not a wiring change.
 
 The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
@@ -3007,9 +3009,11 @@ rationale.
   - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
   - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
     for a '0' (slot = 5 + 60 + 5 = 70µs).
-- Inspect Captured Data: Examine the driver context's `ctx.capture[]` after a reset
-  or `ctx.pulse[]` after a read (in `src/ds18b20.c`) to see the raw timing
-  data.
+- Inspect Captured Data: after a reset, call `onewire_reset_captured()` and
+  require 2 before trusting `ctx.capture[1]`; with no device the second slot
+  is stale and may look like a valid presence. `ctx.capture[0]` is the reset
+  pulse and `ctx.capture[1]` the reset-to-presence capture; after a read,
+  inspect `ctx.pulse[]` (both in `src/ds18b20.c`).
 
 ## License
 

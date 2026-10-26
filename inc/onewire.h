@@ -123,8 +123,10 @@ uint8_t onewire_bus_done(void);
 /**
  * @brief Schedule a 1-Wire bus reset (presence pulse captured via DMA)
  * @param[out] reset_pulses Buffer for the captured reset + presence pulse
- *                          durations (2 x 16-bit)
- * @note On completion, decode the presence pulse with onewire_present().
+ *                          durations (2 x 16-bit; entry 1 is only valid when
+ *                          onewire_reset_captured() returns 2)
+ * @note On completion, call onewire_reset_captured() and pass its count,
+ *       together with this buffer, to onewire_present().
  */
 void onewire_reset(volatile uint16_t* reset_pulses);
 
