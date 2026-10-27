@@ -252,7 +252,7 @@ void test_long_waits_keep_bus_released(void) {
 /*-------------------------------------------------------------
  *  Absent-presence reset -> capture underrun leaves the channel armed.
  *
- *  Finding (docs/absent-presence-rearm-review.md): a no-presence reset
+ *  Finding (see ow_port_dma_disable() in src/ow_port.h): a no-presence reset
  *  schedules OW_PORT_CAPTURE_BUF_SIZE = 2 capture transfers, but only the
  *  master-release edge arrives. On both DMA controllers EN clears only when
  *  the memory counter drains, so the capture channel is left armed mid-transfer
