@@ -1,7 +1,7 @@
 /* ============================================================
  *  test_presence.c - Presence Detection Boundary Tests
  *
- *  Validates check_presence() against the DS18B20 spec ranges:
+ *  Validates onewire_present() against the DS18B20 spec ranges:
  *  - pulse[0] (reset pulse) in [480, 540]µs
  *  - pulse[1] (presence pulse) in [555, 840]µs
  *  plus the arm_capture DMA width configuration.
