@@ -2066,7 +2066,7 @@ Explicit-start behavior
   - Set state=2.
 
 - CONVERT (state 2)
-  - On UIF, check_presence() with ctx.capture[] and onewire_reset_captured().
+  - On UIF, onewire_present() with ctx.capture[] and onewire_reset_captured().
     - If present: send convert command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Convert T 0x44" (16 slots, RCR=15). With a
       device selected via ds18b20_select(), it is "Match ROM 0x55 + 8-byte ROM
@@ -2085,7 +2085,7 @@ Explicit-start behavior
   - On UIF: run reset_bus() again; set state=5.
 
 - REQUEST (state 5)
-  - On UIF, check_presence() with ctx.capture[] and onewire_reset_captured().
+  - On UIF, onewire_present() with ctx.capture[] and onewire_reset_captured().
     - If present: send read command via CH3+DMA. With no selected device,
       this is "Skip ROM 0xCC + Read Scratchpad 0xBE" (16 slots). With a device
       selected, it is "Match ROM 0x55 + 8-byte ROM + Read Scratchpad 0xBE"
