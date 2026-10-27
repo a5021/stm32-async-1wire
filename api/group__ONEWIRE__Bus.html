@@ -103,7 +103,7 @@ Functions</h2></td></tr>
 <tr class="memitem:gabdd1e47fc5997a0806b9294560d2cf3d" id="r_gabdd1e47fc5997a0806b9294560d2cf3d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gabdd1e47fc5997a0806b9294560d2cf3d">onewire_reset</a> (volatile uint16_t *reset_pulses)</td></tr>
 <tr class="memdesc:gabdd1e47fc5997a0806b9294560d2cf3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedule a 1-Wire bus reset (presence pulse captured via DMA).  <br /></td></tr>
 <tr class="memitem:ga5151c69146c0a1ba9256c959fdd5ef20" id="r_ga5151c69146c0a1ba9256c959fdd5ef20"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20">onewire_reset_captured</a> (void)</td></tr>
-<tr class="memdesc:ga5151c69146c0a1ba9256c959fdd5ef20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bus edges captured by the last reset.  <br /></td></tr>
+<tr class="memdesc:ga5151c69146c0a1ba9256c959fdd5ef20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Edges captured by the last capture operation armed.  <br /></td></tr>
 <tr class="memitem:gab07bedba0ccb75b4bf9ee29c22410f4d" id="r_gab07bedba0ccb75b4bf9ee29c22410f4d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d">onewire_present</a> (const volatile uint16_t *pulses, uint8_t captured)</td></tr>
 <tr class="memdesc:gab07bedba0ccb75b4bf9ee29c22410f4d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode the presence pulse captured by <a class="el" href="#gabdd1e47fc5997a0806b9294560d2cf3d" title="Schedule a 1-Wire bus reset (presence pulse captured via DMA).">onewire_reset()</a>.  <br /></td></tr>
 <tr class="memitem:gadab2aae443ef53a94d25e54bf0e62c50" id="r_gadab2aae443ef53a94d25e54bf0e62c50"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gadab2aae443ef53a94d25e54bf0e62c50">onewire_write_slots</a> (const <a class="el" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a> *pulses, uint16_t slots)</td></tr>
@@ -274,12 +274,12 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">pulses</td><td>Reset + presence pulse durations captured by <a class="el" href="#gabdd1e47fc5997a0806b9294560d2cf3d" title="Schedule a 1-Wire bus reset (presence pulse captured via DMA).">onewire_reset()</a> </td></tr>
-    <tr><td class="paramdir">[in]</td><td class="paramname">captured</td><td>Edges captured by that reset; pass <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Number of bus edges captured by the last reset.">onewire_reset_captured()</a> </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">captured</td><td>Edges captured by that reset; pass <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Edges captured by the last capture operation armed.">onewire_reset_captured()</a> </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>1 if at least one device answered, 0 otherwise </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>A reset that captured only the master-release edge has no presence entry; <span class="tt">captured</span> is what distinguishes it from a stale pulse[1], whose value may otherwise fall inside the presence window. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>A reset that captured only the master-release edge has no presence entry; <span class="tt">captured</span> is what distinguishes it from a stale pulse[1], whose value may otherwise fall inside the presence window. <span class="tt">captured</span> must describe the same reset as <span class="tt">pulses</span>: the two are one hardware fact read from two places. Both go stale the moment another capture is armed - a later completed capture makes <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Edges captured by the last capture operation armed.">onewire_reset_captured()</a> return 2 again, which would otherwise bless a stale pulses[1]. </dd></dl>
 
 </div>
 </div>
@@ -359,11 +359,11 @@ Functions</h2></td></tr>
 <p>Schedule a 1-Wire bus reset (presence pulse captured via DMA). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[out]</td><td class="paramname">reset_pulses</td><td>Buffer for the captured reset + presence pulse durations (2 x 16-bit; entry 1 is only valid when <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Number of bus edges captured by the last reset.">onewire_reset_captured()</a> returns 2) </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">reset_pulses</td><td>Buffer for the captured reset + presence pulse durations (2 x 16-bit; entry 1 is only valid when <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Edges captured by the last capture operation armed.">onewire_reset_captured()</a> returns 2) </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section note"><dt>Note</dt><dd>On completion, call <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Number of bus edges captured by the last reset.">onewire_reset_captured()</a> and pass its count, together with this buffer, to <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a>. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>On completion, call <a class="el" href="#ga5151c69146c0a1ba9256c959fdd5ef20" title="Edges captured by the last capture operation armed.">onewire_reset_captured()</a> and pass its count, together with this buffer, to <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a>. </dd></dl>
 
 </div>
 </div>
@@ -382,9 +382,9 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Number of bus edges captured by the last reset. </p>
-<dl class="section return"><dt>Returns</dt><dd>0..2; 2 means the presence edge arrived, less means the reset captured only the master-release edge </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>Read from the capture DMA's remaining count. Valid once <a class="el" href="#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> reported the reset complete and before the next capture is armed. Pass the result to <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a>. </dd></dl>
+<p>Edges captured by the last capture operation armed. </p>
+<dl class="section return"><dt>Returns</dt><dd>0..2; after a reset, 2 means the presence edge arrived, 1 means only the master-release edge was captured, 0 means neither </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Read from the capture DMA's remaining-transfer count, so the value describes whatever capture was armed last - a reset, a read pair, a merged write+read or a data read - not the reset specifically. Every completed capture drains that counter, so after any of them this call returns 2 again; before the first reset it also returns 2, because the register is still at its reset value. Treat 2 as evidence only for a reset that <a class="el" href="#gabdd1e47fc5997a0806b9294560d2cf3d" title="Schedule a 1-Wire bus reset (presence pulse captured via DMA).">onewire_reset()</a> actually armed: read the count after that reset's <a class="el" href="#ga6444d57ed7d563863ebc77a7cfd4c119" title="Non-blocking completion check for the scheduled bus operation.">onewire_bus_done()</a> and before any other capture is armed, and pass it to <a class="el" href="#gab07bedba0ccb75b4bf9ee29c22410f4d" title="Decode the presence pulse captured by onewire_reset().">onewire_present()</a> with the buffer of the same reset. </dd></dl>
 
 </div>
 </div>
