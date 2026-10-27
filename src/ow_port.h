@@ -486,12 +486,15 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #endif
 
 /**
- * @brief Number of bus edges captured by the last reset
- * @return 0..OW_PORT_CAPTURE_BUF_SIZE; 2 means the presence pulse was captured
+ * @brief Edges captured by the last capture operation armed
+ * @return 0..OW_PORT_CAPTURE_BUF_SIZE; after a reset, 2 means the armed
+ *         transfers drained (the presence edge arrived), 1 means they did not
  * @note The transfer engine already knows whether the second capture happened,
  *       so "no presence" is read from its remaining count instead of being
- *       encoded as a sentinel in the capture buffer. Must be called after the
- *       reset completed and before the next capture is armed.
+ *       encoded as a sentinel in the capture buffer. The count belongs to
+ *       whatever capture was armed last, and every completed capture drains
+ *       it, so 2 on its own is not a presence verdict: call this after the
+ *       reset completed and before any other capture is armed.
  */
 __STATIC_FORCEINLINE uint8_t ow_port_reset_captured(void) {
     uint16_t remaining = (uint16_t)OW_PORT_CAPTURE_REMAINING();

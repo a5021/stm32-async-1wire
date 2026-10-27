@@ -2309,6 +2309,15 @@ fact that separates "no second edge" from "a presence pulse was measured":
 `onewire_reset_captured()` after `onewire_bus_done()` reports the reset complete
 and before the next capture is armed.
 
+Both arguments describe that one reset: the buffer the reset was armed with and
+how many of its two edges the DMA actually transferred. The count is not
+reset-specific - every completed capture (read pair, merged write+read, data
+read) drains the same counter, so `onewire_reset_captured()` returns 2 again,
+and before the first reset it returns 2 as well. Read against an older buffer
+it can therefore confirm a presence pulse that belongs to a previous reset: the
+pair is one hardware fact, meaningful only between that reset's
+`onewire_bus_done()` and the next capture arm.
+
 There is no byte-oriented command helper: a command is encoded by the caller
 with `onewire_encode_byte()` into a slot buffer and then handed to
 `onewire_write_slots()`, so the caller owns the buffer geometry. The DS18B20

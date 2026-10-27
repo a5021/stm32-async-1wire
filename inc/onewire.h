@@ -131,12 +131,18 @@ uint8_t onewire_bus_done(void);
 void onewire_reset(volatile uint16_t* reset_pulses);
 
 /**
- * @brief Number of bus edges captured by the last reset
- * @return 0..2; 2 means the presence edge arrived, less means the reset
- *         captured only the master-release edge
- * @note Read from the capture DMA's remaining count. Valid once
- *       onewire_bus_done() reported the reset complete and before the next
- *       capture is armed. Pass the result to onewire_present().
+ * @brief Edges captured by the last capture operation armed
+ * @return 0..2; after a reset, 2 means the presence edge arrived, 1 means
+ *         only the master-release edge was captured, 0 means neither
+ * @note Read from the capture DMA's remaining-transfer count, so the value
+ *       describes whatever capture was armed last - a reset, a read pair, a
+ *       merged write+read or a data read - not the reset specifically. Every
+ *       completed capture drains that counter, so after any of them this call
+ *       returns 2 again; before the first reset it also returns 2, because the
+ *       register is still at its reset value. Treat 2 as evidence only for a
+ *       reset that onewire_reset() actually armed: read the count after that
+ *       reset's onewire_bus_done() and before any other capture is armed, and
+ *       pass it to onewire_present() with the buffer of the same reset.
  */
 uint8_t onewire_reset_captured(void);
 
@@ -149,6 +155,11 @@ uint8_t onewire_reset_captured(void);
  * @note A reset that captured only the master-release edge has no presence
  *       entry; `captured` is what distinguishes it from a stale pulse[1],
  *       whose value may otherwise fall inside the presence window.
+ *       `captured` must describe the same reset as `pulses`: the two are one
+ *       hardware fact read from two places. Both go stale the moment another
+ *       capture is armed - a later completed capture makes
+ *       onewire_reset_captured() return 2 again, which would otherwise bless
+ *       a stale pulses[1].
  */
 uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured);
 
