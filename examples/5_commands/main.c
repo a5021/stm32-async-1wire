@@ -18,6 +18,12 @@
  * phase and measures the selected sensor on an application-paced cycle
  * (MEASURE_PERIOD_MS), the same explicit ds18b20_start_measure() request every
  * example uses.
+ *
+ * @note The Copy Scratchpad step is permanent: afterwards the selected
+ *       sensor's EEPROM holds TH=0x19 (+25C) and TL=0x0F (+15C), whatever it
+ *       shipped with. Nothing writes those back, so they load again at the
+ *       next power-up; the forced thresholds that close the sequence go to
+ *       the scratchpad only and do not survive that reload.
  */
 
 #include "app.h"

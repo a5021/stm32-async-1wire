@@ -419,7 +419,10 @@ Notes:
 - `5_commands` targets the first sensor found by the search (Match ROM) and runs the
   non-blocking command sequence once at startup: power supply, raw scratchpad,
   TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
-  the single-device Read ROM. Each command advances by one hardware operation
+  the single-device Read ROM. Persistence is real and nothing undoes it: the
+  Copy leaves the demo's TH/TL (0x19 / +25C, 0x0F / +15C) in the sensor's
+  EEPROM, not the pair it shipped with, and they load again at the next
+  power-up. Each command advances by one hardware operation
   per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result. The
   sequence closes with forced alarm thresholds (TH=-55C, TL=+125C on the
   selected device, so it alarms deterministically whatever the room
