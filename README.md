@@ -184,6 +184,7 @@ still private.
 │   ├── stm32f1/            # STM32F1: TIM1 + DMA1 + PA10
 │   │   ├── STM32F103XB_FLASH.ld  # Linker script, STM32F103xB (with .noinit section)
 │   │   ├── stm32f103cb.jflash    # J-Flash project file (make jprogram)
+│   │   ├── HARDWARE-NOTES.md     # F1-specific bring-up and bench notes
 │   │   └── project.jdebug  # SEGGER Ozone project (STM32F103C8, SWD)
 │   ├── stm32f0/            # STM32F0: TIM1 + DMA1 + PA10
 │   │   ├── STM32F030X6_FLASH.ld  # Linker script, STM32F030x6 (16KB flash / 4KB RAM)
@@ -235,6 +236,7 @@ still private.
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
 │   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 7 family sections)
 │   ├── ow_compiler.h       # Private compiler-attribute shim for the driver sources
+│   ├── ow_glue.h           # Internal bridge: timed waits and state-machine kicks
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
@@ -270,12 +272,17 @@ still private.
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 14 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
+│   ├── hil/                # Hardware-in-the-loop harness (needs a bench)
+│   ├── ci/                 # CI helper scripts (apt/pip installers)
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
 │   ├── check_mock_headers.sh  # Mocks vs real CMSIS macros (make test-mocks)
 │   ├── check_ram_budget.sh    # Library .bss ceilings (make test-ram)
 │   ├── check_library_manifest.sh  # library.json vs the PIO consumer
 │   ├── check_version.sh    # Version in every declaration site (make test-version)
-│   └── check_elf_variant.sh    # Each build links its own objects
+│   ├── check_header_hygiene.sh  # Public headers stay free of engine internals
+│   ├── check_mcu_dispatch.sh  # Makefile and CMake dispatch agree on flags
+│   ├── check_elf_variant.sh    # Each build links its own objects
+│   └── mutation_check.py       # Deliberate defects the host suite must catch
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
@@ -287,7 +294,7 @@ still private.
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 device headers and startup (F0/F1/F3/F4/G0/G4) + SVD
+│   └── device/             # STM32 device headers and startup (F0/F1/F3/F4/G0/G4/H5) + SVD
 ├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
@@ -992,7 +999,7 @@ void ds18b20_complete(int16_t temp) {
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4) are not stored in the
+ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/H5) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -1853,7 +1860,7 @@ through `onewire_bus_done()` / `onewire_long_wait_pending()` /
 feed and timer waits), so multi-slot writes sleep instead of busy-polling.
 `bus_done()` retires the schedule explicitly.
 
-The following five look like leaks but are deliberate, reviewed decisions —
+The following six look like leaks but are deliberate, reviewed decisions —
 do not "fix" them without re-reading the reasoning:
 
 - **Backend selection lives in `inc/ow_board.h`.** One chain, one `#include`
