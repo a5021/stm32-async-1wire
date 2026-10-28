@@ -104,6 +104,16 @@ extern "C" {
  */
 void onewire_init(void);
 
+/**
+ * @brief Configuration token the library was compiled with
+ * @return OW_CONFIG_TOKEN as seen by the library translation units
+ * @note Compare with the application-side OW_CONFIG_TOKEN at startup:
+ *       a mismatch means the archive and the application were built with
+ *       different OW flags or DS18B20_MAX_DEVICES. Fail loudly there instead
+ *       of running with a silently different bus timing or table size.
+ */
+uint32_t onewire_config_token(void);
+
 /** @} */
 
 /**

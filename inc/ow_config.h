@@ -25,6 +25,8 @@
 #ifndef OW_CONFIG_H
 #define OW_CONFIG_H
 
+#include <stdint.h>
+
 /* -------------------------------------------------------------------
  *  Parasite bus timing
  * ------------------------------------------------------------------- */
@@ -199,5 +201,20 @@
 #ifndef DS18B20_MAX_DEVICES
 #define DS18B20_MAX_DEVICES 8
 #endif
+
+/**
+ * @brief Compile-time configuration token of the library build.
+ *
+ * Mixes the macros that must agree between the translation units the library
+ * was compiled from and the application sources that include these headers:
+ * OW_PARASITE_POWER, OW_LOW_POWER, OW_DRIVE_ACTIVE, OW_STATS_ENABLE,
+ * OW_BUS_DRIVE and DS18B20_MAX_DEVICES. Compare it at startup with
+ * onewire_config_token(): a mismatch means the archive and the application
+ * were built with different -D flags and must not run together.
+ */
+#define OW_CONFIG_TOKEN                                                                  \
+    ((uint32_t)(OW_PARASITE_POWER & 1u) | ((uint32_t)(OW_LOW_POWER & 1u) << 1) |         \
+     ((uint32_t)(OW_DRIVE_ACTIVE & 1u) << 2) | ((uint32_t)(OW_STATS_ENABLE & 1u) << 3) | \
+     ((uint32_t)(OW_BUS_DRIVE & 3u) << 4) | ((uint32_t)(DS18B20_MAX_DEVICES & 0xFFu) << 8))
 
 #endif /* OW_CONFIG_H */

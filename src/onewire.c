@@ -179,6 +179,8 @@ uint8_t onewire_bus_done(void) {
     return ow_port_bus_done();
 }
 
+uint32_t onewire_config_token(void) { return OW_CONFIG_TOKEN; }
+
 void onewire_reset(volatile uint16_t* reset_pulses) {
     ow_port_reset(reset_pulses);
 }
