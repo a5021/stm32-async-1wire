@@ -88,7 +88,6 @@ check() {
 
 check CMakeLists.txt     "project(stm32_async_1wire VERSION $want " "CMake project version"
 check library.json       "\"version\": \"$want\""                 "PlatformIO library.json"
-check library.properties "version=$want"                        "PlatformIO library.properties"
 check Doxyfile           "PROJECT_NUMBER         = $want"        "Doxygen PROJECT_NUMBER"
 check README.md          "GIT_TAG        v$want"                 "README FetchContent GIT_TAG"
 check .github/workflows/release.yml "## What's new in $want"      "Release notes heading"

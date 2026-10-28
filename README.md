@@ -305,7 +305,6 @@ still private.
 ├── build/                  # Build artifacts (generated)
 ├── CMakeLists.txt          # CMake build (FetchContent for CMSIS)
 ├── library.json            # PlatformIO library metadata
-├── library.properties      # Arduino Library Manager metadata
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
@@ -1598,7 +1597,7 @@ The archive is built with the same part/clock/optimization stamping as the firmw
 
 #### 5. PlatformIO
 
-The repository ships with `library.json` and `library.properties` so PlatformIO can discover the library automatically:
+The repository ships with `library.json` so PlatformIO can discover the library automatically:
 
 ```ini
 [env:bluepill]
