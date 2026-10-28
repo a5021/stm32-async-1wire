@@ -843,7 +843,8 @@ facts before wiring or porting:
 - **Clock invariant: TIM1 kernel clock must equal SYSCLK.** Pass the real
   clock via `OW_SYSCLK_MHZ`, or omit it and keep CMSIS `SystemCoreClock`
   current via `SystemCoreClockUpdate()`. A wrong clock silently scales
-  every 1-Wire slot.
+  every 1-Wire slot. Check at startup with
+  `onewire_clock_ok(SystemCoreClock / 1000000u)` and refuse to run on 0.
 
 ## Quick Start
 

@@ -1166,6 +1166,7 @@ TEST_SRC  = $(TEST_DIR)/test_main.c \
             $(TEST_DIR)/test_port_init_contract.c \
             $(TEST_DIR)/test_ow_stats.c \
             $(TEST_DIR)/test_rcr_limits.c \
+            $(TEST_DIR)/test_clock_check.c \
             $(TEST_DIR)/test_tim_model.c \
              $(TEST_MOCK)/hw_model.c \
             $(TEST_MOCK)/ds18b20_test_spy.c \

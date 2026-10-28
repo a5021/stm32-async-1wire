@@ -181,6 +181,16 @@ uint8_t onewire_bus_done(void) {
 
 uint32_t onewire_config_token(void) { return OW_CONFIG_TOKEN; }
 
+uint8_t onewire_clock_ok(uint32_t sysclk_mhz) {
+#if defined(OW_SYSCLK_MHZ)
+    return (sysclk_mhz == (uint32_t)(OW_SYSCLK_MHZ)) ? 1u : 0u;
+#else
+    /* Auto-path (SystemCoreClock): the port derives its prescaler from the
+     * same variable, so any nonzero reading is consistent by construction. */
+    return (sysclk_mhz != 0u) ? 1u : 0u;
+#endif
+}
+
 void onewire_reset(volatile uint16_t* reset_pulses) {
     ow_port_reset(reset_pulses);
 }

@@ -52,6 +52,7 @@ extern void run_test_dma_contract(void);
 extern void run_test_port_init_contract(void);
 extern void run_test_ow_stats(void);
 extern void run_test_rcr_limits(void);
+extern void run_test_clock_check(void);
 extern void run_test_tim_model(void);
 extern void run_test_harness_api(void);
 extern void run_test_app_uart(void);
@@ -86,6 +87,7 @@ int main(void) {
     run_test_port_init_contract();
     run_test_ow_stats();
     run_test_rcr_limits();
+    run_test_clock_check();
     run_test_tim_model();
     run_test_harness_api();
     run_test_app_uart();

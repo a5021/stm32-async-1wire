@@ -114,6 +114,21 @@ void onewire_init(void);
  */
 uint32_t onewire_config_token(void);
 
+/**
+ * @brief Whether a runtime clock reading agrees with the build
+ * @param[in] sysclk_mhz System clock in whole MHz as the firmware actually
+ *                       runs, e.g. (SystemCoreClock / 1000000u)
+ * @return 1 when the reading matches the clock the port timing was built for
+ * @note Call once at startup before any bus operation and refuse to run on 0:
+ *       with -DOW_SYSCLK_MHZ the port prescaler is fixed at compile time, so
+ *       a firmware clocked differently scales every 1-Wire slot and the bus
+ *       just looks dead. Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path)
+ *       the port derives its prescaler from SystemCoreClock itself, so this
+ *       only rejects a zero/uninitialized reading - staleness after a
+ *       clock-tree change is undetectable here, call SystemCoreClockUpdate().
+ */
+uint8_t onewire_clock_ok(uint32_t sysclk_mhz);
+
 /** @} */
 
 /**
