@@ -124,18 +124,38 @@ foreach(_k CMSIS_CORE_REF CMSIS_DEVICE_REF_F0 CMSIS_DEVICE_REF_F1
         message(FATAL_ERROR "${OW_CMSIS_PINS_MK} does not define ${_k}")
     endif()
 endforeach()
+
+# Consumers that already have CMSIS (STM32Cube, PlatformIO, a manual checkout)
+# pass both include directories and skip the FetchContent clones entirely:
+#   cmake -DOW_CMSIS_CORE_INCLUDE=<.../CMSIS/Core/Include> \
+#         -DOW_CMSIS_DEVICE_INCLUDE=<.../cmsis_device_h5/Include> ...
+# One without the other is a hard error; the example platform additionally
+# needs OW_CMSIS_SYSTEM_SRC / OW_CMSIS_STARTUP_SRC (see below).
+set(OW_CMSIS_CORE_INCLUDE "" CACHE PATH "External CMSIS-Core include dir; with OW_CMSIS_DEVICE_INCLUDE skips the FetchContent clones")
+set(OW_CMSIS_DEVICE_INCLUDE "" CACHE PATH "External CMSIS device include dir; with OW_CMSIS_CORE_INCLUDE skips the FetchContent clones")
+if(OW_CMSIS_CORE_INCLUDE AND OW_CMSIS_DEVICE_INCLUDE)
+    set(OW_USE_SYSTEM_CMSIS TRUE)
+elseif(OW_CMSIS_CORE_INCLUDE OR OW_CMSIS_DEVICE_INCLUDE)
+    message(FATAL_ERROR "OW_CMSIS_CORE_INCLUDE and OW_CMSIS_DEVICE_INCLUDE must be passed together or not at all")
+endif()
 include(FetchContent)
 
-FetchContent_Declare(cmsis_core
-    GIT_REPOSITORY https://github.com/ARM-software/CMSIS_5.git
-    GIT_TAG        ${CMSIS_CORE_REF}
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(cmsis_core)
+if(NOT OW_USE_SYSTEM_CMSIS)
+    FetchContent_Declare(cmsis_core
+        GIT_REPOSITORY https://github.com/ARM-software/CMSIS_5.git
+        GIT_TAG        ${CMSIS_CORE_REF}
+        GIT_SHALLOW    TRUE
+        GIT_PROGRESS   TRUE
+    )
+    FetchContent_MakeAvailable(cmsis_core)
+endif()
 
 # CMSIS Core headers live under CMSIS/Core/Include in the repo
-set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
+if(OW_USE_SYSTEM_CMSIS)
+    set(CMSIS_CORE_INCLUDE "${OW_CMSIS_CORE_INCLUDE}")
+else()
+    set(CMSIS_CORE_INCLUDE "${cmsis_core_SOURCE_DIR}/CMSIS/Core/Include")
+endif()
 
 # Device-specific repo and defines — from cmake/ow_flags.cmake (included above).
 set(CMSIS_DEVICE_REPO "${OW_DEVICE_REPO}")
@@ -274,13 +294,22 @@ FetchContent_Declare(cmsis_device
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
-FetchContent_MakeAvailable(cmsis_device)
+if(NOT OW_USE_SYSTEM_CMSIS)
+    FetchContent_MakeAvailable(cmsis_device)
+endif()
 
 # Device headers and sources live under Include/ and Source/Templates/ in the ST repos
-set(CMSIS_DEVICE_INCLUDE "${cmsis_device_SOURCE_DIR}/Include")
-set(CMSIS_DEVICE_DIR     "${cmsis_device_SOURCE_DIR}")
-set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
-set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
+if(OW_USE_SYSTEM_CMSIS)
+    set(CMSIS_DEVICE_INCLUDE "${OW_CMSIS_DEVICE_INCLUDE}")
+    set(CMSIS_DEVICE_DIR     "${OW_CMSIS_DEVICE_INCLUDE}")
+    set(CMSIS_STARTUP_DIR    "")
+    set(CMSIS_SYSTEM_DIR     "")
+else()
+    set(CMSIS_DEVICE_INCLUDE "${cmsis_device_SOURCE_DIR}/Include")
+    set(CMSIS_DEVICE_DIR     "${cmsis_device_SOURCE_DIR}")
+    set(CMSIS_STARTUP_DIR    "${cmsis_device_SOURCE_DIR}/Source/Templates/gcc")
+    set(CMSIS_SYSTEM_DIR     "${cmsis_device_SOURCE_DIR}/Source/Templates")
+endif()
 
 # ---------------------------------------------------------------------------
 # Optimization profiles
@@ -515,12 +544,19 @@ message(STATUS "stm32-async-1wire: OW_MCU=${OW_MCU}  "
 # Examples (opt-in with -DOW_BUILD_EXAMPLES=ON)
 # ---------------------------------------------------------------------------
 if(OW_BUILD_EXAMPLES)
+    if(OW_USE_SYSTEM_CMSIS)
+        set(OW_CMSIS_SYSTEM_SRC "" CACHE FILEPATH "External system_<family>xx.c for the example platform (required with OW_CMSIS_*_INCLUDE + OW_BUILD_EXAMPLES)")
+        set(OW_CMSIS_STARTUP_SRC "" CACHE FILEPATH "External startup_<part>.s for the example platform (required with OW_CMSIS_*_INCLUDE + OW_BUILD_EXAMPLES)")
+        if(NOT OW_CMSIS_SYSTEM_SRC OR NOT OW_CMSIS_STARTUP_SRC)
+            message(FATAL_ERROR "OW_BUILD_EXAMPLES with OW_CMSIS_CORE_INCLUDE/OW_CMSIS_DEVICE_INCLUDE needs OW_CMSIS_SYSTEM_SRC and OW_CMSIS_STARTUP_SRC (system + startup files)")
+        endif()
+    endif()
     # Complete platform: startup, system, linker script, syscall.c
     # (example support in examples/app/, not part of the library itself).
     add_library(stm32_async_1wire_platform STATIC
         examples/app/syscall.c
-        ${CMSIS_STARTUP_DIR}/${STARTUP_ASM}
-        ${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}
+        $<IF:$<BOOL:${OW_USE_SYSTEM_CMSIS}>,${OW_CMSIS_STARTUP_SRC},${CMSIS_STARTUP_DIR}/${STARTUP_ASM}>
+        $<IF:$<BOOL:${OW_USE_SYSTEM_CMSIS}>,${OW_CMSIS_SYSTEM_SRC},${CMSIS_SYSTEM_DIR}/${SYSTEM_SRC}>
     )
     target_include_directories(stm32_async_1wire_platform PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/inc

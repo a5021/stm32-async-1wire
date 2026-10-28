@@ -1511,6 +1511,16 @@ The cache variables are:
 | `OW_SYSCLK_MHZ` | System clock in MHz; empty = the part's own default from `chips/<part>.mk` (mirrors the Makefile's `SYSCLK_MHZ`) |
 | `OW_EXTRA_DEFINES` | Extra `-D` definitions applied to every target, e.g. `"-DOW_PARASITE_POWER=1;-DOW_LOW_POWER=1"` |
 | `OW_BUILD_EXAMPLES` | Build the example applications (`OFF` by default) |
+| `OW_CMSIS_CORE_INCLUDE` / `OW_CMSIS_DEVICE_INCLUDE` | Your own CMSIS `core` and device include dirs (STM32Cube, PlatformIO, manual checkout). Pass both together to skip both FetchContent clones; one without the other is an error |
+
+Already carrying CMSIS (STM32Cube/PlatformIO project)? Pass both include dirs and nothing is downloaded:
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
+      -DOW_MCU=STM32H503xx \
+      -DOW_CMSIS_CORE_INCLUDE=/path/to/CMSIS/Core/Include \
+      -DOW_CMSIS_DEVICE_INCLUDE=/path/to/cmsis_device_h5/Include -B build .
+```
 
 #### 2. CMake `find_package`
 
