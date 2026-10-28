@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Startup clock-agreement check (`onewire_clock_ok()`).** With
+  `-DOW_SYSCLK_MHZ` the TIM1 prescaler is fixed at compile time, so a
+  firmware clocked differently scales every 1-Wire slot and the bus just
+  looks dead. The new predicate compares a runtime MHz reading (e.g.
+  `SystemCoreClock / 1000000u`) against the build clock; call it once at
+  startup and refuse to run on 0. On the `SystemCoreClock` auto-path it only
+  rejects a zero reading. Host suite: `tests/test/test_clock_check.c`.
+- **Build configuration token (`OW_CONFIG_TOKEN`).** Mixes the macros that
+  must agree between the archive and the application sources
+  (`OW_PARASITE_POWER`, `OW_LOW_POWER`, `OW_DRIVE_ACTIVE`,
+  `OW_STATS_ENABLE`, `OW_BUS_DRIVE`, `DS18B20_MAX_DEVICES`).
+  `onewire_config_token()` reports the library side; a mismatch means the
+  two were built with different `-D` flags and must not run together.
+- **CMake: bring your own CMSIS.** `OW_CMSIS_CORE_INCLUDE` plus
+  `OW_CMSIS_DEVICE_INCLUDE` (both or neither) skip both FetchContent clones
+  for consumers that already carry CMSIS (STM32Cube, PlatformIO, manual
+  checkout); the example platform then needs `OW_CMSIS_SYSTEM_SRC` and
+  `OW_CMSIS_STARTUP_SRC`.
+
 ### Changed
 
 - **Presence is proved by the captured edge count, not by a zeroed buffer
@@ -321,6 +342,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   address or copy-protected page). The driver now reads that byte and reports
   success only for 0xAA; a refused copy used to be reported as successful.
   Host suite: 26 tests.
+
+- **The static archive name carries the build stamp.** `make lib` used to
+  produce an identical `build/libstm32_async_1wire.a` for every part, clock
+  and feature set, so nothing stopped a consumer from linking the wrong
+  archive. It now produces
+  `build/libstm32_async_1wire_<target>_<chip>_<sysclk>....a` (e.g.
+  `libstm32_async_1wire_h5_h503cb_64mhz_hse8.a`); the link examples in the
+  Makefile and the README name a real stamped file.
 
 ## [2.4.0] - 2026-10-18
 
