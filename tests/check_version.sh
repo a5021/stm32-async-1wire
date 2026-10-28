@@ -3,9 +3,10 @@
 #
 # The version is declared in several places: the four macros in inc/ds18b20.h,
 # the CMake project(), the two PlatformIO manifests, the Doxygen
-# PROJECT_NUMBER, the FetchContent GIT_TAG example in the README, and the
-# release notes body in CHANGELOG.md. Nothing compared them, which is how
-# v1.8.1 shipped with no [1.8.1] section in CHANGELOG.md at all: the tag
+# PROJECT_NUMBER, the FetchContent GIT_TAG example in the README, the release
+# notes body in CHANGELOG.md, and the static release title/archive names in
+# release.yml. In a tag-triggered release run, the tag is checked too. This
+# drift is how v1.8.1 shipped with no [1.8.1] section in CHANGELOG.md: the tag
 # existed, the release notes did not, and the section that should have
 # described it had drifted into [Unreleased].
 #
@@ -53,6 +54,22 @@ if [ "$str" != "$want" ]; then
     bad "$HEADER: VERSION_STRING is \"$str\" but MAJOR/MINOR/PATCH give \"$want\""
 fi
 
+# GitHub sets these for every workflow, but only a release tag is expected to
+# match the project version. The release workflow calls this same gate before
+# building or publishing any artifacts.
+if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+    ref_name=${GITHUB_REF_NAME:-}
+    case "$ref_name" in
+        v*) tag_version=${ref_name#v} ;;
+        *) tag_version= ;;
+    esac
+    if [ "$tag_version" = "$want" ]; then
+        note "ok   release tag $ref_name matches project version"
+    else
+        bad "release tag '$ref_name' does not match project version v$want"
+    fi
+fi
+
 # --- every other declaration site must agree ---------------------------------
 check() {
     file=$1
@@ -74,6 +91,11 @@ check library.json       "\"version\": \"$want\""                 "PlatformIO li
 check library.properties "version=$want"                        "PlatformIO library.properties"
 check Doxyfile           "PROJECT_NUMBER         = $want"        "Doxygen PROJECT_NUMBER"
 check README.md          "GIT_TAG        v$want"                 "README FetchContent GIT_TAG"
+check .github/workflows/release.yml "## What's new in $want"      "Release notes heading"
+check .github/workflows/release.yml "ship inside \`firmware-$want.zip\`." \
+     "Release archive name in What's new section"
+check .github/workflows/release.yml "Everything ships in one archive, \`firmware-$want.zip\`:" \
+     "Release archive name in Download section"
 
 # The Doxygen config carries its own "1.8.17" in the header comment - that is
 # Doxygen's version, not the project's. A blanket search-and-replace across the

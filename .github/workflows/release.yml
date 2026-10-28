@@ -16,6 +16,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v5
 
+      # Validate the tag against the source version and check every release
+      # declaration before spending time building or publishing artifacts.
+      - name: Validate release tag and version declarations
+        run: make test-version
+
       # Step 2: Cache the Arm Toolchain (Version 15.2)
       - name: Cache Arm Toolchain
         id: cache-toolchain
