@@ -1079,20 +1079,20 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 # firmware and supplies its own CMSIS headers, startup file, linker script
 # and syscalls. No examples, no app layer, no vector table needed.
 #
-#   make OW_MCU=STM32H503xx lib            # build libstm32_async_1wire.a
+#   make OW_MCU=STM32H503xx lib            # build libstm32_async_1wire_<stamp>.a
 #   make OW_MCU=STM32H503xx SYSCLK_MHZ=250 lib
 #   make OW_TARGET=f1 lib                  # legacy family selector
 #
 # Link example (plain GCC):
 #   arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -T my_app.ld \
 #       -Ipath/to/inc -Ipath/to/CMSIS/core -Ipath/to/CMSIS/device \
-#       -DSTM32H503xx my_app.c build/libstm32_async_1wire.a \
+#       -DSTM32H503xx my_app.c build/libstm32_async_1wire_h5_h503cb_64mhz_hse8.a \
 #       -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
 #
 LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
 LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 LIB_OBJ = $(addprefix $(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_,$(notdir $(LIB_SRC:.c=.o)))
-LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire.a
+LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire_$(LIB_OBJ_STAMP).a
 
 lib: download-deps $(LIB_ARCHIVE)
 
@@ -1722,7 +1722,7 @@ help:
 	@echo "  download-licenses - Download third-party license files to CMSIS/"
 	@echo "  clean-deps      - Remove downloaded dependencies (CMSIS/, CMake _deps/)"
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
-	@echo "  lib             - Build only libstm32_async_1wire.a (driver sources, no examples)"
+	@echo "  lib             - Build only libstm32_async_1wire_<stamp>.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"

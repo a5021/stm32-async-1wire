@@ -1574,12 +1574,12 @@ If you build with plain GCC/make (no CMake), use `make lib` to compile just the 
 make OW_MCU=STM32H503xx lib
 ```
 
-This produces `build/libstm32_async_1wire.a` with the same flags as the firmware build (`-mcpu`, device macro, clock define, includes, optimization). Link it into your own firmware:
+This produces `build/libstm32_async_1wire_<stamp>.a` with the same flags as the firmware build (`-mcpu`, device macro, clock define, includes, optimization), where `<stamp>` is the same part/clock/optimization stamp the object files carry (e.g. `h5_h503cb_64mhz_hse8`). Link it into your own firmware:
 
 ```bash
 arm-none-eabi-gcc -mcpu=cortex-m33 -mthumb -T my_app.ld \
     -Ipath/to/inc -Ipath/to/CMSIS/core -Ipath/to/CMSIS/device \
-    -DSTM32H503xx my_app.c build/libstm32_async_1wire.a \
+    -DSTM32H503xx my_app.c build/libstm32_async_1wire_h5_h503cb_64mhz_hse8.a \
     -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
 ```
 
