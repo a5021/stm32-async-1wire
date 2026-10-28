@@ -10,6 +10,8 @@ var onewire_8h =
     [ "ONEWIRE_SEARCH_ROM", "group__ONEWIRE__Protocol.html#gaacb5c64dbd17ccd61387d96298803501", null ],
     [ "onewire_search_sink_t", "group__ONEWIRE__Search.html#gaca009becf75c297ae69b4274a7f6abaf", null ],
     [ "onewire_bus_done", "group__ONEWIRE__Bus.html#ga6444d57ed7d563863ebc77a7cfd4c119", null ],
+    [ "onewire_clock_ok", "group__ONEWIRE__Init.html#ga750cb72ed9b3e44d077bb45f5d72c5f7", null ],
+    [ "onewire_config_token", "group__ONEWIRE__Init.html#ga70a75fa250c51c8a4311dde45fe4cdf6", null ],
     [ "onewire_crc16", "group__ONEWIRE__CRC.html#ga4abe86f4843489d2df124eb11fdfca07", null ],
     [ "onewire_crc8", "group__ONEWIRE__CRC.html#gac9e2cf3aba30d3216ccbfc8cbacb1a2d", null ],
     [ "onewire_decode_pulses", "group__ONEWIRE__Bus.html#gaf14e5828e2e6861d21282ec2d7ff5e59", null ],

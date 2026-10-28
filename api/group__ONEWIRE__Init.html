@@ -100,11 +100,63 @@ $(function(){initNavTree('group__ONEWIRE__Init.html','',''); });
 Functions</h2></td></tr>
 <tr class="memitem:gac6a21039977d29da711c6b094c87bf3e" id="r_gac6a21039977d29da711c6b094c87bf3e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gac6a21039977d29da711c6b094c87bf3e">onewire_init</a> (void)</td></tr>
 <tr class="memdesc:gac6a21039977d29da711c6b094c87bf3e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize the shared 1-Wire timer/DMA/GPIO resources.  <br /></td></tr>
+<tr class="memitem:ga70a75fa250c51c8a4311dde45fe4cdf6" id="r_ga70a75fa250c51c8a4311dde45fe4cdf6"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga70a75fa250c51c8a4311dde45fe4cdf6">onewire_config_token</a> (void)</td></tr>
+<tr class="memdesc:ga70a75fa250c51c8a4311dde45fe4cdf6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configuration token the library was compiled with.  <br /></td></tr>
+<tr class="memitem:ga750cb72ed9b3e44d077bb45f5d72c5f7" id="r_ga750cb72ed9b3e44d077bb45f5d72c5f7"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga750cb72ed9b3e44d077bb45f5d72c5f7">onewire_clock_ok</a> (uint32_t sysclk_mhz)</td></tr>
+<tr class="memdesc:ga750cb72ed9b3e44d077bb45f5d72c5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether a runtime clock reading agrees with the build.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <p>Board facts: the family selection token and <a class="el" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd" title="DMA feed entry width of the active family.">ow_pulse_t</a>. </p>
 <p>The token resolves from the CMSIS device macro of the target (e.g. -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5). Concrete device spellings are accepted for the parts this project supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3; STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4; STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5). The token is the single point of family selection: app.c takes the device header and clock configuration from it, and the per-family facts <a class="el" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd" title="DMA feed entry width of the active family.">ow_pulse_t</a> and the OW_HSE_MHZ / OW_*_MAX_SYSCLK_MHZ defaults live in <a class="el" href="ow__board_8h.html" title="Public board-level facts for the non-blocking 1-Wire layer.">inc/ow_board.h</a> beside it. The TIM1+DMA engine and the register-level per-family facts are library-internal and are not needed to use this API. To add a family, extend the dispatch in <a class="el" href="ow__board_8h.html" title="Public board-level facts for the non-blocking 1-Wire layer.">inc/ow_board.h</a> (plus the #error spelling list), the app.c clock/UART config, a chips/&lt;part&gt;.mk part file, the Makefile (OW_KNOWN_TARGETS, the OW_TARGET family block, the OW_MCU mapping entries, TEST_CLOCK_FLAG) and CMakeLists.txt (the OW_MCU mapping, the OW_TARGET branch, the default chip) wiring, the tests/mock device header, and a case in tests/test/test_sysclk_fallback.c. </p>
 <a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
+<a id="ga750cb72ed9b3e44d077bb45f5d72c5f7" name="ga750cb72ed9b3e44d077bb45f5d72c5f7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga750cb72ed9b3e44d077bb45f5d72c5f7">&#9670;&#160;</a></span>onewire_clock_ok()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint8_t onewire_clock_ok </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>sysclk_mhz</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Whether a runtime clock reading agrees with the build. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">sysclk_mhz</td><td>System clock in whole MHz as the firmware actually runs, e.g. (SystemCoreClock / 1000000u) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 when the reading matches the clock the port timing was built for </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Call once at startup before any bus operation and refuse to run on 0: with -DOW_SYSCLK_MHZ the port prescaler is fixed at compile time, so a firmware clocked differently scales every 1-Wire slot and the bus just looks dead. Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path) the port derives its prescaler from SystemCoreClock itself, so this only rejects a zero/uninitialized reading - staleness after a clock-tree change is undetectable here, call SystemCoreClockUpdate(). </dd></dl>
+
+</div>
+</div>
+<a id="ga70a75fa250c51c8a4311dde45fe4cdf6" name="ga70a75fa250c51c8a4311dde45fe4cdf6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga70a75fa250c51c8a4311dde45fe4cdf6">&#9670;&#160;</a></span>onewire_config_token()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t onewire_config_token </td>
+          <td>(</td>
+          <td class="paramtype">void</td>          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Configuration token the library was compiled with. </p>
+<dl class="section return"><dt>Returns</dt><dd>OW_CONFIG_TOKEN as seen by the library translation units </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Compare with the application-side OW_CONFIG_TOKEN at startup: a mismatch means the archive and the application were built with different OW flags or DS18B20_MAX_DEVICES. Fail loudly there instead of running with a silently different bus timing or table size. </dd></dl>
+
+</div>
+</div>
 <a id="gac6a21039977d29da711c6b094c87bf3e" name="gac6a21039977d29da711c6b094c87bf3e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gac6a21039977d29da711c6b094c87bf3e">&#9670;&#160;</a></span>onewire_init()</h2>
 

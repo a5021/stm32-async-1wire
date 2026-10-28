@@ -95,7 +95,8 @@ $(function(){initNavTree('ow__config_8h.html','',''); });
 
 <p>Central compile-time configuration for the 1-Wire stack.  
 <a href="#details">More...</a></p>
-
+<div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
+</div>
 <p><a href="ow__config_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-define-members" class="groupheader"><a id="define-members" name="define-members"></a>
@@ -122,6 +123,8 @@ Macros</h2></td></tr>
 <tr class="memdesc:a65c4f063ff3b00e9625c2febd7d6fe20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in active-drive (push-pull) write path.  <br /></td></tr>
 <tr class="memitem:abe0f6a81aa740fdee2eb2568b94b0f3b" id="r_abe0f6a81aa740fdee2eb2568b94b0f3b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a>&#160;&#160;&#160;8</td></tr>
 <tr class="memdesc:abe0f6a81aa740fdee2eb2568b94b0f3b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional per-sensor pulse-width statistics module.  <br /></td></tr>
+<tr class="memitem:a7fbd3fb7322979c9fe3a03fd4d39e1c5" id="r_a7fbd3fb7322979c9fe3a03fd4d39e1c5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7fbd3fb7322979c9fe3a03fd4d39e1c5">OW_CONFIG_TOKEN</a></td></tr>
+<tr class="memdesc:a7fbd3fb7322979c9fe3a03fd4d39e1c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile-time configuration token of the library build.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Central compile-time configuration for the 1-Wire stack. </p>
@@ -291,6 +294,31 @@ Macros</h2></td></tr>
 <p>Values: 0 = WEAK (2 MHz, lowest drive) 1 = MEDIUM (25 MHz / 10 MHz on F1) 2 = STRONG (50 MHz / 50 MHz on F1 — F1 ceiling) 3 = MAX (100 MHz, F0/F4/G0 only; clamps to STRONG on F1)</p>
 <p>Default: MAX — safe for parasite-powered multi-drop buses where the strong pull-up must source the whole fleet during broadcast conversion. Override with -DOW_BUS_DRIVE=N.</p>
 <dl class="section note"><dt>Note</dt><dd>F1 has no OSPEEDR; speed is set via MODE bits in CRH. WEAK/MEDIUM/STRONG map to 2/10/50 MHz; MAX equals STRONG. </dd></dl>
+
+</div>
+</div>
+<a id="a7fbd3fb7322979c9fe3a03fd4d39e1c5" name="a7fbd3fb7322979c9fe3a03fd4d39e1c5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7fbd3fb7322979c9fe3a03fd4d39e1c5">&#9670;&#160;</a></span>OW_CONFIG_TOKEN</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_CONFIG_TOKEN</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    ((uint32_t)(<a class="code hl_define" href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a> &amp; 1u) | ((uint32_t)(<a class="code hl_define" href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a> &amp; 1u) &lt;&lt; 1) |         \</div>
+<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a> &amp; 1u) &lt;&lt; 2) | ((uint32_t)(OW_STATS_ENABLE &amp; 1u) &lt;&lt; 3) | \</div>
+<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a> &amp; 3u) &lt;&lt; 4) | ((uint32_t)(<a class="code hl_define" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a> &amp; 0xFFu) &lt;&lt; 8))</div>
+<div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:46</div></div>
+<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:162</div></div>
+<div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:138</div></div>
+<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:173</div></div>
+<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:202</div></div>
+</div><!-- fragment -->
+<p>Compile-time configuration token of the library build. </p>
+<p>Mixes the macros that must agree between the translation units the library was compiled from and the application sources that include these headers: OW_PARASITE_POWER, OW_LOW_POWER, OW_DRIVE_ACTIVE, OW_STATS_ENABLE, OW_BUS_DRIVE and DS18B20_MAX_DEVICES. Compare it at startup with <a class="el" href="group__ONEWIRE__Init.html#ga70a75fa250c51c8a4311dde45fe4cdf6" title="Configuration token the library was compiled with.">onewire_config_token()</a>: a mismatch means the archive and the application were built with different -D flags and must not run together. </p>
 
 </div>
 </div>
