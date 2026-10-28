@@ -321,6 +321,17 @@ still private.
 
 Eight ready-to-run example applications are provided; select one with `APP`:
 
+> **Warning — two examples write non-volatile sensor memory.** On each run
+> where a DS18B20 is found, `5_commands` attempts Copy Scratchpad on the
+> selected sensor. A successful copy replaces its EEPROM alarm thresholds
+> with TH=0x19 / TL=0x0F; the demo does not restore the previous values.
+> Repeated runs consume EEPROM write endurance, even when the values already
+> match. `8_ds2431` attempts to replace the first 8 bytes (address 0) on
+> **every DS2431 found** with a derived pattern and does not restore the
+> original contents. The same applies when running the DS2431 HIL check. Use
+> test devices with no data you need to keep; do not run these demos repeatedly
+> on deployed sensors.
+
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
 | (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |

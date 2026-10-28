@@ -19,11 +19,13 @@
  * (MEASURE_PERIOD_MS), the same explicit ds18b20_start_measure() request every
  * example uses.
  *
- * @note The Copy Scratchpad step is permanent: afterwards the selected
- *       sensor's EEPROM holds TH=0x19 (+25C) and TL=0x0F (+15C), whatever it
- *       shipped with. Nothing writes those back, so they load again at the
- *       next power-up; the forced thresholds that close the sequence go to
- *       the scratchpad only and do not survive that reload.
+ * @warning Whenever a sensor is found, this demo attempts Copy Scratchpad on
+ *          the selected sensor. A successful copy programs TH=0x19 (+25C) and
+ *          TL=0x0F (+15C) into its EEPROM, replacing the previous thresholds;
+ *          the demo does not restore them. It attempts this write on every
+ *          run, even if those values are already stored, so repeated runs
+ *          consume EEPROM write endurance. The forced thresholds at the end
+ *          are scratchpad-only and do not survive the next power-up.
  */
 
 #include "app.h"

@@ -19,6 +19,11 @@
  * firmware that has gone idle carries nothing to find - and it also keeps the
  * demo readable on a terminal.
  *
+ * @warning On every boot, this demo attempts to replace EEPROM addresses 0..7
+ *          on every found DS2431 with a derived pattern; it does not restore
+ *          the original bytes. Repeated runs consume EEPROM write endurance.
+ *          Use only test devices with no data to keep.
+ *
  * Every operation runs and leaves the bus idle when done, so a command never
  * starts another on its own. All low-level bus operations live in the shared
  * 1-Wire layer (onewire.h/onewire.c); this example only uses the public
