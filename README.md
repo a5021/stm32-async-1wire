@@ -294,7 +294,7 @@ still private.
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 device headers and startup (F0/F1/F3/F4/G0/G4/H5) + SVD
+│   └── device/             # STM32 headers/startup (F0/F1/F3/F4/G0/G4/H5); SVDs where available (none for H503)
 ├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)
