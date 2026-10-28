@@ -822,6 +822,29 @@ raw-HSE `SYSCLK_MHZ=8` build are supported. Build with `make OW_MCU=STM32H503xx`
 There is no J-Flash project for this part (JTAG CoreID unverified) — flash
 via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 
+## Before you integrate
+
+The bus hardware is fixed by design, not configurable. Check these five
+facts before wiring or porting:
+
+- **Bus pin is PA10 (TIM1_CH3).** F0 AF2, F1 default map, F3 AF6, F4 AF1,
+  G4 AF6, H5 AF1; G0 uses the PA12 pad remapped to logical PA10 via
+  `SYSCFG_CFGR1.PA12_RMP` (see Hardware Connections). There is no pin or
+  timer choice: the IC4→TI3 capture topology requires this pair.
+- **TIM1 + DMA pair + bus pin belong to the library after init.**
+  `onewire_init()` takes exclusive ownership until MCU reset; there is no
+  deinit or release API (`inc/onewire.h:97-104`). Do not use TIM1, those DMA
+  channels, or the bus pin elsewhere while the layer is in use.
+- **Init runs once.** A second `onewire_init()` / `ds18b20_init()` /
+  `ds2431_init()` call is unsupported and does not reset state
+  (`inc/onewire.h:92-96`). Start a new lifecycle with an MCU reset.
+- **One driver per firmware image.** `ds18b20_init()` and `ds2431_init()`
+  both claim the same bus; only one may be used at a time.
+- **Clock invariant: TIM1 kernel clock must equal SYSCLK.** Pass the real
+  clock via `OW_SYSCLK_MHZ`, or omit it and keep CMSIS `SystemCoreClock`
+  current via `SystemCoreClockUpdate()`. A wrong clock silently scales
+  every 1-Wire slot.
+
 ## Quick Start
 
 ### 1. Include the Driver
