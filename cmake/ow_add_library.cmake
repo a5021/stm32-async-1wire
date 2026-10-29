@@ -30,6 +30,7 @@
 # Options:
 #   MCU <macro>                required; device (STM32H503xx) or family (STM32H5)
 #   SYSCLK_MHZ <n>             optional; omit for the SystemCoreClock runtime path
+#   MAX_DEVICES <n>            optional; -DDS18B20_MAX_DEVICES=<n> (default 8)
 #   PARASITE                   -DOW_PARASITE_POWER=1
 #   LOW_POWER                  -DOW_LOW_POWER=1
 #   ACTIVE_DRIVE               -DOW_DRIVE_ACTIVE=1
@@ -63,7 +64,7 @@ function(ow_add_library tgt)
     # OW_SOURCE_DIR is resolved below, so the include goes here where it is
     # available.
     set(_ow_opts PARASITE LOW_POWER ACTIVE_DRIVE STATS)
-    set(_ow_one  MCU SYSCLK_MHZ SOURCE_DIR)
+    set(_ow_one  MCU SYSCLK_MHZ MAX_DEVICES SOURCE_DIR)
     set(_ow_multi CMSIS_INCLUDE_DIRS EXTRA_DEFINITIONS)
     cmake_parse_arguments(OW "${_ow_opts}" "${_ow_one}" "${_ow_multi}" ${ARGN})
 
@@ -111,6 +112,9 @@ function(ow_add_library tgt)
     endif()
     if(OW_SYSCLK_MHZ)
         list(APPEND _ow_defs "OW_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
+    endif()
+    if(OW_MAX_DEVICES)
+        list(APPEND _ow_defs "DS18B20_MAX_DEVICES=${OW_MAX_DEVICES}")
     endif()
     if(OW_PARASITE)
         list(APPEND _ow_defs "OW_PARASITE_POWER=1")

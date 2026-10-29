@@ -16,6 +16,9 @@
 
 #include "board.h"
 #include "ds18b20.h"
+#include "onewire.h"
+
+#include "stm32h5xx.h"
 
 /** Time between two measurement cycles (ms) */
 #define MEASURE_PERIOD_MS 5000u
@@ -57,6 +60,21 @@ void ds18b20_complete(int16_t temp) {
 int main(void) {
     board_init();
     board_puts("\r\nstm32-async-1wire standalone consumer starting...\r\n");
+
+    /* The archive and the application must agree on the build flags and on
+     * the clock; either mismatch fails silently as a dead bus. Fail loudly
+     * here instead, before the driver owns the timer. */
+    if (OW_CONFIG_TOKEN != onewire_config_token()) {
+        board_puts("Config mismatch: rebuild library and app with the same OW_ flags.\r\n");
+        for (;;) {
+        }
+    }
+    SystemCoreClockUpdate();
+    if (!onewire_clock_ok(SystemCoreClock / 1000000u)) {
+        board_puts("Clock mismatch: OW_SYSCLK_MHZ does not match the running SYSCLK.\r\n");
+        for (;;) {
+        }
+    }
 
     ds18b20_init();
 #if OW_PARASITE_POWER
