@@ -1156,8 +1156,7 @@ __STATIC_FORCEINLINE void hardware_init(void) {
      * USB-UART dongle on PA9 - TX only, like every other family. PA9 sits
      * next to PA10 without touching it, so the bus and the console share the
      * port. The user LED is on PE3 (Zephyr/NuttX board files and the WeAct
-     * schematic agree); polarity active-low (sink), to confirm on the bench
-     * the way the G4/H5 polarities were.
+     * schematic agree); polarity active-high (source), bench-confirmed.
      *
      * USART1 is on APB2 with D2PPRE2=/2, so PCLK2 = SYSCLK/2 (test pins it
      * through OW_H7_CONSOLE_BRR in app.h). */
@@ -1396,6 +1395,8 @@ uint32_t app_millis(void) {
  *       H5: blue LED on PC13 (WeAct STM32H503Cx Core Board). Polarity is
  *       active-low, verified on the bench (active-high drove it inverted,
  *       the same as the G4 bring-up).
+ *       H7: blue LED on PE3 (WeAct Studio STM32H7XX). Polarity is
+ *       active-high (source), bench-confirmed (active-low drove it inverted).
  */
 void ds18b20_busy(unsigned action) {
 #if defined(OW_FAMILY_F3)
@@ -1452,6 +1453,15 @@ void ds18b20_busy(unsigned action) {
         GPIOC->BSRR = GPIO_BSRR_BR13;
     } else {
         GPIOC->BSRR = GPIO_BSRR_BS13;
+    }
+#elif defined(OW_FAMILY_H7)
+    /* PE3, active-high (source): the WeAct Studio STM32H7XX board lights the
+     * LED on pin HIGH (bench-confirmed: active-low drove it inverted - on
+     * during the pause, off during the measurement). */
+    if (action) {
+        GPIOE->BSRR = GPIO_BSRR_BS3;
+    } else {
+        GPIOE->BSRR = GPIO_BSRR_BR3;
     }
 #else
     if (action) {
