@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-29 04:14:55</td>
+            <td class="headerValue">2026-10-29 04:15:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -211,21 +211,21 @@
 <span id="L140"><span class="lineNum">     140</span>                 :             :  *          A second call is unsupported and does not fully reset the timer,</span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :  *          DMA, low-power or DS2431 software state.</span>
 <span id="L142"><span class="lineNum">     142</span>                 :             :  */</span>
-<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">         364 : void ds2431_init(void) {</span></span>
-<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">         364 :     onewire_init();</span></span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">         416 : void ds2431_init(void) {</span></span>
+<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaGNC">         416 :     onewire_init();</span></span>
 <span id="L145"><span class="lineNum">     145</span>                 :             :     /* No operation running after init; a poll without a scheduled op must</span>
 <span id="L146"><span class="lineNum">     146</span>                 :             :      * still report &quot;finished&quot; (the FINISHED flag is set like the DS18B20</span>
 <span id="L147"><span class="lineNum">     147</span>                 :             :      * transaction engine does). External power is the default wiring</span>
 <span id="L148"><span class="lineNum">     148</span>                 :             :      * assumption; parasite-powered setups opt in via ds2431_set_parasite().</span>
 <span id="L149"><span class="lineNum">     149</span>                 :             :      * The flag byte starts clear (address/parasite/ok/finished/pending/echo</span>
 <span id="L150"><span class="lineNum">     150</span>                 :             :      * all zero) before FINISHED is raised. */</span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         364 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         364 :     ctx.phase = DS2431_PH_IDLE;</span></span>
-<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         364 :     ctx.command = 0;</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">         364 :     ctx.len = 0;</span></span>
-<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">         364 :     ctx.plen = 0;</span></span>
-<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">         364 :     ctx.es = 0;</span></span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">         364 : }</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">         416 :     ctx.flags = DS2431_FLAG_FINISHED;</span></span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">         416 :     ctx.phase = DS2431_PH_IDLE;</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :<span class="tlaGNC">         416 :     ctx.command = 0;</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">         416 :     ctx.len = 0;</span></span>
+<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">         416 :     ctx.plen = 0;</span></span>
+<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">         416 :     ctx.es = 0;</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">         416 : }</span></span>
 <span id="L158"><span class="lineNum">     158</span>                 :             : </span>
 <span id="L159"><span class="lineNum">     159</span>                 :             : /**</span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :  * @brief Select which DS2431 device to address by its ROM address</span>
@@ -237,25 +237,25 @@
 <span id="L166"><span class="lineNum">     166</span>                 :             :  *       device), so a select() must not be interleaved into a running</span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :  *       write_scratchpad -&gt; read_scratchpad -&gt; copy_scratchpad cycle.</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             :  */</span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          28 : void ds2431_select(const uint8_t* rom) {</span></span>
-<span id="L170"><span class="lineNum">     170</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          28 :     if (ctx.phase != DS2431_PH_IDLE &amp;&amp; ctx.phase != DS2431_PH_DONE) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          32 : void ds2431_select(const uint8_t* rom) {</span></span>
+<span id="L170"><span class="lineNum">     170</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          32 :     if (ctx.phase != DS2431_PH_IDLE &amp;&amp; ctx.phase != DS2431_PH_DONE) {</span></span>
 <span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :     }</span>
-<span id="L173"><span class="lineNum">     173</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC">          28 :     if (onewire_search_active()) {</span></span>
+<span id="L173"><span class="lineNum">     173</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          32 :     if (onewire_search_active()) {</span></span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :         // The device search owns the timer - reject to keep its addressing.</span>
 <span id="L175"><span class="lineNum">     175</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L176"><span class="lineNum">     176</span>                 :             :     }</span>
-<span id="L177"><span class="lineNum">     177</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC">          28 :     if (rom == 0) {</span></span>
+<span id="L177"><span class="lineNum">     177</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">          32 :     if (rom == 0) {</span></span>
 <span id="L178"><span class="lineNum">     178</span>                 :<span class="tlaUNC">           0 :         ctx.flags &amp;= (uint8_t)~(DS2431_FLAG_ADDRESS_MODE | DS2431_FLAG_PENDING);</span></span>
 <span id="L179"><span class="lineNum">     179</span>                 :<span class="tlaUNC">           0 :         return;</span></span>
 <span id="L180"><span class="lineNum">     180</span>                 :             :     }</span>
-<span id="L181"><span class="lineNum">     181</span>         [<span class="tlaGBC" title="Branch 0 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC">         252 :     for (uint8_t i = 0; i &lt; DS2431_ROM_BYTES; i++) {</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         224 :         ctx.selected_rom[i] = rom[i];</span></span>
+<span id="L181"><span class="lineNum">     181</span>         [<span class="tlaGBC" title="Branch 0 was taken 256 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">         288 :     for (uint8_t i = 0; i &lt; DS2431_ROM_BYTES; i++) {</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 :<span class="tlaGNC">         256 :         ctx.selected_rom[i] = rom[i];</span></span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :     }</span>
 <span id="L184"><span class="lineNum">     184</span>                 :             :     /* The Match ROM table itself is rebuilt from selected_rom on every</span>
 <span id="L185"><span class="lineNum">     185</span>                 :             :      * operation (ds2431_build), so select only stores the ROM. */</span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">          28 :     ctx.flags |= DS2431_FLAG_ADDRESS_MODE;</span></span>
-<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          28 :     ctx.flags &amp;= (uint8_t)~DS2431_FLAG_PENDING;</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">          32 :     ctx.flags |= DS2431_FLAG_ADDRESS_MODE;</span></span>
+<span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          32 :     ctx.flags &amp;= (uint8_t)~DS2431_FLAG_PENDING;</span></span>
 <span id="L188"><span class="lineNum">     188</span>                 :             : }</span>
 <span id="L189"><span class="lineNum">     189</span>                 :             : </span>
 <span id="L190"><span class="lineNum">     190</span>                 :             : /**</span>
