@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **STM32H7 backend (WeAct STM32H743VIT6, 240MHz).** The eighth family:
+  PA10/TIM1_CH3 + IC4, DMA1 streams 2/3 through DMAMUX1 (requests 12/14),
+  16-bit direct-mode feed like F4. The 240MHz HSE+PLL clock is the TIM1 ==
+  SYSCLK ceiling (D2PPRE2=/2, VOS1, 4 flash wait states), not the 480MHz
+  silicon cap; the D-cache stays off. Host suite runs the H7 leg
+  (`make test-h7`), the mocks are pinned against `stm32h743xx.h`
+  (`make test-mocks`), and HIL runs the parasite-powered bench. The 64MHz
+  raw-HSI fallback clock is bench-verified too (search plus temperatures
+  over USART on the same 7-sensor rig).
 - **Startup clock-agreement check (`onewire_clock_ok()`).** With
   `-DOW_SYSCLK_MHZ` the TIM1 prescaler is fixed at compile time, so a
   firmware clocked differently scales every 1-Wire slot and the bus just

@@ -25,8 +25,9 @@ FLASH_ADDR = "0x08000000"
 # comes first: it is the project's default build part (the Makefile's OW_CHIP
 # fallback and README "STM32F103xB is the default") and the reference bench in
 # the supported-families table; the H503 WeAct board behind it is the
-# parasite-powered bench this harness was written on. run.py reads the profile
-# off the target the probe attached to; HIL_MCU pins one explicitly.
+# parasite-powered bench this harness was written on, and the H743 WeAct board
+# is its 240MHz successor. run.py reads the profile off the target the probe
+# attached to; HIL_MCU pins one explicitly.
 #
 # Both benches run a parasite-powered bus, so both profiles build with the
 # strong pull-up enabled: without it the sensors brown out mid-conversion
@@ -45,6 +46,11 @@ BENCH_PROFILES = {
     "STM32H503xx": {
         "hints": ("STM32H503", "STM32H50x"),
         "device_id": "0x474",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
+    "STM32H743xx": {
+        "hints": ("STM32H743", "STM32H7xx"),
+        "device_id": "0x450",
         "ext": "-DOW_PARASITE_POWER=1",
     },
 }
@@ -93,12 +99,12 @@ def _git(*args):
 
 
 def library_version():
-    """STM32_ASYNC_1WIRE_VERSION_STRING from inc/ds18b20.h, or "?".
+    """STM32_ASYNC_1WIRE_VERSION_STRING from inc/ow_version.h, or "?".
 
     Read from the header rather than restated: if the version moves, the log
     that names it has to move with it.
     """
-    path = os.path.join(REPO, "inc", "ds18b20.h")
+    path = os.path.join(REPO, "inc", "ow_version.h")
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
     except OSError:
@@ -538,7 +544,10 @@ def flash(hexpath):
     if not prog:
         raise RuntimeError("STM32CubeProgrammer CLI not found")
     cmd = [prog, "-c", "port=SWD", "-w", hexpath, FLASH_ADDR, "-v", "-rst", "-run"]
-    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+    # The CLI's progress output is not guaranteed UTF-8 (console code page);
+    # a decode error must not fail a run the target already passed.
+    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
+                          errors="replace")
     if proc.returncode != 0:
         raise RuntimeError(
             "flash failed (%d):\n%s\n%s" % (proc.returncode, proc.stdout, proc.stderr)
@@ -556,12 +565,14 @@ def probe():
     if not prog:
         return "absent", "STM32CubeProgrammer CLI not found"
     listed = subprocess.run(
-        [prog, "-l", "st-link-only"], cwd=REPO, capture_output=True, text=True
+        [prog, "-l", "st-link-only"], cwd=REPO, capture_output=True, text=True,
+        errors="replace"
     )
     if "ST-LINK SN" not in listed.stdout:
         return "absent", "no ST-Link probe attached"
     conn = subprocess.run(
-        [prog, "-c", "port=SWD"], cwd=REPO, capture_output=True, text=True
+        [prog, "-c", "port=SWD"], cwd=REPO, capture_output=True, text=True,
+        errors="replace"
     )
     if conn.returncode != 0 or "Device name" not in conn.stdout:
         return "error", "ST-Link attached but the target did not respond"

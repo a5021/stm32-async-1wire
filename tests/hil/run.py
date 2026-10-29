@@ -1,10 +1,10 @@
 """HIL orchestrator: `python tests/hil/run.py <script>`.
 
 Maps a script name to an example, identifies the attached bench (the F103
-reference board or the H503 the harness was written on), builds the example
-for it, flashes it with the STM32CubeProgrammer CLI, reads the UART and saves
-the capture under bench_logs/hil/. Skips (exit 0) when no ST-Link or target is
-attached.
+reference board, the H503 the harness was written on, or the H743), builds
+the example for it, flashes it with the STM32CubeProgrammer CLI, reads the
+UART and saves the capture under bench_logs/hil/. Skips (exit 0) when no
+ST-Link or target is attached.
 
 Scripts: smoke (2_device_search), scan (4_scan_mode), stats (6_statistics),
 lowpower (7_low_power), ds2431 (8_ds2431).
