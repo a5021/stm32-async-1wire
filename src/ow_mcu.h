@@ -34,7 +34,7 @@
 
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in src/ow_port.h; what is left here is the
+ *  other seven families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F030: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note. */
 #if defined(OW_FAMILY_F0)
@@ -948,6 +948,192 @@
         T1.TISEL = (T1.TISEL & ~TIM_TISEL_TI4SEL_Msk) | (0u << TIM_TISEL_TI4SEL_Pos); \
     } while (0)
 #endif /* OW_FAMILY_H5 */
+
+/* === STM32H7 ===
+ *  Stream spelling over the classic-DMA vocabulary, DMAMUX-routed.
+ *
+ *  The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain alternate
+ *  function AF1; DS12110 AF table); CH4 captures in indirect mode on the same
+ *  pin (CC4S routes IC4 to TI3) and drains CCR4 via DMA1_Stream3, while the
+ *  CC2 slot-end marker (DMA1_Stream2) reloads CCR3.  Routing goes through
+ *  DMAMUX1 (no CHSEL field on this family's streams): channel 2 <- TIM1_CH2
+ *  (slot-end CC2 event, request 12), channel 3 <- TIM1_CH4 (input-capture
+ *  CC4 event, request 14), double-sourced from the H7 reference manual
+ *  DMAMUX1 table and STM32CubeH7 stm32h7xx_ll_dmamux.h
+ *  (LL_DMAMUX1_REQ_TIM1_CH2 = 12, LL_DMAMUX1_REQ_TIM1_CH4 = 14).
+ *
+ *  HARDWARE CONTRACT (see the "Required Timer Capabilities" section of README):
+ *  - Feed is memory-to-peripheral in DMA direct mode (no FIFO): the
+ *    memory-transfer width is forced to the peripheral size, so feed entries
+ *    are 16-bit halfwords (ow_pulse_t = uint16_t, zero-copy, NDTR == slots),
+ *    the same constraint the F4 backend documents.  Capture-side durations
+ *    are always uint16_t.
+ *  - Cortex-M7 D-cache stays OFF on every supported clock: the examples never
+ *    enable it, and no maintenance hooks run in this backend.  SRAM1 is
+ *    cacheable write-back by default, so turning the D-cache on without
+ *    SCB clean/invalidate around the DMA transfers would serve stale feed
+ *    data and decode stale captures.  DTCM/ITCM are CPU-only and unreachable
+ *    by DMA, so the linker keeps everything in AXI SRAM1.
+ *
+ *  This section owns only the H7 facts (pin mux, DMA stream assignment, the
+ *  DMAMUX request pair); ow_pulse_t and the clock defaults are public and
+ *  live in inc/ow_board.h.
+ */
+#if defined(OW_FAMILY_H7)
+#include "stm32h7xx.h"
+
+/* ------------------------------------------------------------------
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
+ *  - ow_pulse_t: 16-bit feed entry.  The H7 backend feeds CCR3 in DMA direct
+ *    mode, where the memory-transfer width is forced to PSIZE, so a feed
+ *    entry is a 16-bit halfword here (zero-copy, NDTR == slots; contrast the
+ *    G4 backend, an 8-bit DMAMUX-routed feed on classic channels).
+ *    Capture-side durations are always uint16_t.
+ *  - OW_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c).  The build
+ *    systems pass it explicitly (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from
+ *    chips/<part>.mk); without it the shared core reads the CMSIS
+ *    SystemCoreClock at startup instead.
+ *  - OW_H7_MAX_SYSCLK_MHZ: 240, the TIM1 == SYSCLK ceiling (not the 480MHz
+ *    silicon cap); app.c rejects more.
+ *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL's M
+ *    divider.  Deliberately separate from OW_SYSCLK_MHZ: the crystal
+ *    belongs to the *board*, the system clock to the *application*.
+ *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path. */
+
+#if OW_LOW_POWER
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
+#endif
+
+/* H7 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
+ * gives a 1us tick here): TIM1 is on APB2, and configure_system_clock()
+ * (app.c) programs D2PPRE2=/2 at 240MHz (PCLK2 = 120MHz), so the timer
+ * clock doubles to 2 x 120 = 240MHz = SYSCLK.  The doubling is the same
+ * mechanism the F4 backend relies on; the H7 ceiling is lower only because
+ * APB2 tops out at 120MHz, which caps the timer kernel at 2 x 120 = 240MHz
+ * no matter how far SYSCLK goes - 480MHz stays a CPU-only number on this
+ * family as far as this driver is concerned. */
+
+/* @brief DMA stream assignment: feed rides DMA1_Stream2 (DMAMUX1 channel 2
+ *       <- TIM1_CH2, the slot-end CC2 event); capture rides DMA1_Stream3
+ *       (DMAMUX1 channel 3 <- TIM1_CH4, the input-capture CC4 event).  Both
+ *       streams retire flags in DMA1->LIFCR. */
+#define OW_PORT_DMA_FEED (*DMA1_Stream2)
+#define OW_PORT_DMA_CAPTURE (*DMA1_Stream3)
+
+/* EN-bit spelling for the shared ow_port_dma_disable(), called by the
+ * DISABLE macros below (bounded wait identical to the classic-DMA path). */
+#define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
+
+/* @brief Stream control bits: MINC = memory-increment; PSIZE_0 = 16-bit
+ *       peripheral halfword (CCR3/CCR4).  Direct mode forces the memory width
+ *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
+ *       Priority stays at the reset default (like every other backend: ties
+ *       break by stream number, feed wins).  Note the DIR field is two bits
+ *       wide (like F4): the generic single-bit DMA_SxCR_DIR macro would write
+ *       the reserved 0b11, so the feed word uses DIR_0. */
+#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
+#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
+
+/* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (defaults in
+ * src/ow_port.h): same three transfer classes in stream spelling.  Each equals
+ * the per-site expression used by the migrated bodies (capture, read pair and
+ * merged capture share RX16; feed and merged feed share TX) - pinned by
+ * tests/test/test_dma_contract.c::test_dma_cr_value_macros.  Every
+ * OW_PORT_DMA_CR_* definition (here and in ow_port.h) spells explicit CMSIS
+ * masks instead of the DMA_CCR/DMA_SxCR sugar: the contract tests expand
+ * these macros in their own TU, after ow_port.h has withdrawn the
+ * OW_BITFIELDS() helpers. */
+#define OW_PORT_DMA_CR_RX16 (OW_PORT_DMA_CR_CAPTURE | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
+#define OW_PORT_DMA_CR_RX8 ((OW_PORT_DMA_CR_CAPTURE & ~(DMA_SxCR_PSIZE_0)) | DMA_SxCR_EN)
+#define OW_PORT_DMA_CR_TX (OW_PORT_DMA_CR_FEED | DMA_SxCR_MSIZE_0 | DMA_SxCR_EN)
+
+/* @brief DMAMUX request selectors (RM0433 DMAMUX1 table, double-sourced from
+ *  STM32CubeH7 stm32h7xx_ll_dmamux.h: TIM1_CH2 = 12, TIM1_CH4 = 14).
+ *
+ *  The CC2 compare-match event raises the TIM1_CH2 request line, which is why
+ *  the feed selector is the CH2 number.  Written before each operation rather
+ *  than once at init so the routing cannot be left pointing at a previous
+ *  request. */
+#define OW_PORT_DMAMUX_REQ_TIM1_CC2 12u
+#define OW_PORT_DMAMUX_REQ_TIM1_CH4 14u
+
+#define OW_PORT_ROUTE_CAPTURE()                              \
+    do {                                                     \
+        DMAMUX1_Channel3->CCR = OW_PORT_DMAMUX_REQ_TIM1_CH4; \
+    } while (0)
+#define OW_PORT_ROUTE_FEED()                                 \
+    do {                                                     \
+        DMAMUX1_Channel2->CCR = OW_PORT_DMAMUX_REQ_TIM1_CC2; \
+    } while (0)
+
+/* Stream-spelling overrides for the DISABLE/PROG vocabulary (defaults in
+ * src/ow_port.h).  DISABLE is disable + bounded EN wait
+ * (shared ow_port_dma_disable()) plus the per-stream flag retirement: both
+ * streams retire LIFCR, all five flags each, so the next EN starts from a
+ * clean state.  No CHSEL travels anywhere: on this family the DMAMUX
+ * channels above own the routing, so the CR word carries no request bits. */
+#define OW_PORT_DMA_DISABLE_FEED()                                        \
+    do {                                                                  \
+        ow_port_dma_disable(&OW_PORT_DMA_FEED.CR);                        \
+        DMA1->LIFCR = DMA_LIFCR(CFEIF2, CDMEIF2, CTEIF2, CHTIF2, CTCIF2); \
+    } while (0)
+#define OW_PORT_DMA_DISABLE_CAPTURE()                                      \
+    do {                                                                   \
+        ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CR);                      \
+        DMA1->LIFCR = DMA_LIFCR(CFEIF2, CDMEIF2, CTEIF2, CHTIF2, CTCIF2) | \
+                      DMA_LIFCR(CFEIF3, CDMEIF3, CTEIF3, CHTIF3, CTCIF3);  \
+    } while (0)
+#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr)      \
+    do {                                              \
+        OW_PORT_DMA_CAPTURE.PAR = (uint32_t)&T1.CCR4; \
+        OW_PORT_DMA_CAPTURE.M0AR = (uint32_t)(dst);   \
+        OW_PORT_DMA_CAPTURE.NDTR = (count);           \
+        OW_PORT_DMA_CAPTURE.CR = (cr);                \
+    } while (0)
+#define OW_PORT_DMA_PROG_FEED(src, count, cr)      \
+    do {                                           \
+        OW_PORT_DMA_FEED.PAR = (uint32_t)&T1.CCR3; \
+        OW_PORT_DMA_FEED.M0AR = (uint32_t)(src);   \
+        OW_PORT_DMA_FEED.NDTR = (count);           \
+        OW_PORT_DMA_FEED.CR = (cr);                \
+    } while (0)
+
+/* H7 streams count transfers in NDTR, like the F4 streams. */
+#define OW_PORT_CAPTURE_REMAINING() (OW_PORT_DMA_CAPTURE.NDTR)
+
+/* Core-required init hooks: the shared ow_port_init() calls these.
+ * Bus pin: alternate function, open-drain, AF1 (TIM1_CH3, DS12110 AF table).
+ * Drive strength: configurable via OW_BUS_DRIVE (default MAX). */
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                               \
+    do {                                                                          \
+        RC.AHB1ENR |= RCC_AHB1ENR_DMA1EN; /* TIM1 requests route via DMA1 */      \
+        RC.AHB4ENR |= RCC_AHB4ENR_GPIOAEN;                                        \
+        RC.APB2ENR |= RCC_APB2ENR_TIM1EN;                                         \
+        (void)RC.APB2ENR; /* settle the APB clock before the TIM1 access below */ \
+    } while (0)
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
+        PA.OTYPER |= GPIO_OTYPER_OT10;                                                \
+        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos); \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
+    } while (0)
+
+/* Statement macro spelling of the pin-mode switch (same shape as the other
+ * backends' OW_PORT_SET_PIN_MODE): the shared core calls this to toggle the
+ * bus pin between open-drain and push-pull. */
+#define OW_PORT_SET_PIN_MODE(push_pull)                                  \
+    do {                                                                 \
+        if (push_pull) {                                                 \
+            PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                         \
+            PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */      \
+        }                                                                \
+    } while (0)
+#endif /* OW_FAMILY_H7 */
 
 /* Default DMA channel assignment: feed rides TIM1_CC2 -> channel 3, capture
  * rides TIM1_CH4 -> channel 4 (D13/D14: register aliases from ow_port.h).

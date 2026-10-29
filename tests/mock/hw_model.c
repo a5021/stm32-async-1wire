@@ -15,9 +15,9 @@ USART_TypeDef mock_usart1;
 #if OW_LOW_POWER
 SCB_Type mock_scb; /* low-power WFE path: SEVONPEND lives in SCB.SCR */
 #endif
-#if defined(STM32G0) || defined(STM32G4)
-DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0/G4 backends: DMAMUX routing */
-DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0/G4 backends: DMAMUX routing */
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
+DMAMUX_Channel_TypeDef mock_dmamux_ch2; /* G0/G4/H7 backends: DMAMUX routing */
+DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0/G4/H7 backends: DMAMUX routing */
 #endif
 #if defined(STM32G0)
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
@@ -27,6 +27,11 @@ DMA_TypeDef mock_dma2; /* F4 backend only */
 FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
 #endif
+#if defined(STM32H7)
+DMA_TypeDef mock_dma1; /* H7 backend only: flag retire in LIFCR */
+FLASH_TypeDef mock_flash; /* H7 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* H7 backend only: VOS1 for the 240MHz clock */
+#endif
 #if defined(STM32G4)
 FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
@@ -34,6 +39,10 @@ PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #if defined(STM32H5)
 FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
+#endif
+#if defined(STM32H7)
+FLASH_TypeDef mock_flash; /* H7 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* H7 backend only: VOS1 for the 240MHz clock */
 #endif
 
 static uint16_t tim_shadow_out;
@@ -147,7 +156,7 @@ const void* hw_capture_destination(void) {
 uint32_t hw_feed_request(void) {
 #if defined(STM32H5)
     return (mock_feed_ch.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
-#elif defined(STM32G0) || defined(STM32G4)
+#elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
     return (uint32_t)mock_dmamux_ch2.CCR;
 #else
     return 0u;
@@ -157,7 +166,7 @@ uint32_t hw_feed_request(void) {
 uint32_t hw_capture_request(void) {
 #if defined(STM32H5)
     return (mock_dma1_ch4.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
-#elif defined(STM32G0) || defined(STM32G4)
+#elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
     return (uint32_t)mock_dmamux_ch3.CCR;
 #else
     return 0u;
@@ -177,12 +186,12 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32H5)
+#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32H5) || defined(STM32H7)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
 #endif
-#if defined(STM32G0) || defined(STM32G4)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
     mock_dmamux_ch2 = (DMAMUX_Channel_TypeDef){0};
     mock_dmamux_ch3 = (DMAMUX_Channel_TypeDef){0};
 #endif
@@ -207,6 +216,14 @@ void hw_reset_all(void) {
     /* Over-drive starts disabled, and - unlike the real part - the ready flags
      * start clear too, so a clock test that forgets to enable OD blocks on the
      * first wait instead of passing by accident. */
+    mock_pwr = (PWR_TypeDef){0};
+#endif
+#if defined(STM32H7)
+    mock_dma1 = (DMA_TypeDef){0};
+    mock_flash = (FLASH_TypeDef){0};
+    /* VOSRDY/HSERDY/PLL1RDY start clear, like the real part mid-transition, so
+     * a clock test that forgets one of the three waits blocks on the first
+     * poll instead of passing by accident. */
     mock_pwr = (PWR_TypeDef){0};
 #endif
     tim_shadow_out = 0;

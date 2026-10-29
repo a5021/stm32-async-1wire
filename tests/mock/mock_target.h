@@ -2,7 +2,7 @@
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (STM32F0 / STM32F1 / STM32F3 / STM32F4 /
- * STM32G0 / STM32G4 / STM32H5, passed as -D by the host build). */
+ * STM32G0 / STM32G4 / STM32H5 / STM32H7, passed as -D by the host build). */
 #if defined(STM32F0)
 #include "stm32f0xx.h"
 #elif defined(STM32F3)
@@ -15,6 +15,8 @@
 #include "stm32g4xx.h"
 #elif defined(STM32H5)
 #include "stm32h5xx.h"
+#elif defined(STM32H7)
+#include "stm32h7xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -37,13 +39,13 @@
 /* --- DMA model abstraction -------------------------------------------------
  * The hw_model works on one feed and one capture channel per family. F0/F1/G0/
  * G4 use DMA1 channels with the CCR/CNDTR/CPAR/CMAR register names and 8-bit
- * memory cells; F4 uses DMA2 streams with CR/NDTR/PAR/M0AR. The F4 mock unions
- * keep the legacy field spellings valid, so the model can name a field
+ * memory cells; F4/H7 use DMA streams with CR/NDTR/PAR/M0AR. The stream mocks
+ * union the legacy field spellings valid, so the model can name a field
  * uniformly; only the ENABLE/MSIZE bit spellings and the memory-cell width
  * genuinely differ and are abstracted here. */
 #define MOCK_DMA_FEED mock_feed_ch /* feed channel storage */
 #define MOCK_DMA_CAP mock_dma1_ch4 /* capture channel storage */
-#if defined(STM32F4)
+#if defined(STM32F4) || defined(STM32H7)
 #define MOCK_DMA_FEED_EN DMA_SxCR_EN
 #define MOCK_DMA_CAP_EN DMA_SxCR_EN
 #define MOCK_DMA_CAP_MSIZE_0 DMA_SxCR_MSIZE_0
@@ -99,6 +101,11 @@
 #define MOCK_PIN_MODER GPIO_MODER_MODE10
 #define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
 #define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0
+#define MOCK_PIN_OTYPE GPIO_OTYPER_OT10
+#elif defined(STM32H7)
+#define MOCK_PIN_MODER GPIO_MODER_MODER10
+#define MOCK_PIN_MODE_AF GPIO_MODER_MODER10_1
+#define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODER10_0
 #define MOCK_PIN_OTYPE GPIO_OTYPER_OT10
 #else
 #define MOCK_PIN_MODER GPIO_MODER_MODER10

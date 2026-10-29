@@ -8,9 +8,11 @@
  *   - the family selection token (OW_FAMILY_*), resolved from the
  *     STMicroelectronics device macro of the target (e.g. -DSTM32F030x6) or,
  *     for host-test mocks, PlatformIO and STM32CubeMX projects, from a family
- *     macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5);
+ *     macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5,
+ *     STM32H7);
  *   - ow_pulse_t, the DMA feed entry the public write API hands to the
- *     hardware: 8-bit on F0/F1/F3/G0/G4/H5, 16-bit on F4 (direct-mode feed);
+ *     hardware: 8-bit on F0/F1/F3/G0/G4/H5, 16-bit on F4/H7 (direct-mode
+ *     feed);
  *   - the board clock defaults read by the application layer (OW_HSE_MHZ and
  *     the OW_*_MAX_SYSCLK_MHZ part ceilings).
  *
@@ -33,11 +35,12 @@
  *  Family selection: a single OW_FAMILY_* token resolved from
  *  the CMSIS device macro of the target (e.g. -DSTM32F030x6) or, for
  *  host-test mocks, PlatformIO and STM32CubeMX projects, from a family
- *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5).
- *  Concrete device spellings are accepted for the parts this project
+ *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32H5,
+ *  STM32H7).  Concrete device spellings are accepted for the parts this project
  *  supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
  *  STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4;
- *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
+ *  STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5;
+ *  STM32H743xx for H7).
  * ------------------------------------------------------------------ */
 #if defined(STM32F030x6) || defined(STM32F0)
 #define OW_FAMILY_F0
@@ -54,8 +57,10 @@
 #define OW_FAMILY_G4
 #elif defined(STM32H503xx) || defined(STM32H5)
 #define OW_FAMILY_H5
+#elif defined(STM32H743xx) || defined(STM32H7)
+#define OW_FAMILY_H7
 #else
-#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H503xx) or its family macro (e.g. -DSTM32H5). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx or -DSTM32F0/F1/F3/F4/G0/G4/H5 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
+#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H743xx) or its family macro (e.g. -DSTM32H7). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32H503xx/STM32H743xx or -DSTM32F0/F1/F3/F4/G0/G4/H5/H7 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
 #endif
 
 /**
@@ -63,12 +68,12 @@
  *
  * The public write API (onewire_write_slots/us, onewire_encode_byte) takes a
  * buffer of these and the hardware feeds CCR3 from it without a copy.  F4
- * feeds in DMA direct mode, where the memory-transfer width is forced to the
- * peripheral size, so an entry is a 16-bit halfword there; every other family
- * latches 8-bit entries.  Keeping it family-sized avoids doubling the pulse
- * buffers on 4 KB-RAM parts.
+ * and H7 feed in DMA direct mode, where the memory-transfer width is forced
+ * to the peripheral size, so an entry is a 16-bit halfword there; every
+ * other family latches 8-bit entries.  Keeping it family-sized avoids
+ * doubling the pulse buffers on 4 KB-RAM parts.
  */
-#if defined(OW_FAMILY_F4)
+#if defined(OW_FAMILY_F4) || defined(OW_FAMILY_H7)
 typedef uint16_t ow_pulse_t;
 #else
 typedef uint8_t ow_pulse_t;
@@ -113,6 +118,13 @@ typedef uint8_t ow_pulse_t;
 #endif
 #if !defined(OW_HSE_MHZ)
 #define OW_HSE_MHZ 8 /* WeAct STM32H503Cx Core Board: 8MHz crystal (Y2) */
+#endif
+#elif defined(OW_FAMILY_H7)
+#if !defined(OW_H7_MAX_SYSCLK_MHZ)
+#define OW_H7_MAX_SYSCLK_MHZ 240 /* driver ceiling: TIM1 == SYSCLK needs D2PPRE2=/2, so 2 x PCLK2 tops out at 2 x 120MHz, not the 480MHz silicon cap */
+#endif
+#if !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 25 /* WeAct Studio STM32H7XX board: 25MHz crystal */
 #endif
 #endif
 
