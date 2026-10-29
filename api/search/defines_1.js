@@ -9,12 +9,10 @@ var searchData=
   ['ow_5fbus_5fdrive_5fmedium_6',['OW_BUS_DRIVE_MEDIUM',['../ow__config_8h.html#a65a1ddbfd6dd80bfe7c9dd936b2deae5',1,'ow_config.h']]],
   ['ow_5fbus_5fdrive_5fstrong_7',['OW_BUS_DRIVE_STRONG',['../ow__config_8h.html#a13fba53645cd8e4b8f63368f08a36360',1,'ow_config.h']]],
   ['ow_5fbus_5fdrive_5fweak_8',['OW_BUS_DRIVE_WEAK',['../ow__config_8h.html#ac9acff48ab5c0d41bc1ed88afe58f80d',1,'ow_config.h']]],
-  ['ow_5fconfig_5fsysclk_5fmhz_9',['OW_CONFIG_SYSCLK_MHZ',['../ow__config_8h.html#a074e6e8f57a756da90d8dd4b8533f46b',1,'ow_config.h']]],
-  ['ow_5fconfig_5ftim1_5fmhz_10',['OW_CONFIG_TIM1_MHZ',['../ow__config_8h.html#a88ba1fd533e4ab1531cc910a370ffbea',1,'ow_config.h']]],
-  ['ow_5fconfig_5ftoken_11',['OW_CONFIG_TOKEN',['../ow__config_8h.html#a7fbd3fb7322979c9fe3a03fd4d39e1c5',1,'ow_config.h']]],
-  ['ow_5fdrive_5factive_12',['OW_DRIVE_ACTIVE',['../ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20',1,'ow_config.h']]],
-  ['ow_5flow_5fpower_13',['OW_LOW_POWER',['../ow__config_8h.html#a3289a910c64682ab8868ef0dd64de8c0',1,'ow_config.h']]],
-  ['ow_5fparasite_5fpower_14',['OW_PARASITE_POWER',['../ow__config_8h.html#a2aad532fa0eb3d852d91fc8178bf4e59',1,'ow_config.h']]],
-  ['ow_5fstats_5fhist_5fbuckets_15',['OW_STATS_HIST_BUCKETS',['../ow__stats_8h.html#a2ec44bc8d74f6c239c8379d6f1f7aed3',1,'ow_stats.h']]],
-  ['ow_5fstats_5fmax_5fsensors_16',['OW_STATS_MAX_SENSORS',['../ow__stats_8h.html#a7f85acaa52cb8357d0feeb50a51e6f02',1,'ow_stats.h']]]
+  ['ow_5fconfig_5ftoken_9',['OW_CONFIG_TOKEN',['../ow__config_8h.html#a7fbd3fb7322979c9fe3a03fd4d39e1c5',1,'ow_config.h']]],
+  ['ow_5fdrive_5factive_10',['OW_DRIVE_ACTIVE',['../ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20',1,'ow_config.h']]],
+  ['ow_5flow_5fpower_11',['OW_LOW_POWER',['../ow__config_8h.html#a3289a910c64682ab8868ef0dd64de8c0',1,'ow_config.h']]],
+  ['ow_5fparasite_5fpower_12',['OW_PARASITE_POWER',['../ow__config_8h.html#a2aad532fa0eb3d852d91fc8178bf4e59',1,'ow_config.h']]],
+  ['ow_5fstats_5fhist_5fbuckets_13',['OW_STATS_HIST_BUCKETS',['../ow__stats_8h.html#a2ec44bc8d74f6c239c8379d6f1f7aed3',1,'ow_stats.h']]],
+  ['ow_5fstats_5fmax_5fsensors_14',['OW_STATS_MAX_SENSORS',['../ow__stats_8h.html#a7f85acaa52cb8357d0feeb50a51e6f02',1,'ow_stats.h']]]
 ];

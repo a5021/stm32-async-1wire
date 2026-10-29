@@ -123,15 +123,13 @@ Macros</h2></td></tr>
 <tr class="memdesc:a65c4f063ff3b00e9625c2febd7d6fe20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in active-drive (push-pull) write path.  <br /></td></tr>
 <tr class="memitem:abe0f6a81aa740fdee2eb2568b94b0f3b" id="r_abe0f6a81aa740fdee2eb2568b94b0f3b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a>&#160;&#160;&#160;8</td></tr>
 <tr class="memdesc:abe0f6a81aa740fdee2eb2568b94b0f3b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional per-sensor pulse-width statistics module.  <br /></td></tr>
-<tr class="memitem:a074e6e8f57a756da90d8dd4b8533f46b" id="r_a074e6e8f57a756da90d8dd4b8533f46b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a>&#160;&#160;&#160;0u</td></tr>
-<tr class="memdesc:a074e6e8f57a756da90d8dd4b8533f46b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile-time configuration token of the library build.  <br /></td></tr>
-<tr class="memitem:a88ba1fd533e4ab1531cc910a370ffbea" id="r_a88ba1fd533e4ab1531cc910a370ffbea"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a>&#160;&#160;&#160;0u</td></tr>
 <tr class="memitem:a7fbd3fb7322979c9fe3a03fd4d39e1c5" id="r_a7fbd3fb7322979c9fe3a03fd4d39e1c5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7fbd3fb7322979c9fe3a03fd4d39e1c5">OW_CONFIG_TOKEN</a></td></tr>
+<tr class="memdesc:a7fbd3fb7322979c9fe3a03fd4d39e1c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile-time configuration token of the library build.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Central compile-time configuration for the 1-Wire stack. </p>
 <p>All genuinely tunable build constants are collected here. Every macro carries its own <span class="tt">#ifndef</span> guard so that a <span class="tt">-D</span> on the command line (Makefile EXT, PlatformIO build_flags) overrides the default without touching this file — the existing override mechanism is unchanged. Note that these are preprocessor macros, not CMake options: the CMake project does not forward <span class="tt">-D&lt;macro&gt;=...</span> cache variables to the compiler, so pass the flags via the C flags (CMAKE_C_FLAGS / toolchain file) or, for the stats example, rely on the example target.</p>
-<p>Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES, DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the system clock (OW_SYSCLK_MHZ) and timer kernel clock (OW_TIM1_MHZ, defaulting to OW_SYSCLK_MHZ) remain build facts; the port core uses them to program the 1us timer tick.</p>
+<p>Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES, DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the system clock (OW_SYSCLK_MHZ, passed by the build or resolved from SystemCoreClock by the port core) remain in their respective headers and are intentionally NOT listed here.</p>
 <p>The four feature flags are value-style: define to 1 to enable, omit or set to 0 to disable. Old -D presence-only style (-DOW_LOW_POWER without =1) no longer works with these flags — always pass =1. </p>
 </div><a name="doc-define-members" id="doc-define-members"></a><h2 id="header-doc-define-members" class="groupheader">Macro Definition Documentation</h2>
 <a id="abe0f6a81aa740fdee2eb2568b94b0f3b" name="abe0f6a81aa740fdee2eb2568b94b0f3b"></a>
@@ -299,37 +297,6 @@ Macros</h2></td></tr>
 
 </div>
 </div>
-<a id="a074e6e8f57a756da90d8dd4b8533f46b" name="a074e6e8f57a756da90d8dd4b8533f46b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">&#9670;&#160;</a></span>OW_CONFIG_SYSCLK_MHZ</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_CONFIG_SYSCLK_MHZ&#160;&#160;&#160;0u</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Compile-time configuration token of the library build. </p>
-<p>Mixes the macros that must agree between the translation units the library was compiled from and the application sources that include these headers: feature flags, DS18B20_MAX_DEVICES, SYSCLK and TIM1 kernel frequency. Compare it at startup with <a class="el" href="group__ONEWIRE__Init.html#ga70a75fa250c51c8a4311dde45fe4cdf6" title="Configuration token the library was compiled with.">onewire_config_token()</a>: a mismatch means the archive and the application were built with different -D flags and must not run together. </p>
-
-</div>
-</div>
-<a id="a88ba1fd533e4ab1531cc910a370ffbea" name="a88ba1fd533e4ab1531cc910a370ffbea"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">&#9670;&#160;</a></span>OW_CONFIG_TIM1_MHZ</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define OW_CONFIG_TIM1_MHZ&#160;&#160;&#160;0u</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="a7fbd3fb7322979c9fe3a03fd4d39e1c5" name="a7fbd3fb7322979c9fe3a03fd4d39e1c5"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7fbd3fb7322979c9fe3a03fd4d39e1c5">&#9670;&#160;</a></span>OW_CONFIG_TOKEN</h2>
 
@@ -341,19 +308,18 @@ Macros</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<b>Value:</b><div class="fragment"><div class="line">    ((uint32_t)(<a class="code hl_define" href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a> &amp; 1u) | ((uint32_t)(<a class="code hl_define" href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a> &amp; 1u) &lt;&lt; 1) |             \</div>
-<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a> &amp; 1u) &lt;&lt; 2) | ((uint32_t)(OW_STATS_ENABLE &amp; 1u) &lt;&lt; 3) |     \</div>
-<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a> &amp; 3u) &lt;&lt; 4) | ((uint32_t)(<a class="code hl_define" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a> &amp; 0xFFu) &lt;&lt; 6) | \</div>
-<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a> &amp; 0x1FFu) &lt;&lt; 14) |                                     \</div>
-<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a> &amp; 0x1FFu) &lt;&lt; 23))</div>
-<div class="ttc" id="aow__config_8h_html_a074e6e8f57a756da90d8dd4b8533f46b"><div class="ttname"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_SYSCLK_MHZ</div><div class="ttdoc">Compile-time configuration token of the library build.</div><div class="ttdef"><b>Definition</b> ow_config.h:224</div></div>
-<div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:53</div></div>
-<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:169</div></div>
-<div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:145</div></div>
-<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:180</div></div>
-<div class="ttc" id="aow__config_8h_html_a88ba1fd533e4ab1531cc910a370ffbea"><div class="ttname"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_TIM1_MHZ</div><div class="ttdef"><b>Definition</b> ow_config.h:229</div></div>
-<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:209</div></div>
+<b>Value:</b><div class="fragment"><div class="line">    ((uint32_t)(<a class="code hl_define" href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a> &amp; 1u) | ((uint32_t)(<a class="code hl_define" href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a> &amp; 1u) &lt;&lt; 1) |         \</div>
+<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a> &amp; 1u) &lt;&lt; 2) | ((uint32_t)(OW_STATS_ENABLE &amp; 1u) &lt;&lt; 3) | \</div>
+<div class="line">     ((uint32_t)(<a class="code hl_define" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a> &amp; 3u) &lt;&lt; 4) | ((uint32_t)(<a class="code hl_define" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a> &amp; 0xFFu) &lt;&lt; 8))</div>
+<div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:46</div></div>
+<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:162</div></div>
+<div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:138</div></div>
+<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:173</div></div>
+<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:202</div></div>
 </div><!-- fragment -->
+<p>Compile-time configuration token of the library build. </p>
+<p>Mixes the macros that must agree between the translation units the library was compiled from and the application sources that include these headers: OW_PARASITE_POWER, OW_LOW_POWER, OW_DRIVE_ACTIVE, OW_STATS_ENABLE, OW_BUS_DRIVE and DS18B20_MAX_DEVICES. Compare it at startup with <a class="el" href="group__ONEWIRE__Init.html#ga70a75fa250c51c8a4311dde45fe4cdf6" title="Configuration token the library was compiled with.">onewire_config_token()</a>: a mismatch means the archive and the application were built with different -D flags and must not run together. </p>
+
 </div>
 </div>
 <a id="a65c4f063ff3b00e9625c2febd7d6fe20" name="a65c4f063ff3b00e9625c2febd7d6fe20"></a>
