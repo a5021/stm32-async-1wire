@@ -124,6 +124,32 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 #define OW_H5_CONSOLE_BRR USART_BRR_CALC(OW_H5_PCLK2_MHZ * 1000000u, 115200)
 #endif /* OW_FAMILY_H5 */
 
+/* --- H7 console divisor ----------------------------------------------------
+ *
+ * Same shape as F4: USART1 is on APB2 with D2PPRE2=/2 at 240MHz, so
+ * PCLK2 = SYSCLK/2 (120MHz) and the divisor is one line. It still lives here
+ * rather than in app.c for the same reason: the register write it feeds is
+ * inside hardware_init(), which no host build compiles, so this is the host
+ * suite's only reach over it (test_timing.c::test_h7_console_baud_divisor).
+ * The single supported clock divides evenly; this says so. */
+#if defined(OW_FAMILY_H7)
+/** @brief APB2 peripheral clock in MHz (USART1 console path) */
+#if (OW_SYSCLK_MHZ) == 240
+/* APB2 is /2 at 240MHz, so PCLK2 = SYSCLK/2 (120MHz). */
+#define OW_H7_PCLK2_MHZ ((OW_SYSCLK_MHZ) / 2u)
+#else
+/* Raw HSI: every prescaler stays /1 at reset, so PCLK2 = SYSCLK. */
+#define OW_H7_PCLK2_MHZ ((OW_SYSCLK_MHZ))
+#endif
+/** @brief Console BRR on USART1/APB2 at 115200 baud */
+#define OW_H7_CONSOLE_BRR USART_BRR_CALC(OW_H7_PCLK2_MHZ * 1000000u, 115200)
+/* PCLK reaches USART_BRR_CALC as integer MHz, so a clock that is not a whole
+ * multiple of its prescaler would be rounded here and quietly shift the baud
+ * rate. The single supported H7 clock divides evenly; this says so. */
+_Static_assert((OW_SYSCLK_MHZ) % 2 == 0,
+               "H7: PCLK2 is derived as SYSCLK/2 in integer MHz, so SYSCLK must be even");
+#endif /* OW_FAMILY_H7 */
+
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  * @note One call instead of configure_system_clock() + hardware_init()
@@ -142,9 +168,9 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Configure system clock (exposed for the F4/G4/H5 host harness)
+ * @brief Configure system clock (exposed for the F4/G4/H5/H7 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
  *       Under DS18B20_TEST_HARNESS the F4/G4 suite drives the real clock path
  *       against the RCC/FLASH mocks (test_timing), so it needs external
@@ -153,10 +179,10 @@ uint32_t app_millis(void);
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Whether the requested clock actually started (F4/G4/H5 harness surface)
- * @note F4/G4/H5 report a clock that never came up through this rather than through a
+ * @brief Whether the requested clock actually started (F4/G4/H5/H7 harness surface)
+ * @note F4/G4/H5/H7 report a clock that never came up through this rather than through a
  *       return value: changing configure_system_clock()'s signature changed
  *       codegen in the families that cannot fail, for no benefit. 1 = running,
  *       0 = an HSE or PLL wait timed out.
