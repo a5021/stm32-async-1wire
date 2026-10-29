@@ -1,8 +1,8 @@
 #!/bin/sh
 # tests/check_version.sh - verify the project version is declared consistently
 #
-# The version is declared in several places: the four macros in inc/ds18b20.h,
-# the CMake project(), the two PlatformIO manifests, the Doxygen
+# The version is declared in several places: the four macros in inc/ow_version.h,
+# the CMake project(), the PlatformIO manifest, the Doxygen
 # PROJECT_NUMBER, the FetchContent GIT_TAG example in the README, the release
 # notes body in CHANGELOG.md, and the static release title/archive names in
 # release.yml. In a tag-triggered release run, the tag is checked too. This
@@ -10,8 +10,8 @@
 # existed, the release notes did not, and the section that should have
 # described it had drifted into [Unreleased].
 #
-# inc/ds18b20.h is the single source: it is the only place a user compiles
-# against, so every other site is compared against the macros there. A bump that
+# inc/ow_version.h is the single source: every public header includes it, so
+# every other site is compared against the macros there. A bump that
 # misses one fails here instead of at the next release.
 #
 # Matching goes through `tr -d '\r'` and grep -F on purpose. This repo checks out
@@ -26,7 +26,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-HEADER=inc/ds18b20.h
+HEADER=inc/ow_version.h
 CHANGELOG=CHANGELOG.md
 fail=0
 

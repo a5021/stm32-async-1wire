@@ -56,6 +56,7 @@
 #define DS2431_H
 
 #include "ow_config.h"
+#include "ow_version.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
