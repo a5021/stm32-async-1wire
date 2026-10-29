@@ -132,6 +132,17 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
     {"open_drain", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
 };
+#elif defined(STM32H7)
+/* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
+ * open-drain, cleared for push-pull; af 0x100 = AF1 for TIM1_CH3 (DS12110
+ * AF table); speed 0x300000 = PA10 at the fastest setting. clk packs
+ * APB2ENR low (TIM1EN = 0x1), AHB4ENR middle (GPIOAEN = 0x1), AHB1ENR high
+ * (DMA1EN = 0x1, and byte 1 stays 0: TIM1EN is bit 0). No remap: PA9/PA10 are bonded out. */
+static const setup_row_t k_setup[] = {
+    {"init", 0x01010001u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+    {"push_pull", 0x01010001u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
+    {"open_drain", 0x01010001u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+};
 #else /* STM32F4 */
 /* mode is PA10 = 0b10 in MODER (alternate function); af is 0x100 = AF1 here,
  * against AF2 on F0/G0 - that is the silicon, not an inconsistency. */
@@ -201,6 +212,16 @@ port_setup_t port_setup_snapshot(void) {
      * (GPDMA1EN): same three-register packing as G4. */
     s.clk = (uint32_t)mock_rcc.APB2ENR |
             ((uint32_t)mock_rcc.AHB2ENR << 16) |
+            ((uint32_t)mock_rcc.AHB1ENR << 24);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#elif defined(STM32H7)
+    /* APB2ENR low (TIM1EN), AHB4ENR middle (GPIOAEN), AHB1ENR high
+     * (DMA1EN): the H7 packing. */
+    s.clk = (uint32_t)mock_rcc.APB2ENR |
+            ((uint32_t)mock_rcc.AHB4ENR << 16) |
             ((uint32_t)mock_rcc.AHB1ENR << 24);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;

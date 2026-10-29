@@ -21,6 +21,8 @@
 #include "stm32g4xx.h"
 #elif defined(STM32H5)
 #include "stm32h5xx.h"
+#elif defined(STM32H7)
+#include "stm32h7xx.h"
 #else
 #include "stm32f1xx.h"
 #endif
@@ -28,7 +30,7 @@
 #include "unity.h"
 #include <stdint.h>
 
-#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32H7)
 #define TXE_BIT USART_ISR_TXE_TXFNF
 #define TX_SR ISR
 #define TX_DR TDR

@@ -55,7 +55,7 @@ static uint16_t presence_src(uint32_t idx) {
 #define CAP_16BIT_LO (~DMA_CCR_EN)
 #define CAP_8BIT_HI DMA_CCR_EN
 #define CAP_8BIT_LO (~DMA_CCR_EN)
-#elif defined(STM32F4)
+#elif defined(STM32F4) || defined(STM32H7)
 #define WIDTH_MSIZE16 DMA_CCR_MSIZE_0
 #define WIDTH_PSIZE8 0u
 #define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
@@ -143,6 +143,9 @@ static const dma_ledger_row_t k_ledger[] = {
      * channel (TIM1_CH2 -> 21/43, TIM1_CH4 -> 23/45). */
     {"g0", 21u, 23u, "DMAMUX channel request id"},
     {"g4", 43u, 45u, "DMAMUX channel request id"},
+    /* H7: no fixed map - the request is selected in the DMAMUX channel
+     * (TIM1_CH2 -> 12, TIM1_CH4 -> 14). */
+    {"h7", 12u, 14u, "DMAMUX channel request id"},
     /* H5: no DMAMUX - the GPDMA transfer register's REQSEL carries the
      * request (TIM1_CH2 -> 59, TIM1_CH4 -> 61). */
     {"h5", 59u, 61u, "GPDMA transfer register REQSEL"},
@@ -162,6 +165,8 @@ static const dma_ledger_row_t k_ledger[] = {
 #define CURRENT_FAMILY "g4"
 #elif defined(STM32H5)
 #define CURRENT_FAMILY "h5"
+#elif defined(STM32H7)
+#define CURRENT_FAMILY "h7"
 #else
 #error "test_dma_contract: unknown family - add it to the DMA guarantee ledger"
 #endif
@@ -649,6 +654,25 @@ void test_dma_cr_value_macros(void) {
                    DMA_SxCR_MSIZE_0 |
                    (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
         (uint32_t)OW_PORT_DMA_CR_TX);
+#elif defined(STM32H7)
+    /* Same transfer classes as F4 (direct-mode streams), but no CHSEL: the
+     * DMAMUX channels above own the routing. */
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
+                   DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX16);
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_RX8);
+    TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 & DMA_SxCR_PSIZE_0));
+    TEST_ASSERT_EQUAL_UINT32(
+        (uint32_t)(DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
+                   DMA_SxCR_MSIZE_0 | DMA_SxCR_EN),
+        (uint32_t)OW_PORT_DMA_CR_TX);
+    /* DMAMUX routing (no CHSEL on H7): feed <- TIM1_CH2, capture <-
+     * TIM1_CH4. Double-sourced from the RM0433 DMAMUX1 table and CubeH7. */
+    TEST_ASSERT_EQUAL_UINT32(12u, (uint32_t)OW_PORT_DMAMUX_REQ_TIM1_CC2);
+    TEST_ASSERT_EQUAL_UINT32(14u, (uint32_t)OW_PORT_DMAMUX_REQ_TIM1_CH4);
 #else
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN),

@@ -176,7 +176,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
                              mock_feed_ch.CTR2);
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
-#if defined(STM32F4)
+#if defined(STM32F4) || defined(STM32H7)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0, mock_feed_ch.CCR); /* 16-bit cells */
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0, mock_feed_ch.CCR);
@@ -355,7 +355,7 @@ void test_dma_rx_byte_read_8bit_minc(void) {
     TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
-#if defined(STM32F4)
+#if defined(STM32F4) || defined(STM32H7)
     TEST_ASSERT_BITS_LOW(DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR); /* 8-bit direct-mode width */
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_PSIZE_0, mock_dma1_ch4.CCR);

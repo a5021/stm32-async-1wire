@@ -12,7 +12,7 @@
  *    PlatformIO / CubeMX path must reach the port core's SystemCoreClock
  *    auto-path instead of a silent fallback.
  *  Selecting a family through the raw family macro (STM32F0/F1/F3/F4/G0/
- *  G4/H5 - for F4/G4/H5 also the concrete device spellings) must still
+ *  G4/H5/H7 - for F4/G4/H5/H7 also the concrete device spellings) must still
  *  resolve the OW_FAMILY_* token in both modes. Built per OW_TARGET
  *  by the test-clocks Makefile target.
  * ============================================================ */
@@ -100,6 +100,10 @@
 #if OW_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
 #endif
+#elif defined(STM32H7)
+#if OW_SYSCLK_MHZ != 240
+#error "H7 family-macro selection must default to a 240 MHz system clock"
+#endif
 #else
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
@@ -123,6 +127,13 @@
  * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
 #if (OW_SYSCLK_MHZ) > (OW_H5_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#elif defined(STM32H7)
+/* Same pair for H7 (OW_H7_MAX_SYSCLK_MHZ, owned by the ow_board.h H7 section):
+ * the driver tops out at 240MHz (TIM1 == SYSCLK with D2PPRE2=/2), not the
+ * 480MHz silicon cap; the 240MHz HSE+PLL default sits exactly on it. */
+#if (OW_SYSCLK_MHZ) > (OW_H7_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_H7_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #endif
 
@@ -180,6 +191,33 @@
 #endif
 /* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
 #endif /* STM32G4 */
+#if defined(STM32H7)
+/* The H7 PLL aims its input at exactly 5MHz (M = HSE/5 = 5 for the 25MHz
+ * WeAct crystal, DIVM field = divider, mid-window of the 4..8MHz RGE range)
+ * with N = 96 and the P divider at 2, so the VCO equals 480MHz (inside the
+ * 192..836MHz wide range, RM0433). The crystal is a board property (the
+ * ow_board.h H7 section defaults it to 25); a wrong value is not a compile
+ * error - the PLL simply never locks - which is why the input frequency
+ * itself is checked here and not just trusted from the M macro.
+ *
+ * The design point is pinned without restating the macro: whatever M the code
+ * computes, HSE/M must come out at 5MHz for a crystal that divides by 5. */
+#if !defined(OW_HSE_MHZ)
+#error "OW_HSE_MHZ must be defined for the H7 backend (the ow_board.h H7 section defaults it to 25)"
+#endif
+#if (OW_HSE_MHZ) < 4 || (OW_HSE_MHZ) > 48
+#error "H7: the HSE oscillator takes a 4..48MHz crystal (DS12110)"
+#endif
+#if (OW_HSE_MHZ) % 5 != 0
+#error "H7: the PLL input is HSE/5 = 5MHz by design, so the crystal must divide by 5"
+#endif
+#if ((OW_HSE_MHZ) / ((OW_HSE_MHZ) / 5u)) != 5
+#error "H7: HSE divided by the M divider must give the 5MHz PLL input"
+#endif
+#if ((OW_HSE_MHZ) / 5u * 96u) < 192 || ((OW_HSE_MHZ) / 5u * 96u) > 836
+#error "H7: at a 5MHz PLL input the VCO equals 5*96 = 480MHz, which must stay in 192..836MHz"
+#endif
+#endif /* STM32H7 */
 #else /* !defined(OW_SYSCLK_VALUES_CHECK): no-default mode -------------------
  * Compiled WITHOUT -DOW_SYSCLK_MHZ: proves no family header smuggles
  * a clock default back in, and that the family macro still resolves the
@@ -190,7 +228,7 @@
 #ifdef OW_SYSCLK_MHZ
 #error "test_sysclk_fallback: OW_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
 #endif
-#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_H5)
+#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 #endif /* OW_SYSCLK_VALUES_CHECK */

@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H5)
+#if defined(STM32F4) || defined(STM32G4) || defined(STM32H5) || defined(STM32H7)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -450,6 +450,67 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
                                      (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
 #endif
+#elif defined(STM32H7)
+#if (OW_SYSCLK_MHZ) == 240
+    /* 240MHz HSE+PLL. Preset the status flags the path waits on: VOSRDY,
+     * HSERDY, PLL1RDY. SWS is preset to PLL1 because the mock does not
+     * mirror SW -> SWS; the switch write preserves the SWS field. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR = RCC_CFGR_SWS_PLL1;
+    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* VOS1 (VOS = 11) raised before the clock: 240MHz is above the 200MHz
+     * VOS3 ceiling, so running it in the reset scale is out of spec. */
+    TEST_ASSERT_EQUAL_UINT32(PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0,
+                             mock_pwr.D3CR & PWR_D3CR_VOS);
+    /* 4 wait states (DS12110 flash table, HCLK = 240MHz in VOS1). */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_LATENCY_4WS, mock_flash.ACR);
+    /* SYSCLK switched to PLL1 (SW = 011). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_SW_PLL1, mock_rcc.CFGR & RCC_CFGR_SW);
+    /* APB prescalers: D2PPRE1/D2PPRE2/D3PPRE = /2 (PCLK1/PCLK2/APB4 =
+     * 120MHz), so the timer clock doubles to 2 x 120 = 240MHz = SYSCLK;
+     * D1CPRE/HPRE stay /1 at reset, so HCLK = SYSCLK. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_D2CFGR_D2PPRE1_DIV2,
+                             mock_rcc.D2CFGR & RCC_D2CFGR_D2PPRE1);
+    TEST_ASSERT_EQUAL_UINT32(RCC_D2CFGR_D2PPRE2_DIV2,
+                             mock_rcc.D2CFGR & RCC_D2CFGR_D2PPRE2);
+    TEST_ASSERT_EQUAL_UINT32(RCC_D3CFGR_D3PPRE_DIV2,
+                             mock_rcc.D3CFGR & RCC_D3CFGR_D3PPRE);
+    /* The PLL input is pinned at HSE/5 = 5MHz, so M = HSE/5, N = 96
+     * (480MHz VCO), P = 2. Source is HSE, RGE = 10 (the 4..8MHz window,
+     * RGE_2 - the H7 encoding differs from H5's), wide VCO (VCOSEL clear)
+     * and only the P output enabled: SYSCLK is taken from PLL1P, so R/Q
+     * stay off. Asserted as literals rather than the code's own formulas,
+     * because a wrong crystal is exactly what these silently break.
+     * Field widths: DIVM 6 bits, N1 9, P1 7. */
+    TEST_ASSERT_EQUAL_UINT32((OW_HSE_MHZ) / 5u,
+                             (mock_rcc.PLLCKSELR >> RCC_PLLCKSELR_DIVM1_Pos) & 0x3Fu);
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCKSELR_PLLSRC_HSE,
+                             mock_rcc.PLLCKSELR & RCC_PLLCKSELR_PLLSRC);
+    TEST_ASSERT_EQUAL_UINT32(95u,
+                             (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_N1_Pos) & 0x1FFu);
+    TEST_ASSERT_EQUAL_UINT32(1u,
+                             (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_P1_Pos) & 0x7Fu);
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLL1RGE_2 | RCC_PLLCFGR_DIVP1EN,
+                             mock_rcc.PLLCFGR);
+#elif (OW_SYSCLK_MHZ) == 64
+    /* 64MHz raw HSI: no waits to preset (nothing can time out), no PLL, no
+     * VOS change. The divider goes to /1, flash gets a conservative latency,
+     * everything else stays at reset (/1 prescalers, HSI selected). */
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSIDIV);
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_LATENCY_4WS, mock_flash.ACR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D1CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D2CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D3CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCKSELR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
+#else
+#error "test_timing: H7 supports 240 (HSE+PLL) and 64 (raw HSI)"
+#endif
 #endif
 }
 
@@ -600,6 +661,39 @@ void test_h5_console_baud_divisor(void) {
 }
 #endif /* STM32H5 */
 
+#if defined(STM32H7)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  Same gap the G4/H5 divisor checks close: the BRR write lives in
+ *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
+ *  build has ever compiled it on any family. The H7 backend divides APB2
+ *  by 2, so PCLK2 = SYSCLK/2 (120MHz at 240MHz); asserting the app.h value
+ *  pins that. At 120MHz the divisor is 1042 - a SYSCLK-sized mistake (using
+ *  240MHz straight) would give 2083 instead. On raw HSI every prescaler
+ *  stays /1, so PCLK2 = SYSCLK (64MHz, divisor 556).
+ *-------------------------------------------------------------*/
+void test_h7_console_baud_divisor(void) {
+    uint32_t brr_expected;
+
+#if (OW_SYSCLK_MHZ) == 240
+    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ) / 2u, (uint32_t)OW_H7_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = (((OW_SYSCLK_MHZ) / 2u) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H7_CONSOLE_BRR);
+    TEST_ASSERT_EQUAL_UINT32(1042u, brr_expected);
+#else
+    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_H7_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H7_CONSOLE_BRR);
+    TEST_ASSERT_EQUAL_UINT32(556u, brr_expected);
+#endif
+}
+#endif /* STM32H7 */
+
 void run_test_timing(void) {
     TEST_RUN(test_timing_reset_programs_timeout_and_pulse);
     TEST_RUN(test_timing_command_programs_slot_period);
@@ -620,6 +714,9 @@ void run_test_timing(void) {
 #endif
 #if defined(STM32H5)
     TEST_RUN(test_h5_console_baud_divisor);
+#endif
+#if defined(STM32H7)
+    TEST_RUN(test_h7_console_baud_divisor);
 #endif
     TEST_RUN(test_search_start_ignored_while_running);
 }

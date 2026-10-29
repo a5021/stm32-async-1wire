@@ -122,8 +122,8 @@ void test_capture_8bit_config(void) {
     uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
     TEST_ASSERT_TRUE((ccr & DMA_CCR_MINC) != 0);
-#if defined(STM32F4)
-    /* F4 direct mode forces the memory width to the 8-bit PSIZE */
+#if defined(STM32F4) || defined(STM32H7)
+    /* F4/H7 direct mode forces the memory width to the 8-bit PSIZE */
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) == 0);
 #else
     TEST_ASSERT_TRUE((ccr & DMA_CCR_PSIZE_0) != 0);
