@@ -179,14 +179,17 @@ $(function(){initNavTree('ow__board_8h_source.html','',''); });
 <div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span><span class="preprocessor">#elif defined(OW_FAMILY_H7)</span></div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span><span class="preprocessor">#if !defined(OW_H7_MAX_SYSCLK_MHZ)</span></div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#define OW_H7_MAX_SYSCLK_MHZ 240 </span><span class="comment">/* driver ceiling: TIM1 == SYSCLK needs D2PPRE2=/2, so 2 x PCLK2 tops out at 2 x 120MHz, not the 480MHz silicon cap */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#define OW_H7_MAX_SYSCLK_MHZ 480 </span><span class="comment">/* Rev V H74x/H75x core ceiling; 480MHz requires VOS0 */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span><span class="preprocessor">#define OW_HSE_MHZ 25 </span><span class="comment">/* WeAct Studio STM32H7XX board: 25MHz crystal */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span><span class="preprocessor">#if !defined(OW_H7_MAX_TIM1_MHZ)</span></div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span><span class="preprocessor">#define OW_H7_MAX_TIM1_MHZ 240 </span><span class="comment">/* APB2 &lt;=120MHz, timer x2; this is the 1-Wire timing ceiling */</span><span class="preprocessor"></span></div>
 <div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span> </div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span><span class="preprocessor">#endif </span><span class="comment">/* OW_BOARD_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="preprocessor">#if !defined(OW_HSE_MHZ)</span></div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span><span class="preprocessor">#define OW_HSE_MHZ 25 </span><span class="comment">/* WeAct Studio STM32H7XX board: 25MHz crystal */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span> </div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="preprocessor">#endif </span><span class="comment">/* OW_BOARD_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aow__board_8h_html_a35b3e90dbfdcc12fdb0c11f4af9647dd"><div class="ttname"><a href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd">ow_pulse_t</a></div><div class="ttdeci">uint8_t ow_pulse_t</div><div class="ttdoc">DMA feed entry width of the active family.</div><div class="ttdef"><b>Definition</b> ow_board.h:79</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

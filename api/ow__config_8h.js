@@ -10,6 +10,8 @@ var ow__config_8h =
     [ "OW_BUS_DRIVE_MEDIUM", "ow__config_8h.html#a65a1ddbfd6dd80bfe7c9dd936b2deae5", null ],
     [ "OW_BUS_DRIVE_STRONG", "ow__config_8h.html#a13fba53645cd8e4b8f63368f08a36360", null ],
     [ "OW_BUS_DRIVE_WEAK", "ow__config_8h.html#ac9acff48ab5c0d41bc1ed88afe58f80d", null ],
+    [ "OW_CONFIG_SYSCLK_MHZ", "ow__config_8h.html#a074e6e8f57a756da90d8dd4b8533f46b", null ],
+    [ "OW_CONFIG_TIM1_MHZ", "ow__config_8h.html#a88ba1fd533e4ab1531cc910a370ffbea", null ],
     [ "OW_CONFIG_TOKEN", "ow__config_8h.html#a7fbd3fb7322979c9fe3a03fd4d39e1c5", null ],
     [ "OW_DRIVE_ACTIVE", "ow__config_8h.html#a65c4f063ff3b00e9625c2febd7d6fe20", null ],
     [ "OW_LOW_POWER", "ow__config_8h.html#a3289a910c64682ab8868ef0dd64de8c0", null ],
