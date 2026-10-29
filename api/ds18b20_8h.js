@@ -19,10 +19,6 @@ var ds18b20_8h =
     [ "DS18B20_TEMP_ERROR_GENERIC", "group__DS18B20__Exported__Constants.html#gacb056feb6f92ec25c238dfee07838fa6", null ],
     [ "DS18B20_TEMP_ERROR_NO_SENSOR", "group__DS18B20__Exported__Constants.html#ga4256ca7935fa85d9512fa461fb1c7b3a", null ],
     [ "DS18B20_WRITE_SCRATCHPAD", "group__DS18B20__Exported__Constants.html#ga0fe43cfc8bf6312ce78d1a065e427f6b", null ],
-    [ "STM32_ASYNC_1WIRE_VERSION_MAJOR", "ds18b20_8h.html#ae902f9e9e581ad5c31f6fa394fdabce8", null ],
-    [ "STM32_ASYNC_1WIRE_VERSION_MINOR", "ds18b20_8h.html#ae4187096d177aa6733d53cd1edbcea7c", null ],
-    [ "STM32_ASYNC_1WIRE_VERSION_PATCH", "ds18b20_8h.html#aa558359da455aa9621b0cbe76a55078e", null ],
-    [ "STM32_ASYNC_1WIRE_VERSION_STRING", "ds18b20_8h.html#aa2ee7eda6f8678729d1cf3f7f9eb8002", null ],
     [ "ds18b20_search_sink_t", "group__DS18B20__Search.html#ga732cc9db6d703785867b46e466a0b4bb", null ],
     [ "ds18b20_state_t", "ds18b20_8h.html#a4676a2c5c222f42799abdcda5649c2ab", [
       [ "DS18B20_ST_IDLE", "ds18b20_8h.html#a4676a2c5c222f42799abdcda5649c2abaf7b1766f6508749206ec370cb6130203", null ],

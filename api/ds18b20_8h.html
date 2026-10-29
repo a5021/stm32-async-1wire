@@ -96,17 +96,13 @@ $(function(){initNavTree('ds18b20_8h.html','',''); });
 <p>Non-blocking DS18B20 temperature sensor driver for STM32.  
 <a href="#details">More...</a></p>
 <div class="textblock"><code>#include &quot;<a class="el" href="ow__config_8h_source.html">ow_config.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="ow__version_8h_source.html">ow_version.h</a>&quot;</code><br />
 <code>#include &lt;stdint.h&gt;</code><br />
 </div>
 <p><a href="ds18b20_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-define-members" class="groupheader"><a id="define-members" name="define-members"></a>
 Macros</h2></td></tr>
-<tr class="memitem:ae902f9e9e581ad5c31f6fa394fdabce8" id="r_ae902f9e9e581ad5c31f6fa394fdabce8"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae902f9e9e581ad5c31f6fa394fdabce8">STM32_ASYNC_1WIRE_VERSION_MAJOR</a>&#160;&#160;&#160;2</td></tr>
-<tr class="memdesc:ae902f9e9e581ad5c31f6fa394fdabce8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Library version (semantic versioning).  <br /></td></tr>
-<tr class="memitem:ae4187096d177aa6733d53cd1edbcea7c" id="r_ae4187096d177aa6733d53cd1edbcea7c"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae4187096d177aa6733d53cd1edbcea7c">STM32_ASYNC_1WIRE_VERSION_MINOR</a>&#160;&#160;&#160;4</td></tr>
-<tr class="memitem:aa558359da455aa9621b0cbe76a55078e" id="r_aa558359da455aa9621b0cbe76a55078e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa558359da455aa9621b0cbe76a55078e">STM32_ASYNC_1WIRE_VERSION_PATCH</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memitem:aa2ee7eda6f8678729d1cf3f7f9eb8002" id="r_aa2ee7eda6f8678729d1cf3f7f9eb8002"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa2ee7eda6f8678729d1cf3f7f9eb8002">STM32_ASYNC_1WIRE_VERSION_STRING</a>&#160;&#160;&#160;&quot;2.4.0&quot;</td></tr>
 <tr class="memitem:gacb056feb6f92ec25c238dfee07838fa6" id="r_gacb056feb6f92ec25c238dfee07838fa6"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Constants.html#gacb056feb6f92ec25c238dfee07838fa6">DS18B20_TEMP_ERROR_GENERIC</a>&#160;&#160;&#160;INT16_MIN</td></tr>
 <tr class="memdesc:gacb056feb6f92ec25c238dfee07838fa6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Special error values (0.1°C units, outside -550..1250 range).  <br /></td></tr>
 <tr class="memitem:ga4256ca7935fa85d9512fa461fb1c7b3a" id="r_ga4256ca7935fa85d9512fa461fb1c7b3a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS18B20__Exported__Constants.html#ga4256ca7935fa85d9512fa461fb1c7b3a">DS18B20_TEMP_ERROR_NO_SENSOR</a>&#160;&#160;&#160;(INT16_MIN + 1)</td></tr>
@@ -258,66 +254,7 @@ Functions</h2></td></tr>
 <li>(Optional) Run the non-blocking device search (ds18b20_search_*) to get the ROM addresses to pass to <a class="el" href="group__DS18B20__Exported__Functions.html#ga2e416838ae0cf8fc9a5973cf647da75f" title="Select which DS18B20 device to measure by its ROM address.">ds18b20_select()</a> before measuring</li>
 <li>Implement weak callbacks <a class="el" href="group__DS18B20__Exported__Functions.html#ga5dbe17cf39bea12578eeab800338851c" title="Busy indicator callback (weak).">ds18b20_busy()</a> and <a class="el" href="group__DS18B20__Exported__Functions.html#gadb82e4ec5ca5c750a3981583618c5ce3" title="Measurement complete callback (weak).">ds18b20_complete()</a> to handle status indication and temperature results </li>
 </ol>
-</div><a name="doc-define-members" id="doc-define-members"></a><h2 id="header-doc-define-members" class="groupheader">Macro Definition Documentation</h2>
-<a id="ae902f9e9e581ad5c31f6fa394fdabce8" name="ae902f9e9e581ad5c31f6fa394fdabce8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae902f9e9e581ad5c31f6fa394fdabce8">&#9670;&#160;</a></span>STM32_ASYNC_1WIRE_VERSION_MAJOR</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define STM32_ASYNC_1WIRE_VERSION_MAJOR&#160;&#160;&#160;2</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Library version (semantic versioning). </p>
-
-</div>
-</div>
-<a id="ae4187096d177aa6733d53cd1edbcea7c" name="ae4187096d177aa6733d53cd1edbcea7c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae4187096d177aa6733d53cd1edbcea7c">&#9670;&#160;</a></span>STM32_ASYNC_1WIRE_VERSION_MINOR</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define STM32_ASYNC_1WIRE_VERSION_MINOR&#160;&#160;&#160;4</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="aa558359da455aa9621b0cbe76a55078e" name="aa558359da455aa9621b0cbe76a55078e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa558359da455aa9621b0cbe76a55078e">&#9670;&#160;</a></span>STM32_ASYNC_1WIRE_VERSION_PATCH</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define STM32_ASYNC_1WIRE_VERSION_PATCH&#160;&#160;&#160;0</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="aa2ee7eda6f8678729d1cf3f7f9eb8002" name="aa2ee7eda6f8678729d1cf3f7f9eb8002"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa2ee7eda6f8678729d1cf3f7f9eb8002">&#9670;&#160;</a></span>STM32_ASYNC_1WIRE_VERSION_STRING</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define STM32_ASYNC_1WIRE_VERSION_STRING&#160;&#160;&#160;&quot;2.4.0&quot;</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a name="doc-enum-members" id="doc-enum-members"></a><h2 id="header-doc-enum-members" class="groupheader">Enumeration Type Documentation</h2>
+</div><a name="doc-enum-members" id="doc-enum-members"></a><h2 id="header-doc-enum-members" class="groupheader">Enumeration Type Documentation</h2>
 <a id="a4676a2c5c222f42799abdcda5649c2ab" name="a4676a2c5c222f42799abdcda5649c2ab"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4676a2c5c222f42799abdcda5649c2ab">&#9670;&#160;</a></span>ds18b20_state_t</h2>
 

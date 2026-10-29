@@ -5,5 +5,6 @@ var dir_bfccd401955b95cf8c75461437045ac0 =
     [ "onewire.h", "onewire_8h.html", "onewire_8h" ],
     [ "ow_board.h", "ow__board_8h.html", "ow__board_8h" ],
     [ "ow_config.h", "ow__config_8h.html", "ow__config_8h" ],
-    [ "ow_stats.h", "ow__stats_8h.html", "ow__stats_8h" ]
+    [ "ow_stats.h", "ow__stats_8h.html", "ow__stats_8h" ],
+    [ "ow_version.h", "ow__version_8h.html", "ow__version_8h" ]
 ];
