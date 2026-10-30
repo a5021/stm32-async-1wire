@@ -579,6 +579,16 @@ jobs:
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=8 HSE_MHZ=8
       - name: Build release (H5 backend, 250MHz HSE+PLL1)
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=250 HSE_MHZ=8
+      # The H743's three clocks are separate app.c branches: 240MHz HSE+PLL1 in
+      # VOS0, 480/240 split (SYSCLK 480, TIM1 240), and 64MHz raw HSI. Each gets
+      # its own `make clean` so the run cannot pass on the previous clock's
+      # objects.
+      - name: Build release (H7 backend, 240MHz HSE+PLL1)
+        run: make clean && make OW_MCU=STM32H743xx
+      - name: Build release (H7 backend, 480MHz SYSCLK / 240MHz TIM1)
+        run: make clean && make OW_MCU=STM32H743xx SYSCLK_MHZ=480 TIM1_MHZ=240
+      - name: Build release (H7 backend, 64MHz raw HSI)
+        run: make clean && make OW_MCU=STM32H743xx SYSCLK_MHZ=64 TIM1_MHZ=64
       # The console pin and UART are firmware-only code: hardware_init() is
       # inside #if !defined(DS18B20_TEST_HARNESS), so no host build compiles it
       # on any family and a break here reaches a tag unnoticed. These three
