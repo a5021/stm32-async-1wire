@@ -434,7 +434,7 @@ jobs:
             - **Accuracy**: 0.1 °C resolution, ±0.5 °C typical, one reading every ~0.76 s
             - **CRC-8 validation** on every 9-byte scratchpad read
             - **Weak callbacks** `ds18b20_busy()` / `ds18b20_complete()`
-            - **Tooling**: CI (clang-format, cppcheck, GCC -fanalyzer), host test suite for all backends (`make test`, `make test-f0`, `make test-g0`) plus a low-power suite (`make test-lowpower`), VSCode J-Link/ST-Link debug configs
+            - **Tooling**: CI (clang-format, cppcheck, GCC -fanalyzer), host test suite for all backends (`make test` with per-family wrappers `make test-<fam>`) plus low-power variants (`make test-lowpower-<fam>`), VSCode J-Link/ST-Link debug configs
 
             ## Getting started
 
