@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-30 04:22:42</td>
+            <td class="headerValue">2026-10-30 04:22:50</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.8&nbsp;%</td>
@@ -895,7 +895,7 @@
 <span id="L824"><span class="lineNum">     824</span>                 :             : /* H7 startup, deliberately ordered from reset state rather than relying on</span>
 <span id="L825"><span class="lineNum">     825</span>                 :             :  * debugger/previous-firmware power configuration:</span>
 <span id="L826"><span class="lineNum">     826</span>                 :             :  *</span>
-<span id="L827"><span class="lineNum">     827</span>                 :             :  *  1. Confirm a supported H74x/H75x Rev V device. HCLK=240MHz needs VOS0,</span>
+<span id="L827"><span class="lineNum">     827</span>                 :             :  *  1. Confirm a supported H743 Rev V device. HCLK=240MHz needs VOS0,</span>
 <span id="L828"><span class="lineNum">     828</span>                 :             :  *     which is only available on Rev V; older revisions must not run it.</span>
 <span id="L829"><span class="lineNum">     829</span>                 :             :  *  2. Select the board's LDO supply in PWR_CR3 and wait for ACTVOSRDY. At</span>
 <span id="L830"><span class="lineNum">     830</span>                 :             :  *     power-on SCUEN is set and ACTVOSRDY is clear (limited Run* mode); VOS</span>
@@ -947,7 +947,7 @@
 <span id="L876"><span class="lineNum">     876</span>                 :<span class="tlaGNC">          36 :     ow_clock_ok = 1u;</span></span>
 <span id="L877"><span class="lineNum">     877</span>                 :<span class="tlaGNC">          36 :     ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;</span></span>
 <span id="L878"><span class="lineNum">     878</span>                 :             : </span>
-<span id="L879"><span class="lineNum">     879</span>                 :             :     /* 240MHz HCLK requires VOS0 on H74x/H75x, available only on Rev V.</span>
+<span id="L879"><span class="lineNum">     879</span>                 :             :     /* 240MHz HCLK requires VOS0 on H743, available only on Rev V.</span>
 <span id="L880"><span class="lineNum">     880</span>                 :             :      * DBGMCU_IDCODE is common to H743 (DEV_ID=0x450); REV_ID=0x2003 is</span>
 <span id="L881"><span class="lineNum">     881</span>                 :             :      * Rev V. Reject other revisions rather than running out of spec. */</span>
 <span id="L882"><span class="lineNum">     882</span>         [<span class="tlaGBC" title="Branch 0 was taken 36 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">          36 :     if ((DBGMCU-&gt;IDCODE &amp; DBGMCU_IDCODE_DEV_ID) != 0x450u ||</span></span>
@@ -989,7 +989,7 @@
 <span id="L918"><span class="lineNum">     918</span>                 :             :         }</span>
 <span id="L919"><span class="lineNum">     919</span>                 :             :     }</span>
 <span id="L920"><span class="lineNum">     920</span>                 :             : </span>
-<span id="L921"><span class="lineNum">     921</span>                 :             :     /* H74x/H75x Rev V VOS0 entry must pass through VOS1 first. */</span>
+<span id="L921"><span class="lineNum">     921</span>                 :             :     /* H743 Rev V VOS0 entry must pass through VOS1 first. */</span>
 <span id="L922"><span class="lineNum">     922</span>                 :<span class="tlaGNC">          24 :     PWR-&gt;D3CR = (PWR-&gt;D3CR &amp; ~PWR_D3CR_VOS) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;</span></span>
 <span id="L923"><span class="lineNum">     923</span>         [<span class="tlaGBC" title="Branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          24 :     if (!ow_wait_flag(&amp;PWR-&gt;CSR1, PWR_CSR1_ACTVOSRDY)) {</span></span>
 <span id="L924"><span class="lineNum">     924</span>                 :<span class="tlaGNC">           3 :         ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;</span></span>
