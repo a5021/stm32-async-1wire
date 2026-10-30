@@ -185,6 +185,8 @@ jobs:
             make test-f3 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "h5" ]; then
             make test-h5 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "h7" ]; then
+            make test-h7 COVERAGE=1
           else
             make test COVERAGE=1
           fi
@@ -202,6 +204,8 @@ jobs:
             make test-lowpower-f3 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "h5" ]; then
             make test-lowpower-h5 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "h7" ]; then
+            make test-lowpower-h7 COVERAGE=1
           else
             make test-lowpower COVERAGE=1
           fi
