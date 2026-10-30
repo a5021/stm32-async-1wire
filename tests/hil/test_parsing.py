@@ -211,6 +211,39 @@ def test_log_identity():
           fields.get("uart_tx") ==
           (str(common.UART_TX_SIZE) if common.UART_TX_SIZE else "shipped"))
 
+    # A split clock is part of the identity only when SYSCLK != TIM1; equal
+    # clocks omit the field so the common case stays a single word.
+    saved_sysclk = os.environ.get("HIL_SYSCLK_MHZ")
+    saved_tim1 = os.environ.get("HIL_TIM1_MHZ")
+    os.environ["HIL_SYSCLK_MHZ"] = "240"
+    os.environ["HIL_TIM1_MHZ"] = "240"
+    header2 = common.log_header("ds2431", "8_ds2431", mcu="STM32F103xB")
+    fields2 = dict(
+        word.split("=", 1)
+        for line in header2
+        if line.startswith("# hil: ")
+        for word in line[6:].split()
+    )
+    check("equal clocks omit tim1", "tim1" not in fields2)
+    os.environ["HIL_SYSCLK_MHZ"] = "480"
+    os.environ["HIL_TIM1_MHZ"] = "240"
+    header3 = common.log_header("ds2431", "8_ds2431", mcu="STM32F103xB")
+    fields3 = dict(
+        word.split("=", 1)
+        for line in header3
+        if line.startswith("# hil: ")
+        for word in line[6:].split()
+    )
+    check("split clocks carry tim1", fields3.get("tim1") == "240MHz")
+    if saved_sysclk is None:
+        os.environ.pop("HIL_SYSCLK_MHZ", None)
+    else:
+        os.environ["HIL_SYSCLK_MHZ"] = saved_sysclk
+    if saved_tim1 is None:
+        os.environ.pop("HIL_TIM1_MHZ", None)
+    else:
+        os.environ["HIL_TIM1_MHZ"] = saved_tim1
+
     saved_mcu, saved_ext = common.MCU, common.BUILD_EXT
     saved_env = os.environ.pop("HIL_EXT", None)
     try:

@@ -308,7 +308,7 @@ def test_a_hil_header_is_read_back():
     text = (
         "# ds2431\n"
         "# hil: script=ds2431 app=8_ds2431 mcu=STM32F103xB chip=f103xb "
-        "sysclk=72MHz\n"
+        "sysclk=480MHz tim1=240MHz\n"
         "# hil: fw=2.4.0 commit=ac512b3 dirty=no\n"
         "[1.00] DS2431 8_ds2431 starting...\n"
     )
@@ -319,7 +319,8 @@ def test_a_hil_header_is_read_back():
               facts.get("fw") == "2.4.0" and facts.get("commit") == "ac512b3")
         check("the bench and the clock are named",
               facts.get("mcu") == "STM32F103xB"
-              and facts.get("sysclk") == "72MHz")
+              and facts.get("sysclk") == "480MHz"
+              and facts.get("tim1") == "240MHz")
         check("the header does not confuse the traffic parser",
               la_decode.parse_log(path)[0] == set())
     finally:
