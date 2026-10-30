@@ -126,28 +126,34 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 
 /* --- H7 console divisor ----------------------------------------------------
  *
- * Same shape as F4: USART1 is on APB2 with D2PPRE2=/2 at 240MHz, so
- * PCLK2 = SYSCLK/2 (120MHz) and the divisor is one line. It still lives here
+ * USART1 is on APB2. In both H7 PLL modes PCLK2 is 120MHz: at 240/240,
+ * HCLK=240 and APB2=/2; at 480/240, HPRE=/2 makes HCLK=240 before APB2=/2.
+ * PCLK2 follows the timer kernel clock, not the CPU frequency. In raw HSI
+ * mode all divisors stay /1. It still lives here
  * rather than in app.c for the same reason: the register write it feeds is
  * inside hardware_init(), which no host build compiles, so this is the host
  * suite's only reach over it (test_timing.c::test_h7_console_baud_divisor).
- * The single supported clock divides evenly; this says so. */
+ * the selected PCLK2 is integral MHz; this says so. */
 #if defined(OW_FAMILY_H7)
 /** @brief APB2 peripheral clock in MHz (USART1 console path) */
-#if (OW_SYSCLK_MHZ) == 240
-/* APB2 is /2 at 240MHz, so PCLK2 = SYSCLK/2 (120MHz). */
-#define OW_H7_PCLK2_MHZ ((OW_SYSCLK_MHZ) / 2u)
-#else
+#if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
+/* TIM1=2*PCLK2 with APB2=/2, so PCLK2 = TIM1/2 = 120MHz. */
+#define OW_H7_PCLK2_MHZ ((OW_TIM1_MHZ) / 2u)
+#elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
 /* Raw HSI: every prescaler stays /1 at reset, so PCLK2 = SYSCLK. */
 #define OW_H7_PCLK2_MHZ ((OW_SYSCLK_MHZ))
+#else
+#error "H7 console clock supports 240/240, 480/240, or raw 64/64 MHz only"
 #endif
 /** @brief Console BRR on USART1/APB2 at 115200 baud */
 #define OW_H7_CONSOLE_BRR USART_BRR_CALC(OW_H7_PCLK2_MHZ * 1000000u, 115200)
-/* PCLK reaches USART_BRR_CALC as integer MHz, so a clock that is not a whole
- * multiple of its prescaler would be rounded here and quietly shift the baud
- * rate. The single supported H7 clock divides evenly; this says so. */
-_Static_assert((OW_SYSCLK_MHZ) % 2 == 0,
-               "H7: PCLK2 is derived as SYSCLK/2 in integer MHz, so SYSCLK must be even");
+#if (OW_SYSCLK_MHZ) == 64
+_Static_assert((OW_H7_PCLK2_MHZ) == (OW_TIM1_MHZ),
+               "H7: raw-HSI APB2 and TIM1 clocks must match");
+#else
+_Static_assert((OW_H7_PCLK2_MHZ) * 2u == (OW_TIM1_MHZ),
+               "H7: APB2 timer clock must be 2 x PCLK2");
+#endif
 #endif /* OW_FAMILY_H7 */
 
 /**
@@ -185,7 +191,7 @@ void configure_system_clock(void);
  * @note F4/G4/H5/H7 report a clock that never came up through this rather than through a
  *       return value: changing configure_system_clock()'s signature changed
  *       codegen in the families that cannot fail, for no benefit. 1 = running,
- *       0 = an HSE or PLL wait timed out.
+ *       0 = a bounded oscillator, regulator/supply, or clock-switch wait failed.
  */
 uint8_t app_clock_ok(void);
 #endif

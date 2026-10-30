@@ -18,7 +18,6 @@
 #include "stm32h5xx.h"
 #elif defined(OW_FAMILY_H7)
 #include "stm32h7xx.h"
-#elif defined(OW_FAMILY_H7)
 #include "system_stm32h7xx.h"
 #else
 #include "stm32f1xx.h"
@@ -238,6 +237,22 @@ void ow_stats_tx_enqueue(char c) {
  * can fail the same way. */
 static uint8_t ow_clock_ok = 1u;
 
+#if defined(OW_FAMILY_H7)
+enum {
+    OW_H7_CLOCK_FAIL_NONE = 0u,
+    OW_H7_CLOCK_FAIL_DEVICE_REVISION,
+    OW_H7_CLOCK_FAIL_SUPPLY_CONFIG,
+    OW_H7_CLOCK_FAIL_SUPPLY_READY,
+    OW_H7_CLOCK_FAIL_VOS1_READY,
+    OW_H7_CLOCK_FAIL_VOS0_READY,
+    OW_H7_CLOCK_FAIL_HSE_READY,
+    OW_H7_CLOCK_FAIL_PLL1_READY,
+    OW_H7_CLOCK_FAIL_SYSCLK_SWITCH,
+    OW_H7_CLOCK_FAIL_CLOCK_RATE
+};
+static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
+#endif
+
 /* The wait helper is excluded for the one clock on each family that configures
  * nothing - the MCU is already on its reset oscillator - and so has no wait to
  * bound, which -Werror would otherwise report as an unused function. That
@@ -255,8 +270,8 @@ static uint8_t ow_clock_ok = 1u;
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 16)
 #endif
 #if OW_CLOCK_NEEDS_WAIT
-/* Bounded wait for a hardware flag, for the two waits that can otherwise never
- * end. Nothing time-based is running yet - SysTick starts in app_time_init(),
+/* Bounded wait for a hardware flag. Nothing time-based is running yet -
+ * SysTick starts in app_time_init(),
  * after the clock - so this is an iteration count rather than a calibrated
  * timeout: generous enough that a real PLL always wins, small enough that a
  * missing external clock stops the boot instead of hanging with a silent
@@ -268,6 +283,15 @@ static uint8_t ow_wait_flag(volatile uint32_t* reg, uint32_t bit) {
         n--;
     return (*reg & bit) ? 1u : 0u;
 }
+#if defined(OW_FAMILY_H7) && ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && \
+    (OW_TIM1_MHZ) == 240
+static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t value) {
+    uint32_t n = OW_CLOCK_FLAG_TIMEOUT;
+    while (n && ((*reg & mask) != value))
+        n--;
+    return ((*reg & mask) == value) ? 1u : 0u;
+}
+#endif
 #endif
 #endif
 
@@ -789,64 +813,131 @@ void configure_system_clock(void) {
 #error "Unsupported OW_SYSCLK_MHZ for H5: use 64 (raw HSI), 250 (HSE+PLL) or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #elif defined(OW_FAMILY_H7)
-/* STM32H7 clock tree: HSE+PLL to the 240MHz TIM1-invariant ceiling.
+/* H7 startup, deliberately ordered from reset state rather than relying on
+ * debugger/previous-firmware power configuration:
  *
- * The invariant needs TIM1 == SYSCLK; TIM1 hangs off APB2, whose timer
- * clock doubles to 2 x PCLK2 when the prescaler is not /1 (same mechanism
- * as F4). APB2 tops out at 120MHz here, so the ceiling is 240MHz with
- * D2PPRE2=/2 - not the 480MHz silicon cap. The H7 bring-up therefore has
- * exactly one PLL clock: 25MHz HSE (the WeAct board crystal, OW_HSE_MHZ) x PLL
- * to the 240MHz default, plus raw HSI at 64MHz as the no-PLL fallback.
+ *  1. Confirm a supported H74x/H75x Rev V device. HCLK=240MHz needs VOS0,
+ *     which is only available on Rev V; older revisions must not run it.
+ *  2. Select the board's LDO supply in PWR_CR3 and wait for ACTVOSRDY. At
+ *     power-on SCUEN is set and ACTVOSRDY is clear (limited Run* mode); VOS
+ *     writes before supply configuration are not valid.
+ *  3. Request VOS1 and wait for ACTVOSRDY, then enable the Rev V VOS0
+ *     overdrive through SYSCFG.PWRCR.ODEN and wait for ACTVOSRDY again.
+ *  4. Set the bus clocks. In 240/240 mode SYSCLK=HCLK=TIM1=240MHz. In
+ *     480/240 mode SYSCLK/core=480MHz, HPRE=/2 gives HCLK=240MHz, and APB2
+ *     /2 plus timer x2 gives TIM1=240MHz. APB1/2/3/4 are 120MHz in both.
+ *  5. Raise Flash latency, start HSE and PLL1, then switch SYSCLK to PLL1P.
  *
- * The PLL input is aimed at 5MHz (the 4..8MHz RGE window) by dividing the
- * crystal: M = HSE/5. With the input at 5MHz the VCO multiplier and output
- * divider are pinned too - N = 96 gives a 480MHz VCO (inside the 192..836MHz
- * wide range, VCOSEL = 0) and P = 2 halves it to 240. SYSCLK is taken from
- * PLL1P (the SYS mux source), so P is the divider that matters. D1CPRE and
- * HPRE stay /1 (reset), D2PPRE1/D2PPRE2/D3PPRE go /2 (PCLK1/PCLK2/APB4 =
- * 120MHz), which keeps every bus at its datasheet limit.
- *
- * 240MHz needs voltage range 1 (VOS1, VOS = 11 -> PWR_D3CR_VOS) and 4 flash
- * wait states (DS12110 flash table, HCLK = 240MHz). Both are raised before
- * the clock so the part is briefly over-provisioned rather than under.
- * D-cache stays off (reset state): the 1-Wire DMA owns SRAM1 buffers the
- * CPU also reads, and no maintenance hooks run in this backend.
- *
- * A wrong OW_HSE_MHZ is not a compile error - the oscillator simply never
- * reports ready - so the HSE and PLL waits are bounded and app_init() stops
- * with the reason rather than running on a clock its timings were not built
- * for. */
+ * PLL1: HSE/5 = 5MHz input, N=96 gives a 480MHz wide-range VCO. P=2 selects
+ * 240MHz SYSCLK or P=1 selects 480MHz SYSCLK. Flash latency is four wait
+ * states for HCLK=240MHz in Rev V VOS0. D-cache stays off because SRAM1
+ * buffers are shared with DMA and this backend has no cache maintenance hooks.
+ * HSE and PLL waits are bounded and report their stage. */
 #if (OW_SYSCLK_MHZ) > (OW_H7_MAX_SYSCLK_MHZ)
-#error "OW_SYSCLK_MHZ exceeds this H7 part's ceiling (OW_H7_MAX_SYSCLK_MHZ in the ow_board.h H7 block). 240MHz is the driver cap: TIM1 == SYSCLK needs D2PPRE2=/2."
+#error "OW_SYSCLK_MHZ exceeds this H7 core ceiling (OW_H7_MAX_SYSCLK_MHZ in the ow_board.h H7 block). 480MHz requires Rev V VOS0."
 #endif
-#if (OW_SYSCLK_MHZ) == 240
+#if (OW_TIM1_MHZ) > (OW_H7_MAX_TIM1_MHZ)
+#error "OW_TIM1_MHZ exceeds the H7 1-Wire timer ceiling (OW_H7_MAX_TIM1_MHZ)."
+#endif
+#if (OW_SYSCLK_MHZ) == 240 && (OW_TIM1_MHZ) == 240
 #define OW_H7_PLL_INPUT_MHZ 5u
 #define OW_H7_PLLM ((OW_HSE_MHZ) / OW_H7_PLL_INPUT_MHZ)
 #define OW_H7_PLLN 96u
 #define OW_H7_PLLP 2u
+#define OW_H7_HPRE RCC_D1CFGR_HPRE_DIV1
+#elif (OW_SYSCLK_MHZ) == 480 && (OW_TIM1_MHZ) == 240
+#define OW_H7_PLL_INPUT_MHZ 5u
+#define OW_H7_PLLM ((OW_HSE_MHZ) / OW_H7_PLL_INPUT_MHZ)
+#define OW_H7_PLLN 96u
+#define OW_H7_PLLP 1u
+#define OW_H7_HPRE RCC_D1CFGR_HPRE_DIV2
+#elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
+#define OW_H7_HSI_CLOCK 1
+#else
+#error "Unsupported H7 clocks: use SYSCLK/TIM1=240/240, 480/240, or raw HSI 64/64 MHz"
+#endif
+#if (OW_SYSCLK_MHZ) != 64
     _Static_assert((OW_HSE_MHZ) % OW_H7_PLL_INPUT_MHZ == 0u,
                    "H7: the PLL input is HSE/5 = 5MHz by design, so the crystal must divide by 5");
     _Static_assert(OW_H7_PLLM >= 1u && OW_H7_PLLM <= 63u, "H7: PLL1M is 6 bits (1..63)");
     _Static_assert((OW_HSE_MHZ) / OW_H7_PLLM == OW_H7_PLL_INPUT_MHZ,
                    "H7: the PLL input is HSE/M = 5MHz by design");
     _Static_assert(OW_H7_PLL_INPUT_MHZ * OW_H7_PLLN / OW_H7_PLLP == (OW_SYSCLK_MHZ),
-                   "H7: HSE/M x 96 / 2 must land on the requested 240MHz (M = HSE/5)");
-    // VOS1 (VOS = 11 -> PWR_D3CR_VOS), then wait for the regulator
-    PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS) | (PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0);
-    if (!ow_wait_flag(&PWR->D3CR, PWR_D3CR_VOSRDY)) {
+                   "H7: HSE/M x 96 / P must land on the requested SYSCLK (M = HSE/5)");
+
+    ow_clock_ok = 1u;
+    ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
+
+    /* 240MHz HCLK requires VOS0 on H74x/H75x, available only on Rev V.
+     * DBGMCU_IDCODE is common to H743/H750 (DEV_ID=0x450); REV_ID=0x2003 is
+     * Rev V. Reject other revisions rather than running out of spec. */
+    if ((DBGMCU->IDCODE & DBGMCU_IDCODE_DEV_ID) != 0x450u ||
+        (DBGMCU->IDCODE & DBGMCU_IDCODE_REV_ID) != (0x2003u << DBGMCU_IDCODE_REV_ID_Pos)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_DEVICE_REVISION;
         ow_clock_ok = 0u;
         return;
     }
-    // 4 wait states before the clock moves (DS12110: HCLK = 240MHz in VOS1)
+
+    /* Configure LDO supply just as HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY):
+     * clear the update-enable and bypass bits, retain LDOEN, then wait for
+     * ACTVOSRDY before touching the voltage scale. If supply configuration
+     * was already locked, accept only the same LDO selection. */
+    const uint32_t supply_mask = PWR_CR3_SCUEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS;
+    if (PWR->CR3 & PWR_CR3_SCUEN) {
+        PWR->CR3 = (PWR->CR3 & ~supply_mask) | PWR_CR3_LDOEN;
+    } else if ((PWR->CR3 & (PWR_CR3_LDOEN | PWR_CR3_BYPASS)) != PWR_CR3_LDOEN) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_SUPPLY_CONFIG;
+        ow_clock_ok = 0u;
+        return;
+    }
+    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_SUPPLY_READY;
+        ow_clock_ok = 0u;
+        return;
+    }
+
+    /* SYSCFG is needed for the Rev V VOS0 transition. Enable it before
+     * touching ODEN. If a system reset retained ODEN, return through VOS1
+     * first; this makes the startup sequence safe to repeat. */
+    RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
+    (void)RCC->APB4ENR;
+    if (SYSCFG->PWRCR & SYSCFG_PWRCR_ODEN) {
+        SYSCFG->PWRCR &= ~SYSCFG_PWRCR_ODEN;
+        if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
+            ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;
+            ow_clock_ok = 0u;
+            return;
+        }
+    }
+
+    /* H74x/H75x Rev V VOS0 entry must pass through VOS1 first. */
+    PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;
+    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;
+        ow_clock_ok = 0u;
+        return;
+    }
+    SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
+    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS0_READY;
+        ow_clock_ok = 0u;
+        return;
+    }
+
+    // 4 wait states for VOS0, HCLK = 240MHz (H750/H74x Rev V data sheet).
     FLASH->ACR = FLASH_ACR_LATENCY_4WS;
-    // APB prescalers: D2PPRE1/D2PPRE2/D3PPRE = /2 (PCLK1/PCLK2/APB4 = 120MHz);
-    // D1CPRE/HPRE stay /1 at reset, so HCLK = SYSCLK
+    // D1CPRE=/1; HCLK is /1 at SYSCLK=240 or /2 at SYSCLK=480.
+    RCC->D1CFGR = (RCC->D1CFGR & ~(RCC_D1CFGR_D1CPRE | RCC_D1CFGR_HPRE |
+                                   RCC_D1CFGR_D1PPRE)) |
+                  RCC_D1CFGR_D1CPRE_DIV1 | OW_H7_HPRE |
+                  RCC_D1CFGR_D1PPRE_DIV2;
     RCC->D2CFGR = (RCC->D2CFGR & ~(RCC_D2CFGR_D2PPRE1 | RCC_D2CFGR_D2PPRE2)) |
                   RCC_D2CFGR_D2PPRE1_DIV2 | RCC_D2CFGR_D2PPRE2_DIV2;
     RCC->D3CFGR = (RCC->D3CFGR & ~RCC_D3CFGR_D3PPRE) | RCC_D3CFGR_D3PPRE_DIV2;
     // HSE on and stable before the PLL locks on it
     RCC->CR |= RCC_CR_HSEON;
     if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_HSE_READY;
         ow_clock_ok = 0u;
         return;
     }
@@ -862,15 +953,25 @@ void configure_system_clock(void) {
                     ((OW_H7_PLLP - 1u) << RCC_PLL1DIVR_P1_Pos);
     RCC->CR |= RCC_CR_PLL1ON;
     if (!ow_wait_flag(&RCC->CR, RCC_CR_PLL1RDY)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_PLL1_READY;
         ow_clock_ok = 0u;
         return;
     }
-    // Switch SYSCLK to PLL1 (SW = 011). Left unbounded, as on F4/G4/H5: with
-    // the PLL already locked and selected this cannot hang.
+    // Switch SYSCLK to PLL1 (SW = 011), with a bounded status wait.
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL1;
-    while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL1)
-        ;
-#elif (OW_SYSCLK_MHZ) == 64
+    if (!ow_wait_mask(&RCC->CFGR, RCC_CFGR_SWS_Msk, RCC_CFGR_SWS_PLL1)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_SYSCLK_SWITCH;
+        ow_clock_ok = 0u;
+        return;
+    }
+    SystemCoreClockUpdate();
+    if (!onewire_clock_ok(SystemCoreClock / 1000000u) ||
+        (SystemD2Clock / 1000000u) != (OW_TIM1_MHZ)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_CLOCK_RATE;
+        ow_clock_ok = 0u;
+        return;
+    }
+#elif defined(OW_H7_HSI_CLOCK)
     /* Raw HSI: the bring-up and no-PLL fallback clock. No VOS change (the
      * reset scale already runs HSI), no HSE, no PLL, no prescaler writes:
      * D1CPRE/HPRE/D2PPRE1/D2PPRE2/D3PPRE stay /1 at reset, so TIM1 = PCLK2 =
@@ -881,12 +982,14 @@ void configure_system_clock(void) {
     FLASH->ACR = FLASH_ACR_LATENCY_4WS;
     RCC->CR &= (uint32_t)~RCC_CR_HSIDIV;
 #else
-#error "Unsupported OW_SYSCLK_MHZ for H7: use 240 (HSE+PLL, crystal via HSE_MHZ) or 64 (raw HSI)"
+#error "Unsupported H7 clock configuration"
 #endif
 #undef OW_H7_PLL_INPUT_MHZ
 #undef OW_H7_PLLM
 #undef OW_H7_PLLN
 #undef OW_H7_PLLP
+#undef OW_H7_HPRE
+#undef OW_H7_HSI_CLOCK
 #else /* F1 */
 #if (OW_SYSCLK_MHZ) == 72
     // Enable HSI and HSE oscillators
@@ -1158,8 +1261,9 @@ __STATIC_FORCEINLINE void hardware_init(void) {
      * port. The user LED is on PE3 (Zephyr/NuttX board files and the WeAct
      * schematic agree); polarity active-high (source), bench-confirmed.
      *
-     * USART1 is on APB2 with D2PPRE2=/2, so PCLK2 = SYSCLK/2 (test pins it
-     * through OW_H7_CONSOLE_BRR in app.h). */
+     * USART1 is on APB2 with D2PPRE2=/2, so PCLK2 = HCLK/2 (test pins it
+     * through OW_H7_CONSOLE_BRR in app.h). The BRR is derived from PCLK2,
+     * which remains 120MHz in both 240/240 and 480/240 modes. */
     RCC->AHB4ENR |= RCC_AHB4ENR_GPIOAEN | RCC_AHB4ENR_GPIOEEN;
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 
@@ -1253,16 +1357,40 @@ static void app_stop_on_clock_failure(void) {
         "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
         "  so the bus could not be timed correctly from here.\r\n";
 #elif defined(OW_FAMILY_H7)
-    /* The H7 240MHz clock runs the PLL off the board crystal with the input
-     * pinned at HSE/5 = 5MHz: if HSE_MHZ does not match the crystal on this
-     * board the PLL cannot lock. */
-    static const char msg[] =
-        "\r\nFATAL: the system clock did not start.\r\n"
-        "  HSE or PLL1 never reported ready, so the requested clock is not\r\n"
-        "  running. On H7 the 240MHz clock aims the PLL input at HSE/5 = 5MHz:\r\n"
-        "  if HSE_MHZ does not match the crystal on this board the PLL cannot\r\n"
-        "  lock. Rebuild with the real crystal (25MHz on the WeAct Studio STM32H7XX board),\r\n"
-        "  or with SYSCLK_MHZ=64 for raw HSI with no PLL, VOS change or crystal.\r\n"
+    const char* msg;
+    switch (ow_h7_clock_failure) {
+    case OW_H7_CLOCK_FAIL_DEVICE_REVISION:
+        msg = "\r\nFATAL: 240MHz H7 clock requires DEV_ID 0x450, silicon Rev V (REV_ID 0x2003) for VOS0.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_SUPPLY_CONFIG:
+        msg = "\r\nFATAL: PWR supply is locked to a source other than LDO.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_SUPPLY_READY:
+        msg = "\r\nFATAL: PWR supply setup did not reach ACTVOSRDY.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_VOS1_READY:
+        msg = "\r\nFATAL: VOS1 transition did not reach ACTVOSRDY.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_VOS0_READY:
+        msg = "\r\nFATAL: VOS0 overdrive did not reach ACTVOSRDY.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_HSE_READY:
+        msg = "\r\nFATAL: HSE did not report ready. Check HSE_MHZ and the crystal.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_PLL1_READY:
+        msg = "\r\nFATAL: PLL1 did not report ready. Check HSE/5 = 5MHz input and PLL settings.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_SYSCLK_SWITCH:
+        msg = "\r\nFATAL: SYSCLK did not switch to PLL1P.\r\n";
+        break;
+    case OW_H7_CLOCK_FAIL_CLOCK_RATE:
+        msg = "\r\nFATAL: measured core/HCLK clocks disagree with OW_SYSCLK_MHZ/OW_TIM1_MHZ.\r\n";
+        break;
+    default:
+        msg = "\r\nFATAL: H7 clock initialization failed.\r\n";
+        break;
+    }
+    static const char tail[] =
         "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
         "  so the bus could not be timed correctly from here.\r\n";
 #else
@@ -1285,7 +1413,10 @@ static void app_stop_on_clock_failure(void) {
     app_set_console_baud(32u);
 #elif defined(OW_FAMILY_H7)
     SystemCoreClockUpdate();
-    app_set_console_baud((SystemCoreClock / 1000000u));
+    if ((RCC->CFGR & RCC_CFGR_SWS_Msk) == RCC_CFGR_SWS_PLL1)
+        app_set_console_baud(OW_H7_PCLK2_MHZ);
+    else
+        app_set_console_baud((SystemCoreClock / 1000000u));
 #else
     app_set_console_baud(16u);
 #endif
@@ -1298,6 +1429,16 @@ static void app_stop_on_clock_failure(void) {
         uart_poll_tx();
         guard--;
     }
+#if defined(OW_FAMILY_H7)
+    p = tail;
+    while (*p && guard) {
+        int n = uart_write_str(p);
+        if (n > 0)
+            p += n;
+        uart_poll_tx();
+        guard--;
+    }
+#endif
     for (;;)
         uart_poll_tx();
 }

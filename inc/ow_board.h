@@ -121,7 +121,10 @@ typedef uint8_t ow_pulse_t;
 #endif
 #elif defined(OW_FAMILY_H7)
 #if !defined(OW_H7_MAX_SYSCLK_MHZ)
-#define OW_H7_MAX_SYSCLK_MHZ 240 /* driver ceiling: TIM1 == SYSCLK needs D2PPRE2=/2, so 2 x PCLK2 tops out at 2 x 120MHz, not the 480MHz silicon cap */
+#define OW_H7_MAX_SYSCLK_MHZ 480 /* Rev V H74x/H75x core ceiling; 480MHz requires VOS0 */
+#endif
+#if !defined(OW_H7_MAX_TIM1_MHZ)
+#define OW_H7_MAX_TIM1_MHZ 240 /* APB2 <=120MHz, timer x2; this is the 1-Wire timing ceiling */
 #endif
 #if !defined(OW_HSE_MHZ)
 #define OW_HSE_MHZ 25 /* WeAct Studio STM32H7XX board: 25MHz crystal */

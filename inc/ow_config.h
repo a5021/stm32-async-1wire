@@ -13,9 +13,9 @@
  *
  * Protocol-inherent constants (ONEWIRE_MAX_SLOTS, ONEWIRE_MAX_READ_BYTES,
  * DS18B20_RES_MIN, DS18B20_RES_MAX, DS18B20_RES_DEFAULT) and the
- * system clock (OW_SYSCLK_MHZ, passed by the build or resolved from
- * SystemCoreClock by the port core) remain in their respective headers
- * and are intentionally NOT listed here.
+ * system clock (OW_SYSCLK_MHZ) and timer kernel clock (OW_TIM1_MHZ, defaulting
+ * to OW_SYSCLK_MHZ) remain build facts; the port core uses them to program the
+ * 1us timer tick.
  *
  * The four feature flags are value-style: define to 1 to enable, omit or
  * set to 0 to disable.  Old -D presence-only style (-DOW_LOW_POWER
@@ -26,6 +26,13 @@
 #define OW_CONFIG_H
 
 #include <stdint.h>
+
+/* Backwards-compatible default: on existing builds the TIM1 kernel clock is
+ * the same as SYSCLK. A split-clock target (for example H7 CPU=480/TIM1=240)
+ * explicitly supplies OW_TIM1_MHZ. */
+#if defined(OW_SYSCLK_MHZ) && !defined(OW_TIM1_MHZ)
+#define OW_TIM1_MHZ OW_SYSCLK_MHZ
+#endif
 
 /* -------------------------------------------------------------------
  *  Parasite bus timing
@@ -207,14 +214,25 @@
  *
  * Mixes the macros that must agree between the translation units the library
  * was compiled from and the application sources that include these headers:
- * OW_PARASITE_POWER, OW_LOW_POWER, OW_DRIVE_ACTIVE, OW_STATS_ENABLE,
- * OW_BUS_DRIVE and DS18B20_MAX_DEVICES. Compare it at startup with
- * onewire_config_token(): a mismatch means the archive and the application
- * were built with different -D flags and must not run together.
+ * feature flags, DS18B20_MAX_DEVICES, SYSCLK and TIM1 kernel frequency. Compare
+ * it at startup with onewire_config_token(): a mismatch means the archive and
+ * the application were built with different -D flags and must not run together.
  */
-#define OW_CONFIG_TOKEN                                                                  \
-    ((uint32_t)(OW_PARASITE_POWER & 1u) | ((uint32_t)(OW_LOW_POWER & 1u) << 1) |         \
-     ((uint32_t)(OW_DRIVE_ACTIVE & 1u) << 2) | ((uint32_t)(OW_STATS_ENABLE & 1u) << 3) | \
-     ((uint32_t)(OW_BUS_DRIVE & 3u) << 4) | ((uint32_t)(DS18B20_MAX_DEVICES & 0xFFu) << 8))
+#if defined(OW_SYSCLK_MHZ)
+#define OW_CONFIG_SYSCLK_MHZ (OW_SYSCLK_MHZ)
+#else
+#define OW_CONFIG_SYSCLK_MHZ 0u
+#endif
+#if defined(OW_TIM1_MHZ)
+#define OW_CONFIG_TIM1_MHZ (OW_TIM1_MHZ)
+#else
+#define OW_CONFIG_TIM1_MHZ 0u
+#endif
+#define OW_CONFIG_TOKEN                                                                      \
+    ((uint32_t)(OW_PARASITE_POWER & 1u) | ((uint32_t)(OW_LOW_POWER & 1u) << 1) |             \
+     ((uint32_t)(OW_DRIVE_ACTIVE & 1u) << 2) | ((uint32_t)(OW_STATS_ENABLE & 1u) << 3) |     \
+     ((uint32_t)(OW_BUS_DRIVE & 3u) << 4) | ((uint32_t)(DS18B20_MAX_DEVICES & 0xFFu) << 6) | \
+     ((uint32_t)(OW_CONFIG_SYSCLK_MHZ & 0x1FFu) << 14) |                                     \
+     ((uint32_t)(OW_CONFIG_TIM1_MHZ & 0x1FFu) << 23))
 
 #endif /* OW_CONFIG_H */

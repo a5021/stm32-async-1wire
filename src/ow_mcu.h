@@ -991,12 +991,13 @@
  *    entry is a 16-bit halfword here (zero-copy, NDTR == slots; contrast the
  *    G4 backend, an 8-bit DMAMUX-routed feed on classic channels).
  *    Capture-side durations are always uint16_t.
- *  - OW_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c).  The build
- *    systems pass it explicitly (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from
- *    chips/<part>.mk); without it the shared core reads the CMSIS
- *    SystemCoreClock at startup instead.
- *  - OW_H7_MAX_SYSCLK_MHZ: 240, the TIM1 == SYSCLK ceiling (not the 480MHz
- *    silicon cap); app.c rejects more.
+ *  - OW_SYSCLK_MHZ: core/SYSCLK in MHz (HSE+PLL, see app.c).
+ *  - OW_TIM1_MHZ: TIM1 kernel clock in MHz; defaults to SYSCLK for the normal
+ *    clock trees. H7 Rev V can run SYSCLK=480MHz with TIM1=240MHz.
+ *  - OW_H7_MAX_SYSCLK_MHZ: 480MHz Rev V core ceiling (VOS0); app.c also checks
+ *    the silicon revision before enabling this mode.
+ *  - OW_H7_MAX_TIM1_MHZ: 240MHz driver ceiling, set by APB2's 120MHz maximum
+ *    and the APB timer x2 rule.
  *  - OW_HSE_MHZ: external-crystal frequency, read by app.c as the PLL's M
  *    divider.  Deliberately separate from OW_SYSCLK_MHZ: the crystal
  *    belongs to the *board*, the system clock to the *application*.
@@ -1006,14 +1007,10 @@
 #define OW_PORT_TIM1_UPD_IRQn TIM1_UP_IRQn
 #endif
 
-/* H7 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
- * gives a 1us tick here): TIM1 is on APB2, and configure_system_clock()
- * (app.c) programs D2PPRE2=/2 at 240MHz (PCLK2 = 120MHz), so the timer
- * clock doubles to 2 x 120 = 240MHz = SYSCLK.  The doubling is the same
- * mechanism the F4 backend relies on; the H7 ceiling is lower only because
- * APB2 tops out at 120MHz, which caps the timer kernel at 2 x 120 = 240MHz
- * no matter how far SYSCLK goes - 480MHz stays a CPU-only number on this
- * family as far as this driver is concerned. */
+/* H7 TIM1 kernel-clock proof: TIM1 is on APB2. The normal clock uses
+ * SYSCLK=240/HCLK=240; the split clock uses SYSCLK/core=480 with HPRE=/2 so
+ * HCLK=240. Both use D2PPRE2=/2, yielding PCLK2=120MHz and TIM1=2xPCLK2=240MHz.
+ * The shared core's PSC is OW_TIM1_MHZ-1, so the 1us tick remains unchanged. */
 
 /* @brief DMA stream assignment: feed rides DMA1_Stream2 (DMAMUX1 channel 2
  *       <- TIM1_CH2, the slot-end CC2 event); capture rides DMA1_Stream3

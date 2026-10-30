@@ -48,6 +48,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # h5 STM32H503xx, h7 STM32H743xx.
 #   make OW_MCU=STM32F030x6
 #   make OW_MCU=STM32H503xx APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8
+#   make OW_MCU=STM32H743xx APP=2_device_search SYSCLK_MHZ=480 TIM1_MHZ=240
 # OW_TARGET selects the MCU family and remains accepted for compatibility:
 # f0 (STM32F030x6), f1 (STM32F103xB, default),
 # f3 (STM32F303xC), f4 (STM32F407xx / STM32F401 family), g0 (STM32G031xx) or
@@ -255,6 +256,13 @@ DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 #  e.g. SYSCLK_MHZ=16 for the raw 16MHz RC on families that have one)
 ifdef SYSCLK_MHZ
 DEF += -DOW_SYSCLK_MHZ=$(SYSCLK_MHZ)
+endif
+
+# Optional timer kernel clock override. Defaults to SYSCLK for all existing
+# boards; H7 split-clock builds may request CPU=480MHz and TIM1=240MHz with
+# `SYSCLK_MHZ=480 TIM1_MHZ=240`.
+ifdef TIM1_MHZ
+DEF += -DOW_TIM1_MHZ=$(TIM1_MHZ)
 endif
 
 # Crystal frequency override for the F4 and G4 backends:
@@ -869,7 +877,8 @@ CPPCHECK_PASSES = \
 	'h5-64|-DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
 	'h5-250|-DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'h5-8|-DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__' \
-	'h7-240|-DSTM32H743xx -DOW_SYSCLK_MHZ=240 -DOW_HSE_MHZ=25 -D__GNUC__'
+	'h7-240|-DSTM32H743xx -DOW_SYSCLK_MHZ=240 -DOW_HSE_MHZ=25 -D__GNUC__' \
+	'h7-480-240|-DSTM32H743xx -DOW_SYSCLK_MHZ=480 -DOW_TIM1_MHZ=240 -DOW_HSE_MHZ=25 -D__GNUC__'
 
 .PHONY: cppcheck
 cppcheck:
@@ -979,9 +988,9 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # the stale link it actually was, and switching families within one build tree
 # is ordinary usage, not a corner case.
 #
-# The clock knobs belong in the stamp for the same reason, and harder: SYSCLK_MHZ
-# and HSE_MHZ both reach the firmware as -DOW_SYSCLK_MHZ / -DOW_HSE_MHZ, so
-# two builds of the same part that differ only in either are different firmware.
+# The clock knobs belong in the stamp for the same reason, and harder: SYSCLK_MHZ,
+# TIM1_MHZ and HSE_MHZ reach the firmware as -DOW_* defines, so builds that
+# differ only in core clock, timer kernel clock or crystal are different firmware.
 # Without them in the name, building the 180MHz, raw-HSI 16MHz and raw-HSE 8MHz
 # variants of one part in sequence reused the first build's objects for the other
 # two, and each of those silently shipped the 180MHz prescaler, bit-slot timings
@@ -992,6 +1001,7 @@ all: download-deps $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD
 # so a default build and an explicit one that agree still share objects.
 OW_EFF_SYSCLK := $(if $(SYSCLK_MHZ),$(SYSCLK_MHZ),$(CHIP_SYSCLK_MHZ))
 OW_EFF_HSE := $(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))
+OW_TIM1_TAG := $(if $(TIM1_MHZ),_tim$(TIM1_MHZ)mhz,)
 # EXT is a per-build knob (-D... user flags) that reaches every translation
 # unit, so it belongs in the stamp for the very reason the comment above gives
 # for the clock knobs: two builds of the same part that differ only in EXT are
@@ -1017,7 +1027,7 @@ OW_EXT_TAG := $(subst $(space),_,$(OW_EFF_EXT))
 # inherit goals (test-ram and friends recurse with explicit goals), so their
 # objects keep release names.
 OPT_TAG = $(if $(filter-out $(subst $(space),_,$(strip $(OPT_RELEASE))),$(subst $(space),_,$(strip $(OPT)))),_opt$(subst $(space),_,$(strip $(OPT))),$(if $(filter debug,$(MAKECMDGOALS)),_opt$(subst $(space),_,$(strip $(OPT_DEBUG))),))
-OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
+OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(OW_TIM1_TAG)$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 OBJ = $(addprefix $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_,$(notdir $(SRC:.c=.o)))
 vpath %.c $(sort $(dir $(SRC))) # Set the search path for C source files
 
@@ -1122,7 +1132,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 #       -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
 #
 LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
-LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
+LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(OW_TIM1_TAG)$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 LIB_OBJ = $(addprefix $(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_,$(notdir $(LIB_SRC:.c=.o)))
 LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire_$(LIB_OBJ_STAMP).a
 
@@ -1308,15 +1318,16 @@ TEST_H5_8_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
 TEST_H5_8_EXE = $(TEST_OUT)/ds18b20_test_h5_8mhz.exe
 TEST_EXTRA_EXES = $(TEST_H5_250_EXE) $(TEST_H5_8_EXE)
 endif
-# Mirror of the H5 extra clocks: the H7 64MHz raw-HSI branch is a genuinely
-# different code path from the 240MHz HSE+PLL default (no VOS change, no PLL,
-# no prescaler writes, HSIDIV to /1), so the suite runs at both. The default
-# build already covers 240MHz, hence the extra executable forces the low
-# clock instead of the high one.
+# H7 host suite covers the 240/240 default, 64/64 raw-HSI fallback, and the
+# split 480/240 mode (core/SYSCLK/TIM1 MHz). The split clock exercises a
+# distinct PLL P divider and HPRE path while preserving the driver timer ceiling.
 ifneq ($(filter h7,$(OW_TARGET)),)
-TEST_H7_64_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=64
+TEST_H7_BASE_FLAG = $(filter-out -DOW_SYSCLK_MHZ=%,$(TEST_FLAG))
+TEST_H7_64_FLAG = $(TEST_H7_BASE_FLAG) -DOW_SYSCLK_MHZ=64 -DOW_TIM1_MHZ=64
 TEST_H7_64_EXE = $(TEST_OUT)/ds18b20_test_h7_64mhz.exe
-TEST_EXTRA_EXES = $(TEST_H7_64_EXE)
+TEST_H7_480_FLAG = $(TEST_H7_BASE_FLAG) -DOW_SYSCLK_MHZ=480 -DOW_TIM1_MHZ=240
+TEST_H7_480_EXE = $(TEST_OUT)/ds18b20_test_h7_480_240mhz.exe
+TEST_EXTRA_EXES = $(TEST_H7_64_EXE) $(TEST_H7_480_EXE)
 endif
 
 # Per-family suffix for the host-test artefacts, so the six families do not
@@ -1557,6 +1568,9 @@ $(TEST_H5_8_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examp
 
 $(TEST_H7_64_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_H7_64_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+$(TEST_H7_480_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_H7_480_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_LP_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c tests/test/test_lowpower.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_LP_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) tests/test/test_lowpower.c examples/app/app.c -o $@
@@ -1818,6 +1832,7 @@ help:
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
 	@echo "                                    default (per-family defaults are 48/72/72/168/64/170/64/240"
 	@echo "                                    for f0/f1/f3/f4/g0/g4/h5/h7; F401=84, F446=180; 8/16 raw RC)"
+	@echo "  TIM1_MHZ=N                       - timer kernel clock in MHz (defaults to SYSCLK_MHZ); H7 supports 480/240 core/TIM1 on Rev V"
 	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4/H5/H7 only"
 
 # *** EOF ***

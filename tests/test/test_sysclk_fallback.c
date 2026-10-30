@@ -104,6 +104,9 @@
 #if OW_SYSCLK_MHZ != 240
 #error "H7 family-macro selection must default to a 240 MHz system clock"
 #endif
+#if OW_TIM1_MHZ != 240
+#error "H7 family-macro selection must default TIM1 to a 240 MHz kernel clock"
+#endif
 #else
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
@@ -129,11 +132,14 @@
 #error "the default clock exceeds OW_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H7)
-/* Same pair for H7 (OW_H7_MAX_SYSCLK_MHZ, owned by the ow_board.h H7 section):
- * the driver tops out at 240MHz (TIM1 == SYSCLK with D2PPRE2=/2), not the
- * 480MHz silicon cap; the 240MHz HSE+PLL default sits exactly on it. */
+/* H7 has independent limits: Rev V core/SYSCLK up to 480MHz and TIM1 up to
+ * 240MHz. The default stays 240/240; the opt-in 480/240 host leg proves the
+ * split clock does not raise the 1-Wire timer rate. */
 #if (OW_SYSCLK_MHZ) > (OW_H7_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_H7_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#if (OW_TIM1_MHZ) > (OW_H7_MAX_TIM1_MHZ)
+#error "the default timer clock exceeds OW_H7_MAX_TIM1_MHZ for this part"
 #endif
 #endif
 

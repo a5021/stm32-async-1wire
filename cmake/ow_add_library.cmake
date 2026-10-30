@@ -16,6 +16,11 @@
 #       CMSIS_INCLUDE_DIRS ${CMSIS}/core ${CMSIS}/device)
 #   target_link_libraries(app PRIVATE stm32_async_1wire)
 #
+# H7 Rev V split clock (CPU/SYSCLK=480MHz, TIM1=240MHz):
+#   ow_add_library(stm32_async_1wire
+#       MCU STM32H743xx SYSCLK_MHZ 480 TIM1_MHZ 240
+#       PARASITE CMSIS_INCLUDE_DIRS ${CMSIS}/core ${CMSIS}/device)
+#
 # The flags are PUBLIC, so the consumer's own sources get the same -mcpu and
 # the same device macro - a consumer TU that includes ds18b20.h must see them
 # (ds18b20.h -> onewire.h -> ow_board.h is self-checking and #errors
@@ -29,7 +34,8 @@
 #
 # Options:
 #   MCU <macro>                required; device (STM32H503xx) or family (STM32H5)
-#   SYSCLK_MHZ <n>             optional; omit for the SystemCoreClock runtime path
+#   SYSCLK_MHZ <n>             optional; core/SYSCLK frequency in MHz
+#   TIM1_MHZ <n>               optional; timer kernel clock, defaults to SYSCLK_MHZ
 #   MAX_DEVICES <n>            optional; -DDS18B20_MAX_DEVICES=<n> (default 8)
 #   PARASITE                   -DOW_PARASITE_POWER=1
 #   LOW_POWER                  -DOW_LOW_POWER=1
@@ -64,7 +70,7 @@ function(ow_add_library tgt)
     # OW_SOURCE_DIR is resolved below, so the include goes here where it is
     # available.
     set(_ow_opts PARASITE LOW_POWER ACTIVE_DRIVE STATS)
-    set(_ow_one  MCU SYSCLK_MHZ MAX_DEVICES SOURCE_DIR)
+    set(_ow_one  MCU SYSCLK_MHZ TIM1_MHZ MAX_DEVICES SOURCE_DIR)
     set(_ow_multi CMSIS_INCLUDE_DIRS EXTRA_DEFINITIONS)
     cmake_parse_arguments(OW "${_ow_opts}" "${_ow_one}" "${_ow_multi}" ${ARGN})
 
@@ -112,6 +118,9 @@ function(ow_add_library tgt)
     endif()
     if(OW_SYSCLK_MHZ)
         list(APPEND _ow_defs "OW_SYSCLK_MHZ=${OW_SYSCLK_MHZ}")
+    endif()
+    if(OW_TIM1_MHZ)
+        list(APPEND _ow_defs "OW_TIM1_MHZ=${OW_TIM1_MHZ}")
     endif()
     if(OW_MAX_DEVICES)
         list(APPEND _ow_defs "DS18B20_MAX_DEVICES=${OW_MAX_DEVICES}")

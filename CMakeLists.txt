@@ -13,6 +13,7 @@ set_property(CACHE OW_TARGET PROPERTY STRINGS f0 f1 f3 f4 g0 g4 h5 h7)
 # on the device macro, startup file, linker script or clock default.
 set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f401xe, f446xx, g031xx, g474cb, h503cb, h743vit6); empty = derived from OW_MCU, otherwise the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
+set(OW_TIM1_MHZ "" CACHE STRING "TIM1 kernel clock in MHz; empty = OW_SYSCLK_MHZ (e.g. H7 split clock: SYSCLK=480, TIM1=240)")
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
 # to every library and example, so a CMake build can select the same firmware
 # variants without CMakeLists.txt growing one option per feature.
@@ -295,6 +296,11 @@ if(OW_SYSCLK_MHZ)
 else()
     set(OW_EFF_SYSCLK_MHZ "${CHIP_SYSCLK_MHZ}")
 endif()
+if(OW_TIM1_MHZ)
+    set(OW_EFF_TIM1_MHZ "${OW_TIM1_MHZ}")
+else()
+    set(OW_EFF_TIM1_MHZ "${OW_EFF_SYSCLK_MHZ}")
+endif()
 
 FetchContent_Declare(cmsis_device
     GIT_REPOSITORY ${CMSIS_DEVICE_REPO}
@@ -468,6 +474,7 @@ function(ow_add_core_library tgt)
         # OW_SYSCLK_MHZ the Makefile build does instead of relying on the
         # fallback in the family headers.
         OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}
+        OW_TIM1_MHZ=${OW_EFF_TIM1_MHZ}
         ${OW_EXTRA_DEFINES}
     )
     target_compile_options(${tgt} PUBLIC
@@ -547,7 +554,8 @@ message(STATUS "stm32-async-1wire: OW_MCU=${OW_MCU}  "
                "OW_CHIP=${OW_CHIP}  "
                "CMSIS_DEVICE_DEF=${CMSIS_DEVICE_DEF}  "
                "OW_FAMILY_DEF=${OW_FAMILY_DEF}  "
-               "OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}")
+               "OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}  "
+               "OW_TIM1_MHZ=${OW_EFF_TIM1_MHZ}")
 
 # ---------------------------------------------------------------------------
 # Examples (opt-in with -DOW_BUILD_EXAMPLES=ON)
@@ -576,6 +584,7 @@ if(OW_BUILD_EXAMPLES)
         ${CMSIS_DEVICE_DEF}
         ${OW_FAMILY_DEF}
         OW_SYSCLK_MHZ=${OW_EFF_SYSCLK_MHZ}
+        OW_TIM1_MHZ=${OW_EFF_TIM1_MHZ}
         ${OW_EXTRA_DEFINES}
     )
     target_compile_options(stm32_async_1wire_platform PUBLIC

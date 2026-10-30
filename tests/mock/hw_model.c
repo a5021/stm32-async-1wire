@@ -5,6 +5,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(STM32H7)
+#include "system_stm32h7xx.h"
+#endif
 
 TIM1_TypeDef mock_tim1;
 DMA1_Channel_TypeDef mock_dma1_ch4;
@@ -22,6 +25,26 @@ DMAMUX_Channel_TypeDef mock_dmamux_ch3; /* G0/G4/H7 backends: DMAMUX routing */
 #if defined(STM32G0)
 SYSCFG_TypeDef mock_syscfg; /* G0 backend only */
 #endif
+#if defined(STM32H7)
+SYSCFG_TypeDef mock_syscfg; /* H7 Rev V VOS0 overdrive control */
+DBGMCU_TypeDef mock_dbgmcu; /* H7 device/revision gate for 240MHz HCLK */
+#if defined(DS18B20_TEST_HARNESS)
+uint32_t SystemCoreClock;
+uint32_t SystemD2Clock;
+void SystemCoreClockUpdate(void) {
+#if defined(OW_SYSCLK_MHZ)
+    SystemCoreClock = (uint32_t)OW_SYSCLK_MHZ * 1000000u;
+#else
+    SystemCoreClock = 64000000u;
+#endif
+#if defined(OW_TIM1_MHZ)
+    SystemD2Clock = (uint32_t)OW_TIM1_MHZ * 1000000u;
+#else
+    SystemD2Clock = SystemCoreClock;
+#endif
+}
+#endif
+#endif
 #if defined(STM32F4)
 DMA_TypeDef mock_dma2; /* F4 backend only */
 FLASH_TypeDef mock_flash; /* F4 backend only: clock-latency register */
@@ -30,7 +53,7 @@ PWR_TypeDef mock_pwr; /* F4 backend only: over-drive, the F446 180MHz path */
 #if defined(STM32H7)
 DMA_TypeDef mock_dma1; /* H7 backend only: flag retire in LIFCR */
 FLASH_TypeDef mock_flash; /* H7 backend only: clock-latency register */
-PWR_TypeDef mock_pwr; /* H7 backend only: VOS1 for the 240MHz clock */
+PWR_TypeDef mock_pwr; /* H7 backend only: supply config and voltage scaling */
 #endif
 #if defined(STM32G4)
 FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
@@ -40,11 +63,6 @@ PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
 #endif
-#if defined(STM32H7)
-FLASH_TypeDef mock_flash; /* H7 backend only: clock-latency register */
-PWR_TypeDef mock_pwr; /* H7 backend only: VOS1 for the 240MHz clock */
-#endif
-
 static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;
 static hw_ccr3_feed_log_t feed_log;
@@ -221,10 +239,9 @@ void hw_reset_all(void) {
 #if defined(STM32H7)
     mock_dma1 = (DMA_TypeDef){0};
     mock_flash = (FLASH_TypeDef){0};
-    /* VOSRDY/HSERDY/PLL1RDY start clear, like the real part mid-transition, so
-     * a clock test that forgets one of the three waits blocks on the first
-     * poll instead of passing by accident. */
     mock_pwr = (PWR_TypeDef){0};
+    mock_syscfg = (SYSCFG_TypeDef){0};
+    mock_dbgmcu = (DBGMCU_TypeDef){0};
 #endif
     tim_shadow_out = 0;
     capture_source = NULL;

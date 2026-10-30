@@ -167,13 +167,20 @@ def log_header(script, app, hexpath="", mcu=None):
     """
     mcu = mcu or MCU or "?"
     chip = chip_for(mcu) or "?"
-    sysclk = sysclk_for(chip) if chip != "?" else None
+    sysclk = int(os.environ["HIL_SYSCLK_MHZ"]) if os.environ.get("HIL_SYSCLK_MHZ") else (
+        sysclk_for(chip) if chip != "?" else None
+    )
+    tim1 = int(os.environ["HIL_TIM1_MHZ"]) if os.environ.get("HIL_TIM1_MHZ") else sysclk
     ext = ",".join(build_ext(app).split()) or "none"
     uart_tx = str(UART_TX_SIZE) if UART_TX_SIZE else "shipped"
+    clock_field = "%dMHz" % sysclk if sysclk else "?"
+    if tim1 and tim1 != sysclk:
+        # The split clock is part of the identity: the same SYSCLK with a
+        # different TIM1 kernel clock is a different 1-Wire timing build.
+        clock_field += " tim1=%dMHz" % tim1
     lines = [
         "# hil: script=%s app=%s mcu=%s chip=%s sysclk=%s"
-        % (script, app or "?", mcu, chip,
-           "%dMHz" % sysclk if sysclk else "?"),
+        % (script, app or "?", mcu, chip, clock_field),
         "# hil: ext=%s uart_tx=%s" % (ext, uart_tx),
         "# hil: fw=%s commit=%s dirty=%s"
         % (library_version(), _git("rev-parse", "--short", "HEAD") or "?",
@@ -516,6 +523,10 @@ def run_make(app):
     if not MCU:
         raise RuntimeError("no bench selected; select_bench() before building")
     cmd = [make, "APP=%s" % app, "OW_MCU=%s" % MCU, "EXT=%s" % build_ext(app)]
+    if os.environ.get("HIL_SYSCLK_MHZ"):
+        cmd.append("SYSCLK_MHZ=%s" % os.environ["HIL_SYSCLK_MHZ"])
+    if os.environ.get("HIL_TIM1_MHZ"):
+        cmd.append("TIM1_MHZ=%s" % os.environ["HIL_TIM1_MHZ"])
     if UART_TX_SIZE:
         cmd.append("UART_TX_SIZE_%s=%d" % (app, UART_TX_SIZE))
     proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)

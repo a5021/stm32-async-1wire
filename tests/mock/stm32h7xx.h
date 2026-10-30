@@ -133,10 +133,7 @@ typedef struct {
     volatile uint32_t ECCSR;
 } FLASH_TypeDef;
 
-/* PWR: only the D3CR voltage-scaling register the H7 240MHz clock path
- * touches. On this family PWR is in the always-on domain (no RCC enable
- * bit), so the mock needs no clock gate - D3CR is writable as soon as the
- * mock instance exists. */
+/* H7 power/supply registers used by the early clock bring-up. */
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CSR1;
@@ -145,6 +142,14 @@ typedef struct {
     volatile uint32_t CPUCR;
     volatile uint32_t D3CR;
 } PWR_TypeDef;
+
+typedef struct {
+    volatile uint32_t PWRCR;
+} SYSCFG_TypeDef;
+
+typedef struct {
+    volatile uint32_t IDCODE;
+} DBGMCU_TypeDef;
 
 typedef struct {
     volatile uint32_t CR1;
@@ -176,6 +181,8 @@ extern RCC_TypeDef mock_rcc;
 extern USART_TypeDef mock_usart1;
 extern FLASH_TypeDef mock_flash;
 extern PWR_TypeDef mock_pwr;
+extern SYSCFG_TypeDef mock_syscfg;
+extern DBGMCU_TypeDef mock_dbgmcu;
 #define TIM1 (&mock_tim1)
 #define DMA1_Stream2 (&mock_feed_ch) /* CC2 slot-end marker -> feeds CCR3 */
 #define DMA1_Stream3 (&mock_dma1_ch4) /* CC4 capture -> drains CCR4 */
@@ -188,6 +195,8 @@ extern PWR_TypeDef mock_pwr;
 #define USART1 (&mock_usart1)
 #define FLASH (&mock_flash)
 #define PWR (&mock_pwr)
+#define SYSCFG (&mock_syscfg)
+#define DBGMCU (&mock_dbgmcu)
 
 /* --- Bit-field constants used by the driver (H7 spellings, real values) --- */
 #define RCC_AHB1ENR_DMA1EN 0x00000001u
@@ -195,6 +204,7 @@ extern PWR_TypeDef mock_pwr;
 #define RCC_AHB4ENR_GPIOEEN 0x00000010u
 #define RCC_APB2ENR_TIM1EN 0x00000001u
 #define RCC_APB2ENR_USART1EN 0x00000010u
+#define RCC_APB4ENR_SYSCFGEN 0x00000002u
 #define RCC_CR_HSEON 0x00010000u
 #define RCC_CR_HSERDY 0x00020000u
 #define RCC_CR_HSIDIV 0x00000018u
@@ -218,6 +228,13 @@ extern PWR_TypeDef mock_pwr;
 #define RCC_CFGR_SW_PLL1 0x00000003u
 #define RCC_CFGR_SWS_Msk 0x00000038u
 #define RCC_CFGR_SWS_PLL1 0x00000018u
+#define RCC_D1CFGR_HPRE 0x0000000Fu
+#define RCC_D1CFGR_HPRE_DIV1 0x00000000u
+#define RCC_D1CFGR_HPRE_DIV2 0x00000008u
+#define RCC_D1CFGR_D1PPRE 0x00000070u
+#define RCC_D1CFGR_D1PPRE_DIV2 0x00000040u
+#define RCC_D1CFGR_D1CPRE 0x00000F00u
+#define RCC_D1CFGR_D1CPRE_DIV1 0x00000000u
 #define RCC_D2CFGR_D2PPRE1 0x00000070u
 #define RCC_D2CFGR_D2PPRE1_DIV2 0x00000040u
 #define RCC_D2CFGR_D2PPRE2 0x00000700u
@@ -228,6 +245,16 @@ extern PWR_TypeDef mock_pwr;
 #define PWR_D3CR_VOS_0 0x00004000u
 #define PWR_D3CR_VOS_1 0x00008000u
 #define PWR_D3CR_VOSRDY 0x00002000u
+#define PWR_CR3_SCUEN 0x00000004u
+#define PWR_CR3_LDOEN 0x00000002u
+#define PWR_CR3_BYPASS 0x00000001u
+#define PWR_CSR1_ACTVOS 0x0000C000u
+#define PWR_CSR1_ACTVOSRDY 0x00002000u
+#define SYSCFG_PWRCR_ODEN 0x00000001u
+#define DBGMCU_IDCODE_DEV_ID 0x00000FFFu
+#define DBGMCU_IDCODE_REV_ID_Pos 16u
+#define DBGMCU_IDCODE_REV_ID 0xFFFF0000u
+#define STM32H7_DEV_ID 0x450u
 #define FLASH_ACR_LATENCY_4WS 0x00000004u
 #define GPIO_MODER_MODER10 0x00300000u
 #define GPIO_MODER_MODER10_0 0x00100000u

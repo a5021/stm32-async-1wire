@@ -64,6 +64,15 @@ extern "C" {
 #include "onewire.h"
 #include "ow_mcu.h"
 
+#if defined(OW_SYSCLK_MHZ) && defined(OW_TIM1_MHZ) && !defined(OW_FAMILY_H7) && \
+    ((OW_SYSCLK_MHZ) != (OW_TIM1_MHZ))
+#error "A separate TIM1_MHZ is currently supported only by the STM32H7 split-clock backend"
+#endif
+#if defined(OW_FAMILY_H7) && defined(OW_TIM1_MHZ) && \
+    ((OW_TIM1_MHZ) > (OW_H7_MAX_TIM1_MHZ))
+#error "OW_TIM1_MHZ exceeds the STM32H7 1-Wire timer clock ceiling"
+#endif
+
 /* --- Register vocabulary of the port core --------------------------------
  *  The family hooks from ow_mcu.h and the engine below are header-only and
  *  written in single-letter register aliases (T1, PA, RC, D13, ...), the
@@ -298,21 +307,21 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *     be overridden from the build (-DOW_PORT_IC4F_ARGS=...) to sweep the
  *     filter on a bench.
  *     Test: tests/test/test_timing.c::test_ic4f_matches_the_documented_tier() */
-#if defined(OW_SYSCLK_MHZ)
+#if defined(OW_TIM1_MHZ)
 #ifndef OW_PORT_IC4F_ARGS
-#if (OW_SYSCLK_MHZ) <= 8
+#if (OW_TIM1_MHZ) <= 8
 #define OW_PORT_IC4F_ARGS IC4F_1 /* 0b0001 = fCK_INT/16, N=1 */
-#elif (OW_SYSCLK_MHZ) <= 16
+#elif (OW_TIM1_MHZ) <= 16
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1 /* 0b0011 = fCK_INT/4, N=1 */
-#elif (OW_SYSCLK_MHZ) <= 72
+#elif (OW_TIM1_MHZ) <= 72
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_2 /* 0b0111 = fCK_INT/4, N=2 */
-#elif (OW_SYSCLK_MHZ) <= 168
+#elif (OW_TIM1_MHZ) <= 168
 #define OW_PORT_IC4F_ARGS IC4F_3 /* 0b1000 = fCK_INT/32, N=3 */
 #else
 #define OW_PORT_IC4F_ARGS IC4F_0, IC4F_1, IC4F_3 /* 0b1011 = fCK_INT/4, N=3 */
 #endif
 #endif
-#endif /* OW_SYSCLK_MHZ: ladder above is compile-time only; the OC3PE
+#endif /* OW_TIM1_MHZ: ladder above is compile-time only; the OC3PE
         * knob below is clock-independent and shared by both paths. */
 
 /* OC3 output-compare preload (OC3PE) knob, see above for the rationale.
@@ -331,17 +340,18 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #define OW_PORT_OC3PE_ARGS 0
 #endif
 
-/* Prescaler for 1 us resolution: PSC = SYSCLK / 1MHz - 1, from the shared
- * OW_SYSCLK_MHZ.  INVARIANT: TIM1's kernel clock must equal SYSCLK.
+/* Prescaler for 1us resolution: PSC = TIM1 kernel clock / 1MHz - 1.
+ * OW_TIM1_MHZ defaults to OW_SYSCLK_MHZ for every existing build; split-clock
+ * targets provide it separately. The CPU/SYSCLK frequency does not set PSC.
  * How each family gets there is family-specific and documented in its
  * ow_mcu.h section: F0/F1/F3/G0/G4 leave the APB prescaler feeding TIM1 at
  * /1, so TIM1 = PCLK = SYSCLK directly; F4 programs PPRE2=/2 (PPRE1=/4 or
- * /2) and relies on the STM32 x2 doubling, so TIM1 = 2 x PCLK2 = SYSCLK
- * either way.  Which APB the timer sits on, and why that family's prescalers
+ * /2) and relies on the STM32 x2 doubling, so TIM1 = 2 x PCLK2. Which APB the
+ * timer sits on, and why that family's prescalers
  * are what they are, is documented in each section; it is checked by
  * tests/test/test_timing.c::test_apb_prescaler_div1_for_tim1(). */
-#if defined(OW_SYSCLK_MHZ)
-#define OW_PORT_TIM_PRESCALER ((OW_SYSCLK_MHZ) - 1u)
+#if defined(OW_TIM1_MHZ)
+#define OW_PORT_TIM_PRESCALER ((OW_TIM1_MHZ) - 1u)
 _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
                "TIM prescaler exceeds 16-bit PSC register width");
 /* CCMR2 capture-mode word shared by the three capture arms below
@@ -351,16 +361,16 @@ _Static_assert(OW_PORT_TIM_PRESCALER <= 0xFFFFu,
  * drift; the DMA-fed merged arm drops the preload bit (see below). */
 #define OW_PORT_CCMR2_CAP TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS) | OW_PORT_OC3PE_ARGS
 #define OW_PORT_CCMR2_MRG TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1, OW_PORT_IC4F_ARGS)
-#else /* !defined(OW_SYSCLK_MHZ): SystemCoreClock auto-path -------------
+#else /* !defined(OW_TIM1_MHZ): SystemCoreClock auto-path ----------------
  * For integrations that select a backend without passing a clock -D
  * (PlatformIO/CubeMX family-macro path): the CMSIS SystemCoreClock variable
  * supplies the frequency instead of a header fallback guess, so a CubeMX
  * project at 64MHz can never silently inherit a 72MHz prescaler. The Make
  * and CMake builds always pass -DOW_SYSCLK_MHZ (from chips/<part>.mk)
- * and never reach this branch.
+ * and never reach this branch unless their clock is also their timer clock.
  * @pre SystemCoreClock holds the real SYSCLK in Hz (SystemCoreClockUpdate()
  *      after any clock-tree change), is an integer number of MHz >= 1MHz,
- *      and TIM1's kernel clock equals SYSCLK (same invariant as above).
+ *      and TIM1's kernel clock equals SystemCoreClock.
  * @note The -DOW_PORT_IC4F_ARGS bench override is compile-time only and is
  *       ignored on this path; the tiers below match the ladder above.
  *       Test: tests/test/test_sysclk_auto.c */
@@ -397,7 +407,7 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
     (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock) | OW_PORT_OC3PE_ARGS)
 #define OW_PORT_CCMR2_MRG \
     (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock))
-#endif /* OW_SYSCLK_MHZ */
+#endif /* OW_TIM1_MHZ */
 
 /* DMA control-value accessors (port-unification vocabulary): the exact
  * CR/CCR word each DMA-programming site writes, split by transfer class.
@@ -576,7 +586,7 @@ __STATIC_FORCEINLINE void ow_port_update_event(void) {
  */
 __STATIC_FORCEINLINE void ow_port_init(void) {
     OW_PORT_ENABLE_BUS_CLOCKS();
-#if defined(OW_SYSCLK_MHZ)
+#if defined(OW_TIM1_MHZ)
     T1.PSC = OW_PORT_TIM_PRESCALER;
 #else
     T1.PSC = ow_port_psc_from_hz(SystemCoreClock);

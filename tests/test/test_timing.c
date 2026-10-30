@@ -253,7 +253,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     hw_reset_all();
     ds18b20_init();
     /* PSC must equal SYSCLK_MHZ - 1 (1µs tick at full SYSCLK) */
-    TEST_ASSERT_EQUAL_UINT16(OW_SYSCLK_MHZ - 1, (uint16_t)mock_tim1.PSC);
+    TEST_ASSERT_EQUAL_UINT16(OW_TIM1_MHZ - 1, (uint16_t)mock_tim1.PSC);
 
 #if defined(STM32F0)
     /* F0: single APB bus — PPRE must be /1 (field = 0) */
@@ -451,26 +451,46 @@ void test_apb_prescaler_div1_for_tim1(void) {
                                      (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
 #endif
 #elif defined(STM32H7)
-#if (OW_SYSCLK_MHZ) == 240
-    /* 240MHz HSE+PLL. Preset the status flags the path waits on: VOSRDY,
-     * HSERDY, PLL1RDY. SWS is preset to PLL1 because the mock does not
-     * mirror SW -> SWS; the switch write preserves the SWS field. */
+#if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
+    /* H74x/H75x Rev V. The mock does not model PWR supply, VOS or oscillator
+     * transitions, so preset their ready flags. */
     mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
     mock_rcc.CFGR = RCC_CFGR_SWS_PLL1;
     mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
+    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
-    /* VOS1 (VOS = 11) raised before the clock: 240MHz is above the 200MHz
-     * VOS3 ceiling, so running it in the reset scale is out of spec. */
+    /* Supply selection is committed before voltage scaling (HAL's
+     * HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY) ordering). */
+    TEST_ASSERT_EQUAL_UINT32(PWR_CR3_LDOEN,
+                             mock_pwr.CR3 & (PWR_CR3_SCUEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS));
+    TEST_ASSERT_EQUAL_UINT32(PWR_CSR1_ACTVOSRDY,
+                             mock_pwr.CSR1 & PWR_CSR1_ACTVOSRDY);
+    /* VOS1 is selected before Rev V VOS0 overdrive; D3CR retains the VOS1
+     * request while SYSCFG.PWRCR.ODEN activates VOS0 for HCLK=240MHz. */
     TEST_ASSERT_EQUAL_UINT32(PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0,
                              mock_pwr.D3CR & PWR_D3CR_VOS);
-    /* 4 wait states (DS12110 flash table, HCLK = 240MHz in VOS1). */
+    TEST_ASSERT_EQUAL_UINT32(SYSCFG_PWRCR_ODEN, mock_syscfg.PWRCR & SYSCFG_PWRCR_ODEN);
+    TEST_ASSERT_EQUAL_UINT32(RCC_APB4ENR_SYSCFGEN, mock_rcc.APB4ENR & RCC_APB4ENR_SYSCFGEN);
+    /* 4 wait states at HCLK=240MHz in Rev V VOS0. */
     TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_LATENCY_4WS, mock_flash.ACR);
     /* SYSCLK switched to PLL1 (SW = 011). */
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_SW_PLL1, mock_rcc.CFGR & RCC_CFGR_SW);
-    /* APB prescalers: D2PPRE1/D2PPRE2/D3PPRE = /2 (PCLK1/PCLK2/APB4 =
-     * 120MHz), so the timer clock doubles to 2 x 120 = 240MHz = SYSCLK;
-     * D1CPRE/HPRE stay /1 at reset, so HCLK = SYSCLK. */
+    /* APB1/2/3/4 are all 120MHz; D1CPRE=/1. HCLK is 240MHz in both modes,
+     * while HPRE distinguishes CPU/SYSCLK 240 from 480. APB2 timer x2 restores
+     * TIM1=240MHz in either mode. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_D1CFGR_D1PPRE_DIV2,
+                             mock_rcc.D1CFGR & RCC_D1CFGR_D1PPRE);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D1CFGR & RCC_D1CFGR_D1CPRE);
+#if (OW_SYSCLK_MHZ) == 240
+    TEST_ASSERT_EQUAL_UINT32(RCC_D1CFGR_HPRE_DIV1,
+                             mock_rcc.D1CFGR & RCC_D1CFGR_HPRE);
+#else
+    TEST_ASSERT_EQUAL_UINT32(RCC_D1CFGR_HPRE_DIV2,
+                             mock_rcc.D1CFGR & RCC_D1CFGR_HPRE);
+#endif
     TEST_ASSERT_EQUAL_UINT32(RCC_D2CFGR_D2PPRE1_DIV2,
                              mock_rcc.D2CFGR & RCC_D2CFGR_D2PPRE1);
     TEST_ASSERT_EQUAL_UINT32(RCC_D2CFGR_D2PPRE2_DIV2,
@@ -478,7 +498,8 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(RCC_D3CFGR_D3PPRE_DIV2,
                              mock_rcc.D3CFGR & RCC_D3CFGR_D3PPRE);
     /* The PLL input is pinned at HSE/5 = 5MHz, so M = HSE/5, N = 96
-     * (480MHz VCO), P = 2. Source is HSE, RGE = 10 (the 4..8MHz window,
+     * (480MHz VCO), P = 2 or 1 for core clock 240 or 480MHz respectively.
+     * Source is HSE, RGE = 10 (the 4..8MHz window,
      * RGE_2 - the H7 encoding differs from H5's), wide VCO (VCOSEL clear)
      * and only the P output enabled: SYSCLK is taken from PLL1P, so R/Q
      * stay off. Asserted as literals rather than the code's own formulas,
@@ -490,11 +511,83 @@ void test_apb_prescaler_div1_for_tim1(void) {
                              mock_rcc.PLLCKSELR & RCC_PLLCKSELR_PLLSRC);
     TEST_ASSERT_EQUAL_UINT32(95u,
                              (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_N1_Pos) & 0x1FFu);
+#if (OW_SYSCLK_MHZ) == 240
     TEST_ASSERT_EQUAL_UINT32(1u,
                              (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_P1_Pos) & 0x7Fu);
+#else
+    TEST_ASSERT_EQUAL_UINT32(0u,
+                             (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_P1_Pos) & 0x7Fu);
+#endif
     TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLL1RGE_2 | RCC_PLLCFGR_DIVP1EN,
                              mock_rcc.PLLCFGR);
-#elif (OW_SYSCLK_MHZ) == 64
+
+    /* Rev Y/other devices cannot use the HCLK=240MHz VOS0 setup: reject them
+     * before touching PWR, HSE, or PLL. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x1003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
+
+    /* Supply configuration that is already locked to something other than LDO
+     * is rejected before any voltage scaling or oscillator work. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_pwr.CR3 = PWR_CR3_BYPASS; /* SCUEN clear, BYPASS set -> not LDO */
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
+
+    /* LDO selected but ACTVOSRDY never asserts: stop at supply ready. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_pwr.CR3 = PWR_CR3_LDOEN; /* SCUEN clear, LDO selected -> config passes */
+    mock_pwr.CSR1 = 0u; /* ACTVOSRDY clear */
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
+
+    /* Everything through VOS0 ready, then HSE never reports ready. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
+    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
+    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    mock_syscfg.PWRCR = SYSCFG_PWRCR_ODEN;
+    mock_rcc.APB4ENR = RCC_APB4ENR_SYSCFGEN;
+    mock_rcc.CR = 0u; /* HSERDY clear */
+    mock_rcc.CFGR = 0u;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
+
+    /* HSE ready but PLL1 never locks. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
+    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
+    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    mock_syscfg.PWRCR = SYSCFG_PWRCR_ODEN;
+    mock_rcc.APB4ENR = RCC_APB4ENR_SYSCFGEN;
+    mock_rcc.CR = RCC_CR_HSERDY; /* HSERDY set, PLL1RDY clear */
+    mock_rcc.CFGR = 0u;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+
+    /* PLL locked but SYSCLK does not switch to PLL1P. */
+    hw_reset_all();
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
+    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
+    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    mock_syscfg.PWRCR = SYSCFG_PWRCR_ODEN;
+    mock_rcc.APB4ENR = RCC_APB4ENR_SYSCFGEN;
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR = 0u; /* SWS stays 0, never PLL1 */
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+#elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
     /* 64MHz raw HSI: no waits to preset (nothing can time out), no PLL, no
      * VOS change. The divider goes to /1, flash gets a conservative latency,
      * everything else stays at reset (/1 prescalers, HSI selected). */
@@ -509,7 +602,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCKSELR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
 #else
-#error "test_timing: H7 supports 240 (HSE+PLL) and 64 (raw HSI)"
+#error "test_timing: H7 supports 240/240, 480/240, and 64/64 MHz clocks"
 #endif
 #endif
 }
@@ -546,13 +639,13 @@ void test_ic4f_matches_the_documented_tier(void) {
      * nothing has touched. */
     test_bus_reset();
 
-#if (OW_SYSCLK_MHZ) <= 8
+#if (OW_TIM1_MHZ) <= 8
     expected = TIM_CCMR2_IC4F_1; /* fCK_INT, N=4 */
-#elif (OW_SYSCLK_MHZ) <= 16
+#elif (OW_TIM1_MHZ) <= 16
     expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1; /* fCK_INT, N=8 */
-#elif (OW_SYSCLK_MHZ) <= 72
+#elif (OW_TIM1_MHZ) <= 72
     expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_2; /* fDTS/4, N=8 */
-#elif (OW_SYSCLK_MHZ) <= 168
+#elif (OW_TIM1_MHZ) <= 168
     expected = TIM_CCMR2_IC4F_3; /* fDTS/8, N=6 */
 #else
     expected = TIM_CCMR2_IC4F_0 | TIM_CCMR2_IC4F_1 | TIM_CCMR2_IC4F_3; /* fDTS/16, N=6 */
@@ -584,7 +677,7 @@ void test_ic4f_matches_the_documented_tier(void) {
 void test_console_baud_divisor(void) {
     uint32_t pclk2_expected;
     uint32_t brr_expected;
-    switch ((OW_SYSCLK_MHZ)) {
+    switch ((OW_TIM1_MHZ)) {
     case 180:
         pclk2_expected = 90; /* APB2 /2 at the F446's 180MHz */
         break;
@@ -676,20 +769,22 @@ void test_h5_console_baud_divisor(void) {
 void test_h7_console_baud_divisor(void) {
     uint32_t brr_expected;
 
-#if (OW_SYSCLK_MHZ) == 240
-    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ) / 2u, (uint32_t)OW_H7_PCLK2_MHZ);
+#if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
+    TEST_ASSERT_EQUAL_UINT32(120u, (uint32_t)OW_H7_PCLK2_MHZ);
 
     /* 115200 baud: BRR = round(PCLK / 115200). */
-    brr_expected = (((OW_SYSCLK_MHZ) / 2u) * 1000000u + 57600u) / 115200u;
+    brr_expected = (120u * 1000000u + 57600u) / 115200u;
     TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H7_CONSOLE_BRR);
     TEST_ASSERT_EQUAL_UINT32(1042u, brr_expected);
-#else
+#elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
     TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_H7_PCLK2_MHZ);
 
     /* 115200 baud: BRR = round(PCLK / 115200). */
     brr_expected = ((OW_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
     TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_H7_CONSOLE_BRR);
     TEST_ASSERT_EQUAL_UINT32(556u, brr_expected);
+#else
+#error "test_timing: H7 console supports 240/240, 480/240, or 64/64 MHz"
 #endif
 }
 #endif /* STM32H7 */

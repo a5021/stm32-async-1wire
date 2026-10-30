@@ -110,23 +110,25 @@ void onewire_init(void);
  * @return OW_CONFIG_TOKEN as seen by the library translation units
  * @note Compare with the application-side OW_CONFIG_TOKEN at startup:
  *       a mismatch means the archive and the application were built with
- *       different OW flags or DS18B20_MAX_DEVICES. Fail loudly there instead
- *       of running with a silently different bus timing or table size.
+ *       different OW flags, clock frequencies, or DS18B20_MAX_DEVICES. Fail
+ *       loudly there instead of running with a silently different bus timing
+ *       or table size.
  */
 uint32_t onewire_config_token(void);
 
 /**
- * @brief Whether a runtime clock reading agrees with the build
- * @param[in] sysclk_mhz System clock in whole MHz as the firmware actually
+ * @brief Whether the runtime core clock agrees with the build
+ * @param[in] sysclk_mhz Core clock in whole MHz as the firmware actually
  *                       runs, e.g. (SystemCoreClock / 1000000u)
- * @return 1 when the reading matches the clock the port timing was built for
+ * @return 1 when the core-clock reading matches OW_SYSCLK_MHZ
  * @note Call once at startup before any bus operation and refuse to run on 0:
- *       with -DOW_SYSCLK_MHZ the port prescaler is fixed at compile time, so
- *       a firmware clocked differently scales every 1-Wire slot and the bus
- *       just looks dead. Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path)
- *       the port derives its prescaler from SystemCoreClock itself, so this
- *       only rejects a zero/uninitialized reading - staleness after a
- *       clock-tree change is undetectable here, call SystemCoreClockUpdate().
+ *       with -DOW_SYSCLK_MHZ this validates the core clock; the timer
+ *       prescaler is compiled from OW_TIM1_MHZ (defaults to OW_SYSCLK_MHZ).
+ *       A split-clock target must configure TIM1 to that timer frequency.
+ *       Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path) the port derives
+ *       its timer prescaler from SystemCoreClock itself, so this only rejects
+ *       a zero/uninitialized reading - staleness after a clock-tree change is
+ *       undetectable here, call SystemCoreClockUpdate().
  */
 uint8_t onewire_clock_ok(uint32_t sysclk_mhz);
 

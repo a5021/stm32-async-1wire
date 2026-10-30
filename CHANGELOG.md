@@ -13,24 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **STM32H7 backend (WeAct STM32H743VIT6, 240MHz).** The eighth family:
   PA10/TIM1_CH3 + IC4, DMA1 streams 2/3 through DMAMUX1 (requests 12/14),
-  16-bit direct-mode feed like F4. The 240MHz HSE+PLL clock is the TIM1 ==
-  SYSCLK ceiling (D2PPRE2=/2, VOS1, 4 flash wait states), not the 480MHz
-  silicon cap; the D-cache stays off. Host suite runs the H7 leg
+  16-bit direct-mode feed like F4. Default is 240/240MHz core/TIM1 (APB1/2/3/4
+  =/2, LDO supply setup, Rev V VOS1→VOS0, 4 flash wait states). Rev V also has
+  an opt-in 480/240MHz core/TIM1 mode (HPRE=/2); TIM1 stays at the 240MHz
+  driver ceiling. The D-cache stays off. Host suite runs the H7 leg
   (`make test-h7`), the mocks are pinned against `stm32h743xx.h`
   (`make test-mocks`), and HIL runs the parasite-powered bench. The 64MHz
   raw-HSI fallback clock is bench-verified too (search plus temperatures
   over USART on the same 7-sensor rig).
 - **Startup clock-agreement check (`onewire_clock_ok()`).** With
-  `-DOW_SYSCLK_MHZ` the TIM1 prescaler is fixed at compile time, so a
-  firmware clocked differently scales every 1-Wire slot and the bus just
+  `-DOW_SYSCLK_MHZ` the core clock is fixed at compile time and the TIM1
+  prescaler is compiled from `OW_TIM1_MHZ` (defaulting to `OW_SYSCLK_MHZ`), so
+  a firmware clocked differently scales every 1-Wire slot and the bus just
   looks dead. The new predicate compares a runtime MHz reading (e.g.
   `SystemCoreClock / 1000000u`) against the build clock; call it once at
-  startup and refuse to run on 0. On the `SystemCoreClock` auto-path it only
-  rejects a zero reading. Host suite: `tests/test/test_clock_check.c`.
+  startup and refuse to run on 0. A split-clock target (H7 480/240) checks the
+  timer clock separately against `SystemD2Clock`. On the `SystemCoreClock`
+  auto-path it only rejects a zero reading. Host suite:
+  `tests/test/test_clock_check.c`.
 - **Build configuration token (`OW_CONFIG_TOKEN`).** Mixes the macros that
   must agree between the archive and the application sources
   (`OW_PARASITE_POWER`, `OW_LOW_POWER`, `OW_DRIVE_ACTIVE`,
-  `OW_STATS_ENABLE`, `OW_BUS_DRIVE`, `DS18B20_MAX_DEVICES`).
+  `OW_STATS_ENABLE`, `OW_BUS_DRIVE`, `DS18B20_MAX_DEVICES`,
+  `OW_SYSCLK_MHZ`, `OW_TIM1_MHZ`).
   `onewire_config_token()` reports the library side; a mismatch means the
   two were built with different `-D` flags and must not run together.
 - **CMake: bring your own CMSIS.** `OW_CMSIS_CORE_INCLUDE` plus
