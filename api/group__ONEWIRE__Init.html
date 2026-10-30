@@ -103,7 +103,7 @@ Functions</h2></td></tr>
 <tr class="memitem:ga70a75fa250c51c8a4311dde45fe4cdf6" id="r_ga70a75fa250c51c8a4311dde45fe4cdf6"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga70a75fa250c51c8a4311dde45fe4cdf6">onewire_config_token</a> (void)</td></tr>
 <tr class="memdesc:ga70a75fa250c51c8a4311dde45fe4cdf6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configuration token the library was compiled with.  <br /></td></tr>
 <tr class="memitem:ga750cb72ed9b3e44d077bb45f5d72c5f7" id="r_ga750cb72ed9b3e44d077bb45f5d72c5f7"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga750cb72ed9b3e44d077bb45f5d72c5f7">onewire_clock_ok</a> (uint32_t sysclk_mhz)</td></tr>
-<tr class="memdesc:ga750cb72ed9b3e44d077bb45f5d72c5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether a runtime clock reading agrees with the build.  <br /></td></tr>
+<tr class="memdesc:ga750cb72ed9b3e44d077bb45f5d72c5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether the runtime core clock agrees with the build.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <p>Board facts: the family selection token and <a class="el" href="ow__board_8h.html#a35b3e90dbfdcc12fdb0c11f4af9647dd" title="DMA feed entry width of the active family.">ow_pulse_t</a>. </p>
@@ -124,15 +124,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Whether a runtime clock reading agrees with the build. </p>
+<p>Whether the runtime core clock agrees with the build. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">sysclk_mhz</td><td>System clock in whole MHz as the firmware actually runs, e.g. (SystemCoreClock / 1000000u) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">sysclk_mhz</td><td>Core clock in whole MHz as the firmware actually runs, e.g. (SystemCoreClock / 1000000u) </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>1 when the reading matches the clock the port timing was built for </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>Call once at startup before any bus operation and refuse to run on 0: with -DOW_SYSCLK_MHZ the port prescaler is fixed at compile time, so a firmware clocked differently scales every 1-Wire slot and the bus just looks dead. Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path) the port derives its prescaler from SystemCoreClock itself, so this only rejects a zero/uninitialized reading - staleness after a clock-tree change is undetectable here, call SystemCoreClockUpdate(). </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>1 when the core-clock reading matches OW_SYSCLK_MHZ </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Call once at startup before any bus operation and refuse to run on 0: with -DOW_SYSCLK_MHZ this validates the core clock; the timer prescaler is compiled from OW_TIM1_MHZ (defaults to OW_SYSCLK_MHZ). A split-clock target must configure TIM1 to that timer frequency. Without -DOW_SYSCLK_MHZ (SystemCoreClock auto-path) the port derives its timer prescaler from SystemCoreClock itself, so this only rejects a zero/uninitialized reading - staleness after a clock-tree change is undetectable here, call SystemCoreClockUpdate(). </dd></dl>
 
 </div>
 </div>
@@ -153,7 +153,7 @@ Functions</h2></td></tr>
 
 <p>Configuration token the library was compiled with. </p>
 <dl class="section return"><dt>Returns</dt><dd>OW_CONFIG_TOKEN as seen by the library translation units </dd></dl>
-<dl class="section note"><dt>Note</dt><dd>Compare with the application-side OW_CONFIG_TOKEN at startup: a mismatch means the archive and the application were built with different OW flags or DS18B20_MAX_DEVICES. Fail loudly there instead of running with a silently different bus timing or table size. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Compare with the application-side OW_CONFIG_TOKEN at startup: a mismatch means the archive and the application were built with different OW flags, clock frequencies, or DS18B20_MAX_DEVICES. Fail loudly there instead of running with a silently different bus timing or table size. </dd></dl>
 
 </div>
 </div>
