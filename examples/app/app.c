@@ -238,18 +238,6 @@ void ow_stats_tx_enqueue(char c) {
 static uint8_t ow_clock_ok = 1u;
 
 #if defined(OW_FAMILY_H7)
-enum {
-    OW_H7_CLOCK_FAIL_NONE = 0u,
-    OW_H7_CLOCK_FAIL_DEVICE_REVISION,
-    OW_H7_CLOCK_FAIL_SUPPLY_CONFIG,
-    OW_H7_CLOCK_FAIL_SUPPLY_READY,
-    OW_H7_CLOCK_FAIL_VOS1_READY,
-    OW_H7_CLOCK_FAIL_VOS0_READY,
-    OW_H7_CLOCK_FAIL_HSE_READY,
-    OW_H7_CLOCK_FAIL_PLL1_READY,
-    OW_H7_CLOCK_FAIL_SYSCLK_SWITCH,
-    OW_H7_CLOCK_FAIL_CLOCK_RATE
-};
 static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 #endif
 
@@ -303,6 +291,11 @@ static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t valu
 uint8_t app_clock_ok(void) {
     return ow_clock_ok;
 }
+#if defined(OW_FAMILY_H7)
+uint8_t app_h7_clock_failure(void) {
+    return ow_h7_clock_failure;
+}
+#endif
 #endif
 
 void configure_system_clock(void) {
@@ -981,6 +974,12 @@ void configure_system_clock(void) {
      * too - this write just pins the number the tick was validated with. */
     FLASH->ACR = FLASH_ACR_LATENCY_4WS;
     RCC->CR &= (uint32_t)~RCC_CR_HSIDIV;
+    SystemCoreClockUpdate();
+    if (!onewire_clock_ok(SystemCoreClock / 1000000u)) {
+        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_HSI_CLOCK_RATE;
+        ow_clock_ok = 0u;
+        return;
+    }
 #else
 #error "Unsupported H7 clock configuration"
 #endif

@@ -196,6 +196,26 @@ void configure_system_clock(void);
 uint8_t app_clock_ok(void);
 #endif
 
+#if defined(OW_FAMILY_H7)
+/* Stages at which the H7 bring-up can fail; reported by
+ * app_h7_clock_failure() after configure_system_clock() returns with
+ * app_clock_ok() == 0. Values are stable for log/test comparison. */
+enum {
+    OW_H7_CLOCK_FAIL_NONE = 0u,
+    OW_H7_CLOCK_FAIL_DEVICE_REVISION,
+    OW_H7_CLOCK_FAIL_SUPPLY_CONFIG,
+    OW_H7_CLOCK_FAIL_SUPPLY_READY,
+    OW_H7_CLOCK_FAIL_VOS1_READY,
+    OW_H7_CLOCK_FAIL_VOS0_READY,
+    OW_H7_CLOCK_FAIL_HSE_READY,
+    OW_H7_CLOCK_FAIL_PLL1_READY,
+    OW_H7_CLOCK_FAIL_SYSCLK_SWITCH,
+    OW_H7_CLOCK_FAIL_CLOCK_RATE,
+    OW_H7_CLOCK_FAIL_HSI_CLOCK_RATE
+};
+uint8_t app_h7_clock_failure(void);
+#endif
+
 /**
  * @brief Advance USART1 transmission by at most one byte (non-blocking)
  * @note Must be called periodically to feed the UART from the ring buffer

@@ -462,6 +462,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_NONE, app_h7_clock_failure());
     /* Supply selection is committed before voltage scaling (HAL's
      * HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY) ordering). */
     TEST_ASSERT_EQUAL_UINT32(PWR_CR3_LDOEN,
@@ -527,6 +528,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_dbgmcu.IDCODE = (0x1003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_DEVICE_REVISION, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
 
@@ -537,6 +539,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_pwr.CR3 = PWR_CR3_BYPASS; /* SCUEN clear, BYPASS set -> not LDO */
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_SUPPLY_CONFIG, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
 
     /* LDO selected but ACTVOSRDY never asserts: stop at supply ready. */
@@ -546,6 +549,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_pwr.CSR1 = 0u; /* ACTVOSRDY clear */
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_SUPPLY_READY, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
 
     /* Everything through VOS0 ready, then HSE never reports ready. */
@@ -560,6 +564,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_rcc.CFGR = 0u;
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_HSE_READY, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
 
     /* HSE ready but PLL1 never locks. */
@@ -574,6 +579,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_rcc.CFGR = 0u;
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_PLL1_READY, app_h7_clock_failure());
 
     /* PLL locked but SYSCLK does not switch to PLL1P. */
     hw_reset_all();
@@ -587,12 +593,14 @@ void test_apb_prescaler_div1_for_tim1(void) {
     mock_rcc.CFGR = 0u; /* SWS stays 0, never PLL1 */
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_SYSCLK_SWITCH, app_h7_clock_failure());
 #elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
     /* 64MHz raw HSI: no waits to preset (nothing can time out), no PLL, no
      * VOS change. The divider goes to /1, flash gets a conservative latency,
      * everything else stays at reset (/1 prescalers, HSI selected). */
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_NONE, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSIDIV);
     TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_LATENCY_4WS, mock_flash.ACR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D1CFGR);
