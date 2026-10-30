@@ -140,4 +140,15 @@ uint32_t hw_tim_slots(void); /* total slots in the scheduled operation */
 void mock_wfe_hook(void);
 void mock_wfe_set_hook(void (*hook)(void));
 
+#if defined(STM32H7) && defined(DS18B20_TEST_HARNESS)
+/* H7 clock-failure seam: arm the next `allow` matching waits to pass, then
+ * fail one. mask/value must match the wait's (mask, value) exactly. */
+void mock_wait_fail_after(uint32_t mask, uint32_t value, uint32_t allow);
+uint8_t mock_wait_should_fail(uint32_t mask, uint32_t value);
+
+/* Override the clocks reported by SystemCoreClockUpdate(). 0 means "derive
+ * from OW_SYSCLK_MHZ / OW_TIM1_MHZ" (the default). */
+void mock_set_clock_hz(uint32_t core_hz, uint32_t d2_hz);
+#endif /* STM32H7 && DS18B20_TEST_HARNESS */
+
 #endif /* HW_MODEL_H */

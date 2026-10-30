@@ -265,7 +265,20 @@ static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
  * missing external clock stops the boot instead of hanging with a silent
  * console. */
 #define OW_CLOCK_FLAG_TIMEOUT 4000000u
+#if defined(DS18B20_TEST_HARNESS) && defined(OW_FAMILY_H7)
+/* The host mock is plain memory and cannot drop ACTVOSRDY between the supply
+ * wait and a later VOS wait the way the PMU does, so the VOS stages would be
+ * unreachable. Tests arm "the next matching wait fails" instead
+ * (mock_wait_fail_after() in tests/mock/hw_model.h). On target the macro is a
+ * constant 0 and the branch compiles away. */
+uint8_t mock_wait_should_fail(uint32_t mask, uint32_t value);
+#define OW_WAIT_MAY_FAIL(mask, value) mock_wait_should_fail((mask), (value))
+#else
+#define OW_WAIT_MAY_FAIL(mask, value) 0u
+#endif
 static uint8_t ow_wait_flag(volatile uint32_t* reg, uint32_t bit) {
+    if (OW_WAIT_MAY_FAIL(bit, bit))
+        return 0u;
     uint32_t n = OW_CLOCK_FLAG_TIMEOUT;
     while (n && !(*reg & bit))
         n--;
@@ -274,6 +287,8 @@ static uint8_t ow_wait_flag(volatile uint32_t* reg, uint32_t bit) {
 #if defined(OW_FAMILY_H7) && ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && \
     (OW_TIM1_MHZ) == 240
 static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t value) {
+    if (OW_WAIT_MAY_FAIL(mask, value))
+        return 0u;
     uint32_t n = OW_CLOCK_FLAG_TIMEOUT;
     while (n && ((*reg & mask) != value))
         n--;

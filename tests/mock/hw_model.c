@@ -31,17 +31,32 @@ DBGMCU_TypeDef mock_dbgmcu; /* H7 device/revision gate for 240MHz HCLK */
 #if defined(DS18B20_TEST_HARNESS)
 uint32_t SystemCoreClock;
 uint32_t SystemD2Clock;
+/* Clock override for the H7 measured-clock failure tests: 0 means "derive
+ * from OW_SYSCLK_MHZ / OW_TIM1_MHZ" (the historical behaviour). */
+static uint32_t s_h7_core_hz_override;
+static uint32_t s_h7_d2_hz_override;
+/* Bounded-wait arming: the next `allow` matching waits pass, then one fails. */
+static uint8_t s_h7_wait_armed;
+static uint32_t s_h7_wait_mask;
+static uint32_t s_h7_wait_value;
+static uint32_t s_h7_wait_allow;
 void SystemCoreClockUpdate(void) {
+    SystemCoreClock = s_h7_core_hz_override;
+    if (SystemCoreClock == 0u) {
 #if defined(OW_SYSCLK_MHZ)
-    SystemCoreClock = (uint32_t)OW_SYSCLK_MHZ * 1000000u;
+        SystemCoreClock = (uint32_t)OW_SYSCLK_MHZ * 1000000u;
 #else
-    SystemCoreClock = 64000000u;
+        SystemCoreClock = 64000000u;
 #endif
+    }
+    SystemD2Clock = s_h7_d2_hz_override;
+    if (SystemD2Clock == 0u) {
 #if defined(OW_TIM1_MHZ)
-    SystemD2Clock = (uint32_t)OW_TIM1_MHZ * 1000000u;
+        SystemD2Clock = (uint32_t)OW_TIM1_MHZ * 1000000u;
 #else
-    SystemD2Clock = SystemCoreClock;
+        SystemD2Clock = SystemCoreClock;
 #endif
+    }
 }
 #endif
 #endif
@@ -83,6 +98,30 @@ void mock_wfe_hook(void) {
     }
 }
 
+#if defined(STM32H7) && defined(DS18B20_TEST_HARNESS)
+void mock_wait_fail_after(uint32_t mask, uint32_t value, uint32_t allow) {
+    s_h7_wait_armed = 1u;
+    s_h7_wait_mask = mask;
+    s_h7_wait_value = value;
+    s_h7_wait_allow = allow;
+}
+
+uint8_t mock_wait_should_fail(uint32_t mask, uint32_t value) {
+    if (!s_h7_wait_armed || mask != s_h7_wait_mask || value != s_h7_wait_value)
+        return 0u;
+    if (s_h7_wait_allow != 0u) {
+        s_h7_wait_allow--;
+        return 0u;
+    }
+    s_h7_wait_armed = 0u;
+    return 1u;
+}
+
+void mock_set_clock_hz(uint32_t core_hz, uint32_t d2_hz) {
+    s_h7_core_hz_override = core_hz;
+    s_h7_d2_hz_override = d2_hz;
+}
+#endif
 /* --- truncated 32-bit DMA address -> real host pointer table ---
  * The mock models what the silicon sees: CMAR/CPAR are 32-bit registers, so
  * it keeps the true host pointer only in this bookkeeping table and resolves
@@ -242,6 +281,14 @@ void hw_reset_all(void) {
     mock_pwr = (PWR_TypeDef){0};
     mock_syscfg = (SYSCFG_TypeDef){0};
     mock_dbgmcu = (DBGMCU_TypeDef){0};
+#if defined(DS18B20_TEST_HARNESS)
+    s_h7_wait_armed = 0u;
+    s_h7_wait_mask = 0u;
+    s_h7_wait_value = 0u;
+    s_h7_wait_allow = 0u;
+    s_h7_core_hz_override = 0u;
+    s_h7_d2_hz_override = 0u;
+#endif
 #endif
     tim_shadow_out = 0;
     capture_source = NULL;

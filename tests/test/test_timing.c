@@ -249,6 +249,24 @@ void test_timing_temperature_formula(void) {
  *  F1: TIM1 on APB2, PPRE2 stays /1 (PPRE1=/2 is OK — different bus).  ✓
  *  G0: single APB bus, PPRE defaults /1.  ✓
  * -----------------------------------------------------------*/
+#if defined(STM32H7) && ((OW_TIM1_MHZ) == 240) && (((OW_SYSCLK_MHZ) == 240) || ((OW_SYSCLK_MHZ) == 480))
+/* Everything configure_system_clock() waits on, in the state the silicon
+ * reaches when the H7 path succeeds: Rev V device, LDO selected, ACTVOSRDY
+ * up, VOS0 requested, SYSCFG clocked, HSE and PLL1 locked, SYSCLK already
+ * reported as PLL1. A failure test presets this, then removes exactly the
+ * one flag (or arms the bounded wait) whose stage it pins. */
+static void h7_clock_ready(void) {
+    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR = RCC_CFGR_SWS_PLL1;
+    mock_rcc.APB4ENR = RCC_APB4ENR_SYSCFGEN;
+    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
+    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
+    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
+    mock_syscfg.PWRCR = SYSCFG_PWRCR_ODEN;
+}
+#endif
+
 void test_apb_prescaler_div1_for_tim1(void) {
     hw_reset_all();
     ds18b20_init();
@@ -454,12 +472,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
 #if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
     /* H74x/H75x Rev V. The mock does not model PWR supply, VOS or oscillator
      * transitions, so preset their ready flags. */
-    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
-    mock_rcc.CFGR = RCC_CFGR_SWS_PLL1;
-    mock_pwr.D3CR = PWR_D3CR_VOSRDY;
-    mock_pwr.CR3 = PWR_CR3_SCUEN | PWR_CR3_LDOEN;
-    mock_pwr.CSR1 = PWR_CSR1_ACTVOSRDY;
-    mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
+    h7_clock_ready();
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
     TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_NONE, app_h7_clock_failure());
@@ -552,6 +565,38 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_SUPPLY_READY, app_h7_clock_failure());
     TEST_ASSERT_EQUAL_UINT32(0u, mock_pwr.D3CR);
 
+    /* ACTVOSRDY never asserts after the VOS1 write (normal path, no
+     * retained ODEN): stop at VOS1 ready. */
+    hw_reset_all();
+    h7_clock_ready();
+    mock_syscfg.PWRCR = 0u; /* no retained ODEN, so the retained path is skipped */
+    mock_wait_fail_after(PWR_CSR1_ACTVOSRDY, PWR_CSR1_ACTVOSRDY, 1u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_VOS1_READY, app_h7_clock_failure());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
+
+    /* Retained ODEN path: supply passes, then the wait after clearing ODEN
+     * fails, reporting VOS1 ready. */
+    hw_reset_all();
+    h7_clock_ready();
+    /* ODEN already set: h7_clock_ready() presets it */
+    mock_wait_fail_after(PWR_CSR1_ACTVOSRDY, PWR_CSR1_ACTVOSRDY, 1u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_VOS1_READY, app_h7_clock_failure());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
+
+    /* VOS1 passes but ACTVOSRDY never asserts after the VOS0 overdrive write. */
+    hw_reset_all();
+    h7_clock_ready();
+    mock_syscfg.PWRCR = 0u;
+    mock_wait_fail_after(PWR_CSR1_ACTVOSRDY, PWR_CSR1_ACTVOSRDY, 2u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_VOS0_READY, app_h7_clock_failure());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
+
     /* Everything through VOS0 ready, then HSE never reports ready. */
     hw_reset_all();
     mock_dbgmcu.IDCODE = (0x2003u << DBGMCU_IDCODE_REV_ID_Pos) | STM32H7_DEV_ID;
@@ -594,6 +639,23 @@ void test_apb_prescaler_div1_for_tim1(void) {
     configure_system_clock();
     TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
     TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_SYSCLK_SWITCH, app_h7_clock_failure());
+
+    /* PLL switched, but the measured SYSCLK does not match the requested one. */
+    hw_reset_all();
+    h7_clock_ready();
+    mock_set_clock_hz((uint32_t)(OW_SYSCLK_MHZ) * 1000000u - 1000000u, 0u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_CLOCK_RATE, app_h7_clock_failure());
+
+    /* SYSCLK right, but the measured TIM1/HCLK rate does not match. */
+    hw_reset_all();
+    h7_clock_ready();
+    mock_set_clock_hz((uint32_t)(OW_SYSCLK_MHZ) * 1000000u,
+                      (uint32_t)(OW_TIM1_MHZ) * 1000000u - 1000000u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_CLOCK_RATE, app_h7_clock_failure());
 #elif (OW_SYSCLK_MHZ) == 64 && (OW_TIM1_MHZ) == 64
     /* 64MHz raw HSI: no waits to preset (nothing can time out), no PLL, no
      * VOS change. The divider goes to /1, flash gets a conservative latency,
@@ -608,6 +670,15 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.D3CFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCKSELR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
+
+    /* The measured HSI rate is not the 64MHz the tick was validated at. */
+    hw_reset_all();
+    mock_set_clock_hz(63000000u, 0u);
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(0, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT8(OW_H7_CLOCK_FAIL_HSI_CLOCK_RATE, app_h7_clock_failure());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_HSEON);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_PLL1ON);
 #else
 #error "test_timing: H7 supports 240/240, 480/240, and 64/64 MHz clocks"
