@@ -78,7 +78,7 @@ void test_lowpower_bus_done_clears_pending(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
 
     /* Simulate the timer update event (operation complete). */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     TEST_ASSERT_EQUAL_UINT8(1, test_ds18b20_bus_done());
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
 }
@@ -98,7 +98,7 @@ void test_lowpower_sleep_until_done_smoke(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
 
     /* Set UIF so the while-loop exits immediately on the host. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ow_port_sleep_until_done();
 
     /* After sleep, bus_done should still work (pending was cleared). */

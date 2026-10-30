@@ -49,7 +49,7 @@ void test_state_machine_first_poll_transitions_to_START(void) {
     ds18b20_start_measure();
 
     /* Simulate UIF set (hardware operation complete) */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* First poll: IDLE(0) -> START(1) */
     ds18b20_poll();
@@ -91,7 +91,7 @@ void test_state_machine_convert_with_presence_pass(void) {
     ds18b20_test_set_capture_pulse(1, 700); /* Presence pulse within range */
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should send convert command and transition to WAIT */
     ds18b20_poll();
@@ -115,7 +115,7 @@ void test_state_machine_convert_with_presence_fail(void) {
     ds18b20_test_set_capture_pulse(1, 100); /* Too short */
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should report NO_SENSOR error and go to pause */
     ds18b20_poll();
@@ -137,7 +137,7 @@ void test_state_machine_wait_transitions_to_continue(void) {
     ds18b20_test_set_state(3);
 
     /* Simulate UIF set (750ms timer complete) */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should reset bus and transition to CONTINUE */
     ds18b20_poll();
@@ -156,7 +156,7 @@ void test_state_machine_continue_transitions_to_request(void) {
     ds18b20_test_set_state(4);
 
     /* Simulate UIF set (reset complete) */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should check presence and transition to REQUEST */
     ds18b20_poll();
@@ -168,7 +168,7 @@ void test_state_machine_continue_transitions_to_request(void) {
 
     /* Reset state to CONTINUE and try again */
     ds18b20_test_set_state(4);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     ds18b20_poll();
 
@@ -190,7 +190,7 @@ void test_state_machine_request_with_presence_pass(void) {
     ds18b20_test_set_capture_pulse(1, 700);
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should send read command and transition to READ */
     ds18b20_poll();
@@ -209,7 +209,7 @@ void test_state_machine_read_transitions_to_decode(void) {
     ds18b20_test_set_state(6);
 
     /* Simulate UIF set (read complete) */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should transition to DECODE state */
     ds18b20_poll();
@@ -238,7 +238,7 @@ void test_state_machine_decode_with_valid_crc(void) {
     }
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should report valid temperature */
     ds18b20_poll();
@@ -266,7 +266,7 @@ void test_state_machine_decode_with_invalid_crc(void) {
     }
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should report CRC error */
     ds18b20_poll();
@@ -286,7 +286,7 @@ void test_state_machine_invalid_state_triggers_error(void) {
     ds18b20_test_set_state(255);
 
     /* Simulate UIF set */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 
     /* Poll should report generic error and reset to IDLE */
     ds18b20_poll();
@@ -309,33 +309,33 @@ void test_state_machine_full_cycle_skip_rom(void) {
 
     /* Simulate a full measurement cycle */
     /* Step 1: IDLE -> START -> CONVERT */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     /* Step 2: CONVERT -> WAIT (with valid presence) */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
     /* Step 3: WAIT -> CONTINUE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     /* Step 4: CONTINUE -> REQUEST (with valid presence) */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     /* Step 5: REQUEST -> READ (with valid presence) */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
@@ -347,14 +347,14 @@ void test_state_machine_full_cycle_skip_rom(void) {
         ds18b20_test_set_scratchpad(i, temp_data[i]);
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* READ transitions to DECODE (7) */
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
     /* Step 7: DECODE -> IDLE (no UIF needed, processes immediately) */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* DECODE processes and returns to IDLE */
@@ -380,7 +380,7 @@ void test_state_machine_match_rom_mode(void) {
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Should transition to WAIT */
@@ -404,7 +404,7 @@ void test_state_machine_decode_all_zero_reports_error(void) {
         ds18b20_test_set_scratchpad(i, 0x00);
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
@@ -432,7 +432,7 @@ void test_state_machine_decode_all_FF_reports_error(void) {
         ds18b20_test_set_scratchpad(i, 0xFF);
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
@@ -469,7 +469,7 @@ void test_state_machine_decode_all_FF_match_rom_reports_no_sensor(void) {
         }
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Must be NO_SENSOR, not a bogus CRC error */
@@ -505,7 +505,7 @@ void test_state_machine_decode_corrupt_match_rom_reports_crc(void) {
         }
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Must remain a CRC error */
@@ -529,7 +529,7 @@ void test_state_machine_decode_wrong_byte5_reports_error(void) {
         ds18b20_test_set_scratchpad(i, bad_data[i]);
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Callback must be called with CRC error */
@@ -612,29 +612,29 @@ void test_state_machine_search_select_measure_e2e(void) {
     /* Phase 3: full measurement cycle in Match ROM mode */
     /* Explicit start request: a parked driver only advances on one. */
     ds18b20_start_measure();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
@@ -647,11 +647,11 @@ void test_state_machine_search_select_measure_e2e(void) {
         }
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -692,38 +692,38 @@ static void ts_drive_measurement_raw(uint16_t raw) {
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
     ts_inject_scratchpad(sd);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -824,7 +824,7 @@ void test_state_machine_busy_spy(void) {
     ds18b20_start_measure();
 
     /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_calls);
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_last_action);
@@ -839,7 +839,7 @@ void test_state_machine_busy_spy(void) {
         }
     }
     ds18b20_test_set_state(7);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_EQUAL_UINT8(0, test_spy_busy_last_action);
@@ -858,7 +858,7 @@ void test_state_machine_request_presence_fail(void) {
     ds18b20_test_set_capture_pulse(0, 100); /* bad reset */
     ds18b20_test_set_capture_pulse(1, 100); /* bad presence */
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -885,7 +885,7 @@ void test_state_machine_presence_fail_clears_busy(void) {
     ds18b20_start_measure();
 
     /* IDLE -> START: busy(1) is asserted, as in a real measurement. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_busy_last_action); /* busy ON */
 
@@ -893,7 +893,7 @@ void test_state_machine_presence_fail_clears_busy(void) {
      * turn busy OFF before reporting NO_SENSOR. */
     ds18b20_test_set_capture_pulse(0, 100); /* bad reset */
     ds18b20_test_set_capture_pulse(1, 100); /* bad presence */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -915,29 +915,29 @@ void test_state_machine_crc_fail_mid_cycle(void) {
     ds18b20_start_measure();
 
     /* Full cycle with a corrupted scratchpad read */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
@@ -951,11 +951,11 @@ void test_state_machine_crc_fail_mid_cycle(void) {
         }
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);
@@ -976,29 +976,29 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
     /* Explicit start request: a parked driver only advances on one. */
     ds18b20_start_measure();
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
@@ -1011,11 +1011,11 @@ void test_state_machine_full_cycle_skip_rom_value(void) {
         }
     }
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_TRUE(test_spy_complete_called);

@@ -14,6 +14,10 @@ uint16_t hw_effective_ccr3(void);
  * elapsed. Returns 1 if UIF became set (operation complete), 0 otherwise. */
 uint8_t hw_run_until_uif(uint32_t max_slots);
 
+/* Terminal update event of the timer: sets UIF and, in One-Pulse Mode,
+ * clears CEN as the silicon does. All completion paths go through here. */
+void hw_tim_update_event(void);
+
 /* Set the capture source hook: called for every capture slot (0-based index)
  * of the current operation. May be NULL (captures 0). */
 typedef uint16_t (*hw_capture_fn)(uint32_t slot_index);

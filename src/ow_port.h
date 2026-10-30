@@ -618,11 +618,6 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
         NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
 #endif
         T1.SR = 0;
-        /* Retire the schedule explicitly: on hardware OPM already stopped the
-         * counter, but stating it here keeps the completion state honest
-         * without relying on that side effect (and keeps the host mock, which
-         * does not model OPM auto-stop, in agreement with hardware). */
-        T1.CR1 &= (uint32_t)~TIM_CR1(CEN);
         return 1u;
     }
     return 0u;

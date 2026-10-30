@@ -90,14 +90,14 @@ static void read_one_device(uint8_t expected_index, uint8_t expect_more,
 
     /* CONTINUE -> REQUEST: state entry, addressing not applied yet. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_REQUEST, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(expected_index, ds18b20_test_get_scan_index());
 
     /* REQUEST -> READ: Match ROM address for the current device. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
@@ -108,13 +108,13 @@ static void read_one_device(uint8_t expected_index, uint8_t expect_more,
     }
 
     /* READ -> DECODE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_DECODE, ds18b20_test_get_state());
 
     /* DECODE -> next CONTINUE or IDLE, reporting this device. */
     set_scratchpad_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_TRUE(test_spy_complete_count > before);
     TEST_ASSERT_EQUAL_INT(expected_temp, test_spy_complete_values[before]);
@@ -189,13 +189,13 @@ void test_broadcast_convert_forces_skip_rom(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode()); /* still selected */
 
     /* IDLE -> CONVERT */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
 
     /* CONVERT -> WAIT: the broadcast must force Skip ROM. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
@@ -210,24 +210,24 @@ void test_broadcast_request_match_rom_per_device(void) {
     setup_scan(2);
 
     /* IDLE -> CONVERT -> WAIT -> CONTINUE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
 
     /* CONTINUE -> REQUEST: state entry only, addressing not applied yet. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_REQUEST, ds18b20_test_get_state());
 
     /* REQUEST -> READ: the device is addressed via Match ROM and read. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());
@@ -246,19 +246,19 @@ void test_broadcast_full_round_three_devices(void) {
     setup_scan(3);
 
     /* 1. IDLE -> CONVERT */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
 
     /* 2. CONVERT -> WAIT (broadcast: Skip ROM, no Match ROM address) */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_address_mode());
 
     /* 3. WAIT -> CONTINUE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
 
@@ -285,12 +285,12 @@ void test_broadcast_missing_device_continues(void) {
     setup_scan(3);
 
     /* Convert + wait, ready for the first read-back. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     /* Device 0: valid reading. */
@@ -298,15 +298,15 @@ void test_broadcast_missing_device_continues(void) {
 
     /* Device 1: addressed but absent -> NO_SENSOR, scan moves on. */
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     set_scratchpad_absent();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_INT(DS18B20_TEMP_ERROR_NO_SENSOR, test_spy_complete_values[1]);
     TEST_ASSERT_EQUAL_UINT8(1, test_spy_complete_indices[1]);
@@ -326,12 +326,12 @@ void test_broadcast_missing_device_continues(void) {
 void test_broadcast_single_device_round(void) {
     setup_scan(1);
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     read_one_device(0, 0, 223);
@@ -353,12 +353,12 @@ void test_broadcast_select_clears_scan_mode(void) {
 
     /* Explicit start request: single cycles no longer start on their own. */
     ds18b20_start_measure();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
 
     set_presence_ok();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode());

@@ -306,7 +306,7 @@ static void union_run_measurement_snapshot(uint16_t* out80, uint8_t* captured) {
      * model does not raise UIF on UG, so without this the first poll sees
      * no completion and never schedules the reset pass. Every later pass
      * gets a real UIF from the pumped timer. Same seed as test_parasite. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     uint16_t guard = 0;
     do {
         ds18b20_poll();

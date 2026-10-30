@@ -300,18 +300,18 @@ void test_resolution_next_cycle_waits_short(void) {
     ds18b20_start_measure();
 
     /* UIF is set by the EGR handover: run one measurement cycle up to WAIT. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
 
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
 
     /* wait_conversion() must now wait for 9-bit (93.75ms), not 750ms. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT32(46875, mock_tim1.ARR);
     TEST_ASSERT_EQUAL_UINT32(1, mock_tim1.RCR);
@@ -337,7 +337,7 @@ void test_resolution_decode_derives_from_scratchpad(void) {
     sd[8] = ds18b20_crc8(sd, 8);
     set_scratchpad_via_pulses(sd);
     ds18b20_test_set_state(DS18B20_ST_DECODE);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     /* config byte 0x3F = 10 bit (R1/R0 = 01) */
     TEST_ASSERT_EQUAL_UINT8(10, ds18b20_get_resolution());
@@ -349,7 +349,7 @@ void test_resolution_decode_bad_crc_keeps_resolution(void) {
     sd[8] = (uint8_t)(ds18b20_crc8(sd, 8) ^ 0xFF);
     set_scratchpad_via_pulses(sd);
     ds18b20_test_set_state(DS18B20_ST_DECODE);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     /* CRC failed: a corrupted config byte must never change the wait. */
     TEST_ASSERT_EQUAL_UINT8(12, ds18b20_get_resolution());

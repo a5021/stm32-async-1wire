@@ -5,6 +5,14 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+void hw_tim_update_event(void)
+{
+    mock_tim1.SR |= TIM_SR_UIF;
+    if (mock_tim1.CR1 & TIM_CR1_OPM) {
+        mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;
+    }
+}
 #if defined(STM32H7)
 #include "system_stm32h7xx.h"
 #endif
@@ -465,10 +473,7 @@ uint8_t hw_run_until_uif(uint32_t max_slots) {
         }
         if (i == (uint32_t)(t->RCR & 0xFFu)) {
             /* terminal update event: UIF, OPM stop, preload -> shadow. */
-            t->SR |= TIM_SR_UIF;
-            if (t->CR1 & TIM_CR1_OPM) {
-                t->CR1 &= (uint32_t)~TIM_CR1_CEN;
-            }
+            hw_tim_update_event();
             tim_shadow_out = (uint16_t)MOCK_TIM_OUT_CCR;
             return 1u;
         }
@@ -651,10 +656,7 @@ hw_tim_event_t hw_tim_step(void) {
         }
         if (g_tim.period >= (uint32_t)g_tim.slots - 1u) {
             g_tim.done = 1u;
-            mock_tim1.SR |= TIM_SR_UIF;
-            if (mock_tim1.CR1 & TIM_CR1_OPM) {
-                mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;
-            }
+            hw_tim_update_event();
             return HW_TIM_EV_TERMINAL;
         }
         g_tim.period++;

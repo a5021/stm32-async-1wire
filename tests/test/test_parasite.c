@@ -117,16 +117,16 @@ static void inject_scratchpad(void) {
 static void drive_to_wait(void) {
     /* Explicit start request: a parked driver only advances on one. */
     ds18b20_start_measure();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(2, ds18b20_test_get_state());
 
     inject_presence();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(3, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(4, ds18b20_test_get_state());
 }
@@ -135,16 +135,16 @@ static void drive_to_wait(void) {
  * Entry state: REQUEST (5), i.e. the post-conversion reset already ran. */
 static void drive_request_to_end(void) {
     inject_presence();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(6, ds18b20_test_get_state());
 
     inject_scratchpad();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(7, ds18b20_test_get_state());
 
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(0, ds18b20_test_get_state());
 }
@@ -154,7 +154,7 @@ static void drive_request_to_end(void) {
  * window was entered. */
 static void drive_from_continue_to_end(void) {
     inject_presence();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
     drive_request_to_end();
@@ -258,7 +258,7 @@ void test_parasite_convert_window_engage_and_release(void) {
     /* Next poll runs ST_CONTINUE: release happens BEFORE the reset
      * pulse is scheduled (sequential code in the same case block). */
     inject_presence();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(5, ds18b20_test_get_state());
     TEST_ASSERT_TRUE(pu_idle_af_od());
@@ -284,7 +284,7 @@ void test_parasite_flag_cleared_mid_window_still_releases(void) {
      * driven into the readout phase. */
     ds18b20_set_parasite(0);
     inject_presence();
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_TRUE(pu_idle_af_od());
     TEST_ASSERT_FALSE(pu_engaged());
@@ -461,33 +461,33 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
 
     /* IDLE -> CONVERT */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
     /* CONVERT -> WAIT (broadcast Skip ROM) */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_WAIT, ds18b20_test_get_state());
     /* WAIT -> CONTINUE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONTINUE, ds18b20_test_get_state());
     /* CONTINUE -> REQUEST */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_REQUEST, ds18b20_test_get_state());
     /* REQUEST -> READ */
     ds18b20_test_set_capture_pulse(0, 510);
     ds18b20_test_set_capture_pulse(1, 700);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_READ, ds18b20_test_get_state());
     /* READ -> DECODE */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_DECODE, ds18b20_test_get_state());
 
@@ -501,7 +501,7 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
         }
     }
     uint8_t before = test_spy_complete_count;
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
     TEST_ASSERT_TRUE(pu_engaged());
@@ -525,7 +525,7 @@ void test_parasite_alarm_thresholds_release_pullup(void) {
     for (int i = 0; i < 8 && !done; i++) {
         ds18b20_test_set_capture_pulse(0, 510);
         ds18b20_test_set_capture_pulse(1, 700);
-        mock_tim1.SR |= TIM_SR_UIF;
+        hw_tim_update_event();
         done = ds18b20_set_alarm_thresholds_poll();
     }
     TEST_ASSERT_TRUE(done);
@@ -549,7 +549,7 @@ void test_parasite_convert_no_presence_engages_pullup(void) {
     /* No device answers the presence pulse. */
     ds18b20_test_set_capture_pulse(0, 100);
     ds18b20_test_set_capture_pulse(1, 100);
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
     ds18b20_poll();
 
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());

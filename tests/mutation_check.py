@@ -119,8 +119,8 @@ MUTATIONS = [
         "id": "M14",
         "what": "model: the operation completes without setting UIF",
         "file": "tests/mock/hw_model.c",
-        "find": "mock_tim1.SR |= TIM_SR_UIF;",
-        "replace": "mock_tim1.SR |= 0u;",
+        "find": "void hw_tim_update_event(void)\n{\n    mock_tim1.SR |= TIM_SR_UIF;\n    if (mock_tim1.CR1 & TIM_CR1_OPM) {\n        mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;\n    }\n}",
+        "replace": "void hw_tim_update_event(void)\n{\n    mock_tim1.SR |= 0u;\n    if (mock_tim1.CR1 & TIM_CR1_OPM) {\n        mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;\n    }\n}",
         "families": None,
     },
     {

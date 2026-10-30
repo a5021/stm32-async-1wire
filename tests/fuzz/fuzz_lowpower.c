@@ -72,7 +72,7 @@ static uint32_t g_wfe_fire_at;
 static void lp_wfe_hook(void) {
     g_wfe_calls++;
     if (g_wfe_calls >= g_wfe_fire_at) {
-        mock_tim1.SR |= TIM_SR_UIF; /* the update event wakes the sleep loop */
+        hw_tim_update_event(); /* the update event wakes the sleep loop */
     }
 }
 

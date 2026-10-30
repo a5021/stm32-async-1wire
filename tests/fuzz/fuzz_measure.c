@@ -254,7 +254,7 @@ static void measure_setup(void) {
     /* The mock does not model the EGR=UG write of ow_glue_kick(); the
      * driver arms the START reset on the resulting update event, so supply
      * it as the functional tests do. */
-    mock_tim1.SR |= TIM_SR_UIF;
+    hw_tim_update_event();
 }
 
 static void measure_run(measure_result_t* out) {
