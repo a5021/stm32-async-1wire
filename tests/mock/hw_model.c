@@ -6,8 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void hw_tim_update_event(void)
-{
+void hw_tim_update_event(void) {
     mock_tim1.SR |= TIM_SR_UIF;
     if (mock_tim1.CR1 & TIM_CR1_OPM) {
         mock_tim1.CR1 &= (uint32_t)~TIM_CR1_CEN;
