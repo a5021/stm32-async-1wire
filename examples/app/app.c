@@ -824,7 +824,7 @@ void configure_system_clock(void) {
 /* H7 startup, deliberately ordered from reset state rather than relying on
  * debugger/previous-firmware power configuration:
  *
- *  1. Confirm a supported H74x/H75x Rev V device. HCLK=240MHz needs VOS0,
+ *  1. Confirm a supported H743 Rev V device. HCLK=240MHz needs VOS0,
  *     which is only available on Rev V; older revisions must not run it.
  *  2. Select the board's LDO supply in PWR_CR3 and wait for ACTVOSRDY. At
  *     power-on SCUEN is set and ACTVOSRDY is clear (limited Run* mode); VOS
@@ -876,7 +876,7 @@ void configure_system_clock(void) {
     ow_clock_ok = 1u;
     ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 
-    /* 240MHz HCLK requires VOS0 on H74x/H75x, available only on Rev V.
+    /* 240MHz HCLK requires VOS0 on H743, available only on Rev V.
      * DBGMCU_IDCODE is common to H743 (DEV_ID=0x450); REV_ID=0x2003 is
      * Rev V. Reject other revisions rather than running out of spec. */
     if ((DBGMCU->IDCODE & DBGMCU_IDCODE_DEV_ID) != 0x450u ||
@@ -918,7 +918,7 @@ void configure_system_clock(void) {
         }
     }
 
-    /* H74x/H75x Rev V VOS0 entry must pass through VOS1 first. */
+    /* H743 Rev V VOS0 entry must pass through VOS1 first. */
     PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;
     if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
         ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;

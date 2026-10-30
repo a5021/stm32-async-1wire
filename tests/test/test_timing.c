@@ -470,7 +470,7 @@ void test_apb_prescaler_div1_for_tim1(void) {
 #endif
 #elif defined(STM32H7)
 #if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
-    /* H74x/H75x Rev V. The mock does not model PWR supply, VOS or oscillator
+    /* H743 Rev V. The mock does not model PWR supply, VOS or oscillator
      * transitions, so preset their ready flags. */
     h7_clock_ready();
     configure_system_clock();
