@@ -154,7 +154,7 @@ still private.
   that satisfies the complete [Required Timer Capabilities](#required-timer-capabilities)
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F401xE, STM32F446RE,
-  STM32G031x6, STM32G474CB, STM32H503CB, STM32H743VIT6; see the per-family sections in `src/ow_mcu.h`).
+  STM32G031x6, STM32G474CB, STM32H503CB, STM32H743VI; see the per-family sections in `src/ow_mcu.h`).
 - Sensor: DS18B20 temperature sensor and/or DS2431 EEPROM; one firmware image
   drives one of the two drivers (see [DS2431 EEPROM Driver](#ds2431-eeprom-driver))
 - Toolchain: GCC ARM (arm-none-eabi)
@@ -222,8 +222,8 @@ still private.
     ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
     └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
 │   └── stm32h7/            # STM32H7: TIM1 + DMA1/DMAMUX1 + PA10
-    ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VIT6 (2MB flash / 512KB AXI SRAM1)
-    └── project-h743vit6.jdebug  # SEGGER Ozone project (STM32H743VIT6, SWD; no J-Flash: ST-Link flow)
+    ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
+    └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
 ├── chips/                  # Per-part build identity, one file per part
@@ -237,7 +237,7 @@ still private.
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 │   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
 │   └── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
-│   └── h743vit6.mk          # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
+│   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
 │   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 8 family sections)
@@ -400,7 +400,7 @@ make OW_MCU=STM32G474xx SYSCLK_MHZ=16 APP=4_scan_mode
 # STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
 make OW_MCU=STM32H503xx APP=4_scan_mode
 
-# STM32H743VIT6 target (WeAct STM32H743VIT6 Core Board, 240MHz HSE+PLL default):
+# STM32H743VI target (WeAct STM32H743VI Core Board, 240MHz HSE+PLL default):
 make OW_MCU=STM32H743xx APP=4_scan_mode
 ```
 
@@ -598,16 +598,16 @@ and captured at each clock with correct 22.8-23.1C readings and 0 errors in
 `6_statistics`. The busy LED on **PC13** is **active-low** (blue LED on the
 WeAct board). Build with `make OW_MCU=STM32H503xx`.
 
-### STM32H743VIT6 (WeAct Studio STM32H7XX Core Board)
+### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 
-Validated on a WeAct Studio STM32H7XX (STM32H743VIT6, ST-Link, 2MB flash): 7 DS18B20 in parasite
+Validated on a WeAct Studio STM32H7XX (STM32H743VI, ST-Link, 2MB flash): 7 DS18B20 in parasite
 power mode on one 1-Wire bus on **PA10** (AF1; TIM1 CH3/CH4 pair, DMA1 streams
 2/3 through DMAMUX1 — requests 12/14, 16-bit feed tables), console on
 USART1 TX / **PA9** (AF7) at 115200 8N1 via a USB-TTL adapter, flashed via
 ST-Link SWD. Clock: 240MHz via HSE+PLL (M=HSE/5, N=96, P=2 through PLL1P,
 LDO supply setup, VOS1→VOS0 on Rev V, 4 flash wait states; 25MHz crystal,
 `HSE_MHZ=25` in
-`chips/h743vit6.mk`). All five HIL scripts passed on the parasite bench
+`chips/h743vi.mk`). All five HIL scripts passed on the parasite bench
 (`smoke` 7 devices, `scan` 20 rounds, `stats` 70 cycles / 5040 pulses /
 0 errors, `ds2431` 2 devices read back baseline+1, `lowpower` 6 readings),
 and the wire geometry matches the configuration on the analyzer (5.0 / 60.0 us
@@ -858,7 +858,7 @@ raw-HSE `SYSCLK_MHZ=8` build are supported. Build with `make OW_MCU=STM32H503xx`
 There is no J-Flash project for this part (JTAG CoreID unverified) — flash
 via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 
-### STM32H743VIT6 (WeAct Studio STM32H7XX Core Board)
+### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 
 | Pin  | Function            | Notes                              |
 |------|---------------------|------------------------------------|
@@ -870,7 +870,7 @@ via ST-Link (see `port/stm32h5/project-h503cb.jdebug`).
 Note: the parasite-powered bench runs a 2.2 kΩ pull-up from a dedicated
 supply; a normally powered bus takes the same 4.7 kΩ pull-up to 3.3V as the
 other families. The board carries a **25 MHz crystal** (`HSE_MHZ=25` in
-`chips/h743vit6.mk`); default is 240/240MHz CPU/TIM1. Rev V also supports an
+`chips/h743vi.mk`); default is 240/240MHz CPU/TIM1. Rev V also supports an
 opt-in 480/240MHz split (`SYSCLK_MHZ=480 TIM1_MHZ=240`): CPU=480MHz, HCLK=240MHz,
 TIM1=240MHz. Both use the LDO supply, VOS1→VOS0 and 4 flash wait states. Build
 the split mode with `make OW_MCU=STM32H743xx SYSCLK_MHZ=480 TIM1_MHZ=240`.

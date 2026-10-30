@@ -60,7 +60,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 #   make OW_TARGET=f4   -> F4 firmware (default part f407xx)
 #   make OW_TARGET=g4   -> G4 firmware (default part g474cb)
 #   make OW_TARGET=h5   -> H5 firmware (default part h503cb)
-#   make OW_TARGET=h7   -> H7 firmware (default part h743vit6)
+#   make OW_TARGET=h7   -> H7 firmware (default part h743vi)
 #
 # OW_CHIP selects the part *within* the family and remains accepted for
 # compatibility; its value is the name of a
@@ -95,7 +95,7 @@ OW_MCU_CHIP_STM32G474xx = g474cb
 OW_MCU_TARGET_STM32H503xx = h5
 OW_MCU_CHIP_STM32H503xx = h503cb
 OW_MCU_TARGET_STM32H743xx = h7
-OW_MCU_CHIP_STM32H743xx = h743vit6
+OW_MCU_CHIP_STM32H743xx = h743vi
 OW_TARGET_ORIGIN := $(origin OW_TARGET)
 OW_CHIP_ORIGIN := $(origin OW_CHIP)
 ifneq ($(OW_MCU),)
@@ -180,7 +180,7 @@ OW_CHIP ?= g474cb
 else ifeq ($(OW_TARGET),h5)
 OW_CHIP ?= h503cb
 else ifeq ($(OW_TARGET),h7)
-OW_CHIP ?= h743vit6
+OW_CHIP ?= h743vi
 else
 OW_CHIP ?= f103xb
 endif
@@ -712,7 +712,7 @@ clean-deps:
 # tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
 # because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
 # - the inner reference expands before t is bound and comes out empty.
-MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb h5:h503cb h7:h743vit6
+MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb h5:h503cb h7:h743vi
 test-mocks:
 	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
@@ -1828,7 +1828,7 @@ help:
 	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|h5|h7 - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
-	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb, h503cb, h743vit6); default per family"
+	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
 	@echo "                                    default (per-family defaults are 48/72/72/168/64/170/64/240"
 	@echo "                                    for f0/f1/f3/f4/g0/g4/h5/h7; F401=84, F446=180; 8/16 raw RC)"

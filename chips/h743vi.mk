@@ -1,10 +1,10 @@
-# chips/h743vit6.mk — STM32H743VIT6 on the WeAct Studio STM32H7XX Core Board
+# chips/h743vi.mk — STM32H743VI on the WeAct Studio STM32H7XX Core Board
 #
 # Part identity ONLY. See chips/f103xb.mk for what does and does not belong
 # here, and for the "no trailing comment on an assignment line" rule.
 #
 # Naming follows the CMSIS device macro (stm32h7xx.h lists the valid device
-# macros per family), lowercased: STM32H743xx -> h743vit6.
+# macros per family), lowercased: STM32H743xx -> h743vi.
 #
 # The H7 port backend is shared by the whole H7 family as it stands: TIM1 CH3 on
 # PA10, the CH4 indirect capture off TI3, and the DMAMUX1 request pair
@@ -36,7 +36,7 @@ CHIP_STARTUP = $(CMSIS_DEVICE_DIR)/startup_stm32h743xx.s
 # 2MB flash / 512KB AXI SRAM1
 CHIP_LINKER = port/stm32h7/STM32H743VI_FLASH.ld
 CHIP_JFLASH =
-CHIP_JDEBUG = port/stm32h7/project-h743vit6.jdebug
+CHIP_JDEBUG = port/stm32h7/project-h743vi.jdebug
 CHIP_SVD =
 # Board crystal: the PLL input for the 240MHz HSE+PLL clock in app.c.
 CHIP_HSE_MHZ = 25

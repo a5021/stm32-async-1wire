@@ -1,5 +1,5 @@
 /*
- * Linker script for STM32H743VIT6 (2MB Flash, 1MB RAM)
+ * Linker script for STM32H743VI (2MB Flash, 1MB RAM)
  *
  * Memory layout:
  *   FLASH (rx)  : 0x08000000, 2048K

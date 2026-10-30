@@ -862,7 +862,7 @@ void configure_system_clock(void) {
     ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 
     /* 240MHz HCLK requires VOS0 on H74x/H75x, available only on Rev V.
-     * DBGMCU_IDCODE is common to H743/H750 (DEV_ID=0x450); REV_ID=0x2003 is
+     * DBGMCU_IDCODE is common to H743 (DEV_ID=0x450); REV_ID=0x2003 is
      * Rev V. Reject other revisions rather than running out of spec. */
     if ((DBGMCU->IDCODE & DBGMCU_IDCODE_DEV_ID) != 0x450u ||
         (DBGMCU->IDCODE & DBGMCU_IDCODE_REV_ID) != (0x2003u << DBGMCU_IDCODE_REV_ID_Pos)) {
@@ -917,7 +917,7 @@ void configure_system_clock(void) {
         return;
     }
 
-    // 4 wait states for VOS0, HCLK = 240MHz (H750/H74x Rev V data sheet).
+    // 4 wait states for VOS0, HCLK = 240MHz (H743 Rev V data sheet).
     FLASH->ACR = FLASH_ACR_LATENCY_4WS;
     // D1CPRE=/1; HCLK is /1 at SYSCLK=240 or /2 at SYSCLK=480.
     RCC->D1CFGR = (RCC->D1CFGR & ~(RCC_D1CFGR_D1CPRE | RCC_D1CFGR_HPRE |

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **STM32H7 backend (WeAct STM32H743VIT6, 240MHz).** The eighth family:
+- **STM32H7 backend (WeAct STM32H743VI, 240MHz).** The eighth family:
   PA10/TIM1_CH3 + IC4, DMA1 streams 2/3 through DMAMUX1 (requests 12/14),
   16-bit direct-mode feed like F4. Default is 240/240MHz core/TIM1 (APB1/2/3/4
   =/2, LDO supply setup, Rev V VOS1→VOS0, 4 flash wait states). Rev V also has
