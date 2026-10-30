@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-30 03:55:23</td>
+            <td class="headerValue">2026-10-30 03:56:15</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
@@ -933,7 +933,7 @@
 <span id="L862"><span class="lineNum">     862</span>                 :             :     ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;</span>
 <span id="L863"><span class="lineNum">     863</span>                 :             : </span>
 <span id="L864"><span class="lineNum">     864</span>                 :             :     /* 240MHz HCLK requires VOS0 on H74x/H75x, available only on Rev V.</span>
-<span id="L865"><span class="lineNum">     865</span>                 :             :      * DBGMCU_IDCODE is common to H743/H750 (DEV_ID=0x450); REV_ID=0x2003 is</span>
+<span id="L865"><span class="lineNum">     865</span>                 :             :      * DBGMCU_IDCODE is common to H743 (DEV_ID=0x450); REV_ID=0x2003 is</span>
 <span id="L866"><span class="lineNum">     866</span>                 :             :      * Rev V. Reject other revisions rather than running out of spec. */</span>
 <span id="L867"><span class="lineNum">     867</span>                 :             :     if ((DBGMCU-&gt;IDCODE &amp; DBGMCU_IDCODE_DEV_ID) != 0x450u ||</span>
 <span id="L868"><span class="lineNum">     868</span>                 :             :         (DBGMCU-&gt;IDCODE &amp; DBGMCU_IDCODE_REV_ID) != (0x2003u &lt;&lt; DBGMCU_IDCODE_REV_ID_Pos)) {</span>
@@ -988,7 +988,7 @@
 <span id="L917"><span class="lineNum">     917</span>                 :             :         return;</span>
 <span id="L918"><span class="lineNum">     918</span>                 :             :     }</span>
 <span id="L919"><span class="lineNum">     919</span>                 :             : </span>
-<span id="L920"><span class="lineNum">     920</span>                 :             :     // 4 wait states for VOS0, HCLK = 240MHz (H750/H74x Rev V data sheet).</span>
+<span id="L920"><span class="lineNum">     920</span>                 :             :     // 4 wait states for VOS0, HCLK = 240MHz (H743 Rev V data sheet).</span>
 <span id="L921"><span class="lineNum">     921</span>                 :             :     FLASH-&gt;ACR = FLASH_ACR_LATENCY_4WS;</span>
 <span id="L922"><span class="lineNum">     922</span>                 :             :     // D1CPRE=/1; HCLK is /1 at SYSCLK=240 or /2 at SYSCLK=480.</span>
 <span id="L923"><span class="lineNum">     923</span>                 :             :     RCC-&gt;D1CFGR = (RCC-&gt;D1CFGR &amp; ~(RCC_D1CFGR_D1CPRE | RCC_D1CFGR_HPRE |</span>
