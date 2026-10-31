@@ -111,6 +111,10 @@ Macros</h2></td></tr>
 <tr class="memdesc:gaacb5c64dbd17ccd61387d96298803501"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Search ROM (all devices respond with their ROM)  <br /></td></tr>
 <tr class="memitem:ga5fed02ba54e634f57bd478e320e083b5" id="r_ga5fed02ba54e634f57bd478e320e083b5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga5fed02ba54e634f57bd478e320e083b5">ONEWIRE_ALARM_SEARCH</a>&#160;&#160;&#160;0xEC</td></tr>
 <tr class="memdesc:ga5fed02ba54e634f57bd478e320e083b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Alarm Search (only alarming devices respond)  <br /></td></tr>
+<tr class="memitem:ga3590123e86cd9a296a2ffe734d73cf68" id="r_ga3590123e86cd9a296a2ffe734d73cf68"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga3590123e86cd9a296a2ffe734d73cf68">ONEWIRE_MATCH_ROM</a>&#160;&#160;&#160;0x55</td></tr>
+<tr class="memdesc:ga3590123e86cd9a296a2ffe734d73cf68"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Match ROM (address one device by its 8-byte ROM)  <br /></td></tr>
+<tr class="memitem:ga6c471df4ecb7f2c3d1ac5064e2ceb828" id="r_ga6c471df4ecb7f2c3d1ac5064e2ceb828"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga6c471df4ecb7f2c3d1ac5064e2ceb828">ONEWIRE_SKIP_ROM</a>&#160;&#160;&#160;0xCC</td></tr>
+<tr class="memdesc:ga6c471df4ecb7f2c3d1ac5064e2ceb828"><td class="mdescLeft">&#160;</td><td class="mdescRight">1-Wire ROM command: Skip ROM (broadcast to every device on the bus)  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <a name="doc-define-members" id="doc-define-members"></a><h2 id="header-doc-define-members" class="groupheader">Macro Definition Documentation</h2>
@@ -143,6 +147,22 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Bits per byte. </p>
+
+</div>
+</div>
+<a id="ga3590123e86cd9a296a2ffe734d73cf68" name="ga3590123e86cd9a296a2ffe734d73cf68"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga3590123e86cd9a296a2ffe734d73cf68">&#9670;&#160;</a></span>ONEWIRE_MATCH_ROM</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ONEWIRE_MATCH_ROM&#160;&#160;&#160;0x55</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>1-Wire ROM command: Match ROM (address one device by its 8-byte ROM) </p>
 
 </div>
 </div>
@@ -240,6 +260,22 @@ Macros</h2></td></tr>
 </div><div class="memdoc">
 
 <p>1-Wire ROM command: Search ROM (all devices respond with their ROM) </p>
+
+</div>
+</div>
+<a id="ga6c471df4ecb7f2c3d1ac5064e2ceb828" name="ga6c471df4ecb7f2c3d1ac5064e2ceb828"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga6c471df4ecb7f2c3d1ac5064e2ceb828">&#9670;&#160;</a></span>ONEWIRE_SKIP_ROM</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ONEWIRE_SKIP_ROM&#160;&#160;&#160;0xCC</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>1-Wire ROM command: Skip ROM (broadcast to every device on the bus) </p>
 
 </div>
 </div>

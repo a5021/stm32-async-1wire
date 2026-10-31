@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">97.1&nbsp;%</td>
-            <td class="headerCovTableEntry">140</td>
+            <td class="headerCovTableEntryHi">98.5&nbsp;%</td>
             <td class="headerCovTableEntry">136</td>
+            <td class="headerCovTableEntry">134</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-10-31 17:24:02</td>
+            <td class="headerValue">2026-10-31 19:57:09</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">91.2&nbsp;%</td>
+            <td class="headerCovTableEntryHi">90.1&nbsp;%</td>
             <td class="headerCovTableEntry">91</td>
-            <td class="headerCovTableEntry">83</td>
+            <td class="headerCovTableEntry">82</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -109,7 +109,7 @@
 <span id="L38"><span class="lineNum">      38</span>                 :             :          * drive the CONTINUE state again (single-device rounds get their UIF</span>
 <span id="L39"><span class="lineNum">      39</span>                 :             :          * from ds18b20_start_measure()). Arm a short scheduling delay: its UIF</span>
 <span id="L40"><span class="lineNum">      40</span>                 :             :          * is the bridge to CONTINUE, which then arms the real bus reset. */</span>
-<span id="L41"><span class="lineNum">      41</span>                 :<span class="tlaGNC">          88 :         ow_glue_wait_start(SCAN_DEVICE_GAP_US);</span></span>
+<span id="L41"><span class="lineNum">      41</span>                 :<span class="tlaGNC">          88 :         ow_start_wait(SCAN_DEVICE_GAP_US);</span></span>
 <span id="L42"><span class="lineNum">      42</span>                 :             :     } else {</span>
 <span id="L43"><span class="lineNum">      43</span>                 :<span class="tlaGNC">          88 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
 <span id="L44"><span class="lineNum">      44</span>                 :             :         // Parasite power: keep the strong pull-up engaged while parked.</span>
@@ -136,7 +136,7 @@
 <span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaUNC">           0 :         return; // the search, a resolution change or a command owns the timer</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :     }</span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         528 :     ctx.current_state = DS18B20_ST_START;</span></span>
-<span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         528 :     ow_glue_kick();</span></span>
+<span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         528 :     ow_timer_kick();</span></span>
 <span id="L69"><span class="lineNum">      69</span>                 :             : }</span>
 <span id="L70"><span class="lineNum">      70</span>                 :             : </span>
 <span id="L71"><span class="lineNum">      71</span>                 :             : /**</span>
@@ -176,10 +176,10 @@
 <span id="L105"><span class="lineNum">     105</span>                 :             :  * happens strictly between DMA bursts, never during one — the invariant is</span>
 <span id="L106"><span class="lineNum">     106</span>                 :             :  * implicit in the call site, hence documented here at the same level of</span>
 <span id="L107"><span class="lineNum">     107</span>                 :             :  * detail as the B1 guards for the other pulse buffers. */</span>
-<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">         726 : static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {</span></span>
-<span id="L109"><span class="lineNum">     109</span>                 :<span class="tlaGNC">         726 :     onewire_encode_byte(dst, 0xCC);</span></span>
-<span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">         726 :     onewire_encode_byte(dst + 8, cmd_byte);</span></span>
-<span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">         726 :     dst[DS18B20_DMA_TRANSFERS] = ONEWIRE_RELEASE_PULSE;</span></span>
+<span id="L108"><span class="lineNum">     108</span>         [<span class="tlaGBC" title="Branch 0 was taken 726 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">         726 : static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {</span></span>
+<span id="L109"><span class="lineNum">     109</span>                 :             :     ow_encode_prefix(&amp;dst, 0);</span>
+<span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">         726 :     onewire_encode_byte(dst, cmd_byte);</span></span>
+<span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">         726 :     dst[DS18B20_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;</span></span>
 <span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">         726 : }</span></span>
 <span id="L113"><span class="lineNum">     113</span>                 :             : </span>
 <span id="L114"><span class="lineNum">     114</span>                 :             : /**</span>
@@ -191,7 +191,7 @@
 <span id="L120"><span class="lineNum">     120</span>                 :             :  * @param[in] next_state State to transition to on success</span>
 <span id="L121"><span class="lineNum">     121</span>                 :             :  */</span>
 <span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">        1232 : static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {</span></span>
-<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">        1232 :     uint8_t present_ok = onewire_present(ctx.capture, onewire_reset_captured());</span></span>
+<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">        1232 :     uint8_t present_ok = ow_has_presence(ctx.capture);</span></span>
 <span id="L124"><span class="lineNum">     124</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1144 times"> + </span>]:<span class="tlaGNC">        1232 :     if (!present_ok) {</span></span>
 <span id="L125"><span class="lineNum">     125</span>                 :             :         // Return to IDLE before the callback so a re-selection from inside</span>
 <span id="L126"><span class="lineNum">     126</span>                 :             :         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).</span>
@@ -207,7 +207,7 @@
 <span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">          88 :         return;</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :     }</span>
 <span id="L138"><span class="lineNum">     138</span>         [<span class="tlaGBC" title="Branch 0 was taken 418 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 726 times"> + </span>]:<span class="tlaGNC">        1144 :     if ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) {</span></span>
-<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         418 :         build_addr_cmd(cmd_byte);</span></span>
+<span id="L139"><span class="lineNum">     139</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         418 :         build_addr_cmd(cmd_byte);</span></span>
 <span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">         418 :         onewire_write_slots(phase_pulses.addr, DS18B20_MATCH_SLOTS);</span></span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :     } else {</span>
 <span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">         726 :         ow_pulse_t* skip_tbl = phase_pulses.cmd;</span></span>
@@ -235,209 +235,197 @@
 <span id="L164"><span class="lineNum">     164</span>                 :             :     // This is the non-blocking way to detect when timed operations finish.</span>
 <span id="L165"><span class="lineNum">     165</span>                 :             :     // onewire_bus_done() *consumes* the update flag, so it must be called</span>
 <span id="L166"><span class="lineNum">     166</span>                 :             :     // exactly once per poll and its result reused below.</span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        4312 :     uint8_t done = onewire_bus_done();</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        4312 :     uint8_t done = ow_op_done();</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>                 :             : #if OW_LOW_POWER</span>
-<span id="L170"><span class="lineNum">     170</span>                 :             :     // Sleep through a long stage of the measurement cycle (temperature</span>
-<span id="L171"><span class="lineNum">     171</span>                 :             :     // conversion, scratchpad read) instead of spinning on it. The wake-up is</span>
-<span id="L172"><span class="lineNum">     172</span>                 :             :     // the timer's own update event via SEVONPEND - no ISR, no NVIC interrupt</span>
-<span id="L173"><span class="lineNum">     173</span>                 :             :     // - so this is invisible to the application: it just calls ds18b20_poll()</span>
-<span id="L174"><span class="lineNum">     174</span>                 :             :     // and the call returns when the stage is done.</span>
-<span id="L175"><span class="lineNum">     175</span>   [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1544 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 24 times"> + </span>]:<span class="tlaGNC">        1568 :     if (!done &amp;&amp; onewire_long_wait_pending()) {</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaUNC">           0 :         onewire_sleep_until_done();</span></span>
-<span id="L177"><span class="lineNum">     177</span>                 :<span class="tlaUNC">           0 :         done = onewire_bus_done(); /* consume the event that woke us */</span></span>
-<span id="L178"><span class="lineNum">     178</span>                 :             :     }</span>
-<span id="L179"><span class="lineNum">     179</span>                 :             : #endif</span>
-<span id="L180"><span class="lineNum">     180</span>                 :             : </span>
-<span id="L181"><span class="lineNum">     181</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4246 times"> + </span>]:<span class="tlaGNC">        4312 :     if (!done) return;</span></span>
-<span id="L182"><span class="lineNum">     182</span>                 :             : </span>
-<span id="L183"><span class="lineNum">     183</span>                 :             :     // State machine to manage 1-Wire communication sequence</span>
-<span id="L184"><span class="lineNum">     184</span>   [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span> :<span class="tlaGNC">        4246 :     switch (ctx.current_state) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4246 times"> + </span>]:<span class="tlaGNC">        4312 :     if (!done) return;</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :             : </span>
+<span id="L171"><span class="lineNum">     171</span>                 :             :     // State machine to manage 1-Wire communication sequence</span>
+<span id="L172"><span class="lineNum">     172</span>   [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span> :<span class="tlaGNC">        4246 :     switch (ctx.current_state) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 594 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 572 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 726 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 8 was taken 22 times"> + </span>]
-<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">         132 :     case DS18B20_ST_IDLE:</span></span>
-<span id="L186"><span class="lineNum">     186</span>                 :             :         // A parked driver advances on its own only for an armed scan round:</span>
-<span id="L187"><span class="lineNum">     187</span>                 :             :         // ds18b20_scan_start() arms scan_mode and the first poll starts it</span>
-<span id="L188"><span class="lineNum">     188</span>                 :             :         // (this keeps select-after-scan_start working: the driver is still</span>
-<span id="L189"><span class="lineNum">     189</span>                 :             :         // IDLE until polled). Single cycles transition in</span>
-<span id="L190"><span class="lineNum">     190</span>                 :             :         // ds18b20_start_measure() itself, so with scan_mode clear the bus</span>
-<span id="L191"><span class="lineNum">     191</span>                 :             :         // stays idle here and the application's pause between rounds</span>
-<span id="L192"><span class="lineNum">     192</span>                 :             :         // actually engages instead of the next round starting on the very</span>
-<span id="L193"><span class="lineNum">     193</span>                 :             :         // next poll.</span>
-<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         132 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
-<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">         132 :     case DS18B20_ST_IDLE:</span></span>
+<span id="L174"><span class="lineNum">     174</span>                 :             :         // A parked driver advances on its own only for an armed scan round:</span>
+<span id="L175"><span class="lineNum">     175</span>                 :             :         // ds18b20_scan_start() arms scan_mode and the first poll starts it</span>
+<span id="L176"><span class="lineNum">     176</span>                 :             :         // (this keeps select-after-scan_start working: the driver is still</span>
+<span id="L177"><span class="lineNum">     177</span>                 :             :         // IDLE until polled). Single cycles transition in</span>
+<span id="L178"><span class="lineNum">     178</span>                 :             :         // ds18b20_start_measure() itself, so with scan_mode clear the bus</span>
+<span id="L179"><span class="lineNum">     179</span>                 :             :         // stays idle here and the application's pause between rounds</span>
+<span id="L180"><span class="lineNum">     180</span>                 :             :         // actually engages instead of the next round starting on the very</span>
+<span id="L181"><span class="lineNum">     181</span>                 :             :         // next poll.</span>
+<span id="L182"><span class="lineNum">     182</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         132 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :             :         }</span>
+<span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">         132 :         ctx.current_state = DS18B20_ST_START;</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :             :         /* fallthrough to START state immediately */</span>
+<span id="L187"><span class="lineNum">     187</span>                 :             :         __attribute__((fallthrough));</span>
+<span id="L188"><span class="lineNum">     188</span>                 :             : </span>
+<span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">         616 :     case DS18B20_ST_START:</span></span>
+<span id="L190"><span class="lineNum">     190</span>                 :             :         // Turn on LED to indicate measurement in progress</span>
+<span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">         616 :         ds18b20_busy(1);</span></span>
+<span id="L192"><span class="lineNum">     192</span>                 :             :         // Parasite power: release the strong pull-up so the reset pulse can</span>
+<span id="L193"><span class="lineNum">     193</span>                 :             :         // drive the line LOW; it is re-engaged for the conversion window.</span>
+<span id="L194"><span class="lineNum">     194</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         616 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L195"><span class="lineNum">     195</span>                 :<span class="tlaGNC">          88 :             onewire_strong_pullup(0);</span></span>
 <span id="L196"><span class="lineNum">     196</span>                 :             :         }</span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         132 :         ctx.current_state = DS18B20_ST_START;</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :             :         /* fallthrough to START state immediately */</span>
-<span id="L199"><span class="lineNum">     199</span>                 :             :         __attribute__((fallthrough));</span>
-<span id="L200"><span class="lineNum">     200</span>                 :             : </span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">         616 :     case DS18B20_ST_START:</span></span>
-<span id="L202"><span class="lineNum">     202</span>                 :             :         // Turn on LED to indicate measurement in progress</span>
-<span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">         616 :         ds18b20_busy(1);</span></span>
-<span id="L204"><span class="lineNum">     204</span>                 :             :         // Parasite power: release the strong pull-up so the reset pulse can</span>
-<span id="L205"><span class="lineNum">     205</span>                 :             :         // drive the line LOW; it is re-engaged for the conversion window.</span>
-<span id="L206"><span class="lineNum">     206</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         616 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
-<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">          88 :             onewire_strong_pullup(0);</span></span>
-<span id="L208"><span class="lineNum">     208</span>                 :             :         }</span>
-<span id="L209"><span class="lineNum">     209</span>                 :             :         // Initiate 1-Wire bus reset sequence</span>
-<span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">         616 :         onewire_reset(ctx.capture);</span></span>
-<span id="L211"><span class="lineNum">     211</span>                 :             :         // Transition to CONVERT state</span>
-<span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">         616 :         ctx.current_state = DS18B20_ST_CONVERT;</span></span>
-<span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">         616 :         break;</span></span>
-<span id="L214"><span class="lineNum">     214</span>                 :             : </span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         660 :     case DS18B20_ST_CONVERT:</span></span>
-<span id="L216"><span class="lineNum">     216</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         660 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) != 0u) {</span></span>
-<span id="L217"><span class="lineNum">     217</span>                 :             :             // Scan mode: broadcast Convert T (Skip ROM) so every sensor starts</span>
-<span id="L218"><span class="lineNum">     218</span>                 :             :             // converting in parallel; a single conversion wait covers them all.</span>
-<span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">         132 :             ctx.scan_index = 0; // new round: read back starting from device 0</span></span>
-<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         132 :             ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;</span></span>
-<span id="L221"><span class="lineNum">     221</span>                 :             :         }</span>
-<span id="L222"><span class="lineNum">     222</span>                 :             :         // Parasite power: the Convert T command is master-only (the slave does</span>
-<span id="L223"><span class="lineNum">     223</span>                 :             :         // not pull the line LOW during it), so keep the strong pull-up engaged</span>
-<span id="L224"><span class="lineNum">     224</span>                 :             :         // while the command is transmitted. This feeds the slave through the</span>
-<span id="L225"><span class="lineNum">     225</span>                 :             :         // command phase; the conversion window below re-asserts it anyway.</span>
-<span id="L226"><span class="lineNum">     226</span>         [<span class="tlaGBC" title="Branch 0 was taken 110 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 550 times"> + </span>]:<span class="tlaGNC">         660 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">         110 :             onewire_strong_pullup(1);</span></span>
-<span id="L228"><span class="lineNum">     228</span>                 :             :         }</span>
-<span id="L229"><span class="lineNum">     229</span>                 :<span class="tlaGNC">         660 :         issue_command(DS18B20_CONVERT_T, DS18B20_ST_WAIT);</span></span>
-<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">         660 :         break;</span></span>
-<span id="L231"><span class="lineNum">     231</span>                 :             : </span>
-<span id="L232"><span class="lineNum">     232</span>                 :<span class="tlaGNC">         528 :     case DS18B20_ST_WAIT:</span></span>
-<span id="L233"><span class="lineNum">     233</span>                 :             :         // Parasite power: the sensors draw their supply from the bus line</span>
-<span id="L234"><span class="lineNum">     234</span>                 :             :         // during the whole conversion, so drive the line HIGH actively before</span>
-<span id="L235"><span class="lineNum">     235</span>                 :             :         // the wait starts (engaging here and starting the timer in the same</span>
-<span id="L236"><span class="lineNum">     236</span>                 :             :         // transition keeps wait and supply aligned regardless of poll latency).</span>
-<span id="L237"><span class="lineNum">     237</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 440 times"> + </span>]:<span class="tlaGNC">         528 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
-<span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">          88 :             onewire_strong_pullup(1);</span></span>
-<span id="L239"><span class="lineNum">     239</span>                 :             :         }</span>
-<span id="L240"><span class="lineNum">     240</span>                 :             :         // Start timer for the conversion wait (93.75ms @ 9-bit .. 750ms @ 12-bit)</span>
-<span id="L241"><span class="lineNum">     241</span>                 :             :         wait_conversion();</span>
-<span id="L242"><span class="lineNum">     242</span>                 :<span class="tlaGNC">         528 :         ctx.current_state = DS18B20_ST_CONTINUE;</span></span>
-<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">         528 :         break;</span></span>
-<span id="L244"><span class="lineNum">     244</span>                 :             : </span>
-<span id="L245"><span class="lineNum">     245</span>                 :<span class="tlaGNC">         594 :     case DS18B20_ST_CONTINUE:</span></span>
-<span id="L246"><span class="lineNum">     246</span>                 :             :         // Release the strong pull-up BEFORE the reset pulse pulls the line</span>
-<span id="L247"><span class="lineNum">     247</span>                 :             :         // low: the conversion is complete, the devices no longer need the</span>
-<span id="L248"><span class="lineNum">     248</span>                 :             :         // parasite supply and the bus must be free again.</span>
-<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">         594 :         onewire_strong_pullup(0);</span></span>
-<span id="L250"><span class="lineNum">     250</span>                 :             :         // Initiate second 1-Wire bus reset sequence</span>
-<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">         594 :         onewire_reset(ctx.capture);</span></span>
-<span id="L252"><span class="lineNum">     252</span>                 :<span class="tlaGNC">         594 :         ctx.current_state = DS18B20_ST_REQUEST;</span></span>
-<span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaGNC">         594 :         break;</span></span>
-<span id="L254"><span class="lineNum">     254</span>                 :             : </span>
-<span id="L255"><span class="lineNum">     255</span>                 :<span class="tlaGNC">         572 :     case DS18B20_ST_REQUEST:</span></span>
-<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 374 times"> + </span>]:<span class="tlaGNC">         572 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) != 0u) {</span></span>
-<span id="L257"><span class="lineNum">     257</span>                 :             :             // Scan mode: read the current device back via Match ROM. The</span>
-<span id="L258"><span class="lineNum">     258</span>                 :             :             // table is rebuilt from selected_rom on every addressed</span>
-<span id="L259"><span class="lineNum">     259</span>                 :             :             // operation (issue_command), so only the ROM is staged here.</span>
-<span id="L260"><span class="lineNum">     260</span>         [<span class="tlaGBC" title="Branch 0 was taken 1584 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 198 times"> + </span>]:<span class="tlaGNC">        1782 :             for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
-<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">        1584 :                 ctx.selected_rom[i] = dev_roms[ctx.scan_index][i];</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :             :             }</span>
-<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">         198 :             ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;</span></span>
-<span id="L264"><span class="lineNum">     264</span>                 :             :         }</span>
-<span id="L265"><span class="lineNum">     265</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 506 times"> + </span>]:<span class="tlaGNC">         572 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
-<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">          66 :             onewire_strong_pullup(1);</span></span>
-<span id="L267"><span class="lineNum">     267</span>                 :             :         }</span>
-<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">         572 :         issue_command(DS18B20_READ_SCRATCHPAD, DS18B20_ST_READ);</span></span>
-<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">         572 :         break;</span></span>
-<span id="L270"><span class="lineNum">     270</span>                 :             : </span>
-<span id="L271"><span class="lineNum">     271</span>                 :<span class="tlaGNC">         528 :     case DS18B20_ST_READ:</span></span>
-<span id="L272"><span class="lineNum">     272</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 462 times"> + </span>]:<span class="tlaGNC">         528 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
-<span id="L273"><span class="lineNum">     273</span>                 :<span class="tlaGNC">          66 :             onewire_strong_pullup(0);</span></span>
-<span id="L274"><span class="lineNum">     274</span>                 :             :         }</span>
-<span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">         528 :         onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
-<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">         528 :         ctx.current_state = DS18B20_ST_DECODE;</span></span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">         528 :         break;</span></span>
-<span id="L278"><span class="lineNum">     278</span>                 :             : </span>
-<span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaGNC">         726 :     case DS18B20_ST_DECODE: // Process received data and report temperature</span></span>
-<span id="L280"><span class="lineNum">     280</span>                 :             :         /* Snapshot pulse widths before decode_scratchpad() overwrites them</span>
-<span id="L281"><span class="lineNum">     281</span>                 :             :          * via the union alias (scratchpad[n] == pulse[n]). */</span>
-<span id="L282"><span class="lineNum">     282</span>                 :<span class="tlaGNC">         726 :         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,</span></span>
-<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaGBC" title="Branch 0 was taken 308 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         726 :                                ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) ? ctx.selected_rom</span></span>
-<span id="L284"><span class="lineNum">     284</span>                 :             :                                                                                : (const uint8_t*)0);</span>
-<span id="L285"><span class="lineNum">     285</span>                 :             :         // Decode captured pulse durations into scratchpad bytes</span>
-<span id="L286"><span class="lineNum">     286</span>                 :             :         decode_scratchpad();</span>
-<span id="L287"><span class="lineNum">     287</span>                 :             :         // Turn off LED to indicate measurement complete</span>
-<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">         726 :         ds18b20_busy(0);</span></span>
-<span id="L289"><span class="lineNum">     289</span>                 :             : </span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :         // In single-device mode the callback runs at IDLE, so a re-selection</span>
-<span id="L291"><span class="lineNum">     291</span>                 :             :         // from inside ds18b20_complete() is accepted there. Scan mode keeps its</span>
-<span id="L292"><span class="lineNum">     292</span>                 :             :         // own per-device addressing and stays in DECODE: a select() from the</span>
-<span id="L293"><span class="lineNum">     293</span>                 :             :         // scan callback is rejected, and it reports every device before</span>
-<span id="L294"><span class="lineNum">     294</span>                 :             :         // returning to IDLE at the round end.</span>
-<span id="L295"><span class="lineNum">     295</span>         [<span class="tlaGBC" title="Branch 0 was taken 550 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 176 times"> + </span>]:<span class="tlaGNC">         726 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
-<span id="L296"><span class="lineNum">     296</span>                 :<span class="tlaGNC">         550 :             ctx.current_state = DS18B20_ST_IDLE;</span></span>
-<span id="L297"><span class="lineNum">     297</span>                 :             :         }</span>
-<span id="L298"><span class="lineNum">     298</span>                 :             : </span>
-<span id="L299"><span class="lineNum">     299</span>                 :             :         // Match ROM mode: if the addressed device is absent, nobody drives</span>
-<span id="L300"><span class="lineNum">     300</span>                 :             :         // the bus after the address, so the whole scratchpad reads back as</span>
-<span id="L301"><span class="lineNum">     301</span>                 :             :         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.</span>
-<span id="L302"><span class="lineNum">     302</span>         [<span class="tlaGBC" title="Branch 0 was taken 308 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         726 :         if ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) {</span></span>
-<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">         308 :             uint8_t all_ones = 1;</span></span>
-<span id="L304"><span class="lineNum">     304</span>         [<span class="tlaGBC" title="Branch 0 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">         704 :             for (uint8_t i = 0; i &lt; DS18B20_SCRATCHPAD_LEN; i++) {</span></span>
-<span id="L305"><span class="lineNum">     305</span>         [<span class="tlaGBC" title="Branch 0 was taken 264 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 396 times"> + </span>]:<span class="tlaGNC">         660 :                 if (ctx.scratchpad[i] != 0xFF) {</span></span>
-<span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaGNC">         264 :                     all_ones = 0;</span></span>
-<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">         264 :                     break;</span></span>
-<span id="L308"><span class="lineNum">     308</span>                 :             :                 }</span>
-<span id="L309"><span class="lineNum">     309</span>                 :             :             }</span>
-<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 264 times"> + </span>]:<span class="tlaGNC">         308 :             if (all_ones) {</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">          44 :                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);</span></span>
-<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">          44 :                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,</span></span>
-<span id="L313"><span class="lineNum">     313</span>                 :             :                                      ctx.selected_rom);</span>
-<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">          44 :                 scan_finish_or_next();</span></span>
-<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">          44 :                 break;</span></span>
-<span id="L316"><span class="lineNum">     316</span>                 :             :             }</span>
-<span id="L317"><span class="lineNum">     317</span>                 :             :         }</span>
-<span id="L318"><span class="lineNum">     318</span>                 :             : </span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :         // Validate reserved bytes per DS18B20 specification:</span>
-<span id="L320"><span class="lineNum">     320</span>                 :             :         // Byte 5 must be 0xFF, Byte 7 must be 0x10.</span>
-<span id="L321"><span class="lineNum">     321</span>                 :             :         // This catches all-zero, all-0xFF, and bus fault conditions.</span>
-<span id="L322"><span class="lineNum">     322</span>   [<span class="tlaGBC" title="Branch 0 was taken 638 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 638 times"> + </span>]:<span class="tlaGNC">         682 :         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {</span></span>
-<span id="L323"><span class="lineNum">     323</span>                 :<span class="tlaGNC">          44 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">          44 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
-<span id="L325"><span class="lineNum">     325</span>                 :             :                                  ctx.selected_rom);</span>
-<span id="L326"><span class="lineNum">     326</span>                 :<span class="tlaGNC">          44 :             scan_finish_or_next();</span></span>
-<span id="L327"><span class="lineNum">     327</span>                 :<span class="tlaGNC">          44 :             break;</span></span>
-<span id="L328"><span class="lineNum">     328</span>                 :             :         }</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             : </span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :         // Validate CRC and report temperature or error</span>
-<span id="L331"><span class="lineNum">     331</span>         [<span class="tlaGBC" title="Branch 0 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">        1276 :         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {</span></span>
-<span id="L332"><span class="lineNum">     332</span>                 :             :             // CRC valid - decode and report temperature. The scratchpad is</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             :             // trustworthy, so also trust the config byte (byte 4, R1/R0 bits</span>
-<span id="L334"><span class="lineNum">     334</span>                 :             :             // 6:5) and adapt the conversion wait for the next cycle: this keeps</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             :             // the wait in sync with a resolution changed via</span>
-<span id="L336"><span class="lineNum">     336</span>                 :             :             // ds18b20_set_resolution() or externally. (R1/R0 are 0..3, so the</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             :             // derived value is always within DS18B20_RES_MIN..DS18B20_RES_MAX.)</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             :             // It is derived only on a valid CRC so a corrupted config byte can</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             :             // never shorten the next conversion wait prematurely.</span>
-<span id="L340"><span class="lineNum">     340</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span>]:<span class="tlaGNC">         484 :             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] &gt;&gt; 5) &amp; 0x3);</span></span>
-<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">         484 :             ds18b20_complete(decode_temperature());</span></span>
-<span id="L342"><span class="lineNum">     342</span>                 :             :         } else {</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             :             // CRC invalid - report error (resolution kept unchanged)</span>
-<span id="L344"><span class="lineNum">     344</span>                 :<span class="tlaGNC">         154 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
-<span id="L345"><span class="lineNum">     345</span>                 :<span class="tlaGNC">         154 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
-<span id="L346"><span class="lineNum">     346</span>                 :             :                                  ctx.selected_rom);</span>
-<span id="L347"><span class="lineNum">     347</span>                 :             :         }</span>
-<span id="L348"><span class="lineNum">     348</span>                 :             : </span>
-<span id="L349"><span class="lineNum">     349</span>                 :             :         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the</span>
-<span id="L350"><span class="lineNum">     350</span>                 :             :         // last device, back to IDLE. In single-device mode this only returns to</span>
-<span id="L351"><span class="lineNum">     351</span>                 :             :         // IDLE, where the driver waits for ds18b20_start_measure().</span>
-<span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaGNC">         638 :         scan_finish_or_next();</span></span>
-<span id="L353"><span class="lineNum">     353</span>                 :<span class="tlaGNC">         638 :         break;</span></span>
-<span id="L354"><span class="lineNum">     354</span>                 :             : </span>
-<span id="L355"><span class="lineNum">     355</span>                 :<span class="tlaGNC">          22 :     default:</span></span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :         // Unexpected state - report generic error</span>
-<span id="L357"><span class="lineNum">     357</span>                 :<span class="tlaGNC">          22 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
-<span id="L358"><span class="lineNum">     358</span>                 :<span class="tlaGNC">          22 :         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);</span></span>
-<span id="L359"><span class="lineNum">     359</span>                 :<span class="tlaGNC">          22 :         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,</span></span>
-<span id="L360"><span class="lineNum">     360</span>                 :             :                              (const uint8_t*)0);</span>
-<span id="L361"><span class="lineNum">     361</span>                 :<span class="tlaGNC">          22 :         break;</span></span>
-<span id="L362"><span class="lineNum">     362</span>                 :             :     }</span>
-<span id="L363"><span class="lineNum">     363</span>                 :             : }</span>
-<span id="L364"><span class="lineNum">     364</span>                 :             : </span>
-<span id="L365"><span class="lineNum">     365</span>                 :             : /**</span>
-<span id="L366"><span class="lineNum">     366</span>                 :             :  * @}</span>
-<span id="L367"><span class="lineNum">     367</span>                 :             :  */</span>
+<span id="L197"><span class="lineNum">     197</span>                 :             :         // Initiate 1-Wire bus reset sequence</span>
+<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaGNC">         616 :         onewire_reset(ctx.capture);</span></span>
+<span id="L199"><span class="lineNum">     199</span>                 :             :         // Transition to CONVERT state</span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">         616 :         ctx.current_state = DS18B20_ST_CONVERT;</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">         616 :         break;</span></span>
+<span id="L202"><span class="lineNum">     202</span>                 :             : </span>
+<span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">         660 :     case DS18B20_ST_CONVERT:</span></span>
+<span id="L204"><span class="lineNum">     204</span>         [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         660 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) != 0u) {</span></span>
+<span id="L205"><span class="lineNum">     205</span>                 :             :             // Scan mode: broadcast Convert T (Skip ROM) so every sensor starts</span>
+<span id="L206"><span class="lineNum">     206</span>                 :             :             // converting in parallel; a single conversion wait covers them all.</span>
+<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">         132 :             ctx.scan_index = 0; // new round: read back starting from device 0</span></span>
+<span id="L208"><span class="lineNum">     208</span>                 :<span class="tlaGNC">         132 :             ctx.flags &amp;= (uint8_t)~DS18B20_FLAG_ADDRESS_MODE;</span></span>
+<span id="L209"><span class="lineNum">     209</span>                 :             :         }</span>
+<span id="L210"><span class="lineNum">     210</span>                 :             :         // Parasite power: the Convert T command is master-only (the slave does</span>
+<span id="L211"><span class="lineNum">     211</span>                 :             :         // not pull the line LOW during it), so keep the strong pull-up engaged</span>
+<span id="L212"><span class="lineNum">     212</span>                 :             :         // while the command is transmitted. This feeds the slave through the</span>
+<span id="L213"><span class="lineNum">     213</span>                 :             :         // command phase; the conversion window below re-asserts it anyway.</span>
+<span id="L214"><span class="lineNum">     214</span>         [<span class="tlaGBC" title="Branch 0 was taken 110 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 550 times"> + </span>]:<span class="tlaGNC">         660 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         110 :             onewire_strong_pullup(1);</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :             :         }</span>
+<span id="L217"><span class="lineNum">     217</span>                 :<span class="tlaGNC">         660 :         issue_command(DS18B20_CONVERT_T, DS18B20_ST_WAIT);</span></span>
+<span id="L218"><span class="lineNum">     218</span>                 :<span class="tlaGNC">         660 :         break;</span></span>
+<span id="L219"><span class="lineNum">     219</span>                 :             : </span>
+<span id="L220"><span class="lineNum">     220</span>                 :<span class="tlaGNC">         528 :     case DS18B20_ST_WAIT:</span></span>
+<span id="L221"><span class="lineNum">     221</span>                 :             :         // Parasite power: the sensors draw their supply from the bus line</span>
+<span id="L222"><span class="lineNum">     222</span>                 :             :         // during the whole conversion, so drive the line HIGH actively before</span>
+<span id="L223"><span class="lineNum">     223</span>                 :             :         // the wait starts (engaging here and starting the timer in the same</span>
+<span id="L224"><span class="lineNum">     224</span>                 :             :         // transition keeps wait and supply aligned regardless of poll latency).</span>
+<span id="L225"><span class="lineNum">     225</span>         [<span class="tlaGBC" title="Branch 0 was taken 88 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 440 times"> + </span>]:<span class="tlaGNC">         528 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">          88 :             onewire_strong_pullup(1);</span></span>
+<span id="L227"><span class="lineNum">     227</span>                 :             :         }</span>
+<span id="L228"><span class="lineNum">     228</span>                 :             :         // Start timer for the conversion wait (93.75ms @ 9-bit .. 750ms @ 12-bit)</span>
+<span id="L229"><span class="lineNum">     229</span>                 :             :         wait_conversion();</span>
+<span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">         528 :         ctx.current_state = DS18B20_ST_CONTINUE;</span></span>
+<span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">         528 :         break;</span></span>
+<span id="L232"><span class="lineNum">     232</span>                 :             : </span>
+<span id="L233"><span class="lineNum">     233</span>                 :<span class="tlaGNC">         594 :     case DS18B20_ST_CONTINUE:</span></span>
+<span id="L234"><span class="lineNum">     234</span>                 :             :         // Release the strong pull-up BEFORE the reset pulse pulls the line</span>
+<span id="L235"><span class="lineNum">     235</span>                 :             :         // low: the conversion is complete, the devices no longer need the</span>
+<span id="L236"><span class="lineNum">     236</span>                 :             :         // parasite supply and the bus must be free again.</span>
+<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">         594 :         onewire_strong_pullup(0);</span></span>
+<span id="L238"><span class="lineNum">     238</span>                 :             :         // Initiate second 1-Wire bus reset sequence</span>
+<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">         594 :         onewire_reset(ctx.capture);</span></span>
+<span id="L240"><span class="lineNum">     240</span>                 :<span class="tlaGNC">         594 :         ctx.current_state = DS18B20_ST_REQUEST;</span></span>
+<span id="L241"><span class="lineNum">     241</span>                 :<span class="tlaGNC">         594 :         break;</span></span>
+<span id="L242"><span class="lineNum">     242</span>                 :             : </span>
+<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">         572 :     case DS18B20_ST_REQUEST:</span></span>
+<span id="L244"><span class="lineNum">     244</span>         [<span class="tlaGBC" title="Branch 0 was taken 198 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 374 times"> + </span>]:<span class="tlaGNC">         572 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) != 0u) {</span></span>
+<span id="L245"><span class="lineNum">     245</span>                 :             :             // Scan mode: read the current device back via Match ROM. The</span>
+<span id="L246"><span class="lineNum">     246</span>                 :             :             // table is rebuilt from selected_rom on every addressed</span>
+<span id="L247"><span class="lineNum">     247</span>                 :             :             // operation (issue_command), so only the ROM is staged here.</span>
+<span id="L248"><span class="lineNum">     248</span>         [<span class="tlaGBC" title="Branch 0 was taken 1584 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 198 times"> + </span>]:<span class="tlaGNC">        1782 :             for (uint8_t i = 0; i &lt; DS18B20_ROM_BYTES; i++) {</span></span>
+<span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">        1584 :                 ctx.selected_rom[i] = dev_roms[ctx.scan_index][i];</span></span>
+<span id="L250"><span class="lineNum">     250</span>                 :             :             }</span>
+<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">         198 :             ctx.flags |= DS18B20_FLAG_ADDRESS_MODE;</span></span>
+<span id="L252"><span class="lineNum">     252</span>                 :             :         }</span>
+<span id="L253"><span class="lineNum">     253</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 506 times"> + </span>]:<span class="tlaGNC">         572 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">          66 :             onewire_strong_pullup(1);</span></span>
+<span id="L255"><span class="lineNum">     255</span>                 :             :         }</span>
+<span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">         572 :         issue_command(DS18B20_READ_SCRATCHPAD, DS18B20_ST_READ);</span></span>
+<span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">         572 :         break;</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :             : </span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">         528 :     case DS18B20_ST_READ:</span></span>
+<span id="L260"><span class="lineNum">     260</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 462 times"> + </span>]:<span class="tlaGNC">         528 :         if ((ctx.flags &amp; DS18B20_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaGNC">          66 :             onewire_strong_pullup(0);</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :             :         }</span>
+<span id="L263"><span class="lineNum">     263</span>                 :<span class="tlaGNC">         528 :         onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN);</span></span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">         528 :         ctx.current_state = DS18B20_ST_DECODE;</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">         528 :         break;</span></span>
+<span id="L266"><span class="lineNum">     266</span>                 :             : </span>
+<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">         726 :     case DS18B20_ST_DECODE: // Process received data and report temperature</span></span>
+<span id="L268"><span class="lineNum">     268</span>                 :             :         /* Snapshot pulse widths before decode_scratchpad() overwrites them</span>
+<span id="L269"><span class="lineNum">     269</span>                 :             :          * via the union alias (scratchpad[n] == pulse[n]). */</span>
+<span id="L270"><span class="lineNum">     270</span>                 :<span class="tlaGNC">         726 :         ow_stats_capture_pulse(ctx.pulse, DS18B20_SCRATCHPAD_BITS,</span></span>
+<span id="L271"><span class="lineNum">     271</span>         [<span class="tlaGBC" title="Branch 0 was taken 308 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         726 :                                ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) ? ctx.selected_rom</span></span>
+<span id="L272"><span class="lineNum">     272</span>                 :             :                                                                                : (const uint8_t*)0);</span>
+<span id="L273"><span class="lineNum">     273</span>                 :             :         // Decode captured pulse durations into scratchpad bytes</span>
+<span id="L274"><span class="lineNum">     274</span>                 :             :         decode_scratchpad();</span>
+<span id="L275"><span class="lineNum">     275</span>                 :             :         // Turn off LED to indicate measurement complete</span>
+<span id="L276"><span class="lineNum">     276</span>                 :<span class="tlaGNC">         726 :         ds18b20_busy(0);</span></span>
+<span id="L277"><span class="lineNum">     277</span>                 :             : </span>
+<span id="L278"><span class="lineNum">     278</span>                 :             :         // In single-device mode the callback runs at IDLE, so a re-selection</span>
+<span id="L279"><span class="lineNum">     279</span>                 :             :         // from inside ds18b20_complete() is accepted there. Scan mode keeps its</span>
+<span id="L280"><span class="lineNum">     280</span>                 :             :         // own per-device addressing and stays in DECODE: a select() from the</span>
+<span id="L281"><span class="lineNum">     281</span>                 :             :         // scan callback is rejected, and it reports every device before</span>
+<span id="L282"><span class="lineNum">     282</span>                 :             :         // returning to IDLE at the round end.</span>
+<span id="L283"><span class="lineNum">     283</span>         [<span class="tlaGBC" title="Branch 0 was taken 550 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 176 times"> + </span>]:<span class="tlaGNC">         726 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
+<span id="L284"><span class="lineNum">     284</span>                 :<span class="tlaGNC">         550 :             ctx.current_state = DS18B20_ST_IDLE;</span></span>
+<span id="L285"><span class="lineNum">     285</span>                 :             :         }</span>
+<span id="L286"><span class="lineNum">     286</span>                 :             : </span>
+<span id="L287"><span class="lineNum">     287</span>                 :             :         // Match ROM mode: if the addressed device is absent, nobody drives</span>
+<span id="L288"><span class="lineNum">     288</span>                 :             :         // the bus after the address, so the whole scratchpad reads back as</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :         // 0xFF. Report it as a missing sensor instead of a bogus CRC error.</span>
+<span id="L290"><span class="lineNum">     290</span>         [<span class="tlaGBC" title="Branch 0 was taken 308 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         726 :         if ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) {</span></span>
+<span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">         308 :             uint8_t all_ones = 1;</span></span>
+<span id="L292"><span class="lineNum">     292</span>         [<span class="tlaGBC" title="Branch 0 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">         704 :             for (uint8_t i = 0; i &lt; DS18B20_SCRATCHPAD_LEN; i++) {</span></span>
+<span id="L293"><span class="lineNum">     293</span>         [<span class="tlaGBC" title="Branch 0 was taken 264 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 396 times"> + </span>]:<span class="tlaGNC">         660 :                 if (ctx.scratchpad[i] != 0xFF) {</span></span>
+<span id="L294"><span class="lineNum">     294</span>                 :<span class="tlaGNC">         264 :                     all_ones = 0;</span></span>
+<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">         264 :                     break;</span></span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :                 }</span>
+<span id="L297"><span class="lineNum">     297</span>                 :             :             }</span>
+<span id="L298"><span class="lineNum">     298</span>         [<span class="tlaGBC" title="Branch 0 was taken 44 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 264 times"> + </span>]:<span class="tlaGNC">         308 :             if (all_ones) {</span></span>
+<span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">          44 :                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);</span></span>
+<span id="L300"><span class="lineNum">     300</span>                 :<span class="tlaGNC">          44 :                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,</span></span>
+<span id="L301"><span class="lineNum">     301</span>                 :             :                                      ctx.selected_rom);</span>
+<span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">          44 :                 scan_finish_or_next();</span></span>
+<span id="L303"><span class="lineNum">     303</span>                 :<span class="tlaGNC">          44 :                 break;</span></span>
+<span id="L304"><span class="lineNum">     304</span>                 :             :             }</span>
+<span id="L305"><span class="lineNum">     305</span>                 :             :         }</span>
+<span id="L306"><span class="lineNum">     306</span>                 :             : </span>
+<span id="L307"><span class="lineNum">     307</span>                 :             :         // Validate reserved bytes per DS18B20 specification:</span>
+<span id="L308"><span class="lineNum">     308</span>                 :             :         // Byte 5 must be 0xFF, Byte 7 must be 0x10.</span>
+<span id="L309"><span class="lineNum">     309</span>                 :             :         // This catches all-zero, all-0xFF, and bus fault conditions.</span>
+<span id="L310"><span class="lineNum">     310</span>   [<span class="tlaGBC" title="Branch 0 was taken 638 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 44 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 638 times"> + </span>]:<span class="tlaGNC">         682 :         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {</span></span>
+<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">          44 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
+<span id="L312"><span class="lineNum">     312</span>                 :<span class="tlaGNC">          44 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :             :                                  ctx.selected_rom);</span>
+<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">          44 :             scan_finish_or_next();</span></span>
+<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">          44 :             break;</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :             :         }</span>
+<span id="L317"><span class="lineNum">     317</span>                 :             : </span>
+<span id="L318"><span class="lineNum">     318</span>                 :             :         // Validate CRC and report temperature or error</span>
+<span id="L319"><span class="lineNum">     319</span>         [<span class="tlaGBC" title="Branch 0 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 154 times"> + </span>]:<span class="tlaGNC">        1276 :         if (ctx.scratchpad[DS18B20_SCRATCHPAD_LEN - 1] == check_scratchpad_crc()) {</span></span>
+<span id="L320"><span class="lineNum">     320</span>                 :             :             // CRC valid - decode and report temperature. The scratchpad is</span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :             // trustworthy, so also trust the config byte (byte 4, R1/R0 bits</span>
+<span id="L322"><span class="lineNum">     322</span>                 :             :             // 6:5) and adapt the conversion wait for the next cycle: this keeps</span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :             // the wait in sync with a resolution changed via</span>
+<span id="L324"><span class="lineNum">     324</span>                 :             :             // ds18b20_set_resolution() or externally. (R1/R0 are 0..3, so the</span>
+<span id="L325"><span class="lineNum">     325</span>                 :             :             // derived value is always within DS18B20_RES_MIN..DS18B20_RES_MAX.)</span>
+<span id="L326"><span class="lineNum">     326</span>                 :             :             // It is derived only on a valid CRC so a corrupted config byte can</span>
+<span id="L327"><span class="lineNum">     327</span>                 :             :             // never shorten the next conversion wait prematurely.</span>
+<span id="L328"><span class="lineNum">     328</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span>]:<span class="tlaGNC">         484 :             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] &gt;&gt; 5) &amp; 0x3);</span></span>
+<span id="L329"><span class="lineNum">     329</span>                 :<span class="tlaGNC">         484 :             ds18b20_complete(decode_temperature());</span></span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :         } else {</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             :             // CRC invalid - report error (resolution kept unchanged)</span>
+<span id="L332"><span class="lineNum">     332</span>                 :<span class="tlaGNC">         154 :             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);</span></span>
+<span id="L333"><span class="lineNum">     333</span>                 :<span class="tlaGNC">         154 :             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,</span></span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :                                  ctx.selected_rom);</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             :         }</span>
+<span id="L336"><span class="lineNum">     336</span>                 :             : </span>
+<span id="L337"><span class="lineNum">     337</span>                 :             :         // Next scan-mode device (CONTINUE, no fresh conversion) or, after the</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             :         // last device, back to IDLE. In single-device mode this only returns to</span>
+<span id="L339"><span class="lineNum">     339</span>                 :             :         // IDLE, where the driver waits for ds18b20_start_measure().</span>
+<span id="L340"><span class="lineNum">     340</span>                 :<span class="tlaGNC">         638 :         scan_finish_or_next();</span></span>
+<span id="L341"><span class="lineNum">     341</span>                 :<span class="tlaGNC">         638 :         break;</span></span>
+<span id="L342"><span class="lineNum">     342</span>                 :             : </span>
+<span id="L343"><span class="lineNum">     343</span>                 :<span class="tlaGNC">          22 :     default:</span></span>
+<span id="L344"><span class="lineNum">     344</span>                 :             :         // Unexpected state - report generic error</span>
+<span id="L345"><span class="lineNum">     345</span>                 :<span class="tlaGNC">          22 :         ctx.current_state = DS18B20_ST_IDLE;</span></span>
+<span id="L346"><span class="lineNum">     346</span>                 :<span class="tlaGNC">          22 :         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);</span></span>
+<span id="L347"><span class="lineNum">     347</span>                 :<span class="tlaGNC">          22 :         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,</span></span>
+<span id="L348"><span class="lineNum">     348</span>                 :             :                              (const uint8_t*)0);</span>
+<span id="L349"><span class="lineNum">     349</span>                 :<span class="tlaGNC">          22 :         break;</span></span>
+<span id="L350"><span class="lineNum">     350</span>                 :             :     }</span>
+<span id="L351"><span class="lineNum">     351</span>                 :             : }</span>
+<span id="L352"><span class="lineNum">     352</span>                 :             : </span>
+<span id="L353"><span class="lineNum">     353</span>                 :             : /**</span>
+<span id="L354"><span class="lineNum">     354</span>                 :             :  * @}</span>
+<span id="L355"><span class="lineNum">     355</span>                 :             :  */</span>
         </pre>
               </td>
             </tr>

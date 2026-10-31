@@ -1,0 +1,203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - stm32-async-1wire core coverage - src/ow_glue.h</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory src">src</a> - ow_glue.h</td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">stm32-async-1wire core coverage</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">12</td>
+            <td class="headerCovTableEntry">12</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2026-10-31 19:57:09</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">-</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="headerItem">Branches:</td>
+            <td class="headerCovTableEntryMed">82.1&nbsp;%</td>
+            <td class="headerCovTableEntry">28</td>
+            <td class="headerCovTableEntry">23</td>
+          </tr>
+                  <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">             Branch data     Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 :             : /**</span>
+<span id="L2"><span class="lineNum">       2</span>                 :             :  * @file ow_glue.h</span>
+<span id="L3"><span class="lineNum">       3</span>                 :             :  * @brief Library-internal bridge between the driver sources and the engine.</span>
+<span id="L4"><span class="lineNum">       4</span>                 :             :  *</span>
+<span id="L5"><span class="lineNum">       5</span>                 :             :  * A few operations have always belonged to the DS18B20/DS2431 drivers, not</span>
+<span id="L6"><span class="lineNum">       6</span>                 :             :  * to a consumer: scheduling a hardware-timed wait (a DS18B20 conversion</span>
+<span id="L7"><span class="lineNum">       7</span>                 :             :  * wait, an EEPROM hold-off window) and kicking the owner's state machine so</span>
+<span id="L8"><span class="lineNum">       8</span>                 :             :  * it advances; polling a scheduled operation to completion (with the</span>
+<span id="L9"><span class="lineNum">       9</span>                 :             :  * low-power sleep handled once, in one place); proving a device presence</span>
+<span id="L10"><span class="lineNum">      10</span>                 :             :  * from the last reset capture; and encoding command-write pulses (the ROM</span>
+<span id="L11"><span class="lineNum">      11</span>                 :             :  * addressing prefix, then raw payload bytes). They are engine calls, but</span>
+<span id="L12"><span class="lineNum">      12</span>                 :             :  * they are made by the driver, and the two are separate translation</span>
+<span id="L13"><span class="lineNum">      13</span>                 :             :  * units - so the contract between them needs a header.</span>
+<span id="L14"><span class="lineNum">      14</span>                 :             :  *</span>
+<span id="L15"><span class="lineNum">      15</span>                 :             :  * It is not a public header. The engine headers are not installed, and a</span>
+<span id="L16"><span class="lineNum">      16</span>                 :             :  * consumer has no business scheduling a bus wait with a value in timer</span>
+<span id="L17"><span class="lineNum">      17</span>                 :             :  * registers: the wait belongs to the driver that knows the device's timing.</span>
+<span id="L18"><span class="lineNum">      18</span>                 :             :  * That header used to expose the two oldest calls in inc/onewire.h, where</span>
+<span id="L19"><span class="lineNum">      19</span>                 :             :  * they read as part of the bus API; they were never meant to be called from</span>
+<span id="L20"><span class="lineNum">      20</span>                 :             :  * outside the library.</span>
+<span id="L21"><span class="lineNum">      21</span>                 :             :  *</span>
+<span id="L22"><span class="lineNum">      22</span>                 :             :  * Library-internal (src/): reached only by the driver sources and by</span>
+<span id="L23"><span class="lineNum">      23</span>                 :             :  * src/onewire.c, which defines the calls.</span>
+<span id="L24"><span class="lineNum">      24</span>                 :             :  */</span>
+<span id="L25"><span class="lineNum">      25</span>                 :             : </span>
+<span id="L26"><span class="lineNum">      26</span>                 :             : #ifndef OW_GLUE_H</span>
+<span id="L27"><span class="lineNum">      27</span>                 :             : #define OW_GLUE_H</span>
+<span id="L28"><span class="lineNum">      28</span>                 :             : </span>
+<span id="L29"><span class="lineNum">      29</span>                 :             : #include &lt;stdint.h&gt;</span>
+<span id="L30"><span class="lineNum">      30</span>                 :             : </span>
+<span id="L31"><span class="lineNum">      31</span>                 :             : #include &quot;onewire.h&quot;</span>
+<span id="L32"><span class="lineNum">      32</span>                 :             : #include &quot;ow_compiler.h&quot;</span>
+<span id="L33"><span class="lineNum">      33</span>                 :             : </span>
+<span id="L34"><span class="lineNum">      34</span>                 :             : /**</span>
+<span id="L35"><span class="lineNum">      35</span>                 :             :  * @brief Start a hardware-timed wait of a given duration</span>
+<span id="L36"><span class="lineNum">      36</span>                 :             :  * @param[in] us Requested wait in microseconds</span>
+<span id="L37"><span class="lineNum">      37</span>                 :             :  * @note The engine picks the timer periods; the caller states a duration.</span>
+<span id="L38"><span class="lineNum">      38</span>                 :             :  *       See ow_port_plan_wait() for the rule.</span>
+<span id="L39"><span class="lineNum">      39</span>                 :             :  */</span>
+<span id="L40"><span class="lineNum">      40</span>                 :             : void ow_start_wait(uint32_t us);</span>
+<span id="L41"><span class="lineNum">      41</span>                 :             : </span>
+<span id="L42"><span class="lineNum">      42</span>                 :             : /**</span>
+<span id="L43"><span class="lineNum">      43</span>                 :             :  * @brief Raise the timer update flag so the caller's state machine advances</span>
+<span id="L44"><span class="lineNum">      44</span>                 :             :  * @note No hardware timing is involved: the operation this call unblocks is</span>
+<span id="L45"><span class="lineNum">      45</span>                 :             :  *       scheduled by the owner itself. Used by the DS18B20 driver to start one</span>
+<span id="L46"><span class="lineNum">      46</span>                 :             :  *       measurement cycle (ds18b20_start_measure()). Call it only while no</span>
+<span id="L47"><span class="lineNum">      47</span>                 :             :  *       operation is in flight.</span>
+<span id="L48"><span class="lineNum">      48</span>                 :             :  */</span>
+<span id="L49"><span class="lineNum">      49</span>                 :             : void ow_timer_kick(void);</span>
+<span id="L50"><span class="lineNum">      50</span>                 :             : </span>
+<span id="L51"><span class="lineNum">      51</span>                 :             : /**</span>
+<span id="L52"><span class="lineNum">      52</span>                 :             :  * @brief Poll the scheduled hardware operation to completion</span>
+<span id="L53"><span class="lineNum">      53</span>                 :             :  * @return 1 when the operation finished, 0 while still running</span>
+<span id="L54"><span class="lineNum">      54</span>                 :             :  * @note Checks onewire_bus_done() once; on low-power builds a still-running</span>
+<span id="L55"><span class="lineNum">      55</span>                 :             :  *       long stage is slept through instead of spun on (WFE, woken by the</span>
+<span id="L56"><span class="lineNum">      56</span>                 :             :  *       timer's own update event via SEVONPEND - no ISR so this is invisible</span>
+<span id="L57"><span class="lineNum">      57</span>                 :             :  *       to the application: the poll just returns when the stage is done),</span>
+<span id="L58"><span class="lineNum">      58</span>                 :             :  *       and the wake event is consumed so the caller sees completion on the</span>
+<span id="L59"><span class="lineNum">      59</span>                 :             :  *       same poll. Non-low-power builds are a single bus_done() check.</span>
+<span id="L60"><span class="lineNum">      60</span>                 :             :  */</span>
+<span id="L61"><span class="lineNum">      61</span>                 :             : uint8_t ow_op_done(void);</span>
+<span id="L62"><span class="lineNum">      62</span>                 :             : </span>
+<span id="L63"><span class="lineNum">      63</span>                 :             : /**</span>
+<span id="L64"><span class="lineNum">      64</span>                 :             :  * @brief Prove a device presence from the last reset capture</span>
+<span id="L65"><span class="lineNum">      65</span>                 :             :  * @param[in] cap Reset + presence capture (2 entries)</span>
+<span id="L66"><span class="lineNum">      66</span>                 :             :  * @return 1 when at least one device answered, 0 otherwise</span>
+<span id="L67"><span class="lineNum">      67</span>                 :             :  * @note Presence is proved by the captured edge count, not by the buffer</span>
+<span id="L68"><span class="lineNum">      68</span>                 :             :  *       contents: the transfer engine reports how many edges arrived, so a</span>
+<span id="L69"><span class="lineNum">      69</span>                 :             :  *       stale second slot can never fake a device. Single place for that rule.</span>
+<span id="L70"><span class="lineNum">      70</span>                 :             :  */</span>
+<span id="L71"><span class="lineNum">      71</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_has_presence(const volatile uint16_t* cap) {</span>
+<span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">        3866 :     return onewire_present(cap, onewire_reset_captured());</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :             : }</span>
+<span id="L74"><span class="lineNum">      74</span>                 :             : </span>
+<span id="L75"><span class="lineNum">      75</span>                 :             : /**</span>
+<span id="L76"><span class="lineNum">      76</span>                 :             :  * @brief Encode raw bytes into pulse-table entries, advancing past them</span>
+<span id="L77"><span class="lineNum">      77</span>                 :             :  * @param[in,out] dst Cursor into the pulse table; advanced by n entries</span>
+<span id="L78"><span class="lineNum">      78</span>                 :             :  * @param[in] src Bytes to encode</span>
+<span id="L79"><span class="lineNum">      79</span>                 :             :  * @param[in] n Byte count</span>
+<span id="L80"><span class="lineNum">      80</span>                 :             :  * @return Bytes encoded (n)</span>
+<span id="L81"><span class="lineNum">      81</span>                 :             :  * @note Pure mechanical transform shared by every command build; what the</span>
+<span id="L82"><span class="lineNum">      82</span>                 :             :  *       bytes mean (prefix, command, payload) stays in the drivers.</span>
+<span id="L83"><span class="lineNum">      83</span>                 :             :  */</span>
+<span id="L84"><span class="lineNum">      84</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_bytes(ow_pulse_t** dst, const uint8_t* src, uint8_t n) {</span>
+<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="Branch 0 was taken 256 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1424 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 432 times"> + </span>]:<span class="tlaGNC">       11260 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1760 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 220 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3344 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 418 times"> + </span> 
+<span class="lineNum">        </span> <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaGBC" title="Branch 6 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 8 was taken 726 times"> + </span> 
+<span class="lineNum">        </span>       <span class="tlaGBC" title="Branch 9 was taken 1064 times"> + </span><span class="tlaGBC" title="Branch 10 was taken 880 times"> + </span><span class="tlaGBC" title="Branch 11 was taken 110 times"> + </span>]
+<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">        8918 :         onewire_encode_byte(*dst, src[i]);</span></span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">        8918 :         *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L88"><span class="lineNum">      88</span>                 :             :     }</span>
+<span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">        2342 :     return n;</span></span>
+<span id="L90"><span class="lineNum">      90</span>                 :             : }</span>
+<span id="L91"><span class="lineNum">      91</span>                 :             : </span>
+<span id="L92"><span class="lineNum">      92</span>                 :             : /**</span>
+<span id="L93"><span class="lineNum">      93</span>                 :             :  * @brief Encode the ROM addressing prefix of a command write, advancing past it</span>
+<span id="L94"><span class="lineNum">      94</span>                 :             :  * @param[in,out] dst Cursor into the pulse table; advanced past the prefix</span>
+<span id="L95"><span class="lineNum">      95</span>                 :             :  * @param[in] rom 8-byte ROM for a Match ROM prefix, or 0 for Skip ROM</span>
+<span id="L96"><span class="lineNum">      96</span>                 :             :  * @return Bytes encoded (1 or 1 + ONEWIRE_ROM_BYTES)</span>
+<span id="L97"><span class="lineNum">      97</span>                 :             :  * @note Pure encoder, always inlined so command builds keep their exact</span>
+<span id="L98"><span class="lineNum">      98</span>                 :             :  *       single-site codegen: the caller decides bare/skip/match (scan and</span>
+<span id="L99"><span class="lineNum">      99</span>                 :             :  *       address policy stay in the driver). Match ROM 0x55 / Skip ROM 0xCC</span>
+<span id="L100"><span class="lineNum">     100</span>                 :             :  *       are 1-Wire protocol constants, identical for every slave.</span>
+<span id="L101"><span class="lineNum">     101</span>                 :             :  */</span>
+<span id="L102"><span class="lineNum">     102</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_prefix(ow_pulse_t** dst, const uint8_t* rom) {</span>
+<span id="L103"><span class="lineNum">     103</span> [<span class="tlaGBC" title="Branch 0 was taken 448 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 220 times"> + </span> :<span class="tlaGNC">        3114 :     if (rom == 0) {</span></span>
+<span class="lineNum">        </span> <span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 418 times"> + </span><span class="tlaGBC" title="Branch 4 was taken 726 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaGBC" title="Branch 6 was taken 734 times"> + </span> 
+<span class="lineNum">        </span>       <span class="tlaGBC" title="Branch 7 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 8 was taken 360 times"> + </span><span class="tlaGBC" title="Branch 9 was taken 110 times"> + </span>]
+<span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">        2268 :         onewire_encode_byte(*dst, ONEWIRE_SKIP_ROM);</span></span>
+<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">        2268 :         *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L106"><span class="lineNum">     106</span>                 :<span class="tlaGNC">        2268 :         return 1u;</span></span>
+<span id="L107"><span class="lineNum">     107</span>                 :             :     }</span>
+<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">         846 :     onewire_encode_byte(*dst, ONEWIRE_MATCH_ROM);</span></span>
+<span id="L109"><span class="lineNum">     109</span>                 :<span class="tlaGNC">         846 :     *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">         846 :     return (uint8_t)(1u + ow_encode_bytes(dst, rom, ONEWIRE_ROM_BYTES));</span></span>
+<span id="L111"><span class="lineNum">     111</span>                 :             : }</span>
+<span id="L112"><span class="lineNum">     112</span>                 :             : </span>
+<span id="L113"><span class="lineNum">     113</span>                 :             : #endif /* OW_GLUE_H */</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
