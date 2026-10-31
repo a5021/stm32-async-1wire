@@ -18,31 +18,9 @@
  * @{
  */
 
-/** @brief Resolution state machine phases */
-typedef enum {
-    DS18B20_RES_RESET, /**< reset scheduled; check presence */
-    DS18B20_RES_WRITE, /**< config write scheduled (skip/match + 0x4E + TH + TL + CFG) */
-    DS18B20_RES_DONE /**< operation finished; hand the timer back to the measurement */
-} res_phase_t;
-
-/**
- * @brief Non-blocking resolution change context
- * @note The config write is built into the shared phase_pulses.res workspace
- *       (see the union in ds18b20.c), which must stay valid across poll calls
- *       because the DMA feeds CCR3 from it asynchronously while the config
- *       write is sent.
- */
-typedef struct {
-    uint8_t phase; /**< Current phase of the resolution state machine (res_phase_t values, packed) */
-    uint8_t pending_res; /**< Resolution (bits) to apply */
-    uint8_t slots; /**< Bit slots in the built config write (incl. prefix and payload) */
-    uint8_t flags; /**< DS18B20_RES_FLAG_* bits (applied/finished) */
-} res_ctx_t;
-
-/** @brief Set once the config write completed (resolution actually changed) */
-#define DS18B20_RES_FLAG_APPLIED (1u << 0)
-/** @brief Set once the operation has completed (or aborted) */
-#define DS18B20_RES_FLAG_FINISHED (1u << 1)
+/* res_phase_t, res_ctx_t, DS18B20_RES_FLAG_* and res_config_byte() live in
+ * src/ds18b20_internal.h shared with the other parts; the res_ctx
+ * instance stays here. */
 
 /** @brief Global resolution context instance */
 static res_ctx_t res_ctx;
@@ -51,20 +29,6 @@ static res_ctx_t res_ctx;
 _Static_assert(sizeof(res_ctx) == 4, "resolution context must stay 4 bytes");
 
 _Static_assert(DS18B20_RES_DONE <= 255, "res phase enum must fit uint8_t packing");
-
-/**
- * @}
- */
-
-/**
- * @brief Build the DS18B20 configuration register byte for a resolution
- * @param[in] res Resolution in bits (9..12)
- * @return Configuration register byte (R1/R0 bits set, rest at reset value)
- * @note 9 bit -> 0x1F, 10 bit -> 0x3F, 11 bit -> 0x5F, 12 bit -> 0x7F.
- */
-__STATIC_FORCEINLINE uint8_t res_config_byte(uint8_t res) {
-    return (uint8_t)(0x1Fu | ((uint8_t)(res - DS18B20_RES_MIN) << 5));
-}
 
 /**
  * @brief Pre-build the resolution config write into phase_pulses.res
@@ -80,18 +44,12 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) &&
                               ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u);
-    ow_pulse_t* p = phase_pulses.res;
+    const uint8_t* rom = 0;
     if (use_match) {
-        onewire_encode_byte(p, DS18B20_MATCH_ROM);
-        p += DS18B20_BITS_PER_BYTE;
-        for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-            onewire_encode_byte(p, ctx.selected_rom[i]);
-            p += DS18B20_BITS_PER_BYTE;
-        }
-    } else {
-        onewire_encode_byte(p, 0xCC); /* Skip ROM */
-        p += DS18B20_BITS_PER_BYTE;
+        rom = ctx.selected_rom;
     }
+    ow_pulse_t* p = phase_pulses.res;
+    p += (uint8_t)(ow_glue_encode_prefix(p, rom) * DS18B20_BITS_PER_BYTE);
     onewire_encode_byte(p, DS18B20_WRITE_SCRATCHPAD);
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, DS18B20_RES_TH);
@@ -161,16 +119,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t res_done = onewire_bus_done();
-
-#if OW_LOW_POWER
-    // Sleep through a long resolution-change write instead of spinning on
-    // it - same WFE mechanism as the measurement cycle in ds18b20_poll().
-    if (!res_done && onewire_long_wait_pending()) {
-        onewire_sleep_until_done();
-        res_done = onewire_bus_done(); /* consume the event that woke us */
-    }
-#endif
+    uint8_t res_done = ow_glue_op_done();
 
     if (!res_done) {
         return 0;

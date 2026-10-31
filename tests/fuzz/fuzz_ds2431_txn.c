@@ -4,7 +4,7 @@
  * + *_poll).
  *
  * Compiled as single-TU via ds2431_test_access.c (src/ds2431.c +
- * src/onewire.c); the transactions report through ds2431_last_command_ok(),
+ * src/ds2431_txn.c + src/onewire.c); the transactions report through ds2431_last_command_ok(),
  * ds2431_parasite_mode() and the caller's result buffer.
  *
  * Input layout:

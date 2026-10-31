@@ -1,10 +1,11 @@
 /* Single translation unit that compiles the DS2431 driver together with the
  * shared 1-Wire layer and test accessors. Build ONLY this TU for the driver;
- * do not compile src/ds2431.c or src/onewire.c separately, or their static
- * state would not be shared with the accessors. */
+ * do not compile src/ds2431.c, src/ds2431_txn.c or src/onewire.c separately,
+ * or their static state would not be shared with the accessors. */
 #define HOST_BUILD 1
 #include "ds2431_test_access.h"
 #include "../src/ds2431.c"
+#include "../src/ds2431_txn.c"
 #include "../src/onewire.c"
 #include "hw_model.h"
 #include <stddef.h>
