@@ -83,6 +83,10 @@ srcdir = b["srcDir"]
 INTENTIONALLY_UNLISTED = {
     "ds18b20_measure.c", "ds18b20_resolution.c",
     "ds18b20_search.c", "ds18b20_txn.c", "ds2431_txn.c",
+    # ds2413.c is a non-build placeholder: the header defines only the family
+    # code used by search examples; there is no driver behind it yet, so
+    # listing it in srcFilter would ship an empty TU to consumers.
+    "ds2413.c",
 }
 
 all_c = sorted(f for f in os.listdir(srcdir) if f.endswith(".c"))

@@ -54,27 +54,27 @@
 
 /* --- EEPROM map ---------------------------------------------------------- */
 
-#define REC_BYTES       DS2431_SCRATCH_SIZE
-#define REC_CRC_LEN     7u
-#define DS18_FAMILY     0x28u
+#define REC_BYTES DS2431_SCRATCH_SIZE
+#define REC_CRC_LEN 7u
+#define DS18_FAMILY 0x28u
 
-#define SLOT_COUNT      2u
-#define SLOT_PEAK       0u
-#define SLOT_LOW        1u
+#define SLOT_COUNT 2u
+#define SLOT_PEAK 0u
+#define SLOT_LOW 1u
 
-#define REC_PEAK_ADDR   16u
-#define REC_LOW_ADDR    24u
-#define ROM_PEAK_ADDR   32u
-#define ROM_LOW_ADDR    40u
+#define REC_PEAK_ADDR 16u
+#define REC_LOW_ADDR 24u
+#define ROM_PEAK_ADDR 32u
+#define ROM_LOW_ADDR 40u
 
-#define REC_MAGIC_PEAK  0x54u
-#define REC_MAGIC_LOW   0x4Cu
-#define REC_VERSION     0x02u
-#define REC_FLAG_VALID  0x01u
-#define REC_FLAG_ROM    0x02u
+#define REC_MAGIC_PEAK 0x54u
+#define REC_MAGIC_LOW 0x4Cu
+#define REC_VERSION 0x02u
+#define REC_FLAG_VALID 0x01u
+#define REC_FLAG_ROM 0x02u
 
-#define BOOT_READS      4u
-#define JOB_MAX         4u
+#define BOOT_READS 4u
+#define JOB_MAX 4u
 
 static const uint16_t rec_addr[SLOT_COUNT] = {REC_PEAK_ADDR, REC_LOW_ADDR};
 static const uint16_t rom_addr[SLOT_COUNT] = {ROM_PEAK_ADDR, ROM_LOW_ADDR};
@@ -85,19 +85,19 @@ static const char* const slot_name[SLOT_COUNT] = {"peak", "low"};
 /* --- timing -------------------------------------------------------------- */
 
 /* One broadcast conversion plus N Match ROM reads. */
-#define SCAN_TIMEOUT_MS    4000u
+#define SCAN_TIMEOUT_MS 4000u
 /* One Match ROM conversion plus its scratchpad read. */
-#define SEQ_TIMEOUT_MS     2000u
+#define SEQ_TIMEOUT_MS 2000u
 /* Extra window to let a failing scan round drain before switching modes. */
-#define DRAIN_TIMEOUT_MS   2000u
+#define DRAIN_TIMEOUT_MS 2000u
 /* Any single DS2431 command finishes well inside this window. */
-#define EEPROM_TIMEOUT_MS  1000u
+#define EEPROM_TIMEOUT_MS 1000u
 /* Search of a 16-device bus is a few tens of milliseconds. */
-#define SEARCH_TIMEOUT_MS  2000u
+#define SEARCH_TIMEOUT_MS 2000u
 /* Pause between measurement rounds. */
-#define CYCLE_PERIOD_MS    2000u
+#define CYCLE_PERIOD_MS 2000u
 /* Give up on EEPROM persistence after this many failed write jobs. */
-#define WRITE_FAIL_LIMIT   3u
+#define WRITE_FAIL_LIMIT 3u
 
 #ifndef PEAK_RESET
 #define PEAK_RESET 0
@@ -118,16 +118,16 @@ typedef enum {
 } state_t;
 
 typedef struct {
-    uint8_t valid;      /* a record was read or committed */
-    uint8_t counter;    /* update counter of this record */
-    int16_t temp;       /* tenths of a degree */
-    uint8_t idx;        /* sensor index in the device table */
+    uint8_t valid; /* a record was read or committed */
+    uint8_t counter; /* update counter of this record */
+    int16_t temp; /* tenths of a degree */
+    uint8_t idx; /* sensor index in the device table */
     uint8_t rom_valid;
-    uint8_t rom[8];     /* ROM of the sensor the record refers to */
+    uint8_t rom[8]; /* ROM of the sensor the record refers to */
 } slot_t;
 
 typedef struct {
-    uint8_t is_rom;     /* 1 = ROM block, 0 = record block */
+    uint8_t is_rom; /* 1 = ROM block, 0 = record block */
     uint8_t slot;
     uint16_t addr;
     uint8_t image[REC_BYTES];
@@ -179,24 +179,20 @@ static uint32_t drain_deadline_ms;
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-static uint8_t time_reached(uint32_t when)
-{
+static uint8_t time_reached(uint32_t when) {
     return (uint8_t)((int32_t)(app_millis() - when) >= 0);
 }
 
-static uint8_t expired(void)
-{
+static uint8_t expired(void) {
     return time_reached(deadline_ms);
 }
 
-static void go_wait(void)
-{
+static void go_wait(void) {
     next_ms = app_millis() + CYCLE_PERIOD_MS;
     state = ST_WAIT;
 }
 
-static void print_rom(const uint8_t* rom)
-{
+static void print_rom(const uint8_t* rom) {
     for (uint8_t i = 0; i < 8u; i++) {
         uart_write_hex(rom[i]);
         if (i != 7u) {
@@ -206,8 +202,7 @@ static void print_rom(const uint8_t* rom)
 }
 
 /** @brief Print a tenths-of-a-degree value as "-5.3" / "27.4" / "-0.4" */
-static void print_temp(int16_t t)
-{
+static void print_temp(int16_t t) {
     int16_t whole = (int16_t)(t / 10);
     int16_t frac = (int16_t)(t % 10);
 
@@ -223,13 +218,11 @@ static void print_temp(int16_t t)
 }
 
 /** @brief Tenths of a degree from a record block (bytes +4 and +5) */
-static int16_t decode_temp(const uint8_t* image)
-{
+static int16_t decode_temp(const uint8_t* image) {
     return (int16_t)((int16_t)(int8_t)image[4] * 10 + (int16_t)(int8_t)image[5]);
 }
 
-static void slot_report(uint8_t slot)
-{
+static void slot_report(uint8_t slot) {
     const slot_t* s = &slots[slot];
 
     uart_write_str(slot_name[slot]);
@@ -253,8 +246,7 @@ static void slot_report(uint8_t slot)
 /* Device searches                                                            */
 /* -------------------------------------------------------------------------- */
 
-static uint8_t ds18_sink(const uint8_t* rom)
-{
+static uint8_t ds18_sink(const uint8_t* rom) {
     uart_write_str("  [");
     uart_write_int(ds18_sink_n);
     uart_write_str("] ");
@@ -264,8 +256,7 @@ static uint8_t ds18_sink(const uint8_t* rom)
     return 0u;
 }
 
-static uint8_t all_sink(const uint8_t* rom)
-{
+static uint8_t all_sink(const uint8_t* rom) {
     switch (rom[0]) {
     case DS18_FAMILY:
         break; /* already in the driver table from the first pass */
@@ -304,8 +295,7 @@ static uint8_t all_sink(const uint8_t* rom)
 /* Boot: load and validate the records                                        */
 /* -------------------------------------------------------------------------- */
 
-static void boot_load_record(uint8_t slot)
-{
+static void boot_load_record(uint8_t slot) {
     const uint8_t* b = &boot_buf[slot * REC_BYTES];
     uint8_t magic = (slot == SLOT_PEAK) ? REC_MAGIC_PEAK : REC_MAGIC_LOW;
     const char* why = 0;
@@ -336,8 +326,7 @@ static void boot_load_record(uint8_t slot)
     slots[slot].idx = b[6];
 }
 
-static void boot_load_rom(uint8_t slot)
-{
+static void boot_load_rom(uint8_t slot) {
     const uint8_t* b = &boot_buf[(BOOT_READS / SLOT_COUNT + slot) * REC_BYTES];
     uint8_t k = (uint8_t)(BOOT_READS / SLOT_COUNT + slot);
 
@@ -347,8 +336,7 @@ static void boot_load_rom(uint8_t slot)
     }
 }
 
-static void boot_done(void)
-{
+static void boot_done(void) {
 #if PEAK_RESET
     uart_write_str("PEAK_RESET=1: stored records ignored\r\n");
 #else
@@ -371,8 +359,7 @@ static void boot_done(void)
     }
 }
 
-static void boot_read_start(void)
-{
+static void boot_read_start(void) {
     ds2431_read_memory(&boot_buf[boot_step * REC_BYTES], boot_addr[boot_step], REC_BYTES);
     deadline_ms = app_millis() + EEPROM_TIMEOUT_MS;
 }
@@ -386,8 +373,7 @@ static void boot_read_start(void)
  * @note The result is only stored here; the state machine prints it once the
  *       poll returns, so the UART work stays out of the driver call stack.
  */
-void ds18b20_complete(int16_t temp)
-{
+void ds18b20_complete(int16_t temp) {
     uint8_t idx = seq_mode ? seq_cur : ds18b20_scan_index();
 
     if (idx < DS18B20_MAX_DEVICES) {
@@ -397,8 +383,7 @@ void ds18b20_complete(int16_t temp)
     reported++;
 }
 
-static void start_round(void)
-{
+static void start_round(void) {
     reported = 0u;
     scan_drain = 0u;
     cycle_no++;
@@ -421,8 +406,7 @@ static void start_round(void)
 }
 
 /** @brief Index of the first sensor that failed, or ds18_n when all are fine */
-static uint8_t first_bad(void)
-{
+static uint8_t first_bad(void) {
     for (uint8_t i = 0; i < ds18_n; i++) {
         if (!temps_ok[i]) {
             return i;
@@ -432,8 +416,7 @@ static uint8_t first_bad(void)
 }
 
 /** @brief Leave scan mode for the sequential Match ROM path */
-static void switch_to_sequential(void)
-{
+static void switch_to_sequential(void) {
     seq_mode = 1u;
     /* select() only acts at driver IDLE (the round has just drained), and it
      * clears the scan-mode flag, so no round can start on its own any more. */
@@ -446,8 +429,7 @@ static void switch_to_sequential(void)
 /* Write jobs                                                                 */
 /* -------------------------------------------------------------------------- */
 
-static void push_rom(uint8_t slot, const uint8_t* rom)
-{
+static void push_rom(uint8_t slot, const uint8_t* rom) {
     job_t* j = &jobs[job_n++];
 
     j->is_rom = 1u;
@@ -456,8 +438,7 @@ static void push_rom(uint8_t slot, const uint8_t* rom)
     memcpy(j->image, rom, REC_BYTES);
 }
 
-static void push_record(uint8_t slot, int16_t temp, uint8_t idx)
-{
+static void push_record(uint8_t slot, int16_t temp, uint8_t idx) {
     job_t* j = &jobs[job_n++];
     uint8_t* b = j->image;
 
@@ -475,8 +456,7 @@ static void push_record(uint8_t slot, int16_t temp, uint8_t idx)
 }
 
 /** @brief Queue the ROM (only when it differs) and the new record of a slot */
-static void queue_extreme(uint8_t slot, int16_t temp, uint8_t idx)
-{
+static void queue_extreme(uint8_t slot, int16_t temp, uint8_t idx) {
     const uint8_t* rom = ds18b20_device_rom(idx);
 
     if (!slots[slot].rom_valid || memcmp(slots[slot].rom, rom, 8u) != 0) {
@@ -486,8 +466,7 @@ static void queue_extreme(uint8_t slot, int16_t temp, uint8_t idx)
 }
 
 /** @brief Apply a completed job to the RAM copy */
-static void commit_job(const job_t* j)
-{
+static void commit_job(const job_t* j) {
     slot_t* s = &slots[j->slot];
 
     if (j->is_rom) {
@@ -501,8 +480,7 @@ static void commit_job(const job_t* j)
     }
 }
 
-static void write_abort(const char* why)
-{
+static void write_abort(const char* why) {
     uart_write_str("  write failed: ");
     uart_write_str(why);
     uart_write_str("\r\n");
@@ -517,8 +495,7 @@ static void write_abort(const char* why)
     go_wait();
 }
 
-static void start_job(void)
-{
+static void start_job(void) {
     const job_t* j = &jobs[job_i];
 
     if (!ds2431_write_scratchpad(j->addr, j->image, REC_BYTES)) {
@@ -529,8 +506,7 @@ static void start_job(void)
     state = ST_WRITE_SCRATCH;
 }
 
-static void job_done(void)
-{
+static void job_done(void) {
     const job_t* j = &jobs[job_i];
 
     commit_job(j);
@@ -555,8 +531,7 @@ static void job_done(void)
 }
 
 /** @brief Print a round extreme next to the record it is compared with */
-static void print_extreme(const char* tag, int16_t t, uint8_t idx, uint8_t slot, uint8_t is_new)
-{
+static void print_extreme(const char* tag, int16_t t, uint8_t idx, uint8_t slot, uint8_t is_new) {
     uart_write_str(tag);
     print_temp(t);
     uart_write_str(" C (s");
@@ -577,8 +552,7 @@ static void print_extreme(const char* tag, int16_t t, uint8_t idx, uint8_t slot,
     }
 }
 
-static void evaluate(void)
-{
+static void evaluate(void) {
     int16_t hi = 0;
     int16_t lo = 0;
     uint8_t hi_i = 0u;
@@ -667,8 +641,7 @@ static void evaluate(void)
 /* Main                                                                       */
 /* -------------------------------------------------------------------------- */
 
-int main(void)
-{
+int main(void) {
     app_init();
 
     uart_write_str("\r\n9_multi: DS18B20 peak/low recorder, DS2431 at offset 20\r\n");
