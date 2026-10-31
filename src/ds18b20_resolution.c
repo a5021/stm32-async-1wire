@@ -44,18 +44,12 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
     // address is skipped even if a single-device address is still selected.
     const uint8_t use_match = ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) &&
                               ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u);
-    ow_pulse_t* p = phase_pulses.res;
+    const uint8_t* rom = 0;
     if (use_match) {
-        onewire_encode_byte(p, DS18B20_MATCH_ROM);
-        p += DS18B20_BITS_PER_BYTE;
-        for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-            onewire_encode_byte(p, ctx.selected_rom[i]);
-            p += DS18B20_BITS_PER_BYTE;
-        }
-    } else {
-        onewire_encode_byte(p, 0xCC); /* Skip ROM */
-        p += DS18B20_BITS_PER_BYTE;
+        rom = ctx.selected_rom;
     }
+    ow_pulse_t* p = phase_pulses.res;
+    p += (uint8_t)(ow_glue_encode_prefix(p, rom) * DS18B20_BITS_PER_BYTE);
     onewire_encode_byte(p, DS18B20_WRITE_SCRATCHPAD);
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, DS18B20_RES_TH);
@@ -125,16 +119,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t res_done = onewire_bus_done();
-
-#if OW_LOW_POWER
-    // Sleep through a long resolution-change write instead of spinning on
-    // it - same WFE mechanism as the measurement cycle in ds18b20_poll().
-    if (!res_done && onewire_long_wait_pending()) {
-        onewire_sleep_until_done();
-        res_done = onewire_bus_done(); /* consume the event that woke us */
-    }
-#endif
+    uint8_t res_done = ow_glue_op_done();
 
     if (!res_done) {
         return 0;

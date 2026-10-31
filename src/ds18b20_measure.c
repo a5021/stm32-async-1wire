@@ -106,8 +106,8 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
 static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
-    onewire_encode_byte(dst, 0xCC);
-    onewire_encode_byte(dst + 8, cmd_byte);
+    const uint8_t prefix = ow_glue_encode_prefix(dst, 0);
+    onewire_encode_byte(dst + (uint8_t)(prefix * DS18B20_BITS_PER_BYTE), cmd_byte);
     dst[DS18B20_DMA_TRANSFERS] = ONEWIRE_RELEASE_PULSE;
 }
 
@@ -164,19 +164,7 @@ void ds18b20_poll(void) {
     // This is the non-blocking way to detect when timed operations finish.
     // onewire_bus_done() *consumes* the update flag, so it must be called
     // exactly once per poll and its result reused below.
-    uint8_t done = onewire_bus_done();
-
-#if OW_LOW_POWER
-    // Sleep through a long stage of the measurement cycle (temperature
-    // conversion, scratchpad read) instead of spinning on it. The wake-up is
-    // the timer's own update event via SEVONPEND - no ISR, no NVIC interrupt
-    // - so this is invisible to the application: it just calls ds18b20_poll()
-    // and the call returns when the stage is done.
-    if (!done && onewire_long_wait_pending()) {
-        onewire_sleep_until_done();
-        done = onewire_bus_done(); /* consume the event that woke us */
-    }
-#endif
+    uint8_t done = ow_glue_op_done();
 
     if (!done) return;
 

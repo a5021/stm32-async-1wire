@@ -313,6 +313,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `6_statistics`, `8_ds2431` and `9_multi` on F030 (exact ceilings, same
   rule as the existing tiers).
 
+- **Shared engine plumbing for both drivers (internal).** The four poll
+  sites shared a verbatim bus-wait + low-power-sleep block, and the five
+  command builds each open-coded the ROM addressing prefix. Both now go
+  through `src/ow_glue.h`: `ow_glue_op_done()` (poll a scheduled operation
+  to completion) and the always-inline `ow_glue_encode_prefix()` (Match ROM
+  with the selected ROM, or Skip ROM; scan/address policy stays in the
+  drivers). `ONEWIRE_MATCH_ROM`/`ONEWIRE_SKIP_ROM` join the 1-Wire protocol
+  constants in `inc/onewire.h` next to `ONEWIRE_SEARCH_ROM`. No public API
+  change; F030 `1_basic`/`6_statistics` byte-identical, `8_ds2431` text -8,
+  `9_multi` text +4 (budget bumped consciously, see `tests/check_ram_budget.sh`).
+
 ### Fixed
 
 - **The "the driver never blocks" promise was not true as written.** The

@@ -253,13 +253,7 @@ _Static_assert(sizeof(phase_pulses.addr) >= DS18B20_MATCH_SLOTS + 1,
  *       addressed operation; the 1-Wire timings are milliseconds.
  */
 __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
-    ow_pulse_t* p = phase_pulses.addr;
-    onewire_encode_byte(p, DS18B20_MATCH_ROM);
-    p += DS18B20_BITS_PER_BYTE;
-    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
-        onewire_encode_byte(p, ctx.selected_rom[i]);
-        p += DS18B20_BITS_PER_BYTE;
-    }
+    ow_glue_encode_prefix(phase_pulses.addr, ctx.selected_rom);
     onewire_encode_byte(&phase_pulses.addr[DS18B20_PREFIX_SLOTS], cmd_byte);
     phase_pulses.addr[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;
 }

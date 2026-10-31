@@ -216,6 +216,17 @@ void ow_glue_wait_start(uint32_t us) { ow_port_start_wait(us); }
 
 void ow_glue_kick(void) { ow_port_kick(); }
 
+uint8_t ow_glue_op_done(void) {
+    uint8_t done = onewire_bus_done();
+#if OW_LOW_POWER
+    if (!done && onewire_long_wait_pending()) {
+        onewire_sleep_until_done();
+        done = onewire_bus_done(); /* consume the event that woke us */
+    }
+#endif
+    return done;
+}
+
 void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
 }

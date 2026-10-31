@@ -46,22 +46,13 @@ uint8_t ds2431_can_start(const DS2431_ctx_t* c) {
  *          the reset DMA would have clobbered any earlier build.
  */
 uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {
-    ow_pulse_t* p = (ow_pulse_t*)c->u.cmd;
-    uint8_t bytes = 0;
+    const uint8_t* rom = 0;
     if ((c->flags & DS2431_FLAG_ADDRESS_MODE) != 0u) {
-        onewire_encode_byte(p, DS2431_MATCH_ROM);
-        p += DS2431_BITS_PER_BYTE;
-        bytes++;
-        for (uint8_t i = 0; i < DS2431_ROM_BYTES; i++) {
-            onewire_encode_byte(p, c->selected_rom[i]);
-            p += DS2431_BITS_PER_BYTE;
-            bytes++;
-        }
-    } else {
-        onewire_encode_byte(p, DS2431_SKIP_ROM);
-        p += DS2431_BITS_PER_BYTE;
-        bytes++;
+        rom = c->selected_rom;
     }
+    ow_pulse_t* p = (ow_pulse_t*)c->u.cmd;
+    uint8_t bytes = ow_glue_encode_prefix(p, rom);
+    p += (uint8_t)(bytes * DS2431_BITS_PER_BYTE);
     onewire_encode_byte(p, command);
     p += DS2431_BITS_PER_BYTE;
     bytes++;
@@ -184,17 +175,7 @@ uint8_t ds2431_poll(DS2431_ctx_t* c) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t op_done = onewire_bus_done();
-
-#if OW_LOW_POWER
-    // Sleep through a long stage of the operation (multi-slot command write,
-    // scratchpad frame read, EEPROM programming hold-off) instead of spinning
-    // on it - same WFE mechanism as the DS18B20 drivers.
-    if (!op_done && onewire_long_wait_pending()) {
-        onewire_sleep_until_done();
-        op_done = onewire_bus_done(); /* consume the event that woke us */
-    }
-#endif
+    uint8_t op_done = ow_glue_op_done();
 
     if (!op_done) {
         return 0;

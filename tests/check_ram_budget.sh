@@ -22,7 +22,7 @@
 #   app            text    bss
 #   6_statistics   6264    1784
 #   8_ds2431       6156    768
-#   9_multi        11752   1296
+#   9_multi        11756   1296
 #
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
@@ -61,7 +61,16 @@
 # 6_statistics owns the largest .bss (1024 B UART ring + 300 B stats state),
 # 9_multi the largest text (multi-device + DS2431 in one image, ~72% of the
 # 16KB flash). 8_ds2431 is the only tier image that actually links the
-# DS2431 engine (see 2026-10-11), so its text moves with that driver.
+# DS2431 engine (see 2026-10-11), so its text moves with that driver. 8_ds2431
+# text also falls when the engine shrinks (6156 -> 6148 with the prefix
+# encoder); only growth needs a conscious bump, shrinkage just passes.
+#
+# 2026-10-31 (same day): ROM-prefix encoder factored out of the five command
+# builds (DS18B20 addr/txn/resolution/skip plus DS2431) into one always-inline
+# ow_glue_encode_prefix(); 0xCC literals and per-driver 0x55 spellings now
+# resolve to ONEWIRE_SKIP_ROM/ONEWIRE_MATCH_ROM. F030 9_multi text 11752 ->
+# 11756 (ds2431_poll constprop clone +4 under LTO); everything else
+# byte-identical.
 #
 # Recalibration procedure (ceilings are exact by design — no slack, so any
 # growth must be conscious; a red gate is a question, not a failure):
@@ -204,7 +213,7 @@ check STM32H503xx 329 652 432
 
 check_app STM32F030x6 6_statistics 6264 1784
 check_app STM32F030x6 8_ds2431 6156 768
-check_app STM32F030x6 9_multi 11752 1296
+check_app STM32F030x6 9_multi 11756 1296
 
 if [ "$fail" -ne 0 ]; then
     exit 1
