@@ -2,15 +2,16 @@
  * @file ds2431_internal.h
  * @brief Private DS2431 driver interface (library-internal).
  *
- * Owns the driver-private types and constants shared by the umbrella
- * translation unit src/ds2431.c and its include-only engine part
- * src/ds2431_txn.c: command sizing, phase enum, context layout, flag bits
- * and the engine entry points. Not installed, never included by consumers
- * or by the test accessors directly; they reach it through src/ds2431.c.
+ * Owns the driver-private types and constants shared by the core TU
+ * src/ds2431.c and the engine TU src/ds2431_txn.c: command sizing, phase
+ * enum, context layout, flag bits and the engine entry points. Not
+ * installed, never included by consumers or by the test accessors
+ * directly; the core, the engine and the test amalgamation reach it
+ * through their own includes.
  *
  * The context instance itself stays a file-scope static in src/ds2431.c so
- * the amalgamated object, the RAM budget and the host test model (which
- * compiles src/ds2431.c together with its accessors) do not change.
+ * the RAM budget and the host test model (which compiles src/ds2431.c
+ * together with its accessors) do not change.
  */
 
 #ifndef DS2431_INTERNAL_H

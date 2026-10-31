@@ -1,4 +1,5 @@
 #include "ds18b20.h"
+#include "ds18b20_internal.h"
 #include "onewire.h"
 /* The driver needs two CMSIS compiler spellings (__WEAK, __STATIC_FORCEINLINE)
  * and nothing else from CMSIS; this private shim supplies them without pulling
@@ -13,141 +14,13 @@
  * when OW_STATS_ENABLE=0. */
 #include "ow_stats.h"
 
-/**
- * @defgroup DS18B20_Private_Types DS18B20 Private Types
- * @{
- */
-
-/**
- * @defgroup DS18B20_Private_Constants DS18B20 Private Constants
- * @{
- */
-
-/** @brief Total length of DS18B20 scratchpad in bytes */
-#define DS18B20_SCRATCHPAD_LEN 9
-/** @brief Number of bytes to include in the scratchpad CRC calculation */
-#define DS18B20_CRC8_BYTES 8
-/** @brief Total number of bits in DS18B20 scratchpad */
-#define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
-/** @brief Total slots for Match ROM + 8-byte ROM + command */
-#define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
-/** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
-#define DS18B20_PREFIX_SLOTS ((DS18B20_ROM_BYTES + 1) * DS18B20_BITS_PER_BYTE)
-/** @brief Number of DMA transfers for command transmission (2 bytes × 8 bits) */
-#define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)
-#define SCAN_DEVICE_GAP_US 1000 /**< 1ms scheduling bridge between scan-mode device reads (no bus requirement) */
-/** @brief TH byte written together with the config register by the resolution
- *         state machine (Write Scratchpad requires TH + TL + CFG in one go).
- *         0 disables the alarm trigger threshold. */
-#define DS18B20_RES_TH 0x00
-/** @brief TL byte written together with the config register by the resolution
- *         state machine. 0 disables the alarm trigger threshold. */
-#define DS18B20_RES_TL 0x00
-/** @brief Bytes in the resolution config write for Skip ROM mode
- *         (Skip ROM 0xCC + Write Scratchpad 0x4E + TH + TL + CFG) */
-#define DS18B20_RES_BYTES_MIN (1 + 1 + 3)
-/** @brief Bytes in the resolution config write for Match ROM mode
- *         (Match ROM 0x55 + 8-byte ROM + 0x4E + TH + TL + CFG) */
-#define DS18B20_RES_BYTES_MAX (1 + DS18B20_ROM_BYTES + 1 + 3)
-/** @brief Slots for the Skip ROM resolution config write */
-#define DS18B20_RES_SLOTS_MIN (DS18B20_RES_BYTES_MIN * DS18B20_BITS_PER_BYTE)
-/** @brief Slots for the Match ROM resolution config write */
-#define DS18B20_RES_SLOTS_MAX (DS18B20_RES_BYTES_MAX * DS18B20_BITS_PER_BYTE)
-/** @brief Wait for Copy Scratchpad (t_COPY) / Recall EEPROM (t_RECALL)
- *         completion in microseconds (DS18B20 datasheet: 10ms max). */
-#define DS18B20_EEPROM_WAIT_US 10000
-
-/**
- * @}
- */
+/* Private sizing, context/phase types, flag bits and res_config_byte()
+ * live in src/ds18b20_internal.h shared with the four parts. */
 
 #define DS18B20_DRIVER_BUILD 1
 
-/**
- * @defgroup DS18B20_Private_Types DS18B20 Private Types
- * @{
- */
-
-/**
- * @brief DS18B20 driver context structure using union for memory efficiency
- * @note Different stages of communication use the same memory for different purposes
- */
-typedef struct {
-    /**
-     * @brief Union overlay for memory efficiency
-     * @warning CRITICAL INVARIANT: scratchpad[n] aliases pulse[n] (same byte).
-     *          decode_scratchpad() MUST read all 8 bits of pulse[byte*8..byte*8+7]
-     *          BEFORE writing scratchpad[byte]. Reordering loops will corrupt bytes 0-8.
-     */
-    union {
-        volatile uint16_t capture[DS18B20_SCRATCHPAD_BITS / 2]; /**< Captured pulse durations (reset/presence) */
-        volatile uint8_t pulse[DS18B20_SCRATCHPAD_BITS]; /**< Pulse durations for data decoding */
-        uint8_t scratchpad[DS18B20_SCRATCHPAD_LEN]; /**< Sensor scratchpad data */
-    };
-    uint8_t current_state; /**< Current state machine state (ds18b20_state_t values, packed from enum to save RAM) */
-    uint8_t flags; /**< DS18B20_FLAG_* bits (address_mode/scan_mode/parasite) */
-    uint8_t scan_index; /**< Index of the device currently read in scan mode */
-    uint8_t selected_rom[DS18B20_ROM_BYTES]; /**< ROM of the selected device */
-    uint8_t resolution; /**< Conversion resolution in bits (9..12); drives the conversion wait */
-} DS18B20_ctx_t;
-
-/** @brief Non-zero = Match ROM addressing (0 = Skip ROM broadcast) */
-#define DS18B20_FLAG_ADDRESS_MODE (1u << 0)
-/** @brief 1 = simultaneous multi-device conversion (scan) mode */
-#define DS18B20_FLAG_SCAN_MODE (1u << 1)
-/** @brief 1 = parasite-powered bus: engage the strong pull-up during conversion and EEPROM programming windows (see ds18b20_set_parasite) */
-#define DS18B20_FLAG_PARASITE (1u << 2)
-
-/**
- * @brief Non-blocking single-command transaction phases
- */
-typedef enum {
-    DS18B20_TXN_RESET, /**< reset scheduled; check presence */
-    DS18B20_TXN_WRITE, /**< command (prefix + function + payload) write scheduled */
-    DS18B20_TXN_READ, /**< data read scheduled (read_bytes != 0) */
-    DS18B20_TXN_WAIT, /**< timed wait scheduled (wait_us != 0) */
-    DS18B20_TXN_DONE /**< finished; hand the timer back to the measurement */
-} ds18b20_txn_phase_t;
-
-/**
- * @brief Non-blocking single-command transaction context
- * @note Drives every infrequent DS18B20 command (Read ROM, Write Scratchpad
- *       thresholds, Copy/Recall EEPROM, Read Power Supply, raw Read
- *       Scratchpad) with the same reset -> write -> (read | wait) discipline
- *       as the resolution state machine. The command build lives in the
- *       shared phase_pulses.txn workspace (see the union above), which must
- *       stay valid across poll calls because the DMA feeds CCR3 from it
- *       asynchronously.
- * @note Field order is load-bearing for RAM: out/wait_us first, then bytes,
- *       so no padding slips between the pointer and the 16-bit wait. The
- *       one-bit states share flags (explicit masks, not C bitfields — layout
- *       must stay deterministic across toolchains). There is no ISR in this
- *       architecture (everything is poll-driven), so read-modify-write on the
- *       flag bytes is safe.
- */
-typedef struct {
-    uint8_t* out; /**< User result buffer (valid until the command finishes) */
-    uint16_t wait_us; /**< Timed wait after the command (0 = none) */
-    uint8_t phase; /**< Current phase of the transaction (ds18b20_txn_phase_t values, packed) */
-    uint8_t command; /**< DS18B20 function command byte (0x33/0x4E/0x48/0xB8/0xB4/0xBE) */
-    uint8_t payload[3]; /**< Write Scratchpad payload (TH, TL, CFG) */
-    uint8_t payload_len; /**< 0..3 (payload bytes written after the command) */
-    uint8_t read_bytes; /**< Bytes to read back (0 = no read phase) */
-    uint8_t slots; /**< Bit slots in the built pulses (incl. prefix and payload) */
-    uint8_t raw[DS18B20_SCRATCHPAD_LEN]; /**< Decoded read result */
-    uint8_t flags; /**< DS18B20_TXN_FLAG_* bits (bare/ok/finished) */
-} ds18b20_txn_ctx_t;
-
-/** @brief Transaction without addressing prefix (Read ROM: single-device bus only) */
-#define DS18B20_TXN_FLAG_BARE (1u << 0)
-/** @brief Set once the transaction completed with a device present / valid read */
-#define DS18B20_TXN_FLAG_OK (1u << 1)
-/** @brief Set once the transaction finished (or aborted) */
-#define DS18B20_TXN_FLAG_FINISHED (1u << 2)
-
-/**
- * @}
- */
+/* DS18B20_ctx_t / ds18b20_txn_ctx_t and their flag bits live in
+ * src/ds18b20_internal.h; the static instances follow. */
 
 /**
  * @defgroup DS18B20_Private_Variables DS18B20 Private Variables
@@ -298,7 +171,8 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
  * are compiled in here so the whole driver stays one object file. Each
  * part owns its private state (DS18B20_DRIVER_BUILD gate above) and is
  * guarded so it cannot be compiled standalone (it would miss the shared
- * ctx/txn_ctx/res_ctx/dev_roms statics below).
+ * ctx/txn_ctx/res_ctx/dev_roms statics below, whose types and the
+ * cross-part leaf res_config_byte() live in src/ds18b20_internal.h).
  *
  * The include order is load-bearing: every part references file-scope
  * declarations from the parts included above it (txn uses res_config_byte

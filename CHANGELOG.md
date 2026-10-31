@@ -299,6 +299,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assets. The release workflow packages it after staging the checksums and
   uploads that one file.
 
+- **DS2431 driver is two translation units (internal).** The engine lived as
+  an include-only part pulled into `src/ds2431.c`; it is now a regular TU
+  (`src/ds2431_txn.c`) working on the caller-owned context through the
+  private `src/ds2431_internal.h`, while the core (`src/ds2431.c`) owns the
+  static instance and the public API. No public header changes; firmware
+  images are byte-identical before and after (verified for F030
+  `1_basic`/`5_commands`), and `make test-ram` is green.
+
+- **Resource guard covers the heavyweight F030 examples.** `make test-ram`
+  pinned only `1_basic`/`5_commands`; the binding part's largest images had
+  no ceiling. It now also gates whole-image text and total .bss of
+  `6_statistics`, `8_ds2431` and `9_multi` on F030 (exact ceilings, same
+  rule as the existing tiers).
+
 ### Fixed
 
 - **The "the driver never blocks" promise was not true as written.** The
