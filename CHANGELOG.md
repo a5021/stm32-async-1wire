@@ -299,6 +299,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assets. The release workflow packages it after staging the checksums and
   uploads that one file.
 
+- **DS2431 driver is two translation units (internal).** The engine lived as
+  an include-only part pulled into `src/ds2431.c`; it is now a regular TU
+  (`src/ds2431_txn.c`) working on the caller-owned context through the
+  private `src/ds2431_internal.h`, while the core (`src/ds2431.c`) owns the
+  static instance and the public API. No public header changes; firmware
+  images are byte-identical before and after (verified for F030
+  `1_basic`/`5_commands`), and `make test-ram` is green.
+
+- **Resource guard covers the heavyweight F030 examples.** `make test-ram`
+  pinned only `1_basic`/`5_commands`; the binding part's largest images had
+  no ceiling. It now also gates whole-image text and total .bss of
+  `6_statistics`, `8_ds2431` and `9_multi` on F030 (exact ceilings, same
+  rule as the existing tiers).
+
+- **Shared engine plumbing for both drivers (internal).** The four poll
+  sites shared a verbatim bus-wait + low-power-sleep block; the five command
+  builds each open-coded the ROM addressing prefix, and two payload loops
+  repeated the same encode-and-advance pattern. All of it now goes through
+  `src/ow_glue.h` as plain verbs: `ow_op_done()` (poll a scheduled operation
+  to completion), `ow_has_presence()` (prove a device from the last reset
+  capture), the always-inline `ow_encode_prefix()` (Match ROM with the
+  selected ROM, or Skip ROM) and `ow_encode_bytes()` (payload loop), plus
+  `ow_start_wait()` / `ow_timer_kick()`. The caller drives a cursor the
+  encoders advance, so no site multiplies by the entry width; scan/address
+  policy stays in the drivers. `ONEWIRE_MATCH_ROM`/`ONEWIRE_SKIP_ROM` join
+  the 1-Wire protocol constants in `inc/onewire.h` next to
+  `ONEWIRE_SEARCH_ROM`. No public API change: F030 `1_basic`/`6_statistics`/
+  `9_multi` byte-identical, `8_ds2431` text -4.
+
 ### Fixed
 
 - **The "the driver never blocks" promise was not true as written.** The

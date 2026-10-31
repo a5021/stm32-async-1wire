@@ -34,6 +34,13 @@ FLASH_ADDR = "0x08000000"
 # (127.9 C) and report their power-on-reset value (85.0 C). HIL_EXT= (empty)
 # opts out for an externally powered bus.
 BENCH_PROFILES = {
+    "STM32F030x6": {
+        # TSSOP20 STM32F030F4P6-class board (16KB flash / 4KB RAM): the
+        # smallest supported part, parasite-powered bus in this setup.
+        "hints": ("STM32F030", "STM32F0xx"),
+        "device_id": "0x444",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
     "STM32F103xB": {
         # CubeProgrammer prints a family-level name for this part ("STM32F10x
         # Medium-density devices" on Blue Pill-class boards), so the hints

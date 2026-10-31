@@ -212,9 +212,20 @@ uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured) {
            (presence >= PRESENCE_PULSE_MIN) && (presence <= PRESENCE_PULSE_MAX);
 }
 
-void ow_glue_wait_start(uint32_t us) { ow_port_start_wait(us); }
+void ow_start_wait(uint32_t us) { ow_port_start_wait(us); }
 
-void ow_glue_kick(void) { ow_port_kick(); }
+void ow_timer_kick(void) { ow_port_kick(); }
+
+uint8_t ow_op_done(void) {
+    uint8_t done = onewire_bus_done();
+#if OW_LOW_POWER
+    if (!done && onewire_long_wait_pending()) {
+        onewire_sleep_until_done();
+        done = onewire_bus_done(); /* consume the event that woke us */
+    }
+#endif
+    return done;
+}
 
 void onewire_strong_pullup(uint8_t on) {
     ow_port_strong_pullup(on);
@@ -404,7 +415,7 @@ uint8_t onewire_search_poll(void) {
     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {
         // No hardware operation is pending at the end of the search: the timer
         // stays idle until the owner asks for the next operation (a new search
-        // schedules its own reset, a measurement calls ow_glue_kick()).
+        // schedules its own reset, a measurement calls ow_timer_kick()).
         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;
         return 1;
     }
@@ -423,7 +434,7 @@ uint8_t onewire_search_poll(void) {
         // pre-encoded in flash; only these two protocol commands ever reach
         // this layer (ds18b20_search_start/alarm_search_start pass the
         // DS18B20_* constants, and the tests/fuzz cover both).
-        if (!onewire_present(search_pair_pulse, onewire_reset_captured())) {
+        if (!ow_has_presence(search_pair_pulse)) {
             search_ctx.phase = ONEWIRE_SEARCH_DONE;
             break;
         }

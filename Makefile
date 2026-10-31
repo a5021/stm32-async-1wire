@@ -140,28 +140,28 @@ ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0 -mthumb
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0plus -mthumb
 else ifeq ($(OW_TARGET),f4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),f3)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),g4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),h5)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
 else ifeq ($(OW_TARGET),h7)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h7xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h7xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m7 -mthumb
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
 endif
 
@@ -1056,21 +1056,21 @@ vpath %.s $(sort $(dir $(ASM))) # Set the search path for A source files
 # header per object, which is negligible next to the compile it may trigger.
 OW_INC_HDRS = $(wildcard inc/*.h) $(wildcard src/*.h) $(wildcard examples/app/*.h)
 
-# src/ds18b20.c and src/ds2431.c are umbrella translation units: each #includes
-# its driver part below, so editing one of them must rebuild the object file.
+# src/ds18b20.c is an umbrella translation unit: it #includes its driver
+# parts below, so editing one of them must rebuild the object file.
 # -MP gives each part a phony target of its own, which would otherwise defeat
 # the dependency even where depfiles do parse.
+# (src/ds2431_txn.c used to be in this list when it was an include-only part;
+# it is now a regular TU and is covered by OW_INC_HDRS + its own pattern rule.)
 OW_DRIVER_PARTS = src/ds18b20_resolution.c src/ds18b20_txn.c \
-                  src/ds18b20_search.c src/ds18b20_measure.c \
-                  src/ds2431_txn.c
+                  src/ds18b20_search.c src/ds18b20_measure.c
 
 # Specify how to compile a C source file into an object file
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.c $(OW_INC_HDRS) Makefile | $(BUILD_DIR)
 	$(CC) -c $(FLAG) $(OPT) $(EXT) $< -o $@
 
-# The umbrella units need the include-only parts on top of the shared list.
+# The ds18b20 umbrella unit needs the include-only parts on top of the shared list.
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_ds18b20.o: $(OW_DRIVER_PARTS)
-$(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_ds2431.o: $(OW_DRIVER_PARTS)
 
 # Specify how to compile an assembly source file into an object file
 $(BUILD_DIR)/$(APP)_$(OBJ_STAMP)_%.o: %.s Makefile | $(BUILD_DIR)
@@ -1132,7 +1132,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 #       -DSTM32H503xx my_app.c build/libstm32_async_1wire_h5_h503cb_64mhz_hse8.a \
 #       -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
 #
-LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ow_stats.c
+LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ow_stats.c
 LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(OW_TIM1_TAG)$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 LIB_OBJ = $(addprefix $(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_,$(notdir $(LIB_SRC:.c=.o)))
 LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire_$(LIB_OBJ_STAMP).a

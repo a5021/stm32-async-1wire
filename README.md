@@ -254,10 +254,12 @@ still private.
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
 │   ├── ds18b20_measure.c   # (include-only part) DS18B20_ST_* measurement machine
 │   ├── ds2431.c            # Driver: DS2431 EEPROM command set on the 1-Wire
-│   │                       # layer. Compiles as ONE translation unit
-│   │                       # (#includes its ds2431_txn.c part below).
-│   └── ds2431_txn.c        # (include-only part) Read Memory + Write/Read/Copy
-│                           # Scratchpad transaction engine
+│   │                       # layer. Owns the context and the public start/poll
+│   │                       # API (core TU).
+│   ├── ds2431_internal.h   # Private DS2431 interface: context layout + engine
+│   │                       # entry points shared by the core and engine TUs.
+│   └── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
+│                           # caller-owned context (no globals).
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -1217,9 +1219,11 @@ the full driver against its own
 backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
    driver shares the `ctx`/`txn_ctx`/`res_ctx`/`dev_roms` statics in one
-   object file.) The DS2431 driver is amalgamated the same way
-   (`tests/mock/ds2431_test_access.c` pulls `src/ds2431.c` and its
-   `ds2431_txn.c` part into one object). The base suite runs 309 tests against the F0/F1 mocks, 310
+   object file.) The DS2431 driver is split instead: core TU `src/ds2431.c`
+   owns the context and the public API, engine TU `src/ds2431_txn.c` works
+   on the caller-owned context via `src/ds2431_internal.h`
+   (`tests/mock/ds2431_test_access.c` pulls both plus `src/onewire.c`
+   into one test object). The base suite runs 309 tests against the F0/F1 mocks, 310
    against the F3 and F4 backends (the F4 target also builds and runs its
    180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe` as an
    extra, same count) and 311 against G0 (which adds two DMAMUX

@@ -51,6 +51,10 @@ extern "C" {
 #define ONEWIRE_SEARCH_ROM 0xF0
 /** @brief 1-Wire ROM command: Alarm Search (only alarming devices respond) */
 #define ONEWIRE_ALARM_SEARCH 0xEC
+/** @brief 1-Wire ROM command: Match ROM (address one device by its 8-byte ROM) */
+#define ONEWIRE_MATCH_ROM 0x55
+/** @brief 1-Wire ROM command: Skip ROM (broadcast to every device on the bus) */
+#define ONEWIRE_SKIP_ROM 0xCC
 /** @brief Board facts: the family selection token and ow_pulse_t.
  *
  *  The token resolves from the CMSIS device macro of the target (e.g.
