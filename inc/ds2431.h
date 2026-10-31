@@ -6,9 +6,10 @@
  * EEPROM using hardware timers and DMA on STM32 microcontrollers, on top of
  * the public 1-Wire layer primitives (onewire_reset() / onewire_write_slots()
  * / onewire_read_data()). It is a self-contained second driver: it does not
- * touch the DS18B20 driver or the 1-Wire layer internals, and is compiled in
- * the same way ("include-only parts" pulled into one umbrella translation
- * unit).
+ * touch the DS18B20 driver or the 1-Wire layer internals, and is split into a
+ * core TU (src/ds2431.c, owns the context and the public start/poll API) and
+ * an engine TU (src/ds2431_txn.c, reset -> write -> read/wait on the
+ * caller-owned context via src/ds2431_internal.h).
  *
  * Key features:
  * - Pure bare-metal, register-level programming

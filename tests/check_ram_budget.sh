@@ -15,6 +15,15 @@
 #      pinned, so the number is deterministic).
 # Plus the 1_basic total, the headline number from the bench reports.
 #
+# A third tier pins the heavyweight F030 examples whole-image: F030 is the
+# binding part (16KB flash / 4KB RAM) and these three are its largest images,
+# so they are the first to break on innocent growth. Both text (flash proxy;
+# .data is 8-12 B on every image here) and total .bss are exact ceilings:
+#   app            text    bss
+#   6_statistics   6264    1784
+#   8_ds2431       6156    768
+#   9_multi        11752   1296
+#
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
 # History: f0 352/1012/460 and f4 465/1124/572 before the flash search-command
@@ -47,6 +56,12 @@
 # no link clash with the DS18B20 one): if a tier image ever pulls the DS2431
 # driver in, the `ctx` allowlist entry sums both, which is the intended
 # behaviour but worth knowing when reading a grown number.
+#
+# 2026-10-31: third tier for the heavyweight F030 examples (see above).
+# 6_statistics owns the largest .bss (1024 B UART ring + 300 B stats state),
+# 9_multi the largest text (multi-device + DS2431 in one image, ~72% of the
+# 16KB flash). 8_ds2431 is the only tier image that actually links the
+# DS2431 engine (see 2026-10-11), so its text moves with that driver.
 #
 # Recalibration procedure (ceilings are exact by design — no slack, so any
 # growth must be conscious; a red gate is a question, not a failure):
@@ -117,6 +132,13 @@ totalbss() {
     "$SZ" -B "$1" | awk 'NR==2 {print $3}'
 }
 
+# .text of $1 (an .elf path); prints bytes. Flash proxy for the tier-3
+# images (.data is a constant 8-12 B there and lives in flash too, but
+# gating text alone keeps the ceiling readable).
+textsize() {
+    "$SZ" -B "$1" | awk 'NR==2 {print $1}'
+}
+
 check() {
     mcu="$1"
     libmax="$2"
@@ -142,6 +164,30 @@ check() {
     fi
 }
 
+# Whole-image ceiling for one heavyweight example on the binding part
+# (F030: 16KB flash / 4KB RAM). Unlike check() above this gates the app
+# image itself, not the library inside it: app growth and library growth
+# both count, which is what makes it a backstop for the examples that
+# would break first.
+check_app() {
+    mcu="$1"
+    app="$2"
+    textmax="$3"
+    bssmax="$4"
+    note "OW_MCU=$mcu APP=$app"
+    make -s OW_MCU="$mcu" APP="$app" > /dev/null
+    text=$(textsize build/ds18b20_"$app".elf)
+    tot=$(totalbss build/ds18b20_"$app".elf)
+    note "text($app)=$text (budget $textmax)"
+    note "total($app)=$tot (budget $bssmax)"
+    if [ "$text" -gt "$textmax" ]; then
+        bad "$mcu $app text $text exceeds budget $textmax"
+    fi
+    if [ "$tot" -gt "$bssmax" ]; then
+        bad "$mcu $app total .bss $tot exceeds budget $bssmax"
+    fi
+}
+
 for t in "$NM" "$SZ"; do
     if ! command -v "$t" > /dev/null 2>&1; then
         bad "tool not found: $t (pass GCC_PATH=<dir> as with make)"
@@ -155,6 +201,10 @@ check STM32F030x6 329 652 432
 check STM32F407xx 434 756 536
 check STM32G474xx 329 652 432
 check STM32H503xx 329 652 432
+
+check_app STM32F030x6 6_statistics 6264 1784
+check_app STM32F030x6 8_ds2431 6156 768
+check_app STM32F030x6 9_multi 11752 1296
 
 if [ "$fail" -ne 0 ]; then
     exit 1

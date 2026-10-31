@@ -23,6 +23,7 @@
             "+<onewire.c>",
             "+<ds18b20.c>",
             "+<ds2431.c>",
+            "+<ds2431_txn.c>",
             "+<ow_stats.c>"
         ],
         "includeDir": "inc"
