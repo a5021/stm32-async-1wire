@@ -17,8 +17,8 @@
 #   make APP=7_low_power     -> builds 7_low_power
 #   make APP=8_ds2431        -> builds 8_ds2431
 APP ?= 1_basic
-ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power 8_ds2431),)
-$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics', '7_low_power' or '8_ds2431')
+ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power 8_ds2431 9_multi),)
+$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics', '7_low_power', '8_ds2431' or '9_multi')
 endif
 
 # 6_statistics is the signal-statistics example: enable the optional stats module by
@@ -244,6 +244,7 @@ UART_TX_SIZE_5_commands     = 256
 UART_TX_SIZE_6_statistics    = 1024
 UART_TX_SIZE_7_low_power    = 256
 UART_TX_SIZE_8_ds2431       = 256
+UART_TX_SIZE_9_multi        = 512
 DEF += -DUART_TX_BUF_SIZE=$(UART_TX_SIZE_$(APP))
 
 # Optional system clock override:
