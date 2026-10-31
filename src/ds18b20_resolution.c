@@ -49,7 +49,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
         rom = ctx.selected_rom;
     }
     ow_pulse_t* p = phase_pulses.res;
-    p += (uint8_t)(ow_glue_encode_prefix(p, rom) * DS18B20_BITS_PER_BYTE);
+    ow_encode_prefix(&p, rom);
     onewire_encode_byte(p, DS18B20_WRITE_SCRATCHPAD);
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, DS18B20_RES_TH);
@@ -119,7 +119,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t res_done = ow_glue_op_done();
+    uint8_t res_done = ow_op_done();
 
     if (!res_done) {
         return 0;
@@ -130,7 +130,7 @@ uint8_t ds18b20_set_resolution_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the config write for the requested resolution.
         {
-            uint8_t res_present = onewire_present(ctx.capture, onewire_reset_captured());
+            uint8_t res_present = ow_has_presence(ctx.capture);
             if (!res_present) {
                 res_ctx.phase = DS18B20_RES_DONE;
                 break;

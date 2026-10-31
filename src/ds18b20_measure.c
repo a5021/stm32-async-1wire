@@ -38,7 +38,7 @@ static void scan_finish_or_next(void) {
          * drive the CONTINUE state again (single-device rounds get their UIF
          * from ds18b20_start_measure()). Arm a short scheduling delay: its UIF
          * is the bridge to CONTINUE, which then arms the real bus reset. */
-        ow_glue_wait_start(SCAN_DEVICE_GAP_US);
+        ow_start_wait(SCAN_DEVICE_GAP_US);
     } else {
         ctx.current_state = DS18B20_ST_IDLE;
         // Parasite power: keep the strong pull-up engaged while parked.
@@ -65,7 +65,7 @@ void ds18b20_start_measure(void) {
         return; // the search, a resolution change or a command owns the timer
     }
     ctx.current_state = DS18B20_ST_START;
-    ow_glue_kick();
+    ow_timer_kick();
 }
 
 /**
@@ -106,9 +106,9 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
 static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
-    const uint8_t prefix = ow_glue_encode_prefix(dst, 0);
-    onewire_encode_byte(dst + (uint8_t)(prefix * DS18B20_BITS_PER_BYTE), cmd_byte);
-    dst[DS18B20_DMA_TRANSFERS] = ONEWIRE_RELEASE_PULSE;
+    ow_encode_prefix(&dst, 0);
+    onewire_encode_byte(dst, cmd_byte);
+    dst[DS18B20_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;
 }
 
 /**
@@ -120,7 +120,7 @@ static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
  * @param[in] next_state State to transition to on success
  */
 static void issue_command(uint8_t cmd_byte, ds18b20_state_t next_state) {
-    uint8_t present_ok = onewire_present(ctx.capture, onewire_reset_captured());
+    uint8_t present_ok = ow_has_presence(ctx.capture);
     if (!present_ok) {
         // Return to IDLE before the callback so a re-selection from inside
         // ds18b20_complete() is accepted (ds18b20_select() only acts at IDLE).
@@ -164,7 +164,7 @@ void ds18b20_poll(void) {
     // This is the non-blocking way to detect when timed operations finish.
     // onewire_bus_done() *consumes* the update flag, so it must be called
     // exactly once per poll and its result reused below.
-    uint8_t done = ow_glue_op_done();
+    uint8_t done = ow_op_done();
 
     if (!done) return;
 

@@ -51,8 +51,7 @@ uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {
         rom = c->selected_rom;
     }
     ow_pulse_t* p = (ow_pulse_t*)c->u.cmd;
-    uint8_t bytes = ow_glue_encode_prefix(p, rom);
-    p += (uint8_t)(bytes * DS2431_BITS_PER_BYTE);
+    uint8_t bytes = ow_encode_prefix(&p, rom);
     onewire_encode_byte(p, command);
     p += DS2431_BITS_PER_BYTE;
     bytes++;
@@ -71,11 +70,7 @@ uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {
         onewire_encode_byte(p, c->es);
         bytes++;
     } else {
-        for (uint8_t i = 0; i < c->plen; i++) {
-            onewire_encode_byte(p, c->payload[i]);
-            p += DS2431_BITS_PER_BYTE;
-            bytes++;
-        }
+        bytes = (uint8_t)(bytes + ow_encode_bytes(&p, c->payload, c->plen));
     }
     const uint8_t slots = (uint8_t)(bytes * DS2431_BITS_PER_BYTE);
     /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
@@ -175,7 +170,7 @@ uint8_t ds2431_poll(DS2431_ctx_t* c) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t op_done = ow_glue_op_done();
+    uint8_t op_done = ow_op_done();
 
     if (!op_done) {
         return 0;
@@ -186,7 +181,7 @@ uint8_t ds2431_poll(DS2431_ctx_t* c) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so build and send the command for this operation.
         {
-            uint8_t present = onewire_present((const volatile uint16_t*)c->u.cap, onewire_reset_captured());
+            uint8_t present = ow_has_presence(c->u.cap);
             if (!present) {
                 c->phase = DS2431_PH_DONE;
                 break;
@@ -211,7 +206,7 @@ uint8_t ds2431_poll(DS2431_ctx_t* c) {
             // Parasite power: the EEPROM programming draws its supply from the
             // bus while the block is written - drive HIGH actively for the
             // t_PROG hold-off window.
-            ow_glue_wait_start(DS2431_TPROG_US);
+            ow_start_wait(DS2431_TPROG_US);
             c->phase = DS2431_PH_WAIT;
         } else if (c->len) {
             if ((c->flags & DS2431_FLAG_PARASITE) != 0u) {

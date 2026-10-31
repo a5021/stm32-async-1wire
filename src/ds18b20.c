@@ -155,7 +155,7 @@ __STATIC_FORCEINLINE uint32_t resolution_wait_us(uint8_t res) {
  *       is guaranteed finished: 93.75ms (9 bit) .. 750ms (12 bit).
  */
 __STATIC_FORCEINLINE void wait_conversion(void) {
-    ow_glue_wait_start(resolution_wait_us(ctx.resolution));
+    ow_start_wait(resolution_wait_us(ctx.resolution));
 }
 
 /**
@@ -253,7 +253,8 @@ _Static_assert(sizeof(phase_pulses.addr) >= DS18B20_MATCH_SLOTS + 1,
  *       addressed operation; the 1-Wire timings are milliseconds.
  */
 __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
-    ow_glue_encode_prefix(phase_pulses.addr, ctx.selected_rom);
+    ow_pulse_t* p = phase_pulses.addr;
+    ow_encode_prefix(&p, ctx.selected_rom);
     onewire_encode_byte(&phase_pulses.addr[DS18B20_PREFIX_SLOTS], cmd_byte);
     phase_pulses.addr[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;
 }

@@ -63,17 +63,12 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
     ow_pulse_t* p = phase_pulses.txn;
     uint8_t bytes = 0;
     if ((txn_ctx.flags & DS18B20_TXN_FLAG_BARE) == 0u) {
-        bytes = ow_glue_encode_prefix(p, rom);
-        p += (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
+        bytes = ow_encode_prefix(&p, rom);
     }
     onewire_encode_byte(p, txn_ctx.command);
     p += DS18B20_BITS_PER_BYTE;
     bytes++;
-    for (uint8_t i = 0; i < txn_ctx.payload_len; i++) {
-        onewire_encode_byte(p, txn_ctx.payload[i]);
-        p += DS18B20_BITS_PER_BYTE;
-        bytes++;
-    }
+    bytes = (uint8_t)(bytes + ow_encode_bytes(&p, txn_ctx.payload, txn_ctx.payload_len));
     txn_ctx.slots = (uint8_t)(bytes * DS18B20_BITS_PER_BYTE);
     /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer
      * reads as its final DMA transfer into CCR3, even though the command
@@ -122,7 +117,7 @@ static uint8_t txn_poll(void) {
 
     // Wait for the currently scheduled hardware operation to complete.
     // This is a non-blocking poll, not a busy-wait.
-    uint8_t txn_done = ow_glue_op_done();
+    uint8_t txn_done = ow_op_done();
 
     if (!txn_done) {
         return 0;
@@ -133,7 +128,7 @@ static uint8_t txn_poll(void) {
         // Reset completed: a presence pulse means at least one device is on
         // the bus, so send the command for this transaction.
         {
-            uint8_t txn_present = onewire_present(ctx.capture, onewire_reset_captured());
+            uint8_t txn_present = ow_has_presence(ctx.capture);
             if (!txn_present) {
                 txn_ctx.phase = DS18B20_TXN_DONE;
                 break;
@@ -162,7 +157,7 @@ static uint8_t txn_poll(void) {
             if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {
                 onewire_strong_pullup(1);
             }
-            ow_glue_wait_start(txn_ctx.wait_us);
+            ow_start_wait(txn_ctx.wait_us);
             txn_ctx.phase = DS18B20_TXN_WAIT;
         } else {
             if ((ctx.flags & DS18B20_FLAG_PARASITE) != 0u) {

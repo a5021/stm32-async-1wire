@@ -99,7 +99,7 @@ void test_bus_write_then_read(uint8_t bit) { onewire_write_then_read(bit); }
 void test_bus_write_bit(uint8_t bit) { onewire_write_bit(bit); }
 void test_bus_read_data(void) { onewire_read_data(ctx.pulse, DS18B20_SCRATCHPAD_LEN); }
 void test_bus_wait_conversion(void) { wait_conversion(); }
-void test_bus_wait_start(uint32_t us) { ow_glue_wait_start(us); }
+void test_bus_wait_start(uint32_t us) { ow_start_wait(us); }
 void test_bus_wait_plan(uint32_t us, uint16_t* arr, uint8_t* rcr) { ow_port_plan_wait(us, arr, rcr); }
 uint8_t test_ds18b20_bus_done(void) { return onewire_bus_done(); }
 uint8_t test_bus_present(void) { return onewire_present(ctx.capture, onewire_reset_captured()); }
