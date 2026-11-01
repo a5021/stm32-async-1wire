@@ -107,7 +107,8 @@
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
       <span class="sw" style="background:#15803D"></span>presence answer
-      <span class="mono">R+</span> reset+presence · <span class="mono">R-</span> no presence</div>
+      <span class="mono">RESET+</span> reset+presence · <span class="mono">RESET-</span> no presence
+      <span id="resetInfo" style="margin-left:10px"></span></div>
     <canvas id="detail" width="1120" height="220"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
@@ -297,6 +298,8 @@
     if (sel < 0 || !txns[sel]) {
       ctx.fillStyle = "#8A97AB";
       ctx.fillText("Select a transaction above. Wheel = zoom, drag = pan.", 12, 20);
+      const ri = $("resetInfo");
+      if (ri && ri.textContent) ri.textContent = "";
       return;
     }
     const t = txns[sel];
@@ -450,46 +453,75 @@
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
-    // One caption per visible reset, in three collision-checked rows. When
-    // the full text does not fit for all of them, switch the whole view to
-    // compact R+/R- tags instead of labelling only some resets.
+    // Reset/presence annotations scale in three tiers:
+    //   full text -> compact RESET+/RESET- tags -> positional pins + count.
+    // Only one tier is active at a time, so every visible reset is represented.
+    let resetTier = "";
     if (resetLabels.length) {
-      const lanes = [160, 171, 182];
+      ctx.textAlign = "left";
+      ctx.font = "9px Consolas,monospace";
       const layout = (compact) => {
-        const used = [[], [], []];
         const out = [];
+        let lastRight = -Infinity;
         for (const item of resetLabels) {
           const text = compact
-            ? (item.presence ? "R+" : "R-")
+            ? (item.presence ? "RESET+" : "RESET-")
             : "RESET " + (item.presence ? "+presence" : "no presence");
           const tw = ctx.measureText(text).width;
           let lx = item.x + 4;
           if (lx + tw > W - 6) lx = item.x - tw - 4;
           lx = clamp(lx, 6, Math.max(6, W - tw - 6));
-          let lane = -1;
-          for (let li = 0; li < lanes.length; li++) {
-            const clash = used[li].some(([a, b]) => lx < b + 4 && lx + tw > a - 4);
-            if (!clash) { lane = li; break; }
-          }
-          if (lane < 0) return null;
-          used[lane].push([lx, lx + tw]);
-          out.push({ item, text, lx, lane });
+          if (lx < lastRight + 6) return null;
+          out.push({ item, text, lx });
+          lastRight = lx + tw;
         }
         return out;
       };
-      ctx.textAlign = "left";
-      ctx.font = "9px Consolas,monospace";
-      const placed = layout(false) || layout(true);
+      let placed = layout(false);
+      if (placed) resetTier = "full";
+      if (!placed) {
+        placed = layout(true);
+        if (placed) resetTier = "compact";
+      }
       if (placed) {
-        placed.forEach(({ item, text, lx, lane }) => {
+        placed.forEach(({ item, text, lx }) => {
           ctx.fillStyle = item.selected ? "#991B1B" : "rgba(185,28,28,.82)";
-          ctx.fillText(text, lx, lanes[lane]);
+          ctx.fillText(text, lx, 172);
+        });
+      } else {
+        resetTier = "pins";
+        ctx.fillStyle = "#F1F4F9";
+        ctx.fillRect(0, 164, W, 1);
+        resetLabels.forEach((item) => {
+          const x = Math.round(item.x);
+          const w = item.selected ? 3 : 2;
+          ctx.fillStyle = item.selected ? "#B91C1C" : "#DC2626";
+          ctx.fillRect(x, item.selected ? 155 : 158, w, 9);
+          ctx.fillStyle = item.presence ? "#15803D" : "#94A3B8";
+          ctx.fillRect(x, item.selected ? 164 : 165, w, item.selected ? 9 : 8);
         });
       }
       ctx.font = "10px Consolas,monospace";
     }
+    const resetInfo = $("resetInfo");
+    let resetText = "";
+    if (resetTier === "pins") {
+      const n = resetLabels.length;
+      const p = resetLabels.filter((r) => r.presence).length;
+      resetText = p === n ? n + "× RESET + presence"
+        : n + "× RESET (" + p + " + presence, " + (n - p) + " without)";
+    }
+    if (resetInfo.textContent !== resetText) resetInfo.textContent = resetText;
     const selBytes = OWVis.bytesOf(t.bits).length;
-    let info = "T" + (sel + 1) + " · " + t.bits.length + " slots · " +
+    let info = "T" + (sel + 1) + " · ";
+    if (t.tReset != null) {
+      info += "reset " + formatTime((t.resetLowLen / cap.samplerate) * 1e6);
+      info += t.presence
+        ? " + presence " + formatTime((t.presLen / cap.samplerate) * 1e6)
+        : " · no presence";
+      info += " · ";
+    }
+    info += t.bits.length + " slots · " +
       selBytes + " bytes · " + interp[sel].note;
     const mk = interp[sel] && interp[sel].crc;
     if (mk && !mk.partial) info += " · " + (mk.algorithm || "CRC") + (mk.ok ? " ok" : " FAIL");
@@ -828,6 +860,7 @@
     $("trans").textContent = "(empty)";
     $("copy").disabled = true;
     $("txinfo").textContent = "";
+    $("resetInfo").textContent = "";
     $("cursorinfo").textContent = "Alt+click = A, Shift+click = B, Esc = clear";
     $("tip").style.display = "none";
     renderTable();
