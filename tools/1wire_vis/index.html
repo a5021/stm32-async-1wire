@@ -398,7 +398,7 @@
       shadeBit(slot.t, Math.max(slot.t + 1, slot.endT), slot);
     }
     // all visible resets (red band) + presence answers (green band, same height)
-    let resetNote = "";
+    let resetNote = "", resetX = 0;
     txns.forEach((tt, ii) => {
       if (tt.tReset == null) return;
       const rx = xOf(tt.tReset);
@@ -406,11 +406,12 @@
       if (rx > -600 && rx < W + 100) {
         ctx.fillStyle = "rgba(220,38,38,.07)";
         ctx.fillRect(rx, 8, resetW, 142);
-        // The canvas label lives in the bottom annotation lane; drawing it at
-        // y=22 collided with the adaptive time ruler. Only claim the label
-        // when the selected reset band is actually on screen.
+        // Keep the caption attached to the selected reset band and place it
+        // in the gap below the slot shading, above the byte row. Drawing it
+        // at y=22 collided with the adaptive time ruler.
         if (ii === sel && rx + resetW >= 0 && rx <= W) {
           resetNote = "RESET" + (tt.presence ? " + presence" : ", no presence");
+          resetX = rx;
         }
       }
       if (tt.presence && tt.presLen > 0) {
@@ -435,7 +436,7 @@
       if (bw < 24) continue;
       const x = Math.floor((bb.t0 - view.off) / spp);
       if (x < -30 || x > W) continue;
-      const y = 168;
+      const y = 182;
       if (item.crc && !item.crc.partial) {
         ctx.fillStyle = item.crc.ok ? "rgba(21,128,61,.16)" : "rgba(220,38,38,.16)";
         ctx.fillRect(x - 12, y - 13, 44, 18);
@@ -448,12 +449,15 @@
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
-    // Bottom annotation lane, opposite the samples/px readout.
+    // Caption follows the selected reset band; stay inside the canvas.
     if (resetNote) {
       ctx.textAlign = "left";
       ctx.fillStyle = "#DC2626";
-      ctx.fillRect(8, H - 15, 8, 8);
-      ctx.fillText(resetNote, 20, H - 7);
+      const tw = ctx.measureText(resetNote).width;
+      let lx = resetX + 4;
+      if (lx + tw > W - 6) lx = resetX - tw - 4;
+      lx = clamp(lx, 6, Math.max(6, W - tw - 6));
+      ctx.fillText(resetNote, lx, 164);
     }
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · " + t.bits.length + " slots · " +
