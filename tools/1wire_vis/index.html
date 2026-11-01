@@ -106,9 +106,7 @@
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
-      <span class="sw" style="background:#15803D"></span>presence answer
-      <span class="mono">RESET+</span> reset+presence · <span class="mono">RESET-</span> no presence
-      <span id="resetInfo" style="margin-left:10px"></span></div>
+      <span class="sw" style="background:#15803D"></span>presence answer</div>
     <canvas id="detail" width="1120" height="220"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
@@ -298,8 +296,6 @@
     if (sel < 0 || !txns[sel]) {
       ctx.fillStyle = "#8A97AB";
       ctx.fillText("Select a transaction above. Wheel = zoom, drag = pan.", 12, 20);
-      const ri = $("resetInfo");
-      if (ri && ri.textContent) ri.textContent = "";
       return;
     }
     const t = txns[sel];
@@ -403,7 +399,7 @@
     }
     // all visible resets (red band) + presence answers (green band, same height)
     const resetLabels = [];
-    txns.forEach((tt, ii) => {
+    txns.forEach((tt) => {
       if (tt.tReset == null) return;
       const rx = xOf(tt.tReset);
       const resetW = Math.max(2, Math.round(tt.resetLowLen / spp));
@@ -413,7 +409,6 @@
         if (rx + resetW >= 0 && rx <= W) {
           resetLabels.push({
             x: rx,
-            selected: ii === sel,
             presence: !!tt.presence,
           });
         }
@@ -453,65 +448,42 @@
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
-    // Reset/presence annotations scale in three tiers:
-    //   full text -> compact RESET+/RESET- tags -> positional pins + count.
-    // Only one tier is active at a time, so every visible reset is represented.
-    let resetTier = "";
+    // Reset/presence annotation uses the same small mono style as byte
+    // mnemonics: RESET in red, presence in green. Show the whole set only
+    // when every visible reset label fits; otherwise the red/green bands are
+    // the annotation, just as narrow bytes lose their mnemonic.
     if (resetLabels.length) {
       ctx.textAlign = "left";
-      ctx.font = "9px Consolas,monospace";
-      const layout = (compact) => {
-        const out = [];
-        let lastRight = -Infinity;
-        for (const item of resetLabels) {
-          const text = compact
-            ? (item.presence ? "RESET+" : "RESET-")
-            : "RESET " + (item.presence ? "+presence" : "no presence");
-          const tw = ctx.measureText(text).width;
-          let lx = item.x + 4;
-          if (lx + tw > W - 6) lx = item.x - tw - 4;
-          lx = clamp(lx, 6, Math.max(6, W - tw - 6));
-          if (lx < lastRight + 6) return null;
-          out.push({ item, text, lx });
-          lastRight = lx + tw;
-        }
-        return out;
-      };
-      let placed = layout(false);
-      if (placed) resetTier = "full";
-      if (!placed) {
-        placed = layout(true);
-        if (placed) resetTier = "compact";
+      ctx.font = "10px Consolas,monospace";
+      const layout = [];
+      let lastRight = -Infinity;
+      for (const item of resetLabels) {
+        const parts = [
+          { text: "RESET", color: "#DC2626" },
+          { text: " + ", color: "#8A97AB" },
+          { text: item.presence ? "presence" : "no presence",
+            color: item.presence ? "#15803D" : "#8A97AB" },
+        ];
+        const tw = parts.reduce((w, p) => w + ctx.measureText(p.text).width, 0);
+        let lx = item.x + 4;
+        if (lx + tw > W - 6) lx = item.x - tw - 4;
+        lx = clamp(lx, 6, Math.max(6, W - tw - 6));
+        if (lx < lastRight + 8) { layout.length = 0; break; }
+        layout.push({ parts, lx });
+        lastRight = lx + tw;
       }
-      if (placed) {
-        placed.forEach(({ item, text, lx }) => {
-          ctx.fillStyle = item.selected ? "#991B1B" : "rgba(185,28,28,.82)";
-          ctx.fillText(text, lx, 172);
-        });
-      } else {
-        resetTier = "pins";
-        ctx.fillStyle = "#F1F4F9";
-        ctx.fillRect(0, 164, W, 1);
-        resetLabels.forEach((item) => {
-          const x = Math.round(item.x);
-          const w = item.selected ? 3 : 2;
-          ctx.fillStyle = item.selected ? "#B91C1C" : "#DC2626";
-          ctx.fillRect(x, item.selected ? 155 : 158, w, 9);
-          ctx.fillStyle = item.presence ? "#15803D" : "#94A3B8";
-          ctx.fillRect(x, item.selected ? 164 : 165, w, item.selected ? 9 : 8);
+      if (layout.length === resetLabels.length) {
+        layout.forEach(({ parts, lx }) => {
+          let px = lx;
+          parts.forEach((p) => {
+            ctx.fillStyle = p.color;
+            ctx.fillText(p.text, px, 172);
+            px += ctx.measureText(p.text).width;
+          });
         });
       }
       ctx.font = "10px Consolas,monospace";
     }
-    const resetInfo = $("resetInfo");
-    let resetText = "";
-    if (resetTier === "pins") {
-      const n = resetLabels.length;
-      const p = resetLabels.filter((r) => r.presence).length;
-      resetText = p === n ? n + "× RESET + presence"
-        : n + "× RESET (" + p + " + presence, " + (n - p) + " without)";
-    }
-    if (resetInfo.textContent !== resetText) resetInfo.textContent = resetText;
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · ";
     if (t.tReset != null) {
@@ -860,7 +832,6 @@
     $("trans").textContent = "(empty)";
     $("copy").disabled = true;
     $("txinfo").textContent = "";
-    $("resetInfo").textContent = "";
     $("cursorinfo").textContent = "Alt+click = A, Shift+click = B, Esc = clear";
     $("tip").style.display = "none";
     renderTable();

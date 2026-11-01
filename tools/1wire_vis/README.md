@@ -52,9 +52,10 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   widths; color can encode bit value or bus ownership. Role mode
   distinguishes master writes, slave reads, Search ROM responses and the
   master's Search-ROM direction slot. Presence and reset have measured spans;
-  every visible reset gets a caption: full text when it fits, compact
-  `RESET+`/`RESET-` tags at medium density, and red/green pins plus an
-  aggregate count at overview density.
+  each visible reset is annotated as `RESET` (red) + `presence` (green) in the
+  same small mono style as the byte mnemonics, and the set is hidden when it
+  would overlap, just as narrow byte labels are. The selected transaction line
+  also reports the measured reset and presence widths.
 - **CRC verdict** — DS18B20 scratchpad CRC-8 and DS2431 Read Scratchpad
   inverted CRC-16 bytes are highlighted green/red; the expanded transaction
   tree reports the algorithm and verdict.
