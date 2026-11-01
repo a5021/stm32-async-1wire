@@ -331,7 +331,8 @@
     ctx.stroke();
     ctx.fillStyle = "#8A97AB";
     ctx.textAlign = "right";
-    ctx.fillText(spp.toFixed(1) + " samples/px", W - 8, 20);
+    // Bottom-right keeps it clear of the time ruler and waveform.
+    ctx.fillText(spp.toFixed(1) + " samples/px", W - 8, H - 7);
     ctx.textAlign = "left";
     // Draw exact transitions, not one sampled value per canvas pixel. This
     // prevents short low pulses from appearing wider/narrower due to aliasing.
