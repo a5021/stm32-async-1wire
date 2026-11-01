@@ -48,8 +48,9 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   presence, green = presence) and a light blue tint for the Detail window when
   zoomed. Click centres Detail on the clicked time at the current zoom; drag a
   range to zoom/pan Detail to that exact interval.
-- **Detail** — adaptive relative-time ruler (zero at the left edge, µs for
-  sub-second spans; hover reports absolute capture time and pulse width), and
+- **Detail** — adaptive relative-time ruler (zero at the selected transaction's
+  reset, or at a click-set zero; µs for sub-second spans; hover reports absolute
+  capture time, pulse width and relative offset), and
   the nearest slot's bit/role/phase with its low and slot widths; color can
   encode bit value or bus ownership. Role mode distinguishes
   master→slave, slave→master, Search ROM slave ID/complement and the

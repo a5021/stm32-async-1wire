@@ -130,7 +130,7 @@ try {
   </div>
 
   <div class="card" style="position:relative">
-    <div class="legend"><b>Detail</b> — time ruler is relative to the left edge (µs below 1 s); hover shows absolute capture time and decoded slot role.
+    <div class="legend"><b>Detail</b> — time ruler is relative to the selected transaction (µs below 1 s); click sets a custom zero, click again clears; hover shows absolute capture time and decoded slot role.
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
@@ -244,6 +244,12 @@ try {
   const hex = (v) => v.toString(16).padStart(2, "0").toUpperCase();
   const roleText = (role) => role === "master-tx" ? "master → slave"
     : role === "slave-tx" ? "slave → master" : (role || "unknown");
+  const defaultZeroSample = () => {
+    const t = sel >= 0 ? txns[sel] : null;
+    if (!t) return 0;
+    return t.tReset != null ? t.tReset : (t.bits.length ? t.bits[0].t : 0);
+  };
+  const zeroRef = () => zeroSample == null ? defaultZeroSample() : zeroSample;
 
   function formatTime(us) {
     if (us >= 1e6) return (us / 1e6).toFixed(3) + " s";
@@ -421,7 +427,7 @@ try {
     const gridStep = Math.max(1, Math.round(nice / usPerSample));
     // Grid is anchored to the relative zero: the zero line gets a "0" label
     // and positive/negative times are measured from it.
-    const zeroAt = zeroSample == null ? view.off : zeroSample;
+    const zeroAt = zeroRef();
     const firstGrid = zeroAt + Math.ceil((view.off - zeroAt) / gridStep) * gridStep;
     ctx.font = "10px Consolas,monospace";
     ctx.lineWidth = 1;
@@ -433,7 +439,7 @@ try {
       ctx.moveTo(x, plotTop);
       ctx.lineTo(x, plotBot);
       const us = ((s - zeroAt) / cap.samplerate) * 1e6;
-      const label = formatRelative(us, spanUs < 1e6, zeroSample != null);
+      const label = formatRelative(us, spanUs < 1e6, true);
       ctx.fillStyle = P.ruler;
       ctx.fillText(label, x + 3, 20);
     }
@@ -1320,10 +1326,8 @@ try {
     const tip = $("tip");
     const absUs = (s / cap.samplerate) * 1e6;
     let timeTxt = "t=" + absUs.toFixed(1) + " us";
-    if (zeroSample != null) {
-      const relUs = ((s - zeroSample) / cap.samplerate) * 1e6;
-      timeTxt += " · rel " + formatRelative(relUs, Math.abs(relUs) < 1e6, true);
-    }
+    const relUs = ((s - zeroRef()) / cap.samplerate) * 1e6;
+    timeTxt += " · rel " + formatRelative(relUs, Math.abs(relUs) < 1e6, true);
     tip.textContent = timeTxt + " · " +
       (v ? "HIGH" : "LOW") + " " + wUs.toFixed(1) + " us\n" + slotTxt;
     tip.style.display = "block";
