@@ -106,7 +106,8 @@
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
-      <span class="sw" style="background:#15803D"></span>presence answer</div>
+      <span class="sw" style="background:#15803D"></span>presence answer
+      <span class="mono">R+</span> reset+presence · <span class="mono">R-</span> no presence</div>
     <canvas id="detail" width="1120" height="220"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
@@ -398,7 +399,7 @@
       shadeBit(slot.t, Math.max(slot.t + 1, slot.endT), slot);
     }
     // all visible resets (red band) + presence answers (green band, same height)
-    let resetNote = "", resetX = 0;
+    const resetLabels = [];
     txns.forEach((tt, ii) => {
       if (tt.tReset == null) return;
       const rx = xOf(tt.tReset);
@@ -406,12 +407,12 @@
       if (rx > -600 && rx < W + 100) {
         ctx.fillStyle = "rgba(220,38,38,.07)";
         ctx.fillRect(rx, 8, resetW, 142);
-        // Keep the caption attached to the selected reset band and place it
-        // in the gap below the slot shading, above the byte row. Drawing it
-        // at y=22 collided with the adaptive time ruler.
-        if (ii === sel && rx + resetW >= 0 && rx <= W) {
-          resetNote = "RESET" + (tt.presence ? " + presence" : ", no presence");
-          resetX = rx;
+        if (rx + resetW >= 0 && rx <= W) {
+          resetLabels.push({
+            x: rx,
+            selected: ii === sel,
+            presence: !!tt.presence,
+          });
         }
       }
       if (tt.presence && tt.presLen > 0) {
@@ -436,7 +437,7 @@
       if (bw < 24) continue;
       const x = Math.floor((bb.t0 - view.off) / spp);
       if (x < -30 || x > W) continue;
-      const y = 182;
+      const y = 196;
       if (item.crc && !item.crc.partial) {
         ctx.fillStyle = item.crc.ok ? "rgba(21,128,61,.16)" : "rgba(220,38,38,.16)";
         ctx.fillRect(x - 12, y - 13, 44, 18);
@@ -449,15 +450,43 @@
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
-    // Caption follows the selected reset band; stay inside the canvas.
-    if (resetNote) {
+    // One caption per visible reset, in three collision-checked rows. When
+    // the full text does not fit for all of them, switch the whole view to
+    // compact R+/R- tags instead of labelling only some resets.
+    if (resetLabels.length) {
+      const lanes = [160, 171, 182];
+      const layout = (compact) => {
+        const used = [[], [], []];
+        const out = [];
+        for (const item of resetLabels) {
+          const text = compact
+            ? (item.presence ? "R+" : "R-")
+            : "RESET " + (item.presence ? "+presence" : "no presence");
+          const tw = ctx.measureText(text).width;
+          let lx = item.x + 4;
+          if (lx + tw > W - 6) lx = item.x - tw - 4;
+          lx = clamp(lx, 6, Math.max(6, W - tw - 6));
+          let lane = -1;
+          for (let li = 0; li < lanes.length; li++) {
+            const clash = used[li].some(([a, b]) => lx < b + 4 && lx + tw > a - 4);
+            if (!clash) { lane = li; break; }
+          }
+          if (lane < 0) return null;
+          used[lane].push([lx, lx + tw]);
+          out.push({ item, text, lx, lane });
+        }
+        return out;
+      };
       ctx.textAlign = "left";
-      ctx.fillStyle = "#DC2626";
-      const tw = ctx.measureText(resetNote).width;
-      let lx = resetX + 4;
-      if (lx + tw > W - 6) lx = resetX - tw - 4;
-      lx = clamp(lx, 6, Math.max(6, W - tw - 6));
-      ctx.fillText(resetNote, lx, 164);
+      ctx.font = "9px Consolas,monospace";
+      const placed = layout(false) || layout(true);
+      if (placed) {
+        placed.forEach(({ item, text, lx, lane }) => {
+          ctx.fillStyle = item.selected ? "#991B1B" : "rgba(185,28,28,.82)";
+          ctx.fillText(text, lx, lanes[lane]);
+        });
+      }
+      ctx.font = "10px Consolas,monospace";
     }
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · " + t.bits.length + " slots · " +

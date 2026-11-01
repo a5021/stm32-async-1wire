@@ -51,7 +51,9 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   pulse width, and the nearest slot's bit/role/phase with its low and slot
   widths; color can encode bit value or bus ownership. Role mode
   distinguishes master writes, slave reads, Search ROM responses and the
-  master's Search-ROM direction slot. Presence and reset have measured spans.
+  master's Search-ROM direction slot. Presence and reset have measured spans;
+  every visible reset gets a caption, switching to compact `R+`/`R-` tags when
+  the full text would overlap.
 - **CRC verdict** — DS18B20 scratchpad CRC-8 and DS2431 Read Scratchpad
   inverted CRC-16 bytes are highlighted green/red; the expanded transaction
   tree reports the algorithm and verdict.
