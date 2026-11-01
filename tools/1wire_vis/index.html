@@ -1296,7 +1296,9 @@
         const d = Math.abs(tt - s);
         if (d < bd) { bd = d; best = i; }
       });
-      selectTransaction(best, true);
+      // Select and frame the nearest transaction in Detail, but do not scroll
+      // the Protocol tree into view: overview clicks should stay local.
+      selectTransaction(best, false);
       return;
     }
     // drag: detail window = dragged range
