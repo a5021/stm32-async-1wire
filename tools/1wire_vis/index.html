@@ -439,6 +439,21 @@
       if (byteIndex[mid].byte.t1 < byteStart) blo = mid + 1;
       else bhi = mid;
     }
+    // Byte boundaries: thin dividers only while a byte is wide enough to
+    // read, so dense overviews do not turn into a gray grid.
+    ctx.strokeStyle = "rgba(26,35,51,.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = blo; k < byteIndex.length && byteIndex[k].byte.t0 <= visibleEnd; k++) {
+      const bb = byteIndex[k].byte;
+      const bw = (bb.t1 - bb.t0) / spp;
+      if (bw < 10) continue;
+      const x = Math.floor((bb.t0 - view.off) / spp) + 0.5;
+      if (x < -1 || x > W + 1) continue;
+      ctx.moveTo(x, plotTop);
+      ctx.lineTo(x, plotBot);
+    }
+    ctx.stroke();
     for (let k = blo; k < byteIndex.length && byteIndex[k].byte.t0 <= visibleEnd; k++) {
       const item = byteIndex[k], bb = item.byte;
       const bw = (bb.t1 - bb.t0) / spp;
