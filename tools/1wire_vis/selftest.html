@@ -62,6 +62,58 @@
     return h >>> 0;
   }
 
+  function fromB64(text) {
+    const bin = atob(text);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function mkTxn(bytes) {
+    const ev = [{ type: "reset", t: 0, presence: true, presT: 1, presLen: 1, lowLen: 1 }];
+    bytes.forEach((v, bi) => {
+      for (let b = 0; b < 8; b++) {
+        ev.push({ type: "bit", t: 100 + bi * 16 + b * 2, bit: (v >> b) & 1, lowLen: 10 });
+      }
+    });
+    return OWVis.buildTransactions(ev, 1000000)[0];
+  }
+
+  function romTripletFrame(rom, command) {
+    const ids = [];
+    for (let i = 0; i < 64; i++) {
+      const b = (rom[i >> 3] >> (i & 7)) & 1;
+      ids.push(b, b ? 0 : 1, b);
+    }
+    const bytes = [command];
+    for (let k = 0; k < 24; k++) {
+      let v = 0;
+      for (let b = 0; b < 8; b++) v |= ids[k * 8 + b] << b;
+      bytes.push(v);
+    }
+    return bytes;
+  }
+
+  function odWave() {
+    const out = [];
+    const hi = (n) => { for (let k = 0; k < n; k++) out.push(1); };
+    const low = (n) => { for (let k = 0; k < n; k++) out.push(0); };
+    const slot = (bit) => { low(bit ? 1 : 8); hi(bit ? 9 : 2); };
+    hi(200);
+    low(60); hi(4); low(10); hi(6); // overdrive reset + presence
+    [0xcc, 0x44].forEach((v) => {
+      for (let b = 0; b < 8; b++) slot((v >> b) & 1);
+    });
+    hi(100);
+    return Uint8Array.from(out);
+  }
+
+  const FIXED_DEFLATE = "80jNycnXUTDUDc8sSlUEAA==";
+  const DYNAMIC_DEFLATE = "7czLCYAwFETRVl4J5uNvq9mKkNjAM4m4Ugli/UaxC2c1FwaOcaLpZEHGSa3EO0KRi5z8SnYcaODzq37frphOmshGDuR8eq4jZyGk0mVVNy3PPsQlM1ChQoUKFSpUqFChQoX6d/UG";
+  const STORED_DEFLATE = "AR8A4P9zdG9yZWQgYmxvY2sgcGF5bG9hZCAwMTIzNDU2Nzg5";
+  const MULTI_SR_B64 = "UEsDBBQAAAAIAAZxYV0+dibTXwAAAGgAAAAIAAAAbWV0YWRhdGEFwbERwzAIBdCeKbRACnVp6NNkAp8LrHzruBCjE9iFp897SzffxFYK7dO/5cIM9YMTkUTLB5c2lLpSk5HnxK4GNu/aHpXSU6yM6RuCnxTyG4YpCa7l/brpPDRDb3ClP1BLAwQUAAAACAAGcWFdcumpEywAAAC4CwAACQAAAGxvZ2ljLTEtMWNkHAWjYBQMd8AwCoY1GJyxT6/UPQoGDxga6WUouZJxkIOh5EqGIRHjhAEAUEsDBBQAAAAIAAZxYV2OgyiDMQAAAMoOAAAJAAAAbG9naWMtMS0y7dDBCQBACANB03/TFnC+RMQcOw1kScRLa7b3/q/sobKq1HFOX1I5V6njPL4EAACyl1BLAQIUABQAAAAIAAZxYV0+dibTXwAAAGgAAAAIAAAAAAAAAAAAAACAAQAAAABtZXRhZGF0YVBLAQIUABQAAAAIAAZxYV1y6akTLAAAALgLAAAJAAAAAAAAAAAAAACAAYUAAABsb2dpYy0xLTFQSwECFAAUAAAACAAGcWFdjoMogzEAAADKDgAACQAAAAAAAAAAAAAAgAHYAAAAbG9naWMtMS0yUEsFBgAAAAADAAMApAAAADABAAAAAA==";
+  const OD_WAVE = odWave();
+
   try {
     /* ---------- bundled capture integrity ---------- */
     check("BUNDLED_SR_B64 is a non-empty string",
@@ -231,6 +283,198 @@
       demoInterp[2].kind === "search" && demoInterp[2].roms.length === 1 &&
       romKey(demoInterp[2].roms[0].rom) === "28 20 78 92 07 00 00 67",
       demoInterp[2].roms.length + " ROM(s)");
+
+    /* ---------- overdrive timing profile ---------- */
+    eq("auto-detected bus speed: overdrive", OWVis.detectSpeed(OD_WAVE, 1e6, 0), "overdrive");
+    const odEv = OWVis.decodeSlots(OD_WAVE, 1e6, 0, "overdrive");
+    const odReset = odEv.filter((e) => e.type === "reset");
+    eq("overdrive: one reset decoded", odReset.length, 1);
+    eq("overdrive: presence measured", odReset[0] ? odReset[0].presence : null, true);
+    eq("overdrive: 16 slots decoded", odEv.filter((e) => e.type === "bit").length, 16);
+    const odTxns = OWVis.buildTransactions(odEv, 1e6);
+    check("overdrive: Skip ROM + Convert T decoded",
+      odTxns.length === 1 && OWVis.interpret(odTxns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      odTxns.length + " transaction(s)");
+    check("standard profile does not invent resets in an OD capture",
+      !OWVis.decodeSlots(OD_WAVE, 1e6, 0, "standard").some((e) => e.type === "reset"),
+      "no resets at standard thresholds");
+
+    const od2 = new Uint8Array(OD_WAVE.length * 2);
+    for (let i = 0; i < OD_WAVE.length; i++) {
+      od2[i * 2] = OD_WAVE[i];
+      od2[i * 2 + 1] = OD_WAVE[i];
+    }
+    const od2Txns = OWVis.buildTransactions(OWVis.decodeSlots(od2, 2e6, 0, "overdrive"), 2e6);
+    check("overdrive: 2 MHz scaling keeps the frame",
+      od2Txns.length === 1 && OWVis.interpret(od2Txns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      od2Txns.length + " transaction(s)");
+
+    const od3 = new Uint8Array(OD_WAVE.length);
+    for (let i = 0; i < OD_WAVE.length; i++) od3[i] = OD_WAVE[i] << 3;
+    eq("channel D3: detectSpeed sees overdrive", OWVis.detectSpeed(od3, 1e6, 3), "overdrive");
+    const od3Txns = OWVis.buildTransactions(OWVis.decodeSlots(od3, 1e6, 3), 1e6);
+    check("channel D3: auto decode keeps the frame",
+      od3Txns.length === 1 && OWVis.interpret(od3Txns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      od3Txns.length + " transaction(s)");
+
+    /* ---------- broadcast (Skip ROM) commands ---------- */
+    const skipWriteTxn = mkTxn([0xcc, 0x0f, 0xaa, 0x55]);
+    const skipWrite = OWVis.interpret(skipWriteTxn);
+    check("Skip ROM: DS2431 Write Scratchpad is labelled",
+      skipWrite.note.indexOf("Write Scratchpad") >= 0 && skipWrite.note.indexOf("DS2431") >= 0,
+      skipWrite.note);
+    check("Skip ROM: Write Scratchpad payload is master-write",
+      skipWriteTxn.bits.slice(16).every((s) => s.role === "master-write"),
+      skipWriteTxn.bits.slice(16).map((s) => s.role).join(","));
+
+    const skipReadBytes = [0xcc, 0xaa, 0x20, 0x00, 0x07, 0x28, 0xfc, 0xae,
+      0xaa, 0x0b, 0x00, 0x00, 0xf3, 0x95, 0x90];
+    const skipReadTxn = mkTxn(skipReadBytes);
+    const skipRead = OWVis.interpret(skipReadTxn);
+    check("Skip ROM: DS2431 Read Scratchpad is labelled",
+      skipRead.note.indexOf("Read Scratchpad") >= 0 && skipRead.note.indexOf("DS2431") >= 0,
+      skipRead.note);
+    check("Skip ROM: Read Scratchpad reply is slave-read",
+      skipReadTxn.bits.slice(16).every((s) => s.role === "slave-read"),
+      skipReadTxn.bits.slice(16).map((s) => s.role).join(","));
+    check("Skip ROM: DS2431 CRC-16 is still verified",
+      !!(skipRead.crc && skipRead.crc.algorithm === "CRC-16" && skipRead.crc.ok),
+      skipRead.crc ? skipRead.crc.algorithm + " ok=" + skipRead.crc.ok : "no CRC");
+
+    const skipMemTxn = mkTxn([0xcc, 0xf0, 0x00, 0x10, 0xaa]);
+    const skipMem = OWVis.interpret(skipMemTxn);
+    check("Skip ROM: DS2431 Read Memory is labelled",
+      skipMem.note.indexOf("Read Memory") >= 0 && skipMem.note.indexOf("DS2431") >= 0,
+      skipMem.note);
+    check("Skip ROM: Read Memory reply is slave-read",
+      skipMemTxn.bits.slice(16).every((s) => s.role === "slave-read"),
+      skipMemTxn.bits.slice(16).map((s) => s.role).join(","));
+
+    const skipUnknownTxn = mkTxn([0xcc, 0x99, 0x12]);
+    const skipUnknown = OWVis.interpret(skipUnknownTxn);
+    check("Skip ROM: unknown function is labelled by hex",
+      skipUnknown.note.indexOf("0x99") >= 0, skipUnknown.note);
+    check("Skip ROM: unknown payload stays unknown",
+      skipUnknownTxn.bits.slice(16).every((s) => s.role === "unknown"),
+      skipUnknownTxn.bits.slice(16).map((s) => s.role).join(","));
+    check("bundled T36 broadcast is attributed to DS18B20",
+      interp[35].note.indexOf("Convert T") >= 0 && interp[35].note.indexOf("DS18B20") >= 0,
+      interp[35].note);
+
+    /* ---------- Alarm Search and DS2413 ---------- */
+    const alarmRom = [0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00, 0x67];
+    const alarm = OWVis.interpret(mkTxn(romTripletFrame(alarmRom, 0xec)));
+    check("Alarm Search decodes one valid ROM",
+      alarm.kind === "alarm" && alarm.roms.length === 1 &&
+      romKey(alarm.roms[0].rom) === romKey(alarmRom) &&
+      alarm.roms[0].crcOk && alarm.roms[0].tripletsValid,
+      alarm.roms.length + " ROM(s)");
+
+    const pioRom = [0x3a, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
+    pioRom.push(OWVis.crc8(pioRom));
+    const pioReadTxn = mkTxn([0x55].concat(pioRom, [0xf5, 0x00]));
+    const pioRead = OWVis.interpret(pioReadTxn);
+    check("DS2413 PIO read decodes with valid ROM CRC",
+      pioRead.kind === "match" && pioRead.romCrcOk &&
+      pioRead.note.indexOf("DS2413") >= 0 && pioRead.note.indexOf("PIO Access Read") >= 0,
+      pioRead.note);
+    check("DS2413 PIO read reply is slave-read",
+      pioReadTxn.bits.slice(80).every((s) => s.role === "slave-read"),
+      pioReadTxn.bits.slice(80).map((s) => s.role).join(","));
+    const pioWriteTxn = mkTxn([0x55].concat(pioRom, [0x5a, 0x00, 0xff, 0xaa]));
+    check("DS2413 PIO write: data master, ack slave",
+      pioWriteTxn.bits.slice(80, 96).every((s) => s.role === "master-write") &&
+      pioWriteTxn.bits.slice(96).every((s) => s.role === "slave-read"),
+      pioWriteTxn.bits.slice(80).map((s) => s.role).join(","));
+
+    /* ---------- malformed / empty inputs ---------- */
+    let malformedRejected = false;
+    try {
+      await OWVis.parseSR(new Uint8Array([1, 2, 3, 4]).buffer, 0);
+    } catch (e) {
+      malformedRejected = true;
+    }
+    check("malformed .sr is rejected", malformedRejected, "no EOCD");
+    eq("empty capture decodes to no transactions",
+      OWVis.buildTransactions(OWVis.decodeSlots(new Uint8Array(0), 1e6, 0), 1e6).length, 0);
+    const noPresence = OWVis.interpret({ presence: false, bits: [] });
+    check("no-presence transaction is labelled",
+      noPresence.kind === "empty" && noPresence.note === "no presence", noPresence.note);
+    const presenceOnly = OWVis.interpret({ presence: true, bits: [] });
+    check("presence-only transaction is labelled",
+      presenceOnly.kind === "empty" && presenceOnly.note === "presence only", presenceOnly.note);
+    const truncated = OWVis.interpret(mkTxn([0x55, 0x28]));
+    check("truncated Match ROM falls back to raw without throwing",
+      truncated.kind === "raw" && truncated.note.indexOf("0x55") >= 0,
+      truncated.note);
+
+    /* ---------- pure-JS inflate fallback ---------- */
+    const fixedOut = new TextDecoder().decode(OWVis.inflateRaw(fromB64(FIXED_DEFLATE), 14));
+    eq("inflate: fixed Huffman block", fixedOut, "Hello, 1-Wire!");
+    const dynOut = OWVis.inflateRaw(fromB64(DYNAMIC_DEFLATE), 3440);
+    check("inflate: dynamic Huffman block",
+      dynOut.length === 3440 &&
+      new TextDecoder().decode(dynOut.slice(0, 40)) === "DS18B20 DS2431 DS2413 Search ROM Match R",
+      dynOut.length + " bytes");
+    const storedOut = new TextDecoder().decode(OWVis.inflateRaw(fromB64(STORED_DEFLATE), 31));
+    eq("inflate: stored block", storedOut, "stored block payload 0123456789");
+    let sizeMismatchRejected = false;
+    try {
+      OWVis.inflateRaw(fromB64(FIXED_DEFLATE), 15);
+    } catch (e) {
+      sizeMismatchRejected = true;
+    }
+    check("inflate: size mismatch is rejected", sizeMismatchRejected, "expected 15, got 14");
+
+    const multiBytes = fromB64(MULTI_SR_B64);
+    const capMulti = await OWVis.parseSR(multiBytes.buffer, 0);
+    eq("multi-entry .sr: concatenated sample count", capMulti.samples.length, 6786);
+    eq("multi-entry .sr: concatenated FNV-1a", fnv32(capMulti.samples), 780965811);
+    const multiTxns = OWVis.buildTransactions(
+      OWVis.decodeSlots(capMulti.samples, capMulti.samplerate, 0), capMulti.samplerate);
+    check("multi-entry .sr: frame spans the chunk boundary",
+      multiTxns.length === 1 &&
+      OWVis.interpret(multiTxns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      multiTxns.length + " transaction(s)");
+
+    let fallbackCap = null, fallbackErr = null, fallbackRan = false;
+    const dsDesc = Object.getOwnPropertyDescriptor(window, "DecompressionStream");
+    try {
+      Object.defineProperty(window, "DecompressionStream", {
+        value: undefined, configurable: true, writable: true,
+      });
+      fallbackRan = typeof DecompressionStream === "undefined";
+      if (fallbackRan) fallbackCap = await OWVis.parseSR(multiBytes.buffer, 0);
+    } catch (e) {
+      fallbackErr = e;
+    } finally {
+      if (dsDesc) Object.defineProperty(window, "DecompressionStream", dsDesc);
+    }
+    check("pure-JS inflate fallback parses a multi-entry .sr",
+      fallbackRan ? (!!fallbackCap && fallbackCap.samples.length === 6786 &&
+        fnv32(fallbackCap.samples) === 780965811) : true,
+      fallbackRan ? (fallbackErr ? String(fallbackErr) : "fallback used")
+        : "skipped: DecompressionStream is not replaceable");
+
+    let bundleFallback = null, bundleFallbackErr = null, bundleFallbackRan = false;
+    const dsDesc2 = Object.getOwnPropertyDescriptor(window, "DecompressionStream");
+    try {
+      Object.defineProperty(window, "DecompressionStream", {
+        value: undefined, configurable: true, writable: true,
+      });
+      bundleFallbackRan = typeof DecompressionStream === "undefined";
+      if (bundleFallbackRan) bundleFallback = await OWVis.parseSR(zipBytes.buffer, 0);
+    } catch (e) {
+      bundleFallbackErr = e;
+    } finally {
+      if (dsDesc2) Object.defineProperty(window, "DecompressionStream", dsDesc2);
+    }
+    check("pure-JS inflate fallback parses the bundled 4.0 M-sample capture",
+      bundleFallbackRan ? (!!bundleFallback && bundleFallback.samples.length === 4000000 &&
+        fnv32(bundleFallback.samples) === 0x166703d3) : true,
+      bundleFallbackRan ? (bundleFallbackErr ? String(bundleFallbackErr) : "fallback used")
+        : "skipped: DecompressionStream is not replaceable");
+
   } catch (e) {
     check("self-test completed without throwing", false, e && e.stack ? e.stack.split("\n")[0] : String(e));
   }

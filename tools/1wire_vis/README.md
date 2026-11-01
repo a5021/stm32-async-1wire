@@ -2,8 +2,9 @@
 
 Open a sigrok `.sr` capture in the browser and see the 1-Wire traffic:
 resets/presence, Search ROM triplets with ROM + CRC check, Match/Skip ROM,
-Convert T, scratchpad and DS2431 EEPROM commands. No upload — everything
-runs locally, no dependencies, works from `file://`.
+Convert T, scratchpad and DS2431 EEPROM commands. Standard and overdrive
+timings are supported. No upload — everything runs locally, no dependencies,
+works from `file://`.
 
 Open `index.html` in Chrome/Edge/Firefox/Safari, then either:
 
@@ -15,6 +16,11 @@ Open `index.html` in Chrome/Edge/Firefox/Safari, then either:
   from `file://` with no server); or
 - pick any `.sr` file recorded with `tools/la_capture.py`
   (fx2lafw, DQ on D0–D7, 1–2 MHz), choose the channel and inspect.
+
+**Bus speed** is next to the channel selector. `Auto` looks at the longest
+reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
+`Standard` / `Overdrive` is available when a capture is ambiguous or when
+mixing both speeds (a single profile cannot decode both at once).
 
 ## Bundled capture
 
@@ -60,13 +66,15 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   the row is scrolled into view).
 - **Navigation** — ←/→ previous/next reset, `F` fit transaction, `0` fit
   capture, `+`/`-` zoom; mouse wheel zooms around the pointer and drag pans.
+  On touch screens one finger pans and two fingers pinch-zoom around the
+  midpoint.
 - **Transactions/transcript** — click a transaction to inspect; copy the
   sigrok-style transcript. Family codes include `0x28` DS18B20, `0x2D` DS2431,
   and `0x3A` DS2413.
 
 ## Self-test
 
-`selftest.html` is a browser page with 45 golden checks (no Node needed). Open
+`selftest.html` is a browser page with 82 golden checks (no Node needed). Open
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
 check plus a summary. It covers:
 
@@ -76,6 +84,12 @@ check plus a summary. It covers:
 - CRC-8 and DS2431 inverted CRC-16 vectors, plus checks against real frames;
 - DS2431 Copy Scratchpad roles (TA1/TA2/ES master-write, `AA` slave-read);
 - positive final-slot spans at 1 MHz and 2 MHz (median-pitch estimate);
+- overdrive decode at 1 MHz and 2 MHz, auto-detection and channel D3;
+- broadcast Skip ROM labels/roles for DS2431 and the DS18B20 Convert T;
+- Alarm Search, DS2413 PIO read/write, truncated/empty/no-presence inputs;
+- pure-JS inflate on fixed/dynamic/stored DEFLATE blocks, a multi-entry
+  `.sr` whose waveform crosses the `logic-1-1` / `logic-1-2` boundary, and
+  the full bundled 4.0 M-sample capture with `DecompressionStream` disabled;
 - raw-note truncation, all-FF Search ROM filler guard, and the demo waveform.
 
 ## Decoder
@@ -83,20 +97,25 @@ check plus a summary. It covers:
 `owvis.js` holds the whole pipeline with no DOM in it:
 
 - `.sr` parsing through the zip central directory (raw deflate via the
-  native `DecompressionStream`), samplerate/unitsize from `metadata`;
+  native `DecompressionStream`, with a pure-JS inflate fallback for older
+  browsers), samplerate/unitsize from `metadata`;
 - slot splitter ported from the validated Python reference
   (bit-exact vs `sigrok onewire_link` on the bench `probe.sr`:
   falling edge starts a slot, low ≥ 300 µs is Reset, otherwise the bit
   is sampled 20 µs after the edge, 55 µs advance; presence = ≥ 30 µs
   low within 200 µs after release; all thresholds scale with samplerate);
+- overdrive profile: reset ≥ 24 µs, bit sampled 3 µs after the edge,
+  5 µs advance, 4 µs presence low within 40 µs. `Auto` chooses the profile
+  from the longest low pulse;
 - Search ROM triplet → ROM + Dallas CRC-8 check.
 - One slot span per decoded slot: end = next slot start, capped at 500 µs so
   a host idle gap is never shaded as a slot. The final slot of a transaction
   uses the median start-to-start pitch of the preceding slots.
 - Role annotation follows the ROM/function-command state: master command and
   address/data slots, slave reply slots, and the 3-slot Search ROM
-  ID/complement/direction triplets. Unknown or truncated traffic stays marked
-  unknown rather than being guessed.
+  ID/complement/direction triplets. Broadcast Skip ROM commands are labelled
+  with their family (the frame itself does not encode it), and unknown or
+  truncated traffic stays marked unknown rather than being guessed.
 
 `file://` note: everything is static. Clipboard access may be restricted on
 `file://` in some browsers — if copy fails, select the transcript text manually.
