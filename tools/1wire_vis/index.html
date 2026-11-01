@@ -79,6 +79,13 @@
           <option value="6">D6</option><option value="7">D7</option>
         </select>
       </label>
+      <label>Bus speed:
+        <select id="speed" title="Auto detects standard vs overdrive from the longest reset low pulse">
+          <option value="auto" selected>Auto</option>
+          <option value="standard">Standard</option>
+          <option value="overdrive">Overdrive</option>
+        </select>
+      </label>
       <button id="demo">Load demo waveform</button>
       <button id="bundled">Load bundled F030 capture</button>
       <button id="copy" disabled>Copy transcript</button>
@@ -787,7 +794,13 @@
   function runDecode() {
     try {
       cap.edgeSamples = buildEdgeIndex(cap.samples, cap.channel);
-      const ev = OWVis.decodeSlots(cap.samples, cap.samplerate, cap.channel);
+      const requested = $("speed").value;
+      const speed = requested === "auto"
+        ? OWVis.detectSpeed(cap.samples, cap.samplerate, cap.channel)
+        : requested;
+      cap.speed = speed;
+      cap.requestedSpeed = requested;
+      const ev = OWVis.decodeSlots(cap.samples, cap.samplerate, cap.channel, speed);
       txns = OWVis.buildTransactions(ev, cap.samplerate);
       interp = txns.map((t) => OWVis.interpret(t));
       curA = curB = null;
@@ -836,10 +849,14 @@
         });
         if (x.rom) devs[x.rom.map(hex).join(" ")] = OWVis.familyName(x.rom[0]);
       });
+      const extras = [];
+      if (requested === "auto") extras.push("auto");
+      if (cap.demo) extras.push("synthetic demo");
       status("Decoded " + txns.length + " transactions, " +
         Object.keys(devs).length + " unique ROM(s) @ " +
         (cap.samplerate / 1e6).toFixed(1) + " MHz, ch D" + cap.channel +
-        (cap.demo ? " (synthetic demo)" : "") + ".");
+        ", " + speed + " speed" +
+        (extras.length ? " (" + extras.join(", ") + ")" : "") + ".");
     } catch (e) {
       clearResults();
       status("Decode failed: " + e.message, true);
@@ -865,6 +882,11 @@
   $("chan").addEventListener("change", () => {
     if (!cap || cap.demo) return;
     cap.channel = parseInt($("chan").value, 10);
+    runDecode();
+  });
+
+  $("speed").addEventListener("change", () => {
+    if (!cap) return;
     runDecode();
   });
 
@@ -1090,6 +1112,72 @@
     dragX = e.clientX;
     drawDetail();
   });
+
+  // Touch: one finger pans, two fingers pinch-zoom around their midpoint.
+  // The mouse path above stays unchanged; touch-action:none suppresses the
+  // browser's own scroll/zoom gestures on the canvas.
+  let touchState = null;
+  const detailScale = () => {
+    const c = $("detail"), r = c.getBoundingClientRect();
+    return c.width / Math.max(1, r.width);
+  };
+  const pinchInfo = (e) => {
+    const t0 = e.touches[0], t1 = e.touches[1];
+    const r = $("detail").getBoundingClientRect();
+    const k = detailScale();
+    return {
+      dist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+      mid: ((t0.clientX + t1.clientX) / 2 - r.left) * k,
+    };
+  };
+  $("detail").addEventListener("touchstart", (e) => {
+    if (!cap) return;
+    e.preventDefault();
+    hideTip();
+    if (e.touches.length >= 2) {
+      const p = pinchInfo(e);
+      touchState = { mode: "pinch", dist: p.dist, startSpp: view.spp, at: view.off + p.mid * view.spp };
+    } else {
+      touchState = { mode: "pan", x: e.touches[0].clientX };
+    }
+  }, { passive: false });
+  $("detail").addEventListener("touchmove", (e) => {
+    if (!cap || !touchState) return;
+    e.preventDefault();
+    if (touchState.mode === "pinch" && e.touches.length >= 2) {
+      const p = pinchInfo(e);
+      if (touchState.dist > 2 && p.dist > 2) {
+        view.spp = clamp(touchState.startSpp * touchState.dist / p.dist, SPP_MIN, zoomMax());
+        view.off = Math.floor(touchState.at - p.mid * view.spp);
+        clampView();
+        syncZoom();
+        drawDetail();
+      }
+    } else if (touchState.mode === "pan" && e.touches.length === 1) {
+      const t = e.touches[0];
+      const dx = (t.clientX - touchState.x) * detailScale();
+      view.off -= Math.round(dx * view.spp);
+      touchState.x = t.clientX;
+      clampView();
+      drawDetail();
+    }
+  }, { passive: false });
+  const endTouch = (e) => {
+    if (!touchState) return;
+    if (e.touches.length >= 2) {
+      const p = pinchInfo(e);
+      touchState = { mode: "pinch", dist: p.dist, startSpp: view.spp, at: view.off + p.mid * view.spp };
+    } else if (e.touches.length === 1) {
+      touchState = { mode: "pan", x: e.touches[0].clientX };
+    } else {
+      touchState = null;
+      syncZoom();
+      drawOverview();
+      drawDetail();
+    }
+  };
+  $("detail").addEventListener("touchend", endTouch);
+  $("detail").addEventListener("touchcancel", endTouch);
 
   fitCanvases();
 
