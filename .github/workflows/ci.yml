@@ -294,19 +294,54 @@ jobs:
               f'<text x="89.5" y="15">{pct}%</text></g></svg>'
           )
           open("publish/coverage-badge.svg", "w").write(svg)
-          # The report itself lives under coverage/; give the Pages root a
-          # redirecting landing page so the bare URL works.
+          # Every artefact is published below the root, so the bare URL gets a
+          # landing page with one link per section. The /coverage/ and /api/
+          # paths keep working exactly as before.
           open("publish/index.html", "w").write(
               '<!doctype html>\n<html lang="en">\n<head>\n'
               '<meta charset="utf-8">\n'
-              '<title>stm32-async-1wire coverage</title>\n'
-              '<meta http-equiv="refresh" content="0; url=coverage/">\n'
-              '<link rel="canonical" href="coverage/">\n</head>\n<body>\n'
-              '<p>Redirecting to the <a href="coverage/">coverage report'
-              '&hellip;</a></p>\n</body>\n</html>\n'
+              '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+              '<title>stm32-async-1wire</title>\n'
+              '<style>\n'
+              'body{font:16px/1.5 system-ui,-apple-system,sans-serif;max-width:44rem;'
+              'margin:3rem auto;padding:0 1.25rem;color:#1a2333;background:#fff}\n'
+              'h1{font-size:1.6rem;margin:0 0 .25rem}\n'
+              'p.lead{color:#5b6b85;margin:0 0 1.5rem}\n'
+              'ul{list-style:none;margin:0;padding:0}\n'
+              'li{margin:.6rem 0;padding:.9rem 1rem;border:1px solid #dbe2ec;'
+              'border-radius:8px}\n'
+              'li a{font-weight:600;text-decoration:none;color:#1b57c4}\n'
+              'li span{display:block;color:#5b6b85;font-size:.9rem}\n'
+              '</style>\n</head>\n<body>\n'
+              '<h1>stm32-async-1wire</h1>\n'
+              '<p class="lead">Generated reports and browser tools for the '
+              'non-blocking 1-Wire master.</p>\n'
+              '<ul>\n'
+              '<li><a href="coverage/">Coverage report</a>'
+              '<span>Line and branch coverage of the MCU-independent core.</span></li>\n'
+              '<li><a href="api/">API documentation</a>'
+              '<span>Doxygen reference for the public headers and drivers.</span></li>\n'
+              '<li><a href="viewer/">1-Wire viewer</a>'
+              '<span>Decode a sigrok <code>.sr</code> capture slot by slot in the '
+              'browser &mdash; resets, ROM search, commands, CRC.</span></li>\n'
+              '</ul>\n'
+              '<p><a href="coverage/"><img src="coverage-badge.svg" alt="coverage">'
+              '</a></p>\n'
+              '</body>\n</html>\n'
           )
           print("badge:", pct, "%")
           PY
+      - name: Stage 1-Wire viewer
+        # Static page with only relative paths: the same files work from
+        # file:// locally and from /viewer/ on Pages, so there is no build
+        # step. captures/ is the fallback the page fetches when the embedded
+        # base64 bundle is unavailable, plus the human-readable transcript.
+        run: |
+          mkdir -p publish/viewer
+          cp tools/1wire_vis/index.html tools/1wire_vis/owvis.js \
+             tools/1wire_vis/bundled_sr.js tools/1wire_vis/selftest.html \
+             publish/viewer/
+          cp -r tools/1wire_vis/captures publish/viewer/captures
       - name: Publish to gh-pages
         env:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
@@ -328,7 +363,7 @@ jobs:
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -qm "docs(coverage): refresh report and badge (${GITHUB_SHA::7})" \
+              commit -qm "docs(pages): refresh coverage, API and viewer (${GITHUB_SHA::7})" \
               || echo "nothing to commit"
           git push -q origin gh-pages
 

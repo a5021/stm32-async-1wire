@@ -6,7 +6,9 @@ Convert T, scratchpad and DS2431 EEPROM commands. Standard and overdrive
 timings are supported. No upload — everything runs locally, no dependencies,
 works from `file://`.
 
-Open `index.html` in Chrome/Edge/Firefox/Safari, then either:
+Open `index.html` in Chrome/Edge/Firefox/Safari, or use the hosted copy at
+<https://a5021.github.io/stm32-async-1wire/viewer/> (its built-in selftest
+runs at `/viewer/selftest.html`). Then either:
 
 - **Load demo waveform** — a synthetic 1 MHz capture (Match ROM +
   Read Scratchpad, Skip ROM + Convert T, single-device Search ROM),

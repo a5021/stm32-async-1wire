@@ -1,6 +1,6 @@
 [![STM32 Build Pipeline](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/build.yml)
 [![Code Quality](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml/badge.svg)](https://github.com/a5021/stm32-async-1wire/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/a5021/stm32-async-1wire/gh-pages/coverage-badge.svg)](https://a5021.github.io/stm32-async-1wire/) [![Awesome](https://awesome.re/badge.svg)](https://github.com/iDoka/awesome-embedded-software#sensors)
+[![Coverage](https://raw.githubusercontent.com/a5021/stm32-async-1wire/gh-pages/coverage-badge.svg)](https://a5021.github.io/stm32-async-1wire/) [![1-Wire viewer](https://img.shields.io/badge/demo-1--Wire%20viewer-1b57c4.svg)](https://a5021.github.io/stm32-async-1wire/viewer/) [![Awesome](https://awesome.re/badge.svg)](https://github.com/iDoka/awesome-embedded-software#sensors)
 [![Fuzzed](https://img.shields.io/badge/fuzzed-libFuzzer-blue.svg)](#testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
@@ -1436,6 +1436,13 @@ python tests/hil/la_decode.py bench_logs/hil/la_search.bin \
 `--parasite` matches the bench's build; without it the geometry check expects
 the 70 us default slot and fails on a correct parasite capture (the artifact
 runts also make a "nearest gap" pick the runt instead of the period).
+
+Those captures can also be read as traffic instead of measurements:
+[`tools/1wire_vis`](tools/1wire_vis/) decodes a sigrok `.sr` file slot by slot
+in the browser — resets and presence, Search ROM, every command byte and the
+device CRC — with no upload and no server. The bundled F030 recording (8 MHz,
+DS2431 reads and `0F`/`AA`/`55`/`F0` write chains) is published at
+<https://a5021.github.io/stm32-async-1wire/viewer/>.
 
 It is strict on purpose: a slot width between '1' and '0', an unknown command
 or a CRC mismatch is a failure, not a guess or a skipped transaction. A search
