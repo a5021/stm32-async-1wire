@@ -149,7 +149,7 @@ try {
       <span class="legend" id="txinfo">Wheel = zoom at cursor, drag = pan · ←/→ = prev/next reset · F = fit transaction · 0 = fit capture</span>
     </div>
     <div class="row"><span class="legend" id="cursorinfo">Alt+click = A, Shift+click = B, Esc = clear</span></div>
-    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · Alt+click A / Shift+click B: edge-snapped timing cursors</div>
+    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · click: set 0 µs (click again clears) · Alt+click A / Shift+click B: edge-snapped timing cursors</div>
   </div>
 
   <div class="card">
@@ -202,6 +202,7 @@ try {
   const SPP_MAX_DEFAULT = 64;
   let dragX = null;
   let ovDrag = null; // {x0} in css px while rubber-banding on the overview
+  let zeroSample = null; // relative-time zero set by a Detail click
 
   const THEMES = {
     light: {
@@ -216,6 +217,7 @@ try {
       crcOk: "#15803D", crcBad: "#DC2626",
       crcOkBg: "rgba(21,128,61,.16)", crcBadBg: "rgba(220,38,38,.16)",
       cursorA: "#2563EB", cursorB: "#B45309", cursorShade: "rgba(37,99,235,.07)",
+      zero: "#0F766E",
       viewport: "rgba(37,99,235,.12)", rubber: "rgba(37,99,235,.20)",
       tickNoPresence: "#DC2626", tickPresence: "#15803D",
     },
@@ -231,6 +233,7 @@ try {
       crcOk: "#4ADE80", crcBad: "#F87171",
       crcOkBg: "rgba(74,222,128,.14)", crcBadBg: "rgba(248,113,113,.14)",
       cursorA: "#60A5FA", cursorB: "#FBBF24", cursorShade: "rgba(96,165,250,.10)",
+      zero: "#2DD4BF",
       viewport: "rgba(96,165,250,.16)", rubber: "rgba(96,165,250,.24)",
       tickNoPresence: "#F87171", tickPresence: "#4ADE80",
     },
@@ -246,6 +249,13 @@ try {
     if (us >= 1e6) return (us / 1e6).toFixed(3) + " s";
     if (us >= 1000) return (us / 1000).toFixed(us >= 10000 ? 1 : 2) + " ms";
     return us.toFixed(us >= 100 ? 0 : us >= 10 ? 1 : 2) + " µs";
+  }
+
+  function formatRelative(us, subSecond, signed) {
+    if (us === 0) return "0";
+    const sign = signed ? (us < 0 ? "−" : "+") : "";
+    const a = Math.abs(us);
+    return sign + (subSecond ? Math.round(a) + " µs" : formatTime(a));
   }
 
   function buildEdgeIndex(samples, channel) {
@@ -409,7 +419,10 @@ try {
     const exp = Math.pow(10, Math.floor(Math.log10(Math.max(targetUs, 1e-9))));
     const nice = [1, 2, 5, 10].map((x) => x * exp).find((x) => x >= targetUs) || 10 * exp;
     const gridStep = Math.max(1, Math.round(nice / usPerSample));
-    const firstGrid = view.off;
+    // Grid is anchored to the relative zero: the zero line gets a "0" label
+    // and positive/negative times are measured from it.
+    const zeroAt = zeroSample == null ? view.off : zeroSample;
+    const firstGrid = zeroAt + Math.ceil((view.off - zeroAt) / gridStep) * gridStep;
     ctx.font = "10px Consolas,monospace";
     ctx.lineWidth = 1;
     ctx.textAlign = "left";
@@ -419,11 +432,8 @@ try {
       ctx.strokeStyle = P.grid;
       ctx.moveTo(x, plotTop);
       ctx.lineTo(x, plotBot);
-      const us = ((s - view.off) / cap.samplerate) * 1e6;
-      let label;
-      if (us === 0) label = "0";
-      else if (spanUs < 1e6) label = Math.round(us) + " µs";
-      else label = formatTime(us);
+      const us = ((s - zeroAt) / cap.samplerate) * 1e6;
+      const label = formatRelative(us, spanUs < 1e6, zeroSample != null);
       ctx.fillStyle = P.ruler;
       ctx.fillText(label, x + 3, 20);
     }
@@ -594,6 +604,29 @@ try {
         ctx.fillStyle = m.color;
         ctx.fillText(text, m.x, annotY);
       });
+    }
+    // Relative-time zero set by a plain click in Detail.
+    if (zeroSample != null) {
+      const zx = xOf(zeroSample);
+      if (zx >= -1 && zx <= W + 1) {
+        ctx.save();
+        ctx.strokeStyle = P.zero;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(zx + 0.5, plotTop);
+        ctx.lineTo(zx + 0.5, plotBot);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = P.zero;
+        ctx.beginPath();
+        ctx.moveTo(zx - 3, plotTop);
+        ctx.lineTo(zx + 3, plotTop);
+        ctx.lineTo(zx, plotTop + 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · ";
@@ -943,6 +976,7 @@ try {
     slotIndex = [];
     byteIndex = [];
     sel = -1;
+    zeroSample = null;
     curA = curB = null;
     curASnapped = curBSnapped = false;
     groupOpen.clear();
@@ -960,6 +994,7 @@ try {
 
   function runDecode() {
     try {
+      zeroSample = null;
       cap.edgeSamples = buildEdgeIndex(cap.samples, cap.channel);
       const requested = $("speed").value;
       const speed = requested === "auto"
@@ -1197,11 +1232,18 @@ try {
     const moved = Math.abs(e.clientX - downPos.x) + Math.abs(e.clientY - downPos.y);
     const { alt, shift } = downPos;
     downPos = null;
-    if (moved > 4 || (!alt && !shift)) return;
+    if (moved > 4) return;
     const c = $("detail");
     const r = c.getBoundingClientRect();
     const x = (e.clientX - r.left) * (c.width / r.width);
-    const s = Math.max(0, Math.floor(view.off + x * view.spp));
+    const s = clamp(Math.floor(view.off + x * view.spp), 0, cap.samples.length - 1);
+    if (!alt && !shift) {
+      // Plain click: set the relative-time zero here, second click clears it.
+      zeroSample = zeroSample == null ? s : null;
+      drawDetail();
+      drawOverview();
+      return;
+    }
     const snapped = snapEdge(s);
     if (alt) { curA = snapped.sample; curASnapped = snapped.snapped; }
     if (shift) { curB = snapped.sample; curBSnapped = snapped.snapped; }
@@ -1276,7 +1318,13 @@ try {
       else if (presence) slotTxt = "slave presence response · " + ((presence.presLen / cap.samplerate) * 1e6).toFixed(1) + " us";
     }
     const tip = $("tip");
-    tip.textContent = "t=" + ((s / cap.samplerate) * 1e6).toFixed(1) + " us · " +
+    const absUs = (s / cap.samplerate) * 1e6;
+    let timeTxt = "t=" + absUs.toFixed(1) + " us";
+    if (zeroSample != null) {
+      const relUs = ((s - zeroSample) / cap.samplerate) * 1e6;
+      timeTxt += " · rel " + formatRelative(relUs, Math.abs(relUs) < 1e6, true);
+    }
+    tip.textContent = timeTxt + " · " +
       (v ? "HIGH" : "LOW") + " " + wUs.toFixed(1) + " us\n" + slotTxt;
     tip.style.display = "block";
     // Measure, then keep the whole tooltip inside the detail card.

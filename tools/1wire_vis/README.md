@@ -57,8 +57,9 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   RESET (red) and PRESENCE (green) are annotated separately on the byte row,
   shortening to `R`/`P` as the pulses narrow and disappearing at overview
   zoom. Byte boundaries get thin vertical dividers while the bytes remain wide
-  enough to read. The selected transaction line also reports the measured
-  widths.
+  enough to read. A plain click sets a relative-time zero (marked on the plot,
+  ruler re-anchors to it); a second click clears it. The selected transaction
+  line also reports the measured widths.
 - **CRC verdict** — DS18B20 scratchpad CRC-8 and DS2431 Read Scratchpad
   inverted CRC-16 bytes are highlighted green/red; the expanded transaction
   tree reports the algorithm and verdict.
