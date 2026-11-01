@@ -489,12 +489,12 @@ function annotateRoles(txn) {
 
   const romCommand = b[0].value;
   if (romCommand === 0xf0 || romCommand === 0xec) {
-    set(0, 8, "master-write", "ROM command");
+    set(0, 8, "master-tx", "ROM command");
     for (let i = 0; i < 64; i++) {
       const start = 8 + i * 3;
       for (let p = 0; p < 3 && start + p < txn.bits.length; p++) {
         const slot = txn.bits[start + p];
-        slot.role = p < 2 ? "slave-read" : "master-write";
+        slot.role = p < 2 ? "slave-tx" : "master-tx";
         slot.phase = p === 0 ? "Search ROM · ID" : p === 1 ? "Search ROM · complement" : "Search ROM · direction";
         slot.byteIndex = (i / 8) | 0;
         slot.bitIndex = i & 7;
@@ -505,13 +505,13 @@ function annotateRoles(txn) {
   }
 
   if (romCommand === 0x55) {
-    set(0, 8, "master-write", "ROM command");
-    set(8, 72, "master-write", "Match ROM address");
+    set(0, 8, "master-tx", "ROM command");
+    set(8, 72, "master-tx", "Match ROM address");
   } else if (romCommand === 0xcc) {
-    set(0, 8, "master-write", "ROM command");
+    set(0, 8, "master-tx", "ROM command");
   } else {
     // Raw/single-device transaction: first byte is a master command.
-    set(0, 8, "master-write", "command");
+    set(0, 8, "master-tx", "command");
     return;
   }
 
@@ -519,30 +519,30 @@ function annotateRoles(txn) {
   const fnOffset = romCommand === 0x55 ? 72 : 8;
   const fn = byteValue(fnOffset);
   if (fn == null) return;
-  set(fnOffset, fnOffset + 8, "master-write", "function command");
+  set(fnOffset, fnOffset + 8, "master-tx", "function command");
   const dataStart = fnOffset + 8;
 
   if (family === 0x28) { // DS18B20
-    if (fn === 0xbe) set(dataStart, txn.bits.length, "slave-read", "DS18B20 scratchpad reply");
-    else if (fn === 0xb4) set(dataStart, dataStart + 1, "slave-read", "Read Power Supply reply");
-    else if (fn === 0x4e) set(dataStart, txn.bits.length, "master-write", "DS18B20 scratchpad payload");
+    if (fn === 0xbe) set(dataStart, txn.bits.length, "slave-tx", "DS18B20 scratchpad reply");
+    else if (fn === 0xb4) set(dataStart, dataStart + 1, "slave-tx", "Read Power Supply reply");
+    else if (fn === 0x4e) set(dataStart, txn.bits.length, "master-tx", "DS18B20 scratchpad payload");
   } else if (family === 0x2d) { // DS2431
     if (fn === 0xf0) {
-      set(dataStart, dataStart + 16, "master-write", "DS2431 address");
-      set(dataStart + 16, txn.bits.length, "slave-read", "DS2431 memory data");
-    } else if (fn === 0x0f) set(dataStart, txn.bits.length, "master-write", "DS2431 scratchpad payload");
-    else if (fn === 0xaa) set(dataStart, txn.bits.length, "slave-read", "DS2431 scratchpad reply");
+      set(dataStart, dataStart + 16, "master-tx", "DS2431 address");
+      set(dataStart + 16, txn.bits.length, "slave-tx", "DS2431 memory data");
+    } else if (fn === 0x0f) set(dataStart, txn.bits.length, "master-tx", "DS2431 scratchpad payload");
+    else if (fn === 0xaa) set(dataStart, txn.bits.length, "slave-tx", "DS2431 scratchpad reply");
     else if (fn === 0x55) {
       // Copy Scratchpad: TA1/TA2/ES are still driven by the master; after the
       // tPROG hold-off the device answers with one completion byte (AA/FF).
-      set(dataStart, dataStart + 24, "master-write", "DS2431 copy address");
-      set(dataStart + 24, txn.bits.length, "slave-read", "DS2431 copy completion");
+      set(dataStart, dataStart + 24, "master-tx", "DS2431 copy address");
+      set(dataStart + 24, txn.bits.length, "slave-tx", "DS2431 copy completion");
     }
   } else if (family === 0x3a) { // DS2413
-    if (fn === 0xf5) set(dataStart, txn.bits.length, "slave-read", "DS2413 PIO reply");
+    if (fn === 0xf5) set(dataStart, txn.bits.length, "slave-tx", "DS2413 PIO reply");
     else if (fn === 0x5a) {
-      set(dataStart, Math.min(dataStart + 16, txn.bits.length), "master-write", "DS2413 PIO data/complement");
-      set(dataStart + 16, txn.bits.length, "slave-read", "DS2413 acknowledgement");
+      set(dataStart, Math.min(dataStart + 16, txn.bits.length), "master-tx", "DS2413 PIO data/complement");
+      set(dataStart + 16, txn.bits.length, "slave-tx", "DS2413 acknowledgement");
     }
   } else if (romCommand === 0xcc) { // broadcast: family is not encoded
     const info = OWVis.broadcastInfo(fn);
@@ -645,17 +645,17 @@ OWVis.functionName = function (family, command) {
  * silently assuming DS18B20.
  */
 OWVis.BROADCAST = {
-  0x44: { name: "Convert T", family: "DS18B20", role: "master-write" },
-  0xbe: { name: "Read Scratchpad", family: "DS18B20", role: "slave-read" },
-  0x4e: { name: "Write Scratchpad", family: "DS18B20", role: "master-write" },
-  0xb4: { name: "Read Power Supply", family: "DS18B20", role: "slave-read" },
+  0x44: { name: "Convert T", family: "DS18B20", role: "master-tx" },
+  0xbe: { name: "Read Scratchpad", family: "DS18B20", role: "slave-tx" },
+  0x4e: { name: "Write Scratchpad", family: "DS18B20", role: "master-tx" },
+  0xb4: { name: "Read Power Supply", family: "DS18B20", role: "slave-tx" },
   0x48: { name: "Copy Scratchpad", family: "DS18B20", role: "unknown" },
-  0x0f: { name: "Write Scratchpad", family: "DS2431", role: "master-write" },
-  0xaa: { name: "Read Scratchpad", family: "DS2431", role: "slave-read" },
+  0x0f: { name: "Write Scratchpad", family: "DS2431", role: "master-tx" },
+  0xaa: { name: "Read Scratchpad", family: "DS2431", role: "slave-tx" },
   0x55: { name: "Copy Scratchpad", family: "DS2431", role: "unknown" },
-  0xf0: { name: "Read Memory", family: "DS2431", role: "slave-read" },
-  0xf5: { name: "PIO Access Read", family: "DS2413", role: "slave-read" },
-  0x5a: { name: "PIO Access Write", family: "DS2413", role: "master-write" },
+  0xf0: { name: "Read Memory", family: "DS2431", role: "slave-tx" },
+  0xf5: { name: "PIO Access Read", family: "DS2413", role: "slave-tx" },
+  0x5a: { name: "PIO Access Write", family: "DS2413", role: "master-tx" },
 };
 
 OWVis.broadcastInfo = function (command) {

@@ -51,8 +51,8 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
 - **Detail** — adaptive relative-time ruler (zero at the left edge, µs for
   sub-second spans; hover reports absolute capture time and pulse width), and
   the nearest slot's bit/role/phase with its low and slot widths; color can
-  encode bit value or bus ownership. Role mode
-  distinguishes master writes, slave reads, Search ROM responses and the
+  encode bit value or bus ownership. Role mode distinguishes
+  master→slave, slave→master, Search ROM slave ID/complement and the
   master's Search-ROM direction slot. Presence and reset have measured spans;
   RESET (red) and PRESENCE (green) are annotated separately on the byte row,
   shortening to `R`/`P` as the pulses narrow and disappearing at overview
@@ -91,7 +91,7 @@ check plus a summary. It covers:
 - 36 transactions, 6152 slots, 8 unique ROMs, 7× DS18B20 + 1× DS2431;
 - two 8-pass Search ROM scans, both enumerating the same 8 devices;
 - CRC-8 and DS2431 inverted CRC-16 vectors, plus checks against real frames;
-- DS2431 Copy Scratchpad roles (TA1/TA2/ES master-write, `AA` slave-read);
+- DS2431 Copy Scratchpad roles (TA1/TA2/ES master→slave, `AA` slave→master);
 - positive final-slot spans at 1 MHz and 2 MHz (median-pitch estimate);
 - overdrive decode at 1 MHz and 2 MHz, auto-detection and channel D3;
 - broadcast Skip ROM labels/roles for DS2431 and the DS18B20 Convert T;
@@ -120,9 +120,9 @@ check plus a summary. It covers:
 - One slot span per decoded slot: end = next slot start, capped at 500 µs so
   a host idle gap is never shaded as a slot. The final slot of a transaction
   uses the median start-to-start pitch of the preceding slots.
-- Role annotation follows the ROM/function-command state: master command and
-  address/data slots, slave reply slots, and the 3-slot Search ROM
-  ID/complement/direction triplets. Broadcast Skip ROM commands are labelled
+- Role annotation follows the ROM/function-command state: master→slave
+  command/address/data slots, slave→master reply slots, and the 3-slot Search
+  ROM ID/complement/direction triplets. Broadcast Skip ROM commands are labelled
   with their family (the frame itself does not encode it), and unknown or
   truncated traffic stays marked unknown rather than being guessed.
 

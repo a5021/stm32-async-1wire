@@ -235,6 +235,8 @@ try {
   const pal = () => THEMES[theme];
 
   const hex = (v) => v.toString(16).padStart(2, "0").toUpperCase();
+  const roleText = (role) => role === "master-tx" ? "master → slave"
+    : role === "slave-tx" ? "slave → master" : (role || "unknown");
 
   function formatTime(us) {
     if (us >= 1e6) return (us / 1e6).toFixed(3) + " s";
@@ -456,9 +458,9 @@ try {
     const slotLookback = Math.round(OWVis.SLOT_MAX_US * cap.samplerate / 1e6);
     const roleColor = (slot) => {
       if (slot.phase.indexOf("direction") >= 0) return P.roleDirection;
-      if (slot.role === "master-write") return P.roleMaster;
-      if (slot.role === "slave-read" && slot.phase.indexOf("Search ROM") >= 0) return P.roleSearch;
-      if (slot.role === "slave-read") return P.roleSlave;
+      if (slot.role === "master-tx") return P.roleMaster;
+      if (slot.role === "slave-tx" && slot.phase.indexOf("Search ROM") >= 0) return P.roleSearch;
+      if (slot.role === "slave-tx") return P.roleSlave;
       return P.roleUnknown;
     };
     const shadeBit = (t0s, t1s, slot) => {
@@ -777,7 +779,7 @@ try {
         if (last && last.phase === slot.phase && last.role === slot.role) last.count++;
         else runs.push({ phase: slot.phase, role: slot.role, count: 1 });
       }
-      runs.forEach((r) => stages.push(r.phase + " · " + r.role + " · " + r.count + " slots"));
+      runs.forEach((r) => stages.push(r.phase + " · " + roleText(r.role) + " · " + r.count + " slots"));
       if (d.crc && !d.crc.partial) stages.push((d.crc.algorithm || "Scratchpad CRC") + " · " + (d.crc.ok ? "OK" : "FAIL"));
     } else if (d.kind === "skip") {
       stages.push("ROM command · 0xCC · Skip ROM");
@@ -789,7 +791,7 @@ try {
         if (last && last.phase === slot.phase && last.role === slot.role) last.count++;
         else runs.push({ phase: slot.phase, role: slot.role, count: 1 });
       }
-      runs.forEach((r) => stages.push(r.phase + " · " + r.role + " · " + r.count + " slots"));
+      runs.forEach((r) => stages.push(r.phase + " · " + roleText(r.role) + " · " + r.count + " slots"));
       if (d.crc && !d.crc.partial) stages.push((d.crc.algorithm || "Scratchpad CRC") + " · " + (d.crc.ok ? "OK" : "FAIL"));
     } else {
       stages.push("Raw bytes · " + b.map((x) => hex(x.value)).join(" "));
@@ -1088,9 +1090,9 @@ try {
   $("colorMode").addEventListener("change", () => {
     const legend = $("slotLegend");
     if ($("colorMode").value === "role") {
-      legend.innerHTML = '<span class="sw" style="background:#2563EB"></span>master write ' +
-        '<span class="sw" style="background:#15803D"></span>slave read ' +
-        '<span class="sw" style="background:#7C3AED"></span>search response ' +
+      legend.innerHTML = '<span class="sw" style="background:#2563EB"></span>master → slave ' +
+        '<span class="sw" style="background:#15803D"></span>slave → master ' +
+        '<span class="sw" style="background:#7C3AED"></span>slave ID/complement ' +
         '<span class="sw" style="background:#B45309"></span>master direction';
     } else {
       legend.innerHTML = '<span class="sw" style="background:#2E7DE1"></span>bit 0 ' +
@@ -1254,7 +1256,7 @@ try {
       const slot = near.slot;
       const lowUs = (slot.lowLen / cap.samplerate) * 1e6;
       const slotUs = ((slot.endT - slot.t) / cap.samplerate) * 1e6;
-      slotTxt = "T" + (near.ti + 1) + " · " + (slot.role || "unknown") +
+      slotTxt = "T" + (near.ti + 1) + " · " + roleText(slot.role) +
         (slot.phase ? " · " + slot.phase : "") + " · bit " + slot.bit +
         " · low " + lowUs.toFixed(1) + "/slot " + slotUs.toFixed(1) + " us";
     } else {

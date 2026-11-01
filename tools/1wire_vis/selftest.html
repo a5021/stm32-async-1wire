@@ -234,9 +234,9 @@
     const t10hex = interp[9].bytes.map((b) => hex(b.value)).join(" ");
     eq("T10 bytes", t10hex, "55 2D 33 A9 6D 01 00 00 05 55 20 00 07 AA");
     const roleBad = [];
-    for (let i = 72; i < 104; i++) if (t10.bits[i].role !== "master-write") roleBad.push(i);
-    for (let i = 104; i < 112; i++) if (t10.bits[i].role !== "slave-read") roleBad.push(i);
-    check("T10: TA1/TA2/ES master-write, AA slave-read", roleBad.length === 0,
+    for (let i = 72; i < 104; i++) if (t10.bits[i].role !== "master-tx") roleBad.push(i);
+    for (let i = 104; i < 112; i++) if (t10.bits[i].role !== "slave-tx") roleBad.push(i);
+    check("T10: TA1/TA2/ES master→slave, AA slave→master", roleBad.length === 0,
       roleBad.length ? "wrong role at bits " + roleBad.join(",") : "bits 72-103 write, 104-111 read");
     eq("T10: three address bytes plus one status byte",
       interp[9].bytes.length, 14);
@@ -323,8 +323,8 @@
     check("Skip ROM: DS2431 Write Scratchpad is labelled",
       skipWrite.note.indexOf("Write Scratchpad") >= 0 && skipWrite.note.indexOf("DS2431") >= 0,
       skipWrite.note);
-    check("Skip ROM: Write Scratchpad payload is master-write",
-      skipWriteTxn.bits.slice(16).every((s) => s.role === "master-write"),
+    check("Skip ROM: Write Scratchpad payload is master→slave",
+      skipWriteTxn.bits.slice(16).every((s) => s.role === "master-tx"),
       skipWriteTxn.bits.slice(16).map((s) => s.role).join(","));
 
     const skipReadBytes = [0xcc, 0xaa, 0x20, 0x00, 0x07, 0x28, 0xfc, 0xae,
@@ -334,8 +334,8 @@
     check("Skip ROM: DS2431 Read Scratchpad is labelled",
       skipRead.note.indexOf("Read Scratchpad") >= 0 && skipRead.note.indexOf("DS2431") >= 0,
       skipRead.note);
-    check("Skip ROM: Read Scratchpad reply is slave-read",
-      skipReadTxn.bits.slice(16).every((s) => s.role === "slave-read"),
+    check("Skip ROM: Read Scratchpad reply is slave→master",
+      skipReadTxn.bits.slice(16).every((s) => s.role === "slave-tx"),
       skipReadTxn.bits.slice(16).map((s) => s.role).join(","));
     check("Skip ROM: DS2431 CRC-16 is still verified",
       !!(skipRead.crc && skipRead.crc.algorithm === "CRC-16" && skipRead.crc.ok),
@@ -346,8 +346,8 @@
     check("Skip ROM: DS2431 Read Memory is labelled",
       skipMem.note.indexOf("Read Memory") >= 0 && skipMem.note.indexOf("DS2431") >= 0,
       skipMem.note);
-    check("Skip ROM: Read Memory reply is slave-read",
-      skipMemTxn.bits.slice(16).every((s) => s.role === "slave-read"),
+    check("Skip ROM: Read Memory reply is slave→master",
+      skipMemTxn.bits.slice(16).every((s) => s.role === "slave-tx"),
       skipMemTxn.bits.slice(16).map((s) => s.role).join(","));
 
     const skipUnknownTxn = mkTxn([0xcc, 0x99, 0x12]);
@@ -378,13 +378,13 @@
       pioRead.kind === "match" && pioRead.romCrcOk &&
       pioRead.note.indexOf("DS2413") >= 0 && pioRead.note.indexOf("PIO Access Read") >= 0,
       pioRead.note);
-    check("DS2413 PIO read reply is slave-read",
-      pioReadTxn.bits.slice(80).every((s) => s.role === "slave-read"),
+    check("DS2413 PIO read reply is slave→master",
+      pioReadTxn.bits.slice(80).every((s) => s.role === "slave-tx"),
       pioReadTxn.bits.slice(80).map((s) => s.role).join(","));
     const pioWriteTxn = mkTxn([0x55].concat(pioRom, [0x5a, 0x00, 0xff, 0xaa]));
-    check("DS2413 PIO write: data master, ack slave",
-      pioWriteTxn.bits.slice(80, 96).every((s) => s.role === "master-write") &&
-      pioWriteTxn.bits.slice(96).every((s) => s.role === "slave-read"),
+    check("DS2413 PIO write: data master→slave, ack slave→master",
+      pioWriteTxn.bits.slice(80, 96).every((s) => s.role === "master-tx") &&
+      pioWriteTxn.bits.slice(96).every((s) => s.role === "slave-tx"),
       pioWriteTxn.bits.slice(80).map((s) => s.role).join(","));
 
     /* ---------- malformed / empty inputs ---------- */
