@@ -75,6 +75,8 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
   capture, `+`/`-` zoom; mouse wheel zooms around the pointer and drag pans.
   On touch screens one finger pans and two fingers pinch-zoom around the
   midpoint.
+- **Theme** — the Detail controls include a light/dark toggle; the choice is
+  remembered in `localStorage` when available.
 - **Transactions/transcript** — click a transaction to inspect; copy the
   sigrok-style transcript. Family codes include `0x28` DS18B20, `0x2D` DS2431,
   and `0x3A` DS2413.
