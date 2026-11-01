@@ -398,15 +398,19 @@
       shadeBit(slot.t, Math.max(slot.t + 1, slot.endT), slot);
     }
     // all visible resets (red band) + presence answers (green band, same height)
+    let resetNote = "";
     txns.forEach((tt, ii) => {
       if (tt.tReset == null) return;
       const rx = xOf(tt.tReset);
+      const resetW = Math.max(2, Math.round(tt.resetLowLen / spp));
       if (rx > -600 && rx < W + 100) {
         ctx.fillStyle = "rgba(220,38,38,.07)";
-        ctx.fillRect(rx, 8, Math.max(2, Math.round(tt.resetLowLen / spp)), 142);
-        if (ii === sel) {
-          ctx.fillStyle = "#DC2626";
-          ctx.fillText("RESET" + (tt.presence ? " +presence" : " no-presence"), rx + 4, 22);
+        ctx.fillRect(rx, 8, resetW, 142);
+        // The canvas label lives in the bottom annotation lane; drawing it at
+        // y=22 collided with the adaptive time ruler. Only claim the label
+        // when the selected reset band is actually on screen.
+        if (ii === sel && rx + resetW >= 0 && rx <= W) {
+          resetNote = "RESET" + (tt.presence ? " + presence" : ", no presence");
         }
       }
       if (tt.presence && tt.presLen > 0) {
@@ -443,6 +447,13 @@
         ctx.fillStyle = "#8A97AB";
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
+    }
+    // Bottom annotation lane, opposite the samples/px readout.
+    if (resetNote) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#DC2626";
+      ctx.fillRect(8, H - 15, 8, 8);
+      ctx.fillText(resetNote, 20, H - 7);
     }
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · " + t.bits.length + " slots · " +
