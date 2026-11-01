@@ -28,6 +28,8 @@
   body { margin:0; background:var(--bg); color:var(--txt);
          font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
   header { padding:20px 28px 8px; }
+  header .header-row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header .header-row #theme { margin-left:auto; }
   header h1 { margin:0; font-size:24px; font-weight:600; }
   header p { margin:6px 0 0; color:var(--dim); font-size:14px; }
   main { padding:12px 28px 40px; max-width:none; }
@@ -87,7 +89,10 @@ try {
 </head>
 <body>
 <header>
-  <h1>1-Wire Bus Visualizer</h1>
+  <div class="header-row">
+    <h1>1-Wire Bus Visualizer</h1>
+    <button id="theme" title="Toggle light/dark theme" aria-pressed="false">Dark theme</button>
+  </div>
   <p>Open a sigrok <span class="mono">.sr</span> capture (fx2lafw, DQ on D0–D7) — the browser decodes Search ROM / Match ROM / Convert T / EEPROM traffic. No upload, everything runs locally.</p>
 </header>
 <main>
@@ -112,7 +117,6 @@ try {
       <button id="demo">Load demo waveform</button>
       <button id="bundled">Load bundled F030 capture</button>
       <button id="copy" disabled>Copy transcript</button>
-      <button id="theme" title="Toggle light/dark theme" aria-pressed="false">Dark theme</button>
     </div>
     <div id="status">Waiting for a file… (or press “Load demo waveform”).</div>
   </div>
