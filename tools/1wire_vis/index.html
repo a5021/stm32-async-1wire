@@ -97,7 +97,8 @@
     <div class="legend"><b>Overview</b> — activity envelope, ticks = resets.
       <span class="sw" style="background:#DC2626"></span>no presence
       <span class="sw" style="background:#15803D"></span>presence
-      <span class="sw" style="background:#2563EB"></span>selected transaction (bracket) · box = Detail window</div>
+      <span class="sw" style="background:#2563EB"></span>selected transaction
+      <span class="sw" style="background:#BFD3F8"></span>Detail window</div>
     <canvas id="ov" width="1120" height="120"></canvas>
   </div>
 
@@ -264,41 +265,25 @@
       if (cap.env[x]) ctx.fillRect(x, hiY, 1, loY - hiY);
       else ctx.fillRect(x, hiY, 1, 1);
     }
-    // Selected transaction: a blue bracket over its envelope, not a bottom bar.
-    const st = sel >= 0 ? txns[sel] : null;
-    if (st && st.tReset != null) {
-      const sx0 = Math.max(0, Math.floor((st.tReset / n) * W));
-      const endBit = st.bits.length ? st.bits[st.bits.length - 1].t : st.tReset;
-      const sx1 = Math.min(W, Math.max(sx0 + 2, Math.floor((endBit / n) * W)));
-      ctx.fillStyle = "#2563EB";
-      ctx.fillRect(sx0, hiY - 4, sx1 - sx0, 2);
-      ctx.fillRect(sx0, hiY - 4, 1, 7);
-      ctx.fillRect(sx1 - 1, hiY - 4, 1, 7);
-      ctx.beginPath();
-      ctx.moveTo(sx0 - 3, 10);
-      ctx.lineTo(sx0 + 3, 10);
-      ctx.lineTo(sx0, 14);
-      ctx.closePath();
-      ctx.fill();
-    }
-    // Detail viewport: a box with handles while zoomed; full capture needs none.
+    // Detail viewport: a lighter tone of the same blue, without a frame.
     const dw = $("detail").width;
     if (dw > 0 && view.spp > 0) {
       const vx0 = Math.max(0, Math.floor((view.off / n) * W));
       const vx1 = Math.min(W, Math.ceil(((view.off + dw * view.spp) / n) * W));
       const vw = Math.max(2, vx1 - vx0);
       if (vw < W - 2) {
-        ctx.fillStyle = "rgba(37,99,235,.05)";
-        ctx.fillRect(vx0, 16, vw, 80);
-        ctx.strokeStyle = "#2563EB";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(vx0 + 0.5, 16.5, Math.max(1, vw - 1), 79);
-        ctx.fillStyle = "#2563EB";
-        ctx.fillRect(vx0 - 2, 14, 5, 4);
-        ctx.fillRect(vx1 - 3, 14, 5, 4);
-        ctx.fillRect(vx0 - 2, 94, 5, 4);
-        ctx.fillRect(vx1 - 3, 94, 5, 4);
+        ctx.fillStyle = "rgba(37,99,235,.10)";
+        ctx.fillRect(vx0, hiY, vw, loY - hiY);
       }
+    }
+    // Selected transaction: a darker tone of the same blue over its block.
+    const st = sel >= 0 ? txns[sel] : null;
+    if (st && st.tReset != null) {
+      const sx0 = Math.max(0, Math.floor((st.tReset / n) * W));
+      const endBit = st.bits.length ? st.bits[st.bits.length - 1].t : st.tReset;
+      const sx1 = Math.min(W, Math.max(sx0 + 2, Math.floor((endBit / n) * W)));
+      ctx.fillStyle = "rgba(37,99,235,.24)";
+      ctx.fillRect(sx0, hiY, sx1 - sx0, loY - hiY);
     }
     // Reset ticks sit on top of the activity.
     txns.forEach((t) => {
@@ -322,10 +307,8 @@
       const xa = Math.floor(Math.min(ovDrag.x0, ovDrag.x) * k);
       const xb = Math.floor(Math.max(ovDrag.x0, ovDrag.x) * k);
       const bw = Math.max(2, xb - xa);
-      ctx.fillStyle = "rgba(37,99,235,.14)";
-      ctx.fillRect(xa, 14, bw, 84);
-      ctx.strokeStyle = "#2563EB";
-      ctx.strokeRect(xa + 0.5, 14.5, Math.max(1, bw - 1), 82);
+      ctx.fillStyle = "rgba(37,99,235,.20)";
+      ctx.fillRect(xa, hiY, bw, loY - hiY);
     }
   }
 
@@ -1341,6 +1324,16 @@
     view.off = s0;
     clampView();
     syncZoom();
+    // Keep the selection inside the new window instead of leaving the old
+    // transaction tinted somewhere else on the overview.
+    const center = Math.round((s0 + s1) / 2);
+    let best = 0, bd = Infinity;
+    txns.forEach((t, i) => {
+      const tt = t.tReset != null ? t.tReset : (t.bits.length ? t.bits[0].t : 0);
+      const d = Math.abs(tt - center);
+      if (d < bd) { bd = d; best = i; }
+    });
+    sel = best;
     renderTable();
     drawOverview();
     drawDetail();
