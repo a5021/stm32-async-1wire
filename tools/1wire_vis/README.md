@@ -47,10 +47,10 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
 - **Overview** — whole-capture envelope with reset ticks (red = reset,
   green = presence), selected transaction and the detail viewport
   frame. Drag a range to zoom/pan Detail to that exact capture interval.
-- **Detail** — adaptive relative-time ruler (zero at the left edge; hover reports
-  absolute capture time), measured pulse width, and the nearest slot's
-  bit/role/phase with its low and slot widths; color can encode bit value or
-  bus ownership. Role mode
+- **Detail** — adaptive relative-time ruler (zero at the left edge, µs for
+  sub-second spans; hover reports absolute capture time and pulse width), and
+  the nearest slot's bit/role/phase with its low and slot widths; color can
+  encode bit value or bus ownership. Role mode
   distinguishes master writes, slave reads, Search ROM responses and the
   master's Search-ROM direction slot. Presence and reset have measured spans;
   RESET (red) and PRESENCE (green) are annotated separately on the byte row,

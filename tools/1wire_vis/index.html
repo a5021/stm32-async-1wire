@@ -102,7 +102,7 @@
   </div>
 
   <div class="card" style="position:relative">
-    <div class="legend"><b>Detail</b> — time ruler is relative to the left edge; hover shows absolute capture time and decoded slot role.
+    <div class="legend"><b>Detail</b> — time ruler is relative to the left edge (µs below 1 s); hover shows absolute capture time and decoded slot role.
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
@@ -311,8 +311,10 @@
     const spp = view.spp; // samples per pixel
     const colorMode = $("colorMode").value;
     const xOf = (s) => Math.floor((s - view.off) / spp);
-    // Adaptive time ruler: 1-2-5 intervals, about 90 px apart.
-    const targetUs = 90 * usPerSample * spp;
+    // Adaptive time ruler: 1-2-5 intervals. Below one second the detail
+    // ruler is labelled in microseconds, so pulse work never reads in ms/s.
+    const spanUs = W * spp * usPerSample;
+    const targetUs = 70 * usPerSample * spp;
     const exp = Math.pow(10, Math.floor(Math.log10(Math.max(targetUs, 1e-9))));
     const nice = [1, 2, 5, 10].map((x) => x * exp).find((x) => x >= targetUs) || 10 * exp;
     const gridStep = Math.max(1, Math.round(nice / usPerSample));
@@ -327,8 +329,12 @@
       ctx.moveTo(x, plotTop);
       ctx.lineTo(x, plotBot);
       const us = ((s - view.off) / cap.samplerate) * 1e6;
+      let label;
+      if (us === 0) label = "0";
+      else if (spanUs < 1e6) label = Math.round(us) + " µs";
+      else label = formatTime(us);
       ctx.fillStyle = "#68778F";
-      ctx.fillText(us === 0 ? "0" : formatTime(us), x + 3, 20);
+      ctx.fillText(label, x + 3, 20);
     }
     ctx.stroke();
     ctx.fillStyle = "#8A97AB";
