@@ -102,7 +102,7 @@
   </div>
 
   <div class="card" style="position:relative">
-    <div class="legend"><b>Detail</b> — time ruler uses capture time; hover shows pulse width and decoded slot role.
+    <div class="legend"><b>Detail</b> — time ruler is relative to the left edge; hover shows absolute capture time and decoded slot role.
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
@@ -316,7 +316,7 @@
     const exp = Math.pow(10, Math.floor(Math.log10(Math.max(targetUs, 1e-9))));
     const nice = [1, 2, 5, 10].map((x) => x * exp).find((x) => x >= targetUs) || 10 * exp;
     const gridStep = Math.max(1, Math.round(nice / usPerSample));
-    const firstGrid = Math.ceil(view.off / gridStep) * gridStep;
+    const firstGrid = view.off;
     ctx.font = "10px Consolas,monospace";
     ctx.lineWidth = 1;
     ctx.textAlign = "left";
@@ -326,9 +326,9 @@
       ctx.strokeStyle = "#E8EDF4";
       ctx.moveTo(x, plotTop);
       ctx.lineTo(x, plotBot);
-      const us = (s / cap.samplerate) * 1e6;
+      const us = ((s - view.off) / cap.samplerate) * 1e6;
       ctx.fillStyle = "#68778F";
-      ctx.fillText(formatTime(us), x + 3, 20);
+      ctx.fillText(us === 0 ? "0" : formatTime(us), x + 3, 20);
     }
     ctx.stroke();
     ctx.fillStyle = "#8A97AB";
@@ -441,16 +441,16 @@
     }
     // Byte boundaries: thin dividers only while a byte is wide enough to
     // read, so dense overviews do not turn into a gray grid.
-    ctx.strokeStyle = "rgba(26,35,51,.15)";
+    ctx.strokeStyle = "rgba(51,65,85,.55)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let k = blo; k < byteIndex.length && byteIndex[k].byte.t0 <= visibleEnd; k++) {
       const bb = byteIndex[k].byte;
       const bw = (bb.t1 - bb.t0) / spp;
-      if (bw < 10) continue;
+      if (bw < 8) continue;
       const x = Math.floor((bb.t0 - view.off) / spp) + 0.5;
       if (x < -1 || x > W + 1) continue;
-      ctx.moveTo(x, plotTop);
+      ctx.moveTo(x, plotTop - 2);
       ctx.lineTo(x, plotBot);
     }
     ctx.stroke();
