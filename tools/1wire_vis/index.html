@@ -398,18 +398,20 @@
       shadeBit(slot.t, Math.max(slot.t + 1, slot.endT), slot);
     }
     // all visible resets (red band) + presence answers (green band, same height)
-    const resetLabels = [];
+    const rowMarks = [];
     txns.forEach((tt) => {
       if (tt.tReset == null) return;
       const rx = xOf(tt.tReset);
       const resetW = Math.max(2, Math.round(tt.resetLowLen / spp));
+      const firstByteX = tt.bits.length ? xOf(tt.bits[0].t) - 8 : W;
       if (rx > -600 && rx < W + 100) {
         ctx.fillStyle = "rgba(220,38,38,.07)";
         ctx.fillRect(rx, 8, resetW, 142);
         if (rx + resetW >= 0 && rx <= W) {
-          resetLabels.push({
-            x: rx,
-            presence: !!tt.presence,
+          const presenceStart = tt.presence && tt.presLen > 0 ? xOf(tt.presT) : firstByteX;
+          rowMarks.push({
+            x: rx, avail: presenceStart - rx - 3,
+            full: "RESET", short: "R", color: "#DC2626",
           });
         }
       }
@@ -418,6 +420,12 @@
         if (px1 >= -40 && px0 <= W + 40) {
           ctx.fillStyle = "rgba(21,128,61,.16)";
           ctx.fillRect(Math.max(0, px0), 8, Math.min(W, px1) - Math.max(0, px0), 142);
+          if (px0 <= W) {
+            rowMarks.push({
+              x: px0, avail: firstByteX - px0 - 3,
+              full: "PRESENCE", short: "P", color: "#15803D",
+            });
+          }
         }
       }
     });
@@ -448,41 +456,30 @@
         if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
-    // Reset/presence annotation uses the same small mono style as byte
-    // mnemonics: RESET in red, presence in green. Show the whole set only
-    // when every visible reset label fits; otherwise the red/green bands are
-    // the annotation, just as narrow bytes lose their mnemonic.
-    if (resetLabels.length) {
+    // RESET and PRESENCE share the byte-annotation row, each under its own
+    // pulse. Full words only when both fit; otherwise use R/P and let the
+    // narrower presence label drop out when even P no longer fits.
+    if (rowMarks.length) {
+      ctx.font = "10px Consolas,monospace";
       ctx.textAlign = "left";
-      ctx.font = "10px Consolas,monospace";
-      const layout = [];
-      let lastRight = -Infinity;
-      for (const item of resetLabels) {
-        const parts = [
-          { text: "RESET", color: "#DC2626" },
-          { text: " + ", color: "#8A97AB" },
-          { text: item.presence ? "presence" : "no presence",
-            color: item.presence ? "#15803D" : "#8A97AB" },
-        ];
-        const tw = parts.reduce((w, p) => w + ctx.measureText(p.text).width, 0);
-        let lx = item.x + 4;
-        if (lx + tw > W - 6) lx = item.x - tw - 4;
-        lx = clamp(lx, 6, Math.max(6, W - tw - 6));
-        if (lx < lastRight + 8) { layout.length = 0; break; }
-        layout.push({ parts, lx });
-        lastRight = lx + tw;
-      }
-      if (layout.length === resetLabels.length) {
-        layout.forEach(({ parts, lx }) => {
-          let px = lx;
-          parts.forEach((p) => {
-            ctx.fillStyle = p.color;
-            ctx.fillText(p.text, px, 172);
-            px += ctx.measureText(p.text).width;
-          });
-        });
-      }
-      ctx.font = "10px Consolas,monospace";
+      const marks = [];
+      let fullTier = true;
+      rowMarks.forEach((m) => {
+        let x = m.x + 2;
+        let avail = m.avail;
+        if (x < 6) { avail -= 6 - x; x = 6; }
+        avail = Math.min(avail, W - 4 - x);
+        const fullW = ctx.measureText(m.full).width;
+        const shortW = ctx.measureText(m.short).width;
+        marks.push({ x, avail, fullW, shortW, full: m.full, short: m.short, color: m.color });
+        if (fullW > avail) fullTier = false;
+      });
+      marks.forEach((m) => {
+        const text = fullTier ? m.full : (m.shortW <= m.avail ? m.short : null);
+        if (!text) return;
+        ctx.fillStyle = m.color;
+        ctx.fillText(text, m.x, 196);
+      });
     }
     const selBytes = OWVis.bytesOf(t.bits).length;
     let info = "T" + (sel + 1) + " · ";
