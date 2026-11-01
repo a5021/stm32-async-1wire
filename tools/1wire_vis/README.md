@@ -44,9 +44,10 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
 
 ## What it shows
 
-- **Overview** — whole-capture envelope with reset ticks (red = reset,
-  green = presence), selected transaction and the detail viewport
-  frame. Drag a range to zoom/pan Detail to that exact capture interval.
+- **Overview** — whole-capture activity envelope with reset ticks (red = no
+  presence, green = presence), a blue underline for the selected transaction
+  and a blue box for the Detail viewport when zoomed. Drag a range to zoom/pan
+  Detail to that exact capture interval.
 - **Detail** — adaptive relative-time ruler (zero at the left edge, µs for
   sub-second spans; hover reports absolute capture time and pulse width), and
   the nearest slot's bit/role/phase with its low and slot widths; color can

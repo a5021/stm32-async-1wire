@@ -94,10 +94,10 @@
   </div>
 
   <div class="card">
-    <div class="legend"><b>Overview</b> — full capture envelope, ticks = resets.
-      <span class="sw" style="background:#DC2626"></span>reset
+    <div class="legend"><b>Overview</b> — activity envelope, ticks = resets.
+      <span class="sw" style="background:#DC2626"></span>no presence
       <span class="sw" style="background:#15803D"></span>presence
-      <span class="sw" style="background:#2563EB"></span>selected transaction</div>
+      <span class="sw" style="background:#2563EB"></span>selected transaction · blue box = Detail window (when zoomed)</div>
     <canvas id="ov" width="1120" height="120"></canvas>
   </div>
 
@@ -241,16 +241,28 @@
     ctx.clearRect(0, 0, W, H);
     if (!cap) return;
     const n = cap.samples.length, ch = cap.channel;
-    const step = Math.max(1, Math.floor(n / W));
+    if (!n) return;
+    // Cache one activity flag per pixel column. Active columns (any low in
+    // the bucket) become a band; idle high stays a thin line. The old
+    // bar-height encoding filled most of the canvas and read as a solid block.
+    const key = W + ":" + ch + ":" + n;
+    if (!cap.env || cap.envKey !== key) {
+      const step = Math.max(1, Math.floor(n / W));
+      const env = new Uint8Array(W);
+      for (let x = 0; x < W; x++) {
+        const a = x * step, b = Math.min(n, a + step);
+        for (let i = a; i < b; i++) {
+          if (((cap.samples[i] >> ch) & 1) === 0) { env[x] = 1; break; }
+        }
+      }
+      cap.env = env;
+      cap.envKey = key;
+    }
+    const hiY = 28, loY = 94;
     ctx.fillStyle = "#BDD2F5";
     for (let x = 0; x < W; x++) {
-      const a = x * step, b = Math.min(n, a + step);
-      let lo = 1;
-      for (let i = a; i < b; i += 4) {
-        if (((cap.samples[i] >> ch) & 1) === 0) { lo = 0; break; }
-      }
-      const h = lo ? H * 0.25 : H * 0.85;
-      ctx.fillRect(x, H - h, 1, h);
+      if (cap.env[x]) ctx.fillRect(x, hiY, 1, loY - hiY);
+      else ctx.fillRect(x, hiY, 1, 1);
     }
     // reset ticks + selection
     txns.forEach((t, i) => {
@@ -262,20 +274,31 @@
         const x0 = Math.floor((t.tReset / n) * W);
         const endBit = t.bits.length ? t.bits[t.bits.length - 1].t : t.tReset;
         const x1 = Math.floor((endBit / n) * W);
-        ctx.fillStyle = "rgba(37,99,235,.12)";
-        ctx.fillRect(x0, 0, Math.max(3, x1 - x0), H);
+        const sw = Math.max(3, x1 - x0);
+        ctx.fillStyle = "rgba(37,99,235,.06)";
+        ctx.fillRect(x0, 24, sw, H - 30);
+        ctx.fillStyle = "#2563EB";
+        ctx.fillRect(x0, H - 7, sw, 3);
       }
     });
-    // detail viewport frame (linked both ways)
+    // detail viewport frame (linked both ways); full-capture view needs none
     const dw = $("detail").width;
     if (dw > 0 && view.spp > 0) {
-      const vx0 = Math.floor((view.off / n) * W);
-      const vx1 = Math.floor(((view.off + dw * view.spp) / n) * W);
-      ctx.fillStyle = "rgba(37,99,235,.08)";
-      ctx.fillRect(vx0, 0, Math.max(2, vx1 - vx0), H);
-      ctx.strokeStyle = "#2563EB";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(vx0 + 0.5, 0.5, Math.max(2, vx1 - vx0), H - 1);
+      const vx0 = Math.max(0, Math.floor((view.off / n) * W));
+      const vx1 = Math.min(W, Math.floor(((view.off + dw * view.spp) / n) * W));
+      const vw = Math.max(2, vx1 - vx0);
+      if (vw < W - 2) {
+        ctx.fillStyle = "rgba(37,99,235,.06)";
+        ctx.fillRect(vx0, 14, vw, H - 16);
+        ctx.strokeStyle = "#2563EB";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(vx0 + 0.5, 12);
+        ctx.lineTo(vx0 + 0.5, H - 2);
+        ctx.moveTo(vx1 - 0.5, 12);
+        ctx.lineTo(vx1 - 0.5, H - 2);
+        ctx.stroke();
+      }
     }
     // rubber band while dragging a range (css px, scaled to backing store)
     if (ovDrag !== null) {
