@@ -37,7 +37,7 @@
 <div id="summary">Running…</div>
 <ol id="results"></ol>
 <footer>Golden values were captured from <span style="font-family:Consolas,monospace">captures/9_multi_f030_boot.sr</span>
-  (7× DS18B20 + 1× DS2431, 1 MHz, 4.0 M samples).</footer>
+  (7× DS18B20 + 1× DS2431, 8 MHz, 32.8 M samples, boot read/write excerpt).</footer>
 
 <script src="owvis.js"></script>
 <script src="bundled_sr.js"></script>
@@ -123,14 +123,14 @@
     const bin = atob(BUNDLED_SR_B64);
     const zipBytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) zipBytes[i] = bin.charCodeAt(i);
-    eq("bundled .sr size (bytes)", zipBytes.length, 11086);
+    eq("bundled .sr size (bytes)", zipBytes.length, 66506);
 
     const cap = await OWVis.parseSR(zipBytes.buffer, 0);
-    eq("bundled samplerate (Hz)", cap.samplerate, 1000000);
-    eq("bundled sample count", cap.samples.length, 4000000);
+    eq("bundled samplerate (Hz)", cap.samplerate, 8000000);
+    eq("bundled sample count", cap.samples.length, 32799999);
     eq("bundled unitsize", cap.unitsize, 1);
     eq("bundled probe count", cap.probes, 8);
-    eq("bundled samples FNV-1a", fnv32(cap.samples), 0x166703d3);
+    eq("bundled samples FNV-1a", fnv32(cap.samples), 0x6a634d61);
 
     /* ---------- decode pipeline ---------- */
     const ev = OWVis.decodeSlots(cap.samples, cap.samplerate, 0);
@@ -138,9 +138,9 @@
     const interp = txns.map((t) => OWVis.interpret(t));
     const groups = OWVis.groupTransactions(txns, interp);
 
-    eq("transaction count", txns.length, 36);
+    eq("transaction count", txns.length, 44);
     const slotCount = txns.reduce((n, t) => n + t.bits.length, 0);
-    eq("decoded slot count", slotCount, 6152);
+    eq("decoded slot count", slotCount, 7384);
     eq("all transactions have presence", txns.every((t) => t.presence === true), true);
     eq("all transactions start with a reset", txns.every((t) => t.tReset !== null), true);
 
@@ -156,7 +156,7 @@
       if (badSpan) break;
     }
     check("every slot span is positive and <= SLOT_MAX_US", !badSpan,
-      badSpan ? "t=" + badSpan.t + ", span=" + badSpan.spanUs.toFixed(1) + " us" : "6152 spans");
+      badSpan ? "t=" + badSpan.t + ", span=" + badSpan.spanUs.toFixed(1) + " us" : "7384 spans");
 
     // Regression: the final slot of T1 used T1's own reset as its end, which
     // produced a negative span (-26,075 us) before the pitch estimate was added.
@@ -204,14 +204,14 @@
       searchGroups.every((g) => g.indices.length === 8), true);
     eq("each search group enumerates all 8 ROMs",
       searchGroups.every((g) => new Set(g.roms.map((r) => romKey(r.rom))).size === 8), true);
-    eq("search groups start at T16 and T24",
-      searchGroups.map((g) => g.indices[0]).join(","), "15,23");
+    eq("search groups start at T1 and T9",
+      searchGroups.map((g) => g.indices[0]).join(","), "0,8");
     eq("two search passes cover the same 8 ROMs",
       new Set([...searchGroups[0].roms, ...searchGroups[1].roms].map((r) => romKey(r.rom))).size, 8);
 
-    const dsChain = groups.find((g) => g.indices.includes(7) && g.type === "device-chain");
-    check("T8-T15 form one DS2431 device chain", !!dsChain, dsChain ? "indices " + dsChain.indices[0] + ".." + dsChain.indices[7] : "missing");
-    eq("DS2431 chain length", dsChain ? dsChain.indices.length : 0, 8);
+    const dsChain = groups.find((g) => g.indices[0] === 16 && g.type === "device-chain");
+    check("T17-T20 form one DS2431 read chain", !!dsChain, dsChain ? "indices " + dsChain.indices[0] + ".." + dsChain.indices[3] : "missing");
+    eq("DS2431 read chain length", dsChain ? dsChain.indices.length : 0, 4);
 
     /* ---------- CRC vectors ---------- */
     eq("CRC-8 vector: DS18B20 ROM", OWVis.crc8([0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00]), 0x67);
@@ -220,26 +220,26 @@
     eq("CRC-16 vector: DS2431 Read Scratchpad payload", OWVis.crc16(t9Input), 0x6f6a);
     eq("CRC-16 vector: inverted on wire", (~OWVis.crc16(t9Input)) & 0xffff, 0x9095);
 
-    check("T1 Read Scratchpad CRC-8 verified",
-      !!(interp[0].crc && interp[0].crc.algorithm === "CRC-8" && interp[0].crc.ok),
-      interp[0].crc ? interp[0].crc.algorithm + " ok=" + interp[0].crc.ok : "no CRC");
-    check("T9 Read Scratchpad CRC-16 verified",
-      !!(interp[8].crc && interp[8].crc.algorithm === "CRC-16" && interp[8].crc.ok),
-      interp[8].crc ? interp[8].crc.algorithm + " ok=" + interp[8].crc.ok : "no CRC");
-    eq("T9 CRC-16 covers the two wire bytes",
-      interp[8].crc ? interp[8].crc.indices.join(",") : "", "21,22");
+    check("T22 Read Scratchpad CRC-8 verified",
+      !!(interp[21].crc && interp[21].crc.algorithm === "CRC-8" && interp[21].crc.ok),
+      interp[21].crc ? interp[21].crc.algorithm + " ok=" + interp[21].crc.ok : "no CRC");
+    check("T30 Read Scratchpad CRC-16 verified",
+      !!(interp[29].crc && interp[29].crc.algorithm === "CRC-16" && interp[29].crc.ok),
+      interp[29].crc ? interp[29].crc.algorithm + " ok=" + interp[29].crc.ok : "no CRC");
+    eq("T30 CRC-16 covers the two wire bytes",
+      interp[29].crc ? interp[29].crc.indices.join(",") : "", "21,22");
 
-    /* ---------- DS2431 Copy Scratchpad roles (T10) ---------- */
-    const t10 = txns[9];
-    const t10hex = interp[9].bytes.map((b) => hex(b.value)).join(" ");
-    eq("T10 bytes", t10hex, "55 2D 33 A9 6D 01 00 00 05 55 20 00 07 AA");
+    /* ---------- DS2431 Copy Scratchpad roles (T31) ---------- */
+    const tCopy = txns[30];
+    const tCopyHex = interp[30].bytes.map((b) => hex(b.value)).join(" ");
+    eq("T31 bytes", tCopyHex, "55 2D 33 A9 6D 01 00 00 05 55 20 00 07 AA");
     const roleBad = [];
-    for (let i = 72; i < 104; i++) if (t10.bits[i].role !== "master-tx") roleBad.push(i);
-    for (let i = 104; i < 112; i++) if (t10.bits[i].role !== "slave-tx") roleBad.push(i);
-    check("T10: TA1/TA2/ES master→slave, AA slave→master", roleBad.length === 0,
+    for (let i = 72; i < 104; i++) if (tCopy.bits[i].role !== "master-tx") roleBad.push(i);
+    for (let i = 104; i < 112; i++) if (tCopy.bits[i].role !== "slave-tx") roleBad.push(i);
+    check("T31: TA1/TA2/ES master→slave, AA slave→master", roleBad.length === 0,
       roleBad.length ? "wrong role at bits " + roleBad.join(",") : "bits 72-103 write, 104-111 read");
-    eq("T10: three address bytes plus one status byte",
-      interp[9].bytes.length, 14);
+    eq("T31: three address bytes plus one status byte",
+      interp[30].bytes.length, 14);
 
     /* ---------- raw note / phantom ROM guards ---------- */
     const filler = [{ value: 0xf0 }];
@@ -260,11 +260,11 @@
     /* ---------- transcript ---------- */
     const text = OWVis.transcript(txns);
     const lines = text.split("\n");
-    eq("transcript line count", lines.length, 36);
+    eq("transcript line count", lines.length, 44);
     check("transcript starts at T1 with presence",
       lines[0].startsWith("T1  Presence: true"), lines[0].slice(0, 40));
-    check("transcript marks T10 Copy Scratchpad",
-      lines[9].indexOf("Copy Scratchpad") >= 0, lines[9].slice(0, 80));
+    check("transcript marks T31 Copy Scratchpad",
+      lines[30].indexOf("Copy Scratchpad") >= 0, lines[30].slice(0, 80));
 
     /* ---------- synthetic demo ---------- */
     const demo = OWVis.genDemo();
@@ -357,9 +357,9 @@
     check("Skip ROM: unknown payload stays unknown",
       skipUnknownTxn.bits.slice(16).every((s) => s.role === "unknown"),
       skipUnknownTxn.bits.slice(16).map((s) => s.role).join(","));
-    check("bundled T36 broadcast is attributed to DS18B20",
-      interp[35].note.indexOf("Convert T") >= 0 && interp[35].note.indexOf("DS18B20") >= 0,
-      interp[35].note);
+    check("bundled T21 broadcast is attributed to DS18B20",
+      interp[20].note.indexOf("Convert T") >= 0 && interp[20].note.indexOf("DS18B20") >= 0,
+      interp[20].note);
 
     /* ---------- Alarm Search and DS2413 ---------- */
     const alarmRom = [0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00, 0x67];
@@ -469,9 +469,9 @@
     } finally {
       if (dsDesc2) Object.defineProperty(window, "DecompressionStream", dsDesc2);
     }
-    check("pure-JS inflate fallback parses the bundled 4.0 M-sample capture",
-      bundleFallbackRan ? (!!bundleFallback && bundleFallback.samples.length === 4000000 &&
-        fnv32(bundleFallback.samples) === 0x166703d3) : true,
+    check("pure-JS inflate fallback parses the bundled 32.8 M-sample capture",
+      bundleFallbackRan ? (!!bundleFallback && bundleFallback.samples.length === 32799999 &&
+        fnv32(bundleFallback.samples) === 0x6a634d61) : true,
       bundleFallbackRan ? (bundleFallbackErr ? String(bundleFallbackErr) : "fallback used")
         : "skipped: DecompressionStream is not replaceable");
 

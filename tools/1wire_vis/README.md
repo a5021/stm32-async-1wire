@@ -15,7 +15,7 @@ Open `index.html` in Chrome/Edge/Firefox/Safari, then either:
   `captures/` (also embedded in `bundled_sr.js`, so it works straight
   from `file://` with no server); or
 - pick any `.sr` file recorded with `tools/la_capture.py`
-  (fx2lafw, DQ on D0–D7, 1–2 MHz), choose the channel and inspect.
+  (fx2lafw, DQ on D0–D7, 1–8 MHz), choose the channel and inspect.
 
 **Bus speed** is next to the channel selector. `Auto` looks at the longest
 reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
@@ -24,23 +24,25 @@ mixing both speeds (a single profile cannot decode both at once).
 
 ## Bundled capture
 
-`captures/9_multi_f030_boot.sr` (1 MHz, 4.0 M samples, 11 KiB) —
-STM32F030 + `9_multi`, parasite power, 7× DS18B20 + 1× DS2431.
-Recorded from the first bus edge after an SWD reset, so it holds:
+`captures/9_multi_f030_boot.sr` (8 MHz, 32.8 M samples, 4.1 s, 65 KiB) —
+STM32F030 + `9_multi`, parasite power, 7× DS18B20 + 1× DS2431. This is the
+first boot excerpt after reflashing with `PEAK_RESET=1`, which forces both the
+EEPROM read and the write chains. It holds:
 
-- T1–T7: Match ROM + Read Scratchpad reads of the 7 DS18B20 sensors;
-- T8–T15: a peak write chain — ROM block `0x20` (scratchpad /
-  verify `ES=0x07` / copy `0xAA` / read-back) then record block `0x10`
-  (`#6 27.3 °C`, sensor 3); the read-back frames carry CRC-16 checks;
-- T16–T23 and T24–T31: two consecutive Search ROM scans, 8 passes each;
-  both scans enumerate all 8 devices (the DS2431 included);
-- T32–T35: four DS2431 Read Memory transactions at `0x10` / `0x18` /
-  `0x20` / `0x28` (record blocks);
-- T36: broadcast (Skip ROM) Convert T (`CC 44`).
+- T1–T8 and T9–T16: two Search ROM scans, 8 passes each; both enumerate all
+  8 devices;
+- T17–T20: DS2431 Read Memory of `0x10` / `0x18` / `0x20` / `0x28`;
+- T21–T28: broadcast Convert T (`CC 44`) and the 7 DS18B20 scratchpad reads;
+- T29–T44: four DS2431 write chains — ROM block `0x20`, peak record `0x10`,
+  ROM block `0x28`, low record `0x18`. Each chain is
+  `0F` Write Scratchpad → `AA` Read Scratchpad verify → `55` Copy →
+  `F0` read-back; the read-back frames carry CRC-16 checks.
 
-`captures/9_multi_f030_boot.txt` is the same 36 transactions as text
-(same shape as `tools/la_decode.py` output); the UART reference for
-this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
+The excerpt starts with a 10 µs idle-high lead-in, then the first reset. The
+full 30 s, 8 MHz, single-channel capture lives in `bench_logs/` (git-ignored).
+
+`captures/9_multi_f030_boot.txt` is the same 44 transactions as text (same
+shape as `tools/la_decode.py` output).
 
 ## What it shows
 
@@ -89,8 +91,8 @@ this run reported `peak: #6 27.3 C, sensor 3`, matching T8/T12/T15.
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
 check plus a summary. It covers:
 
-- bundle integrity (`.sr` size, sample count, FNV-1a of all 4.0 M samples);
-- 36 transactions, 6152 slots, 8 unique ROMs, 7× DS18B20 + 1× DS2431;
+- bundle integrity (`.sr` size, sample count, FNV-1a of all 32.8 M samples);
+- 44 transactions, 7384 slots, 8 unique ROMs, 7× DS18B20 + 1× DS2431;
 - two 8-pass Search ROM scans, both enumerating the same 8 devices;
 - CRC-8 and DS2431 inverted CRC-16 vectors, plus checks against real frames;
 - DS2431 Copy Scratchpad roles (TA1/TA2/ES master→slave, `AA` slave→master);
@@ -100,7 +102,7 @@ check plus a summary. It covers:
 - Alarm Search, DS2413 PIO read/write, truncated/empty/no-presence inputs;
 - pure-JS inflate on fixed/dynamic/stored DEFLATE blocks, a multi-entry
   `.sr` whose waveform crosses the `logic-1-1` / `logic-1-2` boundary, and
-  the full bundled 4.0 M-sample capture with `DecompressionStream` disabled;
+  the full bundled 32.8 M-sample capture with `DecompressionStream` disabled;
 - raw-note truncation, all-FF Search ROM filler guard, and the demo waveform.
 
 ## Decoder
