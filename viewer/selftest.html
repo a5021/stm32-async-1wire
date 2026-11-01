@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1-Wire visualizer self-test</title>
+<style>
+  :root { --bg:#F7F9FC; --panel:#FFFFFF; --line:#E3E8F0; --txt:#1A2333;
+          --dim:#5B6B85; --ok:#15803D; --bad:#DC2626; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 28px 48px; background:var(--bg); color:var(--txt);
+         font:14px/1.45 "Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  h1 { margin:0 0 6px; font-size:22px; font-weight:600; }
+  p.lead { margin:0 0 16px; color:var(--dim); }
+  #summary { display:inline-block; font-weight:600; padding:5px 12px; border-radius:6px;
+             border:1px solid var(--line); background:var(--panel); margin-bottom:14px; }
+  #summary.pass { color:var(--ok); border-color:#B7E1C5; background:#F0FBF3; }
+  #summary.fail { color:var(--bad); border-color:#F3C1C1; background:#FFF3F3; }
+  ol { list-style:none; margin:0; padding:0; max-width:1100px; }
+  li { display:flex; gap:10px; align-items:baseline; padding:5px 10px;
+       border-bottom:1px solid var(--line); background:var(--panel);
+       font-family:Consolas,"Courier New",monospace; font-size:12.5px; }
+  li:first-child { border-radius:6px 6px 0 0; }
+  li:last-child { border-radius:0 0 6px 6px; }
+  li .badge { flex:0 0 46px; font-weight:700; }
+  li.pass .badge { color:var(--ok); }
+  li.fail .badge { color:var(--bad); }
+  li.fail { background:#FFF7F7; }
+  li .detail { color:var(--dim); margin-left:auto; text-align:right; }
+  footer { margin-top:18px; color:#8A97AB; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>1-Wire visualizer self-test</h1>
+<p class="lead">Runs offline against the bundled F030 capture and synthetic waveforms.
+  Open this page directly from <span style="font-family:Consolas,monospace">file://</span>; no server or libraries.</p>
+<div id="summary">Running…</div>
+<ol id="results"></ol>
+<footer>Golden values were captured from <span style="font-family:Consolas,monospace">captures/9_multi_f030_boot.sr</span>
+  (7× DS18B20 + 1× DS2431, 8 MHz, 32.8 M samples, boot read/write excerpt).</footer>
+
+<script src="owvis.js"></script>
+<script src="bundled_sr.js"></script>
+<script>
+(async function () {
+  "use strict";
+
+  const results = [];
+  const check = (name, ok, detail) => {
+    results.push({ name, ok: !!ok, detail: detail == null ? "" : String(detail) });
+  };
+  const eq = (name, got, want) => {
+    check(name, Object.is(got, want), "got " + JSON.stringify(got) + ", want " + JSON.stringify(want));
+  };
+  const hex = (v) => v.toString(16).padStart(2, "0").toUpperCase();
+  const romKey = (rom) => rom.map(hex).join(" ");
+
+  function fnv32(bytes) {
+    let h = 0x811c9dc5;
+    // Math.imul keeps the 32-bit product exact; a plain * exceeds 2^53.
+    for (let i = 0; i < bytes.length; i++) h = Math.imul(h ^ bytes[i], 0x01000193) >>> 0;
+    return h >>> 0;
+  }
+
+  function fromB64(text) {
+    const bin = atob(text);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function mkTxn(bytes) {
+    const ev = [{ type: "reset", t: 0, presence: true, presT: 1, presLen: 1, lowLen: 1 }];
+    bytes.forEach((v, bi) => {
+      for (let b = 0; b < 8; b++) {
+        ev.push({ type: "bit", t: 100 + bi * 16 + b * 2, bit: (v >> b) & 1, lowLen: 10 });
+      }
+    });
+    return OWVis.buildTransactions(ev, 1000000)[0];
+  }
+
+  function romTripletFrame(rom, command) {
+    const ids = [];
+    for (let i = 0; i < 64; i++) {
+      const b = (rom[i >> 3] >> (i & 7)) & 1;
+      ids.push(b, b ? 0 : 1, b);
+    }
+    const bytes = [command];
+    for (let k = 0; k < 24; k++) {
+      let v = 0;
+      for (let b = 0; b < 8; b++) v |= ids[k * 8 + b] << b;
+      bytes.push(v);
+    }
+    return bytes;
+  }
+
+  function odWave() {
+    const out = [];
+    const hi = (n) => { for (let k = 0; k < n; k++) out.push(1); };
+    const low = (n) => { for (let k = 0; k < n; k++) out.push(0); };
+    const slot = (bit) => { low(bit ? 1 : 8); hi(bit ? 9 : 2); };
+    hi(200);
+    low(60); hi(4); low(10); hi(6); // overdrive reset + presence
+    [0xcc, 0x44].forEach((v) => {
+      for (let b = 0; b < 8; b++) slot((v >> b) & 1);
+    });
+    hi(100);
+    return Uint8Array.from(out);
+  }
+
+  const FIXED_DEFLATE = "80jNycnXUTDUDc8sSlUEAA==";
+  const DYNAMIC_DEFLATE = "7czLCYAwFETRVl4J5uNvq9mKkNjAM4m4Ugli/UaxC2c1FwaOcaLpZEHGSa3EO0KRi5z8SnYcaODzq37frphOmshGDuR8eq4jZyGk0mVVNy3PPsQlM1ChQoUKFSpUqFChQoX6d/UG";
+  const STORED_DEFLATE = "AR8A4P9zdG9yZWQgYmxvY2sgcGF5bG9hZCAwMTIzNDU2Nzg5";
+  const MULTI_SR_B64 = "UEsDBBQAAAAIAAZxYV0+dibTXwAAAGgAAAAIAAAAbWV0YWRhdGEFwbERwzAIBdCeKbRACnVp6NNkAp8LrHzruBCjE9iFp897SzffxFYK7dO/5cIM9YMTkUTLB5c2lLpSk5HnxK4GNu/aHpXSU6yM6RuCnxTyG4YpCa7l/brpPDRDb3ClP1BLAwQUAAAACAAGcWFdcumpEywAAAC4CwAACQAAAGxvZ2ljLTEtMWNkHAWjYBQMd8AwCoY1GJyxT6/UPQoGDxga6WUouZJxkIOh5EqGIRHjhAEAUEsDBBQAAAAIAAZxYV2OgyiDMQAAAMoOAAAJAAAAbG9naWMtMS0y7dDBCQBACANB03/TFnC+RMQcOw1kScRLa7b3/q/sobKq1HFOX1I5V6njPL4EAACyl1BLAQIUABQAAAAIAAZxYV0+dibTXwAAAGgAAAAIAAAAAAAAAAAAAACAAQAAAABtZXRhZGF0YVBLAQIUABQAAAAIAAZxYV1y6akTLAAAALgLAAAJAAAAAAAAAAAAAACAAYUAAABsb2dpYy0xLTFQSwECFAAUAAAACAAGcWFdjoMogzEAAADKDgAACQAAAAAAAAAAAAAAgAHYAAAAbG9naWMtMS0yUEsFBgAAAAADAAMApAAAADABAAAAAA==";
+  const OD_WAVE = odWave();
+
+  try {
+    /* ---------- bundled capture integrity ---------- */
+    check("BUNDLED_SR_B64 is a non-empty string",
+      typeof BUNDLED_SR_B64 === "string" && BUNDLED_SR_B64.length > 1000,
+      typeof BUNDLED_SR_B64 === "string" ? BUNDLED_SR_B64.length + " chars" : typeof BUNDLED_SR_B64);
+
+    const bin = atob(BUNDLED_SR_B64);
+    const zipBytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) zipBytes[i] = bin.charCodeAt(i);
+    eq("bundled .sr size (bytes)", zipBytes.length, 66506);
+
+    const cap = await OWVis.parseSR(zipBytes.buffer, 0);
+    eq("bundled samplerate (Hz)", cap.samplerate, 8000000);
+    eq("bundled sample count", cap.samples.length, 32799999);
+    eq("bundled unitsize", cap.unitsize, 1);
+    eq("bundled probe count", cap.probes, 8);
+    eq("bundled samples FNV-1a", fnv32(cap.samples), 0x6a634d61);
+
+    /* ---------- decode pipeline ---------- */
+    const ev = OWVis.decodeSlots(cap.samples, cap.samplerate, 0);
+    const txns = OWVis.buildTransactions(ev, cap.samplerate);
+    const interp = txns.map((t) => OWVis.interpret(t));
+    const groups = OWVis.groupTransactions(txns, interp);
+
+    eq("transaction count", txns.length, 44);
+    const slotCount = txns.reduce((n, t) => n + t.bits.length, 0);
+    eq("decoded slot count", slotCount, 7384);
+    eq("all transactions have presence", txns.every((t) => t.presence === true), true);
+    eq("all transactions start with a reset", txns.every((t) => t.tReset !== null), true);
+
+    let badSpan = null;
+    for (const t of txns) {
+      for (const s of t.bits) {
+        const spanUs = ((s.endT - s.t) / cap.samplerate) * 1e6;
+        if (!(s.endT > s.t) || spanUs > OWVis.SLOT_MAX_US + 0.001) {
+          badSpan = { t: s.t, spanUs };
+          break;
+        }
+      }
+      if (badSpan) break;
+    }
+    check("every slot span is positive and <= SLOT_MAX_US", !badSpan,
+      badSpan ? "t=" + badSpan.t + ", span=" + badSpan.spanUs.toFixed(1) + " us" : "7384 spans");
+
+    // Regression: the final slot of T1 used T1's own reset as its end, which
+    // produced a negative span (-26,075 us) before the pitch estimate was added.
+    const t1 = txns[0].bits;
+    const lastSlot = t1[t1.length - 1];
+    const lastSpanUs = ((lastSlot.endT - lastSlot.t) / cap.samplerate) * 1e6;
+    check("T1 final slot span is a positive slot period",
+      lastSpanUs > 100 && lastSpanUs < 200, lastSpanUs.toFixed(1) + " us");
+
+    // Same logic at a non-1 MHz rate: 333 samples = 166.5 us at 2 MHz.
+    const synth = OWVis.buildTransactions([
+      { type: "reset", t: 0, presence: true, presT: 0, presLen: 0, lowLen: 0 },
+      { type: "bit", t: 1000, bit: 0, lowLen: 10 },
+      { type: "bit", t: 1333, bit: 1, lowLen: 10 },
+      { type: "bit", t: 1666, bit: 0, lowLen: 10 },
+    ], 2000000);
+    eq("median-pitch final span at 2 MHz (samples)", synth[0].bits[2].endT - synth[0].bits[2].t, 333);
+    const lone = OWVis.buildTransactions([
+      { type: "reset", t: 0, presence: true, presT: 0, presLen: 0, lowLen: 0 },
+      { type: "bit", t: 500, bit: 0, lowLen: 10 },
+    ], 2000000);
+    eq("fallback pitch for a lone slot at 2 MHz (samples)",
+      lone[0].bits[0].endT - lone[0].bits[0].t, OWVis.SLOT_PITCH_US * 2);
+
+    /* ---------- ROM enumeration ---------- */
+    const romSet = new Map();
+    interp.forEach((d) => {
+      (d.roms || []).forEach((r) => romSet.set(romKey(r.rom), r));
+      if (d.rom) romSet.set(romKey(d.rom), { rom: d.rom, crcOk: d.romCrcOk, tripletsValid: true });
+    });
+    eq("unique device ROMs", romSet.size, 8);
+    eq("all ROMs pass CRC-8 and triplet checks",
+      [...romSet.values()].every((r) => r.crcOk && r.tripletsValid), true);
+    const famCount = {};
+    [...romSet.values()].forEach((r) => {
+      const n = OWVis.familyName(r.rom[0]);
+      famCount[n] = (famCount[n] || 0) + 1;
+    });
+    eq("7x DS18B20 + 1x DS2431", JSON.stringify(famCount),
+      JSON.stringify({ DS18B20: 7, DS2431: 1 }));
+
+    const searchGroups = groups.filter((g) => g.type === "search");
+    eq("Search ROM group count", searchGroups.length, 2);
+    eq("each search group has 8 passes",
+      searchGroups.every((g) => g.indices.length === 8), true);
+    eq("each search group enumerates all 8 ROMs",
+      searchGroups.every((g) => new Set(g.roms.map((r) => romKey(r.rom))).size === 8), true);
+    eq("search groups start at T1 and T9",
+      searchGroups.map((g) => g.indices[0]).join(","), "0,8");
+    eq("two search passes cover the same 8 ROMs",
+      new Set([...searchGroups[0].roms, ...searchGroups[1].roms].map((r) => romKey(r.rom))).size, 8);
+
+    const dsChain = groups.find((g) => g.indices[0] === 16 && g.type === "device-chain");
+    check("T17-T20 form one DS2431 read chain", !!dsChain, dsChain ? "indices " + dsChain.indices[0] + ".." + dsChain.indices[3] : "missing");
+    eq("DS2431 read chain length", dsChain ? dsChain.indices.length : 0, 4);
+
+    /* ---------- CRC vectors ---------- */
+    eq("CRC-8 vector: DS18B20 ROM", OWVis.crc8([0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00]), 0x67);
+    eq("CRC-8 vector: DS2431 ROM", OWVis.crc8([0x2d, 0x33, 0xa9, 0x6d, 0x01, 0x00, 0x00]), 0x05);
+    const t9Input = [0xaa, 0x20, 0x00, 0x07, 0x28, 0xfc, 0xae, 0xaa, 0x0b, 0x00, 0x00, 0xf3];
+    eq("CRC-16 vector: DS2431 Read Scratchpad payload", OWVis.crc16(t9Input), 0x6f6a);
+    eq("CRC-16 vector: inverted on wire", (~OWVis.crc16(t9Input)) & 0xffff, 0x9095);
+
+    check("T22 Read Scratchpad CRC-8 verified",
+      !!(interp[21].crc && interp[21].crc.algorithm === "CRC-8" && interp[21].crc.ok),
+      interp[21].crc ? interp[21].crc.algorithm + " ok=" + interp[21].crc.ok : "no CRC");
+    check("T30 Read Scratchpad CRC-16 verified",
+      !!(interp[29].crc && interp[29].crc.algorithm === "CRC-16" && interp[29].crc.ok),
+      interp[29].crc ? interp[29].crc.algorithm + " ok=" + interp[29].crc.ok : "no CRC");
+    eq("T30 CRC-16 covers the two wire bytes",
+      interp[29].crc ? interp[29].crc.indices.join(",") : "", "21,22");
+
+    /* ---------- DS2431 Copy Scratchpad roles (T31) ---------- */
+    const tCopy = txns[30];
+    const tCopyHex = interp[30].bytes.map((b) => hex(b.value)).join(" ");
+    eq("T31 bytes", tCopyHex, "55 2D 33 A9 6D 01 00 00 05 55 20 00 07 AA");
+    const roleBad = [];
+    for (let i = 72; i < 104; i++) if (tCopy.bits[i].role !== "master-tx") roleBad.push(i);
+    for (let i = 104; i < 112; i++) if (tCopy.bits[i].role !== "slave-tx") roleBad.push(i);
+    check("T31: TA1/TA2/ES master→slave, AA slave→master", roleBad.length === 0,
+      roleBad.length ? "wrong role at bits " + roleBad.join(",") : "bits 72-103 write, 104-111 read");
+    eq("T31: three address bytes plus one status byte",
+      interp[30].bytes.length, 14);
+
+    /* ---------- raw note / phantom ROM guards ---------- */
+    const filler = [{ value: 0xf0 }];
+    for (let i = 0; i < 24; i++) filler.push({ value: 0xff });
+    eq("all-FF Search ROM filler is not reported as a device",
+      OWVis.searchROMs(filler).length, 0);
+
+    const rawBits = [];
+    for (let byte = 0; byte < 20; byte++) {
+      for (let b = 0; b < 8; b++) {
+        rawBits.push({ bit: (0x12 >> b) & 1, t: byte * 8 + b, lowLen: 10 });
+      }
+    }
+    const raw = OWVis.interpret({ presence: true, bits: rawBits });
+    check("raw note truncates after 16 bytes",
+      raw.kind === "raw" && /\(\+4 bytes\)$/.test(raw.note), raw.note.slice(-24));
+
+    /* ---------- transcript ---------- */
+    const text = OWVis.transcript(txns);
+    const lines = text.split("\n");
+    eq("transcript line count", lines.length, 44);
+    check("transcript starts at T1 with presence",
+      lines[0].startsWith("T1  Presence: true"), lines[0].slice(0, 40));
+    check("transcript marks T31 Copy Scratchpad",
+      lines[30].indexOf("Copy Scratchpad") >= 0, lines[30].slice(0, 80));
+
+    /* ---------- synthetic demo ---------- */
+    const demo = OWVis.genDemo();
+    const demoTxns = OWVis.buildTransactions(
+      OWVis.decodeSlots(demo.samples, demo.samplerate, 0), demo.samplerate);
+    const demoInterp = demoTxns.map((t) => OWVis.interpret(t));
+    eq("demo transaction count", demoTxns.length, 3);
+    eq("demo presence on every transaction", demoTxns.every((t) => t.presence === true), true);
+    check("demo T1 is a DS18B20 Read Scratchpad with valid CRC-8",
+      demoInterp[0].kind === "match" && !!(demoInterp[0].crc && demoInterp[0].crc.ok),
+      demoInterp[0].note);
+    check("demo T2 is Skip ROM + Convert T",
+      demoInterp[1].kind === "skip" && demoInterp[1].note.indexOf("Convert T") >= 0,
+      demoInterp[1].note);
+    check("demo T3 Search ROM finds the DS18B20",
+      demoInterp[2].kind === "search" && demoInterp[2].roms.length === 1 &&
+      romKey(demoInterp[2].roms[0].rom) === "28 20 78 92 07 00 00 67",
+      demoInterp[2].roms.length + " ROM(s)");
+
+    /* ---------- overdrive timing profile ---------- */
+    eq("auto-detected bus speed: overdrive", OWVis.detectSpeed(OD_WAVE, 1e6, 0), "overdrive");
+    const odEv = OWVis.decodeSlots(OD_WAVE, 1e6, 0, "overdrive");
+    const odReset = odEv.filter((e) => e.type === "reset");
+    eq("overdrive: one reset decoded", odReset.length, 1);
+    eq("overdrive: presence measured", odReset[0] ? odReset[0].presence : null, true);
+    eq("overdrive: 16 slots decoded", odEv.filter((e) => e.type === "bit").length, 16);
+    const odTxns = OWVis.buildTransactions(odEv, 1e6);
+    check("overdrive: Skip ROM + Convert T decoded",
+      odTxns.length === 1 && OWVis.interpret(odTxns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      odTxns.length + " transaction(s)");
+    check("standard profile does not invent resets in an OD capture",
+      !OWVis.decodeSlots(OD_WAVE, 1e6, 0, "standard").some((e) => e.type === "reset"),
+      "no resets at standard thresholds");
+
+    const od2 = new Uint8Array(OD_WAVE.length * 2);
+    for (let i = 0; i < OD_WAVE.length; i++) {
+      od2[i * 2] = OD_WAVE[i];
+      od2[i * 2 + 1] = OD_WAVE[i];
+    }
+    const od2Txns = OWVis.buildTransactions(OWVis.decodeSlots(od2, 2e6, 0, "overdrive"), 2e6);
+    check("overdrive: 2 MHz scaling keeps the frame",
+      od2Txns.length === 1 && OWVis.interpret(od2Txns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      od2Txns.length + " transaction(s)");
+
+    const od3 = new Uint8Array(OD_WAVE.length);
+    for (let i = 0; i < OD_WAVE.length; i++) od3[i] = OD_WAVE[i] << 3;
+    eq("channel D3: detectSpeed sees overdrive", OWVis.detectSpeed(od3, 1e6, 3), "overdrive");
+    const od3Txns = OWVis.buildTransactions(OWVis.decodeSlots(od3, 1e6, 3), 1e6);
+    check("channel D3: auto decode keeps the frame",
+      od3Txns.length === 1 && OWVis.interpret(od3Txns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      od3Txns.length + " transaction(s)");
+
+    /* ---------- broadcast (Skip ROM) commands ---------- */
+    const skipWriteTxn = mkTxn([0xcc, 0x0f, 0xaa, 0x55]);
+    const skipWrite = OWVis.interpret(skipWriteTxn);
+    check("Skip ROM: DS2431 Write Scratchpad is labelled",
+      skipWrite.note.indexOf("Write Scratchpad") >= 0 && skipWrite.note.indexOf("DS2431") >= 0,
+      skipWrite.note);
+    check("Skip ROM: Write Scratchpad payload is master→slave",
+      skipWriteTxn.bits.slice(16).every((s) => s.role === "master-tx"),
+      skipWriteTxn.bits.slice(16).map((s) => s.role).join(","));
+
+    const skipReadBytes = [0xcc, 0xaa, 0x20, 0x00, 0x07, 0x28, 0xfc, 0xae,
+      0xaa, 0x0b, 0x00, 0x00, 0xf3, 0x95, 0x90];
+    const skipReadTxn = mkTxn(skipReadBytes);
+    const skipRead = OWVis.interpret(skipReadTxn);
+    check("Skip ROM: DS2431 Read Scratchpad is labelled",
+      skipRead.note.indexOf("Read Scratchpad") >= 0 && skipRead.note.indexOf("DS2431") >= 0,
+      skipRead.note);
+    check("Skip ROM: Read Scratchpad reply is slave→master",
+      skipReadTxn.bits.slice(16).every((s) => s.role === "slave-tx"),
+      skipReadTxn.bits.slice(16).map((s) => s.role).join(","));
+    check("Skip ROM: DS2431 CRC-16 is still verified",
+      !!(skipRead.crc && skipRead.crc.algorithm === "CRC-16" && skipRead.crc.ok),
+      skipRead.crc ? skipRead.crc.algorithm + " ok=" + skipRead.crc.ok : "no CRC");
+
+    const skipMemTxn = mkTxn([0xcc, 0xf0, 0x00, 0x10, 0xaa]);
+    const skipMem = OWVis.interpret(skipMemTxn);
+    check("Skip ROM: DS2431 Read Memory is labelled",
+      skipMem.note.indexOf("Read Memory") >= 0 && skipMem.note.indexOf("DS2431") >= 0,
+      skipMem.note);
+    check("Skip ROM: Read Memory reply is slave→master",
+      skipMemTxn.bits.slice(16).every((s) => s.role === "slave-tx"),
+      skipMemTxn.bits.slice(16).map((s) => s.role).join(","));
+
+    const skipUnknownTxn = mkTxn([0xcc, 0x99, 0x12]);
+    const skipUnknown = OWVis.interpret(skipUnknownTxn);
+    check("Skip ROM: unknown function is labelled by hex",
+      skipUnknown.note.indexOf("0x99") >= 0, skipUnknown.note);
+    check("Skip ROM: unknown payload stays unknown",
+      skipUnknownTxn.bits.slice(16).every((s) => s.role === "unknown"),
+      skipUnknownTxn.bits.slice(16).map((s) => s.role).join(","));
+    check("bundled T21 broadcast is attributed to DS18B20",
+      interp[20].note.indexOf("Convert T") >= 0 && interp[20].note.indexOf("DS18B20") >= 0,
+      interp[20].note);
+
+    /* ---------- Alarm Search and DS2413 ---------- */
+    const alarmRom = [0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00, 0x67];
+    const alarm = OWVis.interpret(mkTxn(romTripletFrame(alarmRom, 0xec)));
+    check("Alarm Search decodes one valid ROM",
+      alarm.kind === "alarm" && alarm.roms.length === 1 &&
+      romKey(alarm.roms[0].rom) === romKey(alarmRom) &&
+      alarm.roms[0].crcOk && alarm.roms[0].tripletsValid,
+      alarm.roms.length + " ROM(s)");
+
+    const pioRom = [0x3a, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
+    pioRom.push(OWVis.crc8(pioRom));
+    const pioReadTxn = mkTxn([0x55].concat(pioRom, [0xf5, 0x00]));
+    const pioRead = OWVis.interpret(pioReadTxn);
+    check("DS2413 PIO read decodes with valid ROM CRC",
+      pioRead.kind === "match" && pioRead.romCrcOk &&
+      pioRead.note.indexOf("DS2413") >= 0 && pioRead.note.indexOf("PIO Access Read") >= 0,
+      pioRead.note);
+    check("DS2413 PIO read reply is slave→master",
+      pioReadTxn.bits.slice(80).every((s) => s.role === "slave-tx"),
+      pioReadTxn.bits.slice(80).map((s) => s.role).join(","));
+    const pioWriteTxn = mkTxn([0x55].concat(pioRom, [0x5a, 0x00, 0xff, 0xaa]));
+    check("DS2413 PIO write: data master→slave, ack slave→master",
+      pioWriteTxn.bits.slice(80, 96).every((s) => s.role === "master-tx") &&
+      pioWriteTxn.bits.slice(96).every((s) => s.role === "slave-tx"),
+      pioWriteTxn.bits.slice(80).map((s) => s.role).join(","));
+
+    /* ---------- malformed / empty inputs ---------- */
+    let malformedRejected = false;
+    try {
+      await OWVis.parseSR(new Uint8Array([1, 2, 3, 4]).buffer, 0);
+    } catch (e) {
+      malformedRejected = true;
+    }
+    check("malformed .sr is rejected", malformedRejected, "no EOCD");
+    eq("empty capture decodes to no transactions",
+      OWVis.buildTransactions(OWVis.decodeSlots(new Uint8Array(0), 1e6, 0), 1e6).length, 0);
+    const noPresence = OWVis.interpret({ presence: false, bits: [] });
+    check("no-presence transaction is labelled",
+      noPresence.kind === "empty" && noPresence.note === "no presence", noPresence.note);
+    const presenceOnly = OWVis.interpret({ presence: true, bits: [] });
+    check("presence-only transaction is labelled",
+      presenceOnly.kind === "empty" && presenceOnly.note === "presence only", presenceOnly.note);
+    const truncated = OWVis.interpret(mkTxn([0x55, 0x28]));
+    check("truncated Match ROM falls back to raw without throwing",
+      truncated.kind === "raw" && truncated.note.indexOf("0x55") >= 0,
+      truncated.note);
+
+    /* ---------- pure-JS inflate fallback ---------- */
+    const fixedOut = new TextDecoder().decode(OWVis.inflateRaw(fromB64(FIXED_DEFLATE), 14));
+    eq("inflate: fixed Huffman block", fixedOut, "Hello, 1-Wire!");
+    const dynOut = OWVis.inflateRaw(fromB64(DYNAMIC_DEFLATE), 3440);
+    check("inflate: dynamic Huffman block",
+      dynOut.length === 3440 &&
+      new TextDecoder().decode(dynOut.slice(0, 40)) === "DS18B20 DS2431 DS2413 Search ROM Match R",
+      dynOut.length + " bytes");
+    const storedOut = new TextDecoder().decode(OWVis.inflateRaw(fromB64(STORED_DEFLATE), 31));
+    eq("inflate: stored block", storedOut, "stored block payload 0123456789");
+    let sizeMismatchRejected = false;
+    try {
+      OWVis.inflateRaw(fromB64(FIXED_DEFLATE), 15);
+    } catch (e) {
+      sizeMismatchRejected = true;
+    }
+    check("inflate: size mismatch is rejected", sizeMismatchRejected, "expected 15, got 14");
+
+    const multiBytes = fromB64(MULTI_SR_B64);
+    const capMulti = await OWVis.parseSR(multiBytes.buffer, 0);
+    eq("multi-entry .sr: concatenated sample count", capMulti.samples.length, 6786);
+    eq("multi-entry .sr: concatenated FNV-1a", fnv32(capMulti.samples), 780965811);
+    const multiTxns = OWVis.buildTransactions(
+      OWVis.decodeSlots(capMulti.samples, capMulti.samplerate, 0), capMulti.samplerate);
+    check("multi-entry .sr: frame spans the chunk boundary",
+      multiTxns.length === 1 &&
+      OWVis.interpret(multiTxns[0]).bytes.map((b) => hex(b.value)).join(" ") === "CC 44",
+      multiTxns.length + " transaction(s)");
+
+    let fallbackCap = null, fallbackErr = null, fallbackRan = false;
+    const dsDesc = Object.getOwnPropertyDescriptor(window, "DecompressionStream");
+    try {
+      Object.defineProperty(window, "DecompressionStream", {
+        value: undefined, configurable: true, writable: true,
+      });
+      fallbackRan = typeof DecompressionStream === "undefined";
+      if (fallbackRan) fallbackCap = await OWVis.parseSR(multiBytes.buffer, 0);
+    } catch (e) {
+      fallbackErr = e;
+    } finally {
+      if (dsDesc) Object.defineProperty(window, "DecompressionStream", dsDesc);
+    }
+    check("pure-JS inflate fallback parses a multi-entry .sr",
+      fallbackRan ? (!!fallbackCap && fallbackCap.samples.length === 6786 &&
+        fnv32(fallbackCap.samples) === 780965811) : true,
+      fallbackRan ? (fallbackErr ? String(fallbackErr) : "fallback used")
+        : "skipped: DecompressionStream is not replaceable");
+
+    let bundleFallback = null, bundleFallbackErr = null, bundleFallbackRan = false;
+    const dsDesc2 = Object.getOwnPropertyDescriptor(window, "DecompressionStream");
+    try {
+      Object.defineProperty(window, "DecompressionStream", {
+        value: undefined, configurable: true, writable: true,
+      });
+      bundleFallbackRan = typeof DecompressionStream === "undefined";
+      if (bundleFallbackRan) bundleFallback = await OWVis.parseSR(zipBytes.buffer, 0);
+    } catch (e) {
+      bundleFallbackErr = e;
+    } finally {
+      if (dsDesc2) Object.defineProperty(window, "DecompressionStream", dsDesc2);
+    }
+    check("pure-JS inflate fallback parses the bundled 32.8 M-sample capture",
+      bundleFallbackRan ? (!!bundleFallback && bundleFallback.samples.length === 32799999 &&
+        fnv32(bundleFallback.samples) === 0x6a634d61) : true,
+      bundleFallbackRan ? (bundleFallbackErr ? String(bundleFallbackErr) : "fallback used")
+        : "skipped: DecompressionStream is not replaceable");
+
+  } catch (e) {
+    check("self-test completed without throwing", false, e && e.stack ? e.stack.split("\n")[0] : String(e));
+  }
+
+  const fails = results.filter((r) => !r.ok).length;
+  const summary = document.getElementById("summary");
+  summary.textContent = fails
+    ? fails + " FAILED · " + (results.length - fails) + " passed"
+    : "All " + results.length + " checks passed";
+  summary.className = fails ? "fail" : "pass";
+  document.body.dataset.result = fails ? "fail" : "pass";
+  document.title = (fails ? "FAIL" : "PASS") + " — 1-Wire visualizer self-test";
+
+  const list = document.getElementById("results");
+  results.forEach((r) => {
+    const li = document.createElement("li");
+    li.className = r.ok ? "pass" : "fail";
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = r.ok ? "PASS" : "FAIL";
+    const name = document.createElement("span");
+    name.textContent = r.name;
+    const detail = document.createElement("span");
+    detail.className = "detail";
+    detail.textContent = r.detail;
+    li.append(badge, name, detail);
+    list.appendChild(li);
+  });
+
+  // Useful in the devtools console and for headless smoke runs.
+  window.__selftest = {
+    total: results.length,
+    failed: fails,
+    results,
+    text: summary.textContent,
+  };
+  if (fails) console.error(summary.textContent, results.filter((r) => !r.ok));
+  else console.log(summary.textContent);
+})();
+</script>
+</body>
+</html>
