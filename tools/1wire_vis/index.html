@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1-Wire Bus Visualizer — stm32-async-1wire</title>
+<style>
+  :root { --bg:#F7F9FC; --panel:#FFFFFF; --line:#E3E8F0; --txt:#1A2333;
+          --dim:#5B6B85; --acc:#2563EB; --ok:#15803D; --warn:#B45309; --bad:#DC2626;
+          --tick0:#2E7DE1; --tick1:#E19A2E; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+         font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { padding:20px 28px 8px; }
+  header h1 { margin:0; font-size:24px; font-weight:600; }
+  header p { margin:6px 0 0; color:var(--dim); font-size:14px; }
+  main { padding:12px 28px 40px; max-width:none; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px;
+          padding:14px 16px; margin:12px 0; box-shadow:0 1px 2px rgba(26,35,51,.04); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  label { color:var(--dim); font-size:13px; }
+  input[type=file] { color:var(--dim); font-size:13px; }
+  select, button { background:#FFFFFF; color:var(--txt); border:1px solid var(--line);
+                   border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  button:hover { border-color:var(--acc); color:var(--acc); }
+  button:disabled { opacity:.45; cursor:default; }
+  #status { font-size:13px; color:var(--dim); min-height:20px; }
+  #status.err { color:var(--bad); }
+  canvas { width:100%; display:block; background:#FFFFFF; border:1px solid var(--line);
+           border-radius:6px; cursor:crosshair; }
+  #ov { height:120px; cursor:crosshair; }
+  #detail { height:220px; touch-action:none; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  th { text-align:left; color:var(--dim); font-weight:600; padding:6px 8px;
+       border-bottom:1px solid var(--line); }
+  td { padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top;
+       font-family:Consolas,"Courier New",monospace; }
+  tr.sel td { background:#EFF4FF; }
+  tr:hover td { background:#F4F7FC; }
+  tr.group-row td { background:#F1F5FA; color:#30425F; font-family:"Segoe UI",Roboto,Arial,sans-serif; font-weight:600; cursor:pointer; border-top:1px solid #D7DFEA; }
+  tr.child-row td:first-child { padding-left:24px; }
+  tr.stage-row td { padding-left:48px; color:#5B6B85; background:#FBFCFE; font:12px "Segoe UI",Roboto,Arial,sans-serif; }
+  .tree-toggle { border:0; padding:0 4px 0 0; background:transparent; color:inherit; font:inherit; text-align:left; }
+  .search-results { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .rom-chip { display:inline-flex; gap:7px; align-items:center; border:1px solid var(--line); border-radius:5px; padding:5px 8px; font:12px Consolas,"Courier New",monospace; background:#FBFCFE; cursor:pointer; }
+  .rom-chip:hover { border-color:var(--acc); background:#EFF4FF; }
+  .rom-chip .family { color:var(--dim); }
+  .rom-chip .crc-ok { color:var(--ok); font-weight:700; }
+  .rom-chip .crc-bad { color:var(--bad); font-weight:700; }
+  .mono { font-family:Consolas,"Courier New",monospace; }
+  pre { background:#F8FAFD; border:1px solid var(--line); border-radius:6px;
+        padding:10px; font-size:12px; line-height:1.5; overflow-x:auto;
+        max-height:280px; overflow-y:auto; color:var(--txt); }
+  .legend { font-size:12px; color:var(--dim); }
+  .legend b { color:var(--txt); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; }
+  #tip { position:absolute; display:none; pointer-events:none; background:#1A2333;
+         color:#FFFFFF; font:11px Consolas,monospace; padding:4px 8px;
+         border-radius:4px; white-space:pre-wrap; max-width:min(560px,80vw);
+         z-index:5; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+  footer { padding:0 28px 30px; color:#8A97AB; font-size:12px; }
+  kbd { background:#F1F4F9; border:1px solid var(--line); border-radius:4px; padding:0 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>1-Wire Bus Visualizer</h1>
+  <p>Open a sigrok <span class="mono">.sr</span> capture (fx2lafw, DQ on D0–D7) — the browser decodes Search ROM / Match ROM / Convert T / EEPROM traffic. No upload, everything runs locally.</p>
+</header>
+<main>
+  <div class="card">
+    <div class="row">
+      <label>Capture (.sr): <input type="file" id="file" accept=".sr"></label>
+      <label>Channel:
+        <select id="chan">
+          <option value="0">D0</option><option value="1">D1</option>
+          <option value="2">D2</option><option value="3">D3</option>
+          <option value="4">D4</option><option value="5">D5</option>
+          <option value="6">D6</option><option value="7">D7</option>
+        </select>
+      </label>
+      <button id="demo">Load demo waveform</button>
+      <button id="bundled">Load bundled F030 capture</button>
+      <button id="copy" disabled>Copy transcript</button>
+    </div>
+    <div id="status">Waiting for a file… (or press “Load demo waveform”).</div>
+  </div>
+
+  <div class="card">
+    <div class="legend"><b>Overview</b> — full capture envelope, ticks = resets.
+      <span class="sw" style="background:#DC2626"></span>reset
+      <span class="sw" style="background:#15803D"></span>presence
+      <span class="sw" style="background:#2563EB"></span>selected transaction</div>
+    <canvas id="ov" width="1120" height="120"></canvas>
+  </div>
+
+  <div class="card" style="position:relative">
+    <div class="legend"><b>Detail</b> — time ruler uses capture time; hover shows pulse width and decoded slot role.
+      <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
+      <span class="sw" style="background:#E19A2E"></span>bit 1</span>
+      <span class="sw" style="background:#DC2626"></span>reset
+      <span class="sw" style="background:#15803D"></span>presence answer</div>
+    <canvas id="detail" width="1120" height="220"></canvas>
+    <div id="tip"></div>
+    <div class="row" style="margin-top:8px">
+      <label>Zoom: <input type="range" id="zoom" min="0" max="12" value="8" step="1"></label>
+      <label>Slot colors:
+        <select id="colorMode"><option value="level">By bit value</option><option value="role">By bus role</option></select>
+      </label>
+      <button id="prevTx" title="Previous reset (←)">← Prev</button>
+      <button id="nextTx" title="Next reset (→)">Next →</button>
+      <button id="fitTx" title="Fit selected transaction (F)">Fit transaction</button>
+      <button id="fitAll" title="Fit full capture (0)">Fit capture</button>
+      <span class="legend" id="txinfo">Wheel = zoom at cursor, drag = pan · ←/→ = prev/next reset · F = fit transaction · 0 = fit capture</span>
+    </div>
+    <div class="row"><span class="legend" id="cursorinfo">Alt+click = A, Shift+click = B, Esc = clear</span></div>
+    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · Alt+click A / Shift+click B: edge-snapped timing cursors</div>
+  </div>
+
+  <div class="card">
+    <b>Search ROM results</b> <span class="legend">(click a ROM to jump to that search pass)</span>
+    <div id="searchResults" class="search-results"></div>
+  </div>
+
+  <div class="card">
+    <b>Protocol tree</b> <span class="legend">(expand groups, select a transaction)</span>
+    <table id="tbl"><thead><tr>
+      <th>#</th><th>Presence</th><th>Bytes</th><th>Decoded</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card">
+    <div class="row"><b>Transcript</b>
+      <span class="legend">same shape as <span class="mono">tools/la_decode.py</span> output</span>
+    </div>
+    <pre id="trans">(empty)</pre>
+  </div>
+</main>
+<footer>a5021/stm32-async-1wire · 1-Wire visualizer prototype · slot decoder ported from the bit-exact-validated Python reference (probe.sr vs sigrok onewire_link)</footer>
+
+<script src="owvis.js"></script>
+<script src="bundled_sr.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const status = (msg, err) => {
+    const s = $("status");
+    s.textContent = msg;
+    s.className = err ? "err" : "";
+  };
+  let cap = null;      // {samplerate, samples, channel}
+  let txns = [];
+  let interp = [];
+  let groups = [];
+  let slotIndex = [];
+  let byteIndex = [];
+  let sel = -1;
+  const groupOpen = new Set();
+  const txnOpen = new Set();
+  // Detail viewport: samples shown per pixel (zoom) + first visible sample (pan).
+  // Wheel zooms around the cursor, drag pans. The overview draws this window
+  // as a frame; dragging a range on the overview moves the detail there.
+  // No libraries, plain canvas.
+  let view = { spp: 4, off: 0 };
+  const SPP_MIN = 0.25;
+  const SPP_MAX_DEFAULT = 64;
+  let dragX = null;
+  let ovDrag = null; // {x0} in css px while rubber-banding on the overview
+
+  const hex = (v) => v.toString(16).padStart(2, "0").toUpperCase();
+
+  function formatTime(us) {
+    if (us >= 1e6) return (us / 1e6).toFixed(3) + " s";
+    if (us >= 1000) return (us / 1000).toFixed(us >= 10000 ? 1 : 2) + " ms";
+    return us.toFixed(us >= 100 ? 0 : us >= 10 ? 1 : 2) + " µs";
+  }
+
+  function buildEdgeIndex(samples, channel) {
+    const edges = [];
+    for (let i = 1; i < samples.length; i++) {
+      if (((samples[i - 1] ^ samples[i]) >> channel) & 1) edges.push(i);
+    }
+    return Uint32Array.from(edges);
+  }
+
+  function lowerBound(values, target) {
+    let lo = 0, hi = values.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (values[mid] < target) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const detailWidth = () => Math.max(1, $("detail").width);
+
+  // Zoom range depends on the capture: a 4M-sample run needs a far coarser
+  // maximum than a 5k-sample demo. Every zoom path uses the same bounds.
+  function zoomMax() {
+    return cap ? Math.max(SPP_MAX_DEFAULT, cap.samples.length / detailWidth()) : SPP_MAX_DEFAULT;
+  }
+  function maxOff() {
+    return cap ? Math.max(0, cap.samples.length - detailWidth() * view.spp) : 0;
+  }
+  function clampView() {
+    if (!cap) return;
+    view.spp = clamp(view.spp, SPP_MIN, zoomMax());
+    view.off = clamp(view.off, 0, maxOff());
+  }
+
+  /** Exact pulse run around a sample (uses the capture edge index). */
+  function pulseBounds(s) {
+    if (!cap || s < 0 || s >= cap.samples.length) return null;
+    const edges = cap.edgeSamples;
+    if (!edges || !edges.length) return null;
+    const i = lowerBound(edges, s);
+    let start, end;
+    if (i < edges.length && edges[i] === s) {
+      start = s;
+      end = i + 1 < edges.length ? edges[i + 1] : cap.samples.length;
+    } else {
+      start = i > 0 ? edges[i - 1] : 0;
+      end = i < edges.length ? edges[i] : cap.samples.length;
+    }
+    return { level: (cap.samples[s] >> cap.channel) & 1, start, end, width: end - start };
+  }
+
+  function drawOverview() {
+    const c = $("ov"), ctx = c.getContext("2d");
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    if (!cap) return;
+    const n = cap.samples.length, ch = cap.channel;
+    const step = Math.max(1, Math.floor(n / W));
+    ctx.fillStyle = "#BDD2F5";
+    for (let x = 0; x < W; x++) {
+      const a = x * step, b = Math.min(n, a + step);
+      let lo = 1;
+      for (let i = a; i < b; i += 4) {
+        if (((cap.samples[i] >> ch) & 1) === 0) { lo = 0; break; }
+      }
+      const h = lo ? H * 0.25 : H * 0.85;
+      ctx.fillRect(x, H - h, 1, h);
+    }
+    // reset ticks + selection
+    txns.forEach((t, i) => {
+      if (t.tReset == null) return;
+      const x = Math.floor((t.tReset / n) * W);
+      ctx.fillStyle = t.presence ? "#15803D" : "#DC2626";
+      ctx.fillRect(x, 0, 2, 10);
+      if (i === sel) {
+        const x0 = Math.floor((t.tReset / n) * W);
+        const endBit = t.bits.length ? t.bits[t.bits.length - 1].t : t.tReset;
+        const x1 = Math.floor((endBit / n) * W);
+        ctx.fillStyle = "rgba(37,99,235,.12)";
+        ctx.fillRect(x0, 0, Math.max(3, x1 - x0), H);
+      }
+    });
+    // detail viewport frame (linked both ways)
+    const dw = $("detail").width;
+    if (dw > 0 && view.spp > 0) {
+      const vx0 = Math.floor((view.off / n) * W);
+      const vx1 = Math.floor(((view.off + dw * view.spp) / n) * W);
+      ctx.fillStyle = "rgba(37,99,235,.08)";
+      ctx.fillRect(vx0, 0, Math.max(2, vx1 - vx0), H);
+      ctx.strokeStyle = "#2563EB";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(vx0 + 0.5, 0.5, Math.max(2, vx1 - vx0), H - 1);
+    }
+    // rubber band while dragging a range (css px, scaled to backing store)
+    if (ovDrag !== null) {
+      const r = c.getBoundingClientRect();
+      const k = W / r.width;
+      const xa = Math.floor(Math.min(ovDrag.x0, ovDrag.x) * k);
+      const xb = Math.floor(Math.max(ovDrag.x0, ovDrag.x) * k);
+      ctx.fillStyle = "rgba(37,99,235,.15)";
+      ctx.fillRect(xa, 0, Math.max(2, xb - xa), H);
+    }
+  }
+
+  function drawDetail() {
+    const c = $("detail"), ctx = c.getContext("2d");
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = "11px Consolas,monospace";
+    if (sel < 0 || !txns[sel]) {
+      ctx.fillStyle = "#8A97AB";
+      ctx.fillText("Select a transaction above. Wheel = zoom, drag = pan.", 12, 20);
+      return;
+    }
+    const t = txns[sel];
+    if (!t.bits.length && t.tReset == null) {
+      ctx.fillStyle = "#8A97AB";
+      ctx.fillText("Empty transaction.", 12, 20);
+      return;
+    }
+    clampView();
+    const usPerSample = 1e6 / cap.samplerate;
+    const spp = view.spp; // samples per pixel
+    const colorMode = $("colorMode").value;
+    const xOf = (s) => Math.floor((s - view.off) / spp);
+    // Adaptive time ruler: 1-2-5 intervals, about 90 px apart.
+    const targetUs = 90 * usPerSample * spp;
+    const exp = Math.pow(10, Math.floor(Math.log10(Math.max(targetUs, 1e-9))));
+    const nice = [1, 2, 5, 10].map((x) => x * exp).find((x) => x >= targetUs) || 10 * exp;
+    const gridStep = Math.max(1, Math.round(nice / usPerSample));
+    const firstGrid = Math.ceil(view.off / gridStep) * gridStep;
+    ctx.font = "10px Consolas,monospace";
+    ctx.lineWidth = 1;
+    ctx.textAlign = "left";
+    ctx.beginPath();
+    for (let s = firstGrid; s < view.off + W * spp; s += gridStep) {
+      const x = Math.floor((s - view.off) / spp) + 0.5;
+      ctx.strokeStyle = "#E8EDF4";
+      ctx.moveTo(x, 24);
+      ctx.lineTo(x, H);
+      const us = (s / cap.samplerate) * 1e6;
+      ctx.fillStyle = "#68778F";
+      ctx.fillText(formatTime(us), x + 3, 20);
+    }
+    ctx.stroke();
+    ctx.fillStyle = "#8A97AB";
+    ctx.textAlign = "right";
+    ctx.fillText(spp.toFixed(1) + " samples/px", W - 8, 20);
+    ctx.textAlign = "left";
+    // Draw exact transitions, not one sampled value per canvas pixel. This
+    // prevents short low pulses from appearing wider/narrower due to aliasing.
+    const dataEndX = clamp((cap.samples.length - view.off) / spp, 0, W);
+    if (dataEndX < W - 0.5) {
+      ctx.fillStyle = "rgba(226,232,240,.42)";
+      ctx.fillRect(dataEndX, 24, W - dataEndX, H - 24);
+      ctx.fillStyle = "#8A97AB";
+      ctx.fillText("end of capture", Math.min(W - 92, dataEndX + 6), 40);
+    }
+    ctx.strokeStyle = "#1A2333";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const sampleStart = Math.max(0, Math.min(cap.samples.length - 1, Math.floor(view.off)));
+    const sampleEnd = Math.max(sampleStart + 1, Math.min(cap.samples.length, Math.ceil(view.off + W * spp)));
+    let level = (cap.samples[sampleStart] >> cap.channel) & 1;
+    const yLevel = (v) => v ? 34 : 92;
+    ctx.moveTo(0, yLevel(level));
+    const edgeStart = lowerBound(cap.edgeSamples, sampleStart + 1);
+    for (let k = edgeStart; k < cap.edgeSamples.length; k++) {
+      const edge = cap.edgeSamples[k];
+      if (edge >= sampleEnd) break;
+      const x = (edge - view.off) / spp;
+      ctx.lineTo(x, yLevel(level));
+      level ^= 1;
+      ctx.lineTo(x, yLevel(level));
+    }
+    ctx.lineTo(dataEndX, yLevel(level));
+    ctx.stroke();
+    // Decoded overlays follow the viewport, not the selection: every slot,
+    // byte and reset whose time falls in view is drawn. Selection only
+    // drives the info line and the reset label. Each slot is shaded whole,
+    // like the reset band, tinted by its bit value.
+    const slotLookback = Math.round(OWVis.SLOT_MAX_US * cap.samplerate / 1e6);
+    const roleColor = (slot) => {
+      if (slot.phase.indexOf("direction") >= 0) return "rgba(180,83,9,.23)";
+      if (slot.role === "master-write") return "rgba(37,99,235,.20)";
+      if (slot.role === "slave-read" && slot.phase.indexOf("Search ROM") >= 0) return "rgba(124,58,237,.21)";
+      if (slot.role === "slave-read") return "rgba(21,128,61,.19)";
+      return "rgba(91,107,133,.14)";
+    };
+    const shadeBit = (t0s, t1s, slot) => {
+      const x0 = xOf(t0s), x1 = xOf(t1s);
+      if (x1 < 0 || x0 > W) return;
+      ctx.fillStyle = colorMode === "role"
+        ? roleColor(slot)
+        : (slot.bit ? "rgba(225,154,46,.30)" : "rgba(46,125,225,.24)");
+      ctx.fillRect(Math.max(0, x0), 8, Math.max(1, Math.min(W, x1) - Math.max(0, x0)), 142);
+    };
+    let lo = 0, hi = slotIndex.length;
+    const visibleStart = Math.max(0, view.off - slotLookback);
+    const visibleEnd = view.off + W * spp;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (slotIndex[mid].t < visibleStart) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let k = lo; k < slotIndex.length && slotIndex[k].t <= visibleEnd; k++) {
+      const slot = slotIndex[k].slot;
+      // One span per slot, computed in buildTransactions and shared with the
+      // hover readout. The old renderer used a separate 90 us cap, which left
+      // visible gaps on this capture's 166 us slot period.
+      shadeBit(slot.t, Math.max(slot.t + 1, slot.endT), slot);
+    }
+    // all visible resets (red band) + presence answers (green band, same height)
+    txns.forEach((tt, ii) => {
+      if (tt.tReset == null) return;
+      const rx = xOf(tt.tReset);
+      if (rx > -600 && rx < W + 100) {
+        ctx.fillStyle = "rgba(220,38,38,.07)";
+        ctx.fillRect(rx, 8, Math.max(2, Math.round(tt.resetLowLen / spp)), 142);
+        if (ii === sel) {
+          ctx.fillStyle = "#DC2626";
+          ctx.fillText("RESET" + (tt.presence ? " +presence" : " no-presence"), rx + 4, 22);
+        }
+      }
+      if (tt.presence && tt.presLen > 0) {
+        const px0 = xOf(tt.presT), px1 = xOf(tt.presT + tt.presLen);
+        if (px1 >= -40 && px0 <= W + 40) {
+          ctx.fillStyle = "rgba(21,128,61,.16)";
+          ctx.fillRect(Math.max(0, px0), 8, Math.min(W, px1) - Math.max(0, px0), 142);
+        }
+      }
+    });
+    // Only byte annotations that intersect the current viewport.
+    let blo = 0, bhi = byteIndex.length;
+    const byteStart = Math.max(0, view.off - Math.round(90 * cap.samplerate / 1e6));
+    while (blo < bhi) {
+      const mid = (blo + bhi) >> 1;
+      if (byteIndex[mid].byte.t1 < byteStart) blo = mid + 1;
+      else bhi = mid;
+    }
+    for (let k = blo; k < byteIndex.length && byteIndex[k].byte.t0 <= visibleEnd; k++) {
+      const item = byteIndex[k], bb = item.byte;
+      const bw = (bb.t1 - bb.t0) / spp;
+      if (bw < 24) continue;
+      const x = Math.floor((bb.t0 - view.off) / spp);
+      if (x < -30 || x > W) continue;
+      const y = 168;
+      if (item.crc && !item.crc.partial) {
+        ctx.fillStyle = item.crc.ok ? "rgba(21,128,61,.16)" : "rgba(220,38,38,.16)";
+        ctx.fillRect(x - 12, y - 13, 44, 18);
+      }
+      ctx.fillStyle = item.crc && !item.crc.partial
+        ? (item.crc.ok ? "#15803D" : "#DC2626") : "#1A2333";
+      ctx.fillText(hex(bb.value), x - 8, y);
+      if (item.label) {
+        ctx.fillStyle = "#8A97AB";
+        if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
+      }
+    }
+    const selBytes = OWVis.bytesOf(t.bits).length;
+    let info = "T" + (sel + 1) + " · " + t.bits.length + " slots · " +
+      selBytes + " bytes · " + interp[sel].note;
+    const mk = interp[sel] && interp[sel].crc;
+    if (mk && !mk.partial) info += " · " + (mk.algorithm || "CRC") + (mk.ok ? " ok" : " FAIL");
+    else if (mk && mk.partial) info += " · " + (mk.algorithm || "CRC") + " truncated";
+    $("txinfo").textContent = info;
+    drawCursors(ctx, W, H);
+  }
+
+  // A/B timing cursors (Alt+click / Shift+click on detail, Esc clears).
+  let curA = null, curB = null;
+  let curASnapped = false, curBSnapped = false;
+  const usOf = (s) => (s / cap.samplerate) * 1e6;
+
+  function snapEdge(sample) {
+    const radius = Math.max(2, Math.round(24 * cap.samplerate / 1e6));
+    const lo = Math.max(1, sample - radius), hi = Math.min(cap.samples.length - 1, sample + radius);
+    let best = sample, bestD = Infinity;
+    for (let s = lo; s <= hi; s++) {
+      const a = (cap.samples[s - 1] >> cap.channel) & 1;
+      const b = (cap.samples[s] >> cap.channel) & 1;
+      if (a !== b && Math.abs(s - sample) < bestD) { best = s; bestD = Math.abs(s - sample); }
+    }
+    return { sample: best, snapped: bestD !== Infinity };
+  }
+
+  function drawCursors(ctx, W, H) {
+    if (!cap) return;
+    const draw = (s, tag, color, snapped) => {
+      const x = Math.floor((s - view.off) / view.spp) + 0.5;
+      if (x < 0 || x > W) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fillText(tag + " " + usOf(s).toFixed(1) + " us" + (snapped ? " · edge" : ""), x + 4, 12);
+    };
+    if (curA !== null && curB !== null) {
+      const x0 = Math.floor((Math.min(curA, curB) - view.off) / view.spp);
+      const x1 = Math.floor((Math.max(curA, curB) - view.off) / view.spp);
+      ctx.fillStyle = "rgba(37,99,235,.07)";
+      ctx.fillRect(Math.max(0, x0), 0, Math.min(W, x1) - Math.max(0, x0), H);
+    }
+    if (curA !== null) draw(curA, "A", "#2563EB", curASnapped);
+    if (curB !== null) draw(curB, "B", "#B45309", curBSnapped);
+    const ci = $("cursorinfo");
+    if (curA !== null && curB !== null) {
+      ci.textContent = "A=" + usOf(curA).toFixed(1) + " us" + (curASnapped ? " (edge)" : "") +
+        " B=" + usOf(curB).toFixed(1) + " us" + (curBSnapped ? " (edge)" : "") +
+        " Δ=" + Math.abs(usOf(curB) - usOf(curA)).toFixed(1) + " us";
+    } else if (curA !== null || curB !== null) {
+      const s = curA !== null ? curA : curB;
+      ci.textContent = (curA !== null ? "A" : "B") + "=" + usOf(s).toFixed(1) +
+        " us — set the other cursor (Alt+click=A, Shift+click=B, Esc=clear)";
+    } else {
+      ci.textContent = "Alt+click = A, Shift+click = B, Esc = clear";
+    }
+  }
+
+  // Fit the selected transaction into the detail viewport.
+  function frameTransaction() {
+    if (sel < 0 || !txns[sel] || !cap) return;
+    const W = $("detail").width;
+    const t = txns[sel];
+    const start = t.tReset != null ? t.tReset
+      : (t.bits.length ? t.bits[0].t : 0);
+    const end = t.bits.length ? t.bits[t.bits.length - 1].t : start + 1000;
+    const span = Math.max(500, end - start + Math.round(1200 * cap.samplerate / 1e6));
+    view.spp = clamp(span / W, SPP_MIN, zoomMax());
+    view.off = Math.floor(start - Math.round(600 * cap.samplerate / 1e6));
+    clampView();
+    syncZoom();
+  }
+
+  function fitCapture() {
+    if (!cap) return;
+    view.off = 0;
+    view.spp = clamp(cap.samples.length / detailWidth(), SPP_MIN, zoomMax());
+    clampView();
+    syncZoom();
+    drawDetail();
+    drawOverview();
+  }
+
+  function stepTransaction(dir) {
+    if (!txns.length) return;
+    const n = txns.length;
+    let i = sel;
+    for (let tries = 0; tries < n; tries++) {
+      i = (i + dir + n) % n;
+      if (txns[i].tReset != null) { selectTransaction(i, true); return; }
+    }
+  }
+
+  // Slider mirrors spp on the same dynamic range as wheel/keyboard/Fit.
+  // 0 = whole capture, 12 = 4 px per sample.
+  function syncZoom() {
+    const max = zoomMax(), min = SPP_MIN;
+    const v = max > min ? Math.round(12 * Math.log(max / Math.max(min, view.spp)) / Math.log(max / min)) : 0;
+    $("zoom").value = String(clamp(v, 0, 12));
+  }
+
+  function selectTransaction(i, revealRow) {
+    if (i < 0 || !txns[i]) return;
+    sel = i;
+    const g = groups.find((q) => q.indices.includes(i));
+    if (g && g.indices.length > 1) groupOpen.add(g.id);
+    frameTransaction();
+    renderTable();
+    if (revealRow) {
+      const row = $("tbl").querySelector('tr[data-txn="' + i + '"]');
+      if (row) row.scrollIntoView({ block: "nearest" });
+    }
+    drawOverview();
+    drawDetail();
+  }
+
+  function romText(rom) { return rom.map(hex).join(" "); }
+
+  function groupTitle(g) {
+    if (g.type === "search" || g.type === "alarm") {
+      const valid = g.roms.filter((r) => r.tripletsValid && r.crcOk).length;
+      const fams = [...new Set(g.roms.map((r) => OWVis.familyName(r.rom[0])))];
+      return (g.type === "search" ? "Search ROM" : "Alarm Search") +
+        " · " + g.indices.length + " passes · " + g.roms.length + " ROMs" +
+        (fams.length ? " · " + fams.join(", ") : "") +
+        " · CRC " + valid + "/" + g.roms.length;
+    }
+    const d = interp[g.indices[0]];
+    const fns = [...new Set(g.indices.map((i) => interp[i].functionName).filter(Boolean))];
+    return OWVis.familyName(d.rom[0]) + " · " + romText(d.rom) + " · " + g.indices.length +
+      " transactions" + (fns.length ? " · " + fns.join(" → ") : "");
+  }
+
+  function transactionStages(i) {
+    const t = txns[i], d = interp[i], b = d.bytes;
+    const stages = [];
+    const values = (start, end) => b.slice(start, end).map((x) => hex(x.value));
+    if (d.kind === "search" || d.kind === "alarm") {
+      stages.push("ROM command · 0x" + hex(b[0].value) + " · " + OWVis.cmdName(b[0].value));
+      (d.roms || []).forEach((r, ri) => stages.push("Search pass " + (ri + 1) + " → " +
+        OWVis.familyName(r.rom[0]) + " · " + romText(r.rom) + " · triplets " +
+        (r.tripletsValid ? "valid" : "invalid") + " · ROM CRC " + (r.crcOk ? "OK" : "FAIL")));
+    } else if (d.kind === "match") {
+      stages.push("ROM command · 0x55 · Match ROM");
+      stages.push("ROM address · " + romText(d.rom) + " · CRC " + (d.romCrcOk ? "OK" : "FAIL"));
+      if (d.functionCommand !== null) stages.push("Function command · " + d.functionName + " · 0x" + hex(d.functionCommand));
+      const payloadStart = 10;
+      if (d.functionCommand !== null && b.length > payloadStart) {
+        if (d.rom[0] === 0x2d && (d.functionCommand === 0xf0 || d.functionCommand === 0x0f)) {
+          const addr = b[payloadStart].value | (b[payloadStart + 1] ? b[payloadStart + 1].value << 8 : 0);
+          stages.push("EEPROM address · 0x" + addr.toString(16).padStart(2, "0").toUpperCase() +
+            " · data " + values(payloadStart + 2, b.length).join(" "));
+        } else if (d.rom[0] === 0x2d && d.functionCommand === 0xaa && b.length >= payloadStart + 3) {
+          const ta = b[payloadStart].value | (b[payloadStart + 1].value << 8);
+          const es = b[payloadStart + 2].value;
+          const n = (((es & 7) - (ta & 7) + 1) & 7) || 8;
+          stages.push("Scratchpad frame · TA=0x" + ta.toString(16).padStart(4, "0").toUpperCase() +
+            " ES=0x" + hex(es) + " · data " + values(payloadStart + 3, Math.min(b.length, payloadStart + 3 + n)).join(" "));
+        } else if (d.rom[0] === 0x28 && d.functionCommand === 0xbe) {
+          const raw = b[payloadStart] ? b[payloadStart].value | (b[payloadStart + 1].value << 8) : 0;
+          const signed = raw & 0x8000 ? raw - 0x10000 : raw;
+          stages.push("Scratchpad · raw 0x" + raw.toString(16).padStart(4, "0").toUpperCase() +
+            " · T=" + (signed / 16).toFixed(4) + " °C · bytes " + values(payloadStart, b.length).join(" "));
+        } else {
+          stages.push("Data/reply bytes · " + values(payloadStart, b.length).join(" "));
+        }
+      }
+      const runs = [];
+      for (const slot of t.bits) {
+        if (!slot.phase || slot.phase === "unclassified") continue;
+        const last = runs[runs.length - 1];
+        if (last && last.phase === slot.phase && last.role === slot.role) last.count++;
+        else runs.push({ phase: slot.phase, role: slot.role, count: 1 });
+      }
+      runs.forEach((r) => stages.push(r.phase + " · " + r.role + " · " + r.count + " slots"));
+      if (d.crc && !d.crc.partial) stages.push((d.crc.algorithm || "Scratchpad CRC") + " · " + (d.crc.ok ? "OK" : "FAIL"));
+    } else if (d.kind === "skip") {
+      stages.push("ROM command · 0xCC · Skip ROM");
+      if (d.functionCommand !== null) stages.push("Function command · " + d.functionName + " · 0x" + hex(d.functionCommand));
+      const runs = [];
+      for (const slot of t.bits) {
+        if (!slot.phase || slot.phase === "unclassified") continue;
+        const last = runs[runs.length - 1];
+        if (last && last.phase === slot.phase && last.role === slot.role) last.count++;
+        else runs.push({ phase: slot.phase, role: slot.role, count: 1 });
+      }
+      runs.forEach((r) => stages.push(r.phase + " · " + r.role + " · " + r.count + " slots"));
+      if (d.crc && !d.crc.partial) stages.push((d.crc.algorithm || "Scratchpad CRC") + " · " + (d.crc.ok ? "OK" : "FAIL"));
+    } else {
+      stages.push("Raw bytes · " + b.map((x) => hex(x.value)).join(" "));
+    }
+    return stages;
+  }
+
+  function renderSearchResults() {
+    const host = $("searchResults");
+    host.innerHTML = "";
+    const found = new Map();
+    interp.forEach((d, ti) => {
+      if (d.kind !== "search" && d.kind !== "alarm") return;
+      (d.roms || []).forEach((r) => {
+        const key = r.rom.join(",");
+        if (!found.has(key)) found.set(key, { rom: r.rom, crcOk: r.crcOk, tripletsValid: r.tripletsValid, passes: [] });
+        found.get(key).passes.push(ti);
+      });
+    });
+    if (!found.size) {
+      host.textContent = "No Search ROM results in this capture.";
+      host.className = "search-results legend";
+      return;
+    }
+    host.className = "search-results";
+    for (const entry of found.values()) {
+      const button = document.createElement("button");
+      button.className = "rom-chip";
+      const family = document.createElement("span");
+      family.className = "family";
+      family.textContent = OWVis.familyName(entry.rom[0]);
+      const address = document.createElement("span");
+      address.textContent = romText(entry.rom);
+      const crc = document.createElement("span");
+      const ok = entry.crcOk && entry.tripletsValid;
+      crc.className = ok ? "crc-ok" : "crc-bad";
+      crc.textContent = ok ? "CRC ✓" : "CRC ✕";
+      const pass = document.createElement("span");
+      pass.className = "family";
+      pass.textContent = "pass T" + (entry.passes[0] + 1) + (entry.passes.length > 1 ? " · ×" + entry.passes.length : "");
+      button.append(family, address, crc, pass);
+      button.addEventListener("click", () => selectTransaction(entry.passes[0], true));
+      host.appendChild(button);
+    }
+  }
+
+  function renderTable() {
+    const tb = $("tbl").querySelector("tbody");
+    tb.innerHTML = "";
+    const addTransaction = (i, child) => {
+      const t = txns[i], d = interp[i], tr = document.createElement("tr");
+      tr.dataset.txn = String(i); // lets selectTransaction(i, true) reveal it
+      if (i === sel) tr.className = "sel";
+      if (child) tr.classList.add("child-row");
+      const presence = t.presence === null ? "?" : t.presence ? "yes" : "NO";
+      const b = d.bytes.slice(0, 12).map((x) => hex(x.value)).join(" ") +
+        (d.bytes.length > 12 ? " …(+" + (d.bytes.length - 12) + ")" : "");
+      const first = document.createElement("td");
+      const toggle = document.createElement("button");
+      toggle.className = "tree-toggle";
+      toggle.textContent = (txnOpen.has(i) ? "▾ " : "▸ ") + "T" + (i + 1);
+      toggle.title = "Expand protocol layers";
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (txnOpen.has(i)) txnOpen.delete(i); else txnOpen.add(i);
+        renderTable();
+      });
+      first.appendChild(toggle);
+      tr.appendChild(first);
+      [presence, b, d.note].forEach((value) => {
+        const td = document.createElement("td");
+        td.textContent = value;
+        tr.appendChild(td);
+      });
+      tr.addEventListener("click", () => selectTransaction(i, false));
+      tb.appendChild(tr);
+      if (txnOpen.has(i)) {
+        transactionStages(i).forEach((text) => {
+          const stage = document.createElement("tr");
+          stage.className = "stage-row";
+          const cell = document.createElement("td");
+          cell.colSpan = 4;
+          cell.textContent = "↳ " + text;
+          stage.appendChild(cell);
+          stage.addEventListener("click", () => selectTransaction(i, false));
+          tb.appendChild(stage);
+        });
+      }
+    };
+    groups.forEach((g) => {
+      if (g.indices.length <= 1) {
+        addTransaction(g.indices[0], false);
+        return;
+      }
+      const tr = document.createElement("tr");
+      tr.className = "group-row";
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      const open = groupOpen.has(g.id);
+      td.textContent = (open ? "▾ " : "▸ ") + groupTitle(g);
+      tr.appendChild(td);
+      tr.addEventListener("click", () => {
+        if (groupOpen.has(g.id)) groupOpen.delete(g.id);
+        else groupOpen.add(g.id);
+        renderTable();
+      });
+      tb.appendChild(tr);
+      if (open) g.indices.forEach((i) => addTransaction(i, true));
+    });
+  }
+
+  // Fit canvas backing stores to the layout width (CSS stays width:100%).
+  // Called on load and on window resize; redraws the current views.
+  function fitCanvases() {
+    ["ov", "detail"].forEach((id) => {
+      const c = $(id);
+      const w = Math.max(320, Math.floor(c.clientWidth));
+      if (c.width !== w) c.width = w;
+    });
+    if (cap) {
+      clampView();
+      syncZoom();
+    }
+    drawOverview();
+    drawDetail();
+  }
+
+  let resizeT = null;
+  window.addEventListener("resize", () => {
+    if (resizeT) clearTimeout(resizeT);
+    resizeT = setTimeout(fitCanvases, 120);
+  });
+
+  /** Drop decoded results and reset every view that mirrors them. */
+  function clearResults() {
+    txns = [];
+    interp = [];
+    groups = [];
+    slotIndex = [];
+    byteIndex = [];
+    sel = -1;
+    curA = curB = null;
+    curASnapped = curBSnapped = false;
+    groupOpen.clear();
+    txnOpen.clear();
+    $("trans").textContent = "(empty)";
+    $("copy").disabled = true;
+    $("txinfo").textContent = "";
+    $("cursorinfo").textContent = "Alt+click = A, Shift+click = B, Esc = clear";
+    $("tip").style.display = "none";
+    renderTable();
+    renderSearchResults();
+    drawOverview();
+    drawDetail();
+  }
+
+  function runDecode() {
+    try {
+      cap.edgeSamples = buildEdgeIndex(cap.samples, cap.channel);
+      const ev = OWVis.decodeSlots(cap.samples, cap.samplerate, cap.channel);
+      txns = OWVis.buildTransactions(ev, cap.samplerate);
+      interp = txns.map((t) => OWVis.interpret(t));
+      curA = curB = null;
+      curASnapped = curBSnapped = false;
+      groups = OWVis.groupTransactions(txns, interp);
+      slotIndex = [];
+      txns.forEach((t, ti) => t.bits.forEach((slot, si) => slotIndex.push({ t: slot.t, slot, ti, si })));
+      byteIndex = [];
+      txns.forEach((t, ti) => {
+        const d = interp[ti];
+        const crc = d && d.crc;
+        OWVis.bytesOf(t.bits).forEach((byte, bi) => {
+          // Only command bytes get a mnemonic; labelling every data byte with
+          // cmdName made payload values such as 0x44 look like "Convert T".
+          let label = "";
+          if (d && d.kind === "match" && (bi === 0 || bi === 9)) {
+            label = bi === 0 ? OWVis.cmdName(byte.value) : d.functionName;
+          } else if (d && d.kind === "skip" && (bi === 0 || bi === 1)) {
+            label = bi === 0 ? OWVis.cmdName(byte.value) : d.functionName;
+          } else if (d && (d.kind === "search" || d.kind === "alarm") && bi === 0) {
+            label = OWVis.cmdName(byte.value);
+          }
+          byteIndex.push({
+            t: byte.t0, byte, ti, bi, label,
+            crc: crc && crc.indices && crc.indices.includes(bi) ? crc : null,
+          });
+        });
+      });
+      groupOpen.clear();
+      groups.forEach((g) => {
+        if (g.type === "search" || g.type === "alarm") groupOpen.add(g.id);
+      });
+      txnOpen.clear();
+      sel = txns.length ? 0 : -1;
+      frameTransaction();
+      renderTable();
+      renderSearchResults();
+      drawOverview();
+      drawDetail();
+      $("trans").textContent = OWVis.transcript(txns);
+      $("copy").disabled = false;
+      const devs = {};
+      interp.forEach((x) => {
+        (x.roms || []).forEach((r) => {
+          devs[r.rom.map(hex).join(" ")] = OWVis.familyName(r.rom[0]);
+        });
+        if (x.rom) devs[x.rom.map(hex).join(" ")] = OWVis.familyName(x.rom[0]);
+      });
+      status("Decoded " + txns.length + " transactions, " +
+        Object.keys(devs).length + " unique ROM(s) @ " +
+        (cap.samplerate / 1e6).toFixed(1) + " MHz, ch D" + cap.channel +
+        (cap.demo ? " (synthetic demo)" : "") + ".");
+    } catch (e) {
+      clearResults();
+      status("Decode failed: " + e.message, true);
+    }
+  }
+
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    status("Reading " + f.name + " (" + (f.size / 1024).toFixed(0) + " KiB)…");
+    try {
+      const buf = await f.arrayBuffer();
+      cap = await OWVis.parseSR(buf, parseInt($("chan").value, 10));
+      runDecode();
+    } catch (err) {
+      // A failed .sr parse must not leave the previous capture on screen.
+      cap = null;
+      clearResults();
+      status("Failed: " + err.message, true);
+    }
+  });
+
+  $("chan").addEventListener("change", () => {
+    if (!cap || cap.demo) return;
+    cap.channel = parseInt($("chan").value, 10);
+    runDecode();
+  });
+
+  $("demo").addEventListener("click", () => {
+    cap = OWVis.genDemo();
+    runDecode();
+  });
+
+  $("bundled").addEventListener("click", async () => {
+    try {
+      if (typeof BUNDLED_SR_B64 === "string" && BUNDLED_SR_B64.length) {
+        // Embedded capture: works from file:// with no server.
+        const bin = atob(BUNDLED_SR_B64);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        cap = await OWVis.parseSR(buf.buffer, parseInt($("chan").value, 10));
+        runDecode();
+        return;
+      }
+      const r = await fetch("captures/9_multi_f030_boot.sr");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      cap = await OWVis.parseSR(await r.arrayBuffer(), parseInt($("chan").value, 10));
+      runDecode();
+    } catch (e) {
+      status("Bundled capture failed (" + e.message + "). Pick " +
+        "captures/9_multi_f030_boot.sr via the file input instead.", true);
+    }
+  });
+
+  // Slider = coarse zoom around viewport center (wheel = fine zoom at cursor).
+  // Range and direction match syncZoom(): left = whole capture, right = 4 px/sample.
+  $("zoom").addEventListener("input", () => {
+    if (!cap) return;
+    const c = $("detail");
+    const center = view.off + (c.width / 2) * view.spp;
+    const max = zoomMax(), min = SPP_MIN;
+    view.spp = max * Math.pow(min / max, parseInt($("zoom").value, 10) / 12);
+    view.off = Math.floor(center - (c.width / 2) * view.spp);
+    clampView();
+    drawDetail();
+    drawOverview();
+  });
+
+  $("colorMode").addEventListener("change", () => {
+    const legend = $("slotLegend");
+    if ($("colorMode").value === "role") {
+      legend.innerHTML = '<span class="sw" style="background:#2563EB"></span>master write ' +
+        '<span class="sw" style="background:#15803D"></span>slave read ' +
+        '<span class="sw" style="background:#7C3AED"></span>search response ' +
+        '<span class="sw" style="background:#B45309"></span>master direction';
+    } else {
+      legend.innerHTML = '<span class="sw" style="background:#2E7DE1"></span>bit 0 ' +
+        '<span class="sw" style="background:#E19A2E"></span>bit 1';
+    }
+    drawDetail();
+  });
+
+  $("prevTx").addEventListener("click", () => stepTransaction(-1));
+  $("nextTx").addEventListener("click", () => stepTransaction(1));
+  $("fitTx").addEventListener("click", () => {
+    frameTransaction();
+    drawDetail();
+    drawOverview();
+  });
+  $("fitAll").addEventListener("click", fitCapture);
+  window.addEventListener("keydown", (e) => {
+    const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
+    if (["input", "select", "textarea"].includes(tag)) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); stepTransaction(-1); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); stepTransaction(1); }
+    else if (e.key.toLowerCase() === "f") { frameTransaction(); drawDetail(); drawOverview(); }
+    else if (e.key === "0") fitCapture();
+    else if (e.key === "+" || e.key === "=") {
+      zoomAtCenter(0.8);
+    } else if (e.key === "-") {
+      zoomAtCenter(1.25);
+    }
+  });
+
+  /** Zoom around the detail viewport center, clamped to the shared range. */
+  function zoomAtCenter(factor) {
+    if (!cap) return;
+    const c = $("detail");
+    const center = view.off + (c.width / 2) * view.spp;
+    view.spp *= factor;
+    view.off = Math.floor(center - (c.width / 2) * view.spp);
+    clampView();
+    syncZoom();
+    drawDetail();
+    drawOverview();
+  }
+
+  // Wheel zoom around the cursor, no libraries.
+  $("detail").addEventListener("wheel", (e) => {
+    if (!cap) return;
+    e.preventDefault();
+    const c = $("detail");
+    const r = c.getBoundingClientRect();
+    const x = (e.clientX - r.left) * (c.width / r.width);
+    const at = view.off + x * view.spp; // sample under cursor stays put
+    view.spp *= e.deltaY > 0 ? 1.25 : 0.8;
+    view.off = Math.floor(at - x * view.spp);
+    clampView();
+    syncZoom();
+    drawDetail();
+    drawOverview();
+  }, { passive: false });
+
+  // Drag to pan (overview frame refreshes on release).
+  // Alt+click / Shift+click without drag drops timing cursor A / B.
+  let downPos = null;
+  $("detail").addEventListener("mousedown", (e) => {
+    dragX = e.clientX;
+    downPos = { x: e.clientX, y: e.clientY, alt: e.altKey, shift: e.shiftKey };
+  });
+  window.addEventListener("mouseup", () => {
+    if (dragX !== null) drawOverview();
+    dragX = null;
+  });
+  $("detail").addEventListener("click", (e) => {
+    if (!cap || !downPos) return;
+    const moved = Math.abs(e.clientX - downPos.x) + Math.abs(e.clientY - downPos.y);
+    const { alt, shift } = downPos;
+    downPos = null;
+    if (moved > 4 || (!alt && !shift)) return;
+    const c = $("detail");
+    const r = c.getBoundingClientRect();
+    const x = (e.clientX - r.left) * (c.width / r.width);
+    const s = Math.max(0, Math.floor(view.off + x * view.spp));
+    const snapped = snapEdge(s);
+    if (alt) { curA = snapped.sample; curASnapped = snapped.snapped; }
+    if (shift) { curB = snapped.sample; curBSnapped = snapped.snapped; }
+    drawDetail();
+    drawOverview();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && (curA !== null || curB !== null)) {
+      curA = curB = null;
+      curASnapped = curBSnapped = false;
+      drawDetail();
+    }
+  });
+
+  // Hover readout: time, level + pulse width, nearest slot / byte.
+  let hoverRaf = false, hoverEv = null;
+  const hideTip = () => { $("tip").style.display = "none"; };
+  $("detail").addEventListener("mousemove", (e) => {
+    if (dragX === null && cap) {
+      hoverEv = e;
+      if (!hoverRaf) {
+        hoverRaf = true;
+        requestAnimationFrame(() => { hoverRaf = false; showTip(); });
+      }
+    } else {
+      hideTip();
+    }
+  });
+  $("detail").addEventListener("mouseleave", hideTip);
+  function showTip() {
+    if (!hoverEv || !cap) return;
+    const c = $("detail");
+    const r = c.getBoundingClientRect();
+    const x = (hoverEv.clientX - r.left) * (c.width / r.width);
+    const y = (hoverEv.clientY - r.top) * (c.height / r.height);
+    const s = Math.floor(view.off + x * view.spp);
+    if (s < 0 || s >= cap.samples.length) { hideTip(); return; }
+    const v = (cap.samples[s] >> cap.channel) & 1;
+    // Exact pulse run from the edge index. The old capped linear scan reported
+    // "4000 samples" for long highs such as the idle gap.
+    const pulse = pulseBounds(s);
+    const wUs = pulse ? (pulse.width / cap.samplerate) * 1e6 : 0;
+    let slotTxt = "slot —";
+    let lo = 0, hi = slotIndex.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (slotIndex[mid].t < s) lo = mid + 1;
+      else hi = mid;
+    }
+    let near = null, dist = Infinity;
+    for (const k of [lo - 1, lo]) {
+      if (k < 0 || k >= slotIndex.length) continue;
+      const cand = slotIndex[k];
+      // Prefer the slot whose span physically contains the pointer; a sample
+      // in the high tail belongs to the current slot, not the next one.
+      if (s >= cand.slot.t && s < cand.slot.endT) { near = cand; dist = 0; break; }
+      const d = Math.abs(cand.slot.t - s);
+      if (d < dist) { dist = d; near = cand; }
+    }
+    const nearUs = 90 * (cap.samplerate / 1e6);
+    if (near && dist <= nearUs) {
+      const slot = near.slot;
+      const lowUs = (slot.lowLen / cap.samplerate) * 1e6;
+      const slotUs = ((slot.endT - slot.t) / cap.samplerate) * 1e6;
+      slotTxt = "T" + (near.ti + 1) + " · " + (slot.role || "unknown") +
+        (slot.phase ? " · " + slot.phase : "") + " · bit " + slot.bit +
+        " · low " + lowUs.toFixed(1) + "/slot " + slotUs.toFixed(1) + " us";
+    } else {
+      const reset = txns.find((q) => q.tReset != null && q.tReset <= s && q.tReset + q.resetLowLen >= s);
+      const presence = txns.find((q) => q.presence && q.presT <= s && q.presT + q.presLen >= s);
+      if (reset) slotTxt = "1-Wire master reset";
+      else if (presence) slotTxt = "slave presence response · " + ((presence.presLen / cap.samplerate) * 1e6).toFixed(1) + " us";
+    }
+    const tip = $("tip");
+    tip.textContent = "t=" + ((s / cap.samplerate) * 1e6).toFixed(1) + " us · " +
+      (v ? "HIGH" : "LOW") + " " + wUs.toFixed(1) + " us\n" + slotTxt;
+    tip.style.display = "block";
+    // Measure, then keep the whole tooltip inside the detail card.
+    const card = c.parentElement;
+    const cssX = hoverEv.clientX - r.left, cssY = hoverEv.clientY - r.top;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    const left = clamp(c.offsetLeft + cssX + 14, 0, Math.max(0, card.clientWidth - tw - 8));
+    const top = clamp(c.offsetTop + cssY - th - 12, 0, Math.max(0, card.clientHeight - th - 4));
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  $("detail").addEventListener("mousemove", (e) => {
+    if (dragX === null || !cap) return;
+    const c = $("detail");
+    const r = c.getBoundingClientRect();
+    const dx = (e.clientX - dragX) * (c.width / r.width);
+    view.off -= Math.round(dx * view.spp);
+    clampView();
+    dragX = e.clientX;
+    drawDetail();
+  });
+
+  fitCanvases();
+
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("trans").textContent);
+      status("Transcript copied to clipboard.");
+    } catch (e) {
+      status("Copy failed: " + e.message, true);
+    }
+  });
+
+  // Overview: click = nearest transaction, drag = set detail window.
+  $("ov").addEventListener("mousedown", (e) => {
+    if (!cap) return;
+    const r = $("ov").getBoundingClientRect();
+    ovDrag = { x0: e.clientX - r.left, x: e.clientX - r.left };
+  });
+  $("ov").addEventListener("mousemove", (e) => {
+    if (ovDrag === null || !cap) return;
+    const r = $("ov").getBoundingClientRect();
+    ovDrag.x = e.clientX - r.left;
+    drawOverview();
+  });
+  window.addEventListener("mouseup", (e) => {
+    if (ovDrag === null) return;
+    const was = ovDrag;
+    ovDrag = null;
+    if (!cap || !txns.length) { drawOverview(); return; }
+    const r = $("ov").getBoundingClientRect();
+    const x1 = e.clientX - r.left;
+    if (Math.abs(x1 - was.x0) < 4) {
+      // click: nearest transaction
+      const s = Math.floor((x1 / r.width) * cap.samples.length);
+      let best = 0, bd = Infinity;
+      txns.forEach((t, i) => {
+        const tt = t.tReset != null ? t.tReset : (t.bits.length ? t.bits[0].t : 0);
+        const d = Math.abs(tt - s);
+        if (d < bd) { bd = d; best = i; }
+      });
+      selectTransaction(best, true);
+      return;
+    }
+    // drag: detail window = dragged range
+    const s0 = Math.floor((Math.min(was.x0, x1) / r.width) * cap.samples.length);
+    const s1 = Math.floor((Math.max(was.x0, x1) / r.width) * cap.samples.length);
+    const dw = detailWidth();
+    view.spp = (s1 - s0) / dw;
+    view.off = s0;
+    clampView();
+    syncZoom();
+    renderTable();
+    drawOverview();
+    drawDetail();
+  });
+})();
+</script>
+</body>
+</html>
