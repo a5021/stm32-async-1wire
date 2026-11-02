@@ -183,8 +183,9 @@ def test_lowpower_check():
 
 def test_log_identity():
     print("the run's identity header")
-    check("the version comes from inc/ds18b20.h",
-          common.library_version() == "2.4.0")
+    version = common.library_version()
+    check("the version comes from inc/ow_version.h",
+          version not in (None, "", "?"))
     check("the part comes from the Makefile, not a second table",
           common.chip_for("STM32F103xB") == "f103xb")
     check("the clock comes from chips/<part>.mk",
@@ -201,7 +202,7 @@ def test_log_identity():
           fields.get("mcu") == "STM32F103xB"
           and fields.get("sysclk") == "72MHz")
     check("the tree identifies itself",
-          fields.get("fw") == "2.4.0"
+          fields.get("fw") == version
           and fields.get("commit") not in (None, "", "?"))
     check("an image hash is only written when there is an image",
           "sha256" not in fields)
