@@ -328,7 +328,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ONEWIRE_SEARCH_ROM`. No public API change: F030 `1_basic`/`6_statistics`/
   `9_multi` byte-identical, `8_ds2431` text -4.
 
+- **The shared encoder no longer carries a dead mode branch.** Passing a NULL
+  ROM to mean Skip ROM made each inlined call site cover only one arm, so the
+  other arm was structurally unreachable and showed up as uncovered branches
+  in `ds18b20.c`. `ow_encode_skip_rom()` and `ow_encode_match_rom()` are now
+  separate helpers; the addressing policy still lives in the drivers.
+
 ### Fixed
+
+- **`test_read_scratchpad_echo_mismatch` was not testing the echo check.** The
+  frame it built had a wrong ES byte, which also changes the reply length the
+  driver derives from that byte, so the inverted CRC-16 was computed over a
+  different window and the CRC check aborted first: the test passed without
+  ever reaching the TA/ES comparison it is named after. The reply now carries
+  the CRC that its own (wrong) ES implies, so the echo mismatch is what
+  rejects it.
+
+- **The shared poll helper's sleep branch is now exercised.** The low-power
+  suite drove `ow_port_sleep_until_done()` directly and never the
+  `ow_op_done()` wrapper, leaving its WFE branch (and the wrapper itself)
+  uncovered. The low-power test build now defines `MOCK_WFE_HOOK` and one test
+  delivers the update event from the first wake-up, covering the branch and
+  the event consumption after it.
+
+- **New guard tests for the DS2431 driver and the DS18B20 request paths.**
+  Rejected `select()` during an operation and during a search, `select(NULL)`,
+  NULL result buffers, a `write_scratchpad` refused because the timer is busy,
+  parasite mode being switched off, a measurement request during a search, a
+  parked poll with a stale completion, and the configuration token: all were
+  real branches with no test. `ds2431.c` is now fully line-covered.
 
 - **The "the driver never blocks" promise was not true as written.** The
   README's Layer Contracts said so in one bullet and granted the exception in

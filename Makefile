@@ -1377,7 +1377,11 @@ $(TEST_DS2431_NG_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewi
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
 
 # Low-power variant: the same suite re-built with -DOW_LOW_POWER=1.
-TEST_LP_FLAG = $(TEST_FLAG) -DOW_LOW_POWER=1
+# MOCK_WFE_HOOK routes the host __WFE() through mock_wfe_set_hook, which lets
+# one test deliver the TIM1 update event asynchronously and exercise the
+# shared ow_op_done() sleep branch; with no hook installed it is the same
+# no-op the plain stub provides, so the rest of the suite is unaffected.
+TEST_LP_FLAG = $(TEST_FLAG) -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
 TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter h5,$(1)),STM32H5,$(if $(filter h7,$(1)),STM32H743xx,STM32F1)))))))

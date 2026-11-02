@@ -27,6 +27,7 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
+#include "ow_glue.h"
 #include "ow_port.h"
 #include "unity.h"
 
@@ -103,6 +104,33 @@ void test_lowpower_sleep_until_done_smoke(void) {
 
     /* After sleep, bus_done should still work (pending was cleared). */
     TEST_ASSERT_EQUAL_UINT8(1, test_ds18b20_bus_done());
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
+}
+
+/*-------------------------------------------------------------
+ *  ow_op_done() sleeps through a long stage and reports completion
+ *
+ *  The mock __WFE() delivers the TIM1 update event on the first
+ *  wake-up, so the shared poll helper takes its sleep branch and
+ *  consumes the event that woke it.
+ * -----------------------------------------------------------*/
+static uint32_t lp_wfe_calls;
+
+static void lp_uif_on_first_wake(void) {
+    lp_wfe_calls++;
+    hw_tim_update_event();
+}
+
+void test_lowpower_op_done_sleeps_through_long_stage(void) {
+    test_bus_wait_conversion();
+    TEST_ASSERT_EQUAL_UINT8(1, ow_port_long_wait_pending());
+
+    lp_wfe_calls = 0;
+    mock_wfe_set_hook(lp_uif_on_first_wake);
+    TEST_ASSERT_EQUAL_UINT8(1, ow_op_done());
+    mock_wfe_set_hook(NULL);
+
+    TEST_ASSERT_TRUE(lp_wfe_calls > 0);
     TEST_ASSERT_EQUAL_UINT8(0, ow_port_long_wait_pending());
 }
 
@@ -274,6 +302,7 @@ void run_test_lowpower(void) {
     TEST_RUN(test_lowpower_short_op_keeps_pending_clear);
     TEST_RUN(test_lowpower_bus_done_clears_pending);
     TEST_RUN(test_lowpower_sleep_until_done_smoke);
+    TEST_RUN(test_lowpower_op_done_sleeps_through_long_stage);
     TEST_RUN(test_lowpower_capture_long_sets_pending);
     TEST_RUN(test_lowpower_capture_short_keeps_pending_clear);
     TEST_RUN(test_lowpower_read_pair_enables_uie);

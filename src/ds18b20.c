@@ -254,7 +254,7 @@ _Static_assert(sizeof(phase_pulses.addr) >= DS18B20_MATCH_SLOTS + 1,
  */
 __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
     ow_pulse_t* p = phase_pulses.addr;
-    ow_encode_prefix(&p, ctx.selected_rom);
+    ow_encode_match_rom(&p, ctx.selected_rom);
     onewire_encode_byte(&phase_pulses.addr[DS18B20_PREFIX_SLOTS], cmd_byte);
     phase_pulses.addr[DS18B20_MATCH_SLOTS] = ONEWIRE_RELEASE_PULSE;
 }

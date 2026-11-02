@@ -90,21 +90,29 @@ __STATIC_FORCEINLINE uint8_t ow_encode_bytes(ow_pulse_t** dst, const uint8_t* sr
 }
 
 /**
- * @brief Encode the ROM addressing prefix of a command write, advancing past it
- * @param[in,out] dst Cursor into the pulse table; advanced past the prefix
- * @param[in] rom 8-byte ROM for a Match ROM prefix, or 0 for Skip ROM
- * @return Bytes encoded (1 or 1 + ONEWIRE_ROM_BYTES)
- * @note Pure encoder, always inlined so command builds keep their exact
- *       single-site codegen: the caller decides bare/skip/match (scan and
- *       address policy stay in the driver). Match ROM 0x55 / Skip ROM 0xCC
- *       are 1-Wire protocol constants, identical for every slave.
+ * @brief Encode a Skip ROM prefix, advancing the cursor past it
+ * @param[in,out] dst Cursor into the pulse table; advanced by one byte
+ * @return Bytes encoded (1)
+ * @note Split from the Match ROM form on purpose: each call site knows its
+ *       addressing mode statically, so there is no dead mode branch to
+ *       carry (and no branch to leave uncovered). Skip ROM 0xCC is a 1-Wire
+ *       protocol constant, identical for every slave.
  */
-__STATIC_FORCEINLINE uint8_t ow_encode_prefix(ow_pulse_t** dst, const uint8_t* rom) {
-    if (rom == 0) {
-        onewire_encode_byte(*dst, ONEWIRE_SKIP_ROM);
-        *dst += ONEWIRE_BITS_PER_BYTE;
-        return 1u;
-    }
+__STATIC_FORCEINLINE uint8_t ow_encode_skip_rom(ow_pulse_t** dst) {
+    onewire_encode_byte(*dst, ONEWIRE_SKIP_ROM);
+    *dst += ONEWIRE_BITS_PER_BYTE;
+    return 1u;
+}
+
+/**
+ * @brief Encode a Match ROM prefix and the 8-byte ROM, advancing the cursor
+ * @param[in,out] dst Cursor into the pulse table; advanced past the prefix
+ * @param[in] rom 8-byte ROM address (LSB first) of the addressed device
+ * @return Bytes encoded (1 + ONEWIRE_ROM_BYTES)
+ * @note Match ROM 0x55 is a 1-Wire protocol constant; the addressing policy
+ *       (when to use Match rather than Skip) stays in the driver.
+ */
+__STATIC_FORCEINLINE uint8_t ow_encode_match_rom(ow_pulse_t** dst, const uint8_t* rom) {
     onewire_encode_byte(*dst, ONEWIRE_MATCH_ROM);
     *dst += ONEWIRE_BITS_PER_BYTE;
     return (uint8_t)(1u + ow_encode_bytes(dst, rom, ONEWIRE_ROM_BYTES));
