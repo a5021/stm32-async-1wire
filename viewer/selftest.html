@@ -32,7 +32,7 @@
 </head>
 <body>
 <h1>1-Wire visualizer self-test</h1>
-<p class="lead">Runs offline against the bundled F030 capture and synthetic waveforms.
+<p class="lead">Runs offline against the bundled 9_Multi capture and synthetic waveforms.
   Open this page directly from <span style="font-family:Consolas,monospace">file://</span>; no server or libraries.</p>
 <div id="summary">Running…</div>
 <ol id="results"></ol>
@@ -273,16 +273,19 @@
     const demoInterp = demoTxns.map((t) => OWVis.interpret(t));
     eq("demo transaction count", demoTxns.length, 3);
     eq("demo presence on every transaction", demoTxns.every((t) => t.presence === true), true);
-    check("demo T1 is a DS18B20 Read Scratchpad with valid CRC-8",
-      demoInterp[0].kind === "match" && !!(demoInterp[0].crc && demoInterp[0].crc.ok),
-      demoInterp[0].note);
+    check("demo T1 Search ROM finds the DS18B20",
+      demoInterp[0].kind === "search" && demoInterp[0].roms.length === 1 &&
+      romKey(demoInterp[0].roms[0].rom) === "28 20 78 92 07 00 00 67",
+      demoInterp[0].roms.length + " ROM(s)");
     check("demo T2 is Skip ROM + Convert T",
       demoInterp[1].kind === "skip" && demoInterp[1].note.indexOf("Convert T") >= 0,
       demoInterp[1].note);
-    check("demo T3 Search ROM finds the DS18B20",
-      demoInterp[2].kind === "search" && demoInterp[2].roms.length === 1 &&
-      romKey(demoInterp[2].roms[0].rom) === "28 20 78 92 07 00 00 67",
-      demoInterp[2].roms.length + " ROM(s)");
+    const demoT2 = demoTxns[1], demoT3 = demoTxns[2];
+    const demoGap = demoT3.tReset - demoT2.bits[demoT2.bits.length - 1].endT;
+    eq("demo conversion wait is 750 ms", demoGap, 750000);
+    check("demo T3 is a DS18B20 Read Scratchpad with valid CRC-8",
+      demoInterp[2].kind === "match" && !!(demoInterp[2].crc && demoInterp[2].crc.ok),
+      demoInterp[2].note);
 
     /* ---------- overdrive timing profile ---------- */
     eq("auto-detected bus speed: overdrive", OWVis.detectSpeed(OD_WAVE, 1e6, 0), "overdrive");

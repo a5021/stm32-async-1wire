@@ -839,28 +839,31 @@ OWVis.genDemo = function () {
     slot(idBit ? 0 : 1);
     slot(dirBit);
   };
-  hi(1000);
-  // T1: Match ROM DS18B20 + Read Scratchpad
-  reset();
-  byte(0x55);
   const rom1 = [0x28, 0x20, 0x78, 0x92, 0x07, 0x00, 0x00, 0x67];
-  rom1.forEach(byte);
-  byte(0xbe);
-  const pad = [0x90, 0x01, 0x4b, 0x46, 0x7f, 0xff, 0x0c, 0x10, 0x33];
-  pad.forEach(byte);
-  hi(2000);
-  // T2: Skip ROM + Convert T
-  reset();
-  byte(0xcc);
-  byte(0x44);
-  hi(2000);
-  // T3: Search ROM, single device (rom1) on the bus
+  hi(1000);
+  // T1: Search ROM, single device (rom1) on the bus. A real cycle starts by
+  // enumerating the bus, before any addressed command.
   reset();
   byte(0xf0);
   for (let i = 0; i < 64; i++) {
     const bit = (rom1[(i / 8) | 0] >> (i % 8)) & 1;
     searchTriplet(bit, bit); // id=bit, cmp=!bit, direction=bit
   }
+  hi(2000);
+  // T2: Skip ROM + Convert T
+  reset();
+  byte(0xcc);
+  byte(0x44);
+  // 750 ms conversion wait for a 12-bit DS18B20: the bus is released high, so
+  // this is a plain idle gap and no slot is decoded inside it.
+  hi(750000);
+  // T3: Match ROM DS18B20 + Read Scratchpad
+  reset();
+  byte(0x55);
+  rom1.forEach(byte);
+  byte(0xbe);
+  const pad = [0x90, 0x01, 0x4b, 0x46, 0x7f, 0xff, 0x0c, 0x10, 0x33];
+  pad.forEach(byte);
   hi(2000);
   return { samplerate: rate, unitsize: 1, probes: 8, samples: Uint8Array.from(out), channel: 0, demo: true };
 };
