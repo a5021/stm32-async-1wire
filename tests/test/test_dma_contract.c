@@ -741,8 +741,53 @@ void test_dma_guarantee_ledger(void) {
      * catches that too, because the live value would stay 0. */
 }
 
+/*-------------------------------------------------------------
+ *  Argument guards and timer-plan extremes
+ *
+ *  These hit the port's own reject paths directly (the public
+ *  onewire_* wrappers validate first, so the port guards would
+ *  otherwise never see an out-of-range value), plus the two
+ *  arithmetic clamps in the wait planner.
+ * -----------------------------------------------------------*/
+void test_port_argument_guards(void) {
+    ow_pulse_t pulse = (ow_pulse_t)ONEWIRE_ONE_PULSE;
+    volatile uint8_t byte = 0;
+
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_feed(&pulse, 0));
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_feed(&pulse, ONEWIRE_MAX_SLOTS + 1u));
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_write_slots(&pulse, 0));
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_write_slots(&pulse, ONEWIRE_MAX_SLOTS + 1u));
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_read_data(&byte, 0));
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_read_data(&byte, ONEWIRE_MAX_READ_BYTES + 1u));
+}
+
+void test_port_capture_remaining_clamps(void) {
+    /* More pending transfers than the two-slot reset buffer: the count is
+     * clamped, so a bogus register value cannot report extra edges. */
+    MOCK_DMA_CAP.CNDTR = MOCK_CAP_CNDTR(3);
+    TEST_ASSERT_EQUAL_UINT8(0, ow_port_reset_captured());
+}
+
+void test_port_plan_wait_extremes(void) {
+    uint16_t arr = 0;
+    uint8_t rcr = 0;
+
+    /* Zero-length request: one tick, one period. */
+    ow_port_plan_wait(0, &arr, &rcr);
+    TEST_ASSERT_EQUAL_UINT16(1, arr);
+    TEST_ASSERT_EQUAL_UINT8(0, rcr);
+
+    /* Beyond the timer's reach: clamp to 256 periods of 65535 us. */
+    ow_port_plan_wait(0xFFFFFFFFu, &arr, &rcr);
+    TEST_ASSERT_EQUAL_UINT16(65535, arr);
+    TEST_ASSERT_EQUAL_UINT8(255, rcr);
+}
+
 void run_test_dma_contract(void) {
     TEST_RUN(test_dma_cr_value_macros);
     TEST_RUN(test_dma_guarantee_ledger);
     TEST_RUN(test_dma_contract_table);
+    TEST_RUN(test_port_argument_guards);
+    TEST_RUN(test_port_capture_remaining_clamps);
+    TEST_RUN(test_port_plan_wait_extremes);
 }

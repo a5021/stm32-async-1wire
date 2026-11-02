@@ -358,6 +358,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parked poll with a stale completion, and the configuration token: all were
   real branches with no test. `ds2431.c` is now fully line-covered.
 
+- **The coverage report measures the portable core, as its title says.** The
+  merged report kept the register-level port (`src/ow_port.h`) and the example
+  application (`examples/app/`) in the metric. Both carry per-family
+  compile-time variants — `OW_PORT_*` overrides for eight backends, clock
+  bring-up branches for each family, DMA-IP spellings — so merging the family
+  traces records branches that are unreachable by construction in a given
+  build. They now stay out of the core report, like `src/ow_mcu.h` already
+  did. The port itself is still exercised by `test_dma_contract`,
+  `test_port_init_contract`, `test_tim_model` and the HIL bench.
+
+- **Port reject paths and timer-plan extremes are tested directly.** The
+  public `onewire_*` wrappers validate first, so the port's own `slots` /
+  `bytes` guards never saw an out-of-range value. Three new
+  `test_dma_contract` cases call the port directly for the zero/too-large
+  guards, the captured-edge clamp, and `ow_port_plan_wait()` at 0 us and beyond
+  the timer's 16.8 s reach.
+
 - **The "the driver never blocks" promise was not true as written.** The
   README's Layer Contracts said so in one bullet and granted the exception in
   another, a paragraph apart: in a build with `OW_LOW_POWER=1` the driver
