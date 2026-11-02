@@ -169,7 +169,7 @@ try {
       <span class="legend" id="txinfo">Wheel = zoom at cursor, drag = pan · ←/→ = prev/next reset · F = fit transaction · 0 = fit capture</span>
     </div>
     <div class="row"><span class="legend" id="cursorinfo">Alt+click = A, Shift+click = B, Esc = clear</span></div>
-    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · click: set 0 µs (click again clears) · Alt+click A / Shift+click B: edge-snapped timing cursors</div>
+    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · click: set 0 µs (click again clears) · Alt+click A / Shift+click B: edge-snapped timing cursors · Alt/Shift+click their lines again: remove · Esc: clear both</div>
   </div>
 
   <div class="card">
@@ -675,7 +675,9 @@ try {
   // A/B timing cursors (Alt+click / Shift+click on detail, Esc clears).
   let curA = null, curB = null;
   let curASnapped = false, curBSnapped = false;
+  const CURSOR_HIT_PX = 6;
   const usOf = (s) => (s / cap.samplerate) * 1e6;
+  const cursorX = (s) => Math.floor((s - view.off) / view.spp) + 0.5;
 
   function snapEdge(sample) {
     const radius = Math.max(2, Math.round(24 * cap.samplerate / 1e6));
@@ -693,7 +695,7 @@ try {
     if (!cap) return;
     const P = pal();
     const draw = (s, tag, color, snapped) => {
-      const x = Math.floor((s - view.off) / view.spp) + 0.5;
+      const x = cursorX(s);
       if (x < 0 || x > W) return;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
@@ -716,13 +718,13 @@ try {
     if (curA !== null && curB !== null) {
       ci.textContent = "A=" + usOf(curA).toFixed(1) + " us" + (curASnapped ? " (edge)" : "") +
         " B=" + usOf(curB).toFixed(1) + " us" + (curBSnapped ? " (edge)" : "") +
-        " Δ=" + Math.abs(usOf(curB) - usOf(curA)).toFixed(1) + " us";
+        " Δ=" + Math.abs(usOf(curB) - usOf(curA)).toFixed(1) + " us · Esc clears";
     } else if (curA !== null || curB !== null) {
       const s = curA !== null ? curA : curB;
       ci.textContent = (curA !== null ? "A" : "B") + "=" + usOf(s).toFixed(1) +
-        " us — set the other cursor (Alt+click=A, Shift+click=B, Esc=clear)";
+        " us — set the other cursor (Alt+click=A, Shift+click=B); click the line again to remove, Esc clears both";
     } else {
-      ci.textContent = "Alt+click = A, Shift+click = B, Esc = clear";
+      ci.textContent = "Alt+click = A, Shift+click = B, click a cursor line again to remove it, Esc clears both";
     }
   }
 
@@ -1308,8 +1310,15 @@ try {
       return;
     }
     const snapped = snapEdge(s);
-    if (alt) { curA = snapped.sample; curASnapped = snapped.snapped; }
-    if (shift) { curB = snapped.sample; curBSnapped = snapped.snapped; }
+    const near = (cur) => cur !== null && Math.abs(x - cursorX(cur)) <= CURSOR_HIT_PX;
+    if (alt) {
+      if (near(curA)) { curA = null; curASnapped = false; }
+      else { curA = snapped.sample; curASnapped = snapped.snapped; }
+    }
+    if (shift) {
+      if (near(curB)) { curB = null; curBSnapped = false; }
+      else { curB = snapped.sample; curBSnapped = snapped.snapped; }
+    }
     drawDetail();
     drawOverview();
   });
