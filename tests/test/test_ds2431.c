@@ -355,6 +355,92 @@ void test_write_scratchpad_misaligned_rejected(void) {
 }
 
 /*-------------------------------------------------------------
+ *  3c. Argument and ownership guards
+ * -----------------------------------------------------------*/
+
+void test_read_memory_null_buffer_ignored(void) {
+    hw_set_capture_source(de_capture_present);
+    ds2431_read_memory(0, 0x00, 8);
+    /* Nothing scheduled: the timer stays idle and poll reports finished. */
+    TEST_ASSERT_EQUAL_UINT8(0, mock_tim1.CR1 & TIM_CR1_CEN);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_read_memory_poll());
+}
+
+void test_read_scratchpad_null_buffer_ignored(void) {
+    ds2431_read_scratchpad(0);
+    TEST_ASSERT_EQUAL_UINT8(0, mock_tim1.CR1 & TIM_CR1_CEN);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_read_scratchpad_poll());
+}
+
+void test_set_parasite_off_clears_flag(void) {
+    ds2431_set_parasite(1);
+    TEST_ASSERT_EQUAL_UINT8(1, ds2431_parasite_mode());
+    ds2431_set_parasite(0);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_parasite_mode());
+}
+
+void test_select_rejected_while_operation_running(void) {
+    const uint8_t rom[DS2431_ROM_BYTES] = {0x2D, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    static const uint8_t k_skip[] = {0xCC, 0xF0, 0x00, 0x00};
+    uint8_t buf[1] = {0};
+    hw_set_capture_source(de_capture_present);
+    ds2431_read_memory(buf, 0x00, 1);
+    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+    /* Mid-operation select must be ignored: addressing stays Skip ROM. */
+    ds2431_select(rom);
+    drive(ds2431_read_memory_poll);
+
+    hw_set_capture_source(de_capture_present);
+    set_read_bytes(buf, 1);
+    ds2431_read_memory(buf, 0x00, 1);
+    drive_ops(ds2431_read_memory_poll, 2);
+    assert_cmd_bytes(k_skip, sizeof(k_skip));
+    drive(ds2431_read_memory_poll);
+}
+
+void test_select_rejected_during_search(void) {
+    const uint8_t rom[DS2431_ROM_BYTES] = {0x2D, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    static const uint8_t k_skip[] = {0xCC, 0xF0, 0x00, 0x00};
+    uint8_t buf[1] = {0};
+    onewire_search_start(0, 1, ONEWIRE_SEARCH_ROM, 0);
+    TEST_ASSERT_TRUE(onewire_search_active());
+    ds2431_select(rom); /* the search owns the timer: rejected */
+    ds2431_test_reset_search();
+
+    hw_set_capture_source(de_capture_present);
+    set_read_bytes(buf, 1);
+    ds2431_read_memory(buf, 0x00, 1);
+    drive_ops(ds2431_read_memory_poll, 2);
+    assert_cmd_bytes(k_skip, sizeof(k_skip));
+    drive(ds2431_read_memory_poll);
+}
+
+void test_select_null_returns_to_skip_rom(void) {
+    const uint8_t rom[DS2431_ROM_BYTES] = {0x2D, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    static const uint8_t k_skip[] = {0xCC, 0xF0, 0x00, 0x00};
+    uint8_t buf[1] = {0};
+    ds2431_select(rom); /* addressed mode */
+    ds2431_select(0); /* back to broadcast: skip prefix expected */
+    hw_set_capture_source(de_capture_present);
+    set_read_bytes(buf, 1);
+    ds2431_read_memory(buf, 0x00, 1);
+    drive_ops(ds2431_read_memory_poll, 2);
+    assert_cmd_bytes(k_skip, sizeof(k_skip));
+    drive(ds2431_read_memory_poll);
+}
+
+void test_write_scratchpad_rejected_while_busy(void) {
+    const uint8_t data[DS2431_SCRATCH_SIZE] = {1, 2, 3, 4, 5, 6, 7, 8};
+    uint8_t buf[1] = {0};
+    hw_set_capture_source(de_capture_present);
+    ds2431_read_memory(buf, 0x00, 1);
+    TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
+    /* The timer belongs to the read: the write is refused and latches nothing. */
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_write_scratchpad(0x00, data, DS2431_SCRATCH_SIZE));
+    drive(ds2431_read_memory_poll);
+}
+
+/*-------------------------------------------------------------
  *  4. Read Scratchpad (frame + echo + CRC verification)
  * -----------------------------------------------------------*/
 
@@ -386,12 +472,14 @@ void test_read_scratchpad_echo_verified(void) {
 
 void test_read_scratchpad_echo_mismatch(void) {
     /* A device that echoes a different TA/ES did not get the write: the
-     * success flag must be cleared. */
+     * success flag must be cleared. The reply must carry a CRC that matches
+     * the length its own ES byte implies, otherwise the CRC check aborts
+     * first and this would not exercise the echo comparison at all. */
     const uint8_t data[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
     uint8_t frame[DS2431_SCRATCH_FRAME];
     uint8_t got[DS2431_SCRATCH_FRAME];
     hw_set_capture_source(de_capture_present);
-    ds2431_write_scratchpad(0x40, data, 8);
+    ds2431_write_scratchpad(0x40, data, 8); /* latches TA = 0x40, ES = 7 */
     drive(ds2431_write_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(1, ds2431_last_command_ok());
 
@@ -399,7 +487,25 @@ void test_read_scratchpad_echo_mismatch(void) {
     frame[1] = 0x00;
     frame[2] = 0x00; /* wrong ES: the latched value is 7 */
     memcpy(&frame[3], data, 8);
-    set_scratchpad_reply(frame); /* valid CRC: the abort must be the echo check */
+    /* ES = 0 implies a one-byte window (E[2:0]+1 - T[2:0] = 1), so the
+     * inverted CRC-16 must cover exactly that one data byte. */
+    set_scratchpad_reply_n(frame, 1);
+    ds2431_read_scratchpad(got);
+    drive(ds2431_read_scratchpad_poll);
+    TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
+}
+
+void test_read_scratchpad_invalid_window_aborts(void) {
+    /* A header whose end offset is not after its start offset is not a valid
+     * window: the length derivation returns 0 and the read is rejected before
+     * any CRC or echo comparison. */
+    uint8_t frame[DS2431_SCRATCH_FRAME];
+    uint8_t got[DS2431_SCRATCH_FRAME];
+    memset(frame, 0, sizeof(frame));
+    frame[0] = 0x05; /* T[2:0] = 5 */
+    frame[2] = 0x02; /* E[2:0] = 2: E + 1 <= T, no data bytes */
+    hw_set_capture_source(de_capture_present);
+    set_scratchpad_reply_n(frame, 0);
     ds2431_read_scratchpad(got);
     drive(ds2431_read_scratchpad_poll);
     TEST_ASSERT_EQUAL_UINT8(0, ds2431_last_command_ok());
@@ -677,8 +783,16 @@ void run_test_ds2431(void) {
     TEST_RUN(test_write_scratchpad_short_write);
     TEST_RUN(test_write_scratchpad_returns_status);
     TEST_RUN(test_write_scratchpad_misaligned_rejected);
+    TEST_RUN(test_read_memory_null_buffer_ignored);
+    TEST_RUN(test_read_scratchpad_null_buffer_ignored);
+    TEST_RUN(test_set_parasite_off_clears_flag);
+    TEST_RUN(test_select_rejected_while_operation_running);
+    TEST_RUN(test_select_rejected_during_search);
+    TEST_RUN(test_select_null_returns_to_skip_rom);
+    TEST_RUN(test_write_scratchpad_rejected_while_busy);
     TEST_RUN(test_read_scratchpad_echo_verified);
     TEST_RUN(test_read_scratchpad_echo_mismatch);
+    TEST_RUN(test_read_scratchpad_invalid_window_aborts);
     TEST_RUN(test_read_scratchpad_crc_mismatch);
     TEST_RUN(test_read_scratchpad_payload_mismatch);
     TEST_RUN(test_read_scratchpad_raw_without_pending_write);

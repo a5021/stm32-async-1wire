@@ -12,9 +12,19 @@
 #include "ds18b20_test_access.h"
 #include "ds18b20_test_spy.h"
 #include "hw_model.h"
+#include "onewire.h"
 #include "ow_stats.h"
 #include "ow_stats_test_access.h"
 #include "unity.h"
+
+/* The build-configuration token is reported, not just compiled: a consumer
+ * compares it against its own build, so the call must be reachable and
+ * deterministic. */
+void test_config_token_is_stable(void) {
+    uint32_t token = onewire_config_token();
+    TEST_ASSERT_TRUE(token != 0u);
+    TEST_ASSERT_EQUAL_UINT32(token, onewire_config_token());
+}
 
 void test_harness_accessor_smoke(void) {
     uint8_t rom[DS18B20_ROM_BYTES] = {0x28, 1, 2, 3, 4, 5, 6, 7};
@@ -76,6 +86,7 @@ void test_hw_run_until_uif_branches(void) {
 
 void run_test_harness_api(void) {
     TEST_RUN(test_harness_accessor_smoke);
+    TEST_RUN(test_config_token_is_stable);
     TEST_RUN(test_ow_stats_accessor_bounds);
     TEST_RUN(test_hw_run_until_uif_branches);
 }

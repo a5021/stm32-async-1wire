@@ -63,7 +63,7 @@ __STATIC_FORCEINLINE void txn_build_pulses(void) {
     ow_pulse_t* p = phase_pulses.txn;
     uint8_t bytes = 0;
     if ((txn_ctx.flags & DS18B20_TXN_FLAG_BARE) == 0u) {
-        bytes = ow_encode_prefix(&p, rom);
+        bytes = (rom != 0) ? ow_encode_match_rom(&p, rom) : ow_encode_skip_rom(&p);
     }
     onewire_encode_byte(p, txn_ctx.command);
     p += DS18B20_BITS_PER_BYTE;

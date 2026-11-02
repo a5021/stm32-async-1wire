@@ -49,7 +49,11 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
         rom = ctx.selected_rom;
     }
     ow_pulse_t* p = phase_pulses.res;
-    ow_encode_prefix(&p, rom);
+    if (rom != 0) {
+        ow_encode_match_rom(&p, rom);
+    } else {
+        ow_encode_skip_rom(&p);
+    }
     onewire_encode_byte(p, DS18B20_WRITE_SCRATCHPAD);
     p += DS18B20_BITS_PER_BYTE;
     onewire_encode_byte(p, DS18B20_RES_TH);

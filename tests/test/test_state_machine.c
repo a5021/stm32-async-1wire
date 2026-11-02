@@ -1065,6 +1065,40 @@ void test_state_machine_start_refused_mid_cycle(void) {
 }
 
 /*-------------------------------------------------------------
+ *  A parked driver with a completion event and scan mode off
+ *  consumes the event and stays parked (IDLE break path).
+ * -----------------------------------------------------------*/
+void test_state_machine_idle_completion_stays_parked(void) {
+    hw_reset_all();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    /* A stale completion with no scan round armed must not start a cycle. */
+    hw_tim_update_event();
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.CR1 & TIM_CR1_CEN);
+}
+
+/*-------------------------------------------------------------
+ *  The device search owns the timer: a measurement request is
+ *  refused while it runs.
+ * -----------------------------------------------------------*/
+void test_state_machine_start_refused_during_search(void) {
+    hw_reset_all();
+    ds18b20_init();
+    ds18b20_test_reset_ctx();
+
+    onewire_search_start(0, 1, ONEWIRE_SEARCH_ROM, 0);
+    TEST_ASSERT_TRUE(onewire_search_active());
+    mock_tim1.EGR = 0;
+    ds18b20_start_measure();
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.EGR & TIM_EGR_UG);
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    ds18b20_test_reset_search();
+}
+
+/*-------------------------------------------------------------
  *  A finished cycle parks the driver: polling it schedules no
  *  hardware operation, so nothing restarts a conversion without
  *  a new ds18b20_start_measure() request.
@@ -1126,6 +1160,8 @@ void run_test_state_machine(void) {
     TEST_RUN(test_state_machine_repeated_measurement_cycles);
     TEST_RUN(test_state_machine_reselect_in_callback);
     TEST_RUN(test_state_machine_parked_until_start_request);
+    TEST_RUN(test_state_machine_idle_completion_stays_parked);
+    TEST_RUN(test_state_machine_start_refused_during_search);
     TEST_RUN(test_state_machine_start_refused_mid_cycle);
     TEST_RUN(test_state_machine_no_timer_armed_after_cycle);
 }

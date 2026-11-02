@@ -106,7 +106,7 @@ uint8_t ds18b20_scan_index(void) { return ctx.scan_index; }
  * implicit in the call site, hence documented here at the same level of
  * detail as the B1 guards for the other pulse buffers. */
 static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {
-    ow_encode_prefix(&dst, 0);
+    ow_encode_skip_rom(&dst);
     onewire_encode_byte(dst, cmd_byte);
     dst[DS18B20_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;
 }

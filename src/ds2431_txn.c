@@ -51,7 +51,7 @@ uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {
         rom = c->selected_rom;
     }
     ow_pulse_t* p = (ow_pulse_t*)c->u.cmd;
-    uint8_t bytes = ow_encode_prefix(&p, rom);
+    uint8_t bytes = (rom != 0) ? ow_encode_match_rom(&p, rom) : ow_encode_skip_rom(&p);
     onewire_encode_byte(p, command);
     p += DS2431_BITS_PER_BYTE;
     bytes++;
