@@ -47,7 +47,7 @@
   canvas { width:100%; display:block; background:var(--canvas-bg); border:1px solid var(--line);
            border-radius:6px; cursor:crosshair; }
   #ov { height:120px; cursor:crosshair; }
-  #detail { height:130px; touch-action:none; }
+  #detail { height:179px; touch-action:none; }
   table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
   th { text-align:left; color:var(--dim); font-weight:600; padding:6px 8px;
        border-bottom:1px solid var(--line); }
@@ -135,7 +135,7 @@ try {
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
       <span class="sw" style="background:#15803D"></span>presence answer</div>
-    <canvas id="detail" width="1120" height="130"></canvas>
+    <canvas id="detail" width="1120" height="179"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
       <label>Zoom: <input type="range" id="zoom" min="0" max="12" value="8" step="1"></label>
@@ -387,25 +387,30 @@ try {
     }
   }
 
+  // The detail canvas is laid out for a 130 px base height: `vs` stretches
+  // every vertical coordinate with the canvas (179 px = +38%), while the
+  // fonts are scaled by 1.265 independently.
+  const DETAIL_BASE_H = 130;
   function drawDetail() {
     const c = $("detail"), ctx = c.getContext("2d");
     const W = c.width, H = c.height;
-    const plotTop = 24, plotBot = 98, plotH = plotBot - plotTop;
-    const yHigh = 38, yLow = 92, annotY = 110;
+    const vs = H / DETAIL_BASE_H;
+    const plotTop = 24 * vs, plotBot = 98 * vs, plotH = plotBot - plotTop;
+    const yHigh = 38 * vs, yLow = 92 * vs, annotY = 110 * vs;
     const P = pal();
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = P.canvas;
     ctx.fillRect(0, 0, W, H);
-    ctx.font = "11px Consolas,monospace";
+    ctx.font = "13.9px Consolas,monospace";
     if (sel < 0 || !txns[sel]) {
       ctx.fillStyle = P.dim;
-      ctx.fillText("Select a transaction above. Wheel = zoom, drag = pan.", 12, 20);
+      ctx.fillText("Select a transaction above. Wheel = zoom, drag = pan.", 12, 20 * vs);
       return;
     }
     const t = txns[sel];
     if (!t.bits.length && t.tReset == null) {
       ctx.fillStyle = P.dim;
-      ctx.fillText("Empty transaction.", 12, 20);
+      ctx.fillText("Empty transaction.", 12, 20 * vs);
       return;
     }
     clampView();
@@ -424,7 +429,7 @@ try {
     // and positive/negative times are measured from it.
     const zeroAt = zeroRef();
     const firstGrid = zeroAt + Math.ceil((view.off - zeroAt) / gridStep) * gridStep;
-    ctx.font = "10px Consolas,monospace";
+    ctx.font = "12.65px Consolas,monospace";
     ctx.lineWidth = 1;
     ctx.textAlign = "left";
     ctx.beginPath();
@@ -436,7 +441,7 @@ try {
       const us = ((s - zeroAt) / cap.samplerate) * 1e6;
       const label = formatRelative(us, spanUs < 1e6, zeroSample != null);
       ctx.fillStyle = P.ruler;
-      ctx.fillText(label, x + 3, 20);
+      ctx.fillText(label, x + 3, 20 * vs);
     }
     ctx.stroke();
     ctx.fillStyle = P.dim;
@@ -451,7 +456,7 @@ try {
       ctx.fillStyle = P.endShade;
       ctx.fillRect(dataEndX, plotTop, W - dataEndX, plotH);
       ctx.fillStyle = P.dim;
-      ctx.fillText("end of capture", Math.min(W - 92, dataEndX + 6), plotTop + 16);
+      ctx.fillText("end of capture", Math.min(W - 112, dataEndX + 6), plotTop + 16 * vs);
     }
     ctx.strokeStyle = P.signal;
     ctx.lineWidth = 1;
@@ -565,7 +570,7 @@ try {
     for (let k = blo; k < byteIndex.length && byteIndex[k].byte.t0 <= visibleEnd; k++) {
       const item = byteIndex[k], bb = item.byte;
       const bw = (bb.t1 - bb.t0) / spp;
-      if (bw < 24) continue;
+      if (bw < 31) continue;
       const x = Math.floor((bb.t0 - view.off) / spp);
       if (x < -30 || x > W) continue;
       const y = annotY;
@@ -578,14 +583,14 @@ try {
       ctx.fillText(hex(bb.value), x - 8, y);
       if (item.label) {
         ctx.fillStyle = P.dim;
-        if (item.label.length * 6 < bw - 26) ctx.fillText(item.label, x + 22, y);
+        if (item.label.length * 7.6 < bw - 26) ctx.fillText(item.label, x + 22, y);
       }
     }
     // RESET and PRESENCE share the byte-annotation row, each under its own
     // pulse. Full words only when both fit; otherwise use R/P and let the
     // narrower presence label drop out when even P no longer fits.
     if (rowMarks.length) {
-      ctx.font = "10px Consolas,monospace";
+      ctx.font = "12.65px Consolas,monospace";
       ctx.textAlign = "left";
       const marks = [];
       let fullTier = true;
@@ -677,7 +682,7 @@ try {
       ctx.lineTo(x, H);
       ctx.stroke();
       ctx.fillStyle = color;
-      ctx.fillText(tag + " " + usOf(s).toFixed(1) + " us" + (snapped ? " · edge" : ""), x + 4, 12);
+      ctx.fillText(tag + " " + usOf(s).toFixed(1) + " us" + (snapped ? " · edge" : ""), x + 4, 12 * (H / 130));
     };
     if (curA !== null && curB !== null) {
       const x0 = Math.floor((Math.min(curA, curB) - view.off) / view.spp);
