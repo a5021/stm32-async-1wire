@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.1&nbsp;%</td>
+            <td class="headerCovTableEntryHi">98.4&nbsp;%</td>
             <td class="headerCovTableEntry">122</td>
-            <td class="headerCovTableEntry">116</td>
+            <td class="headerCovTableEntry">120</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-01 19:40:58</td>
+            <td class="headerValue">2026-11-02 04:18:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryMed">87.0&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.2&nbsp;%</td>
             <td class="headerCovTableEntry">69</td>
-            <td class="headerCovTableEntry">60</td>
+            <td class="headerCovTableEntry">65</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -97,10 +97,10 @@
 <span id="L26"><span class="lineNum">      26</span>                 :             :  * @brief Ownership guard shared by every operation start</span>
 <span id="L27"><span class="lineNum">      27</span>                 :             :  * @return 1 when a new operation may be scheduled</span>
 <span id="L28"><span class="lineNum">      28</span>                 :             :  */</span>
-<span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">         528 : uint8_t ds2431_can_start(const DS2431_ctx_t* c) {</span></span>
-<span id="L30"><span class="lineNum">      30</span>   [<span class="tlaGBC" title="Branch 0 was taken 208 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 320 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 208 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span> :<span class="tlaGNC">        1056 :     return (uint8_t)((c-&gt;phase == DS2431_PH_IDLE || c-&gt;phase == DS2431_PH_DONE) &amp;&amp;</span></span>
-<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 528 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
-<span id="L31"><span class="lineNum">      31</span>                 :<span class="tlaGNC">         528 :                      !onewire_search_active());</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 :<span class="tlaGNC">         640 : uint8_t ds2431_can_start(const DS2431_ctx_t* c) {</span></span>
+<span id="L30"><span class="lineNum">      30</span>   [<span class="tlaGBC" title="Branch 0 was taken 240 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 400 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 16 times"> + </span> :<span class="tlaGNC">        1264 :     return (uint8_t)((c-&gt;phase == DS2431_PH_IDLE || c-&gt;phase == DS2431_PH_DONE) &amp;&amp;</span></span>
+<span class="lineNum">        </span>          <span class="tlaGBC" title="Branch 4 was taken 624 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>]
+<span id="L31"><span class="lineNum">      31</span>                 :<span class="tlaGNC">         624 :                      !onewire_search_active());</span></span>
 <span id="L32"><span class="lineNum">      32</span>                 :             : }</span>
 <span id="L33"><span class="lineNum">      33</span>                 :             : </span>
 <span id="L34"><span class="lineNum">      34</span>                 :             : /**</span>
@@ -117,39 +117,39 @@
 <span id="L45"><span class="lineNum">      45</span>                 :             :  *          storage with the reset/read capture union (see DS2431_ctx_t), and</span>
 <span id="L46"><span class="lineNum">      46</span>                 :             :  *          the reset DMA would have clobbered any earlier build.</span>
 <span id="L47"><span class="lineNum">      47</span>                 :             :  */</span>
-<span id="L48"><span class="lineNum">      48</span>                 :<span class="tlaGNC">         480 : uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {</span></span>
-<span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">         480 :     const uint8_t* rom = 0;</span></span>
-<span id="L50"><span class="lineNum">      50</span>         [<span class="tlaGBC" title="Branch 0 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 448 times"> + </span>]:<span class="tlaGNC">         480 :     if ((c-&gt;flags &amp; DS2431_FLAG_ADDRESS_MODE) != 0u) {</span></span>
+<span id="L48"><span class="lineNum">      48</span>                 :<span class="tlaGNC">         576 : uint8_t ds2431_build(DS2431_ctx_t* c, uint8_t command) {</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 :<span class="tlaGNC">         576 :     const uint8_t* rom = 0;</span></span>
+<span id="L50"><span class="lineNum">      50</span>         [<span class="tlaGBC" title="Branch 0 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 544 times"> + </span>]:<span class="tlaGNC">         576 :     if ((c-&gt;flags &amp; DS2431_FLAG_ADDRESS_MODE) != 0u) {</span></span>
 <span id="L51"><span class="lineNum">      51</span>                 :<span class="tlaGNC">          32 :         rom = c-&gt;selected_rom;</span></span>
 <span id="L52"><span class="lineNum">      52</span>                 :             :     }</span>
-<span id="L53"><span class="lineNum">      53</span>         [<span class="tlaGBC" title="Branch 0 was taken 448 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">         480 :     ow_pulse_t* p = (ow_pulse_t*)c-&gt;u.cmd;</span></span>
-<span id="L54"><span class="lineNum">      54</span>                 :<span class="tlaGNC">         480 :     uint8_t bytes = ow_encode_prefix(&amp;p, rom);</span></span>
-<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">         480 :     onewire_encode_byte(p, command);</span></span>
-<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">         480 :     p += DS2431_BITS_PER_BYTE;</span></span>
-<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">         480 :     bytes++;</span></span>
-<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="Branch 0 was taken 336 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 144 times"> + </span>]:<span class="tlaGNC">         480 :     if (command != DS2431_READ_SCRATCHPAD) {</span></span>
-<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         336 :         onewire_encode_byte(p, c-&gt;addr_lo);</span></span>
-<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         336 :         p += DS2431_BITS_PER_BYTE;</span></span>
-<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         336 :         bytes++;</span></span>
-<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">         336 :         onewire_encode_byte(p, c-&gt;addr_hi);</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         336 :         p += DS2431_BITS_PER_BYTE;</span></span>
-<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         336 :         bytes++;</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">         576 :     ow_pulse_t* p = (ow_pulse_t*)c-&gt;u.cmd;</span></span>
+<span id="L54"><span class="lineNum">      54</span>         [<span class="tlaGBC" title="Branch 0 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 544 times"> + </span>]:<span class="tlaGNC">        1152 :     uint8_t bytes = (rom != 0) ? ow_encode_match_rom(&amp;p, rom) : ow_encode_skip_rom(&amp;p);</span></span>
+<span id="L55"><span class="lineNum">      55</span>                 :<span class="tlaGNC">         576 :     onewire_encode_byte(p, command);</span></span>
+<span id="L56"><span class="lineNum">      56</span>                 :<span class="tlaGNC">         576 :     p += DS2431_BITS_PER_BYTE;</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :<span class="tlaGNC">         576 :     bytes++;</span></span>
+<span id="L58"><span class="lineNum">      58</span>         [<span class="tlaGBC" title="Branch 0 was taken 416 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 160 times"> + </span>]:<span class="tlaGNC">         576 :     if (command != DS2431_READ_SCRATCHPAD) {</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         416 :         onewire_encode_byte(p, c-&gt;addr_lo);</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 :<span class="tlaGNC">         416 :         p += DS2431_BITS_PER_BYTE;</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">         416 :         bytes++;</span></span>
+<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">         416 :         onewire_encode_byte(p, c-&gt;addr_hi);</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         416 :         p += DS2431_BITS_PER_BYTE;</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         416 :         bytes++;</span></span>
 <span id="L65"><span class="lineNum">      65</span>                 :             :     }</span>
-<span id="L66"><span class="lineNum">      66</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 432 times"> + </span>]:<span class="tlaGNC">         480 :     if (command == DS2431_COPY_SCRATCHPAD) {</span></span>
+<span id="L66"><span class="lineNum">      66</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         576 :     if (command == DS2431_COPY_SCRATCHPAD) {</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :             :         // Copy Scratchpad authorizes with the latched E/S byte. Encode it from</span>
 <span id="L68"><span class="lineNum">      68</span>                 :             :         // c-&gt;es so the last write payload stays intact for the read-back</span>
 <span id="L69"><span class="lineNum">      69</span>                 :             :         // verification (the scratchpad frame read compares against it).</span>
 <span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">          48 :         onewire_encode_byte(p, c-&gt;es);</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">          48 :         bytes++;</span></span>
 <span id="L72"><span class="lineNum">      72</span>                 :             :     } else {</span>
-<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">         864 :         bytes = (uint8_t)(bytes + ow_encode_bytes(&amp;p, c-&gt;payload, c-&gt;plen));</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :<span class="tlaGNC">        1056 :         bytes = (uint8_t)(bytes + ow_encode_bytes(&amp;p, c-&gt;payload, c-&gt;plen));</span></span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :     }</span>
-<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">         480 :     const uint8_t slots = (uint8_t)(bytes * DS2431_BITS_PER_BYTE);</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 :<span class="tlaGNC">         576 :     const uint8_t slots = (uint8_t)(bytes * DS2431_BITS_PER_BYTE);</span></span>
 <span id="L76"><span class="lineNum">      76</span>                 :             :     /* B1: guarantee the trailing ONEWIRE_RELEASE_PULSE that the 1-Wire layer</span>
 <span id="L77"><span class="lineNum">      77</span>                 :             :      * reads as its final DMA transfer into CCR3, even though the command write</span>
 <span id="L78"><span class="lineNum">      78</span>                 :             :      * only ever fills slots 0 .. slots - 1. */</span>
-<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         480 :     ((ow_pulse_t*)c-&gt;u.cmd)[slots] = ONEWIRE_RELEASE_PULSE;</span></span>
-<span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaGNC">         480 :     return slots;</span></span>
+<span id="L79"><span class="lineNum">      79</span>                 :<span class="tlaGNC">         576 :     ((ow_pulse_t*)c-&gt;u.cmd)[slots] = ONEWIRE_RELEASE_PULSE;</span></span>
+<span id="L80"><span class="lineNum">      80</span>                 :<span class="tlaGNC">         576 :     return slots;</span></span>
 <span id="L81"><span class="lineNum">      81</span>                 :             : }</span>
 <span id="L82"><span class="lineNum">      82</span>                 :             : </span>
 <span id="L83"><span class="lineNum">      83</span>                 :             : /**</span>
@@ -162,20 +162,20 @@
 <span id="L90"><span class="lineNum">      90</span>                 :             :  *       is finished. The result buffer must stay valid until the operation</span>
 <span id="L91"><span class="lineNum">      91</span>                 :             :  *       completes (ds2431_*_poll() reports 1).</span>
 <span id="L92"><span class="lineNum">      92</span>                 :             :  */</span>
-<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">         528 : uint8_t ds2431_start(DS2431_ctx_t* c, uint8_t command, uint8_t* out) {</span></span>
-<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         528 :     if (!ds2431_can_start(c)) {</span></span>
-<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaUNC">           0 :         return 0; // the timer belongs to someone else right now</span></span>
+<span id="L93"><span class="lineNum">      93</span>                 :<span class="tlaGNC">         640 : uint8_t ds2431_start(DS2431_ctx_t* c, uint8_t command, uint8_t* out) {</span></span>
+<span id="L94"><span class="lineNum">      94</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 624 times"> + </span>]:<span class="tlaGNC">         640 :     if (!ds2431_can_start(c)) {</span></span>
+<span id="L95"><span class="lineNum">      95</span>                 :<span class="tlaGNC">          16 :         return 0; // the timer belongs to someone else right now</span></span>
 <span id="L96"><span class="lineNum">      96</span>                 :             :     }</span>
-<span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">         528 :     c-&gt;command = command;</span></span>
-<span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaGNC">         528 :     c-&gt;out = out;</span></span>
+<span id="L97"><span class="lineNum">      97</span>                 :<span class="tlaGNC">         624 :     c-&gt;command = command;</span></span>
+<span id="L98"><span class="lineNum">      98</span>                 :<span class="tlaGNC">         624 :     c-&gt;out = out;</span></span>
 <span id="L99"><span class="lineNum">      99</span>                 :             :     /* Fresh operation: clear the per-operation success/echo bits; the</span>
 <span id="L100"><span class="lineNum">     100</span>                 :             :      * address-mode and parasite flags and the pending write-cycle state</span>
 <span id="L101"><span class="lineNum">     101</span>                 :             :      * survive (they belong to the configuration / to the addressed device). */</span>
-<span id="L102"><span class="lineNum">     102</span>                 :<span class="tlaGNC">         528 :     c-&gt;flags &amp;= (uint8_t)~(DS2431_FLAG_OK | DS2431_FLAG_FINISHED | DS2431_FLAG_ECHO);</span></span>
-<span id="L103"><span class="lineNum">     103</span>                 :<span class="tlaGNC">         528 :     onewire_strong_pullup(0);</span></span>
-<span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">         528 :     c-&gt;phase = DS2431_PH_RESET;</span></span>
-<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">         528 :     onewire_reset((volatile uint16_t*)c-&gt;u.cap); // Schedule the first hardware operation</span></span>
-<span id="L106"><span class="lineNum">     106</span>                 :<span class="tlaGNC">         528 :     return 1;</span></span>
+<span id="L102"><span class="lineNum">     102</span>                 :<span class="tlaGNC">         624 :     c-&gt;flags &amp;= (uint8_t)~(DS2431_FLAG_OK | DS2431_FLAG_FINISHED | DS2431_FLAG_ECHO);</span></span>
+<span id="L103"><span class="lineNum">     103</span>                 :<span class="tlaGNC">         624 :     onewire_strong_pullup(0);</span></span>
+<span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">         624 :     c-&gt;phase = DS2431_PH_RESET;</span></span>
+<span id="L105"><span class="lineNum">     105</span>                 :<span class="tlaGNC">         624 :     onewire_reset((volatile uint16_t*)c-&gt;u.cap); // Schedule the first hardware operation</span></span>
+<span id="L106"><span class="lineNum">     106</span>                 :<span class="tlaGNC">         624 :     return 1;</span></span>
 <span id="L107"><span class="lineNum">     107</span>                 :             : }</span>
 <span id="L108"><span class="lineNum">     108</span>                 :             : </span>
 <span id="L109"><span class="lineNum">     109</span>                 :             : /**</span>
@@ -189,11 +189,11 @@
 <span id="L117"><span class="lineNum">     117</span>                 :             :  *       (DS2431_SCRATCH_FRAME_CRC bytes) - the datasheet has the device drive</span>
 <span id="L118"><span class="lineNum">     118</span>                 :             :  *       logic 1 after the CRC - and derives the real length here.</span>
 <span id="L119"><span class="lineNum">     119</span>                 :             :  */</span>
-<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">         224 : uint8_t ds2431_scratchpad_data_len(const uint8_t* frame) {</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">         224 :     uint8_t last = (uint8_t)((frame[2] &amp; 0x07u) + 1u); /* E[2:0] + 1, 1 .. 8 */</span></span>
-<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         224 :     uint8_t first = (uint8_t)(frame[0] &amp; 0x07u); /* T[2:0],     0 .. 7 */</span></span>
-<span id="L123"><span class="lineNum">     123</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 224 times"> + </span>]:<span class="tlaGNC">         224 :     if (last &lt;= first) {</span></span>
-<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaUNC">           0 :         return 0;</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">         240 : uint8_t ds2431_scratchpad_data_len(const uint8_t* frame) {</span></span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">         240 :     uint8_t last = (uint8_t)((frame[2] &amp; 0x07u) + 1u); /* E[2:0] + 1, 1 .. 8 */</span></span>
+<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         240 :     uint8_t first = (uint8_t)(frame[0] &amp; 0x07u); /* T[2:0],     0 .. 7 */</span></span>
+<span id="L123"><span class="lineNum">     123</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 224 times"> + </span>]:<span class="tlaGNC">         240 :     if (last &lt;= first) {</span></span>
+<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">          16 :         return 0;</span></span>
 <span id="L125"><span class="lineNum">     125</span>                 :             :     }</span>
 <span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaGNC">         224 :     return (uint8_t)(last - first);</span></span>
 <span id="L127"><span class="lineNum">     127</span>                 :             : }</span>
@@ -226,67 +226,67 @@
 <span id="L154"><span class="lineNum">     154</span>                 :             :  * @return 1 when the operation finished (successfully or aborted), 0 while</span>
 <span id="L155"><span class="lineNum">     155</span>                 :             :  *         running</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             :  */</span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">        2496 : uint8_t ds2431_poll(DS2431_ctx_t* c) {</span></span>
-<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="Branch 0 was taken 112 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2384 times"> + </span>]:<span class="tlaGNC">        2496 :     if ((c-&gt;flags &amp; DS2431_FLAG_FINISHED) != 0u) {</span></span>
-<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">         112 :         return 1;</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">        3008 : uint8_t ds2431_poll(DS2431_ctx_t* c) {</span></span>
+<span id="L158"><span class="lineNum">     158</span>         [<span class="tlaGBC" title="Branch 0 was taken 144 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2864 times"> + </span>]:<span class="tlaGNC">        3008 :     if ((c-&gt;flags &amp; DS2431_FLAG_FINISHED) != 0u) {</span></span>
+<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">         144 :         return 1;</span></span>
 <span id="L160"><span class="lineNum">     160</span>                 :             :     }</span>
 <span id="L161"><span class="lineNum">     161</span>                 :             : </span>
-<span id="L162"><span class="lineNum">     162</span>         [<span class="tlaGBC" title="Branch 0 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1856 times"> + </span>]:<span class="tlaGNC">        2384 :     if (c-&gt;phase == DS2431_PH_DONE) {</span></span>
+<span id="L162"><span class="lineNum">     162</span>         [<span class="tlaGBC" title="Branch 0 was taken 624 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2240 times"> + </span>]:<span class="tlaGNC">        2864 :     if (c-&gt;phase == DS2431_PH_DONE) {</span></span>
 <span id="L163"><span class="lineNum">     163</span>                 :             :         // The last hardware operation completed (command done or aborted).</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             :         // The timer is idle from here on: it is picked up again by the next</span>
 <span id="L165"><span class="lineNum">     165</span>                 :             :         // scheduled operation, which is what keeps an operation from silently</span>
 <span id="L166"><span class="lineNum">     166</span>                 :             :         // running into the next one.</span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">         528 :         c-&gt;flags |= DS2431_FLAG_FINISHED;</span></span>
-<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">         528 :         return 1;</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">         624 :         c-&gt;flags |= DS2431_FLAG_FINISHED;</span></span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">         624 :         return 1;</span></span>
 <span id="L169"><span class="lineNum">     169</span>                 :             :     }</span>
 <span id="L170"><span class="lineNum">     170</span>                 :             : </span>
 <span id="L171"><span class="lineNum">     171</span>                 :             :     // Wait for the currently scheduled hardware operation to complete.</span>
 <span id="L172"><span class="lineNum">     172</span>                 :             :     // This is a non-blocking poll, not a busy-wait.</span>
-<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">        1856 :     uint8_t op_done = ow_op_done();</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">        2240 :     uint8_t op_done = ow_op_done();</span></span>
 <span id="L174"><span class="lineNum">     174</span>                 :             : </span>
-<span id="L175"><span class="lineNum">     175</span>         [<span class="tlaGBC" title="Branch 0 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1328 times"> + </span>]:<span class="tlaGNC">        1856 :     if (!op_done) {</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         528 :         return 0;</span></span>
+<span id="L175"><span class="lineNum">     175</span>         [<span class="tlaGBC" title="Branch 0 was taken 624 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1616 times"> + </span>]:<span class="tlaGNC">        2240 :     if (!op_done) {</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :<span class="tlaGNC">         624 :         return 0;</span></span>
 <span id="L177"><span class="lineNum">     177</span>                 :             :     }</span>
 <span id="L178"><span class="lineNum">     178</span>                 :             : </span>
-<span id="L179"><span class="lineNum">     179</span>   [<span class="tlaGBC" title="Branch 0 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 480 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 272 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 48 times"> + </span> :<span class="tlaGNC">        1328 :     switch (c-&gt;phase) {</span></span>
+<span id="L179"><span class="lineNum">     179</span>   [<span class="tlaGBC" title="Branch 0 was taken 624 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 576 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 368 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 48 times"> + </span> :<span class="tlaGNC">        1616 :     switch (c-&gt;phase) {</span></span>
 <span class="lineNum">        </span>             <span class="tlaUNC" title="Branch 4 was not taken"> - </span>]
-<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         528 :     case DS2431_PH_RESET:</span></span>
+<span id="L180"><span class="lineNum">     180</span>                 :<span class="tlaGNC">         624 :     case DS2431_PH_RESET:</span></span>
 <span id="L181"><span class="lineNum">     181</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
 <span id="L182"><span class="lineNum">     182</span>                 :             :         // the bus, so build and send the command for this operation.</span>
 <span id="L183"><span class="lineNum">     183</span>                 :             :         {</span>
-<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         528 :             uint8_t present = ow_has_presence(c-&gt;u.cap);</span></span>
-<span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 480 times"> + </span>]:<span class="tlaGNC">         528 :             if (!present) {</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :<span class="tlaGNC">         624 :             uint8_t present = ow_has_presence(c-&gt;u.cap);</span></span>
+<span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 576 times"> + </span>]:<span class="tlaGNC">         624 :             if (!present) {</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">          48 :                 c-&gt;phase = DS2431_PH_DONE;</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :<span class="tlaGNC">          48 :                 break;</span></span>
 <span id="L188"><span class="lineNum">     188</span>                 :             :             }</span>
 <span id="L189"><span class="lineNum">     189</span>                 :             :         }</span>
-<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="Branch 0 was taken 80 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 400 times"> + </span>]:<span class="tlaGNC">         480 :         if ((c-&gt;flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L190"><span class="lineNum">     190</span>         [<span class="tlaGBC" title="Branch 0 was taken 80 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 496 times"> + </span>]:<span class="tlaGNC">         576 :         if ((c-&gt;flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>
 <span id="L191"><span class="lineNum">     191</span>                 :<span class="tlaGNC">          80 :             onewire_strong_pullup(1);</span></span>
 <span id="L192"><span class="lineNum">     192</span>                 :             :         }</span>
 <span id="L193"><span class="lineNum">     193</span>                 :             :         // Build the command table in-place over the consumed reset capture;</span>
 <span id="L194"><span class="lineNum">     194</span>                 :             :         // it is safe here because the capture is no longer read (the build is</span>
 <span id="L195"><span class="lineNum">     195</span>                 :             :         // what makes union membership possible, see DS2431_ctx_t).</span>
-<span id="L196"><span class="lineNum">     196</span>                 :<span class="tlaGNC">         480 :         onewire_write_slots((const ow_pulse_t*)c-&gt;u.cmd, ds2431_build(c, c-&gt;command));</span></span>
-<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         480 :         c-&gt;phase = DS2431_PH_CMD;</span></span>
-<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaGNC">         480 :         break;</span></span>
+<span id="L196"><span class="lineNum">     196</span>                 :<span class="tlaGNC">         576 :         onewire_write_slots((const ow_pulse_t*)c-&gt;u.cmd, ds2431_build(c, c-&gt;command));</span></span>
+<span id="L197"><span class="lineNum">     197</span>                 :<span class="tlaGNC">         576 :         c-&gt;phase = DS2431_PH_CMD;</span></span>
+<span id="L198"><span class="lineNum">     198</span>                 :<span class="tlaGNC">         576 :         break;</span></span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : </span>
-<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">         480 :     case DS2431_PH_CMD:</span></span>
+<span id="L200"><span class="lineNum">     200</span>                 :<span class="tlaGNC">         576 :     case DS2431_PH_CMD:</span></span>
 <span id="L201"><span class="lineNum">     201</span>                 :             :         // Command write completed. Copy Scratchpad is timed (the status byte</span>
 <span id="L202"><span class="lineNum">     202</span>                 :             :         // is read after the t_PROG hold-off); the other commands either read</span>
 <span id="L203"><span class="lineNum">     203</span>                 :             :         // the answer back (Read Memory, Read Scratchpad) or finish immediately</span>
 <span id="L204"><span class="lineNum">     204</span>                 :             :         // (Write Scratchpad, whose outcome the echo read verifies later).</span>
-<span id="L205"><span class="lineNum">     205</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 432 times"> + </span>]:<span class="tlaGNC">         480 :         if (c-&gt;command == DS2431_COPY_SCRATCHPAD) {</span></span>
+<span id="L205"><span class="lineNum">     205</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         576 :         if (c-&gt;command == DS2431_COPY_SCRATCHPAD) {</span></span>
 <span id="L206"><span class="lineNum">     206</span>                 :             :             // Parasite power: the EEPROM programming draws its supply from the</span>
 <span id="L207"><span class="lineNum">     207</span>                 :             :             // bus while the block is written - drive HIGH actively for the</span>
 <span id="L208"><span class="lineNum">     208</span>                 :             :             // t_PROG hold-off window.</span>
 <span id="L209"><span class="lineNum">     209</span>                 :<span class="tlaGNC">          48 :             ow_start_wait(DS2431_TPROG_US);</span></span>
 <span id="L210"><span class="lineNum">     210</span>                 :<span class="tlaGNC">          48 :             c-&gt;phase = DS2431_PH_WAIT;</span></span>
-<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="Branch 0 was taken 224 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 208 times"> + </span>]:<span class="tlaGNC">         432 :         } else if (c-&gt;len) {</span></span>
-<span id="L212"><span class="lineNum">     212</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 176 times"> + </span>]:<span class="tlaGNC">         224 :             if ((c-&gt;flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>
+<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="Branch 0 was taken 320 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 208 times"> + </span>]:<span class="tlaGNC">         528 :         } else if (c-&gt;len) {</span></span>
+<span id="L212"><span class="lineNum">     212</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 272 times"> + </span>]:<span class="tlaGNC">         320 :             if ((c-&gt;flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :<span class="tlaGNC">          48 :                 onewire_strong_pullup(0);</span></span>
 <span id="L214"><span class="lineNum">     214</span>                 :             :             }</span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         224 :             onewire_read_data((volatile uint8_t*)c-&gt;u.pulse, c-&gt;len);</span></span>
-<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">         224 :             c-&gt;phase = DS2431_PH_READ;</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">         320 :             onewire_read_data((volatile uint8_t*)c-&gt;u.pulse, c-&gt;len);</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :<span class="tlaGNC">         320 :             c-&gt;phase = DS2431_PH_READ;</span></span>
 <span id="L217"><span class="lineNum">     217</span>                 :             :         } else {</span>
 <span id="L218"><span class="lineNum">     218</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 192 times"> + </span>]:<span class="tlaGNC">         208 :             if ((c-&gt;flags &amp; DS2431_FLAG_PARASITE) != 0u) {</span></span>
 <span id="L219"><span class="lineNum">     219</span>                 :<span class="tlaGNC">          16 :                 onewire_strong_pullup(0);</span></span>
@@ -294,12 +294,12 @@
 <span id="L221"><span class="lineNum">     221</span>                 :<span class="tlaGNC">         208 :             c-&gt;flags |= DS2431_FLAG_OK;</span></span>
 <span id="L222"><span class="lineNum">     222</span>                 :<span class="tlaGNC">         208 :             c-&gt;phase = DS2431_PH_DONE;</span></span>
 <span id="L223"><span class="lineNum">     223</span>                 :             :         }</span>
-<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         480 :         break;</span></span>
+<span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         576 :         break;</span></span>
 <span id="L225"><span class="lineNum">     225</span>                 :             : </span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         272 :     case DS2431_PH_READ:</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">         368 :     case DS2431_PH_READ:</span></span>
 <span id="L227"><span class="lineNum">     227</span>                 :             :         // Data read completed: decode the captured pulse durations.</span>
-<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         272 :         onewire_decode_pulses(c-&gt;raw, (const volatile uint8_t*)c-&gt;u.pulse, c-&gt;len);</span></span>
-<span id="L229"><span class="lineNum">     229</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 224 times"> + </span>]:<span class="tlaGNC">         272 :         if (c-&gt;command == DS2431_COPY_SCRATCHPAD) {</span></span>
+<span id="L228"><span class="lineNum">     228</span>                 :<span class="tlaGNC">         368 :         onewire_decode_pulses(c-&gt;raw, (const volatile uint8_t*)c-&gt;u.pulse, c-&gt;len);</span></span>
+<span id="L229"><span class="lineNum">     229</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 320 times"> + </span>]:<span class="tlaGNC">         368 :         if (c-&gt;command == DS2431_COPY_SCRATCHPAD) {</span></span>
 <span id="L230"><span class="lineNum">     230</span>                 :             :             // The device reports the copy outcome on the bus after t_PROG:</span>
 <span id="L231"><span class="lineNum">     231</span>                 :             :             // 0xAA when the block was programmed, logic 1 when it refused</span>
 <span id="L232"><span class="lineNum">     232</span>                 :             :             // (PF set, invalid address or copy-protected page). Only the</span>
@@ -310,26 +310,26 @@
 <span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">          48 :             c-&gt;phase = DS2431_PH_DONE;</span></span>
 <span id="L238"><span class="lineNum">     238</span>                 :<span class="tlaGNC">          48 :             break;</span></span>
 <span id="L239"><span class="lineNum">     239</span>                 :             :         }</span>
-<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="Branch 0 was taken 144 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 80 times"> + </span>]:<span class="tlaGNC">         224 :         if (c-&gt;command == DS2431_READ_SCRATCHPAD) {</span></span>
+<span id="L240"><span class="lineNum">     240</span>         [<span class="tlaGBC" title="Branch 0 was taken 160 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 160 times"> + </span>]:<span class="tlaGNC">         320 :         if (c-&gt;command == DS2431_READ_SCRATCHPAD) {</span></span>
 <span id="L241"><span class="lineNum">     241</span>                 :             :             // The reply length depends on the latched E/S window; validate the</span>
 <span id="L242"><span class="lineNum">     242</span>                 :             :             // inverted CRC-16 over the bytes the device actually transmitted.</span>
-<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">         144 :             uint8_t n = ds2431_scratchpad_data_len(c-&gt;raw);</span></span>
-<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="Branch 0 was taken 144 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 112 times"> + </span>]:<span class="tlaGNC">         144 :             if (n == 0u || !ds2431_scratchpad_crc_ok(c-&gt;raw, n)) {</span></span>
+<span id="L243"><span class="lineNum">     243</span>                 :<span class="tlaGNC">         160 :             uint8_t n = ds2431_scratchpad_data_len(c-&gt;raw);</span></span>
+<span id="L244"><span class="lineNum">     244</span>   [<span class="tlaGBC" title="Branch 0 was taken 144 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 128 times"> + </span>]:<span class="tlaGNC">         160 :             if (n == 0u || !ds2431_scratchpad_crc_ok(c-&gt;raw, n)) {</span></span>
 <span id="L245"><span class="lineNum">     245</span>                 :             :                 // The reply's trailing inverted CRC-16 does not cover the</span>
 <span id="L246"><span class="lineNum">     246</span>                 :             :                 // frame: the scratchpad read is corrupt. Finish without the</span>
 <span id="L247"><span class="lineNum">     247</span>                 :             :                 // success flag.</span>
 <span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">          32 :                 c-&gt;phase = DS2431_PH_DONE;</span></span>
 <span id="L249"><span class="lineNum">     249</span>                 :<span class="tlaGNC">          32 :                 break;</span></span>
 <span id="L250"><span class="lineNum">     250</span>                 :             :             }</span>
-<span id="L251"><span class="lineNum">     251</span>         [<span class="tlaGBC" title="Branch 0 was taken 80 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">         112 :             if ((c-&gt;flags &amp; (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) ==</span></span>
+<span id="L251"><span class="lineNum">     251</span>         [<span class="tlaGBC" title="Branch 0 was taken 96 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">         128 :             if ((c-&gt;flags &amp; (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) ==</span></span>
 <span id="L252"><span class="lineNum">     252</span>                 :             :                 (DS2431_FLAG_ECHO | DS2431_FLAG_PENDING)) {</span>
-<span id="L253"><span class="lineNum">     253</span>   [<span class="tlaGBC" title="Branch 0 was taken 80 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 80 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          80 :                 if (c-&gt;raw[0] != c-&gt;addr_lo || c-&gt;raw[1] != c-&gt;addr_hi ||</span></span>
-<span id="L254"><span class="lineNum">     254</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 80 times"> + </span>]:<span class="tlaGNC">          80 :                     (c-&gt;raw[2] &amp; 0x07u) != c-&gt;es) {</span></span>
+<span id="L253"><span class="lineNum">     253</span>   [<span class="tlaGBC" title="Branch 0 was taken 96 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 96 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">          96 :                 if (c-&gt;raw[0] != c-&gt;addr_lo || c-&gt;raw[1] != c-&gt;addr_hi ||</span></span>
+<span id="L254"><span class="lineNum">     254</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 80 times"> + </span>]:<span class="tlaGNC">          96 :                     (c-&gt;raw[2] &amp; 0x07u) != c-&gt;es) {</span></span>
 <span id="L255"><span class="lineNum">     255</span>                 :             :                     // The scratchpad frame echoes neither the latched target</span>
 <span id="L256"><span class="lineNum">     256</span>                 :             :                     // address nor the expected end-offset status byte: the write</span>
 <span id="L257"><span class="lineNum">     257</span>                 :             :                     // did not reach this device. Finish without the success flag.</span>
-<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaUNC">           0 :                     c-&gt;phase = DS2431_PH_DONE;</span></span>
-<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaUNC">           0 :                     break;</span></span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">          16 :                     c-&gt;phase = DS2431_PH_DONE;</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">          16 :                     break;</span></span>
 <span id="L260"><span class="lineNum">     260</span>                 :             :                 }</span>
 <span id="L261"><span class="lineNum">     261</span>         [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 64 times"> + </span>]:<span class="tlaGNC">          80 :                 if ((c-&gt;raw[2] &amp; 0x20u) != 0u) {</span></span>
 <span id="L262"><span class="lineNum">     262</span>                 :             :                     // PF: the device received fewer bytes than needed to fill</span>
@@ -356,9 +356,9 @@
 <span id="L283"><span class="lineNum">     283</span>                 :             :                 }</span>
 <span id="L284"><span class="lineNum">     284</span>                 :             :             }</span>
 <span id="L285"><span class="lineNum">     285</span>                 :             :         }</span>
-<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">         160 :         c-&gt;flags |= DS2431_FLAG_OK;</span></span>
-<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">         160 :         c-&gt;phase = DS2431_PH_DONE;</span></span>
-<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">         160 :         break;</span></span>
+<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">         240 :         c-&gt;flags |= DS2431_FLAG_OK;</span></span>
+<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">         240 :         c-&gt;phase = DS2431_PH_DONE;</span></span>
+<span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">         240 :         break;</span></span>
 <span id="L289"><span class="lineNum">     289</span>                 :             : </span>
 <span id="L290"><span class="lineNum">     290</span>                 :<span class="tlaGNC">          48 :     case DS2431_PH_WAIT:</span></span>
 <span id="L291"><span class="lineNum">     291</span>                 :             :         // Hold-off completed (Copy Scratchpad): release the strong pull-up</span>
@@ -379,7 +379,7 @@
 <span id="L306"><span class="lineNum">     306</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
 <span id="L307"><span class="lineNum">     307</span>                 :             :     }</span>
 <span id="L308"><span class="lineNum">     308</span>                 :             : </span>
-<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">        1328 :     return 0;</span></span>
+<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">        1616 :     return 0;</span></span>
 <span id="L310"><span class="lineNum">     310</span>                 :             : }</span>
 <span id="L311"><span class="lineNum">     311</span>                 :             : </span>
 <span id="L312"><span class="lineNum">     312</span>                 :             : /**</span>

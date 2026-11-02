@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.2&nbsp;%</td>
-            <td class="headerCovTableEntry">145</td>
-            <td class="headerCovTableEntry">138</td>
+            <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
+            <td class="headerCovTableEntry">147</td>
+            <td class="headerCovTableEntry">139</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-01 19:40:58</td>
+            <td class="headerValue">2026-11-02 04:18:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">-</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryLo">39.0&nbsp;%</td>
-            <td class="headerCovTableEntry">272</td>
-            <td class="headerCovTableEntry">106</td>
+            <td class="headerCovTableEntryLo">38.9&nbsp;%</td>
+            <td class="headerCovTableEntry">280</td>
+            <td class="headerCovTableEntry">109</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -578,11 +578,11 @@
 <span id="L507"><span class="lineNum">     507</span>                 :             :  *       reset completed and before any other capture is armed.</span>
 <span id="L508"><span class="lineNum">     508</span>                 :             :  */</span>
 <span id="L509"><span class="lineNum">     509</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_reset_captured(void) {</span>
-<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">        4086 :     uint16_t remaining = (uint16_t)OW_PORT_CAPTURE_REMAINING();</span></span>
-<span id="L511"><span class="lineNum">     511</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4086 times"> + </span>]:<span class="tlaGNC">        4086 :     if (remaining &gt; OW_PORT_CAPTURE_BUF_SIZE) {</span></span>
+<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">        4182 :     uint16_t remaining = (uint16_t)OW_PORT_CAPTURE_REMAINING();</span></span>
+<span id="L511"><span class="lineNum">     511</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4182 times"> + </span>]:<span class="tlaGNC">        4182 :     if (remaining &gt; OW_PORT_CAPTURE_BUF_SIZE) {</span></span>
 <span id="L512"><span class="lineNum">     512</span>                 :<span class="tlaUNC">           0 :         remaining = OW_PORT_CAPTURE_BUF_SIZE;</span></span>
 <span id="L513"><span class="lineNum">     513</span>                 :             :     }</span>
-<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">        4086 :     return (uint8_t)(OW_PORT_CAPTURE_BUF_SIZE - remaining);</span></span>
+<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">        4182 :     return (uint8_t)(OW_PORT_CAPTURE_BUF_SIZE - remaining);</span></span>
 <span id="L515"><span class="lineNum">     515</span>                 :             : }</span>
 <span id="L516"><span class="lineNum">     516</span>                 :             : </span>
 <span id="L517"><span class="lineNum">     517</span>                 :             : /* Disable-path contract: the wait algorithm below is DMA-IP-agnostic (write</span>
@@ -614,8 +614,8 @@
 <span id="L543"><span class="lineNum">     543</span>                 :             :  *       `DMA_Channel_TypeDef`, the host mocks `DMA1_Channel_TypeDef`).</span>
 <span id="L544"><span class="lineNum">     544</span>                 :             :  */</span>
 <span id="L545"><span class="lineNum">     545</span>                 :             : __STATIC_FORCEINLINE void ow_port_dma_disable(volatile uint32_t* ccr) {</span>
-<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">      122394 :     *ccr = 0; /* request disable */</span></span>
-<span id="L547"><span class="lineNum">     547</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 55580 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 3991 times"> + </span>]:<span class="tlaGNC">       59577 :     if (*ccr &amp; OW_PORT_DMA_EN_BIT) {</span></span>
+<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">      122720 :     *ccr = 0; /* request disable */</span></span>
+<span id="L547"><span class="lineNum">     547</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 55580 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 4087 times"> + </span>]:<span class="tlaGNC">       59673 :     if (*ccr &amp; OW_PORT_DMA_EN_BIT) {</span></span>
 <span id="L548"><span class="lineNum">     548</span>                 :<span class="tlaUNC">           0 :         uint32_t guard = 1000u;</span></span>
 <span id="L549"><span class="lineNum">     549</span>   [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span><span class="tlaUNC" title="Branch 2 was not executed"> # </span><span class="tlaUNC" title="Branch 3 was not executed"> # </span> :<span class="tlaUNC">           0 :         while ((*ccr &amp; OW_PORT_DMA_EN_BIT) != 0u &amp;&amp; guard-- != 0u) {</span></span>
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 4 was not executed"> # </span><span class="tlaUNC" title="Branch 5 was not executed"> # </span><span class="tlaUNC" title="Branch 6 was not executed"> # </span><span class="tlaUNC" title="Branch 7 was not executed"> # </span><span class="tlaUNC" title="Branch 8 was not executed"> # </span> 
@@ -638,7 +638,7 @@
 <span class="lineNum">        </span>   [<span class="tlaUNC" title="Branch 0 was not executed"> # </span><span class="tlaUNC" title="Branch 1 was not executed"> # </span><span class="tlaUNC" title="Branch 2 was not executed"> # </span><span class="tlaUNC" title="Branch 3 was not executed"> # </span>]
 <span id="L550"><span class="lineNum">     550</span>                 :             :         }</span>
 <span id="L551"><span class="lineNum">     551</span>                 :             :     }</span>
-<span id="L552"><span class="lineNum">     552</span>                 :<span class="tlaGNC">      122394 : }</span></span>
+<span id="L552"><span class="lineNum">     552</span>                 :<span class="tlaGNC">      122720 : }</span></span>
 <span id="L553"><span class="lineNum">     553</span>                 :             : </span>
 <span id="L554"><span class="lineNum">     554</span>                 :             : /**</span>
 <span id="L555"><span class="lineNum">     555</span>                 :             :  * @brief Force a timer update event, leaving UIF set</span>
@@ -658,12 +658,12 @@
 <span id="L569"><span class="lineNum">     569</span>                 :             :  *       scheduled operation has a clean completion flag.</span>
 <span id="L570"><span class="lineNum">     570</span>                 :             :  */</span>
 <span id="L571"><span class="lineNum">     571</span>                 :             : __STATIC_FORCEINLINE void ow_port_update_event(void) {</span>
-<span id="L572"><span class="lineNum">     572</span>                 :<span class="tlaGNC">       68912 :     T1.EGR = TIM_EGR(UG);</span></span>
-<span id="L573"><span class="lineNum">     573</span>                 :<span class="tlaGNC">       68912 :     (void)T1.SR; /* flush posted APB writes so UG sets UIF before SR=0 clears it</span></span>
+<span id="L572"><span class="lineNum">     572</span>                 :<span class="tlaGNC">       69246 :     T1.EGR = TIM_EGR(UG);</span></span>
+<span id="L573"><span class="lineNum">     573</span>                 :<span class="tlaGNC">       69246 :     (void)T1.SR; /* flush posted APB writes so UG sets UIF before SR=0 clears it</span></span>
 <span id="L574"><span class="lineNum">     574</span>                 :             :                   * (same mechanism as the F4 section: the read round-trips the</span>
 <span id="L575"><span class="lineNum">     575</span>                 :             :                   * bus and proves the peripheral answered post-write) */</span>
-<span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">       68912 :     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */</span></span>
-<span id="L577"><span class="lineNum">     577</span>                 :<span class="tlaGNC">       43994 : }</span></span>
+<span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">       69246 :     T1.SR = 0; /* UIF (and any stale CCxIF) cleared: fresh op gets a clean completion flag */</span></span>
+<span id="L577"><span class="lineNum">     577</span>                 :<span class="tlaGNC">       44168 : }</span></span>
 <span id="L578"><span class="lineNum">     578</span>                 :             : </span>
 <span id="L579"><span class="lineNum">     579</span>                 :             : /**</span>
 <span id="L580"><span class="lineNum">     580</span>                 :             :  * @brief Enable clocks, configure the timer prescaler and the open-drain bus pin</span>
@@ -674,22 +674,22 @@
 <span id="L585"><span class="lineNum">     585</span>                 :             :  *       so the first operation only starts when the application requests it.</span>
 <span id="L586"><span class="lineNum">     586</span>                 :             :  */</span>
 <span id="L587"><span class="lineNum">     587</span>                 :             : __STATIC_FORCEINLINE void ow_port_init(void) {</span>
-<span id="L588"><span class="lineNum">     588</span>                 :<span class="tlaGNC">        2164 :     OW_PORT_ENABLE_BUS_CLOCKS();</span></span>
+<span id="L588"><span class="lineNum">     588</span>                 :<span class="tlaGNC">        2336 :     OW_PORT_ENABLE_BUS_CLOCKS();</span></span>
 <span id="L589"><span class="lineNum">     589</span>                 :             : #if defined(OW_TIM1_MHZ)</span>
-<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">        2164 :     T1.PSC = OW_PORT_TIM_PRESCALER;</span></span>
+<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">        2336 :     T1.PSC = OW_PORT_TIM_PRESCALER;</span></span>
 <span id="L591"><span class="lineNum">     591</span>                 :             : #else</span>
 <span id="L592"><span class="lineNum">     592</span>                 :             :     T1.PSC = ow_port_psc_from_hz(SystemCoreClock);</span>
 <span id="L593"><span class="lineNum">     593</span>                 :             : #endif</span>
-<span id="L594"><span class="lineNum">     594</span>                 :<span class="tlaGNC">        2164 :     T1.BDTR = TIM_BDTR(MOE);</span></span>
-<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">        2164 :     OW_PORT_CONFIG_BUS_PIN();</span></span>
-<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">        2164 : }</span></span>
+<span id="L594"><span class="lineNum">     594</span>                 :<span class="tlaGNC">        2336 :     T1.BDTR = TIM_BDTR(MOE);</span></span>
+<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">        2336 :     OW_PORT_CONFIG_BUS_PIN();</span></span>
+<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">        2336 : }</span></span>
 <span id="L597"><span class="lineNum">     597</span>                 :             : </span>
 <span id="L598"><span class="lineNum">     598</span>                 :             : /**</span>
 <span id="L599"><span class="lineNum">     599</span>                 :             :  * @brief Non-blocking completion check for the scheduled operation</span>
 <span id="L600"><span class="lineNum">     600</span>                 :             :  * @return 1 if finished (update flag set and cleared), 0 while still running</span>
 <span id="L601"><span class="lineNum">     601</span>                 :             :  */</span>
 <span id="L602"><span class="lineNum">     602</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {</span>
-<span id="L603"><span class="lineNum">     603</span>         [<span class="tlaGBC" title="Branch 0 was taken 67252 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2260 times"> + </span>]:<span class="tlaGNC">       69512 :     if (T1.SR &amp; TIM_SR(UIF)) {</span></span>
+<span id="L603"><span class="lineNum">     603</span>         [<span class="tlaGBC" title="Branch 0 was taken 67570 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2364 times"> + </span>]:<span class="tlaGNC">       69934 :     if (T1.SR &amp; TIM_SR(UIF)) {</span></span>
 <span id="L604"><span class="lineNum">     604</span>                 :             :         /* No software bus release needed: every operation returns the line to</span>
 <span id="L605"><span class="lineNum">     605</span>                 :             :          * idle HIGH in hardware. DMA-fed writes (ow_port_feed,</span>
 <span id="L606"><span class="lineNum">     606</span>                 :             :          * ow_port_write_then_read) append ONEWIRE_RELEASE_PULSE to the CCR3</span>
@@ -706,10 +706,10 @@
 <span id="L617"><span class="lineNum">     617</span>                 :             :          * the long-stage condition read by ow_port_long_wait_pending(). */</span>
 <span id="L618"><span class="lineNum">     618</span>                 :             :         NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);</span>
 <span id="L619"><span class="lineNum">     619</span>                 :             : #endif</span>
-<span id="L620"><span class="lineNum">     620</span>                 :<span class="tlaGNC">       67252 :         T1.SR = 0;</span></span>
-<span id="L621"><span class="lineNum">     621</span>                 :<span class="tlaGNC">       67252 :         return 1u;</span></span>
+<span id="L620"><span class="lineNum">     620</span>                 :<span class="tlaGNC">       67570 :         T1.SR = 0;</span></span>
+<span id="L621"><span class="lineNum">     621</span>                 :<span class="tlaGNC">       67570 :         return 1u;</span></span>
 <span id="L622"><span class="lineNum">     622</span>                 :             :     }</span>
-<span id="L623"><span class="lineNum">     623</span>                 :<span class="tlaGNC">        2260 :     return 0u;</span></span>
+<span id="L623"><span class="lineNum">     623</span>                 :<span class="tlaGNC">        2364 :     return 0u;</span></span>
 <span id="L624"><span class="lineNum">     624</span>                 :             : }</span>
 <span id="L625"><span class="lineNum">     625</span>                 :             : </span>
 <span id="L626"><span class="lineNum">     626</span>                 :             : #if OW_LOW_POWER</span>
@@ -725,27 +725,27 @@
 <span id="L636"><span class="lineNum">     636</span>                 :             :  *       ow_port_sleep_until_done() when it is set, instead of busy-polling.</span>
 <span id="L637"><span class="lineNum">     637</span>                 :             :  */</span>
 <span id="L638"><span class="lineNum">     638</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_long_wait_pending(void) {</span>
-<span id="L639"><span class="lineNum">     639</span> [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 648 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span> :<span class="tlaGNC">         800 :     if (!(T1.CR1 &amp; TIM_CR1(CEN))) {</span></span>
+<span id="L639"><span class="lineNum">     639</span> [<span class="tlaGBC" title="Branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 704 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span> :<span class="tlaGNC">         872 :     if (!(T1.CR1 &amp; TIM_CR1(CEN))) {</span></span>
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaGBC" title="Branch 7 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 8 was not taken"> - </span><span class="tlaGBC" title="Branch 9 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 10 was not taken"> - </span><span class="tlaGBC" title="Branch 11 was taken 8 times"> + </span> 
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 12 was not taken"> - </span><span class="tlaGBC" title="Branch 13 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 14 was not taken"> - </span><span class="tlaGBC" title="Branch 15 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 16 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaGBC" title="Branch 17 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 18 was not taken"> - </span><span class="tlaGBC" title="Branch 19 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 20 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 21 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 22 was not taken"> - </span><span class="tlaGBC" title="Branch 23 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 24 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 25 was not taken"> - </span><span class="tlaUNC" title="Branch 26 was not taken"> - </span> 
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 27 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 28 was not taken"> - </span><span class="tlaGBC" title="Branch 29 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 30 was not taken"> - </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 31 was taken 8 times"> + </span>]
-<span id="L640"><span class="lineNum">     640</span>                 :<span class="tlaGNC">          40 :         return 0u;</span></span>
+<span class="lineNum">        </span> <span class="tlaGBC" title="Branch 27 was taken 8 times"> + </span><span class="tlaGBC" title="Branch 28 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 29 was not taken"> - </span><span class="tlaUNC" title="Branch 30 was not taken"> - </span><span class="tlaGBC" title="Branch 31 was taken 8 times"> + </span> 
+<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 32 was not taken"> - </span><span class="tlaGBC" title="Branch 33 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 34 was not taken"> - </span><span class="tlaGBC" title="Branch 35 was taken 8 times"> + </span>]
+<span id="L640"><span class="lineNum">     640</span>                 :<span class="tlaGNC">          48 :         return 0u;</span></span>
 <span id="L641"><span class="lineNum">     641</span>                 :             :     }</span>
-<span id="L642"><span class="lineNum">     642</span> [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 648 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span> :<span class="tlaGNC">         760 :     if (T1.SR &amp; TIM_SR(UIF)) {</span></span>
+<span id="L642"><span class="lineNum">     642</span> [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 704 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span> :<span class="tlaGNC">         824 :     if (T1.SR &amp; TIM_SR(UIF)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaGBC" title="Branch 7 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 8 was not taken"> - </span><span class="tlaGBC" title="Branch 9 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 10 was not taken"> - </span><span class="tlaGBC" title="Branch 11 was taken 8 times"> + </span> 
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 12 was not taken"> - </span><span class="tlaGBC" title="Branch 13 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 14 was not taken"> - </span><span class="tlaGBC" title="Branch 15 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 16 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaGBC" title="Branch 17 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 18 was not taken"> - </span><span class="tlaGBC" title="Branch 19 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 20 was not taken"> - </span><span class="tlaUNC" title="Branch 21 was not taken"> - </span> 
 <span class="lineNum">        </span> <span class="tlaUNC" title="Branch 22 was not taken"> - </span><span class="tlaGBC" title="Branch 23 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 24 was not taken"> - </span><span class="tlaUNC" title="Branch 25 was not taken"> - </span><span class="tlaUNC" title="Branch 26 was not taken"> - </span> 
-<span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 27 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 28 was not taken"> - </span><span class="tlaGBC" title="Branch 29 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 30 was not taken"> - </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 31 was taken 8 times"> + </span>]
+<span class="lineNum">        </span> <span class="tlaGBC" title="Branch 27 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 28 was not taken"> - </span><span class="tlaUNC" title="Branch 29 was not taken"> - </span><span class="tlaUNC" title="Branch 30 was not taken"> - </span><span class="tlaGBC" title="Branch 31 was taken 8 times"> + </span> 
+<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 32 was not taken"> - </span><span class="tlaGBC" title="Branch 33 was taken 8 times"> + </span><span class="tlaUNC" title="Branch 34 was not taken"> - </span><span class="tlaGBC" title="Branch 35 was taken 8 times"> + </span>]
 <span id="L643"><span class="lineNum">     643</span>                 :<span class="tlaUNC">           0 :         return 0u; /* armed but already complete: nothing left to sleep on */</span></span>
 <span id="L644"><span class="lineNum">     644</span>                 :             :     }</span>
-<span id="L645"><span class="lineNum">     645</span>                 :<span class="tlaGNC">         760 :     return (uint8_t)(((uint32_t)T1.RCR + 1u) * (uint32_t)T1.ARR &gt; OW_PORT_LONG_STAGE_US);</span></span>
+<span id="L645"><span class="lineNum">     645</span>                 :<span class="tlaGNC">         824 :     return (uint8_t)(((uint32_t)T1.RCR + 1u) * (uint32_t)T1.ARR &gt; OW_PORT_LONG_STAGE_US);</span></span>
 <span id="L646"><span class="lineNum">     646</span>                 :             : }</span>
 <span id="L647"><span class="lineNum">     647</span>                 :             : </span>
 <span id="L648"><span class="lineNum">     648</span>                 :             : /**</span>
@@ -773,13 +773,13 @@
 <span id="L670"><span class="lineNum">     670</span>                 :             :      * immediately and clears it, so the second WFE in the loop truly sleeps</span>
 <span id="L671"><span class="lineNum">     671</span>                 :             :      * until a new event arrives. */</span>
 <span id="L672"><span class="lineNum">     672</span>                 :             :     __SEV();</span>
-<span id="L673"><span class="lineNum">     673</span>                 :             :     __WFE();</span>
-<span id="L674"><span class="lineNum">     674</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :     while (!(T1.SR &amp; TIM_SR(UIF))) {</span></span>
-<span id="L675"><span class="lineNum">     675</span>                 :             :         __WFE(); /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */</span>
+<span id="L673"><span class="lineNum">     673</span>                 :<span class="tlaGNC">          16 :     __WFE();</span></span>
+<span id="L674"><span class="lineNum">     674</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 16 times"> + </span>]:<span class="tlaGNC">          16 :     while (!(T1.SR &amp; TIM_SR(UIF))) {</span></span>
+<span id="L675"><span class="lineNum">     675</span>                 :<span class="tlaUNC">           0 :         __WFE(); /* sleeps; woken by the pending bit via SEVONPEND (no ISR) */</span></span>
 <span id="L676"><span class="lineNum">     676</span>                 :             :     }</span>
 <span id="L677"><span class="lineNum">     677</span>                 :             :     /* Consume the wake-up event so the next sleep starts from a clean state. */</span>
 <span id="L678"><span class="lineNum">     678</span>                 :             :     NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);</span>
-<span id="L679"><span class="lineNum">     679</span>                 :<span class="tlaGNC">           8 : }</span></span>
+<span id="L679"><span class="lineNum">     679</span>                 :<span class="tlaGNC">          16 : }</span></span>
 <span id="L680"><span class="lineNum">     680</span>                 :             : #endif</span>
 <span id="L681"><span class="lineNum">     681</span>                 :             : </span>
 <span id="L682"><span class="lineNum">     682</span>                 :             : /**</span>
@@ -792,8 +792,8 @@
 <span id="L689"><span class="lineNum">     689</span>                 :             :  *       alternate-function (TIM1_CH3); only the output-stage topology changes.</span>
 <span id="L690"><span class="lineNum">     690</span>                 :             :  */</span>
 <span id="L691"><span class="lineNum">     691</span>                 :             : __STATIC_FORCEINLINE void ow_port_set_pin_mode(uint8_t push_pull) {</span>
-<span id="L692"><span class="lineNum">     692</span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 22 times"> + </span>]:<span class="tlaGNC">        3288 :     OW_PORT_SET_PIN_MODE(push_pull);</span></span>
-<span id="L693"><span class="lineNum">     693</span>                 :<span class="tlaGNC">        3288 : }</span></span>
+<span id="L692"><span class="lineNum">     692</span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 22 times"> + </span>]:<span class="tlaGNC">        3384 :     OW_PORT_SET_PIN_MODE(push_pull);</span></span>
+<span id="L693"><span class="lineNum">     693</span>                 :<span class="tlaGNC">        3384 : }</span></span>
 <span id="L694"><span class="lineNum">     694</span>                 :             : </span>
 <span id="L695"><span class="lineNum">     695</span>                 :             : /**</span>
 <span id="L696"><span class="lineNum">     696</span>                 :             :  * @brief Configure timer and DMA for a capture operation</span>
@@ -805,31 +805,31 @@
 <span id="L702"><span class="lineNum">     702</span>                 :             : #if OW_DRIVE_ACTIVE</span>
 <span id="L703"><span class="lineNum">     703</span>                 :             :     ow_port_set_pin_mode(0); /* read/reset phases must be open-drain (slave can pull LOW) */</span>
 <span id="L704"><span class="lineNum">     704</span>                 :             : #endif</span>
-<span id="L705"><span class="lineNum">     705</span>                 :<span class="tlaGNC">        6157 :     T1.CCMR2 = OW_PORT_CCMR2_CAP;</span></span>
-<span id="L706"><span class="lineNum">     706</span>                 :<span class="tlaGNC">        6157 :     T1.CCER = TIM_CCER(CC3E, CC4E);</span></span>
+<span id="L705"><span class="lineNum">     705</span>                 :<span class="tlaGNC">        6387 :     T1.CCMR2 = OW_PORT_CCMR2_CAP;</span></span>
+<span id="L706"><span class="lineNum">     706</span>                 :<span class="tlaGNC">        6387 :     T1.CCER = TIM_CCER(CC3E, CC4E);</span></span>
 <span id="L707"><span class="lineNum">     707</span>                 :             : #if OW_LOW_POWER</span>
-<span id="L708"><span class="lineNum">     708</span>                 :<span class="tlaGNC">         450 :     T1.DIER = TIM_DIER(CC4DE, UIE);</span></span>
+<span id="L708"><span class="lineNum">     708</span>                 :<span class="tlaGNC">         554 :     T1.DIER = TIM_DIER(CC4DE, UIE);</span></span>
 <span id="L709"><span class="lineNum">     709</span>                 :             :     /* No duration decision here: ow_port_long_wait_pending() derives it from</span>
 <span id="L710"><span class="lineNum">     710</span>                 :             :      * the caller's ARR/RCR, so every capture path (reset, read, long</span>
 <span id="L711"><span class="lineNum">     711</span>                 :             :      * scratchpad read) shares the one OW_PORT_LONG_STAGE_US rule. */</span>
 <span id="L712"><span class="lineNum">     712</span>                 :             : #else</span>
-<span id="L713"><span class="lineNum">     713</span>                 :<span class="tlaGNC">         460 :     T1.DIER = TIM_DIER(CC4DE);</span></span>
+<span id="L713"><span class="lineNum">     713</span>                 :<span class="tlaGNC">         564 :     T1.DIER = TIM_DIER(CC4DE);</span></span>
 <span id="L714"><span class="lineNum">     714</span>                 :             : #endif</span>
 <span id="L715"><span class="lineNum">     715</span>                 :             :     ow_port_update_event();</span>
-<span id="L716"><span class="lineNum">     716</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 272 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span>]:<span class="tlaGNC">        6157 :     T1.CCR3 = ONEWIRE_RELEASE_PULSE;</span></span>
+<span id="L716"><span class="lineNum">     716</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 368 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 640 times"> + </span>]:<span class="tlaGNC">        6387 :     T1.CCR3 = ONEWIRE_RELEASE_PULSE;</span></span>
 <span class="lineNum">        </span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 16 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 32 times"> + </span> 
-<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 408 times"> + </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 1515 times"> + </span>]
+<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 408 times"> + </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span><span class="tlaGBC" title="Branch 7 was taken 1523 times"> + </span>]
 <span class="lineNum">        </span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 56 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 714 times"> + </span> 
-<span class="lineNum">        </span>  <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 2610 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]
-<span id="L717"><span class="lineNum">     717</span>                 :<span class="tlaGNC">        2974 :     OW_PORT_DMA_DISABLE_CAPTURE();</span></span>
-<span id="L718"><span class="lineNum">     718</span>                 :<span class="tlaGNC">        2489 :     OW_PORT_ROUTE_CAPTURE();</span></span>
-<span id="L719"><span class="lineNum">     719</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 272 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 528 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">        6157 :     OW_PORT_DMA_PROG_CAPTURE(dst, count, ((width == 16) ? OW_PORT_DMA_CR_RX16 : OW_PORT_DMA_CR_RX8));</span></span>
+<span class="lineNum">        </span>  <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 2624 times"> + </span>][<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 6 times"> + </span>]
+<span id="L717"><span class="lineNum">     717</span>                 :<span class="tlaGNC">        3063 :     OW_PORT_DMA_DISABLE_CAPTURE();</span></span>
+<span id="L718"><span class="lineNum">     718</span>                 :<span class="tlaGNC">        2576 :     OW_PORT_ROUTE_CAPTURE();</span></span>
+<span id="L719"><span class="lineNum">     719</span>   [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 368 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 640 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">        6387 :     OW_PORT_DMA_PROG_CAPTURE(dst, count, ((width == 16) ? OW_PORT_DMA_CR_RX16 : OW_PORT_DMA_CR_RX8));</span></span>
 <span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 16 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 24 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 8 times"> + </span> 
-<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 408 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 1515 times"> + </span><span class="tlaUNC" title="Branch 7 was not taken"> - </span>]
+<span class="lineNum">        </span>    <span class="tlaUNC" title="Branch 4 was not taken"> - </span><span class="tlaGBC" title="Branch 5 was taken 408 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 1523 times"> + </span><span class="tlaUNC" title="Branch 7 was not taken"> - </span>]
 <span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 42 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 14 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 714 times"> + </span> 
-<span class="lineNum">        </span>  <span class="tlaGBC" title="Branch 4 was taken 2610 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>][<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]
-<span id="L720"><span class="lineNum">     720</span>                 :<span class="tlaGNC">        6157 :     OW_PORT_TIMER_START();</span></span>
-<span id="L721"><span class="lineNum">     721</span>                 :<span class="tlaGNC">        6157 : }</span></span>
+<span class="lineNum">        </span>  <span class="tlaGBC" title="Branch 4 was taken 2624 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span>][<span class="tlaGBC" title="Branch 0 was taken 6 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]
+<span id="L720"><span class="lineNum">     720</span>                 :<span class="tlaGNC">        6387 :     OW_PORT_TIMER_START();</span></span>
+<span id="L721"><span class="lineNum">     721</span>                 :<span class="tlaGNC">        6387 : }</span></span>
 <span id="L722"><span class="lineNum">     722</span>                 :             : </span>
 <span id="L723"><span class="lineNum">     723</span>                 :             : /**</span>
 <span id="L724"><span class="lineNum">     724</span>                 :             :  * @brief Transmit a command sequence of arbitrary length using DMA</span>
@@ -846,27 +846,27 @@
 <span id="L735"><span class="lineNum">     735</span>                 :             :  *       (hardware bus release — no software CCR3 write needed afterwards).</span>
 <span id="L736"><span class="lineNum">     736</span>                 :             :  */</span>
 <span id="L737"><span class="lineNum">     737</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots) {</span>
-<span id="L738"><span class="lineNum">     738</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 3991 times"> + </span>]:<span class="tlaGNC">        3991 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
+<span id="L738"><span class="lineNum">     738</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4087 times"> + </span>]:<span class="tlaGNC">        4087 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
 <span id="L739"><span class="lineNum">     739</span>                 :<span class="tlaUNC">           0 :         return 0u;</span></span>
 <span id="L740"><span class="lineNum">     740</span>                 :             :     }</span>
-<span id="L741"><span class="lineNum">     741</span>                 :<span class="tlaGNC">        3991 :     T1.RCR = slots - 1;</span></span>
-<span id="L742"><span class="lineNum">     742</span>                 :<span class="tlaGNC">        3991 :     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;</span></span>
-<span id="L743"><span class="lineNum">     743</span>                 :<span class="tlaGNC">        3991 :     T1.CCR3 = cmd[0];</span></span>
-<span id="L744"><span class="lineNum">     744</span>                 :<span class="tlaGNC">        3991 :     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;</span></span>
-<span id="L745"><span class="lineNum">     745</span>                 :<span class="tlaGNC">        3991 :     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);</span></span>
-<span id="L746"><span class="lineNum">     746</span>                 :<span class="tlaGNC">        3991 :     T1.CCER = TIM_CCER(CC3E);</span></span>
+<span id="L741"><span class="lineNum">     741</span>                 :<span class="tlaGNC">        4087 :     T1.RCR = slots - 1;</span></span>
+<span id="L742"><span class="lineNum">     742</span>                 :<span class="tlaGNC">        4087 :     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;</span></span>
+<span id="L743"><span class="lineNum">     743</span>                 :<span class="tlaGNC">        4087 :     T1.CCR3 = cmd[0];</span></span>
+<span id="L744"><span class="lineNum">     744</span>                 :<span class="tlaGNC">        4087 :     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;</span></span>
+<span id="L745"><span class="lineNum">     745</span>                 :<span class="tlaGNC">        4087 :     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);</span></span>
+<span id="L746"><span class="lineNum">     746</span>                 :<span class="tlaGNC">        4087 :     T1.CCER = TIM_CCER(CC3E);</span></span>
 <span id="L747"><span class="lineNum">     747</span>                 :             : #if OW_LOW_POWER</span>
-<span id="L748"><span class="lineNum">     748</span>                 :<span class="tlaGNC">        1547 :     T1.DIER = TIM_DIER(CC2DE, UIE);</span></span>
+<span id="L748"><span class="lineNum">     748</span>                 :<span class="tlaGNC">        1595 :     T1.DIER = TIM_DIER(CC2DE, UIE);</span></span>
 <span id="L749"><span class="lineNum">     749</span>                 :             : #else</span>
-<span id="L750"><span class="lineNum">     750</span>                 :<span class="tlaGNC">        2444 :     T1.DIER = TIM_DIER(CC2DE);</span></span>
+<span id="L750"><span class="lineNum">     750</span>                 :<span class="tlaGNC">        2492 :     T1.DIER = TIM_DIER(CC2DE);</span></span>
 <span id="L751"><span class="lineNum">     751</span>                 :             : #endif</span>
 <span id="L752"><span class="lineNum">     752</span>                 :             :     ow_port_update_event();</span>
-<span id="L753"><span class="lineNum">     753</span>                 :<span class="tlaGNC">        1929 :     OW_PORT_DMA_DISABLE_FEED();</span></span>
-<span id="L754"><span class="lineNum">     754</span>                 :<span class="tlaGNC">        1616 :     OW_PORT_ROUTE_FEED();</span></span>
+<span id="L753"><span class="lineNum">     753</span>                 :<span class="tlaGNC">        1965 :     OW_PORT_DMA_DISABLE_FEED();</span></span>
+<span id="L754"><span class="lineNum">     754</span>                 :<span class="tlaGNC">        1652 :     OW_PORT_ROUTE_FEED();</span></span>
 <span id="L755"><span class="lineNum">     755</span>                 :             :     /* Feed slots 2..N, then the ONEWIRE_RELEASE_PULSE (bus release) */</span>
-<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaGNC">        3991 :     OW_PORT_DMA_PROG_FEED(&amp;cmd[1], slots, OW_PORT_DMA_CR_TX);</span></span>
-<span id="L757"><span class="lineNum">     757</span>                 :<span class="tlaGNC">        3991 :     OW_PORT_TIMER_START();</span></span>
-<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaGNC">        3991 :     return 1u;</span></span>
+<span id="L756"><span class="lineNum">     756</span>                 :<span class="tlaGNC">        4087 :     OW_PORT_DMA_PROG_FEED(&amp;cmd[1], slots, OW_PORT_DMA_CR_TX);</span></span>
+<span id="L757"><span class="lineNum">     757</span>                 :<span class="tlaGNC">        4087 :     OW_PORT_TIMER_START();</span></span>
+<span id="L758"><span class="lineNum">     758</span>                 :<span class="tlaGNC">        4087 :     return 1u;</span></span>
 <span id="L759"><span class="lineNum">     759</span>                 :             : }</span>
 <span id="L760"><span class="lineNum">     760</span>                 :             : </span>
 <span id="L761"><span class="lineNum">     761</span>                 :             : /**</span>
@@ -893,29 +893,29 @@
 <span id="L782"><span class="lineNum">     782</span>                 :             :  */</span>
 <span id="L783"><span class="lineNum">     783</span>                 :             : __STATIC_FORCEINLINE void ow_port_plan_wait(uint32_t us, uint16_t* arr, uint8_t* rcr) {</span>
 <span id="L784"><span class="lineNum">     784</span>                 :             :     /* N = ceil(us / 65535), written so it cannot overflow. */</span>
-<span id="L785"><span class="lineNum">     785</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">   370710714 :     uint32_t n = us / 65535u + ((us % 65535u) ? 1u : 0u);</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 370703960 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5698 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1008 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]
+<span id="L785"><span class="lineNum">     785</span>         [<span class="tlaGBC" title="Branch 0 was taken 48 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">   370710722 :     uint32_t n = us / 65535u + ((us % 65535u) ? 1u : 0u);</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 370703960 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5698 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1016 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]
 <span id="L786"><span class="lineNum">     786</span>                 :             :     uint32_t period;</span>
-<span id="L787"><span class="lineNum">     787</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710714 :     if (n == 0u) {</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 370709636 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1008 times"> + </span>]
+<span id="L787"><span class="lineNum">     787</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710722 :     if (n == 0u) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 370709636 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1016 times"> + </span>]
 <span id="L788"><span class="lineNum">     788</span>                 :<span class="tlaGNC">          22 :         n = 1u; /* a zero-length wait is one tick */</span></span>
-<span id="L789"><span class="lineNum">     789</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710692 :     } else if (n &gt; 256u) {</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1616340 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093296 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1008 times"> + </span>]
+<span id="L789"><span class="lineNum">     789</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710700 :     } else if (n &gt; 256u) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1616340 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093296 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1016 times"> + </span>]
 <span id="L790"><span class="lineNum">     790</span>                 :<span class="tlaGNC">     1616340 :         n = 256u; /* RCR is 8-bit: at most 256 periods */</span></span>
 <span id="L791"><span class="lineNum">     791</span>                 :             :     }</span>
 <span id="L792"><span class="lineNum">     792</span>                 :             :     /* ARR = ceil(us / n), again without the overflow of (us + n - 1). */</span>
-<span id="L793"><span class="lineNum">     793</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710714 :     period = us / n + ((us % n) ? 1u : 0u);</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 361870322 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8839336 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 52 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 956 times"> + </span>]
-<span id="L794"><span class="lineNum">     794</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710714 :     if (period &gt; 65535u) {</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1616340 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093318 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1008 times"> + </span>]
+<span id="L793"><span class="lineNum">     793</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710722 :     period = us / n + ((us % n) ? 1u : 0u);</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 361870322 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 8839336 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 52 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 964 times"> + </span>]
+<span id="L794"><span class="lineNum">     794</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   370710722 :     if (period &gt; 65535u) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1616340 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093318 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1016 times"> + </span>]
 <span id="L795"><span class="lineNum">     795</span>                 :<span class="tlaGNC">     1616340 :         period = 65535u; /* beyond the timer's reach: clamp (see @note) */</span></span>
-<span id="L796"><span class="lineNum">     796</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   369094374 :     } else if (period == 0u) {</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093296 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1008 times"> + </span>]
+<span id="L796"><span class="lineNum">     796</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 48 times"> + </span>]:<span class="tlaGNC">   369094382 :     } else if (period == 0u) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 369093296 times"> + </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1016 times"> + </span>]
 <span id="L797"><span class="lineNum">     797</span>                 :<span class="tlaGNC">          22 :         period = 1u;</span></span>
 <span id="L798"><span class="lineNum">     798</span>                 :             :     }</span>
-<span id="L799"><span class="lineNum">     799</span>                 :<span class="tlaGNC">   370710714 :     *arr = (uint16_t)period;</span></span>
-<span id="L800"><span class="lineNum">     800</span>                 :<span class="tlaGNC">   370710714 :     *rcr = (uint8_t)(n - 1u);</span></span>
-<span id="L801"><span class="lineNum">     801</span>                 :<span class="tlaGNC">   370710714 : }</span></span>
+<span id="L799"><span class="lineNum">     799</span>                 :<span class="tlaGNC">   370710722 :     *arr = (uint16_t)period;</span></span>
+<span id="L800"><span class="lineNum">     800</span>                 :<span class="tlaGNC">   370710722 :     *rcr = (uint8_t)(n - 1u);</span></span>
+<span id="L801"><span class="lineNum">     801</span>                 :<span class="tlaGNC">   370710722 : }</span></span>
 <span id="L802"><span class="lineNum">     802</span>                 :             : </span>
 <span id="L803"><span class="lineNum">     803</span>                 :             : /**</span>
 <span id="L804"><span class="lineNum">     804</span>                 :             :  * @brief Start a hardware-timed wait from an explicit period plan</span>
@@ -923,10 +923,10 @@
 <span id="L806"><span class="lineNum">     806</span>                 :             :  * @param[in] rcr Repetition counter (number of periods - 1)</span>
 <span id="L807"><span class="lineNum">     807</span>                 :             :  */</span>
 <span id="L808"><span class="lineNum">     808</span>                 :             : __STATIC_FORCEINLINE void ow_port_start_timer(uint16_t arr, uint8_t rcr) {</span>
-<span id="L809"><span class="lineNum">     809</span>                 :<span class="tlaGNC">        1056 :     T1.ARR = arr;</span></span>
-<span id="L810"><span class="lineNum">     810</span>                 :<span class="tlaGNC">        1056 :     T1.RCR = rcr;</span></span>
+<span id="L809"><span class="lineNum">     809</span>                 :<span class="tlaGNC">        1064 :     T1.ARR = arr;</span></span>
+<span id="L810"><span class="lineNum">     810</span>                 :<span class="tlaGNC">        1064 :     T1.RCR = rcr;</span></span>
 <span id="L811"><span class="lineNum">     811</span>                 :             : #if OW_LOW_POWER</span>
-<span id="L812"><span class="lineNum">     812</span>                 :<span class="tlaGNC">         416 :     if ((uint32_t)(rcr + 1u) * (uint32_t)arr &gt; OW_PORT_LONG_STAGE_US) {</span></span>
+<span id="L812"><span class="lineNum">     812</span>                 :<span class="tlaGNC">         424 :     if ((uint32_t)(rcr + 1u) * (uint32_t)arr &gt; OW_PORT_LONG_STAGE_US) {</span></span>
 <span id="L813"><span class="lineNum">     813</span>                 :             :         /* long stage: conversion / EEPROM hold-off. Enable the update</span>
 <span id="L814"><span class="lineNum">     814</span>                 :             :          * interrupt so the pending bit wakes __WFE() via SEVONPEND.</span>
 <span id="L815"><span class="lineNum">     815</span>                 :             :          * ow_port_capture() already sets UIE for the capture stages, but</span>
@@ -938,7 +938,7 @@
 <span id="L821"><span class="lineNum">     821</span>                 :             :          * ask the timer for transfers that nothing is armed for - and it</span>
 <span id="L822"><span class="lineNum">     822</span>                 :             :          * would make &quot;does this operation use DMA?&quot; unreadable from the</span>
 <span id="L823"><span class="lineNum">     823</span>                 :             :          * registers. */</span>
-<span id="L824"><span class="lineNum">     824</span>                 :<span class="tlaGNC">         384 :         T1.DIER = TIM_DIER(UIE);</span></span>
+<span id="L824"><span class="lineNum">     824</span>                 :<span class="tlaGNC">         392 :         T1.DIER = TIM_DIER(UIE);</span></span>
 <span id="L825"><span class="lineNum">     825</span>                 :             :     } else {</span>
 <span id="L826"><span class="lineNum">     826</span>                 :<span class="tlaGNC">          32 :         T1.DIER = 0;</span></span>
 <span id="L827"><span class="lineNum">     827</span>                 :             :     }</span>
@@ -949,8 +949,8 @@
 <span id="L832"><span class="lineNum">     832</span>                 :<span class="tlaGNC">         640 :     T1.DIER = 0;</span></span>
 <span id="L833"><span class="lineNum">     833</span>                 :             : #endif</span>
 <span id="L834"><span class="lineNum">     834</span>                 :             :     ow_port_update_event();</span>
-<span id="L835"><span class="lineNum">     835</span>                 :<span class="tlaGNC">        1056 :     OW_PORT_TIMER_START();</span></span>
-<span id="L836"><span class="lineNum">     836</span>                 :<span class="tlaGNC">        1056 : }</span></span>
+<span id="L835"><span class="lineNum">     835</span>                 :<span class="tlaGNC">        1064 :     OW_PORT_TIMER_START();</span></span>
+<span id="L836"><span class="lineNum">     836</span>                 :<span class="tlaGNC">        1064 : }</span></span>
 <span id="L837"><span class="lineNum">     837</span>                 :             : </span>
 <span id="L838"><span class="lineNum">     838</span>                 :             : /**</span>
 <span id="L839"><span class="lineNum">     839</span>                 :             :  * @brief Start a hardware-timed wait (conversion wait / EEPROM hold-off)</span>
@@ -963,8 +963,8 @@
 <span id="L846"><span class="lineNum">     846</span>                 :             :     uint16_t arr;</span>
 <span id="L847"><span class="lineNum">     847</span>                 :             :     uint8_t rcr;</span>
 <span id="L848"><span class="lineNum">     848</span>                 :             :     ow_port_plan_wait(us, &amp;arr, &amp;rcr);</span>
-<span id="L849"><span class="lineNum">     849</span>         [<span class="tlaGBC" title="Branch 0 was taken 384 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">        1056 :     ow_port_start_timer(arr, rcr);</span></span>
-<span id="L850"><span class="lineNum">     850</span>                 :<span class="tlaGNC">        1056 : }</span></span>
+<span id="L849"><span class="lineNum">     849</span>         [<span class="tlaGBC" title="Branch 0 was taken 392 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span>]:<span class="tlaGNC">        1064 :     ow_port_start_timer(arr, rcr);</span></span>
+<span id="L850"><span class="lineNum">     850</span>                 :<span class="tlaGNC">        1064 : }</span></span>
 <span id="L851"><span class="lineNum">     851</span>                 :             : </span>
 <span id="L852"><span class="lineNum">     852</span>                 :             : /**</span>
 <span id="L853"><span class="lineNum">     853</span>                 :             :  * @brief Schedule a 1-Wire bus reset with presence capture</span>
@@ -972,14 +972,14 @@
 <span id="L855"><span class="lineNum">     855</span>                 :             :  *                          durations (2 x 16-bit)</span>
 <span id="L856"><span class="lineNum">     856</span>                 :             :  */</span>
 <span id="L857"><span class="lineNum">     857</span>                 :             : __STATIC_FORCEINLINE void ow_port_reset(volatile uint16_t* reset_pulses) {</span>
-<span id="L858"><span class="lineNum">     858</span>                 :<span class="tlaGNC">        4653 :     T1.RCR = 0;</span></span>
-<span id="L859"><span class="lineNum">     859</span>                 :<span class="tlaGNC">        4653 :     T1.ARR = OW_PORT_RESET_TIMEOUT;</span></span>
-<span id="L860"><span class="lineNum">     860</span>                 :<span class="tlaGNC">        4653 :     T1.CCR3 = OW_PORT_RESET_PULSE_DURATION;</span></span>
+<span id="L858"><span class="lineNum">     858</span>                 :<span class="tlaGNC">        4787 :     T1.RCR = 0;</span></span>
+<span id="L859"><span class="lineNum">     859</span>                 :<span class="tlaGNC">        4787 :     T1.ARR = OW_PORT_RESET_TIMEOUT;</span></span>
+<span id="L860"><span class="lineNum">     860</span>                 :<span class="tlaGNC">        4787 :     T1.CCR3 = OW_PORT_RESET_PULSE_DURATION;</span></span>
 <span id="L861"><span class="lineNum">     861</span>                 :             :     /* Only the master-release edge is guaranteed; whether the presence edge</span>
 <span id="L862"><span class="lineNum">     862</span>                 :             :      * arrived is read from the capture engine by ow_port_reset_captured(),</span>
 <span id="L863"><span class="lineNum">     863</span>                 :             :      * not inferred from stale buffer contents. */</span>
 <span id="L864"><span class="lineNum">     864</span>                 :             :     ow_port_capture(reset_pulses, OW_PORT_CAPTURE_BUF_SIZE, 16);</span>
-<span id="L865"><span class="lineNum">     865</span>                 :<span class="tlaGNC">        4653 : }</span></span>
+<span id="L865"><span class="lineNum">     865</span>                 :<span class="tlaGNC">        4787 : }</span></span>
 <span id="L866"><span class="lineNum">     866</span>                 :             : </span>
 <span id="L867"><span class="lineNum">     867</span>                 :             : /**</span>
 <span id="L868"><span class="lineNum">     868</span>                 :             :  * @brief Schedule a write of `slots` bit slots</span>
@@ -992,13 +992,13 @@
 <span id="L875"><span class="lineNum">     875</span>                 :             :  *         is scheduled).</span>
 <span id="L876"><span class="lineNum">     876</span>                 :             :  */</span>
 <span id="L877"><span class="lineNum">     877</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint16_t slots) {</span>
-<span id="L878"><span class="lineNum">     878</span>   [<span class="tlaGBC" title="Branch 0 was taken 5033 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 5033 times"> + </span>]:<span class="tlaGNC">        5033 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
+<span id="L878"><span class="lineNum">     878</span>   [<span class="tlaGBC" title="Branch 0 was taken 5129 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 5129 times"> + </span>]:<span class="tlaGNC">        5129 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
 <span id="L879"><span class="lineNum">     879</span>                 :<span class="tlaUNC">           0 :         return 0u;</span></span>
 <span id="L880"><span class="lineNum">     880</span>                 :             :     }</span>
 <span id="L881"><span class="lineNum">     881</span>                 :             : #if OW_DRIVE_ACTIVE</span>
 <span id="L882"><span class="lineNum">     882</span>                 :             :     ow_port_set_pin_mode(1); /* active-drive write: master drives both levels */</span>
 <span id="L883"><span class="lineNum">     883</span>                 :             : #endif</span>
-<span id="L884"><span class="lineNum">     884</span>         [<span class="tlaGBC" title="Branch 0 was taken 1042 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3991 times"> + </span>]:<span class="tlaGNC">        5033 :     if (slots == 1) {</span></span>
+<span id="L884"><span class="lineNum">     884</span>         [<span class="tlaGBC" title="Branch 0 was taken 1042 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4087 times"> + </span>]:<span class="tlaGNC">        5129 :     if (slots == 1) {</span></span>
 <span id="L885"><span class="lineNum">     885</span>                 :             :         /* Single slot: no DMA needed, avoids a zero-length DMA transaction */</span>
 <span id="L886"><span class="lineNum">     886</span>                 :<span class="tlaGNC">        1042 :         T1.RCR = 0; /* Single slot, no repetition */</span></span>
 <span id="L887"><span class="lineNum">     887</span>                 :<span class="tlaGNC">        1042 :         T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */</span></span>
@@ -1018,7 +1018,7 @@
 <span id="L901"><span class="lineNum">     901</span>                 :<span class="tlaGNC">        1042 :         OW_PORT_TIMER_START();</span></span>
 <span id="L902"><span class="lineNum">     902</span>                 :<span class="tlaGNC">        1042 :         return 1u;</span></span>
 <span id="L903"><span class="lineNum">     903</span>                 :             :     }</span>
-<span id="L904"><span class="lineNum">     904</span>         [<span class="tlaGBC" title="Branch 0 was taken 3991 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        7982 :     return ow_port_feed(pulses, slots);</span></span>
+<span id="L904"><span class="lineNum">     904</span>         [<span class="tlaGBC" title="Branch 0 was taken 4087 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        8174 :     return ow_port_feed(pulses, slots);</span></span>
 <span id="L905"><span class="lineNum">     905</span>                 :             : }</span>
 <span id="L906"><span class="lineNum">     906</span>                 :             : </span>
 <span id="L907"><span class="lineNum">     907</span>                 :             : /**</span>
@@ -1119,15 +1119,15 @@
 <span id="L1002"><span class="lineNum">    1002</span>                 :             :  *         is scheduled).</span>
 <span id="L1003"><span class="lineNum">    1003</span>                 :             :  */</span>
 <span id="L1004"><span class="lineNum">    1004</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t bytes) {</span>
-<span id="L1005"><span class="lineNum">    1005</span>   [<span class="tlaGBC" title="Branch 0 was taken 1394 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1394 times"> + </span>]:<span class="tlaGNC">        1394 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
+<span id="L1005"><span class="lineNum">    1005</span>   [<span class="tlaGBC" title="Branch 0 was taken 1490 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1490 times"> + </span>]:<span class="tlaGNC">        1490 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
 <span id="L1006"><span class="lineNum">    1006</span>                 :<span class="tlaUNC">           0 :         return 0u;</span></span>
 <span id="L1007"><span class="lineNum">    1007</span>                 :             :     }</span>
-<span id="L1008"><span class="lineNum">    1008</span>                 :<span class="tlaGNC">        1394 :     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;</span></span>
-<span id="L1009"><span class="lineNum">    1009</span>                 :<span class="tlaGNC">        1394 :     T1.RCR = bits - 1;</span></span>
-<span id="L1010"><span class="lineNum">    1010</span>                 :<span class="tlaGNC">        1394 :     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;</span></span>
-<span id="L1011"><span class="lineNum">    1011</span>                 :<span class="tlaGNC">        1394 :     T1.CCR3 = ONEWIRE_ONE_PULSE;</span></span>
-<span id="L1012"><span class="lineNum">    1012</span>                 :<span class="tlaGNC">        1394 :     ow_port_capture(dst, bits, 8);</span></span>
-<span id="L1013"><span class="lineNum">    1013</span>                 :<span class="tlaGNC">        1394 :     return 1u;</span></span>
+<span id="L1008"><span class="lineNum">    1008</span>                 :<span class="tlaGNC">        1490 :     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L1009"><span class="lineNum">    1009</span>                 :<span class="tlaGNC">        1490 :     T1.RCR = bits - 1;</span></span>
+<span id="L1010"><span class="lineNum">    1010</span>                 :<span class="tlaGNC">        1490 :     T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;</span></span>
+<span id="L1011"><span class="lineNum">    1011</span>                 :<span class="tlaGNC">        1490 :     T1.CCR3 = ONEWIRE_ONE_PULSE;</span></span>
+<span id="L1012"><span class="lineNum">    1012</span>                 :<span class="tlaGNC">        1490 :     ow_port_capture(dst, bits, 8);</span></span>
+<span id="L1013"><span class="lineNum">    1013</span>                 :<span class="tlaGNC">        1490 :     return 1u;</span></span>
 <span id="L1014"><span class="lineNum">    1014</span>                 :             : }</span>
 <span id="L1015"><span class="lineNum">    1015</span>                 :             : </span>
 <span id="L1016"><span class="lineNum">    1016</span>                 :             : /**</span>
@@ -1148,12 +1148,12 @@
 <span id="L1031"><span class="lineNum">    1031</span>                 :             :  *       own re-arm.</span>
 <span id="L1032"><span class="lineNum">    1032</span>                 :             :  */</span>
 <span id="L1033"><span class="lineNum">    1033</span>                 :             : __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {</span>
-<span id="L1034"><span class="lineNum">    1034</span>         [<span class="tlaGBC" title="Branch 0 was taken 564 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2680 times"> + </span>]:<span class="tlaGNC">        3244 :     if (on) {</span></span>
+<span id="L1034"><span class="lineNum">    1034</span>         [<span class="tlaGBC" title="Branch 0 was taken 564 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2776 times"> + </span>]:<span class="tlaGNC">        3340 :     if (on) {</span></span>
 <span id="L1035"><span class="lineNum">    1035</span>                 :<span class="tlaGNC">         564 :         T1.CCR3 = 0;</span></span>
 <span id="L1036"><span class="lineNum">    1036</span>                 :<span class="tlaGNC">         564 :         T1.EGR = TIM_EGR(UG);</span></span>
 <span id="L1037"><span class="lineNum">    1037</span>                 :             :     }</span>
-<span id="L1038"><span class="lineNum">    1038</span>         [<span class="tlaGBC" title="Branch 0 was taken 564 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2680 times"> + </span>]:<span class="tlaGNC">        3244 :     ow_port_set_pin_mode(on);</span></span>
-<span id="L1039"><span class="lineNum">    1039</span>                 :<span class="tlaGNC">        3244 : }</span></span>
+<span id="L1038"><span class="lineNum">    1038</span>         [<span class="tlaGBC" title="Branch 0 was taken 564 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2776 times"> + </span>]:<span class="tlaGNC">        3340 :     ow_port_set_pin_mode(on);</span></span>
+<span id="L1039"><span class="lineNum">    1039</span>                 :<span class="tlaGNC">        3340 : }</span></span>
 <span id="L1040"><span class="lineNum">    1040</span>                 :             : </span>
 <span id="L1041"><span class="lineNum">    1041</span>                 :             : /* --- Withdraw the register vocabulary from the consumer namespace ---------</span>
 <span id="L1042"><span class="lineNum">    1042</span>                 :             :  *  The ow_mcu.h family hooks expanded in the engine above and the engine</span>

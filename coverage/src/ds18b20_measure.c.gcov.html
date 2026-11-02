@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">98.5&nbsp;%</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
             <td class="headerCovTableEntry">136</td>
-            <td class="headerCovTableEntry">134</td>
+            <td class="headerCovTableEntry">136</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-01 19:40:58</td>
+            <td class="headerValue">2026-11-02 04:18:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -49,8 +49,8 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">90.1&nbsp;%</td>
-            <td class="headerCovTableEntry">91</td>
+            <td class="headerCovTableEntryHi">94.3&nbsp;%</td>
+            <td class="headerCovTableEntry">87</td>
             <td class="headerCovTableEntry">82</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
@@ -127,13 +127,13 @@
 <span id="L56"><span class="lineNum">      56</span>                 :             :  *       measurement cycle, a device search, a resolution change or a command</span>
 <span id="L57"><span class="lineNum">      57</span>                 :             :  *       transaction owns the timer.</span>
 <span id="L58"><span class="lineNum">      58</span>                 :             :  */</span>
-<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         550 : void ds18b20_start_measure(void) {</span></span>
-<span id="L60"><span class="lineNum">      60</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         550 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
+<span id="L59"><span class="lineNum">      59</span>                 :<span class="tlaGNC">         572 : void ds18b20_start_measure(void) {</span></span>
+<span id="L60"><span class="lineNum">      60</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 550 times"> + </span>]:<span class="tlaGNC">         572 :     if (ctx.current_state != DS18B20_ST_IDLE) {</span></span>
 <span id="L61"><span class="lineNum">      61</span>                 :<span class="tlaGNC">          22 :         return; // a measurement cycle is in progress</span></span>
 <span id="L62"><span class="lineNum">      62</span>                 :             :     }</span>
-<span id="L63"><span class="lineNum">      63</span>   [<span class="tlaGBC" title="Branch 0 was taken 528 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaGBC" title="Branch 2 was taken 528 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         528 :     if (onewire_search_active() || (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u ||</span></span>
+<span id="L63"><span class="lineNum">      63</span>   [<span class="tlaGBC" title="Branch 0 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 528 times"> + </span><span class="tlaUNC" title="Branch 3 was not taken"> - </span>]:<span class="tlaGNC">         550 :     if (onewire_search_active() || (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u ||</span></span>
 <span id="L64"><span class="lineNum">      64</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 528 times"> + </span>]:<span class="tlaGNC">         528 :         (txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
-<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaUNC">           0 :         return; // the search, a resolution change or a command owns the timer</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">          22 :         return; // the search, a resolution change or a command owns the timer</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :             :     }</span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">         528 :     ctx.current_state = DS18B20_ST_START;</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :<span class="tlaGNC">         528 :     ow_timer_kick();</span></span>
@@ -176,8 +176,8 @@
 <span id="L105"><span class="lineNum">     105</span>                 :             :  * happens strictly between DMA bursts, never during one — the invariant is</span>
 <span id="L106"><span class="lineNum">     106</span>                 :             :  * implicit in the call site, hence documented here at the same level of</span>
 <span id="L107"><span class="lineNum">     107</span>                 :             :  * detail as the B1 guards for the other pulse buffers. */</span>
-<span id="L108"><span class="lineNum">     108</span>         [<span class="tlaGBC" title="Branch 0 was taken 726 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">         726 : static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {</span></span>
-<span id="L109"><span class="lineNum">     109</span>                 :             :     ow_encode_prefix(&amp;dst, 0);</span>
+<span id="L108"><span class="lineNum">     108</span>                 :<span class="tlaGNC">         726 : static void build_skip_cmd(ow_pulse_t* dst, uint8_t cmd_byte) {</span></span>
+<span id="L109"><span class="lineNum">     109</span>                 :             :     ow_encode_skip_rom(&amp;dst);</span>
 <span id="L110"><span class="lineNum">     110</span>                 :<span class="tlaGNC">         726 :     onewire_encode_byte(dst, cmd_byte);</span></span>
 <span id="L111"><span class="lineNum">     111</span>                 :<span class="tlaGNC">         726 :     dst[DS18B20_BITS_PER_BYTE] = ONEWIRE_RELEASE_PULSE;</span></span>
 <span id="L112"><span class="lineNum">     112</span>                 :<span class="tlaGNC">         726 : }</span></span>
@@ -207,7 +207,7 @@
 <span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">          88 :         return;</span></span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :     }</span>
 <span id="L138"><span class="lineNum">     138</span>         [<span class="tlaGBC" title="Branch 0 was taken 418 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 726 times"> + </span>]:<span class="tlaGNC">        1144 :     if ((ctx.flags &amp; DS18B20_FLAG_ADDRESS_MODE) != 0u) {</span></span>
-<span id="L139"><span class="lineNum">     139</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 418 times"> + </span>]:<span class="tlaGNC">         418 :         build_addr_cmd(cmd_byte);</span></span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">         418 :         build_addr_cmd(cmd_byte);</span></span>
 <span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">         418 :         onewire_write_slots(phase_pulses.addr, DS18B20_MATCH_SLOTS);</span></span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :     } else {</span>
 <span id="L142"><span class="lineNum">     142</span>                 :<span class="tlaGNC">         726 :         ow_pulse_t* skip_tbl = phase_pulses.cmd;</span></span>
@@ -222,12 +222,12 @@
 <span id="L151"><span class="lineNum">     151</span>                 :             :  * @note Non-blocking state machine that advances 1-Wire communication state</span>
 <span id="L152"><span class="lineNum">     152</span>                 :             :  * @note Uses timer update interrupt flag to determine when operations complete</span>
 <span id="L153"><span class="lineNum">     153</span>                 :             :  */</span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        4356 : void ds18b20_poll(void) {</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        4378 : void ds18b20_poll(void) {</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             :     // Ownership guard: while the device search, a resolution change or a</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             :     // command transaction owns the timer, the measurement state machine must</span>
 <span id="L157"><span class="lineNum">     157</span>                 :             :     // stay out of the way and not react to their UIFs.</span>
-<span id="L158"><span class="lineNum">     158</span>   [<span class="tlaGBC" title="Branch 0 was taken 4334 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4312 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 22 times"> + </span>]:<span class="tlaGNC">        4356 :     if (onewire_search_active() || (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u ||</span></span>
-<span id="L159"><span class="lineNum">     159</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4312 times"> + </span>]:<span class="tlaGNC">        4312 :         (txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
+<span id="L158"><span class="lineNum">     158</span>   [<span class="tlaGBC" title="Branch 0 was taken 4356 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4334 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 22 times"> + </span>]:<span class="tlaGNC">        4378 :     if (onewire_search_active() || (res_ctx.flags &amp; DS18B20_RES_FLAG_FINISHED) == 0u ||</span></span>
+<span id="L159"><span class="lineNum">     159</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4334 times"> + </span>]:<span class="tlaGNC">        4334 :         (txn_ctx.flags &amp; DS18B20_TXN_FLAG_FINISHED) == 0u) {</span></span>
 <span id="L160"><span class="lineNum">     160</span>                 :<span class="tlaGNC">          44 :         return;</span></span>
 <span id="L161"><span class="lineNum">     161</span>                 :             :     }</span>
 <span id="L162"><span class="lineNum">     162</span>                 :             : </span>
@@ -235,15 +235,15 @@
 <span id="L164"><span class="lineNum">     164</span>                 :             :     // This is the non-blocking way to detect when timed operations finish.</span>
 <span id="L165"><span class="lineNum">     165</span>                 :             :     // onewire_bus_done() *consumes* the update flag, so it must be called</span>
 <span id="L166"><span class="lineNum">     166</span>                 :             :     // exactly once per poll and its result reused below.</span>
-<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        4312 :     uint8_t done = ow_op_done();</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :<span class="tlaGNC">        4334 :     uint8_t done = ow_op_done();</span></span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4246 times"> + </span>]:<span class="tlaGNC">        4312 :     if (!done) return;</span></span>
+<span id="L169"><span class="lineNum">     169</span>         [<span class="tlaGBC" title="Branch 0 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4268 times"> + </span>]:<span class="tlaGNC">        4334 :     if (!done) return;</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :             : </span>
 <span id="L171"><span class="lineNum">     171</span>                 :             :     // State machine to manage 1-Wire communication sequence</span>
-<span id="L172"><span class="lineNum">     172</span>   [<span class="tlaGBC" title="Branch 0 was taken 132 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span> :<span class="tlaGNC">        4246 :     switch (ctx.current_state) {</span></span>
+<span id="L172"><span class="lineNum">     172</span>   [<span class="tlaGBC" title="Branch 0 was taken 154 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 484 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 660 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span> :<span class="tlaGNC">        4268 :     switch (ctx.current_state) {</span></span>
 <span class="lineNum">        </span>    <span class="tlaGBC" title="Branch 4 was taken 594 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 572 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 726 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 8 was taken 22 times"> + </span>]
-<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">         132 :     case DS18B20_ST_IDLE:</span></span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">         154 :     case DS18B20_ST_IDLE:</span></span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :         // A parked driver advances on its own only for an armed scan round:</span>
 <span id="L175"><span class="lineNum">     175</span>                 :             :         // ds18b20_scan_start() arms scan_mode and the first poll starts it</span>
 <span id="L176"><span class="lineNum">     176</span>                 :             :         // (this keeps select-after-scan_start working: the driver is still</span>
@@ -252,8 +252,8 @@
 <span id="L179"><span class="lineNum">     179</span>                 :             :         // stays idle here and the application's pause between rounds</span>
 <span id="L180"><span class="lineNum">     180</span>                 :             :         // actually engages instead of the next round starting on the very</span>
 <span id="L181"><span class="lineNum">     181</span>                 :             :         // next poll.</span>
-<span id="L182"><span class="lineNum">     182</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         132 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
+<span id="L182"><span class="lineNum">     182</span>         [<span class="tlaGBC" title="Branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 132 times"> + </span>]:<span class="tlaGNC">         154 :         if ((ctx.flags &amp; DS18B20_FLAG_SCAN_MODE) == 0u) {</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">          22 :             break;</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :             :         }</span>
 <span id="L185"><span class="lineNum">     185</span>                 :<span class="tlaGNC">         132 :         ctx.current_state = DS18B20_ST_START;</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :             :         /* fallthrough to START state immediately */</span>
