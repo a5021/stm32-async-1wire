@@ -212,15 +212,17 @@ extern "C" {
 
 /**
  * @brief Initialize DS2431 driver hardware and peripherals
- * @pre Call exactly once after MCU reset, after the system clock is configured
- *      and before any 1-Wire bus operation.
+ * @pre Call after MCU reset, after the system clock is configured and before
+ *      any 1-Wire bus operation.
  * @note Calls onewire_init(), which takes exclusive ownership of the shared
  *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset).
- *       The DS18B20 driver and the DS2431 driver share that bus ownership, so
- *       call ds2431_init() INSTEAD of ds18b20_init(); mixing the two drivers
- *       on one bus is unsupported.
- * @warning A second call is unsupported and does not fully reset the timer,
- *          DMA, low-power or DS2431 software state.
+ *       The DS18B20 driver shares that bus: both driver inits may run before
+ *       any bus operation (each onewire_init() re-applies the same idle
+ *       configuration), and the two drivers may then be used alternately, one
+ *       operation at a time, as examples/9_multi does. Concurrent polling of
+ *       the two drivers is unsupported.
+ * @warning A second call does not stop an active operation and does not fully
+ *          reset the timer, DMA, low-power or DS2431 software state.
  */
 void ds2431_init(void);
 

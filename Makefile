@@ -1825,7 +1825,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431  - example application to build"
+	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431|9_multi - example application to build"
 	@echo "  OW_MCU=<mcu>                     - primary selector: one ST device macro selects"
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
 	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC, STM32F401xE,"

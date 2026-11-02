@@ -227,6 +227,19 @@ jobs:
             "8_ds2431|STM32F407xx|-|ds18b20_8_ds2431_f407xx_168mhz|"
             "8_ds2431|STM32F401xC|-|ds18b20_8_ds2431_f401xc_84mhz|"
             "8_ds2431|STM32F446xx|-|ds18b20_8_ds2431_f446xx_180mhz|"
+            "8_ds2431|STM32H743xx|-|ds18b20_8_ds2431_h7_240mhz|"
+            # 9_multi: the DS18B20 + DS2431 application example. One
+            # default-clock build per MCU, same rule as 8_ds2431 above.
+            "9_multi|-|-|ds18b20_9_multi_72mhz|"
+            "9_multi|STM32F030x6|-|ds18b20_9_multi_f0_48mhz|"
+            "9_multi|STM32G031xx|-|ds18b20_9_multi_g0_64mhz|"
+            "9_multi|STM32F303xC|-|ds18b20_9_multi_f3_72mhz|"
+            "9_multi|STM32G474xx|-|ds18b20_9_multi_g4_170mhz|"
+            "9_multi|STM32H503xx|-|ds18b20_9_multi_h5_64mhz|"
+            "9_multi|STM32F407xx|-|ds18b20_9_multi_f407xx_168mhz|"
+            "9_multi|STM32F401xC|-|ds18b20_9_multi_f401xc_84mhz|"
+            "9_multi|STM32F446xx|-|ds18b20_9_multi_f446xx_180mhz|"
+            "9_multi|STM32H743xx|-|ds18b20_9_multi_h7_240mhz|"
           )
           for row in "${matrix[@]}"; do
             IFS='|' read -r app mcu sysclk out ext <<< "$row"
@@ -271,10 +284,44 @@ jobs:
             Non-blocking 1-Wire master for STM32 with DS18B20 temperature and
             DS2431 EEPROM drivers built on top — bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA — no interrupts,
-            no software delays, minimal CPU usage.             One MCU-independent core and
-            seven header-only backends (F0/F1/F3/F4/G0/G4/H5) selected at build time with
+            no software delays, minimal CPU usage. One MCU-independent core and
+            eight header-only backends (F0/F1/F3/F4/G0/G4/H5/H7) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
-            `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx`.
+            `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx` /
+            `make OW_MCU=STM32H743xx`.
+
+            ## What's new in 3.0.0
+
+            - **STM32H7 backend, the eighth family (11 parts in total).**
+              STM32H743VI at 240MHz core/TIM1, with an opt-in 480/240MHz split;
+              DMA1 streams 2/3 through DMAMUX1, 16-bit direct-mode feed, and the
+              D-cache stays off because the backend has no maintenance hooks.
+              Bench-validated with seven parasite-powered sensors at 240, 480/240
+              and 64MHz.
+            - **`9_multi` application example.** Seven DS18B20 sensors and one
+              DS2431 EEPROM on one bus: a peak/low temperature logger with
+              self-validating CRC records, the ROM block written before the record
+              that refers to it, and one explicit bus-owner state machine that
+              hands the bus between the two drivers.
+            - **The public surface is closed.** The TIM1/DMA engine is now
+              library-private; a consumer needs `-Iinc` and the public headers
+              only. Preprocessing `onewire.h` for F1 drops from 1265 lines to 123.
+            - **Presence by captured edge count (breaking).**
+              `onewire_present()` now takes the count from
+              `onewire_reset_captured()`, so a reset with no device can no longer
+              be confused with a real 0us edge left in the buffer.
+            - **Macro rename (breaking).** `OW_PORT_FAMILY_*` -> `OW_FAMILY_*`,
+              `OW_PORT_SYSCLK_MHZ` -> `OW_SYSCLK_MHZ`, and the rest of the table;
+              no compatibility aliases. The migration table is in the README.
+            - **Startup checks.** `onewire_clock_ok()` rejects a firmware clocked
+              differently from the clock it was compiled for, and
+              `onewire_config_token()` catches library/application `-D`
+              mismatches.
+            - **Verification.** 300+ host tests per family against a behavioural
+              TIM1/DMA model, 14 libFuzzer harnesses, a 74/74 mutation matrix, a
+              logic-analyzer HIL layer, and an offline browser decoder for sigrok
+              captures: <https://a5021.github.io/stm32-async-1wire/viewer/>.
+            - **One archive.** All variants ship inside `firmware-3.0.0.zip`.
 
             ## What's new in 2.4.0
 
@@ -391,29 +438,32 @@ jobs:
 
             ## Download
 
-            Everything ships in one archive, `firmware-2.4.0.zip`: `.bin` / `.hex` /
+            Everything ships in one archive, `firmware-3.0.0.zip`: `.bin` / `.hex` /
             `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
             checks. The table below names the artifact stems in that archive:
 
             | Target | Clock | Artifact stems |
             |--------|-------|----------------|
-            | STM32F103C8T6 | 72MHz (HSE+PLL, default) | `ds18b20_1_basic_72mhz`, …`2_device_search_72mhz`, …`3_round_robin_72mhz`, …`4_scan_mode_72mhz`, `ds18b20_5_commands_72mhz`, `ds18b20_6_statistics_72mhz`, `ds18b20_7_low_power_lp_72mhz`, `ds18b20_8_ds2431_72mhz` |
+            | STM32F103C8T6 | 72MHz (HSE+PLL, default) | `ds18b20_1_basic_72mhz`, …`2_device_search_72mhz`, …`3_round_robin_72mhz`, …`4_scan_mode_72mhz`, `ds18b20_5_commands_72mhz`, `ds18b20_6_statistics_72mhz`, `ds18b20_7_low_power_lp_72mhz`, `ds18b20_8_ds2431_72mhz`, `ds18b20_9_multi_72mhz` |
             | STM32F103C8T6 | 8MHz HSI (no crystal) | `ds18b20_1_basic_8mhz`, …`2_device_search_8mhz`, …`3_round_robin_8mhz`, …`4_scan_mode_8mhz`, `ds18b20_5_commands_8mhz`, `ds18b20_6_statistics_8mhz` |
-            | STM32F030x6 | 48MHz (HSI+PLL, default) | `ds18b20_1_basic_f0_48mhz`, …`2_device_search_f0_48mhz`, …`3_round_robin_f0_48mhz`, …`4_scan_mode_f0_48mhz`, `ds18b20_5_commands_f0_48mhz`, `ds18b20_6_statistics_f0_48mhz`, `ds18b20_7_low_power_lp_f0_48mhz`, `ds18b20_8_ds2431_f0_48mhz` |
-            | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_1_basic_g0_64mhz`, …`2_device_search_g0_64mhz`, …`3_round_robin_g0_64mhz`, …`4_scan_mode_g0_64mhz`, `ds18b20_5_commands_g0_64mhz`, `ds18b20_6_statistics_g0_64mhz`, `ds18b20_7_low_power_lp_g0_64mhz`, `ds18b20_8_ds2431_g0_64mhz` |
+            | STM32F030x6 | 48MHz (HSI+PLL, default) | `ds18b20_1_basic_f0_48mhz`, …`2_device_search_f0_48mhz`, …`3_round_robin_f0_48mhz`, …`4_scan_mode_f0_48mhz`, `ds18b20_5_commands_f0_48mhz`, `ds18b20_6_statistics_f0_48mhz`, `ds18b20_7_low_power_lp_f0_48mhz`, `ds18b20_8_ds2431_f0_48mhz`, `ds18b20_9_multi_f0_48mhz` |
+            | STM32G031x6 | 64MHz (HSI16+PLL, default) | `ds18b20_1_basic_g0_64mhz`, …`2_device_search_g0_64mhz`, …`3_round_robin_g0_64mhz`, …`4_scan_mode_g0_64mhz`, `ds18b20_5_commands_g0_64mhz`, `ds18b20_6_statistics_g0_64mhz`, `ds18b20_7_low_power_lp_g0_64mhz`, `ds18b20_8_ds2431_g0_64mhz`, `ds18b20_9_multi_g0_64mhz` |
             | STM32G031x6 | 16MHz HSI16 (bus on PA12 pad via remap) | `ds18b20_1_basic_g0_16mhz`, …`2_device_search_g0_16mhz`, …`3_round_robin_g0_16mhz`, …`4_scan_mode_g0_16mhz`, `ds18b20_5_commands_g0_16mhz`, `ds18b20_6_statistics_g0_16mhz` |
-            | STM32F303VC (F3-DISCOVERY) | 72MHz (HSE+PLL, default) | `ds18b20_1_basic_f3_72mhz`, …`2_device_search_f3_72mhz`, …`3_round_robin_f3_72mhz`, …`4_scan_mode_f3_72mhz`, `ds18b20_5_commands_f3_72mhz`, `ds18b20_6_statistics_f3_72mhz`, `ds18b20_7_low_power_lp_f3_72mhz`, `ds18b20_8_ds2431_f3_72mhz` |
+            | STM32F303VC (F3-DISCOVERY) | 72MHz (HSE+PLL, default) | `ds18b20_1_basic_f3_72mhz`, …`2_device_search_f3_72mhz`, …`3_round_robin_f3_72mhz`, …`4_scan_mode_f3_72mhz`, `ds18b20_5_commands_f3_72mhz`, `ds18b20_6_statistics_f3_72mhz`, `ds18b20_7_low_power_lp_f3_72mhz`, `ds18b20_8_ds2431_f3_72mhz`, `ds18b20_9_multi_f3_72mhz` |
             | STM32F303VC | 64MHz (HSI/2 + PLL) | `ds18b20_1_basic_f3_64mhz`, …`2_device_search_f3_64mhz`, …`3_round_robin_f3_64mhz`, …`4_scan_mode_f3_64mhz`, `ds18b20_5_commands_f3_64mhz`, `ds18b20_6_statistics_f3_64mhz`, `ds18b20_7_low_power_lp_f3_64mhz` |
-            | STM32G474CB (WeAct) | 170MHz (HSE+PLL) | `ds18b20_1_basic_g4_170mhz`, …`2_device_search_g4_170mhz`, `3_round_robin_g4_170mhz`, `4_scan_mode_g4_170mhz`, `ds18b20_5_commands_g4_170mhz`, `ds18b20_6_statistics_g4_170mhz`, `ds18b20_7_low_power_lp_g4_170mhz`, `ds18b20_8_ds2431_g4_170mhz` |
+            | STM32G474CB (WeAct) | 170MHz (HSE+PLL) | `ds18b20_1_basic_g4_170mhz`, …`2_device_search_g4_170mhz`, `3_round_robin_g4_170mhz`, `4_scan_mode_g4_170mhz`, `ds18b20_5_commands_g4_170mhz`, `ds18b20_6_statistics_g4_170mhz`, `ds18b20_7_low_power_lp_g4_170mhz`, `ds18b20_8_ds2431_g4_170mhz`, `ds18b20_9_multi_g4_170mhz` |
             | STM32G474CB (WeAct) | 16MHz HSI16 | `ds18b20_1_basic_g4_16mhz`, …`2_device_search_g4_16mhz`, `3_round_robin_g4_16mhz`, `4_scan_mode_g4_16mhz`, `ds18b20_5_commands_g4_16mhz`, `ds18b20_6_statistics_g4_16mhz`, `ds18b20_7_low_power_lp_g4_16mhz` |
-            | STM32H503CB (WeAct) | 64MHz raw HSI (default) | `ds18b20_1_basic_h5_64mhz`, …`2_device_search_h5_64mhz`, …`3_round_robin_h5_64mhz`, …`4_scan_mode_h5_64mhz`, `ds18b20_5_commands_h5_64mhz`, `ds18b20_6_statistics_h5_64mhz`, `ds18b20_7_low_power_lp_h5_64mhz`, `ds18b20_8_ds2431_h5_64mhz` |
+            | STM32H503CB (WeAct) | 64MHz raw HSI (default) | `ds18b20_1_basic_h5_64mhz`, …`2_device_search_h5_64mhz`, …`3_round_robin_h5_64mhz`, …`4_scan_mode_h5_64mhz`, `ds18b20_5_commands_h5_64mhz`, `ds18b20_6_statistics_h5_64mhz`, `ds18b20_7_low_power_lp_h5_64mhz`, `ds18b20_8_ds2431_h5_64mhz`, `ds18b20_9_multi_h5_64mhz` |
             | STM32H503CB (WeAct) | 250MHz (HSE+PLL1) | `ds18b20_1_basic_h5_250mhz`, …`2_device_search_h5_250mhz`, …`3_round_robin_h5_250mhz`, …`4_scan_mode_h5_250mhz`, `ds18b20_5_commands_h5_250mhz`, `ds18b20_6_statistics_h5_250mhz`, `ds18b20_7_low_power_lp_h5_250mhz` |
             | STM32H503CB (WeAct) | 8MHz raw HSE | `ds18b20_1_basic_h5_8mhz`, …`2_device_search_h5_8mhz`, …`3_round_robin_h5_8mhz`, …`4_scan_mode_h5_8mhz`, `ds18b20_5_commands_h5_8mhz`, `ds18b20_6_statistics_h5_8mhz`, `ds18b20_7_low_power_lp_h5_8mhz` |
-            | STM32F407VGT6 | 168MHz (HSE+PLL, default) | `ds18b20_2_device_search_f407xx_168mhz`, …`3_round_robin_f407xx_168mhz`, …`4_scan_mode_f407xx_168mhz`, `ds18b20_5_commands_f407xx_168mhz`, `ds18b20_6_statistics_f407xx_168mhz`, `ds18b20_7_low_power_lp_f407xx_168mhz`, `ds18b20_8_ds2431_f407xx_168mhz` |
+            | STM32F407VGT6 | 168MHz (HSE+PLL, default) | `ds18b20_2_device_search_f407xx_168mhz`, …`3_round_robin_f407xx_168mhz`, …`4_scan_mode_f407xx_168mhz`, `ds18b20_5_commands_f407xx_168mhz`, `ds18b20_6_statistics_f407xx_168mhz`, `ds18b20_7_low_power_lp_f407xx_168mhz`, `ds18b20_8_ds2431_f407xx_168mhz`, `ds18b20_9_multi_f407xx_168mhz` |
             | STM32F407VGT6 | 16MHz HSI (no crystal) | `ds18b20_1_basic_f407xx_16mhz`, …`2_device_search_f407xx_16mhz` |
-            | STM32F401xC (WeAct F401 Black Pill) | 84MHz (25MHz HSE+PLL, default) | `ds18b20_1_basic_f401xc_84mhz`, …`2_device_search_f401xc_84mhz`, `ds18b20_8_ds2431_f401xc_84mhz` |
+            | STM32F401xC (WeAct F401 Black Pill) | 84MHz (25MHz HSE+PLL, default) | `ds18b20_1_basic_f401xc_84mhz`, …`2_device_search_f401xc_84mhz`, `ds18b20_8_ds2431_f401xc_84mhz`, `ds18b20_9_multi_f401xc_84mhz` |
             | STM32F401xC | 16MHz HSI (no crystal) | `ds18b20_1_basic_f401xc_16mhz`, …`2_device_search_f401xc_16mhz` |
-            | STM32F446xx | 180MHz (HSE+PLL, default) | `ds18b20_1_basic_f446xx_180mhz`, …`2_device_search_f446xx_180mhz`, …`3_round_robin_f446xx_180mhz`, …`4_scan_mode_f446xx_180mhz`, `ds18b20_5_commands_f446xx_180mhz`, `ds18b20_6_statistics_f446xx_180mhz`, `ds18b20_7_low_power_lp_f446xx_180mhz`, `ds18b20_8_ds2431_f446xx_180mhz` |
+            | STM32F446xx | 180MHz (HSE+PLL, default) | `ds18b20_1_basic_f446xx_180mhz`, …`2_device_search_f446xx_180mhz`, …`3_round_robin_f446xx_180mhz`, …`4_scan_mode_f446xx_180mhz`, `ds18b20_5_commands_f446xx_180mhz`, `ds18b20_6_statistics_f446xx_180mhz`, `ds18b20_7_low_power_lp_f446xx_180mhz`, `ds18b20_8_ds2431_f446xx_180mhz`, `ds18b20_9_multi_f446xx_180mhz` |
+            | STM32H743VI (WeAct H7XX) | 240MHz (HSE+PLL, default) | `ds18b20_1_basic_h7_240mhz`, …`2_device_search_h7_240mhz`, …`3_round_robin_h7_240mhz`, …`4_scan_mode_h7_240mhz`, `ds18b20_5_commands_h7_240mhz`, `ds18b20_6_statistics_h7_240mhz`, `ds18b20_7_low_power_lp_h7_240mhz`, `ds18b20_8_ds2431_h7_240mhz`, `ds18b20_9_multi_h7_240mhz` |
+            | STM32H743VI | 480/240MHz (opt-in) | `ds18b20_1_basic_h7_480_240mhz`, `ds18b20_2_device_search_h7_480_240mhz`, `ds18b20_7_low_power_lp_h7_480_240mhz` |
+            | STM32H743VI | 64MHz raw HSI | `ds18b20_1_basic_h7_64mhz`, `ds18b20_2_device_search_h7_64mhz`, `ds18b20_7_low_power_lp_h7_64mhz` |
 
             Examples: `1_basic` — single sensor via Skip ROM; `2_device_search` — device
             search + per-device polling (one Convert T per sensor); `3_round_robin` —
@@ -423,7 +473,8 @@ jobs:
             TH/TL, Copy/Recall EEPROM, Read ROM); `6_statistics` — device search +
             signal-statistics dump over UART (`-DOW_STATS_ENABLE=1`); `7_low_power` —
             low-power example (`-DOW_LOW_POWER=1`) that sleeps in `__WFE()`;
-            `8_ds2431` — DS2431 EEPROM: Read/Write/Read/Copy Scratchpad cycle.
+            `8_ds2431` — DS2431 EEPROM: Read/Write/Read/Copy Scratchpad cycle;
+            `9_multi` — seven DS18B20s + one DS2431 peak/low logger on one bus.
 
             ## Highlights
 

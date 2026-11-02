@@ -50,17 +50,21 @@ be driven directly from the shared bus layer.
 
 | Device | Type | Family code | Driver | Example |
 |--------|------|-------------|--------|---------|
-| **DS18B20** | Digital temperature sensor, 9-12-bit, ±0.5 °C, parasite or external power | `0x28` | `inc/ds18b20.h` + `src/ds18b20.c` | `1_basic` … `7_low_power` |
-| **DS2431** | 1 kbit (128-byte) EEPROM, 4 × 32-byte pages via an 8-byte scratchpad | `0x2D` | `inc/ds2431.h` + `src/ds2431.c` | `8_ds2431` |
+| **DS18B20** | Digital temperature sensor, 9-12-bit, ±0.5 °C, parasite or external power | `0x28` | `inc/ds18b20.h` + `src/ds18b20.c` | `1_basic` … `7_low_power`, `9_multi` |
+| **DS2431** | 1 kbit (128-byte) EEPROM, 4 × 32-byte pages via an 8-byte scratchpad | `0x2D` | `inc/ds2431.h` + `src/ds2431.c` | `8_ds2431`, `9_multi` |
 
-Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer, but they
-are alternatives, not companions: each driver's init calls `onewire_init()`,
-which takes exclusive ownership of the timer/DMA/pin, and a second init is
-unsupported. Use one driver per firmware image; the DS2431 example filters the
-shared bus search by family code (`DS2431_FAMILY_CODE`, 0x2D), while the
-DS18B20 driver's own search filters on 0x28. Slaves without a driver here
-(DS2413, ...) can be driven by including `"onewire.h"` and building on the bus
-primitives.
+Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer. Only one
+of them owns the bus at a time: an operation started on one driver must finish
+(its `*_poll()` reports done) before the other starts one, and neither may be
+polled while the other is running. Both `ds18b20_init()` and `ds2431_init()` may
+still run before any bus operation in the same firmware image — each calls
+`onewire_init()`, which re-applies the same idle timer/DMA/pin configuration —
+and `examples/9_multi` does exactly that and then hands the bus back and forth
+between the two drivers through one explicit owner state machine. The DS2431
+example filters the shared bus search by family code (`DS2431_FAMILY_CODE`,
+0x2D), while the DS18B20 driver's own search filters on 0x28. Slaves without a
+driver here (DS2413, ...) can be driven by including `"onewire.h"` and building
+on the bus primitives.
 
 ## Features
 
@@ -83,6 +87,11 @@ primitives.
   and TIM1/DMA backend, with external and parasite power (strong pull-up
   hold-off for Copy Scratchpad) — see
   [DS2431 EEPROM Driver](#ds2431-eeprom-driver) and `examples/8_ds2431`.
+- Multi-Device Application (`9_multi`): a peak/low temperature logger that runs
+  DS18B20 sensors and a DS2431 EEPROM on one bus, handing ownership back and
+  forth between the two drivers; results are stored as self-validating CRC
+  records, with the ROM block written before the record that refers to it. See
+  [Multi-Device Application](#multi-device-application-9_multi).
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -273,7 +282,8 @@ still private.
 │   │                       # (ROM, power supply, TH/TL, Copy/Recall EEPROM)
 │   ├── 6_statistics/main.c # Device search + stats dump every N cycles
 │   ├── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
-│   └── 8_ds2431/main.c     # DS2431: one EEPROM write cycle, then a repeating search
+│   ├── 8_ds2431/main.c     # DS2431: one EEPROM write cycle, then a repeating search
+│   └── 9_multi/main.c      # Peak/low logger: DS18B20 sensors + DS2431 on one bus
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)
@@ -326,18 +336,21 @@ still private.
 
 ## Examples
 
-Eight ready-to-run example applications are provided; select one with `APP`:
+Nine ready-to-run example applications are provided; select one with `APP`:
 
-> **Warning — two examples write non-volatile sensor memory.** On each run
+> **Warning — three examples write non-volatile sensor memory.** On each run
 > where a DS18B20 is found, `5_commands` attempts Copy Scratchpad on the
 > selected sensor. A successful copy replaces its EEPROM alarm thresholds
 > with TH=0x19 / TL=0x0F; the demo does not restore the previous values.
 > Repeated runs consume EEPROM write endurance, even when the values already
 > match. `8_ds2431` attempts to replace the first 8 bytes (address 0) on
 > **every DS2431 found** with a derived pattern and does not restore the
-> original contents. The same applies when running the DS2431 HIL check. Use
-> test devices with no data you need to keep; do not run these demos repeatedly
-> on deployed sensors.
+> original contents. `9_multi` writes its peak/low records and the ROM blocks
+> they refer to (addresses 16..47) on the first DS2431 it finds, but only when
+> a record actually changes, and it does not restore the previous contents
+> either. The same applies when running the DS2431 HIL check. Use test devices
+> with no data you need to keep; do not run these demos repeatedly on deployed
+> sensors.
 
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
@@ -349,6 +362,7 @@ Eight ready-to-run example applications are provided; select one with `APP`:
 | `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
 | `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, so the CPU idles instead of spinning. The application's code and its result timing are unchanged — it never waits for a result — and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
 | `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad, Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. The pattern written is the row's own next value (every byte plus one), so the read-back differs from the baseline and proves the copy instead of re-reading bytes that were already there. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
+| `9_multi`         | `examples/9_multi/main.c`             | Application example: a peak/low temperature logger with seven DS18B20 sensors and one DS2431 EEPROM on the same bus. One explicit bus-owner state machine uses the two drivers strictly in sequence, because they share TIM1/DMA and neither may be polled while the other owns the timer: DS18B20 search, a second full-family search to locate the DS2431, boot-read of four EEPROM blocks, then measurement rounds. Rounds run in scan mode (one broadcast `Convert T`) and fall back to the sequential Match ROM path if a scan fails. The round maximum and minimum are compared with the stored peak and low; a new record is queued as Write Scratchpad → Read Scratchpad (echo + data verify) → Copy Scratchpad → Read Memory, with the sensor's ROM block written before the record that refers to it, so a power cut cannot leave a record pointing at a ROM that is not there. Records are self-validating 8-byte blocks (magic, version, flags, counter, temperature, sensor index, CRC-8); `PEAK_RESET=1` ignores the stored records at boot. Every stage is a `poll()` loop paced by `app_millis()` — no delay, no wait, no interrupt. |
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -359,6 +373,7 @@ make APP=5_commands                           # build 5_commands -> build/ds18b2
 make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
 make APP=7_low_power EXT="-DOW_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
 make APP=8_ds2431                             # build 8_ds2431 -> build/ds18b20_8_ds2431.elf (DS2431 EEPROM)
+make APP=9_multi                              # build 9_multi -> build/ds18b20_9_multi.elf (DS18B20 + DS2431)
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -492,7 +507,11 @@ every device.
 The same examples run on an STM32F030F4P6 minimum board: the
 1-Wire bus on **PA10** (TIM1 CH3/CH4 pair — PA8 is not bonded out in this
 package), USART1 TX on PA9, busy LED on PA4, flashed via ST-Link SWD. The bus
-carries 8 × DS18B20.
+carries 8 × DS18B20. The `9_multi` bench rig uses the same board with seven
+DS18B20s plus one DS2431 (parasite power); its boot capture — two Search ROM
+passes, the DS2431 read, a broadcast `Convert T` with seven scratchpad reads,
+and four EEPROM write chains — is the bundled sample in the
+[1-Wire viewer](https://a5021.github.io/stm32-async-1wire/viewer/).
 
 ### STM32F303VC (F3-DISCOVERY / MB1035B)
 
@@ -720,12 +739,14 @@ Same bus as the DS18B20 (one 1-Wire line, shared pull-up):
 | 3.3V          | Power       | VDD        |
 | GND           | Ground      | GND        |
 
-Both slaves can sit on the same line electrically, but one firmware image drives
-one driver at a time: `ds2431_init()` and `ds18b20_init()` both call
-`onewire_init()`, whose second call is unsupported (see the DS2431 section
-below). The DS2431 example runs the shared bus search with
-`DS2431_FAMILY_CODE` (0x2D), so DS18B20s on the line are ignored; the DS18B20
-driver's own search filters on 0x28.
+Both slaves can sit on the same line electrically, and one firmware image can
+drive both: finish and retire an operation on one driver before the other starts
+one, and never poll both at once. Both inits may run before any bus operation
+(each `onewire_init()` re-applies the same idle configuration); `9_multi` does
+this and then hands the bus over through one explicit owner state machine. The
+DS2431 example runs the shared bus search with `DS2431_FAMILY_CODE` (0x2D), so
+DS18B20s on the line are ignored; the DS18B20 driver's own search filters on
+0x28.
 
 #### Debug UART (optional)
 
@@ -891,11 +912,17 @@ facts before wiring or porting:
   `onewire_init()` takes exclusive ownership until MCU reset; there is no
   deinit or release API (`inc/onewire.h:97-104`). Do not use TIM1, those DMA
   channels, or the bus pin elsewhere while the layer is in use.
-- **Init runs once.** A second `onewire_init()` / `ds18b20_init()` /
-  `ds2431_init()` call is unsupported and does not reset state
-  (`inc/onewire.h:92-96`). Start a new lifecycle with an MCU reset.
-- **One driver per firmware image.** `ds18b20_init()` and `ds2431_init()`
-  both claim the same bus; only one may be used at a time.
+- **Initialization is not a reset.** A second `onewire_init()` /
+  `ds18b20_init()` / `ds2431_init()` call does not stop an active operation, and
+  it does not clear stale timer/DMA/low-power or slave-driver state. Calling
+  both driver inits once, before any bus operation, is supported (each
+  `onewire_init()` re-applies the same idle configuration; `9_multi` does this).
+  Starting a new driver lifecycle after activity requires an MCU reset
+  (`inc/onewire.h`).
+- **One driver owns the bus at a time.** `ds18b20_init()` and `ds2431_init()`
+  both claim the same TIM1/DMA/pin. Finish and retire an operation on one driver
+  before the other starts one, and never poll both at once; `9_multi` shows the
+  explicit owner state machine that hands the bus over.
 - **Clock invariant: TIM1 kernel clock must equal SYSCLK.** Pass the real
   clock via `OW_SYSCLK_MHZ`, or omit it and keep CMSIS `SystemCoreClock`
   current via `SystemCoreClockUpdate()`. A wrong clock silently scales
@@ -1555,7 +1582,7 @@ No files are copied: the library is added as a subproject and manages its own CM
 include(FetchContent)
 FetchContent_Declare(stm32_async_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v2.4.0
+    GIT_TAG        v3.0.0
 )
 FetchContent_MakeAvailable(stm32_async_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
@@ -2941,11 +2968,11 @@ Called when a measurement cycle completes — provides temperature data in tenth
 ### DS2431 EEPROM Driver
 
 The DS2431 1 kbit EEPROM has its own non-blocking driver (`inc/ds2431.h` +
-`src/ds2431.c`) on the shared 1-Wire layer. Call `ds2431_init()` **instead of**
-`ds18b20_init()`: both init functions call `onewire_init()`, which takes
-exclusive ownership of the timer/DMA/pin, and a second `onewire_init()` is
-unsupported. The two device types may share the physical line, but not one
-firmware image; address DS2431s with `ds2431_select()`.
+`src/ds2431.c`) on the shared 1-Wire layer. Both `ds2431_init()` and
+`ds18b20_init()` may run in one image before any bus operation; after that the
+two drivers take turns owning the bus, one operation at a time, and are never
+polled concurrently (see `examples/9_multi`). Address DS2431s with
+`ds2431_select()`.
 
 ```C
 void    ds2431_init(void);
@@ -2988,6 +3015,34 @@ not fill the whole block, makes the device flag the scratchpad invalid and
 refuse the later copy, so both the read-back and the Copy report failure. The
 full cycle — Read Memory → Write Scratchpad → Read Scratchpad → Copy Scratchpad
 → Read Memory — is in `examples/8_ds2431`.
+
+### Multi-Device Application (`9_multi`)
+
+`examples/9_multi` is the end-to-end application: a peak/low temperature logger
+with seven DS18B20 sensors and one DS2431 EEPROM on the same wire. It is also the
+reference for using both drivers in one image. They cannot be polled at the same
+time, so the application owns one explicit bus-owner state machine and hands the
+bus over in a fixed order:
+
+1. DS18B20 search, which fills the driver's scan-mode device table;
+2. a second full-family search to locate the DS2431 (the search engine runs one
+   family filter per pass);
+3. a boot read of the four EEPROM blocks into RAM — the EEPROM is only written
+   again when a record actually changes;
+4. measurement rounds: one broadcast `Convert T` for every sensor, each result
+   reported through `ds18b20_complete()`. If a scan round fails, the application
+   switches to the sequential Match ROM path;
+5. a new round maximum or minimum is queued as Write Scratchpad → Read
+   Scratchpad (echo + data verify) → Copy Scratchpad → Read Memory.
+
+Records are 8-byte, self-validating blocks (magic, version, flags, update
+counter, whole degrees, tenths, sensor index, CRC-8) at EEPROM addresses 16..47,
+and the sensor's ROM block is written before the record that refers to it — a
+power loss cannot leave a record pointing at a ROM that is not there. The
+records only move in one direction (the peak grows, the low falls), so after
+warm-up writes are rare. Build with `make APP=9_multi`; `PEAK_RESET=1` ignores
+the stored records at boot and forces the write path, which is how the published
+logic-analyzer capture was recorded.
 
 ## Performance
 

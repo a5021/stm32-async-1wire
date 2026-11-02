@@ -87,18 +87,19 @@ extern "C" {
 
 /**
  * @brief Initialize the shared 1-Wire timer/DMA/GPIO resources
- * @pre Call exactly once after MCU reset, before any 1-Wire bus operation or
- *      slave-driver activity. Initialize the system clock first when its final
- *      frequency is not the backend default.
+ * @pre Call after MCU reset, before any 1-Wire bus operation or slave-driver
+ *      activity. Initialize the system clock first when its final frequency is
+ *      not the backend default.
  * @note Enables the timer/DMA/GPIO clocks, sets the timer prescaler for 1µs
  *       resolution, configures the bus pin as alternate-function open-drain
  *       and marks the search engine idle. The timer is left stopped: the first
  *       operation only starts when the application requests it.
- * @warning This is a bootstrap operation, not a reinitialization hook. A
- *          second call is unsupported: it does not stop or reset an active
- *          TIM1/DMA operation, clear stale timer/DMA/low-power state, or fully
- *          reset slave-driver state. Starting a new driver lifecycle requires
- *          an MCU reset.
+ * @warning This is a bootstrap operation, not a reinitialization hook. A second
+ *          call does not stop or reset an active TIM1/DMA operation, clear stale
+ *          timer/DMA/low-power state, or fully reset slave-driver state. Calling
+ *          it twice before any bus operation is harmless (it re-applies the same
+ *          idle configuration, which is how both slave drivers are brought up in
+ *          one image); starting a new driver lifecycle requires an MCU reset.
  * @warning After initialization the 1-Wire layer exclusively owns TIM1, the
  *          DMA feed/capture pair of the active backend (DMA1 channels 3 and 4
  *          on F0/F1/G0, DMA2 streams 2 and 4 on F4), and the bus GPIO pin

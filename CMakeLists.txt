@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(stm32_async_1wire VERSION 2.4.0 LANGUAGES C ASM)
+project(stm32_async_1wire VERSION 3.0.0 LANGUAGES C ASM)
 
 # ---------------------------------------------------------------------------
 # Options
@@ -615,7 +615,7 @@ if(OW_BUILD_EXAMPLES)
     # links the shared examples/app/app.c platform layer and gets the same
     # per-example compile definitions as the Makefile.
     set(EXAMPLES 1_basic 2_device_search 3_round_robin 4_scan_mode
-                 5_commands 6_statistics 7_low_power 8_ds2431)
+                 5_commands 6_statistics 7_low_power 8_ds2431 9_multi)
     set(UART_TX_SIZE_1_basic         128)
     set(UART_TX_SIZE_2_device_search 256)
     set(UART_TX_SIZE_3_round_robin   256)
@@ -624,6 +624,7 @@ if(OW_BUILD_EXAMPLES)
     set(UART_TX_SIZE_6_statistics    1024)
     set(UART_TX_SIZE_7_low_power     256)
     set(UART_TX_SIZE_8_ds2431        256)
+    set(UART_TX_SIZE_9_multi         512)
     # objcopy next to the compiler, so the .hex/.bin pair matches what `make all`
     # produces and a programmer can be pointed at either.
     get_filename_component(OW_TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)

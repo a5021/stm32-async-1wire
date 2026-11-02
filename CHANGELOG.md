@@ -7,7 +7,13 @@ this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-11-02
+
+3.0.0 adds the eighth backend (STM32H7) and closes the public surface: the
+engine becomes library-private, the public macros lose the `PORT_` infix, and
+presence is proved by the captured edge count rather than by a zeroed buffer.
+Those three are source-breaking; the migration notes are in the README under
+"Upgrading: the renamed macros".
 
 ### Added
 
@@ -21,6 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`make test-mocks`), and HIL runs the parasite-powered bench. The 64MHz
   raw-HSI fallback clock is bench-verified too (search plus temperatures
   over USART on the same 7-sensor rig).
+- **`9_multi` application example (DS18B20 + DS2431 on one bus).** A peak/low
+  temperature logger with seven DS18B20 sensors and one DS2431 EEPROM on the
+  same wire. One explicit bus-owner state machine hands the bus between the two
+  drivers, which share TIM1/DMA and are never polled concurrently: DS18B20
+  search, a second family-filtered search for the DS2431, boot read of four
+  EEPROM blocks, then scan-mode measurement with a sequential Match ROM
+  fallback. Peak/low records are self-validating 8-byte CRC blocks at EEPROM
+  addresses 16..47, the sensor ROM block is written before the record that
+  refers to it, and writes happen only when a record changes. Build with
+  `make APP=9_multi`; `PEAK_RESET=1` ignores the stored records and forces the
+  write path. The F030 bench capture is the bundled sample in `tools/1wire_vis`
+  and the published viewer.
 - **Startup clock-agreement check (`onewire_clock_ok()`).** With
   `-DOW_SYSCLK_MHZ` the core clock is fixed at compile time and the TIM1
   prescaler is compiled from `OW_TIM1_MHZ` (defaulting to `OW_SYSCLK_MHZ`), so
@@ -46,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Both driver inits may run before any bus operation.** The headers said a
+  second `onewire_init()` and mixing DS18B20 with DS2431 in one image were
+  unsupported. That was stricter than the code: `9_multi` brings both drivers
+  up and uses them alternately. The contract is now stated precisely — a second
+  init is not a reset and must not be called during activity, but two inits
+  before the first bus operation are supported; only bus *ownership* is
+  exclusive, one operation at a time.
 - **Presence is proved by the captured edge count, not by a zeroed buffer
   (breaking).** `ow_port_reset()` used to write zeros into both capture slots
   before arming the DMA, so that a reset with no device would leave
@@ -2438,4 +2463,5 @@ without a section here, and its changes had drifted into the section below.
 [2.2.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.1.1...v2.2.0
 [2.3.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...v2.3.0
 [2.4.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...v2.4.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...HEAD
+[3.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...v3.0.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...HEAD

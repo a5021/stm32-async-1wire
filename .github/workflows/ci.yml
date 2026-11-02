@@ -542,6 +542,8 @@ jobs:
         run: make APP=4_scan_mode
       - name: Build release (8_ds2431)
         run: make APP=8_ds2431
+      - name: Build release (9_multi)
+        run: make APP=9_multi
         # The ELF is named ds18b20_<APP>.elf, so it encodes the app and nothing
         # else, while the objects behind it carry the family, part and clock in
         # their names. A second build of a different variant can find every object
@@ -823,6 +825,8 @@ jobs:
           test -f build/cmake-variants-${{ matrix.backend }}/examples/7_low_power.bin
           test -f build/cmake-variants-${{ matrix.backend }}/examples/8_ds2431.hex
           test -f build/cmake-variants-${{ matrix.backend }}/examples/8_ds2431.bin
+          test -f build/cmake-variants-${{ matrix.backend }}/examples/9_multi.hex
+          test -f build/cmake-variants-${{ matrix.backend }}/examples/9_multi.bin
       - name: Build the standalone-consumer template (OW_MCU=${{ matrix.mcu }})
         if: matrix.backend == 'h5'
         # The vendored integration path the README documents: a downstream
