@@ -1440,7 +1440,7 @@ runts also make a "nearest gap" pick the runt instead of the period).
 Those captures can also be read as traffic instead of measurements:
 [`tools/1wire_vis`](tools/1wire_vis/) decodes a sigrok `.sr` file slot by slot
 in the browser — resets and presence, Search ROM, every command byte and the
-device CRC — with no upload and no server. The bundled F030 recording (8 MHz,
+device CRC — with no upload and no server. The bundled 9_Multi recording (8 MHz,
 DS2431 reads and `0F`/`AA`/`55`/`F0` write chains) is published at
 <https://a5021.github.io/stm32-async-1wire/viewer/>.
 

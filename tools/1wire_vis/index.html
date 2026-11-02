@@ -38,10 +38,25 @@
   .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
   label { color:var(--dim); font-size:13px; }
   input[type=file] { color:var(--dim); font-size:13px; }
-  select, button { background:var(--panel); color:var(--txt); border:1px solid var(--line);
+  select, button, .load-menu > summary { background:var(--panel); color:var(--txt); border:1px solid var(--line);
                    border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; }
-  button:hover { border-color:var(--acc); color:var(--acc); }
+  button:hover, .load-menu > summary:hover { border-color:var(--acc); color:var(--acc); }
   button:disabled { opacity:.45; cursor:default; }
+  .load-menu { position:relative; }
+  .load-menu > summary { display:inline-flex; align-items:center; gap:6px; list-style:none;
+                         user-select:none; white-space:nowrap; }
+  .load-menu > summary::-webkit-details-marker { display:none; }
+  .load-menu[open] > summary { border-color:var(--acc); color:var(--acc); }
+  .load-menu .menu-pop { position:absolute; top:calc(100% + 4px); left:0; z-index:20;
+                         min-width:260px; max-width:calc(100vw - 32px); padding:4px;
+                         display:flex; flex-direction:column;
+                         background:var(--panel); border:1px solid var(--line); border-radius:6px;
+                         box-shadow:0 8px 22px rgba(0,0,0,.16); }
+  .load-menu .menu-pop button { width:100%; padding:8px 10px; text-align:left;
+                                border:0; border-radius:4px; background:transparent; }
+  .load-menu .menu-pop button:focus { outline:none; }
+  .load-menu .menu-pop button:focus-visible { outline:2px solid var(--acc); outline-offset:-2px; }
+  .load-menu .menu-pop button:hover { background:var(--hover-bg); border-color:transparent; }
   #status { font-size:13px; color:var(--dim); min-height:20px; }
   #status.err { color:var(--bad); }
   canvas { width:100%; display:block; background:var(--canvas-bg); border:1px solid var(--line);
@@ -114,11 +129,16 @@ try {
           <option value="overdrive">Overdrive</option>
         </select>
       </label>
-      <button id="demo">Load demo waveform</button>
-      <button id="bundled">Load bundled F030 capture</button>
+      <details class="load-menu" id="loadMenu">
+        <summary title="Load a built-in capture or the synthetic demo">Samples <span aria-hidden="true">▾</span></summary>
+        <div class="menu-pop">
+          <button id="demo" title="Generated in the page — no capture file or hardware">Synthetic demo (1 MHz)</button>
+          <button id="bundled" title="Real bench capture, embedded in the page">Bundled 9_Multi capture (8 MHz)</button>
+        </div>
+      </details>
       <button id="copy" disabled>Copy transcript</button>
     </div>
-    <div id="status">Waiting for a file… (or press “Load demo waveform”).</div>
+    <div id="status">Waiting for a file… (or open “Samples”).</div>
   </div>
 
   <div class="card">
@@ -1121,6 +1141,43 @@ try {
     } catch (e) {
       status("Bundled capture failed (" + e.message + "). Pick " +
         "captures/9_multi_f030_boot.sr via the file input instead.", true);
+    }
+  });
+
+  // The two sample loaders live in one disclosure menu: selecting an item
+  // closes it again, clicking outside dismisses it, and Escape returns focus
+  // to the summary.
+  const loadMenu = $("loadMenu");
+  const loadItems = [...loadMenu.querySelectorAll(".menu-pop button")];
+  const loadSummary = loadMenu.querySelector("summary");
+  loadMenu.addEventListener("toggle", () => {
+    if (loadMenu.open) loadItems[0].focus();
+  });
+  loadMenu.addEventListener("keydown", (e) => {
+    if (!loadMenu.open) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      const at = loadItems.indexOf(document.activeElement);
+      const next = at < 0 ? (step > 0 ? 0 : loadItems.length - 1)
+                         : (at + step + loadItems.length) % loadItems.length;
+      loadItems[next].focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      loadMenu.open = false;
+      loadSummary.focus();
+    }
+  });
+  loadItems.forEach((item) => item.addEventListener("click", () => {
+    loadMenu.open = false;
+    loadSummary.focus();
+  }));
+  document.addEventListener("click", (e) => {
+    if (loadMenu.open && !loadMenu.contains(e.target)) {
+      const hadFocus = loadMenu.contains(document.activeElement);
+      loadMenu.open = false;
+      if (hadFocus) loadSummary.focus();
     }
   });
 

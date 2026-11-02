@@ -10,11 +10,11 @@ Open `index.html` in Chrome/Edge/Firefox/Safari, or use the hosted copy at
 <https://a5021.github.io/stm32-async-1wire/viewer/> (its built-in selftest
 runs at `/viewer/selftest.html`). Then either:
 
-- **Load demo waveform** — a synthetic 1 MHz capture (Match ROM +
-  Read Scratchpad, Skip ROM + Convert T, single-device Search ROM),
-  so the page works with no hardware;
-- **Load bundled F030 capture** — the real bench recording shipped in
-  `captures/` (also embedded in `bundled_sr.js`, so it works straight
+- **Samples → Synthetic demo (1 MHz)** — a capture generated in the page
+  (no file, no hardware): single-device Search ROM, Skip ROM + Convert T,
+  a 750 ms conversion wait, then Match ROM + Read Scratchpad;
+- **Samples → Bundled 9_Multi capture** — the real bench recording shipped
+  in `captures/` (also embedded in `bundled_sr.js`, so it works straight
   from `file://` with no server); or
 - pick any `.sr` file recorded with `tools/la_capture.py`
   (fx2lafw, DQ on D0–D7, 1–8 MHz), choose the channel and inspect.
@@ -24,7 +24,7 @@ reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
 `Standard` / `Overdrive` is available when a capture is ambiguous or when
 mixing both speeds (a single profile cannot decode both at once).
 
-## Bundled capture
+## Bundled 9_Multi capture
 
 `captures/9_multi_f030_boot.sr` (8 MHz, 32.8 M samples, 4.1 s, 65 KiB) —
 STM32F030 + `9_multi`, parasite power, 7× DS18B20 + 1× DS2431. This is the
