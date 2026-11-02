@@ -26,9 +26,9 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">stm32-async-1wire<span id="projectnumber">&#160;2.4.0</span>
+   <div id="projectname">stm32-async-1wire<span id="projectnumber">&#160;3.0.0</span>
    </div>
-   <div id="projectbrief">Non-blocking 1-Wire master for STM32 with DS18B20 temperature driver</div>
+   <div id="projectbrief">Non-blocking 1-Wire master for STM32 with DS18B20 temperature and DS2431 EEPROM drivers</div>
   </td>
  </tr>
  </tbody>
@@ -142,38 +142,38 @@ $(function(){initNavTree('ds2431_8h_source.html','',''); });
 <div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span></div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span></div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span></div>
-<div class="line"><a id="l00225" name="l00225"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga0155f21c0142af08aa487c4892d92863">  225</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga0155f21c0142af08aa487c4892d92863">ds2431_init</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span></div>
-<div class="line"><a id="l00239" name="l00239"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd">  239</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd">ds2431_select</a>(<span class="keyword">const</span> uint8_t* rom);</div>
-<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span></div>
-<div class="line"><a id="l00251" name="l00251"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d">  251</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d">ds2431_set_parasite</a>(uint8_t parasite);</div>
-<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span></div>
-<div class="line"><a id="l00258" name="l00258"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga12c778b7f2726dd9579546775bc1472d">  258</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga12c778b7f2726dd9579546775bc1472d">ds2431_parasite_mode</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span></div>
-<div class="line"><a id="l00268" name="l00268"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f">  268</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f">ds2431_last_command_ok</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span></div>
-<div class="line"><a id="l00280" name="l00280"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaa0d74d2523de7b4182a0d12795eb2555">  280</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaa0d74d2523de7b4182a0d12795eb2555">ds2431_read_memory</a>(uint8_t* dst, uint16_t addr, uint8_t len);</div>
-<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span></div>
-<div class="line"><a id="l00286" name="l00286"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga3ccedb33b5fb521b1f707afa501e5c16">  286</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga3ccedb33b5fb521b1f707afa501e5c16">ds2431_read_memory_poll</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span></div>
-<div class="line"><a id="l00307" name="l00307"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21">  307</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21">ds2431_write_scratchpad</a>(uint16_t addr, <span class="keyword">const</span> uint8_t* data, uint8_t len);</div>
-<div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span></div>
-<div class="line"><a id="l00313" name="l00313"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2">  313</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2">ds2431_write_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span></div>
-<div class="line"><a id="l00331" name="l00331"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0">  331</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0">ds2431_read_scratchpad</a>(uint8_t* buf);</div>
-<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span></div>
-<div class="line"><a id="l00337" name="l00337"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d">  337</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d">ds2431_read_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00338" name="l00338"></a><span class="lineno">  338</span></div>
-<div class="line"><a id="l00349" name="l00349"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c">  349</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c">ds2431_copy_scratchpad</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00350" name="l00350"></a><span class="lineno">  350</span></div>
-<div class="line"><a id="l00355" name="l00355"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga405160ac4f5afec87bd401089a0061ef">  355</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga405160ac4f5afec87bd401089a0061ef">ds2431_copy_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00356" name="l00356"></a><span class="lineno">  356</span></div>
-<div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span> </div>
-<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span>}</div>
-<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span> </div>
-<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span><span class="preprocessor">#endif </span><span class="comment">// DS2431_H</span></div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga0155f21c0142af08aa487c4892d92863">  227</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga0155f21c0142af08aa487c4892d92863">ds2431_init</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span></div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd">  241</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaba4683de3ad2bea43f31576e24ebd2cd">ds2431_select</a>(<span class="keyword">const</span> uint8_t* rom);</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span></div>
+<div class="line"><a id="l00253" name="l00253"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d">  253</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga5a464ba2a94bc7a1df391a6c446e213d">ds2431_set_parasite</a>(uint8_t parasite);</div>
+<div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span></div>
+<div class="line"><a id="l00260" name="l00260"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga12c778b7f2726dd9579546775bc1472d">  260</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga12c778b7f2726dd9579546775bc1472d">ds2431_parasite_mode</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span></div>
+<div class="line"><a id="l00270" name="l00270"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f">  270</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gab89799ec5dcc6e9275437b2058b6712f">ds2431_last_command_ok</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span></div>
+<div class="line"><a id="l00282" name="l00282"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaa0d74d2523de7b4182a0d12795eb2555">  282</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaa0d74d2523de7b4182a0d12795eb2555">ds2431_read_memory</a>(uint8_t* dst, uint16_t addr, uint8_t len);</div>
+<div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span></div>
+<div class="line"><a id="l00288" name="l00288"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga3ccedb33b5fb521b1f707afa501e5c16">  288</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga3ccedb33b5fb521b1f707afa501e5c16">ds2431_read_memory_poll</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span></div>
+<div class="line"><a id="l00309" name="l00309"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21">  309</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21">ds2431_write_scratchpad</a>(uint16_t addr, <span class="keyword">const</span> uint8_t* data, uint8_t len);</div>
+<div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span></div>
+<div class="line"><a id="l00315" name="l00315"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2">  315</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gab6176e021c0980a2d71775b093be43d2">ds2431_write_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span></div>
+<div class="line"><a id="l00333" name="l00333"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0">  333</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gaf8b5929a4ff272d33661dc7ab1efc0c0">ds2431_read_scratchpad</a>(uint8_t* buf);</div>
+<div class="line"><a id="l00334" name="l00334"></a><span class="lineno">  334</span></div>
+<div class="line"><a id="l00339" name="l00339"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d">  339</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga58a6c9a55ba2e0cc569ae2be4862002d">ds2431_read_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00340" name="l00340"></a><span class="lineno">  340</span></div>
+<div class="line"><a id="l00351" name="l00351"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c">  351</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="group__DS2431__Exported__Functions.html#gae73ff95454781800729a849dcf9ef79c">ds2431_copy_scratchpad</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00352" name="l00352"></a><span class="lineno">  352</span></div>
+<div class="line"><a id="l00357" name="l00357"></a><span class="lineno"><a class="line" href="group__DS2431__Exported__Functions.html#ga405160ac4f5afec87bd401089a0061ef">  357</a></span>uint8_t <a class="code hl_function" href="group__DS2431__Exported__Functions.html#ga405160ac4f5afec87bd401089a0061ef">ds2431_copy_scratchpad_poll</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span></div>
+<div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span> </div>
+<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span>}</div>
+<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00366" name="l00366"></a><span class="lineno">  366</span> </div>
+<div class="line"><a id="l00367" name="l00367"></a><span class="lineno">  367</span><span class="preprocessor">#endif </span><span class="comment">// DS2431_H</span></div>
 <div class="ttc" id="agroup__DS2431__Exported__Functions_html_ga0155f21c0142af08aa487c4892d92863"><div class="ttname"><a href="group__DS2431__Exported__Functions.html#ga0155f21c0142af08aa487c4892d92863">ds2431_init</a></div><div class="ttdeci">void ds2431_init(void)</div><div class="ttdoc">Initialize DS2431 driver hardware and peripherals.</div></div>
 <div class="ttc" id="agroup__DS2431__Exported__Functions_html_ga0eef0a635e90f35dc6b594c685a74d21"><div class="ttname"><a href="group__DS2431__Exported__Functions.html#ga0eef0a635e90f35dc6b594c685a74d21">ds2431_write_scratchpad</a></div><div class="ttdeci">uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t *data, uint8_t len)</div><div class="ttdoc">Write up to 8 bytes into the scratchpad (non-blocking).</div></div>
 <div class="ttc" id="agroup__DS2431__Exported__Functions_html_ga12c778b7f2726dd9579546775bc1472d"><div class="ttname"><a href="group__DS2431__Exported__Functions.html#ga12c778b7f2726dd9579546775bc1472d">ds2431_parasite_mode</a></div><div class="ttdeci">uint8_t ds2431_parasite_mode(void)</div><div class="ttdoc">Current parasite-power configuration of the driver.</div></div>
