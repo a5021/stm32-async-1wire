@@ -22,9 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs in `make check`, so the analyser cannot silently lose its teeth.
   Measured on the F030 bench at 48 MHz and 8 MHz: all five load levels are
   clean at guard 1 (a 2 µs window) with `cndtr_late = 0`, even though the
-  circular channel more than halves the CPU's SRAM throughput at 8 MHz. The
+  circular channel cuts the CPU's SRAM throughput by about 40% at 8 MHz. The
   5 µs default therefore needs no change on F0; the stress generator is F0-only
   and the other families compile and run level 0.
+- **Capture-drain and deliberate-delay checks for `0_dma_pressure`.** The
+  example gains a Search ROM mode (`STRESS_CAPTURE=1`) that reads through the
+  capture DMA under the same load; the level-0 search is the baseline and all
+  24 stressed cells returned the same 7 DS18B20 ROMs and checksum.
+  `STRESS_INJECT_US` holds the feed (write) or capture (search) channel
+  disabled for N us as a negative control; the harness detects the first
+  delayed feed at 80 us and the first delayed capture at 200 us. The report
+  adds the capture table, the negative-control table and per-cell viewer links.
 - **Viewer: shareable capture links (`?src=`).** The browser viewer accepts
   `?src=<capture>` (relative or same-origin) and optional
   `&speed=standard|overdrive`; the URL is resolved against the page and

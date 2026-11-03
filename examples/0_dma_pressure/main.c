@@ -23,10 +23,24 @@
  * Build knobs (all overridable from `make ... EXT="-D...=..."`):
  *
  *   STRESS_LEVEL  0..5, default 0 (see the table below)
- *   STRESS_BURSTS number of 64-slot frames per run, default 100
+ *   STRESS_BURSTS number of frames/search passes per run, default 100
  *   STRESS_WORDS  halfword transfers per memory-to-memory burst, default 512
+ *   STRESS_CAPTURE 1 = run the search/capture mode instead of the write rig
+ *   STRESS_INJECT_US  test-only: hold the feed (write mode) or capture (search
+ *                     mode) DMA channel disabled for about this many
+ *                     microseconds at the start of the pass, then restore it.
+ *                     The pending request is serviced late - the negative
+ *                     control for "does the harness catch a deliberately
+ *                     delayed transfer?". The library is not modified.
  *
- * Stress levels:
+ * The default mode is the write rig: a fixed 64-slot pattern, feed DMA only.
+ * `STRESS_CAPTURE=1` switches to a Search ROM pass: the DS18B20 search reads
+ * the bus through the capture DMA (channel 4), so the same load now has to
+ * coexist with the capture drain as well as the feed. The baseline ROM set is
+ * taken once without load; every stressed pass must return the same count and
+ * the same ROMs, otherwise the capture drain lost a deadline.
+ *
+ * Stress levels (the same in both modes):
  *
  *   0  none - measures the driver's own margin
  *   1  CPU hammers the SRAM array in the onewire_bus_done() poll loop
@@ -36,12 +50,12 @@
  *   4  a continuous circular mem-to-memory transfer on DMA1 channel 1
  *   5  level 4 plus the CPU hammer
  *
- * Only the STM32F0 backend implements the generator; every other family
+ * Only the STM32F0 backend implements the load generator; every other family
  * compiles this example and runs level 0 with `stress=unsupported` in the
  * banner, so the all-family build matrix stays green while the measurement
- * is still being designed. No DMA priority bit is touched anywhere: the load
- * channels run at the same default priority as the feed channel, which is
- * exactly the contention the rig is meant to expose.
+ * is still being designed. The load channels keep the default DMA priority;
+ * STRESS_INJECT_US is a test-only channel-disable window, not a priority
+ * change.
  *
  * The UART is silent while the frames run. The banner before the run and the
  * `DONE` line after it are the only output, so the console cannot become a
@@ -77,6 +91,14 @@
 #define STRESS_WORDS 512
 #endif
 
+#ifndef STRESS_CAPTURE
+#define STRESS_CAPTURE 0
+#endif
+
+#ifndef STRESS_INJECT_US
+#define STRESS_INJECT_US 0
+#endif
+
 #define FRAME_GAP_MS 2u
 
 #if (STRESS_LEVEL < 0) || (STRESS_LEVEL > 5)
@@ -88,6 +110,12 @@
 #if (STRESS_WORDS < 1) || (STRESS_WORDS > 65535)
 #error "STRESS_WORDS must be 1..65535 (DMA CNDTR is 16-bit)"
 #endif
+#if (STRESS_CAPTURE != 0) && (STRESS_CAPTURE != 1)
+#error "STRESS_CAPTURE must be 0 (write rig) or 1 (search/capture mode)"
+#endif
+#if (STRESS_INJECT_US < 0) || (STRESS_INJECT_US > 5000)
+#error "STRESS_INJECT_US must be 0..5000 (test-only high-priority hog)"
+#endif
 
 /* Non-F0 families compile the whole example but cannot generate the load. */
 #if defined(OW_FAMILY_F0)
@@ -97,9 +125,10 @@
 #endif
 
 /* ------------------------------------------------------------------
- *  Pattern
+ *  Pattern (write mode only)
  * ------------------------------------------------------------------ */
 
+#if !STRESS_CAPTURE
 #define PATTERN_BYTES 8u
 #define PATTERN_SLOTS (PATTERN_BYTES * ONEWIRE_BITS_PER_BYTE)
 
@@ -111,19 +140,22 @@ static const uint8_t pattern[PATTERN_BYTES] = {0x00u, 0xFFu, 0xAAu, 0x55u,
 /* Transmit buffer: PATTERN_SLOTS entries plus the trailing release entry
  * that must equal ONEWIRE_RELEASE_PULSE. */
 static ow_pulse_t frame[PATTERN_SLOTS + 1u];
+#endif
 
 /* ------------------------------------------------------------------
  *  Telemetry
  * ------------------------------------------------------------------
  *  The same counters the `DONE` line prints, mirrored in RAM so a bench
  *  without a console can read them with a debugger after the sweep (for
- *  example `STM32_Programmer_CLI -c port=SWD -r32 <addr> 32`, with the
+ *  example `STM32_Programmer_CLI -c port=SWD -r32 <addr> 64`, with the
  *  address from `arm-none-eabi-nm`). Index:
  *
  *    0 frames     1 cndtr_late   2 cndtr_max   3 dma_error
  *    4 aborted    5 hog_starts   6 burst_starts 7 cpu_passes
+ *    8 search_runs 9 search_bad  10 baseline  11 search_last
+ *    12 inject_us 13 capture_mode 14 no_device 15 stage
  */
-#define TELEMETRY_WORDS 8u
+#define TELEMETRY_WORDS 16u
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 /* ------------------------------------------------------------------
@@ -190,6 +222,31 @@ static void stress_stop(void) {
                                            DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2);
 }
 
+/* Test-only negative control: hold the feed (write mode) or capture (search
+ * mode) DMA channel disabled for about `us` microseconds, then restore its
+ * control register. Any request raised while the channel is off stays pending,
+ * so the transfer is genuinely late - not a wrong count or a wrong route.
+ * The library is not modified, and no channel priority is changed: this is a
+ * deliberate software delay in the test image. */
+static void stress_inject(uint32_t us) {
+#if STRESS_CAPTURE
+    volatile uint32_t* ccr = &DMA1_Channel4->CCR;
+#else
+    volatile uint32_t* ccr = &DMA1_Channel3->CCR;
+#endif
+    const uint32_t save = *ccr;
+    *ccr = 0u;
+    /* A volatile decrement is about four cycles; divide by four so the knob is
+     * roughly microseconds at the 48/8 MHz clocks. The HIL sweeps the knob and
+     * reports the first value that breaks the transaction, so exact duration
+     * matters less than monotonicity. */
+    volatile uint32_t n = us * (OW_SYSCLK_MHZ / 4u);
+    while (n != 0u) {
+        n--;
+    }
+    *ccr = save;
+}
+
 /* CPU-side SRAM hammer: every access is a real load/store because the array
  * is volatile, and the range is wide enough that the DMA's own SRAM traffic
  * shares the same bus for the whole pass. */
@@ -201,6 +258,9 @@ static void cpu_hammer(void) {
 }
 
 static void stress_begin(uint32_t level) {
+    if (STRESS_INJECT_US != 0u) {
+        stress_inject((uint32_t)STRESS_INJECT_US);
+    }
     if (level >= 4u) {
         stress_hog_start();
     }
@@ -229,6 +289,7 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
 
 static void stress_end(void) { stress_stop(); }
 
+#if !STRESS_CAPTURE
 /* Transfers still queued on the CCR3 feed channel. Zero after completion is
  * the driver's contract; anything else means the feed was starved. */
 static uint32_t feed_remaining(void) { return DMA1_Channel3->CNDTR; }
@@ -236,12 +297,15 @@ static uint32_t feed_remaining(void) { return DMA1_Channel3->CNDTR; }
 static uint8_t feed_error_latched(void) {
     return (DMA1->ISR & DMA_ISR_TEIF3) ? 1u : 0u;
 }
+#endif
 
 #else /* !OW_FAMILY_F0 */
 
+#if !STRESS_CAPTURE
 static const uint32_t hog_starts = 0u;
 static const uint32_t burst_starts = 0u;
 static const uint32_t cpu_passes = 0u;
+#endif
 
 static void stress_begin(uint32_t level) { (void)level; }
 static void stress_service(uint32_t level, uint32_t* next_ms) {
@@ -249,17 +313,54 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
     (void)next_ms;
 }
 static void stress_end(void) {}
+#if !STRESS_CAPTURE
 static uint32_t feed_remaining(void) { return 0u; }
 static uint8_t feed_error_latched(void) { return 0u; }
+#endif
 
 #endif /* OW_FAMILY_F0 */
+
+/* ------------------------------------------------------------------
+ *  Search/capture mode (STRESS_CAPTURE)
+ * ------------------------------------------------------------------
+ *  The DS18B20 Search ROM pass reads the bus through the capture DMA. The
+ *  baseline ROM set is taken once without load; every stressed pass must
+ *  return the same count and the same ROMs. A late capture drain corrupts a
+ *  read bit, which changes the search tree, the ROM or the count.
+ */
+
+#if STRESS_CAPTURE
+#define SEARCH_MAX 8u
+
+static uint32_t search_count;
+static uint32_t search_rom_crc;
+
+/* FNV-1a over the found ROMs, in search order. The HIL takes the level-0
+ * (unloaded) value as the baseline and requires every stressed cell to match
+ * both the count and this checksum. The search engine already rejects a ROM
+ * whose CRC-8 is wrong; the checksum catches a changed-but-valid tree. */
+static uint8_t search_sink(const uint8_t* rom) {
+    for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
+        search_rom_crc ^= rom[i];
+        search_rom_crc *= 16777619u;
+    }
+    search_count++;
+    return 0u;
+}
+#endif /* STRESS_CAPTURE */
 
 /* ------------------------------------------------------------------
  *  Reporting
  * ------------------------------------------------------------------ */
 
 static void print_banner(void) {
-    uart_write_str("# hil: app=dma_pressure level=");
+    uart_write_str("# hil: app=dma_pressure mode=");
+#if STRESS_CAPTURE
+    uart_write_str("search");
+#else
+    uart_write_str("write");
+#endif
+    uart_write_str(" level=");
     uart_write_int((int)EFFECTIVE_LEVEL);
 #if !defined(OW_FAMILY_F0)
     uart_write_str(" requested=");
@@ -270,18 +371,44 @@ static void print_banner(void) {
     uart_write_int((int)ONEWIRE_GUARD_BAND);
     uart_write_str(" clock=");
     uart_write_int((int)OW_SYSCLK_MHZ);
-    uart_write_str(" words=");
-    uart_write_int((int)STRESS_WORDS);
+#if !STRESS_CAPTURE
     uart_write_str(" bursts=");
     uart_write_int((int)STRESS_BURSTS);
+#endif
+    uart_write_str(" words=");
+    uart_write_int((int)STRESS_WORDS);
+#if !STRESS_CAPTURE
     uart_write_str(" slots=");
     uart_write_int((int)PATTERN_SLOTS);
     uart_write_str(" pattern=");
     for (uint8_t i = 0; i < PATTERN_BYTES; i++) {
         uart_write_hex(pattern[i]);
     }
+#endif
+    if (STRESS_INJECT_US != 0u) {
+        uart_write_str(" inject=");
+        uart_write_int((int)STRESS_INJECT_US);
+    }
     uart_write_str("\r\n");
 }
+
+#if !STRESS_CAPTURE
+/* A deterministic idle gap between passes: wait for FRAME_GAP_MS observed
+ * millisecond ticks, not a wall-clock deadline, so the logic analyzer gets a
+ * boundary to split two passes on. */
+static void idle_gap(void) {
+    uint32_t seen = app_millis();
+    uint32_t waited = 0u;
+    while (waited < FRAME_GAP_MS) {
+        uint32_t now = app_millis();
+        if (now != seen) {
+            waited += now - seen;
+            seen = now;
+        }
+        uart_poll_tx();
+    }
+}
+#endif
 
 /* ------------------------------------------------------------------
  *  Main
@@ -289,16 +416,67 @@ static void print_banner(void) {
 
 int main(void) {
     app_init(); // clock, UART and LED GPIO
+#if STRESS_CAPTURE
+    ds18b20_init(); // also calls onewire_init(); the search context needs it
+#if OW_PARASITE_POWER
+    ds18b20_set_parasite(1); // the bench bus is parasite-powered
+#endif
+#else
     onewire_init(); // TIM1, DMA1 and the bus pin
+#endif
 
+#if !STRESS_CAPTURE
     for (uint8_t i = 0; i < PATTERN_BYTES; i++) {
         onewire_encode_byte(&frame[i * ONEWIRE_BITS_PER_BYTE], pattern[i]);
     }
     frame[PATTERN_SLOTS] = ONEWIRE_RELEASE_PULSE;
+#endif
 
     print_banner();
     uart_flush(); // the UART stays silent for the whole measurement
 
+#if STRESS_CAPTURE
+    /* One Search ROM pass under the load. The HIL takes the level-0 (unloaded)
+     * count/checksum as the baseline and requires the stressed cells to match
+     * it; a late capture drain changes a read bit, the tree or the ROMs. */
+    search_count = 0u;
+    search_rom_crc = 2166136261u;
+    ds18b20_search_start(search_sink, SEARCH_MAX);
+    if (!ds18b20_search_poll()) {
+        stress_begin(EFFECTIVE_LEVEL);
+        uint32_t next_ms = app_millis();
+        while (!ds18b20_search_poll()) {
+            stress_service(EFFECTIVE_LEVEL, &next_ms);
+        }
+        stress_end();
+    }
+    uint32_t found = ds18b20_search_count();
+    for (uint8_t i = 0; i < TELEMETRY_WORDS; i++) {
+        dma_pressure_telemetry[i] = 0u;
+    }
+    dma_pressure_telemetry[8] = 1u;
+    dma_pressure_telemetry[10] = search_rom_crc;
+    dma_pressure_telemetry[11] = found;
+    dma_pressure_telemetry[12] = STRESS_INJECT_US;
+    dma_pressure_telemetry[13] = 1u;
+    dma_pressure_telemetry[14] = search_count;
+    dma_pressure_telemetry[15] = 5u;
+
+    uart_write_str("DONE mode=search count=");
+    uart_write_int((int)found);
+    uart_write_str(" rom_crc=");
+    uart_write_hex((uint8_t)(search_rom_crc >> 24));
+    uart_write_hex((uint8_t)(search_rom_crc >> 16));
+    uart_write_hex((uint8_t)(search_rom_crc >> 8));
+    uart_write_hex((uint8_t)search_rom_crc);
+    uart_write_str(" inject=");
+    uart_write_int((int)STRESS_INJECT_US);
+    uart_write_str("\r\n");
+    uart_flush();
+    for (;;) {
+        uart_poll_tx();
+    }
+#else
     uint32_t frames = 0u;
     uint32_t cndtr_late = 0u;
     uint32_t cndtr_max = 0u;
@@ -335,23 +513,12 @@ int main(void) {
             break;
         }
 
-        /* A deterministic idle gap between frames: wait for FRAME_GAP_MS
-         * observed millisecond ticks, not for a wall-clock deadline. The
-         * deadline form can expire immediately when a tick lands between the
-         * read and the first check, which leaves the logic analyzer without a
-         * boundary to split two frames on. */
-        uint32_t seen = app_millis();
-        uint32_t waited = 0u;
-        while (waited < FRAME_GAP_MS) {
-            uint32_t now = app_millis();
-            if (now != seen) {
-                waited += now - seen;
-                seen = now;
-            }
-            uart_poll_tx();
-        }
+        idle_gap();
     }
 
+    for (uint8_t i = 0; i < TELEMETRY_WORDS; i++) {
+        dma_pressure_telemetry[i] = 0u;
+    }
     dma_pressure_telemetry[0] = frames;
     dma_pressure_telemetry[1] = cndtr_late;
     dma_pressure_telemetry[2] = cndtr_max;
@@ -360,6 +527,8 @@ int main(void) {
     dma_pressure_telemetry[5] = hog_starts;
     dma_pressure_telemetry[6] = burst_starts;
     dma_pressure_telemetry[7] = cpu_passes;
+    dma_pressure_telemetry[12] = STRESS_INJECT_US;
+    dma_pressure_telemetry[13] = 0u;
 
     uart_write_str("DONE frames=");
     uart_write_int((int)frames);
@@ -371,10 +540,13 @@ int main(void) {
     uart_write_int((int)dma_error);
     uart_write_str(" aborted=");
     uart_write_int((int)aborted);
+    uart_write_str(" inject=");
+    uart_write_int((int)STRESS_INJECT_US);
     uart_write_str("\r\n");
     uart_flush();
 
     for (;;) {
         uart_poll_tx();
     }
+#endif
 }

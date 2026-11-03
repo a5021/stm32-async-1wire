@@ -362,7 +362,7 @@ drive real 1-Wire devices.
 
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
-| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0 only; every other family compiles and runs level 0. Used by `tests/hil/dma_pressure.py`. |
+| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0 only; every other family compiles and runs level 0. `STRESS_CAPTURE=1` switches to a Search ROM capture-drain pass; `STRESS_INJECT_US=N` is the deliberately-delayed-transfer negative control. Used by `tests/hil/dma_pressure.py` and `tests/hil/dma_capture.py`. |
 | (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
@@ -553,13 +553,24 @@ cell is clean at guard 1; `cndtr_late` is 0 everywhere:
 | 2 | 500 / 501 DMA bursts | clean | clean |
 | 3 | 8400 / 1400 DMA bursts | clean | clean |
 | 4 | 100 / 100 circular starts | clean | clean |
-| 5 | 100 hog starts, 1700 / 300 CPU passes | clean | clean |
+| 5 | 100 hog starts, 2200 / 400 CPU passes | clean | clean |
 
-The load is real: at 8 MHz the circular transfer plus CPU hammer more than
-halves the CPU's SRAM throughput (700 passes fall to 300), yet a 2 µs window
+The load is real: at 8 MHz the circular transfer plus CPU hammer cuts the
+CPU's SRAM throughput by about 40% (700 passes fall to 400), yet a 2 µs window
 is still enough. On this evidence the 5 µs default needs no change on F0.
 The result is F030-specific; other DMA IPs (F4 streams, H5/H7 GPDMA) need their
 own run.
+
+`STRESS_CAPTURE=1` switches the rig to a Search ROM pass: every read bit goes
+through the capture DMA (channel 4), so the same levels now stress the capture
+drain as well as the feed. The unloaded level-0 search is the baseline; all 24
+stressed cells (6 levels x 2 clocks x 2 guards) returned the same 7 DS18B20
+ROMs and checksum, and the viewer shows all 8 responders on the bench (seven
+DS18B20 plus one DS2431). `STRESS_INJECT_US=N` is the negative control: it
+holds the feed (write mode) or capture (search mode) channel disabled for N
+microseconds, then restores it. The write harness detects the first delayed
+feed at 80 µs and the search harness detects the first delayed capture at
+200 µs - a late transfer, not only a wrong count or route.
 
 Two geometry notes the analyser accounts for. Guard 0 is not an operating
 point: `CC2` then coincides with the update event and the release write
@@ -574,8 +585,8 @@ shape (stretched pulse, doubled edge, missing slot, wrong bit, parked line,
 wrong guard band) and runs in `make check`, so the analyser cannot silently
 lose its teeth.
 
-The published report, with the measured tables and one representative frame
-per level/clock/guard cell in the viewer, is at
+The published report, with the measured tables and a representative frame per
+level/clock/guard cell in the viewer, is at
 <https://a5021.github.io/stm32-async-1wire/stress/>. It is generated from
 `docs/stress/results.json` by `tools/stress_report.py`; `make
 test-stress-report` regenerates it and decodes every linked capture.
@@ -1497,11 +1508,11 @@ make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
 python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
                                     # custom matrix (make cannot forward the args)
 
-# regenerate the published report and its one-frame captures
+# regenerate the published report, the one-frame captures and the capture /
+# negative-control data
 python tests/hil/dma_pressure.py --json docs/stress/results.json \
                                  --sr-dir docs/stress/captures
-python tools/stress_report.py --data docs/stress/results.json \
-                              --out docs/stress/index.html
+python tests/hil/dma_capture.py --json docs/stress/capture.json
 ```
 
 The board is auto-detected (`STM32F103xB` reference bench, or the
