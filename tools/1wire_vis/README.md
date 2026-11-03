@@ -17,7 +17,18 @@ runs at `/viewer/selftest.html`). Then either:
   in `captures/` (also embedded in `bundled_sr.js`, so it works straight
   from `file://` with no server); or
 - pick any `.sr` file recorded with `tools/la_capture.py`
-  (fx2lafw, DQ on D0–D7, 1–8 MHz), choose the channel and inspect.
+  (fx2lafw, DQ on D0–D7, 1–8 MHz), choose the channel and inspect; or
+- open a shared link with `?src=<capture>`, optionally with
+  `&speed=standard|overdrive`, for example
+  `index.html?src=../stress/captures/l5_8mhz_g1.sr&speed=standard`.
+
+`?src=` is how the published stress report opens one frame per test. The path
+is resolved against the viewer URL and must stay on the same origin (`file://`
+pages may point at local files). Cross-origin, `javascript:` and `data:` values
+are rejected, so a shared link can only name data the page is allowed to fetch.
+`speed` pins the bus profile: auto-detection is right for real 1-Wire traffic,
+but the stress pattern's 60 µs '0' pulses look like overdrive resets, so the
+report pins `standard`.
 
 **Bus speed** is next to the channel selector. `Auto` looks at the longest
 reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
@@ -89,7 +100,7 @@ shape as `tools/la_decode.py` output).
 
 ## Self-test
 
-`selftest.html` is a browser page with 82 golden checks (no Node needed). Open
+`selftest.html` is a browser page with 95 golden checks (no Node needed). Open
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
 check plus a summary. It covers:
 

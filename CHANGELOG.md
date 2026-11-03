@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   circular channel more than halves the CPU's SRAM throughput at 8 MHz. The
   5 µs default therefore needs no change on F0; the stress generator is F0-only
   and the other families compile and run level 0.
+- **Viewer: shareable capture links (`?src=`).** The browser viewer accepts
+  `?src=<capture>` (relative or same-origin) and optional
+  `&speed=standard|overdrive`; the URL is resolved against the page and
+  cross-origin, `javascript:` and `data:` values are rejected. The selftest
+  grows twelve checks (95 total). `speed=standard` is pinned by the stress
+  report because a 60 us '0' pulse otherwise looks like an overdrive reset to
+  the auto detector.
 - **`make test-all-families` runs the suite on every backend in one command.**
   Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
   the families over a job matrix, so a local "all families" sweep used to be a

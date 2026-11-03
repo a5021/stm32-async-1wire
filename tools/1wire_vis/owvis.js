@@ -424,6 +424,49 @@ OWVis.decodeSlots = function (samples, samplerate, channel, speed) {
 OWVis.SLOT_PITCH_US = 120;  // fallback start-to-start period for a lone slot
 OWVis.SLOT_MAX_US = 500;    // never shade across a host idle gap
 
+/**
+ * Resolve a `?src=` capture reference against the page URL.
+ *
+ * The viewer is a static page, so a shared link may name a capture next to
+ * it (the stress report uses `../stress/captures/...`). Only same-origin
+ * http(s) or file URLs are accepted: a capture link is data to decode, not a
+ * redirect. Returns the absolute href, or null for an empty value.
+ */
+OWVis.resolveSrc = function (raw, base) {
+  if (raw == null || String(raw).trim() === "") return null;
+  const b = new URL(base || (typeof location !== "undefined" ? location.href : "http://localhost/"));
+  const u = new URL(String(raw), b);
+  if (u.protocol !== "http:" && u.protocol !== "https:" && u.protocol !== "file:") {
+    throw new Error("unsupported capture URL scheme: " + u.protocol);
+  }
+  if (b.protocol !== "file:" && u.origin !== b.origin) {
+    throw new Error("capture URL must be same-origin");
+  }
+  return u.href;
+};
+
+/**
+ * Read the shareable viewer parameters from a query string.
+ *
+ * `src` names the capture; `speed` pins the bus profile. Auto-detection is
+ * right for real 1-Wire traffic, but a diagnostic pattern can have long '0'
+ * pulses that look like overdrive resets, so the stress report pins
+ * `standard`. Unknown or empty values are ignored rather than rejected.
+ */
+OWVis.parseViewerQuery = function (search) {
+  let p;
+  try {
+    p = new URLSearchParams(search || "");
+  } catch (e) {
+    return { src: null, speed: null };
+  }
+  const speed = p.get("speed");
+  return {
+    src: p.get("src") || null,
+    speed: ["auto", "standard", "overdrive"].includes(speed) ? speed : null,
+  };
+};
+
 OWVis.buildTransactions = function (events, samplerate) {
   const rate = samplerate > 0 ? samplerate : 1e6;
   const us = rate / 1e6;
