@@ -7,18 +7,26 @@ UART and saves the capture under bench_logs/hil/. Skips (exit 0) when no
 ST-Link or target is attached.
 
 Scripts: smoke (2_device_search), scan (4_scan_mode), stats (6_statistics),
-lowpower (7_low_power), ds2431 (8_ds2431).
+lowpower (7_low_power), ds2431 (8_ds2431), dma_pressure (0_dma_pressure;
+standalone: rebuilds per guard/level and drives the logic analyzer).
+
+`dma_pressure` is the one script that cannot use the generic build-once flow:
+its matrix is the point. run.py hands it control before any of the
+build/flash/uart steps below.
 """
 
 import os
 import sys
 
 import common
+import dma_pressure
 import ds2431
 import lowpower
 import scan
 import smoke
 import stats
+
+STANDALONE = {"dma_pressure"}
 
 SCRIPTS = {
     "smoke": ("2_device_search", smoke.run, smoke.BANNER),
@@ -44,8 +52,10 @@ WINDOWS = {
 
 def main(argv):
     script = argv[1] if len(argv) > 1 else os.environ.get("HIL_SCRIPT", "smoke")
+    if script in STANDALONE:
+        return dma_pressure.main(argv[2:])
     if script not in SCRIPTS:
-        sys.stderr.write("usage: run.py {%s}\n" % "|".join(SCRIPTS))
+        sys.stderr.write("usage: run.py {%s}\n" % "|".join(list(SCRIPTS) + list(STANDALONE)))
         return 2
     app, check, banner = SCRIPTS[script]
 

@@ -1,4 +1,5 @@
 # Select the example application:
+#   0_dma_pressure      (diagnostic: feed-channel margin under memory load)
 #   1_basic             (single sensor, Skip ROM)
 #   2_device_search     (device search + per-device polling)
 #   3_round_robin       (device search + sequential polling of every sensor)
@@ -9,6 +10,7 @@
 #   7_low_power         (device search + WFE sleep on long stages)
 #   8_ds2431            (DS2431 EEPROM: Read/Write/Read/Copy Scratchpad cycle)
 #   make                     -> builds 1_basic   (ds18b20_1_basic.elf)
+#   make APP=0_dma_pressure  -> builds 0_dma_pressure
 #   make APP=2_device_search -> builds 2_device_search
 #   make APP=3_round_robin   -> builds 3_round_robin
 #   make APP=4_scan_mode     -> builds 4_scan_mode
@@ -17,8 +19,8 @@
 #   make APP=7_low_power     -> builds 7_low_power
 #   make APP=8_ds2431        -> builds 8_ds2431
 APP ?= 1_basic
-ifeq ($(filter $(APP),1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power 8_ds2431 9_multi),)
-$(error APP must be '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics', '7_low_power', '8_ds2431' or '9_multi')
+ifeq ($(filter $(APP),0_dma_pressure 1_basic 2_device_search 3_round_robin 4_scan_mode 5_commands 6_statistics 7_low_power 8_ds2431 9_multi),)
+$(error APP must be '0_dma_pressure', '1_basic', '2_device_search', '3_round_robin', '4_scan_mode', '5_commands', '6_statistics', '7_low_power', '8_ds2431' or '9_multi')
 endif
 
 # 6_statistics is the signal-statistics example: enable the optional stats module by
@@ -236,6 +238,7 @@ endif
 INC = -I. -Iinc -Iexamples/app -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
 
 # Per-app USART1 TX ring buffer size (power of two), overrides the app.h default
+UART_TX_SIZE_0_dma_pressure = 256
 UART_TX_SIZE_1_basic        = 128
 UART_TX_SIZE_2_device_search = 256
 UART_TX_SIZE_3_round_robin  = 256
@@ -921,7 +924,7 @@ test-ram:
 # the harness was written on), builds the chosen example for it, flashes it
 # with the STM32CubeProgrammer CLI and reads the UART. Skips (exit 0) when no
 # probe or target is attached, so it is safe to run anywhere.
-# HIL_SCRIPT=smoke|scan|stats|lowpower|ds2431 (default smoke), EXPECTED_DEVICES
+# HIL_SCRIPT=smoke|scan|stats|lowpower|ds2431|dma_pressure (default smoke), EXPECTED_DEVICES
 # (optional floor on the device count), HIL_PORT (else the harness scans the
 # COM ports), HIL_BAUD, HIL_TIMEOUT (fixed window instead of the default
 # per-device budget), HIL_EXT (override the bench's EXT; unset uses the bench
@@ -960,6 +963,7 @@ test-hil-parsing:
 	@$(PYTHON) tests/hil/test_parsing.py
 	@$(PYTHON) tests/hil/test_la_capture.py
 	@$(PYTHON) tests/hil/test_la_decode.py
+	@$(PYTHON) tests/hil/test_dma_pressure.py
 	@$(PYTHON) tests/hil/test_make.py
 
 # =============================================================================

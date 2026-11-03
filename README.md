@@ -92,6 +92,11 @@ on the bus primitives.
   forth between the two drivers; results are stored as self-validating CRC
   records, with the ROM block written before the record that refers to it. See
   [Multi-Device Application](#multi-device-application-9_multi).
+- DMA Feed Pressure Rig (`0_dma_pressure`): a diagnostic example, not a demo.
+  It transmits a known 64-slot pattern under a build-time selectable
+  memory-subsystem load and reports whether the CCR3 feed DMA still met its
+  slot deadline. See
+  [Measuring DMA feed margin](#measuring-dma-feed-margin-0_dma_pressure).
 - Zero NVIC Interrupts: no NVIC interrupts and no ISRs — fully polled
   operation. The optional `-DOW_LOW_POWER=1` mode enables the timer
   update **interrupt source** (UIE) only to generate a pending event that
@@ -274,6 +279,7 @@ still private.
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
 │   │   ├── app.h           # Shared application layer interface
 │   │   └── syscall.c       # Minimal libc stubs (_write/_sbrk/...) for bare metal (example support, not library code)
+│   ├── 0_dma_pressure/main.c   # Diagnostic: feed margin under memory load
 │   ├── 1_basic/main.c      # Single sensor, unconditional (Skip ROM)
 │   ├── 2_device_search/main.c  # Device search + per-device poll (no broadcast convert)
 │   ├── 3_round_robin/main.c    # Device search + sequential poll of all
@@ -336,7 +342,9 @@ still private.
 
 ## Examples
 
-Nine ready-to-run example applications are provided; select one with `APP`:
+Ten ready-to-run example applications are provided; select one with `APP`.
+`0_dma_pressure` is a diagnostic that needs no sensor at all; the other nine
+drive real 1-Wire devices.
 
 > **Warning — three examples write non-volatile sensor memory.** On each run
 > where a DS18B20 is found, `5_commands` attempts Copy Scratchpad on the
@@ -354,6 +362,7 @@ Nine ready-to-run example applications are provided; select one with `APP`:
 
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
+| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0 only; every other family compiles and runs level 0. Used by `tests/hil/dma_pressure.py`. |
 | (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
@@ -366,6 +375,7 @@ Nine ready-to-run example applications are provided; select one with `APP`:
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
+make APP=0_dma_pressure                       # build 0_dma_pressure -> build/ds18b20_0_dma_pressure.elf (diagnostic)
 make APP=2_device_search                      # build 2_device_search -> build/ds18b20_2_device_search.elf
 make APP=3_round_robin                        # build 3_round_robin -> build/ds18b20_3_round_robin.elf
 make APP=4_scan_mode                          # build 4_scan_mode -> build/ds18b20_4_scan_mode.elf
@@ -484,6 +494,85 @@ Notes:
   `test-active` host suite, same loop as every example so nothing demo-specific
   would show on the console), and `-DDS18B20_MAX_DEVICES=1` trims the scan
   table from 64 to 8 bytes for single-sensor builds (see CHANGELOG).
+
+### Measuring DMA feed margin (0_dma_pressure)
+
+The CCR3 feed asks for one DMA transfer per slot at the CC2 compare
+(`ONE + ZERO` microseconds) and the next slot starts at the update event
+(`ONE + ZERO + GUARD + 1`). The transfer must land in that window. The feed
+channel uses the default DMA priority, so an application that moves data with
+DMA1 competes with it for the same bus. All load channels in this rig stay at
+that default priority too; a higher-priority application channel (`PL > 0`) is
+a different case and is deliberately not covered here.
+
+`0_dma_pressure` transmits a fixed 8-byte pattern (64 slots plus the trailing
+`ONEWIRE_RELEASE_PULSE`) back to back while a build-time selectable load runs,
+and reports two on-chip symptoms:
+
+- `cndtr_late`: after `onewire_bus_done()` the feed channel still had transfers
+  queued. That is complete starvation: at least one slot repeated and the final
+  release may be missing.
+- `dma_error`: the feed channel latched a transfer error.
+
+A stretched pulse or a doubled edge does not move either counter; that is what
+the logic analyzer sees. The HIL script bisects `ONEWIRE_GUARD_BAND` per level:
+the smallest guard with a clean per-slot geometry bounds the feed latency from
+above. The timer resolution is 1 µs, so guard 1 (a 2 µs window) is the
+measurement floor: a clean run there means a 2 µs window was enough.
+
+| `STRESS_LEVEL` | Load (F0 only) |
+|---|---|
+| 0 | none - the driver's own margin |
+| 1 | CPU hammers the SRAM array in the `onewire_bus_done()` loop |
+| 2 | finite mem-to-memory burst on DMA1 channel 2 about every 1 ms |
+| 3 | the same burst restarted as soon as it drains (channel 2 stays busy) |
+| 4 | continuous circular mem-to-memory transfer on DMA1 channel 1 |
+| 5 | level 4 plus the CPU hammer |
+
+Levels 1-5 are implemented for the F0 backend only; every other family
+compiles the example and runs level 0 with `stress=unsupported` in the banner,
+so the all-family build matrix stays green.
+
+```bash
+# a build with a load and a narrow guard
+make APP=0_dma_pressure OW_MCU=STM32F030x6 \
+     EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=4 -DONEWIRE_GUARD_BAND=1"
+
+# the full matrix (rebuilds per cell; needs the fx2lafw LA and an ST-Link)
+make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
+python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
+```
+
+Measured on the F030 bench (100 frames per cell, D0 on PA10, 4 MS/s). Every
+cell is clean at guard 1; `cndtr_late` is 0 everywhere:
+
+| Level | Load evidence (48 MHz / 8 MHz) | guard 5 | guard 1 |
+|---|---|---|---|
+| 0 | none | clean | clean |
+| 1 | 3300 / 700 CPU passes | clean | clean |
+| 2 | 500 / 501 DMA bursts | clean | clean |
+| 3 | 8400 / 1400 DMA bursts | clean | clean |
+| 4 | 100 / 100 circular starts | clean | clean |
+| 5 | 100 hog starts, 1700 / 300 CPU passes | clean | clean |
+
+The load is real: at 8 MHz the circular transfer plus CPU hammer more than
+halves the CPU's SRAM throughput (700 passes fall to 300), yet a 2 µs window
+is still enough. On this evidence the 5 µs default needs no change on F0.
+The result is F030-specific; other DMA IPs (F4 streams, H5/H7 GPDMA) need their
+own run.
+
+Two geometry notes the analyser accounts for. Guard 0 is not an operating
+point: `CC2` then coincides with the update event and the release write
+produces a spurious end-of-frame pulse, so the smallest meaningful guard is 1.
+Slot 1 is armed by a register write, not by the feed DMA, and its pulse
+includes the CPU gap between enabling OC3 and starting the timer (about 1 µs at
+48 MHz, 7 µs at 8 MHz); the check skips that slot's width and the first period
+of each frame.
+
+`tests/hil/test_dma_pressure.py` replays synthetic captures for each failure
+shape (stretched pulse, doubled edge, missing slot, wrong bit, parked line,
+wrong guard band) and runs in `make check`, so the analyser cannot silently
+lose its teeth.
 
 ## Hardware Verified
 
@@ -1195,7 +1284,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
 | `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (26 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
-| `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
+| `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
@@ -1396,6 +1485,10 @@ make test-hil HIL_SCRIPT=scan       # 4_scan_mode
 make test-hil HIL_SCRIPT=stats      # 6_statistics
 make test-hil HIL_SCRIPT=lowpower   # 7_low_power
 make test-hil HIL_SCRIPT=ds2431     # 8_ds2431 — the EEPROM cycle on every DS2431 found
+make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
+                                    # 0_dma_pressure — guard-band matrix, logic analyzer needed
+python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
+                                    # custom matrix (make cannot forward the args)
 ```
 
 The board is auto-detected (`STM32F103xB` reference bench, or the

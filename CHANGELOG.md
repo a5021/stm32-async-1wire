@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`0_dma_pressure` diagnostic example and its HIL guard-band matrix.** The
+  example transmits a fixed 64-slot pattern under a selectable
+  memory-subsystem load (CPU SRAM hammer, finite or circular DMA1
+  memory-to-memory bursts on channels 1/2, all at the default DMA priority) and
+  reports `cndtr_late` / `dma_error`, plus a RAM telemetry block a debugger can
+  read. `tests/hil/dma_pressure.py` bisects `ONEWIRE_GUARD_BAND` per level:
+  the smallest guard with a clean per-slot geometry bounds the feed latency
+  from above. `tests/hil/test_dma_pressure.py` synthesizes every failure shape and
+  runs in `make check`, so the analyser cannot silently lose its teeth.
+  Measured on the F030 bench at 48 MHz and 8 MHz: all five load levels are
+  clean at guard 1 (a 2 µs window) with `cndtr_late = 0`, even though the
+  circular channel more than halves the CPU's SRAM throughput at 8 MHz. The
+  5 µs default therefore needs no change on F0; the stress generator is F0-only
+  and the other families compile and run level 0.
 - **`make test-all-families` runs the suite on every backend in one command.**
   Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
   the families over a job matrix, so a local "all families" sweep used to be a

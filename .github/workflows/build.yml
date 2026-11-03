@@ -53,6 +53,7 @@ jobs:
       - name: Build Project
         run: |
           make
+          make APP=0_dma_pressure
           make APP=2_device_search
           make APP=3_round_robin
           make APP=4_scan_mode

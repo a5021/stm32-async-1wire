@@ -20,6 +20,7 @@
 # so they are the first to break on innocent growth. Both text (flash proxy;
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
+#   0_dma_pressure 2192    1428   (diagnostic; 1024 B of it is the stress array)
 #   6_statistics   6264    1784
 #   8_ds2431       6156    768
 #   9_multi        11756   1296
@@ -213,6 +214,7 @@ check STM32F407xx 434 756 536
 check STM32G474xx 329 652 432
 check STM32H503xx 329 652 432
 
+check_app STM32F030x6 0_dma_pressure 2192 1428
 check_app STM32F030x6 6_statistics 6264 1784
 check_app STM32F030x6 8_ds2431 6156 768
 check_app STM32F030x6 9_multi 11752 1296

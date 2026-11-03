@@ -1,0 +1,380 @@
+/**
+ * @file main.c
+ * @brief DMA feed pressure rig: measure the memory-subsystem headroom the
+ *        CCR3 feed channel needs while the bus is running
+ *
+ * This is a diagnostic example, not a demo. It transmits a known 64-slot
+ * pattern (8 bytes, then the trailing hardware-release entry) back to back
+ * while a selectable memory-subsystem load runs next to the driver, and
+ * reports the two things that can be observed without a logic analyzer:
+ *
+ *   - `cndtr_late`: the CCR3 feed channel still had transfers pending when
+ *     the bus reported completion. That is complete starvation: at least one
+ *     slot was never fed, so the pulse for it repeated and the final release
+ *     may be missing.
+ *   - `dma_error`: the feed channel latched a transfer error.
+ *
+ * A stretched pulse or a duplicated edge - the earlier, subtler failure -
+ * does not move either counter. That is what a logic analyzer captures; see
+ * `tests/hil/dma_pressure.py`, which bisects ONEWIRE_GUARD_BAND per stress
+ * level and takes the smallest guard with a clean per-slot geometry as an
+ * upper bound on the feed latency (guard 1 is the timer's measurement floor).
+ *
+ * Build knobs (all overridable from `make ... EXT="-D...=..."`):
+ *
+ *   STRESS_LEVEL  0..5, default 0 (see the table below)
+ *   STRESS_BURSTS number of 64-slot frames per run, default 100
+ *   STRESS_WORDS  halfword transfers per memory-to-memory burst, default 512
+ *
+ * Stress levels:
+ *
+ *   0  none - measures the driver's own margin
+ *   1  CPU hammers the SRAM array in the onewire_bus_done() poll loop
+ *   2  one finite mem-to-memory burst on DMA1 channel 2 about every 1 ms
+ *   3  a finite mem-to-memory burst on channel 2, restarted as soon as the
+ *      previous one drains (the channel stays busy for the whole frame)
+ *   4  a continuous circular mem-to-memory transfer on DMA1 channel 1
+ *   5  level 4 plus the CPU hammer
+ *
+ * Only the STM32F0 backend implements the generator; every other family
+ * compiles this example and runs level 0 with `stress=unsupported` in the
+ * banner, so the all-family build matrix stays green while the measurement
+ * is still being designed. No DMA priority bit is touched anywhere: the load
+ * channels run at the same default priority as the feed channel, which is
+ * exactly the contention the rig is meant to expose.
+ *
+ * The UART is silent while the frames run. The banner before the run and the
+ * `DONE` line after it are the only output, so the console cannot become a
+ * load of its own (the F0 console is polled and each byte costs about
+ * 8.7 us at 115200 baud).
+ *
+ * A starvation event ends the sweep: after a missed feed the line may be
+ * parked low, and a frame that starts from there measures a corrupt initial
+ * state rather than the feed latency.
+ */
+
+#include "app.h"
+
+#if defined(OW_FAMILY_F0)
+#include "stm32f0xx.h"
+#endif
+
+#include <stdint.h>
+
+/* ------------------------------------------------------------------
+ *  Build-time knobs
+ * ------------------------------------------------------------------ */
+
+#ifndef STRESS_LEVEL
+#define STRESS_LEVEL 0
+#endif
+
+#ifndef STRESS_BURSTS
+#define STRESS_BURSTS 100
+#endif
+
+#ifndef STRESS_WORDS
+#define STRESS_WORDS 512
+#endif
+
+#define FRAME_GAP_MS 2u
+
+#if (STRESS_LEVEL < 0) || (STRESS_LEVEL > 5)
+#error "STRESS_LEVEL must be 0..5 (0 = none, 5 = circular DMA hog + CPU hammer)"
+#endif
+#if (STRESS_BURSTS < 1) || (STRESS_BURSTS > 1000000)
+#error "STRESS_BURSTS must be 1..1000000"
+#endif
+#if (STRESS_WORDS < 1) || (STRESS_WORDS > 65535)
+#error "STRESS_WORDS must be 1..65535 (DMA CNDTR is 16-bit)"
+#endif
+
+/* Non-F0 families compile the whole example but cannot generate the load. */
+#if defined(OW_FAMILY_F0)
+#define EFFECTIVE_LEVEL STRESS_LEVEL
+#else
+#define EFFECTIVE_LEVEL 0
+#endif
+
+/* ------------------------------------------------------------------
+ *  Pattern
+ * ------------------------------------------------------------------ */
+
+#define PATTERN_BYTES 8u
+#define PATTERN_SLOTS (PATTERN_BYTES * ONEWIRE_BITS_PER_BYTE)
+
+/* Mixed run lengths of ones and zeros, so a repeated slot (the signature of
+ * a late feed) changes the decoded pattern in more than one place. */
+static const uint8_t pattern[PATTERN_BYTES] = {0x00u, 0xFFu, 0xAAu, 0x55u,
+                                               0x0Fu, 0xF0u, 0x3Cu, 0xC3u};
+
+/* Transmit buffer: PATTERN_SLOTS entries plus the trailing release entry
+ * that must equal ONEWIRE_RELEASE_PULSE. */
+static ow_pulse_t frame[PATTERN_SLOTS + 1u];
+
+/* ------------------------------------------------------------------
+ *  Telemetry
+ * ------------------------------------------------------------------
+ *  The same counters the `DONE` line prints, mirrored in RAM so a bench
+ *  without a console can read them with a debugger after the sweep (for
+ *  example `STM32_Programmer_CLI -c port=SWD -r32 <addr> 32`, with the
+ *  address from `arm-none-eabi-nm`). Index:
+ *
+ *    0 frames     1 cndtr_late   2 cndtr_max   3 dma_error
+ *    4 aborted    5 hog_starts   6 burst_starts 7 cpu_passes
+ */
+#define TELEMETRY_WORDS 8u
+volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
+
+/* ------------------------------------------------------------------
+ *  Memory-subsystem load (F0 only)
+ * ------------------------------------------------------------------ */
+
+#if defined(OW_FAMILY_F0)
+
+static uint32_t hog_starts;
+static uint32_t burst_starts;
+static uint32_t cpu_passes;
+
+/* One fixed source word (peripheral increment off) and a large destination
+ * array (memory increment on). Both transfers are 16-bit, so one burst is
+ * STRESS_WORDS halfword reads plus STRESS_WORDS halfword writes - roughly
+ * one bus slot of work at 48 MHz with the default size. */
+static uint16_t stress_src_word = 0xA5A5u;
+static volatile uint16_t stress_dst[STRESS_WORDS];
+
+/* Finite mem-to-memory burst on DMA1 channel 2 (the second-lowest channel
+ * number; at equal priority the classic DMA1 arbiter favours lower
+ * channels). */
+static void stress_burst_start(void) {
+    burst_starts++;
+    DMA1_Channel2->CCR = 0u;
+    DMA1->IFCR = DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 | DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2;
+    DMA1_Channel2->CPAR = (uint32_t)&stress_src_word;
+    DMA1_Channel2->CMAR = (uint32_t)stress_dst;
+    DMA1_Channel2->CNDTR = (uint32_t)STRESS_WORDS;
+    DMA1_Channel2->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |
+                         DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+}
+
+/* Continuous circular mem-to-memory transfer on DMA1 channel 1. It never
+ * drains by itself: only stress_stop() ends it. */
+static void stress_hog_start(void) {
+    hog_starts++;
+    DMA1_Channel1->CCR = 0u;
+    DMA1->IFCR = DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1;
+    DMA1_Channel1->CPAR = (uint32_t)&stress_src_word;
+    DMA1_Channel1->CMAR = (uint32_t)stress_dst;
+    DMA1_Channel1->CNDTR = (uint32_t)STRESS_WORDS;
+    DMA1_Channel1->CCR = DMA_CCR_MEM2MEM | DMA_CCR_CIRC | DMA_CCR_MINC |
+                         DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+}
+
+/* Disable one channel and leave it ready for the next frame: write CNDTR back
+ * to zero as well, so a burst cut mid-transfer cannot make the next frame's
+ * `CNDTR == 0` poll false forever. The EN wait mirrors the port's own bounded
+ * disable: a mem-to-memory channel clears EN after the in-flight transfer. */
+static void stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
+    ch->CCR = 0u;
+    uint32_t guard = 1000u;
+    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
+    }
+    ch->CNDTR = 0u;
+    DMA1->IFCR = flags;
+}
+
+static void stress_stop(void) {
+    stress_stop_channel(DMA1_Channel1, DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 |
+                                           DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1);
+    stress_stop_channel(DMA1_Channel2, DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 |
+                                           DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2);
+}
+
+/* CPU-side SRAM hammer: every access is a real load/store because the array
+ * is volatile, and the range is wide enough that the DMA's own SRAM traffic
+ * shares the same bus for the whole pass. */
+static void cpu_hammer(void) {
+    cpu_passes++;
+    for (uint32_t i = 0; i < STRESS_WORDS; i++) {
+        stress_dst[i] = (uint16_t)(stress_dst[i] + 1u);
+    }
+}
+
+static void stress_begin(uint32_t level) {
+    if (level >= 4u) {
+        stress_hog_start();
+    }
+}
+
+static void stress_service(uint32_t level, uint32_t* next_ms) {
+    if (level == 2u) {
+        /* One burst per millisecond; app_millis() is a SysTick read, not a
+         * wait, so the loop keeps polling the bus between bursts. */
+        uint32_t now = app_millis();
+        if (DMA1_Channel2->CNDTR == 0u && (int32_t)(now - *next_ms) >= 0) {
+            stress_burst_start();
+            *next_ms = now + 1u;
+        }
+    } else if (level == 3u) {
+        /* Back-to-back finite bursts: channel 2 is busy whenever the CPU
+         * can re-arm it, so it competes with the feed for nearly every slot. */
+        if (DMA1_Channel2->CNDTR == 0u) {
+            stress_burst_start();
+        }
+    }
+    if (level == 1u || level == 5u) {
+        cpu_hammer();
+    }
+}
+
+static void stress_end(void) { stress_stop(); }
+
+/* Transfers still queued on the CCR3 feed channel. Zero after completion is
+ * the driver's contract; anything else means the feed was starved. */
+static uint32_t feed_remaining(void) { return DMA1_Channel3->CNDTR; }
+
+static uint8_t feed_error_latched(void) {
+    return (DMA1->ISR & DMA_ISR_TEIF3) ? 1u : 0u;
+}
+
+#else /* !OW_FAMILY_F0 */
+
+static const uint32_t hog_starts = 0u;
+static const uint32_t burst_starts = 0u;
+static const uint32_t cpu_passes = 0u;
+
+static void stress_begin(uint32_t level) { (void)level; }
+static void stress_service(uint32_t level, uint32_t* next_ms) {
+    (void)level;
+    (void)next_ms;
+}
+static void stress_end(void) {}
+static uint32_t feed_remaining(void) { return 0u; }
+static uint8_t feed_error_latched(void) { return 0u; }
+
+#endif /* OW_FAMILY_F0 */
+
+/* ------------------------------------------------------------------
+ *  Reporting
+ * ------------------------------------------------------------------ */
+
+static void print_banner(void) {
+    uart_write_str("# hil: app=dma_pressure level=");
+    uart_write_int((int)EFFECTIVE_LEVEL);
+#if !defined(OW_FAMILY_F0)
+    uart_write_str(" requested=");
+    uart_write_int((int)STRESS_LEVEL);
+    uart_write_str(" stress=unsupported");
+#endif
+    uart_write_str(" guard=");
+    uart_write_int((int)ONEWIRE_GUARD_BAND);
+    uart_write_str(" clock=");
+    uart_write_int((int)OW_SYSCLK_MHZ);
+    uart_write_str(" words=");
+    uart_write_int((int)STRESS_WORDS);
+    uart_write_str(" bursts=");
+    uart_write_int((int)STRESS_BURSTS);
+    uart_write_str(" slots=");
+    uart_write_int((int)PATTERN_SLOTS);
+    uart_write_str(" pattern=");
+    for (uint8_t i = 0; i < PATTERN_BYTES; i++) {
+        uart_write_hex(pattern[i]);
+    }
+    uart_write_str("\r\n");
+}
+
+/* ------------------------------------------------------------------
+ *  Main
+ * ------------------------------------------------------------------ */
+
+int main(void) {
+    app_init(); // clock, UART and LED GPIO
+    onewire_init(); // TIM1, DMA1 and the bus pin
+
+    for (uint8_t i = 0; i < PATTERN_BYTES; i++) {
+        onewire_encode_byte(&frame[i * ONEWIRE_BITS_PER_BYTE], pattern[i]);
+    }
+    frame[PATTERN_SLOTS] = ONEWIRE_RELEASE_PULSE;
+
+    print_banner();
+    uart_flush(); // the UART stays silent for the whole measurement
+
+    uint32_t frames = 0u;
+    uint32_t cndtr_late = 0u;
+    uint32_t cndtr_max = 0u;
+    uint8_t aborted = 0u;
+    uint8_t dma_error = 0u;
+
+    while (frames < (uint32_t)STRESS_BURSTS) {
+        if (!onewire_write_slots(frame, PATTERN_SLOTS)) {
+            break;
+        }
+        stress_begin(EFFECTIVE_LEVEL);
+
+        /* Poll, do not wait: this is the application slot the load lives in.
+         * The feed itself is hardware-timed and does not need the CPU. */
+        uint32_t next_ms = app_millis();
+        while (!onewire_bus_done()) {
+            stress_service(EFFECTIVE_LEVEL, &next_ms);
+        }
+        stress_end();
+
+        frames++;
+        if (feed_error_latched()) {
+            dma_error = 1u;
+        }
+        uint32_t remaining = feed_remaining();
+        if (remaining != 0u) {
+            cndtr_late++;
+            if (remaining > cndtr_max) {
+                cndtr_max = remaining;
+            }
+            /* The line may be parked low after a missing release, so a
+             * further frame would not start from idle HIGH. Stop here. */
+            aborted = 1u;
+            break;
+        }
+
+        /* A deterministic idle gap between frames: wait for FRAME_GAP_MS
+         * observed millisecond ticks, not for a wall-clock deadline. The
+         * deadline form can expire immediately when a tick lands between the
+         * read and the first check, which leaves the logic analyzer without a
+         * boundary to split two frames on. */
+        uint32_t seen = app_millis();
+        uint32_t waited = 0u;
+        while (waited < FRAME_GAP_MS) {
+            uint32_t now = app_millis();
+            if (now != seen) {
+                waited += now - seen;
+                seen = now;
+            }
+            uart_poll_tx();
+        }
+    }
+
+    dma_pressure_telemetry[0] = frames;
+    dma_pressure_telemetry[1] = cndtr_late;
+    dma_pressure_telemetry[2] = cndtr_max;
+    dma_pressure_telemetry[3] = dma_error;
+    dma_pressure_telemetry[4] = aborted;
+    dma_pressure_telemetry[5] = hog_starts;
+    dma_pressure_telemetry[6] = burst_starts;
+    dma_pressure_telemetry[7] = cpu_passes;
+
+    uart_write_str("DONE frames=");
+    uart_write_int((int)frames);
+    uart_write_str(" cndtr_late=");
+    uart_write_int((int)cndtr_late);
+    uart_write_str(" cndtr_max=");
+    uart_write_int((int)cndtr_max);
+    uart_write_str(" dma_error=");
+    uart_write_int((int)dma_error);
+    uart_write_str(" aborted=");
+    uart_write_int((int)aborted);
+    uart_write_str("\r\n");
+    uart_flush();
+
+    for (;;) {
+        uart_poll_tx();
+    }
+}

@@ -614,8 +614,9 @@ if(OW_BUILD_EXAMPLES)
     # Example applications — mirror the make APP=<ex> targets: every example
     # links the shared examples/app/app.c platform layer and gets the same
     # per-example compile definitions as the Makefile.
-    set(EXAMPLES 1_basic 2_device_search 3_round_robin 4_scan_mode
+    set(EXAMPLES 0_dma_pressure 1_basic 2_device_search 3_round_robin 4_scan_mode
                  5_commands 6_statistics 7_low_power 8_ds2431 9_multi)
+    set(UART_TX_SIZE_0_dma_pressure 256)
     set(UART_TX_SIZE_1_basic         128)
     set(UART_TX_SIZE_2_device_search 256)
     set(UART_TX_SIZE_3_round_robin   256)
