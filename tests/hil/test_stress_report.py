@@ -104,9 +104,10 @@ def main():
         default_cell = cells.get((level, clock, default))
         check("default guard is clean for %s/%s" % (level, clock),
               default_cell is not None and default_cell["clean"])
-        tel = (default_cell or {}).get("telemetry") or [None] * 16
+        tel = (default_cell or {}).get("telemetry") or [None] * 20
         check("cndtr_late is 0 for %s/%s" % (level, clock), tel[1] == 0)
         check("dma_error is 0 for %s/%s" % (level, clock), tel[3] == 0)
+        check("stop_timeout is 0 for %s/%s" % (level, clock), tel[16] == 0)
 
     check("the report has a row per level and clock",
           len(data["guard_min"]) == 12, "got %d" % len(data["guard_min"]))

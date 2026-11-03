@@ -32,10 +32,11 @@ LEVEL_INFO = {
     3: ("finite DMA burst, back to back",
         "The same channel-2 burst restarted as soon as it drains, so the "
         "channel competes for nearly every slot."),
-    4: ("circular DMA hog",
-        "A continuous circular mem-to-memory transfer on DMA1 channel 1 "
-        "(the lowest channel number, equal priority)."),
-    5: ("circular DMA + CPU",
+    4: ("ch1 burst stream",
+        "A finite mem-to-memory burst on DMA1 channel 1, restarted as soon "
+        "as it drains. Circular mode is not allowed in memory-to-memory "
+        "(RM0091); channel 1 is the lowest channel number at equal priority."),
+    5: ("ch1 burst stream + CPU",
         "Level 4 plus the CPU SRAM hammer."),
 }
 
@@ -67,8 +68,8 @@ def cell_map(data):
 
 
 def telemetry(cell):
-    t = (cell or {}).get("telemetry") or [None] * 8
-    return t + [None] * (8 - len(t))
+    t = (cell or {}).get("telemetry") or [None] * 20
+    return t + [None] * (20 - len(t))
 
 
 def viewer_href(cell):
@@ -95,7 +96,7 @@ def load_evidence(cell, level):
     t = telemetry(cell)
     parts = []
     if level in (4, 5) and t[5]:
-        parts.append("hog starts %d" % t[5])
+        parts.append("ch1 bursts %d" % t[5])
     if level in (2, 3) and t[6]:
         parts.append("DMA bursts %d" % t[6])
     if level in (1, 5) and t[7]:
@@ -191,11 +192,13 @@ the same DS18B20 count and the same FNV-1a checksum over the found ROMs.</p>
 <tbody>%s</tbody></table>
 <p class="note">All %d stressed cells match. The DS18B20 search filters family
 0x28, so the firmware counts seven sensors while the viewer shows all eight
-responders on the bench (seven DS18B20 plus one DS2431). The viewer opens the
-whole search: the protocol tree shows the reset, the search command and the
-ROM triplets. At the highest stress levels the poll loop can stretch the
-inter-bit gaps; the firmware's count/checksum remains the primary check and
-the viewer splits the search at those gaps.</p>
+responders on the bench (seven DS18B20 plus one DS2431). <code>SEARCH_MAX</code>
+caps the search at eight DS18B20s, so the count/checksum is not a full bus
+census beyond that. The viewer opens the whole search: the protocol tree shows
+the reset, the search command and the ROM triplets. At the highest stress
+levels the poll loop can stretch the inter-bit gaps; the firmware's
+count/checksum remains the primary check and the viewer splits the search at
+those gaps.</p>
 </section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
 
 
@@ -223,8 +226,9 @@ def inject_section(capture):
 <p>Detecting a late transfer is not the same as detecting a wrong count or a
 wrong route. This is a positive control: <code>STRESS_INJECT_US</code> holds
 the feed channel (write mode) or the capture channel (search mode) disabled
-for N microseconds, then restores it. The pending request is serviced late;
-the harness must go red.</p>
+for N microseconds, then restores it. This is a channel-disable injection:
+the bench checks whether the resulting delay breaks the timeline; it does not
+assume a particular request-latching rule. The harness must go red.</p>
 <table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
 <th>Result</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
@@ -257,6 +261,7 @@ def build_report(data, capture=None):
     all_default_clean = True
     all_cndtr_zero = True
     all_no_error = True
+    all_stop_ok = True
     for row in floors:
         level, clock = row["level"], row["clock_mhz"]
         floor_cell = cells.get((level, clock, row["guard_us"]))
@@ -271,29 +276,33 @@ def build_report(data, capture=None):
                 all_cndtr_zero = False
             if t[3] not in (0, None):
                 all_no_error = False
+            if t[16] not in (0, None):
+                all_stop_ok = False
 
-    cpu_bits = []
+    load_bits = []
     for clock in clocks:
-        cpu1 = telemetry(cells.get((1, clock, default_guard)))
-        cpu5 = telemetry(cells.get((5, clock, default_guard)))
-        if cpu1[7] is not None and cpu5[7] is not None:
-            cpu_bits.append("at %d MHz from %d to %d" % (clock, cpu1[7], cpu5[7]))
+        t4 = telemetry(cells.get((4, clock, default_guard)))
+        if t4[5] is not None:
+            load_bits.append("at %d MHz channel 1 restarted %d times"
+                             % (clock, t4[5]))
 
     findings = [
         "Every level x clock cell is clean at the %s floor (a %d us window)."
         % (fmt_guard(floor_guard), floor_window),
-        "cndtr_late is 0 and no DMA error was latched in any cell: not even "
-        "a queued transfer remained at completion.",
-        "The load is real: the circular transfer plus the CPU hammer cuts the "
-        "CPU's SRAM passes " + "; ".join(cpu_bits) + "."
-        if cpu_bits else
+        "cndtr_late is 0, no DMA error was latched and no channel-stop "
+        "timeout occurred in any cell: not even a queued transfer remained "
+        "at completion.",
+        "The load is real: " + "; ".join(load_bits) +
+        " (level 4; level 5 adds the CPU hammer)."
+        if load_bits else
         "The load is real: the stress counters in the table show every channel "
         "running.",
         "The %d us guard is a %d us window, %.1fx the measured %d us floor; "
         "the library and the DMA priority stay unchanged."
         % (default_guard, default_window, ratio, floor_window),
     ]
-    if not (all_floor_clean and all_default_clean and all_cndtr_zero and all_no_error):
+    if not (all_floor_clean and all_default_clean and all_cndtr_zero
+            and all_no_error and all_stop_ok):
         findings = ["The published run contains a failure; see the table below."]
     else:
         cap_cells = capture.get("capture_cells") or []
@@ -337,7 +346,7 @@ def build_report(data, capture=None):
             links.append(link_to_viewer(cell, label))
         matrix_rows.append(
             "<tr><td>%d</td><td>%s</td><td>%s%s</td><td>%d</td><td>%s</td>"
-            "<td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>" % (
+            "<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>" % (
                 level,
                 "%d MHz" % clock if clock else "default",
                 fmt_guard(guard_min),
@@ -346,6 +355,7 @@ def build_report(data, capture=None):
                 violation_text(default_cell),
                 t[1] if t[1] is not None else "?",
                 t[3] if t[3] is not None else "?",
+                t[16] if t[16] is not None else "?",
                 e(load_evidence(default_cell, level)),
                 " ".join(links) or '<span class="muted">-</span>'))
 
@@ -357,7 +367,7 @@ def build_report(data, capture=None):
             t = telemetry(cell)
             if t[7] is not None:
                 cpu_rows.append(("%d MHz - level %d (%s)" % (
-                    clock, level, "CPU only" if level == 1 else "circular + CPU"),
+                    clock, level, "CPU only" if level == 1 else "ch1 + CPU"),
                     t[7]))
     chart = bar_chart(cpu_rows) if cpu_rows else ""
 
@@ -496,7 +506,7 @@ harness, so only the intended run is judged.</p>
 <tr><th>Clocks</th><td>%s</td></tr>
 <tr><th>Pattern</th><td><code>%s</code> (LSB first, per byte)</td></tr>
 <tr><th>Frames per cell</th><td>%d</td></tr>
-<tr><th>Load channels</th><td>DMA1 channel 1 (circular hog) and channel 2
+<tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
 (finite bursts), all at the default priority</td></tr>
 <tr><th>On-chip check</th><td><code>cndtr_late</code> (<code>DMA1_Channel3-&gt;CNDTR</code>
 at completion) and <code>TEIF3</code>, read back over SWD</td></tr>
@@ -527,20 +537,21 @@ the capture links. The parenthetical is the real transfer window
 width, period, length or decode violation.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
 <th>Frames @ %d us</th><th>Violations @ %d us</th><th>CNDTR late</th>
-<th>DMA error</th><th>Load evidence</th><th>Viewer</th></tr></thead>
+<th>DMA error</th><th>Stop timeout</th><th>Load evidence</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p class="note">The viewer opens one representative frame (64 slots, 1 ms
 lead-in and tail). The pattern is deliberately not a 1-Wire command sequence,
 so the protocol tree stays empty; the Detail view shows the measured low and
 slot widths, which is the evidence. The JSON holds every tested cell,
 including the %d us control and the bisection probes.</p>
-<h3>CPU contention</h3>
-<p>The circular transfer is not free: it competes with the CPU for SRAM. These
-are the CPU-side passes completed while the bus was running, at the default
-guard.</p>
+<h3>CPU-side work</h3>
+<p>The chart shows the CPU passes completed while the bus was running, at the
+default guard. The ch1 burst stream does not reduce them in this configuration:
+the DMA interleaves between CPU accesses. The load evidence is the burst count
+in the table.</p>
 %s
-<p>Yet the feed met the same %d us floor in both cases. The load shortened the
-CPU's own memory work without shortening the DMA's deadline.</p>
+<p>The ch1 burst stream and the CPU hammer both ran; the feed still met the
+same %d us floor.</p>
 </section>
 
 %s
@@ -552,9 +563,9 @@ CPU's own memory work without shortening the DMA's deadline.</p>
 level.</li>
 <li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
 before completion, including the final release.</li>
-<li>The load is real, not a no-op: the circular DMA visibly cuts the CPU's
-SRAM passes (see the chart above), and the finite-burst levels restart the
-channel hundreds or thousands of times per run.</li>
+<li>The load is real, not a no-op: channel 1 restarted its finite burst
+thousands of times per run (see the table), and the CPU hammer ran alongside
+it; the feed still met the 2 µs floor.</li>
 <li>The %d us guard is a %d us window. Even at the %d us floor the wire stayed
 clean, so this part does not need a larger default and the library keeps its
 default DMA priority.</li>
