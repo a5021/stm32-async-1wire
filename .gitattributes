@@ -14,6 +14,9 @@
 # patterns and some of them would pass a "is this text" test.
 tests/fuzz/corpus/* binary
 *.bin binary
+# sigrok captures are zip archives (metadata + deflated samples); a line-ending
+# conversion would corrupt them. The viewer and the report ship these as-is.
+*.sr binary
 
 # Spelled out on purpose rather than left to the rule above: a CRLF in a shell
 # script is not cosmetic. sh reads the \r as part of the command, so `set -e`

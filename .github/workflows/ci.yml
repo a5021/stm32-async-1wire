@@ -334,6 +334,9 @@ jobs:
               '<li><a href="viewer/">1-Wire viewer</a>'
               '<span>Decode a sigrok <code>.sr</code> capture slot by slot in the '
               'browser &mdash; resets, ROM search, commands, CRC.</span></li>\n'
+              '<li><a href="stress/">Stress test report</a>'
+              '<span>DMA feed margin under memory-subsystem load, with one-frame '
+              'captures in the viewer.</span></li>\n'
               '</ul>\n'
               '<p><a href="coverage/"><img src="coverage-badge.svg" alt="coverage">'
               '</a></p>\n'
@@ -352,6 +355,12 @@ jobs:
              tools/1wire_vis/bundled_sr.js tools/1wire_vis/selftest.html \
              publish/viewer/
           cp -r tools/1wire_vis/captures publish/viewer/captures
+      - name: Stage stress-test report
+        # docs/stress/ is the committed report, its JSON data and one-frame
+        # .sr captures; the viewer opens them through ?src=.
+        run: |
+          mkdir -p publish/stress
+          cp -r docs/stress/. publish/stress/
       - name: Publish to gh-pages
         env:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git

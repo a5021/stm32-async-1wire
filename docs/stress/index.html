@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stress test report - stm32-async-1wire</title>
+<style>
+:root{--fg:#182230;--muted:#5b6b85;--line:#dbe2ec;--bg:#fff;--soft:#f6f8fb;
+--accent:#1b57c4;--ok:#1f7a3d;--okbg:#eaf6ee;--warn:#9a5b00;--bad:#a12222}
+@media (prefers-color-scheme:dark){:root{--fg:#e7edf5;--muted:#9fb0c7;
+--line:#334155;--bg:#0f1722;--soft:#162130;--accent:#7fb0ff;--ok:#6fce8f;
+--okbg:#12301e;--warn:#e0a03a;--bad:#ff8a8a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+header{border-bottom:1px solid var(--line);background:var(--soft)}
+header .inner,main{max-width:74rem;margin:0 auto;padding:0 1.25rem}
+header .inner{display:flex;gap:1rem;align-items:baseline;padding-top:.8rem;
+padding-bottom:.8rem;flex-wrap:wrap}
+header a{color:var(--accent);text-decoration:none;font-weight:600}
+header .sep{color:var(--muted)}
+main{padding-top:1.5rem;padding-bottom:3rem}
+h1{font-size:2rem;margin:.2rem 0} h2{margin-top:2.2rem;font-size:1.35rem}
+h3{margin-top:1.3rem;font-size:1.05rem}
+p.lead{color:var(--muted);font-size:1.1rem;margin:.2rem 0 1rem}
+.meta{color:var(--muted);font-size:.92rem}
+.verdict{border:1px solid var(--line);border-left:6px solid var(--ok);
+background:var(--okbg);padding:.9rem 1rem;border-radius:8px;margin:1rem 0}
+.verdict.bad{border-left-color:var(--bad)}
+ul.findings{padding-left:1.2rem} ul.findings li{margin:.35rem 0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:.45rem .55rem;text-align:left;
+vertical-align:top} th{background:var(--soft)}
+td.num{text-align:right;white-space:nowrap}
+td.links a{display:inline-block;margin-right:.5rem;white-space:nowrap}
+a{color:var(--accent)} .muted{color:var(--muted)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+font-size:.88em} pre{background:var(--soft);border:1px solid var(--line);
+padding:.8rem 1rem;border-radius:8px;overflow:auto}
+.timeline{width:100%;max-width:700px;display:block;margin:1rem 0}
+.svg-label{font:13px system-ui,sans-serif;fill:currentColor}
+.svg-small{font:12px system-ui,sans-serif;fill:#6b7a90}
+.bars{margin:1rem 0;max-width:46rem}
+.bar{display:grid;grid-template-columns:16rem 1fr 4.5rem;gap:.6rem;
+align-items:center;margin:.35rem 0;font-size:.9rem}
+.bar-label{color:var(--muted)} .track{background:var(--soft);
+border:1px solid var(--line);height:1rem;border-radius:4px;overflow:hidden}
+.fill{display:block;height:100%;background:var(--accent);opacity:.65}
+.bar-value{text-align:right;font-variant-numeric:tabular-nums}
+.note{color:var(--muted);font-size:.9rem}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;
+padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
+</style>
+</head>
+<body>
+<header><div class="inner">
+<a href="../">stm32-async-1wire</a><span class="sep">/</span>
+<strong>Stress test report</strong><span class="sep">|</span>
+<a href="../viewer/">1-Wire viewer</a>
+<a href="../api/">API</a>
+<a href="../coverage/">Coverage</a>
+</div></header>
+<main>
+<h1>Stress test report</h1>
+<p class="lead">DMA feed margin under memory-subsystem load - STM32F030x6</p>
+<p class="meta">Measured 2026-11-03 at commit <code>15f77c59</code> (working tree) on <code>STM32F030x6</code>
+(<code>STM32F030x6</code>). Build <code>0_dma_pressure</code>, pattern <code>00FFAA550FF03CC3</code>,
+64 slots per frame, 100 frames per cell, 512 halfwords per DMA burst.</p>
+
+<section id="summary">
+<h2>Summary</h2>
+<div class="verdict">
+<strong>No starvation, no corrupt slot, no missing release under the tested loads.</strong>
+</div>
+<ul class="findings">
+<li>Every level x clock cell is clean at the 1 us floor (a 2 us window).</li>
+<li>cndtr_late is 0 and no DMA error was latched in any cell: not even a queued transfer remained at completion.</li>
+<li>The load is real: the circular transfer plus the CPU hammer cuts the CPU&#x27;s SRAM passes at 48 MHz from 3300 to 1700; at 8 MHz from 700 to 300.</li>
+<li>The 5 us guard is a 6 us window, 3.0x the measured 2 us floor; the library and the DMA priority stay unchanged.</li>
+</ul>
+<p>The question was whether memory-subsystem load can delay the CCR3 feed DMA
+past its slot deadline. On this bench it does not: the wire stayed correct at
+the timer's smallest valid guard even when the load halved the CPU's own SRAM
+throughput.</p>
+</section>
+
+<section id="mechanism">
+<h2>What can go wrong</h2>
+<p>Each write slot is one TIM1 period. The CC2 compare requests the next CCR3
+value from DMA1 channel 3; the update event starts the next slot. The transfer
+has the window between those two events - <code>guard + 1</code> microseconds,
+because the counter runs from 0 to ARR inclusive.</p>
+<svg class="timeline" viewBox="0 0 700 120" role="img"
+     aria-label="One slot: the feed request at 65 microseconds must land before the update at 71 microseconds">
+  <line x1="46.0" y1="72" x2="640.0" y2="72" stroke="currentColor" stroke-width="2"/>
+  <rect x="528.6" y="58" width="44.5" height="28" fill="#f0a020" opacity="0.35"/>
+  <line x1="528.6" y1="50" x2="528.6" y2="94" stroke="#b06a00" stroke-width="2"/>
+  <line x1="573.2" y1="50" x2="573.2" y2="94" stroke="#b06a00" stroke-width="2"/>
+  <text x="528.6" y="40" text-anchor="middle" class="svg-label">CC2: feed request</text>
+  <text x="573.2" y="40" text-anchor="middle" class="svg-label">update: next slot</text>
+  <text x="46.0" y="112" class="svg-label">guard window: 6 us at guard 5, 2 us at guard 1</text>
+</svg>
+<table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
+<tbody><tr><td>A transfer past the update</td><td>the slot repeats its previous bit; the decoded pattern changes and a frame can lose the final release.</td></tr>
+<tr><td>A transfer inside the next low pulse</td><td>the pulse stretches or a second edge appears; the slot no longer matches a &#x27;1&#x27; or a &#x27;0&#x27; width.</td></tr>
+<tr><td>A transfer never serviced</td><td>CNDTR stays non-zero at completion and the line can be parked low - complete starvation.</td></tr></tbody></table>
+<p>The port leaves OC3PE off on the DMA-fed paths, so a late CCR3 write acts
+immediately instead of waiting for an update: the failure can appear inside
+the current slot, not only at the next one.</p>
+</section>
+
+<section id="rig">
+<h2>Rig and method</h2>
+<p><code>examples/0_dma_pressure</code> transmits a fixed 8-byte pattern (64
+slots plus the trailing release) back to back, with a selectable load beside
+the bus. The bench is <code>STM32F030x6</code>; D0 is the 1-Wire line on PA10. The
+capture runs at 4.0 MS/s and the firmware is flashed halted, reset by the
+harness, so only the intended run is judged.</p>
+<table><tbody>
+<tr><th>MCU</th><td><code>STM32F030x6</code></td></tr>
+<tr><th>Clocks</th><td>48 MHz, 8 MHz</td></tr>
+<tr><th>Pattern</th><td><code>00FFAA550FF03CC3</code> (LSB first, per byte)</td></tr>
+<tr><th>Frames per cell</th><td>100</td></tr>
+<tr><th>Load channels</th><td>DMA1 channel 1 (circular hog) and channel 2
+(finite bursts), all at the default priority</td></tr>
+<tr><th>On-chip check</th><td><code>cndtr_late</code> (<code>DMA1_Channel3-&gt;CNDTR</code>
+at completion) and <code>TEIF3</code>, read back over SWD</td></tr>
+<tr><th>Wire check</th><td>every low pulse is a '1' or a '0' width, the slot
+period matches the build, all 64 bits decode, and the frame has exactly 64
+pulses and a release</td></tr>
+</tbody></table>
+<p class="note">The first slot of a frame is armed by a register write, not by
+the feed DMA: its width includes the CPU gap between enabling OC3 and starting
+the timer (about 1 us at 48 MHz, 7 us at 8 MHz). The check skips that slot's
+width and the first period of each frame. Guard 0 is not an operating point:
+CC2 then coincides with the update and the release write produces a spurious
+end-of-frame pulse.</p>
+</section>
+
+<section id="levels">
+<h2>Load ladder</h2>
+<table><thead><tr><th>Level</th><th>Load</th><th>What it does</th>
+<th>Evidence at the default guard</th></tr></thead>
+<tbody><tr><td>0</td><td>none</td><td>The driver&#x27;s own margin: no load beside the bus.</td><td>48 MHz: -; 8 MHz: -</td></tr>
+<tr><td>1</td><td>CPU SRAM hammer</td><td>The CPU walks the 1 KiB destination array in the onewire_bus_done() poll loop.</td><td>48 MHz: CPU passes 3300; 8 MHz: CPU passes 700</td></tr>
+<tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>48 MHz: DMA bursts 500; 8 MHz: DMA bursts 501</td></tr>
+<tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>48 MHz: DMA bursts 8400; 8 MHz: DMA bursts 1400</td></tr>
+<tr><td>4</td><td>circular DMA hog</td><td>A continuous circular mem-to-memory transfer on DMA1 channel 1 (the lowest channel number, equal priority).</td><td>48 MHz: hog starts 100; 8 MHz: hog starts 100</td></tr>
+<tr><td>5</td><td>circular DMA + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>48 MHz: hog starts 100, CPU passes 1700; 8 MHz: hog starts 100, CPU passes 300</td></tr></tbody></table>
+</section>
+
+<section id="results">
+<h2>Results</h2>
+<p>Smallest clean guard per level and clock, with the default-guard cell and
+the capture links. The parenthetical is the real transfer window
+(<code>guard + 1</code> us). A clean cell means 100 complete frames with no
+width, period, length or decode violation.</p>
+<table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
+<th>Frames @ 5 us</th><th>Violations @ 5 us</th><th>CNDTR late</th>
+<th>DMA error</th><th>Load evidence</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>0</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>-</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_48mhz_g100.sr&amp;speed=standard" title="l0_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l0_48mhz_g5.sr&amp;speed=standard" title="l0_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l0_48mhz_g1.sr&amp;speed=standard" title="l0_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>1</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>CPU passes 3300</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_48mhz_g100.sr&amp;speed=standard" title="l1_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l1_48mhz_g5.sr&amp;speed=standard" title="l1_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l1_48mhz_g1.sr&amp;speed=standard" title="l1_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>2</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 500</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_48mhz_g100.sr&amp;speed=standard" title="l2_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l2_48mhz_g5.sr&amp;speed=standard" title="l2_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l2_48mhz_g1.sr&amp;speed=standard" title="l2_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>3</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 8400</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_48mhz_g100.sr&amp;speed=standard" title="l3_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l3_48mhz_g5.sr&amp;speed=standard" title="l3_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l3_48mhz_g1.sr&amp;speed=standard" title="l3_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>4</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_48mhz_g100.sr&amp;speed=standard" title="l4_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l4_48mhz_g5.sr&amp;speed=standard" title="l4_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l4_48mhz_g1.sr&amp;speed=standard" title="l4_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>5</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 1700</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_48mhz_g100.sr&amp;speed=standard" title="l5_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g5.sr&amp;speed=standard" title="l5_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g1.sr&amp;speed=standard" title="l5_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>-</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_8mhz_g100.sr&amp;speed=standard" title="l0_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l0_8mhz_g5.sr&amp;speed=standard" title="l0_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l0_8mhz_g1.sr&amp;speed=standard" title="l0_8mhz_g1.sr">1 us</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>CPU passes 700</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_8mhz_g100.sr&amp;speed=standard" title="l1_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l1_8mhz_g5.sr&amp;speed=standard" title="l1_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l1_8mhz_g1.sr&amp;speed=standard" title="l1_8mhz_g1.sr">1 us</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 501</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_8mhz_g100.sr&amp;speed=standard" title="l2_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l2_8mhz_g5.sr&amp;speed=standard" title="l2_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l2_8mhz_g1.sr&amp;speed=standard" title="l2_8mhz_g1.sr">1 us</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 1400</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_8mhz_g100.sr&amp;speed=standard" title="l3_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l3_8mhz_g5.sr&amp;speed=standard" title="l3_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l3_8mhz_g1.sr&amp;speed=standard" title="l3_8mhz_g1.sr">1 us</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_8mhz_g100.sr&amp;speed=standard" title="l4_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l4_8mhz_g5.sr&amp;speed=standard" title="l4_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l4_8mhz_g1.sr&amp;speed=standard" title="l4_8mhz_g1.sr">1 us</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 300</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_8mhz_g100.sr&amp;speed=standard" title="l5_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g5.sr&amp;speed=standard" title="l5_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g1.sr&amp;speed=standard" title="l5_8mhz_g1.sr">1 us</a></td></tr></tbody></table>
+<p class="note">The viewer opens one representative frame (64 slots, 1 ms
+lead-in and tail). The pattern is deliberately not a 1-Wire command sequence,
+so the protocol tree stays empty; the Detail view shows the measured low and
+slot widths, which is the evidence. The JSON holds every tested cell,
+including the 100 us control and the bisection probes.</p>
+<h3>CPU contention</h3>
+<p>The circular transfer is not free: it competes with the CPU for SRAM. These
+are the CPU-side passes completed while the bus was running, at the default
+guard.</p>
+<div class="bars">
+<div class="bar"><span class="bar-label">48 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">3300</span></div>
+<div class="bar"><span class="bar-label">48 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:51.5%"></span></span><span class="bar-value">1700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:21.2%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:9.1%"></span></span><span class="bar-value">300</span></div>
+</div>
+<p>Yet the feed met the same 2 us floor in both cases. The load shortened the
+CPU's own memory work without shortening the DMA's deadline.</p>
+</section>
+
+<section id="interpretation">
+<h2>Interpretation</h2>
+<ul>
+<li>No wire-visible slip at the 2 us floor on either clock, under any load
+level.</li>
+<li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
+before completion, including the final release.</li>
+<li>The load is real, not a no-op: the circular DMA visibly cuts the CPU's
+SRAM passes (see the chart above), and the finite-burst levels restart the
+channel hundreds or thousands of times per run.</li>
+<li>The 5 us guard is a 6 us window. Even at the 2 us floor the wire stayed
+clean, so this part does not need a larger default and the library keeps its
+default DMA priority.</li>
+</ul>
+</section>
+
+<section id="caveats">
+<h2>Caveats</h2>
+<ul>
+<li><strong>Equal priority only.</strong> Every load channel stays at the
+default DMA priority. An application channel with <code>PL &gt; 0</code> is a
+different arbitration case and is not covered by this run.</li>
+<li><strong>F0 only.</strong> The generator is implemented for the F0 backend
+(STM32F030x6). F4 streams and H5/H7 GPDMA have different arbitration and need
+their own run.</li>
+<li><strong>One part, one bench, write-only.</strong> The pattern is not a
+1-Wire transaction and the attached devices are never addressed (no reset), so
+the measurement is the master's timing, not a protocol exchange.</li>
+<li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below
+1; the report therefore says "a 2 us window was enough", not "the latency is
+exactly 1 us".</li>
+</ul>
+</section>
+
+<section id="reproduce">
+<h2>Reproduce</h2>
+<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 \
+     EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=5 -DONEWIRE_GUARD_BAND=1"
+
+python tests/hil/dma_pressure.py \
+     --json docs/stress/results.json \
+     --sr-dir docs/stress/captures
+
+python tools/stress_report.py \
+     --data docs/stress/results.json \
+     --out docs/stress/index.html</pre>
+<p class="note">The matrix needs an fx2lafw logic analyzer and an ST-Link; it
+prints SKIP when either is missing. A full 12-cell run takes a few minutes
+because every cell is rebuilt and flashed.</p>
+</section>
+
+<section id="artifacts">
+<h2>Artifacts</h2>
+<ul>
+<li><a href="results.json">results.json</a> - every tested cell, counters and
+SWD telemetry.</li>
+<li><a href="matrix.txt">matrix.txt</a> - the exact console output of the
+run.</li>
+<li><code>captures/</code> - one representative frame per cell, in sigrok
+<code>.sr</code> form; the Viewer column above links each one.</li>
+<li><a href="https://github.com/a5021/stm32-async-1wire/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
+and <a href="https://github.com/a5021/stm32-async-1wire/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
+- the rig and the harness.</li>
+</ul>
+</section>
+</main>
+<footer>Generated from <code>results.json</code> by
+<code>tools/stress_report.py</code>. This page is deterministic:
+<code>make check</code> regenerates it and compares the bytes.</footer>
+</body>
+</html>

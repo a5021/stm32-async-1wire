@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grows twelve checks (95 total). `speed=standard` is pinned by the stress
   report because a 60 us '0' pulse otherwise looks like an overdrive reset to
   the auto detector.
+- **Published stress-test report at `/stress/`.** `docs/stress/` holds the
+  measured `results.json`, the console log and one representative 64-slot frame
+  per level/clock/guard cell; `tools/stress_report.py` renders the page and
+  `make test-stress-report` regenerates it, compares the bytes and decodes every
+  linked capture. Every level/clock row links its 100/5/1 us cells into the
+  browser viewer.
 - **`make test-all-families` runs the suite on every backend in one command.**
   Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
   the families over a job matrix, so a local "all families" sweep used to be a

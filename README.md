@@ -574,6 +574,12 @@ shape (stretched pulse, doubled edge, missing slot, wrong bit, parked line,
 wrong guard band) and runs in `make check`, so the analyser cannot silently
 lose its teeth.
 
+The published report, with the measured tables and one representative frame
+per level/clock/guard cell in the viewer, is at
+<https://a5021.github.io/stm32-async-1wire/stress/>. It is generated from
+`docs/stress/results.json` by `tools/stress_report.py`; `make
+test-stress-report` regenerates it and decodes every linked capture.
+
 ## Hardware Verified
 
 The subsections below describe the boards the driver runs on (wiring, clocks,
@@ -1248,7 +1254,8 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
 | `make test-all-families` | Run the plain host suite once per backend in `OW_KNOWN_TARGETS` (f0/f1/f3/f4/g0/g4/h5/h7), the local equivalent of the CI family matrix |
-| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations and the HIL parsers; needs no compiler or ARM toolchain |
+| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
+| `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
 | `make format` | Rewrite the same files in place |
 | `make cppcheck` | Static analysis, one pass per compiled configuration (run `make deps-all` first) |
@@ -1489,6 +1496,12 @@ make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
                                     # 0_dma_pressure — guard-band matrix, logic analyzer needed
 python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
                                     # custom matrix (make cannot forward the args)
+
+# regenerate the published report and its one-frame captures
+python tests/hil/dma_pressure.py --json docs/stress/results.json \
+                                 --sr-dir docs/stress/captures
+python tools/stress_report.py --data docs/stress/results.json \
+                              --out docs/stress/index.html
 ```
 
 The board is auto-detected (`STM32F103xB` reference bench, or the

@@ -907,7 +907,7 @@ cppcheck:
 # the HIL parsers. `make test` is the functional suite and `make` the firmware
 # build; neither is repeated here.
 .PHONY: check
-check: format-check cppcheck test-version test-hil-parsing
+check: format-check cppcheck test-version test-hil-parsing test-stress-report
 
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
@@ -965,6 +965,15 @@ test-hil-parsing:
 	@$(PYTHON) tests/hil/test_la_decode.py
 	@$(PYTHON) tests/hil/test_dma_pressure.py
 	@$(PYTHON) tests/hil/test_make.py
+
+# --- Published stress-test report (see tools/stress_report.py) ---
+# The report is a deterministic function of docs/stress/results.json, and
+# every row links a committed one-frame .sr capture. This gate regenerates it
+# and compares, then decodes each capture, so the page cannot drift from the
+# measured data. No hardware needed.
+.PHONY: test-stress-report
+test-stress-report:
+	@$(PYTHON) tests/hil/test_stress_report.py
 
 # =============================================================================
 # BUILD TARGETS
@@ -1835,6 +1844,7 @@ help:
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
 	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
 	@echo "  test-hil-parsing - Check the bench harness, analyzer, wire decoder and HIL_EXT forwarding (no hardware needed)"
+	@echo "  test-stress-report - Check the published stress report and its one-frame captures (no hardware needed)"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
