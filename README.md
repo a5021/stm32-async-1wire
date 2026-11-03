@@ -1158,6 +1158,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
+| `make test-all-families` | Run the plain host suite once per backend in `OW_KNOWN_TARGETS` (f0/f1/f3/f4/g0/g4/h5/h7), the local equivalent of the CI family matrix |
 | `make check` | Pre-push gate: formatting, `cppcheck`, version declarations and the HIL parsers; needs no compiler or ARM toolchain |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
 | `make format` | Rewrite the same files in place |

@@ -1440,6 +1440,24 @@ $(foreach v,$(OW_TEST_VARIANTS),\
    $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_VARIANT,$(v),$(f)))))
 $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 
+# --- Every family in one run ------------------------------------------------
+# Bare `make test` and the variant targets cover one OW_TARGET (f1 unless
+# selected), and CI spreads the families over a job matrix. This aggregate is
+# the local equivalent: it asks every family in OW_KNOWN_TARGETS for its own
+# test-<family> wrapper, so the family list lives in one place and a new
+# backend is picked up here without editing this target. A hand-written list is
+# what made a "run all families" sweep skip f3 once already.
+#
+# Serialised on purpose: test: depends on clock-ref-check, which builds the
+# shared F4 per-part objects in build/test. Under -j two families would compile
+# the same object at the same time.
+OW_FAMILY_WRAPPERS = $(foreach f,$(OW_KNOWN_TARGETS),test-$(f))
+
+.PHONY: test-all-families
+.NOTPARALLEL: test-all-families
+test-all-families: $(OW_FAMILY_WRAPPERS)
+	@echo "all $(words $(OW_KNOWN_TARGETS)) families passed: $(OW_KNOWN_TARGETS)"
+
 # --- Family-macro clock-value compile check (see test_sysclk_fallback.c) ---
 # Compile-only, values mode: verifies that selecting a family through the raw
 # family macro (STM32F0/F1/G0, the PlatformIO/STM32CubeMX path) resolves
@@ -1793,6 +1811,7 @@ help:
 	@echo "  lib             - Build only libstm32_async_1wire_<stamp>.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-h5/-h7)"
+	@echo "  test-all-families - ... against every backend in OW_KNOWN_TARGETS, one run"
 	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f3/-f4/-g0/-g4/-h5)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f3/-f4/-g0/-g4/-h5)"

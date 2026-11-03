@@ -7,6 +7,18 @@ this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`make test-all-families` runs the suite on every backend in one command.**
+  Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
+  the families over a job matrix, so a local "all families" sweep used to be a
+  hand-written list of `make test-<family>` calls — which is how a run skipped
+  f3. The aggregate expands `OW_KNOWN_TARGETS`, so a new backend is included
+  automatically. It is serialised on purpose: `test` builds the shared F4
+  per-part clock objects, and under `-j` two families would race on them.
+
 ## [3.0.0] - 2026-11-02
 
 3.0.0 adds the eighth backend (STM32H7) and closes the public surface: the
