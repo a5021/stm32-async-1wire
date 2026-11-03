@@ -1093,20 +1093,25 @@ try {
     }
   }
 
-  $("file").addEventListener("change", async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    status("Reading " + f.name + " (" + (f.size / 1024).toFixed(0) + " KiB)…");
+  /** Decode one .sr buffer from the file input, the bundled sample or ?src=.
+   * A failed parse must not leave the previous capture on screen. */
+  async function loadBuffer(buf, label) {
+    status("Decoding " + label + "…");
     try {
-      const buf = await f.arrayBuffer();
       cap = await OWVis.parseSR(buf, parseInt($("chan").value, 10));
       runDecode();
     } catch (err) {
-      // A failed .sr parse must not leave the previous capture on screen.
       cap = null;
       clearResults();
       status("Failed: " + err.message, true);
     }
+  }
+
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    status("Reading " + f.name + " (" + (f.size / 1024).toFixed(0) + " KiB)…");
+    await loadBuffer(await f.arrayBuffer(), f.name);
   });
 
   $("chan").addEventListener("change", () => {
@@ -1132,14 +1137,12 @@ try {
         const bin = atob(BUNDLED_SR_B64);
         const buf = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-        cap = await OWVis.parseSR(buf.buffer, parseInt($("chan").value, 10));
-        runDecode();
+        await loadBuffer(buf.buffer, "bundled 9_multi");
         return;
       }
       const r = await fetch("captures/9_multi_f030_boot.sr");
       if (!r.ok) throw new Error("HTTP " + r.status);
-      cap = await OWVis.parseSR(await r.arrayBuffer(), parseInt($("chan").value, 10));
-      runDecode();
+      await loadBuffer(await r.arrayBuffer(), "captures/9_multi_f030_boot.sr");
     } catch (e) {
       status("Bundled capture failed (" + e.message + "). Pick " +
         "captures/9_multi_f030_boot.sr via the file input instead.", true);
@@ -1556,6 +1559,31 @@ try {
     drawOverview();
     drawDetail();
   });
+
+  // ?src=<relative-url> opens a shared capture (the stress report links one
+  // frame per cell). resolveSrc rejects cross-origin and non-http(s)/file
+  // URLs, so a link can only name data this page is allowed to fetch.
+  // &speed=standard|overdrive pins the bus profile; auto-detection is wrong
+  // for a diagnostic pattern whose long '0' pulses resemble overdrive resets.
+  const linked = OWVis.parseViewerQuery(location.search);
+  if (linked.src && linked.speed) {
+    $("speed").value = linked.speed;
+  }
+  if (linked.src) {
+    (async () => {
+      try {
+        const url = OWVis.resolveSrc(linked.src, location.href);
+        status("Loading linked capture " + linked.src + "…");
+        const r = await fetch(url);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        await loadBuffer(await r.arrayBuffer(), linked.src);
+      } catch (e) {
+        cap = null;
+        clearResults();
+        status("Capture link failed (" + e.message + "). Pick a .sr file instead.", true);
+      }
+    })();
+  }
 })();
 </script>
 </body>

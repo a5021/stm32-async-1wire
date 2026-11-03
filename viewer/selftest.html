@@ -478,6 +478,42 @@
       bundleFallbackRan ? (bundleFallbackErr ? String(bundleFallbackErr) : "fallback used")
         : "skipped: DecompressionStream is not replaceable");
 
+    /* ---------- shared capture links (?src=) ---------- */
+    const LINK_BASE = "https://example.test/viewer/?src=ignored";
+    eq("resolveSrc: relative capture",
+      OWVis.resolveSrc("captures/a.sr", LINK_BASE),
+      "https://example.test/viewer/captures/a.sr");
+    eq("resolveSrc: report-relative capture",
+      OWVis.resolveSrc("../stress/captures/a.sr", LINK_BASE),
+      "https://example.test/stress/captures/a.sr");
+    eq("resolveSrc: same-origin absolute capture",
+      OWVis.resolveSrc("https://example.test/stress/captures/a.sr", LINK_BASE),
+      "https://example.test/stress/captures/a.sr");
+    eq("resolveSrc: empty value", OWVis.resolveSrc("", LINK_BASE), null);
+    eq("resolveSrc: file:// base allows a relative capture",
+      OWVis.resolveSrc("captures/a.sr", "file:///tmp/viewer/index.html"),
+      "file:///tmp/viewer/captures/a.sr");
+    const rejectsSrc = (name, value) => {
+      let rejected = false, why = "";
+      try { OWVis.resolveSrc(value, LINK_BASE); } catch (e) { rejected = true; why = e.message; }
+      check(name, rejected, rejected ? why : "accepted " + value);
+    };
+    rejectsSrc("resolveSrc: rejects cross-origin", "https://evil.test/a.sr");
+    rejectsSrc("resolveSrc: rejects protocol-relative cross-origin", "//evil.test/a.sr");
+    rejectsSrc("resolveSrc: rejects javascript:", "javascript:alert(1)");
+    rejectsSrc("resolveSrc: rejects data:", "data:application/zip;base64,AAAA");
+
+    /* ---------- shareable viewer parameters ---------- */
+    eq("parseViewerQuery: src and pinned speed",
+      JSON.stringify(OWVis.parseViewerQuery("?src=captures/a.sr&speed=standard")),
+      JSON.stringify({ src: "captures/a.sr", speed: "standard" }));
+    eq("parseViewerQuery: unknown speed is ignored",
+      JSON.stringify(OWVis.parseViewerQuery("?speed=fast")),
+      JSON.stringify({ src: null, speed: null }));
+    eq("parseViewerQuery: empty query",
+      JSON.stringify(OWVis.parseViewerQuery("")),
+      JSON.stringify({ src: null, speed: null }));
+
   } catch (e) {
     check("self-test completed without throwing", false, e && e.stack ? e.stack.split("\n")[0] : String(e));
   }

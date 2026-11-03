@@ -1,0 +1,65 @@
+bench: STM32F030x6, pattern 00FFAA550FF03CC3, slots 64
+  run level=0 guard=100 clock=48
+  run level=0 guard=1 clock=48
+  run level=0 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=1 guard=100 clock=48
+  run level=1 guard=1 clock=48
+  run level=1 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=2 guard=100 clock=48
+  run level=2 guard=1 clock=48
+  run level=2 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=3 guard=100 clock=48
+  run level=3 guard=1 clock=48
+  run level=3 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=4 guard=100 clock=48
+  run level=4 guard=1 clock=48
+  run level=4 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=5 guard=100 clock=48
+  run level=5 guard=1 clock=48
+  run level=5 guard=5 clock=48
+  -> guard_min=1 default5=clean
+  run level=0 guard=100 clock=8
+  run level=0 guard=1 clock=8
+  run level=0 guard=5 clock=8
+  -> guard_min=1 default5=clean
+  run level=1 guard=100 clock=8
+  run level=1 guard=1 clock=8
+  run level=1 guard=5 clock=8
+  -> guard_min=1 default5=clean
+  run level=2 guard=100 clock=8
+  run level=2 guard=1 clock=8
+  run level=2 guard=5 clock=8
+  -> guard_min=1 default5=clean
+  run level=3 guard=100 clock=8
+  run level=3 guard=1 clock=8
+  run level=3 guard=5 clock=8
+  -> guard_min=1 default5=clean
+  run level=4 guard=100 clock=8
+  run level=4 guard=1 clock=8
+  run level=4 guard=5 clock=8
+  -> guard_min=1 default5=clean
+  run level=5 guard=100 clock=8
+  run level=5 guard=1 clock=8
+  run level=5 guard=5 clock=8
+  -> guard_min=1 default5=clean
+
+level  clock  guard_min  guard5  frames  bad_len  bad_width  bad_bits  bad_period  cndtr_late  load   cpu_passes
+0      48     1          clean   100     0        0          0         0           0           0      0
+1      48     1          clean   100     0        0          0         0           0           3300   3300
+2      48     1          clean   100     0        0          0         0           0           500    0
+3      48     1          clean   100     0        0          0         0           0           8400   0
+4      48     1          clean   100     0        0          0         0           0           100    0
+5      48     1          clean   100     0        0          0         0           0           100    1700
+0      8      1          clean   100     0        0          0         0           0           0      0
+1      8      1          clean   100     0        0          0         0           0           700    700
+2      8      1          clean   100     0        0          0         0           0           501    0
+3      8      1          clean   100     0        0          0         0           0           1400   0
+4      8      1          clean   100     0        0          0         0           0           100    0
+5      8      1          clean   100     0        0          0         0           0           100    300
+json: docs/stress/results.json
+PASS: every level is clean at 5 us; smallest clean guard 1 us
