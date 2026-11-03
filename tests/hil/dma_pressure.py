@@ -360,8 +360,9 @@ def telemetry(prog):
     """Read `dma_pressure_telemetry` over SWD, or None when unavailable.
 
     Index order: frames, cndtr_late, cndtr_max, dma_error, aborted,
-    hog_starts, burst_starts, cpu_passes, search_runs, search_bad, rom_crc,
-    search_count, inject_us, capture_mode, sink_count, stage.
+    ch1_starts, burst_starts, cpu_passes, search_runs, search_bad, rom_crc,
+    search_count, inject_us, capture_mode, sink_count, stage, stop_timeout,
+    spare, spare, spare.
     """
     nm = shutil.which("arm-none-eabi-nm")
     if not nm or not os.path.isfile(ELF):
@@ -375,14 +376,14 @@ def telemetry(prog):
             return None
         addr = int(m.group(1), 16)
         out = subprocess.run(
-            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "64"],
+            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "80"],
             capture_output=True, text=True, errors="replace").stdout
         words = []
         for line in out.splitlines():
             mm = re.match(r"^0x[0-9a-fA-F]+ : (.*)$", line)
             if mm:
                 words += [int(x, 16) for x in mm.group(1).split()]
-        return words if len(words) == 16 else None
+        return words if len(words) == 20 else None
     except (OSError, ValueError):
         return None
 
@@ -420,7 +421,13 @@ class Runner:
         slot_us = ONE_US + ZERO_US + guard + 1
         raw = np.fromfile(self.raw, dtype=np.uint8)
         res = analyse(raw, RATE_HZ, min_start_us=min_start_us, slot_us=slot_us)
-        res["telemetry"] = telemetry(self.prog)
+        tel = telemetry(self.prog)
+        res["telemetry"] = tel
+        if tel is None:
+            res["clean"] = False
+        else:
+            res["clean"] = bool(res["clean"] and tel[3] == 0 and tel[4] == 0
+                                and tel[16] == 0)
         res["level"] = level
         res["clock_mhz"] = clock
         res["guard_us"] = guard

@@ -23,22 +23,26 @@
  * Build knobs (all overridable from `make ... EXT="-D...=..."`):
  *
  *   STRESS_LEVEL  0..5, default 0 (see the table below)
- *   STRESS_BURSTS number of frames/search passes per run, default 100
+ *   STRESS_BURSTS number of write frames per run, default 100 (the search
+ *                 mode runs one search per boot; the HIL takes level 0 as the
+ *                 baseline)
  *   STRESS_WORDS  halfword transfers per memory-to-memory burst, default 512
  *   STRESS_CAPTURE 1 = run the search/capture mode instead of the write rig
  *   STRESS_INJECT_US  test-only: hold the feed (write mode) or capture (search
  *                     mode) DMA channel disabled for about this many
  *                     microseconds at the start of the pass, then restore it.
- *                     The pending request is serviced late - the negative
- *                     control for "does the harness catch a deliberately
- *                     delayed transfer?". The library is not modified.
+ *                     This is a channel-disable injection: the bench checks
+ *                     whether the resulting delay breaks the timeline. It does
+ *                     not assume a particular request-latching rule. The
+ *                     library is not modified.
  *
  * The default mode is the write rig: a fixed 64-slot pattern, feed DMA only.
  * `STRESS_CAPTURE=1` switches to a Search ROM pass: the DS18B20 search reads
  * the bus through the capture DMA (channel 4), so the same load now has to
- * coexist with the capture drain as well as the feed. The baseline ROM set is
- * taken once without load; every stressed pass must return the same count and
- * the same ROMs, otherwise the capture drain lost a deadline.
+ * coexist with the capture drain as well as the feed. One search runs per
+ * boot; the HIL takes the level-0 run as the baseline. SEARCH_MAX caps the
+ * search at eight DS18B20s, so the count/checksum is not a full bus census
+ * beyond that.
  *
  * Stress levels (the same in both modes):
  *
@@ -47,7 +51,8 @@
  *   2  one finite mem-to-memory burst on DMA1 channel 2 about every 1 ms
  *   3  a finite mem-to-memory burst on channel 2, restarted as soon as the
  *      previous one drains (the channel stays busy for the whole frame)
- *   4  a continuous circular mem-to-memory transfer on DMA1 channel 1
+ *   4  a finite mem-to-memory burst on channel 1, restarted as soon as it
+ *      drains (circular mode is not allowed in memory-to-memory, RM0091)
  *   5  level 4 plus the CPU hammer
  *
  * Only the STM32F0 backend implements the load generator; every other family
@@ -102,7 +107,7 @@
 #define FRAME_GAP_MS 2u
 
 #if (STRESS_LEVEL < 0) || (STRESS_LEVEL > 5)
-#error "STRESS_LEVEL must be 0..5 (0 = none, 5 = circular DMA hog + CPU hammer)"
+#error "STRESS_LEVEL must be 0..5 (0 = none, 5 = ch1 burst stream + CPU hammer)"
 #endif
 #if (STRESS_BURSTS < 1) || (STRESS_BURSTS > 1000000)
 #error "STRESS_BURSTS must be 1..1000000"
@@ -114,7 +119,7 @@
 #error "STRESS_CAPTURE must be 0 (write rig) or 1 (search/capture mode)"
 #endif
 #if (STRESS_INJECT_US < 0) || (STRESS_INJECT_US > 5000)
-#error "STRESS_INJECT_US must be 0..5000 (test-only high-priority hog)"
+#error "STRESS_INJECT_US must be 0..5000 (test-only channel-disable injection)"
 #endif
 
 /* Non-F0 families compile the whole example but cannot generate the load. */
@@ -151,11 +156,12 @@ static ow_pulse_t frame[PATTERN_SLOTS + 1u];
  *  address from `arm-none-eabi-nm`). Index:
  *
  *    0 frames     1 cndtr_late   2 cndtr_max   3 dma_error
- *    4 aborted    5 hog_starts   6 burst_starts 7 cpu_passes
- *    8 search_runs 9 search_bad  10 baseline  11 search_last
- *    12 inject_us 13 capture_mode 14 no_device 15 stage
+ *    4 aborted    5 ch1_starts   6 burst_starts 7 cpu_passes
+ *    8 search_runs 9 search_bad  10 rom_crc     11 search_count
+ *    12 inject_us 13 capture_mode 14 sink_count 15 stage
+ *    16 stop_timeout 17..19 spare
  */
-#define TELEMETRY_WORDS 16u
+#define TELEMETRY_WORDS 20u
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 /* ------------------------------------------------------------------
@@ -164,7 +170,7 @@ volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 #if defined(OW_FAMILY_F0)
 
-static uint32_t hog_starts;
+static uint32_t ch1_starts;
 static uint32_t burst_starts;
 static uint32_t cpu_passes;
 
@@ -189,45 +195,52 @@ static void stress_burst_start(void) {
                          DMA_CCR_MSIZE_0 | DMA_CCR_EN;
 }
 
-/* Continuous circular mem-to-memory transfer on DMA1 channel 1. It never
- * drains by itself: only stress_stop() ends it. */
-static void stress_hog_start(void) {
-    hog_starts++;
+/* Finite mem-to-memory burst on DMA1 channel 1. Circular mode is not allowed
+ * with memory-to-memory (RM0091), so level 4/5 restart this finite burst from
+ * the service loop; that is a valid continuous stream of transfers. Channel 1
+ * has the lowest channel number and therefore wins equal-priority arbitration
+ * against channel 2 and the feed channel 3. */
+static void stress_ch1_burst_start(void) {
+    ch1_starts++;
     DMA1_Channel1->CCR = 0u;
     DMA1->IFCR = DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1;
     DMA1_Channel1->CPAR = (uint32_t)&stress_src_word;
     DMA1_Channel1->CMAR = (uint32_t)stress_dst;
     DMA1_Channel1->CNDTR = (uint32_t)STRESS_WORDS;
-    DMA1_Channel1->CCR = DMA_CCR_MEM2MEM | DMA_CCR_CIRC | DMA_CCR_MINC |
+    DMA1_Channel1->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC |
                          DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
 }
 
-/* Disable one channel and leave it ready for the next frame: write CNDTR back
- * to zero as well, so a burst cut mid-transfer cannot make the next frame's
- * `CNDTR == 0` poll false forever. The EN wait mirrors the port's own bounded
- * disable: a mem-to-memory channel clears EN after the in-flight transfer. */
-static void stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
+/* Disable one channel. Returns 1 when EN cleared within the bounded wait, 0 on
+ * timeout. On timeout CNDTR is left alone: the channel is not known to be
+ * stopped, and pretending otherwise would hide the failure. */
+static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
     ch->CCR = 0u;
     uint32_t guard = 1000u;
     while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
     }
+    if ((ch->CCR & DMA_CCR_EN) != 0u) {
+        return 0u;
+    }
     ch->CNDTR = 0u;
     DMA1->IFCR = flags;
+    return 1u;
 }
 
-static void stress_stop(void) {
-    stress_stop_channel(DMA1_Channel1, DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 |
-                                           DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1);
-    stress_stop_channel(DMA1_Channel2, DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 |
-                                           DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2);
+static uint8_t stress_stop(void) {
+    uint8_t ok = stress_stop_channel(DMA1_Channel1, DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 |
+                                                        DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1);
+    ok &= stress_stop_channel(DMA1_Channel2, DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 |
+                                                 DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2);
+    return ok;
 }
 
 /* Test-only negative control: hold the feed (write mode) or capture (search
  * mode) DMA channel disabled for about `us` microseconds, then restore its
- * control register. Any request raised while the channel is off stays pending,
- * so the transfer is genuinely late - not a wrong count or a wrong route.
- * The library is not modified, and no channel priority is changed: this is a
- * deliberate software delay in the test image. */
+ * control register. This is a channel-disable injection: the bench checks
+ * whether the resulting delay breaks the timeline. It does not assume a
+ * particular request-latching rule for every peripheral DMA. The library is
+ * not modified and no priority bit is changed. */
 static void stress_inject(uint32_t us) {
 #if STRESS_CAPTURE
     volatile uint32_t* ccr = &DMA1_Channel4->CCR;
@@ -258,11 +271,9 @@ static void cpu_hammer(void) {
 }
 
 static void stress_begin(uint32_t level) {
+    (void)level;
     if (STRESS_INJECT_US != 0u) {
         stress_inject((uint32_t)STRESS_INJECT_US);
-    }
-    if (level >= 4u) {
-        stress_hog_start();
     }
 }
 
@@ -276,10 +287,16 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
             *next_ms = now + 1u;
         }
     } else if (level == 3u) {
-        /* Back-to-back finite bursts: channel 2 is busy whenever the CPU
-         * can re-arm it, so it competes with the feed for nearly every slot. */
+        /* Back-to-back finite bursts on channel 2. */
         if (DMA1_Channel2->CNDTR == 0u) {
             stress_burst_start();
+        }
+    } else if (level >= 4u) {
+        /* Back-to-back finite bursts on channel 1. Circular mem-to-memory is
+         * not allowed on F0, so the stream is made from restartable finite
+         * transfers; channel 1 is the strongest equal-priority contender. */
+        if (DMA1_Channel1->CNDTR == 0u) {
+            stress_ch1_burst_start();
         }
     }
     if (level == 1u || level == 5u) {
@@ -287,7 +304,7 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
     }
 }
 
-static void stress_end(void) { stress_stop(); }
+static uint8_t stress_end(void) { return stress_stop(); }
 
 #if !STRESS_CAPTURE
 /* Transfers still queued on the CCR3 feed channel. Zero after completion is
@@ -302,7 +319,7 @@ static uint8_t feed_error_latched(void) {
 #else /* !OW_FAMILY_F0 */
 
 #if !STRESS_CAPTURE
-static const uint32_t hog_starts = 0u;
+static const uint32_t ch1_starts = 0u;
 static const uint32_t burst_starts = 0u;
 static const uint32_t cpu_passes = 0u;
 #endif
@@ -312,7 +329,7 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
     (void)level;
     (void)next_ms;
 }
-static void stress_end(void) {}
+static uint8_t stress_end(void) { return 1u; }
 #if !STRESS_CAPTURE
 static uint32_t feed_remaining(void) { return 0u; }
 static uint8_t feed_error_latched(void) { return 0u; }
@@ -330,6 +347,7 @@ static uint8_t feed_error_latched(void) { return 0u; }
  */
 
 #if STRESS_CAPTURE
+/* At most eight DS18B20s are counted; the checksum covers that window. */
 #define SEARCH_MAX 8u
 
 static uint32_t search_count;
@@ -441,6 +459,7 @@ int main(void) {
      * it; a late capture drain changes a read bit, the tree or the ROMs. */
     search_count = 0u;
     search_rom_crc = 2166136261u;
+    uint8_t stop_timeout = 0u;
     ds18b20_search_start(search_sink, SEARCH_MAX);
     if (!ds18b20_search_poll()) {
         stress_begin(EFFECTIVE_LEVEL);
@@ -448,7 +467,9 @@ int main(void) {
         while (!ds18b20_search_poll()) {
             stress_service(EFFECTIVE_LEVEL, &next_ms);
         }
-        stress_end();
+        if (!stress_end()) {
+            stop_timeout = 1u;
+        }
     }
     uint32_t found = ds18b20_search_count();
     for (uint8_t i = 0; i < TELEMETRY_WORDS; i++) {
@@ -461,6 +482,7 @@ int main(void) {
     dma_pressure_telemetry[13] = 1u;
     dma_pressure_telemetry[14] = search_count;
     dma_pressure_telemetry[15] = 5u;
+    dma_pressure_telemetry[16] = stop_timeout;
 
     uart_write_str("DONE mode=search count=");
     uart_write_int((int)found);
@@ -471,6 +493,8 @@ int main(void) {
     uart_write_hex((uint8_t)search_rom_crc);
     uart_write_str(" inject=");
     uart_write_int((int)STRESS_INJECT_US);
+    uart_write_str(" stop_timeout=");
+    uart_write_int((int)stop_timeout);
     uart_write_str("\r\n");
     uart_flush();
     for (;;) {
@@ -482,6 +506,7 @@ int main(void) {
     uint32_t cndtr_max = 0u;
     uint8_t aborted = 0u;
     uint8_t dma_error = 0u;
+    uint8_t stop_timeout = 0u;
 
     while (frames < (uint32_t)STRESS_BURSTS) {
         if (!onewire_write_slots(frame, PATTERN_SLOTS)) {
@@ -495,11 +520,17 @@ int main(void) {
         while (!onewire_bus_done()) {
             stress_service(EFFECTIVE_LEVEL, &next_ms);
         }
-        stress_end();
+        if (!stress_end()) {
+            stop_timeout = 1u;
+            aborted = 1u;
+            break;
+        }
 
         frames++;
         if (feed_error_latched()) {
             dma_error = 1u;
+            aborted = 1u;
+            break;
         }
         uint32_t remaining = feed_remaining();
         if (remaining != 0u) {
@@ -524,11 +555,12 @@ int main(void) {
     dma_pressure_telemetry[2] = cndtr_max;
     dma_pressure_telemetry[3] = dma_error;
     dma_pressure_telemetry[4] = aborted;
-    dma_pressure_telemetry[5] = hog_starts;
+    dma_pressure_telemetry[5] = ch1_starts;
     dma_pressure_telemetry[6] = burst_starts;
     dma_pressure_telemetry[7] = cpu_passes;
     dma_pressure_telemetry[12] = STRESS_INJECT_US;
     dma_pressure_telemetry[13] = 0u;
+    dma_pressure_telemetry[16] = stop_timeout;
 
     uart_write_str("DONE frames=");
     uart_write_int((int)frames);
@@ -542,6 +574,8 @@ int main(void) {
     uart_write_int((int)aborted);
     uart_write_str(" inject=");
     uart_write_int((int)STRESS_INJECT_US);
+    uart_write_str(" stop_timeout=");
+    uart_write_int((int)stop_timeout);
     uart_write_str("\r\n");
     uart_flush();
 

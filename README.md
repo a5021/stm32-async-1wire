@@ -526,7 +526,7 @@ measurement floor: a clean run there means a 2 µs window was enough.
 | 1 | CPU hammers the SRAM array in the `onewire_bus_done()` loop |
 | 2 | finite mem-to-memory burst on DMA1 channel 2 about every 1 ms |
 | 3 | the same burst restarted as soon as it drains (channel 2 stays busy) |
-| 4 | continuous circular mem-to-memory transfer on DMA1 channel 1 |
+| 4 | finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains (circular is not allowed in mem-to-memory) |
 | 5 | level 4 plus the CPU hammer |
 
 Levels 1-5 are implemented for the F0 backend only; every other family
@@ -552,14 +552,18 @@ cell is clean at guard 1; `cndtr_late` is 0 everywhere:
 | 1 | 3300 / 700 CPU passes | clean | clean |
 | 2 | 500 / 501 DMA bursts | clean | clean |
 | 3 | 8400 / 1400 DMA bursts | clean | clean |
-| 4 | 100 / 100 circular starts | clean | clean |
-| 5 | 100 hog starts, 2200 / 400 CPU passes | clean | clean |
+| 4 | 8400 / 1400 ch1 bursts | clean | clean |
+| 5 | 3300 / 700 ch1 bursts + 3300 / 700 CPU passes | clean | clean |
 
-The load is real: at 8 MHz the circular transfer plus CPU hammer cuts the
-CPU's SRAM throughput by about 40% (700 passes fall to 400), yet a 2 µs window
-is still enough. On this evidence the 5 µs default needs no change on F0.
-The result is F030-specific; other DMA IPs (F4 streams, H5/H7 GPDMA) need their
-own run.
+The load is real: channel 1 restarted its finite burst 8400/1400 times at
+level 4 and 3300/700 times at level 5 (the CPU hammer takes part of the
+restart time), and the CPU passes are in the table. The feed stayed clean at
+a 2 µs window in every cell. On this evidence the 5 µs default needs no change
+on F0. The result is F030-specific; other DMA IPs (F4 streams, H5/H7 GPDMA)
+need their own run.
+
+Circular mem-to-memory is not allowed on F0 (RM0091), so level 4 is a stream
+of restartable finite bursts on channel 1, not a circular channel.
 
 `STRESS_CAPTURE=1` switches the rig to a Search ROM pass: every read bit goes
 through the capture DMA (channel 4), so the same levels now stress the capture

@@ -124,7 +124,7 @@ class Rig:
         dp.flash_halt(self.prog)
         dp.capture(self.sigrok, self.prog, self.raw,
                    1.2 if mode == "search" else dp.run_seconds(guard))
-        tel = dp.telemetry(self.prog) or [None] * 16
+        tel = dp.telemetry(self.prog) or [None] * 20
         res = {
             "mode": mode,
             "level": level,
@@ -138,8 +138,9 @@ class Rig:
                 "count": tel[11],
                 "rom_crc": tel[10],
                 "sink_count": tel[14],
+                "stop_timeout": tel[16],
                 "done": tel[15] == 5,
-                "completed": tel[13] == 1 and tel[15] == 5,
+                "completed": (tel[13] == 1 and tel[15] == 5 and tel[16] == 0),
             })
             raw = np.fromfile(self.raw, dtype=np.uint8)
             first_us = first_reset_us(raw, dp.RATE_HZ)
@@ -158,8 +159,11 @@ class Rig:
             a = dp.analyse(raw, dp.RATE_HZ,
                            min_start_us=(dp.PRE_RESET_S + dp.SETTLE_MARGIN_S) * 1e6,
                            slot_us=slot_us)
+            clean = bool(a["clean"] and tel[3] == 0 and tel[4] == 0
+                         and tel[16] == 0)
             res.update({
-                "clean": a["clean"],
+                "clean": clean,
+                "stop_timeout": tel[16],
                 "frames": a["frames"],
                 "first": a["first"],
                 "capture": None,
@@ -291,13 +295,15 @@ def main(argv=None):
             {k: res[k] for k in ("mode", "level", "guard_us", "clock_mhz",
                                  "count", "rom_crc", "sink_count", "done",
                                  "completed", "matches", "capture")}
+            | {"stop_timeout": res.get("stop_timeout")}
             for res in capture_cells
         ],
         "inject_cells": [
             {k: res[k] for k in ("mode", "inject_us", "clock_mhz")}
             | {("clean" if res["mode"] == "write" else "matches"):
                res.get("clean" if res["mode"] == "write" else "matches")}
-            | {"capture": res.get("capture")}
+            | {"capture": res.get("capture"),
+               "stop_timeout": res.get("stop_timeout")}
             for res in inject_cells
         ],
         "inject_values": {"search": list(SEARCH_INJECT), "write": list(WRITE_INJECT)},
