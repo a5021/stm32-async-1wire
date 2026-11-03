@@ -22,7 +22,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l1_48mhz_g5_i0.sr",
@@ -35,7 +36,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l2_48mhz_g5_i0.sr",
@@ -48,7 +50,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l3_48mhz_g5_i0.sr",
@@ -61,7 +64,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l4_48mhz_g5_i0.sr",
@@ -74,7 +78,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l5_48mhz_g5_i0.sr",
@@ -87,7 +92,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_48mhz_g1_i0.sr",
@@ -100,7 +106,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l1_48mhz_g1_i0.sr",
@@ -113,7 +120,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l2_48mhz_g1_i0.sr",
@@ -126,7 +134,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l3_48mhz_g1_i0.sr",
@@ -139,7 +148,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l4_48mhz_g1_i0.sr",
@@ -152,7 +162,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l5_48mhz_g1_i0.sr",
@@ -165,7 +176,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i0.sr",
@@ -178,7 +190,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l1_8mhz_g5_i0.sr",
@@ -191,7 +204,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l2_8mhz_g5_i0.sr",
@@ -204,7 +218,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l3_8mhz_g5_i0.sr",
@@ -217,7 +232,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l4_8mhz_g5_i0.sr",
@@ -230,7 +246,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l5_8mhz_g5_i0.sr",
@@ -243,7 +260,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g1_i0.sr",
@@ -256,7 +274,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l1_8mhz_g1_i0.sr",
@@ -269,7 +288,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l2_8mhz_g1_i0.sr",
@@ -282,7 +302,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l3_8mhz_g1_i0.sr",
@@ -295,7 +316,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l4_8mhz_g1_i0.sr",
@@ -308,7 +330,8 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     },
     {
       "capture": "search/l5_8mhz_g1_i0.sr",
@@ -321,11 +344,12 @@
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
-      "sink_count": 7
+      "sink_count": 7,
+      "stop_timeout": 0
     }
   ],
   "capture_supported": true,
-  "commit": "eb915379",
+  "commit": "6c5f060c",
   "dirty": true,
   "first_bad": {
     "search_48": 200,
@@ -340,126 +364,144 @@
       "clock_mhz": 48,
       "inject_us": 0,
       "matches": true,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_48mhz_g5_i200.sr",
       "clock_mhz": 48,
       "inject_us": 200,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_48mhz_g5_i400.sr",
       "clock_mhz": 48,
       "inject_us": 400,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_48mhz_g5_i600.sr",
       "clock_mhz": 48,
       "inject_us": 600,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_48mhz_g5_i1000.sr",
       "clock_mhz": 48,
       "inject_us": 1000,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_48mhz_g5_i0.sr",
       "clean": true,
       "clock_mhz": 48,
       "inject_us": 0,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_48mhz_g5_i80.sr",
       "clean": false,
       "clock_mhz": 48,
       "inject_us": 80,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_48mhz_g5_i120.sr",
       "clean": false,
       "clock_mhz": 48,
       "inject_us": 120,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_48mhz_g5_i200.sr",
       "clean": false,
       "clock_mhz": 48,
       "inject_us": 200,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i0.sr",
       "clock_mhz": 8,
       "inject_us": 0,
       "matches": true,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i200.sr",
       "clock_mhz": 8,
       "inject_us": 200,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i400.sr",
       "clock_mhz": 8,
       "inject_us": 400,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i600.sr",
       "clock_mhz": 8,
       "inject_us": 600,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "search/l0_8mhz_g5_i1000.sr",
       "clock_mhz": 8,
       "inject_us": 1000,
       "matches": false,
-      "mode": "search"
+      "mode": "search",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_8mhz_g5_i0.sr",
       "clean": true,
       "clock_mhz": 8,
       "inject_us": 0,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_8mhz_g5_i80.sr",
       "clean": false,
       "clock_mhz": 8,
       "inject_us": 80,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_8mhz_g5_i120.sr",
       "clean": false,
       "clock_mhz": 8,
       "inject_us": 120,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     },
     {
       "capture": "inject/write_l0_8mhz_g5_i200.sr",
       "clean": false,
       "clock_mhz": 8,
       "inject_us": 200,
-      "mode": "write"
+      "mode": "write",
+      "stop_timeout": 0
     }
   ],
   "inject_values": {
