@@ -62,7 +62,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <main>
 <h1>Stress test report</h1>
 <p class="lead">DMA feed margin under memory-subsystem load - STM32F030x6</p>
-<p class="meta">Measured 2026-11-03 at commit <code>15f77c59</code> (working tree) on <code>STM32F030x6</code>
+<p class="meta">Measured 2026-11-03 at commit <code>eb915379</code> (working tree) on <code>STM32F030x6</code>
 (<code>STM32F030x6</code>). Build <code>0_dma_pressure</code>, pattern <code>00FFAA550FF03CC3</code>,
 64 slots per frame, 100 frames per cell, 512 halfwords per DMA burst.</p>
 
@@ -74,8 +74,10 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <ul class="findings">
 <li>Every level x clock cell is clean at the 1 us floor (a 2 us window).</li>
 <li>cndtr_late is 0 and no DMA error was latched in any cell: not even a queued transfer remained at completion.</li>
-<li>The load is real: the circular transfer plus the CPU hammer cuts the CPU&#x27;s SRAM passes at 48 MHz from 3300 to 1700; at 8 MHz from 700 to 300.</li>
+<li>The load is real: the circular transfer plus the CPU hammer cuts the CPU&#x27;s SRAM passes at 48 MHz from 3300 to 2200; at 8 MHz from 700 to 400.</li>
 <li>The 5 us guard is a 6 us window, 3.0x the measured 2 us floor; the library and the DMA priority stay unchanged.</li>
+<li>Search ROM under the same loads returned the same 7 devices and checksum in all 24 cells: the capture DMA met its deadline too.</li>
+<li>A deliberately delayed feed (80 us) and capture (200 us) both turn the checks red: the harness catches a late transfer, not just a wrong count or route.</li>
 </ul>
 <p>The question was whether memory-subsystem load can delay the CCR3 feed DMA
 past its slot deadline. On this bench it does not: the wire stayed correct at
@@ -145,7 +147,7 @@ end-of-frame pulse.</p>
 <tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>48 MHz: DMA bursts 500; 8 MHz: DMA bursts 501</td></tr>
 <tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>48 MHz: DMA bursts 8400; 8 MHz: DMA bursts 1400</td></tr>
 <tr><td>4</td><td>circular DMA hog</td><td>A continuous circular mem-to-memory transfer on DMA1 channel 1 (the lowest channel number, equal priority).</td><td>48 MHz: hog starts 100; 8 MHz: hog starts 100</td></tr>
-<tr><td>5</td><td>circular DMA + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>48 MHz: hog starts 100, CPU passes 1700; 8 MHz: hog starts 100, CPU passes 300</td></tr></tbody></table>
+<tr><td>5</td><td>circular DMA + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>48 MHz: hog starts 100, CPU passes 2200; 8 MHz: hog starts 100, CPU passes 400</td></tr></tbody></table>
 </section>
 
 <section id="results">
@@ -162,13 +164,13 @@ width, period, length or decode violation.</p>
 <tr><td>2</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 500</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_48mhz_g100.sr&amp;speed=standard" title="l2_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l2_48mhz_g5.sr&amp;speed=standard" title="l2_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l2_48mhz_g1.sr&amp;speed=standard" title="l2_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>3</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 8400</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_48mhz_g100.sr&amp;speed=standard" title="l3_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l3_48mhz_g5.sr&amp;speed=standard" title="l3_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l3_48mhz_g1.sr&amp;speed=standard" title="l3_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>4</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_48mhz_g100.sr&amp;speed=standard" title="l4_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l4_48mhz_g5.sr&amp;speed=standard" title="l4_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l4_48mhz_g1.sr&amp;speed=standard" title="l4_48mhz_g1.sr">1 us</a></td></tr>
-<tr><td>5</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 1700</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_48mhz_g100.sr&amp;speed=standard" title="l5_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g5.sr&amp;speed=standard" title="l5_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g1.sr&amp;speed=standard" title="l5_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>5</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 2200</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_48mhz_g100.sr&amp;speed=standard" title="l5_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g5.sr&amp;speed=standard" title="l5_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_48mhz_g1.sr&amp;speed=standard" title="l5_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>0</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>-</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_8mhz_g100.sr&amp;speed=standard" title="l0_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l0_8mhz_g5.sr&amp;speed=standard" title="l0_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l0_8mhz_g1.sr&amp;speed=standard" title="l0_8mhz_g1.sr">1 us</a></td></tr>
 <tr><td>1</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>CPU passes 700</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_8mhz_g100.sr&amp;speed=standard" title="l1_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l1_8mhz_g5.sr&amp;speed=standard" title="l1_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l1_8mhz_g1.sr&amp;speed=standard" title="l1_8mhz_g1.sr">1 us</a></td></tr>
 <tr><td>2</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 501</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_8mhz_g100.sr&amp;speed=standard" title="l2_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l2_8mhz_g5.sr&amp;speed=standard" title="l2_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l2_8mhz_g1.sr&amp;speed=standard" title="l2_8mhz_g1.sr">1 us</a></td></tr>
 <tr><td>3</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 1400</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_8mhz_g100.sr&amp;speed=standard" title="l3_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l3_8mhz_g5.sr&amp;speed=standard" title="l3_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l3_8mhz_g1.sr&amp;speed=standard" title="l3_8mhz_g1.sr">1 us</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_8mhz_g100.sr&amp;speed=standard" title="l4_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l4_8mhz_g5.sr&amp;speed=standard" title="l4_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l4_8mhz_g1.sr&amp;speed=standard" title="l4_8mhz_g1.sr">1 us</a></td></tr>
-<tr><td>5</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 300</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_8mhz_g100.sr&amp;speed=standard" title="l5_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g5.sr&amp;speed=standard" title="l5_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g1.sr&amp;speed=standard" title="l5_8mhz_g1.sr">1 us</a></td></tr></tbody></table>
+<tr><td>5</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>hog starts 100, CPU passes 400</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_8mhz_g100.sr&amp;speed=standard" title="l5_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g5.sr&amp;speed=standard" title="l5_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=../stress/captures/l5_8mhz_g1.sr&amp;speed=standard" title="l5_8mhz_g1.sr">1 us</a></td></tr></tbody></table>
 <p class="note">The viewer opens one representative frame (64 slots, 1 ms
 lead-in and tail). The pattern is deliberately not a 1-Wire command sequence,
 so the protocol tree stays empty; the Detail view shows the measured low and
@@ -180,14 +182,89 @@ are the CPU-side passes completed while the bus was running, at the default
 guard.</p>
 <div class="bars">
 <div class="bar"><span class="bar-label">48 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">3300</span></div>
-<div class="bar"><span class="bar-label">48 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:51.5%"></span></span><span class="bar-value">1700</span></div>
+<div class="bar"><span class="bar-label">48 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:66.7%"></span></span><span class="bar-value">2200</span></div>
 <div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:21.2%"></span></span><span class="bar-value">700</span></div>
-<div class="bar"><span class="bar-label">8 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:9.1%"></span></span><span class="bar-value">300</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 5 (circular + CPU)</span><span class="track"><span class="fill" style="width:12.1%"></span></span><span class="bar-value">400</span></div>
 </div>
 <p>Yet the feed met the same 2 us floor in both cases. The load shortened the
 CPU's own memory work without shortening the DMA's deadline.</p>
 </section>
 
+<section id="capture">
+<h2>Capture drain under load</h2>
+<p>The Search ROM pass reads every bit through the capture DMA (channel 4),
+so it exercises the other deadline the Reddit question names. One search runs
+per boot at each level and clock, at the default guard and at the 1 us floor.
+The unloaded level-0 pass is the baseline (48: 7 devices, <code>88DB0C9D</code>, 8: 7 devices, <code>88DB0C9D</code>); a stressed pass must return
+the same DS18B20 count and the same FNV-1a checksum over the found ROMs.</p>
+<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th>
+<th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th>
+<th>Viewer</th></tr></thead>
+<tbody><tr><td>0</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l1_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l2_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l3_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l4_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l5_8mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l1_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l2_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l3_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l4_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l5_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>0</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>1</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l1_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>2</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l2_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>3</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l3_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>4</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l4_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>5</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l5_48mhz_g1_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>0</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>1</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l1_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>2</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l2_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>3</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l3_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>4</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l4_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>5</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=../stress/captures/search/l5_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
+<p class="note">All 24 stressed cells match. The DS18B20 search filters family
+0x28, so the firmware counts seven sensors while the viewer shows all eight
+responders on the bench (seven DS18B20 plus one DS2431). The viewer opens the
+whole search: the protocol tree shows the reset, the search command and the
+ROM triplets. At the highest stress levels the poll loop can stretch the
+inter-bit gaps; the firmware's count/checksum remains the primary check and
+the viewer splits the search at those gaps.</p>
+</section>
+<section id="inject">
+<h2>Negative control: a deliberately delayed transfer</h2>
+<p>Detecting a late transfer is not the same as detecting a wrong count or a
+wrong route. This is a positive control: <code>STRESS_INJECT_US</code> holds
+the feed channel (write mode) or the capture channel (search mode) disabled
+for N microseconds, then restores it. The pending request is serviced late;
+the harness must go red.</p>
+<table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
+<th>Result</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>capture (Search ROM)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_8mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>80 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i80.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>120 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i120.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>80 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i80.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>120 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i120.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
+<p>The first delayed feed is detected at <strong>80 us</strong> and the first
+delayed capture at <strong>200 us</strong>. The write frame's first CC2 request is
+at 65 us, so an 80 us disable already misses the deadline; the search's first
+capture is later, which is why its threshold is higher. The viewer links on
+the detected rows show the corrupted frame/search.</p>
+</section>
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>

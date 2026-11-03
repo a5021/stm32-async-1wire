@@ -26,6 +26,7 @@ import dma_pressure as dp  # noqa: E402
 import stress_report  # noqa: E402
 
 DATA = os.path.join(REPO, "docs", "stress", "results.json")
+CAPTURE = os.path.join(REPO, "docs", "stress", "capture.json")
 HTML = os.path.join(REPO, "docs", "stress", "index.html")
 CAPTURES = os.path.join(REPO, "docs", "stress", "captures")
 
@@ -47,11 +48,18 @@ def main():
     except OSError as exc:
         check("docs/stress/results.json exists", False, str(exc))
         return 1
+    try:
+        with open(CAPTURE, encoding="utf-8") as fh:
+            capture = json.load(fh)
+    except OSError as exc:
+        check("docs/stress/capture.json exists", False, str(exc))
+        return 1
 
     with open(HTML, encoding="utf-8") as fh:
         actual = fh.read()
-    expected = stress_report.build_report(data)
-    check("index.html is regenerated from results.json", actual == expected,
+    expected = stress_report.build_report(data, capture)
+    check("index.html is regenerated from results.json + capture.json",
+          actual == expected,
           "run python tools/stress_report.py" if actual != expected else "")
 
     cells = {(c["level"], c["clock_mhz"], c["guard_us"]): c for c in data["cells"]}
@@ -96,12 +104,44 @@ def main():
         default_cell = cells.get((level, clock, default))
         check("default guard is clean for %s/%s" % (level, clock),
               default_cell is not None and default_cell["clean"])
-        tel = (default_cell or {}).get("telemetry") or [None] * 8
+        tel = (default_cell or {}).get("telemetry") or [None] * 16
         check("cndtr_late is 0 for %s/%s" % (level, clock), tel[1] == 0)
         check("dma_error is 0 for %s/%s" % (level, clock), tel[3] == 0)
 
     check("the report has a row per level and clock",
           len(data["guard_min"]) == 12, "got %d" % len(data["guard_min"]))
+
+    cap_cells = capture.get("capture_cells") or []
+    check("capture drain was measured", capture.get("capture_supported") is True)
+    check("every Search ROM cell matches the unloaded baseline",
+          bool(cap_cells) and all(c.get("matches") for c in cap_cells),
+          "%d cell(s)" % len(cap_cells))
+    for c in cap_cells:
+        name = c.get("capture")
+        if not name:
+            continue
+        path = os.path.join(CAPTURES, name)
+        check("search capture %s exists" % name, os.path.isfile(path))
+        check("search capture %s is linked" % name,
+              ("../stress/captures/" + name) in actual)
+        with zipfile.ZipFile(path) as z:
+            check("search capture %s is a sigrok archive" % name,
+                  {"version", "metadata", "logic-1-1"} <= set(z.namelist()))
+
+    inj_cells = capture.get("inject_cells") or []
+    first_bad = capture.get("first_bad") or {}
+    check("the negative control ran", bool(inj_cells))
+    for mode in ("write", "search"):
+        for clock in sorted({c["clock_mhz"] for c in inj_cells},
+                            key=lambda c: c if c is not None else -1):
+            key = "%s_%s" % (mode, clock if clock is not None else "def")
+            check("a delayed %s is detected at %s" % (mode, key),
+                  first_bad.get(key) is not None, str(first_bad.get(key)))
+    for c in inj_cells:
+        name = c.get("capture")
+        if name:
+            check("inject capture %s is linked" % name,
+                  ("../stress/captures/" + name) in actual)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))

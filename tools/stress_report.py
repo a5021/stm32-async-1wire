@@ -153,7 +153,91 @@ def bar_chart(rows):
     return "\n".join(out)
 
 
-def build_report(data):
+def mode_label(mode):
+    return "feed (write frame)" if mode == "write" else "capture (Search ROM)"
+
+
+def capture_section(capture):
+    """The Search ROM under load table, or "" when the section did not run."""
+    cells = capture.get("capture_cells") or []
+    if not capture.get("capture_supported") or not cells:
+        return ""
+    rows = []
+    for c in sorted(cells, key=lambda c: (c["clock_mhz"] or -1, c["guard_us"], c["level"])):
+        href = viewer_href(c)
+        link = ('<a href="%s">frame</a>' % e(href)) if href else '<span class="muted">-</span>'
+        rows.append(
+            "<tr><td>%d</td><td>%s</td><td>%d us</td><td>%s</td><td><code>%08X</code></td>"
+            "<td>%s</td><td>%s</td><td>%s</td></tr>" % (
+                c["level"], "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+                c["guard_us"], c["count"] if c.get("count") is not None else "?",
+                c.get("rom_crc") or 0, c.get("sink_count", "?"),
+                "yes" if c.get("matches") else "no", link))
+    baseline = capture.get("capture_baseline") or {}
+    base_bits = []
+    for clock, b in sorted(baseline.items(), key=lambda kv: str(kv[0])):
+        base_bits.append("%s: %s devices, <code>%08X</code>" % (
+            clock if clock != "def" else "default", b.get("count"), b.get("rom_crc") or 0))
+    return """<section id="capture">
+<h2>Capture drain under load</h2>
+<p>The Search ROM pass reads every bit through the capture DMA (channel 4),
+so it exercises the other deadline the Reddit question names. One search runs
+per boot at each level and clock, at the default guard and at the 1 us floor.
+The unloaded level-0 pass is the baseline (%s); a stressed pass must return
+the same DS18B20 count and the same FNV-1a checksum over the found ROMs.</p>
+<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th>
+<th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th>
+<th>Viewer</th></tr></thead>
+<tbody>%s</tbody></table>
+<p class="note">All %d stressed cells match. The DS18B20 search filters family
+0x28, so the firmware counts seven sensors while the viewer shows all eight
+responders on the bench (seven DS18B20 plus one DS2431). The viewer opens the
+whole search: the protocol tree shows the reset, the search command and the
+ROM triplets. At the highest stress levels the poll loop can stretch the
+inter-bit gaps; the firmware's count/checksum remains the primary check and
+the viewer splits the search at those gaps.</p>
+</section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
+
+
+def inject_section(capture):
+    """The deliberately delayed transfer table, or ""."""
+    cells = capture.get("inject_cells") or []
+    if not cells:
+        return ""
+    rows = []
+    for c in sorted(cells, key=lambda c: (c["mode"], c["clock_mhz"] or -1, c["inject_us"])):
+        good = c.get("clean") if c["mode"] == "write" else c.get("matches")
+        href = viewer_href(c)
+        link = ('<a href="%s">frame</a>' % e(href)) if href else '<span class="muted">-</span>'
+        rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td><td>%s</td></tr>" % (
+            e(mode_label(c["mode"])),
+            "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+            c["inject_us"], "clean" if good else "<strong>detected</strong>", link))
+    first = capture.get("first_bad") or {}
+    feed = [v for k, v in first.items() if k.startswith("write") and v is not None]
+    capd = [v for k, v in first.items() if k.startswith("search") and v is not None]
+    feed_txt = ("%d us" % min(feed)) if feed else "not detected"
+    cap_txt = ("%d us" % min(capd)) if capd else "not detected"
+    return """<section id="inject">
+<h2>Negative control: a deliberately delayed transfer</h2>
+<p>Detecting a late transfer is not the same as detecting a wrong count or a
+wrong route. This is a positive control: <code>STRESS_INJECT_US</code> holds
+the feed channel (write mode) or the capture channel (search mode) disabled
+for N microseconds, then restores it. The pending request is serviced late;
+the harness must go red.</p>
+<table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
+<th>Result</th><th>Viewer</th></tr></thead>
+<tbody>%s</tbody></table>
+<p>The first delayed feed is detected at <strong>%s</strong> and the first
+delayed capture at <strong>%s</strong>. The write frame's first CC2 request is
+at 65 us, so an 80 us disable already misses the deadline; the search's first
+capture is later, which is why its threshold is higher. The viewer links on
+the detected rows show the corrupted frame/search.</p>
+</section>""" % ("\n".join(rows), feed_txt, cap_txt)
+
+
+def build_report(data, capture=None):
+    capture = capture or {}
     cells = cell_map(data)
     floors = data.get("guard_min") or []
     control = max(data.get("guards") or [100])
@@ -211,6 +295,26 @@ def build_report(data):
     ]
     if not (all_floor_clean and all_default_clean and all_cndtr_zero and all_no_error):
         findings = ["The published run contains a failure; see the table below."]
+    else:
+        cap_cells = capture.get("capture_cells") or []
+        cap_supported = bool(capture.get("capture_supported") and cap_cells)
+        if cap_supported and all(c.get("matches") for c in cap_cells):
+            baseline = capture.get("capture_baseline") or {}
+            base_count = next(iter(baseline.values()), {}).get("count")
+            findings.append(
+                "Search ROM under the same loads returned the same %s devices "
+                "and checksum in all %d cells: the capture DMA met its deadline "
+                "too." % (base_count, len(cap_cells)))
+        first_bad = capture.get("first_bad") or {}
+        feed = [v for k, v in first_bad.items()
+                if k.startswith("write") and v is not None]
+        capd = [v for k, v in first_bad.items()
+                if k.startswith("search") and v is not None]
+        if feed and capd:
+            findings.append(
+                "A deliberately delayed feed (%d us) and capture (%d us) both "
+                "turn the checks red: the harness catches a late transfer, not "
+                "just a wrong count or route." % (min(feed), min(capd)))
 
     # Main matrix.
     matrix_rows = []
@@ -270,6 +374,9 @@ def build_report(data):
     failure_rows = "\n".join(
         "<tr><td>%s</td><td>%s</td></tr>" % (e(title), e(text))
         for title, text in FAILURE_CLASSES)
+
+    cap_html = capture_section(capture)
+    inj_html = inject_section(capture)
 
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
@@ -436,6 +543,8 @@ guard.</p>
 CPU's own memory work without shortening the DMA's deadline.</p>
 </section>
 
+%s
+%s
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
@@ -522,6 +631,7 @@ and <a href="%s/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</
         e(pattern), bursts,
         "\n".join(level_rows), default_guard, default_guard, "\n".join(matrix_rows),
         control, chart, floor_window,
+        cap_html, inj_html,
         floor_window, default_guard, default_window, floor_window,
         REPO_URL, REPO_URL,
     )
@@ -530,11 +640,17 @@ and <a href="%s/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data", default="docs/stress/results.json")
+    ap.add_argument("--capture", default="docs/stress/capture.json",
+                    help="capture-drain and negative-control JSON")
     ap.add_argument("--out", default="docs/stress/index.html")
     args = ap.parse_args(argv)
     with open(args.data, encoding="utf-8") as fh:
         data = json.load(fh)
-    text = build_report(data)
+    capture = None
+    if args.capture and os.path.isfile(args.capture):
+        with open(args.capture, encoding="utf-8") as fh:
+            capture = json.load(fh)
+    text = build_report(data, capture)
     out_dir = os.path.dirname(os.path.abspath(args.out))
     os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
