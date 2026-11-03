@@ -1,0 +1,481 @@
+{
+  "bench": "STM32F030x6",
+  "capture_baseline": {
+    "48": {
+      "count": 7,
+      "rom_crc": 2296056989
+    },
+    "8": {
+      "count": 7,
+      "rom_crc": 2296056989
+    }
+  },
+  "capture_cells": [
+    {
+      "capture": "search/l0_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 0,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l1_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 1,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l2_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 2,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l3_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 3,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l4_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 4,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l5_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 5,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l0_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 0,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l1_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 1,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l2_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 2,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l3_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 3,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l4_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 4,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l5_48mhz_g1_i0.sr",
+      "clock_mhz": 48,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 5,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 0,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l1_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 1,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l2_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 2,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l3_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 3,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l4_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 4,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l5_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 5,
+      "level": 5,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l0_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 0,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l1_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 1,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l2_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 2,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l3_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 3,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l4_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 4,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    },
+    {
+      "capture": "search/l5_8mhz_g1_i0.sr",
+      "clock_mhz": 8,
+      "completed": true,
+      "count": 7,
+      "done": true,
+      "guard_us": 1,
+      "level": 5,
+      "matches": true,
+      "mode": "search",
+      "rom_crc": 2296056989,
+      "sink_count": 7
+    }
+  ],
+  "capture_supported": true,
+  "commit": "eb915379",
+  "dirty": true,
+  "first_bad": {
+    "search_48": 200,
+    "search_8": 200,
+    "write_48": 80,
+    "write_8": 80
+  },
+  "generated": "2026-11-03",
+  "inject_cells": [
+    {
+      "capture": "search/l0_48mhz_g5_i0.sr",
+      "clock_mhz": 48,
+      "inject_us": 0,
+      "matches": true,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_48mhz_g5_i200.sr",
+      "clock_mhz": 48,
+      "inject_us": 200,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_48mhz_g5_i400.sr",
+      "clock_mhz": 48,
+      "inject_us": 400,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_48mhz_g5_i600.sr",
+      "clock_mhz": 48,
+      "inject_us": 600,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_48mhz_g5_i1000.sr",
+      "clock_mhz": 48,
+      "inject_us": 1000,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i0.sr",
+      "clean": true,
+      "clock_mhz": 48,
+      "inject_us": 0,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i80.sr",
+      "clean": false,
+      "clock_mhz": 48,
+      "inject_us": 80,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i120.sr",
+      "clean": false,
+      "clock_mhz": 48,
+      "inject_us": 120,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i200.sr",
+      "clean": false,
+      "clock_mhz": 48,
+      "inject_us": 200,
+      "mode": "write"
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i0.sr",
+      "clock_mhz": 8,
+      "inject_us": 0,
+      "matches": true,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i200.sr",
+      "clock_mhz": 8,
+      "inject_us": 200,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i400.sr",
+      "clock_mhz": 8,
+      "inject_us": 400,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i600.sr",
+      "clock_mhz": 8,
+      "inject_us": 600,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "search/l0_8mhz_g5_i1000.sr",
+      "clock_mhz": 8,
+      "inject_us": 1000,
+      "matches": false,
+      "mode": "search"
+    },
+    {
+      "capture": "inject/write_l0_8mhz_g5_i0.sr",
+      "clean": true,
+      "clock_mhz": 8,
+      "inject_us": 0,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_8mhz_g5_i80.sr",
+      "clean": false,
+      "clock_mhz": 8,
+      "inject_us": 80,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_8mhz_g5_i120.sr",
+      "clean": false,
+      "clock_mhz": 8,
+      "inject_us": 120,
+      "mode": "write"
+    },
+    {
+      "capture": "inject/write_l0_8mhz_g5_i200.sr",
+      "clean": false,
+      "clock_mhz": 8,
+      "inject_us": 200,
+      "mode": "write"
+    }
+  ],
+  "inject_values": {
+    "search": [
+      0,
+      200,
+      400,
+      600,
+      1000
+    ],
+    "write": [
+      0,
+      80,
+      120,
+      200
+    ]
+  },
+  "schema": 1
+}
