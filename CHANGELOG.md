@@ -29,14 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the F446 bench. On the WeAct F446RET6 at 180 MHz every level is clean at
   guard 1 and `cndtr_late = 0`, matching the F030; the capture-drain matrix
   returns the same 7 ROMs at every level and the injection control goes red.
-  At 16/8 MHz levels 0-4 are clean at guard 1. Level 5 is a fixed 512-word DMA
-  burst plus the CPU hammer, not a load normalized to the slot: an isolation
-  sweep at 8 MHz is clean at 128 words with a minimal hammer, fails at 160, and
-  a 512-word burst with a one-word hammer is clean again at guard 100. That is
-  a load-design limit, not a driver failure; the F446 default matrix stays at
-  180 MHz and `--clocks 16,8` is a stress-to-failure run. The test-only
-  `STRESS_WORDS`, `STRESS_CPU_WORDS` and `STRESS_SPLIT_HAMMER` knobs make the
-  isolation reproducible.
+  At 16/8 MHz levels 0-4 are clean at guard 1. Level 5 with the default load
+  on stream 0/1 fails, but that is the stream-priority experiment: the
+  lower-numbered load streams outrank the feed on stream 2 at equal priority.
+  Moving the same 512-word burst + CPU hammer to stream 5/6 (`--load-high` or
+  `STRESS_LOAD_HIGH=1`) makes the whole 0-5 matrix clean at guard 1 at 8 and
+  16 MHz as well. The burst sweep on stream 0/1 (128 words with a minimal
+  hammer clean, 160 failing) gives the threshold when application DMA really
+  does outrank the feed. Keep heavy continuous DMA off stream 0/1, or raise
+  the feed priority.
 - **H503 load generator for `0_dma_pressure`.** Levels 2-5 now run on the H5
   backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
   direct mode with a software request; `CBR1.BNDT` is programmed as a

@@ -128,6 +128,15 @@
 #define STRESS_SPLIT_HAMMER 0
 #endif
 
+/* Test-only F4 stream choice: 0 = the historical stream 0/1 load (lower
+ * numbers, so it outranks the feed on stream 2 at equal priority), 1 = streams
+ * 5/6 (higher numbers, so the feed/capture win). This is for isolating whether
+ * the low-clock level-5 failure is stream-priority arbitration or bus
+ * bandwidth. */
+#ifndef STRESS_LOAD_HIGH
+#define STRESS_LOAD_HIGH 0
+#endif
+
 #ifndef STRESS_CAPTURE
 #define STRESS_CAPTURE 0
 #endif
@@ -164,6 +173,12 @@
 #endif
 #if (STRESS_SPLIT_HAMMER != 0) && (STRESS_SPLIT_HAMMER != 1)
 #error "STRESS_SPLIT_HAMMER must be 0 or 1"
+#endif
+#if (STRESS_LOAD_HIGH != 0) && (STRESS_LOAD_HIGH != 1)
+#error "STRESS_LOAD_HIGH must be 0 or 1"
+#endif
+#if STRESS_LOAD_HIGH && !defined(OW_FAMILY_F4)
+#error "STRESS_LOAD_HIGH is an F4 stream-selection knob"
 #endif
 #if !STRESS_SPLIT_HAMMER && (STRESS_CPU_WORDS != STRESS_WORDS)
 #error "STRESS_CPU_WORDS != STRESS_WORDS requires STRESS_SPLIT_HAMMER=1"
@@ -370,25 +385,47 @@ static uint8_t feed_error_latched(void) {
 
 #elif defined(OW_FAMILY_F4)
 
-/* Stream 0 and 1 carry the two load patterns. Memory-to-memory is DIR=0b10 on
- * the F4 stream (there is no MEM2MEM bit, unlike the F0 channel CCR). Both
- * streams stay at the default low software priority: at equal priority the
- * F4 arbiter favours the lower stream number, so stream 0/1 outrank the feed
- * on stream 2 and the capture on stream 4. That is the contention this rig is
- * meant to create. */
+/* Stream 0/1 carry the two load patterns by default. Memory-to-memory is
+ * DIR=0b10 on the F4 stream (there is no MEM2MEM bit, unlike the F0 channel
+ * CCR). Both streams stay at the default low software priority: at equal
+ * priority the F4 arbiter favours the lower stream number, so stream 0/1
+ * outrank the feed on stream 2 and the capture on stream 4. That is the
+ * contention this rig is meant to create; STRESS_LOAD_HIGH=1 moves the load to
+ * streams 5/6 for the priority isolation experiment. */
+#if !STRESS_LOAD_HIGH
 #define STRESS_STREAM0_FLAGS                                   \
     (DMA_LIFCR_CFEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CTEIF0 | \
      DMA_LIFCR_CHTIF0 | DMA_LIFCR_CTCIF0)
 #define STRESS_STREAM1_FLAGS                                   \
     (DMA_LIFCR_CFEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CTEIF1 | \
      DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTCIF1)
+#define STRESS_LOAD_IFCR DMA2->LIFCR
+#define STRESS_LOAD0_STREAM DMA2_Stream0
+#define STRESS_LOAD1_STREAM DMA2_Stream1
+#define STRESS_LOAD0_FLAGS STRESS_STREAM0_FLAGS
+#define STRESS_LOAD1_FLAGS STRESS_STREAM1_FLAGS
+#else
+/* Test-only: streams 5/6 sit above the feed (2) and capture (4) at equal
+ * priority, so this isolates priority from raw bus bandwidth. */
+#define STRESS_STREAM5_FLAGS                                   \
+    (DMA_HIFCR_CFEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CTEIF5 | \
+     DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTCIF5)
+#define STRESS_STREAM6_FLAGS                                   \
+    (DMA_HIFCR_CFEIF6 | DMA_HIFCR_CDMEIF6 | DMA_HIFCR_CTEIF6 | \
+     DMA_HIFCR_CHTIF6 | DMA_HIFCR_CTCIF6)
+#define STRESS_LOAD_IFCR DMA2->HIFCR
+#define STRESS_LOAD0_STREAM DMA2_Stream5
+#define STRESS_LOAD1_STREAM DMA2_Stream6
+#define STRESS_LOAD0_FLAGS STRESS_STREAM5_FLAGS
+#define STRESS_LOAD1_FLAGS STRESS_STREAM6_FLAGS
+#endif
 
 static void stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
     stream->CR = 0u;
     uint32_t guard = 1000u;
     while ((stream->CR & DMA_SxCR_EN) != 0u && guard-- != 0u) {
     }
-    DMA2->LIFCR = flags;
+    STRESS_LOAD_IFCR = flags;
     stream->PAR = (uint32_t)&stress_src_word;
     stream->M0AR = (uint32_t)stress_dst;
     stream->NDTR = (uint32_t)STRESS_WORDS;
@@ -398,20 +435,19 @@ static void stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
 
 static void stress_burst_start(void) {
     burst_starts++;
-    stress_stream_start(DMA2_Stream0, STRESS_STREAM0_FLAGS);
+    stress_stream_start(STRESS_LOAD0_STREAM, STRESS_LOAD0_FLAGS);
 }
 
 /* Circular mode is not allowed in memory-to-memory on F4 either (RM0090), so
- * level 4/5 restart this finite burst from the service loop. Stream 1 is the
- * second-lowest stream number and therefore the strongest equal-priority
- * contender after stream 0. */
+ * level 4/5 restart this finite burst from the service loop. The second load
+ * stream is the next equal-priority contender after the first. */
 static void stress_ch1_burst_start(void) {
     ch1_starts++;
-    stress_stream_start(DMA2_Stream1, STRESS_STREAM1_FLAGS);
+    stress_stream_start(STRESS_LOAD1_STREAM, STRESS_LOAD1_FLAGS);
 }
 
-static uint8_t stress_burst_done(void) { return DMA2_Stream0->NDTR == 0u; }
-static uint8_t stress_ch1_done(void) { return DMA2_Stream1->NDTR == 0u; }
+static uint8_t stress_burst_done(void) { return STRESS_LOAD0_STREAM->NDTR == 0u; }
+static uint8_t stress_ch1_done(void) { return STRESS_LOAD1_STREAM->NDTR == 0u; }
 
 static uint8_t stress_stop_stream(DMA_Stream_TypeDef* stream, uint32_t flags) {
     stream->CR = 0u;
@@ -422,13 +458,13 @@ static uint8_t stress_stop_stream(DMA_Stream_TypeDef* stream, uint32_t flags) {
         return 0u;
     }
     stream->NDTR = 0u;
-    DMA2->LIFCR = flags;
+    STRESS_LOAD_IFCR = flags;
     return 1u;
 }
 
 static uint8_t stress_stop(void) {
-    uint8_t ok = stress_stop_stream(DMA2_Stream1, STRESS_STREAM1_FLAGS);
-    ok &= stress_stop_stream(DMA2_Stream0, STRESS_STREAM0_FLAGS);
+    uint8_t ok = stress_stop_stream(STRESS_LOAD1_STREAM, STRESS_LOAD1_FLAGS);
+    ok &= stress_stop_stream(STRESS_LOAD0_STREAM, STRESS_LOAD0_FLAGS);
     return ok;
 }
 

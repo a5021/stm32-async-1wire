@@ -75,11 +75,12 @@ GUARDS = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 100)
 LEVELS = (0, 1, 2, 3, 4, 5)
 F030_CLOCKS = (48, 8)
 #: The F446 load rig is characterized at the part's 180MHz default. At 16/8MHz
-#: levels 0-4 are clean at guard 1. Level 5 uses a fixed 512-word DMA burst,
-#: which is longer than the low-clock slot and is a stress-to-failure point,
-#: not a normalized load: at 8MHz 128 words with a minimal hammer is clean, 160
-#: fails, and 512 words with a one-word hammer is clean again at guard 100.
-#: Use --clocks 16,8 to measure that limit explicitly.
+#: levels 0-4 are clean at guard 1. Level 5 with the default load on stream 0/1
+#: fails because those lower-numbered streams outrank the feed on stream 2 at
+#: equal priority; the same 512-word burst + hammer on stream 5/6
+#: (--load-high) is clean at guard 1 at 8/16MHz. A burst sweep on stream 0/1
+#: (128 words clean, 160 failing with a minimal hammer) gives the threshold when
+#: app DMA really outranks the feed.
 F446_CLOCKS = (180,)
 #: The H503 runs the load at all three supported clocks; the GPDMA channel 0/1
 #: load stays clean at guard 1 even at 8MHz.
@@ -87,6 +88,9 @@ H5_CLOCKS = (64, 250, 8)
 #: Benches whose example actually generates a load. The others compile it and
 #: run level 0 with `stress=unsupported` in the banner.
 STRESS_BENCHES = ("STM32F030x6", "STM32F446xx", "STM32H503xx")
+#: Test-only F4 stream choice: True moves the load to streams 5/6 so the feed
+#: wins the equal-priority arbitration; False keeps the historical 0/1 load.
+LOAD_HIGH = False
 #: The example's build defaults; the harness never overrides them.
 BURSTS = 100
 STRESS_WORDS = 512
@@ -450,6 +454,8 @@ def build(level, guard, clock, extra=""):
     ext = common.BUILD_EXT or ""
     if common.MARKER:
         ext = (ext + " -DSTRESS_MARKER=1").strip()
+    if LOAD_HIGH:
+        ext = (ext + " -DSTRESS_LOAD_HIGH=1").strip()
     ext = (ext + " " if ext else "") + "-DSTRESS_LEVEL=%d -DONEWIRE_GUARD_BAND=%d" % (
         level, guard)
     if extra:
@@ -611,7 +617,12 @@ def main(argv=None):
                     help="write the whole matrix as JSON for the report generator")
     ap.add_argument("--sr-dir", default="",
                     help="write one trimmed frame per cell as .sr for the viewer")
+    ap.add_argument("--load-high", action="store_true",
+                    help="F4 only: move the load to DMA2 streams 5/6 instead of "
+                    "0/1, so the feed wins equal-priority arbitration")
     args = ap.parse_args(argv)
+    global LOAD_HIGH
+    LOAD_HIGH = args.load_high
 
     guards = parse_list(args.guards, int) or GUARDS
     if list(guards) != sorted(guards) or guards[0] < 1:

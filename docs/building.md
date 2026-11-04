@@ -336,7 +336,10 @@ with `HIL_MCU=` - a mismatch against the attached target
 fails rather than flashing the wrong part. The H503 and F446 profiles also wire
 PA11 to D1: the DMA-pressure harness builds with `STRESS_MARKER=1`, brackets
 each frame with that marker and checks the run identity and injection bits
-before it trusts a capture. The COM port is scanned unless
+before it trusts a capture. On the F446, `dma_pressure.py --load-high` moves the
+pressure load from DMA2 stream 0/1 to stream 5/6; without it the lower-numbered
+load streams are the equal-priority worst case and outrank the feed. The COM
+port is scanned unless
 `HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (unset
 uses the bench profile, an explicit empty value means an externally powered
 bus), and `HIL_TIMEOUT=` forces a fixed window
