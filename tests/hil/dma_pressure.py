@@ -91,6 +91,42 @@ STRESS_WORDS = 512
 
 SOURCE = os.path.join(common.REPO, "examples", APP, "main.c")
 
+#: Telemetry[17] of the 0_dma_pressure image. Keep in sync with
+#: STRESS_RUN_MAGIC in examples/0_dma_pressure/main.c.
+RUN_MAGIC = 0x31574D4B
+#: Telemetry[19] bits: attempted | channel-off verified | restored verified.
+INJECT_ALL_OK = 0b111
+
+
+def identity(tel, level, clock, capture_mode=0, inject=0):
+    """Check that the capture came from the expected image and configuration.
+
+    A flash/reset race can leave the previous image running, and an injection
+    can be a no-op on a DMA IP whose enable bit does not drop a pending request.
+    Both look like a clean bus if only D0 is examined, so every HIL cell checks
+    the telemetry identity before its waveform is trusted.
+    """
+    if not tel or len(tel) < 20:
+        return False, "telemetry missing or short"
+    if tel[17] != RUN_MAGIC:
+        return False, "stale image (magic 0x%08X)" % (tel[17] or 0)
+    if ((tel[18] >> 24) & 0xFF) != level:
+        return False, "wrong level (image %d, expected %d)" % (
+            (tel[18] >> 24) & 0xFF, level)
+    got_clock = tel[18] & 0xFFFF
+    if clock is not None and got_clock != clock:
+        return False, "wrong clock (image %d MHz, expected %d MHz)" % (
+            got_clock, clock)
+    if tel[13] != capture_mode:
+        return False, "wrong mode (image %d, expected %d)" % (
+            tel[13], capture_mode)
+    if tel[12] != inject:
+        return False, "wrong inject (image %d us, expected %d us)" % (
+            tel[12], inject)
+    if inject and tel[19] != INJECT_ALL_OK:
+        return False, "injection not effective (flags 0x%X)" % tel[19]
+    return True, ""
+
 
 def source_pattern():
     """The bit pattern the firmware transmits, read from its source.
@@ -124,7 +160,7 @@ def source_pattern():
 def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
             one_us=ONE_US, zero_us=ZERO_US, tol_us=TOL_US,
             frame_gap_us=FRAME_GAP_US, tail_ignore_us=TAIL_IGNORE_US,
-            slot_us=None, ignore_leading_short=False):
+            slot_us=None, ignore_leading_short=False, marker_bit=None):
     """Check a binary capture of D0 against the expected write pattern.
 
     `raw` is one byte per sample with D0 in bit 0 (the `-O binary` layout).
@@ -136,6 +172,10 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
     transient) that precedes the first complete frame by a gap much longer
     than a frame boundary; a truncated real frame is adjacent to the next one
     and is still reported.
+    `marker_bit`, when given, is the D1 marker lane: a frame is the D0 traffic
+    between a marker rise and fall, so startup glitches and a capture that ends
+    mid-frame are outside every frame and cannot be mistaken for one. The bench
+    wires PA11 to D1 for this.
 
     Returns a dict with `clean`, the violation counters, the number of checked
     frames and a human-readable `first` violation.
@@ -163,16 +203,37 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
     if not pulses:
         return _result(0, 0, 0, 0, 0, False, "no low pulses", 0.0, 0.0)
 
-    starts = np.array([p[0] for p in pulses])
-    bounds = [0]
-    for i in range(1, len(pulses)):
-        if starts[i] - starts[i - 1] > frame_gap_us:
-            bounds.append(i)
-    bounds.append(len(pulses))
-
     expected = "".join(
         "1" if (pattern[i // 8] >> (i % 8)) & 1 else "0" for i in range(slots)
     )
+
+    segments = []  # (frame_start_us, [(pulse_start_us, width_us), ...])
+    if marker_bit is None:
+        starts = np.array([p[0] for p in pulses])
+        bounds = [0]
+        for i in range(1, len(pulses)):
+            if starts[i] - starts[i - 1] > frame_gap_us:
+                bounds.append(i)
+        bounds.append(len(pulses))
+        for a, b in zip(bounds[:-1], bounds[1:]):
+            segments.append((pulses[a][0], pulses[a:b]))
+    else:
+        marker = (raw >> marker_bit) & 1
+        mchange = np.flatnonzero(marker[1:] != marker[:-1]) + 1
+        mchange = mchange[mchange < marker.size - tail]
+        mrises = mchange[marker[mchange] == 1]
+        mfalls = mchange[marker[mchange] == 0]
+        j = 0
+        for rise in mrises:
+            while j < len(mfalls) and mfalls[j] <= rise:
+                j += 1
+            end = mfalls[j] if j < len(mfalls) else marker.size
+            start_us = rise / rate_hz * 1e6
+            end_us = end / rate_hz * 1e6
+            seg = [p for p in pulses if start_us <= p[0] < end_us]
+            segments.append((start_us, seg))
+        if not segments:
+            return _result(0, 0, 0, 0, 0, False, "no marker pulse", 0.0, 0.0)
 
     frames = bad_len = bad_width = bad_bits = bad_period = 0
     stuck_low = False
@@ -182,13 +243,22 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
     widths = [w for _, w in pulses if w is not None]
     max_width = max(widths) if widths else 0.0
 
-    for a, b in zip(bounds[:-1], bounds[1:]):
-        seg = pulses[a:b]
-        if seg[0][0] < min_start_us:
+    for seg_idx, (seg_start, seg) in enumerate(segments):
+        if marker_bit is not None:
+            if seg_start < min_start_us:
+                continue
+        elif seg[0][0] < min_start_us:
             continue  # the previous image, still running when the capture began
-        if (ignore_leading_short and not complete_seen and len(seg) < slots
-                and b < len(pulses)
-                and pulses[b][0] - seg[-1][0] > 3.0 * frame_gap_us):
+        if not seg:
+            bad_len += 1
+            if first is None:
+                first = "marker frame at %.1f us has 0 pulses, expected %d" % (
+                    seg_start, slots)
+            continue
+        if (ignore_leading_short and marker_bit is None and not complete_seen
+                and len(seg) < slots
+                and seg_idx + 1 < len(segments)
+                and segments[seg_idx + 1][0] - seg[-1][0] > 3.0 * frame_gap_us):
             continue  # a startup glitch, not a truncated frame
         if len(seg) != slots:
             bad_len += 1
@@ -199,7 +269,7 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
         complete_seen = True
         frames += 1
         if first_frame_us is None:
-            first_frame_us = seg[0][0]
+            first_frame_us = seg_start if marker_bit is not None else seg[0][0]
         closed = True
         for k, (_, width) in enumerate(seg):
             if width is None:
@@ -310,6 +380,14 @@ def write_sr(raw, rate_hz, dst, start_us, end_us):
 # ---------------------------------------------------------------------------
 
 
+def first_marker_us(raw, rate_hz, marker_bit=1):
+    """Time of the first marker rise in microseconds, or None."""
+    raw = np.asarray(raw, dtype=np.uint8)
+    marker = (raw >> marker_bit) & 1
+    rises = np.flatnonzero((marker[1:] == 1) & (marker[:-1] == 0)) + 1
+    return float(rises[0]) / rate_hz * 1e6 if rises.size else None
+
+
 def la_present(sigrok):
     try:
         proc = subprocess.run([sigrok, "-d", "fx2lafw", "--scan"],
@@ -368,6 +446,8 @@ def run_seconds(guard, bursts=BURSTS):
 
 def build(level, guard, clock, extra=""):
     ext = common.BUILD_EXT or ""
+    if common.MARKER:
+        ext = (ext + " -DSTRESS_MARKER=1").strip()
     ext = (ext + " " if ext else "") + "-DSTRESS_LEVEL=%d -DONEWIRE_GUARD_BAND=%d" % (
         level, guard)
     if extra:
@@ -389,7 +469,7 @@ def telemetry(prog):
     Index order: frames, cndtr_late, cndtr_max, dma_error, aborted,
     ch1_starts, burst_starts, cpu_passes, search_runs, search_bad, rom_crc,
     search_count, inject_us, capture_mode, sink_count, stage, stop_timeout,
-    spare, spare, spare.
+    run magic, level/clock, inject_flags.
     """
     nm = shutil.which("arm-none-eabi-nm")
     if not nm or not os.path.isfile(ELF):
@@ -448,10 +528,16 @@ class Runner:
         slot_us = ONE_US + ZERO_US + guard + 1
         raw = np.fromfile(self.raw, dtype=np.uint8)
         res = analyse(raw, RATE_HZ, min_start_us=min_start_us, slot_us=slot_us,
-                      ignore_leading_short=True)
+                      ignore_leading_short=True,
+                      marker_bit=1 if common.MARKER else None)
         tel = telemetry(self.prog)
         res["telemetry"] = tel
-        if tel is None:
+        ident, ident_why = identity(tel, level, clock, 0, 0)
+        res["identity"] = ident
+        if not ident:
+            res["clean"] = False
+            res["first"] = "identity: " + ident_why
+        elif tel is None:
             res["clean"] = False
         else:
             res["clean"] = bool(res["clean"] and tel[3] == 0 and tel[4] == 0
@@ -461,9 +547,16 @@ class Runner:
             # saying anything about the guard. Retry the cells whose premise is
             # "this must be clean" (the widest guard and the 5 us default)
             # once, rather than turn a flake into a reported failure.
+            first_fail = res.get("first")
             print("  retry level=%d guard=%d clock=%s (first run not clean)" % (
                 level, guard, clock if clock else "default"), flush=True)
-            return self.run(level, guard, clock, retry=False)
+            res = self.run(level, guard, clock, retry=False)
+            res["attempts"] = 2
+            res["first_attempt_clean"] = False
+            res["first_attempt"] = first_fail
+            return res
+        res["attempts"] = 1
+        res["first_attempt_clean"] = res["clean"]
         res["level"] = level
         res["clock_mhz"] = clock
         res["guard_us"] = guard
@@ -631,6 +724,10 @@ def main(argv=None):
                 "first_frame_us": res["first_frame_us"],
                 "capture": res.get("capture"),
                 "telemetry": res.get("telemetry"),
+                "identity": res.get("identity"),
+                "attempts": res.get("attempts", 1),
+                "first_attempt_clean": res.get("first_attempt_clean"),
+                "first_attempt": res.get("first_attempt"),
             })
         data = {
             "schema": 1,

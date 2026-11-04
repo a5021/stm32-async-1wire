@@ -20,7 +20,7 @@
 # so they are the first to break on innocent growth. Both text (flash proxy;
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
-#   0_dma_pressure 2360    1476   (diagnostic; 1024 B of it is the stress array)
+#   0_dma_pressure 2392    1476   (diagnostic; 1024 B of it is the stress array)
 #   6_statistics   6264    1784
 #   8_ds2431       6156    768
 #   9_multi        11756   1296
@@ -31,6 +31,9 @@
 # tables (search_ctx 44->32 on F0, 52->32 on F4); f0 340/1000/448 and f4
 # 445/1104/552 before the flag-byte packing (txn 32->24, ctx 86->84, res
 # 5->4; search counters give 0: sink-pointer alignment absorbs them).
+# 2026-11-04: 0_dma_pressure text 2360->2392 for the run-identity and
+# injection-state telemetry (the marker code is compiled out when STRESS_MARKER
+# is 0, which is the default used by this budget).
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
 #   f0             329                 652              432
 #   f4             434                 756              536
@@ -216,7 +219,7 @@ check STM32G474xx 329 652 432
 check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
 
-check_app STM32F030x6 0_dma_pressure 2360 1476
+check_app STM32F030x6 0_dma_pressure 2392 1476
 check_app STM32F030x6 6_statistics 6264 1784
 check_app STM32F030x6 8_ds2431 6156 768
 check_app STM32F030x6 9_multi 11752 1296

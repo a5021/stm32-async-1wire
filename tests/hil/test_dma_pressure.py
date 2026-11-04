@@ -35,8 +35,12 @@ def check(what, condition):
 
 
 def waveform(frames=3, slot_us=SLOT_US, one_us=dp.ONE_US, zero_us=dp.ZERO_US,
-             gap_us=1000.0, edit=None, stuck=False):
-    """One byte per sample, D0 in bit 0, like sigrok's `-O binary` output."""
+             gap_us=1000.0, edit=None, stuck=False, marker=False):
+    """One byte per sample, D0 in bit 0, like sigrok's `-O binary` output.
+
+    `marker=True` drives bit 1 high for every frame sample, so the analyser can
+    bracket frames by D1 instead of by the idle gap.
+    """
     bits = [1] * int(round(gap_us / US_PER_SAMPLE))
     total = len(dp.PATTERN) * 8
     for frame in range(frames):
@@ -49,7 +53,8 @@ def waveform(frames=3, slot_us=SLOT_US, one_us=dp.ONE_US, zero_us=dp.ZERO_US,
             if edit:
                 segs = edit(frame, idx, segs)
             for level, us in segs:
-                bits.extend([level] * int(round(us / US_PER_SAMPLE)))
+                value = (level | 2) if marker else level
+                bits.extend([value] * int(round(us / US_PER_SAMPLE)))
         bits.extend([0 if (stuck and frame == frames - 1) else 1]
                     * int(round(gap_us / US_PER_SAMPLE)))
     return np.array(bits, dtype=np.uint8)
@@ -153,6 +158,34 @@ def main():
     r = run(with_leading_glitch(), ignore_leading_short=True)
     check("a leading startup glitch is ignored on request",
           r["clean"] and r["frames"] == 3 and r["bad_len"] == 0)
+
+    # With the PA11/D1 marker, the frame is defined by the marker edges, not by
+    # an idle gap. Traffic outside the marker (startup glitch, capture tail) is
+    # not part of any frame and cannot turn a clean run red.
+    r = run(waveform(marker=True), marker_bit=1)
+    check("marker: frames are bracketed by D1", r["clean"] and r["frames"] == 3)
+
+    marker_glitch = np.concatenate([
+        np.array([1] * 200 + [0] * 2 + [1] * 1000, dtype=np.uint8),
+        waveform(marker=True),
+        np.array([1] * 1000 + [0] * 20 + [1] * 1000, dtype=np.uint8),
+    ])
+    r = run(marker_glitch, marker_bit=1)
+    check("marker: traffic outside the marker is ignored",
+          r["clean"] and r["frames"] == 3 and r["bad_len"] == 0)
+
+    r = run(waveform(marker=True, edit=stretch), marker_bit=1)
+    check("marker: a bad pulse inside a frame is still caught",
+          not r["clean"] and r["bad_bits"] == 1)
+
+    early_marker = np.array([1 | 2] * 400 + [1] * 400, dtype=np.uint8)
+    r = run(np.concatenate([early_marker, waveform(marker=True)]),
+            marker_bit=1, min_start_us=500.0)
+    check("marker: an empty marker before the run is ignored",
+          r["clean"] and r["frames"] == 3)
+
+    r = run(waveform(marker=True), marker_bit=1, min_start_us=1e9)
+    check("marker: frames before the run are ignored", r["frames"] == 0)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
