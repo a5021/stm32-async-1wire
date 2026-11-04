@@ -103,18 +103,21 @@ def telemetry(cell):
     return t + [None] * (20 - len(t))
 
 
-def viewer_href(cell):
+def viewer_href(cell, platform=None):
     name = (cell or {}).get("capture")
     if not name:
         return None
-    src = quote("../stress/captures/" + name, safe="/.")
+    if platform:
+        src = quote("../stress/platforms/%s/captures/%s" % (platform, name), safe="/.")
+    else:
+        src = quote("../stress/captures/" + name, safe="/.")
     # Speed is pinned: the 60 us '0' pulses of a diagnostic pattern would
     # otherwise look like overdrive resets to the auto detector.
     return "../viewer/?src=" + src + "&speed=standard"
 
 
-def link_to_viewer(cell, label):
-    href = viewer_href(cell)
+def link_to_viewer(cell, label, platform=None):
+    href = viewer_href(cell, platform)
     if not href:
         return '<span class="muted">%s -</span>' % e(label)
     name = cell["capture"]
@@ -239,6 +242,7 @@ def platform_section(name, data):
     cells = cell_map(data)
     floors = data.get("guard_min") or []
     default_guard = data.get("default_guard_us", 5)
+    has_captures = any(c.get("capture") for c in data.get("cells") or [])
     clocks = []
     for row in floors:
         clock = row["clock_mhz"]
@@ -259,7 +263,7 @@ def platform_section(name, data):
                "%d MHz" % clock if clock else "default",
                fmt_guard(guard_min),
                "clean" if default_ok else "<strong>not clean</strong>",
-               link_to_viewer(default_cell, "frame")))
+               link_to_viewer(default_cell, "frame", name)))
     commit = data.get("commit") or "unknown"
     generated = data.get("generated") or "unknown"
     if fails:
@@ -268,6 +272,8 @@ def platform_section(name, data):
     else:
         verdict = ("<strong>Every level is clean at the %d us default</strong>; "
                    "the measured floor is shown per cell." % default_guard)
+    if not has_captures:
+        pass
     return """
 <section id="platform-%s">
 <h2>%s (%s)</h2>
@@ -279,11 +285,14 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
 <tbody>%s</tbody></table>
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.
-The capture links open one representative frame per cell.</p>
+%s</p>
 </section>
 """ % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
        e(data.get("mcu") or data.get("bench")), e(generated), e(commit),
-       e(data.get("bench")), verdict, "\n".join(rows))
+       e(data.get("bench")), verdict, "\n".join(rows),
+       "The capture links open one representative frame per cell."
+       if has_captures else
+       "No one-frame captures were recorded for this bench.")
 
 
 def priority_section(primary, others):
