@@ -7,10 +7,36 @@ this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.1] - 2026-11-04
+
+3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed
+macro names now fail at compile time and the public declarations are pinned by
+a snapshot, so the next accidental API break is visible in review. Firmware
+behaviour is unchanged.
 
 ### Added
 
+- **Removed public names are hard errors.** `inc/ow_board.h` and
+  `inc/ow_config.h` now reject `OW_PORT_FAMILY_*`, `OW_PORT_SYSCLK_MHZ`,
+  `OW_PORT_LOW_POWER`, the `OW_PORT_*_MAX_SYSCLK_MHZ` ceilings and the older
+  `PARASITE_POWER`, each with an `#error` that names the replacement. Before
+  this a build with `-DOW_PORT_LOW_POWER=1` compiled cleanly and silently lost
+  the WFE path. `tests/check_removed_macros.sh` proves every guard fires and
+  that the renamed forms still build; `make test-removed-macros` runs it with
+  only the host compiler.
+- **Public-API declaration snapshot.** `tests/api/public-api.txt` records the
+  macros, typedefs, structs and function declarations a consumer sees in
+  `inc/` (`ow_version.h` is excluded because the version has its own gate).
+  `tests/api/public_api.py` compares it in `make check` and the CI
+  `part-matrix`, and `make update-public-api` regenerates it after a deliberate
+  API change. `tests/api/test_public_api.py` is the canary: it mutates a copy
+  of the headers and requires the check to go red on a rename, a removal and a
+  signature change. This is a declarations snapshot, not an ABI pin.
+- **Header hygiene now covers L4 and H7.** `tests/check_header_hygiene.sh`
+  adds `STM32L4` and `STM32H7` to the family matrix (81 header x family
+  combinations) and now includes `ow_config.h` and `ow_stats.h`, so every public
+  header is checked. The removed-name guards are the only `OW_PORT_*` mentions
+  the public-header grep allows.
 - **STM32L4 backend and NUCLEO-L476RG support.** A new `OW_FAMILY_L4` section
   drives the bus on PA10 (TIM1_CH3, AF1), captures on TIM1_CH4, and feeds/reloads
   CCR3 through classic DMA1 channels 3/4 with the request selected in
@@ -2527,4 +2553,5 @@ without a section here, and its changes had drifted into the section below.
 [2.3.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...v2.3.0
 [2.4.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...v2.4.0
 [3.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...v3.0.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...HEAD
+[3.0.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.0.1
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...HEAD

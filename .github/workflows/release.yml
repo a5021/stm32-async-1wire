@@ -310,6 +310,24 @@ jobs:
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
             `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
 
+            ## What's new in 3.0.1
+
+            3.0.1 hardens the 3.0.0 migration and changes no firmware behaviour.
+
+            - **Removed macro names are hard errors.** `OW_PORT_FAMILY_*`,
+              `OW_PORT_SYSCLK_MHZ`, `OW_PORT_LOW_POWER`, the
+              `OW_PORT_*_MAX_SYSCLK_MHZ` ceilings and the older
+              `PARASITE_POWER` now stop the build with an `#error` that names
+              the replacement. A `-DOW_PORT_LOW_POWER=1` build can no longer
+              compile with the WFE path silently disabled.
+            - **Public-API snapshot.** `tests/api/public-api.txt` pins the
+              declarations in `inc/`, and a canary proves the check catches a
+              rename, a removal and a signature change. It is a declarations
+              snapshot, not an ABI pin.
+            - **Header hygiene covers L4 and H7.** The public headers are now
+              checked for register-vocabulary leaks on all nine families.
+            - **One archive.** All variants ship inside `firmware-3.0.1.zip`.
+
             ## What's new in 3.0.0
 
             - **STM32H7 backend, the eighth family (11 parts in total).**
@@ -458,7 +476,7 @@ jobs:
 
             ## Download
 
-            Everything ships in one archive, `firmware-3.0.0.zip`: `.bin` / `.hex` /
+            Everything ships in one archive, `firmware-3.0.1.zip`: `.bin` / `.hex` /
             `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
             checks. The table below names the artifact stems in that archive:
 
