@@ -30,8 +30,12 @@
  *   STRESS_CAPTURE 1 = run the search/capture mode instead of the write rig
  *   STRESS_INJECT_US  test-only: hold the feed (write mode) or capture (search
  *                     mode) DMA channel disabled for about this many
- *                     microseconds at the start of the pass, then restore it.
- *                     This is a channel-disable injection: the bench checks
+ *                     microseconds, then restore it. In write mode the window
+ *                     is anchored at the frame's first CC2 request (the slot-1
+ *                     end marker), so N measures the lateness of the first feed
+ *                     transfer; in search/capture mode it starts with the reset,
+ *                     because the capture channel is the one under test. This
+ *                     is a channel-disable injection: the bench checks
  *                     whether the resulting delay breaks the timeline. It does
  *                     not assume a particular request-latching rule. The
  *                     library is not modified.
@@ -60,7 +64,10 @@
  * banner, so the all-family build matrix stays green while the measurement
  * is still being designed. The load channels keep the default DMA priority;
  * STRESS_INJECT_US is a test-only channel-disable window, not a priority
- * change.
+ * change. In write mode it is anchored at the first CC2 request: an equivalent
+ * window measured from the frame start spends its first 65 us before the feed
+ * has asked for anything, which is why it could not affect the timeline below
+ * that value.
  *
  * The UART is silent while the frames run. The banner before the run and the
  * `DONE` line after it are the only output, so the console cannot become a
@@ -235,29 +242,51 @@ static uint8_t stress_stop(void) {
     return ok;
 }
 
-/* Test-only negative control: hold the feed (write mode) or capture (search
- * mode) DMA channel disabled for about `us` microseconds, then restore its
- * control register. This is a channel-disable injection: the bench checks
- * whether the resulting delay breaks the timeline. It does not assume a
- * particular request-latching rule for every peripheral DMA. The library is
- * not modified and no priority bit is changed. */
-static void stress_inject(uint32_t us) {
-#if STRESS_CAPTURE
-    volatile uint32_t* ccr = &DMA1_Channel4->CCR;
-#else
-    volatile uint32_t* ccr = &DMA1_Channel3->CCR;
-#endif
-    const uint32_t save = *ccr;
-    *ccr = 0u;
-    /* A volatile decrement is about four cycles; divide by four so the knob is
-     * roughly microseconds at the 48/8 MHz clocks. The HIL sweeps the knob and
-     * reports the first value that breaks the transaction, so exact duration
-     * matters less than monotonicity. */
+/* A volatile decrement is about four cycles; divide by four so the knob is
+ * roughly microseconds at the 48/8 MHz clocks. The HIL sweeps the knob and
+ * reports the first value that breaks the transaction, so exact duration
+ * matters less than monotonicity. */
+static void stress_delay_us(uint32_t us) {
     volatile uint32_t n = us * (OW_SYSCLK_MHZ / 4u);
     while (n != 0u) {
         n--;
     }
+}
+
+/* Test-only negative control: hold the feed (write mode) or capture (search
+ * mode) DMA channel disabled, then restore its control register. This is a
+ * channel-disable injection: the bench checks whether the resulting delay
+ * breaks the timeline. It does not assume a particular request-latching rule
+ * for every peripheral DMA. The library is not modified and no priority bit is
+ * changed.
+ *
+ * Write mode anchors the window at the frame's first CC2 request, the slot-1
+ * end marker at ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE. The channel is disabled
+ * before that event and held off for `us` after it, so the knob measures the
+ * lateness of the first feed transfer. The old frame-start window spent its
+ * first 65 us before the feed had asked for anything, so values below 65 us
+ * could not affect the timeline at all.
+ *
+ * Search mode keeps the reset-anchored window: the capture channel is the one
+ * under test there, and its first request belongs to the reset/presence
+ * capture, not to a CC2 slot-end event. */
+static void stress_inject(uint32_t us) {
+#if STRESS_CAPTURE
+    volatile uint32_t* ccr = &DMA1_Channel4->CCR;
+    const uint32_t save = *ccr;
+    *ccr = 0u;
+    stress_delay_us(us);
     *ccr = save;
+#else
+    volatile uint32_t* ccr = &DMA1_Channel3->CCR;
+    const uint32_t save = *ccr;
+    *ccr = 0u;
+    TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
+    while ((TIM1->SR & TIM_SR_CC2IF) == 0u) {
+    }
+    stress_delay_us(us);
+    *ccr = save;
+#endif
 }
 
 /* CPU-side SRAM hammer: every access is a real load/store because the array

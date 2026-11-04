@@ -77,7 +77,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>The load is real: at 48 MHz channel 1 restarted 8400 times; at 8 MHz channel 1 restarted 1400 times (level 4; level 5 adds the CPU hammer).</li>
 <li>The 5 us guard is a 6 us window, 3.0x the measured 2 us floor; the library and the DMA priority stay unchanged.</li>
 <li>Search ROM under the same loads returned the same 7 devices and checksum in all 24 cells: the capture DMA met its deadline too.</li>
-<li>A deliberately delayed feed (80 us) and capture (200 us) both turn the checks red: the harness catches a late transfer, not just a wrong count or route.</li>
+<li>A deliberately delayed feed (16 us) and capture (200 us) both turn the checks red: the harness catches a late transfer, not just a wrong count or route.</li>
 </ul>
 <p>The question was whether memory-subsystem load can delay the CCR3 feed DMA
 past its slot deadline. On this bench it does not: the wire stayed correct at
@@ -256,18 +256,23 @@ assume a particular request-latching rule. The harness must go red.</p>
 <tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/search/l0_48mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>80 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i80.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>120 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i120.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>16 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_8mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>80 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i80.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>120 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i120.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
-<p>The first delayed feed is detected at <strong>80 us</strong> and the first
-delayed capture at <strong>200 us</strong>. The write frame's first CC2 request is
-at 65 us, so an 80 us disable already misses the deadline; the search's first
-capture is later, which is why its threshold is higher. The viewer links on
-the detected rows show the corrupted frame/search.</p>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=../stress/captures/inject/write_l0_48mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
+<p>The first delayed feed is detected at <strong>16 us (48 MHz) and 20 us (8 MHz)</strong> and the first
+delayed capture at <strong>200 us (both clocks)</strong>. The write window is anchored at the
+frame's first CC2 request (65 us), so these values bound how long the first
+feed transfer may be held <em>after</em> that request; a window measured from
+the frame start could not show anything below 65 us because the feed had not
+asked for anything yet. The search's first capture is later, which is why its
+threshold is higher. The viewer links on the detected rows show the corrupted
+frame/search.</p>
 </section>
 <section id="interpretation">
 <h2>Interpretation</h2>

@@ -41,8 +41,11 @@ CAPTURE_JSON = os.path.join(common.REPO, "docs", "stress", "capture.json")
 #: Search ROM under each load; both the default guard and the measured floor.
 CAPTURE_GUARDS = (5, 1)
 #: Injected channel-disable windows, in microseconds (see STRESS_INJECT_US).
+#: The write values straddle the measured floor: the window starts at the first
+#: CC2 request, so 8/12 us are still clean and 16/20 us (48/8 MHz) are the first
+#: bad cells. The search window is reset-anchored and its floor is later.
 SEARCH_INJECT = (0, 200, 400, 600, 1000)
-WRITE_INJECT = (0, 80, 120, 200)
+WRITE_INJECT = (0, 8, 12, 16, 20)
 
 
 def bench_setup(argv):
