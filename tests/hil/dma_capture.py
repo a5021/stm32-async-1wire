@@ -127,8 +127,17 @@ class Rig:
             extra += " -DSTRESS_INJECT_US=%d" % inject_us
         dp.build(level, guard, clock, extra=extra)
         dp.flash_halt(self.prog)
-        dp.capture(self.sigrok, self.prog, self.raw,
-                   1.2 if mode == "search" else dp.run_seconds(guard))
+        seconds = 1.2 if mode == "search" else dp.run_seconds(guard)
+        samples = dp.capture(self.sigrok, self.prog, self.raw, seconds)
+        if retry and dp.capture_short(samples, seconds):
+            print("  retry %s level=%d guard=%d clock=%s inject=%d "
+                  "(short capture: %d samples)" % (mode, level, guard,
+                                                   clock if clock else "default",
+                                                   inject_us, samples), flush=True)
+            res = self.run(mode, level, guard, clock, inject_us, retry=False)
+            res["attempts"] = res.get("attempts", 1) + 1
+            res["first_attempt_short"] = True
+            return res
         tel = dp.telemetry(self.prog) or [None] * 20
         capture_mode = 1 if mode == "search" else 0
         ident, ident_why = dp.identity(tel, level, clock, capture_mode, inject_us)

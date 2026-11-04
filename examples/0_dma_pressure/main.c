@@ -145,11 +145,15 @@
 #define STRESS_INJECT_US 0
 #endif
 
-/* Optional PA11 logic-analyzer marker (D1 on the bench). The HIL turns this on
- * for a bench whose D1 is wired to PA11; the marker brackets every frame so the
- * analyzer can ignore startup glitches and a capture that ends mid-frame. */
+/* Optional logic-analyzer marker (LA D1). The pin is a build knob because the
+ * bench wiring differs: F446/H503 use PA11, the F030 TSSOP20 board has PA11
+ * bonded to SWD and uses PA2 instead. The HIL selects it per bench profile. */
 #ifndef STRESS_MARKER
 #define STRESS_MARKER 0
+#endif
+
+#ifndef STRESS_MARKER_PIN
+#define STRESS_MARKER_PIN 11
 #endif
 
 /* Telemetry identity: the HIL compares this magic, the effective level/clock in
@@ -192,8 +196,20 @@
 #if (STRESS_MARKER != 0) && (STRESS_MARKER != 1)
 #error "STRESS_MARKER must be 0 or 1"
 #endif
-#if STRESS_MARKER && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_F4)
-#error "STRESS_MARKER is wired for PA11 on H5/F4 builds only"
+#if (STRESS_MARKER_PIN < 0) || (STRESS_MARKER_PIN > 15)
+#error "STRESS_MARKER_PIN must be a PA0..PA15 number"
+#endif
+#if STRESS_MARKER && (STRESS_MARKER_PIN == 10 || STRESS_MARKER_PIN == 9 || STRESS_MARKER_PIN == 4)
+#error "STRESS_MARKER_PIN collides with the bus (PA10), the console (PA9) or the LED (PA4)"
+#endif
+#if STRESS_MARKER && (STRESS_MARKER_PIN == 13 || STRESS_MARKER_PIN == 14)
+#error "STRESS_MARKER_PIN collides with SWD (PA13/PA14)"
+#endif
+#if STRESS_MARKER && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_F0)
+#error "STRESS_MARKER is wired on the F0/F4/H5 benches only"
+#endif
+#if STRESS_MARKER && defined(OW_FAMILY_F0) && (STRESS_MARKER_PIN == 11)
+#error "PA11 is not bonded out on the F030 TSSOP20; use PA2 (STRESS_MARKER_PIN=2)"
 #endif
 
 /* Families with a load generator. Every other family compiles the example and
@@ -210,15 +226,17 @@
 #define EFFECTIVE_LEVEL 0
 #endif
 
-/* PA11 marker (D1): push-pull output, idle low, high for one frame/search. */
+/* Marker pin: push-pull output, idle low, high for one frame/search. */
 #if STRESS_MARKER
+#define STRESS_MARKER_MODER (3u << (STRESS_MARKER_PIN * 2u))
+#define STRESS_MARKER_BIT (1u << STRESS_MARKER_PIN)
 static void stress_marker_init(void) {
-    GPIOA->MODER = (GPIOA->MODER & ~(3u << (11u * 2u))) | (1u << (11u * 2u));
-    GPIOA->OTYPER &= ~(1u << 11u);
-    GPIOA->BSRR = 1u << (11u + 16u); /* idle low */
+    GPIOA->MODER = (GPIOA->MODER & ~STRESS_MARKER_MODER) | (1u << (STRESS_MARKER_PIN * 2u));
+    GPIOA->OTYPER &= ~STRESS_MARKER_BIT;
+    GPIOA->BSRR = STRESS_MARKER_BIT << 16u; /* idle low */
 }
-static inline void stress_marker_high(void) { GPIOA->BSRR = 1u << 11u; }
-static inline void stress_marker_low(void) { GPIOA->BSRR = 1u << (11u + 16u); }
+static inline void stress_marker_high(void) { GPIOA->BSRR = STRESS_MARKER_BIT; }
+static inline void stress_marker_low(void) { GPIOA->BSRR = STRESS_MARKER_BIT << 16u; }
 #else
 static void stress_marker_init(void) {}
 static inline void stress_marker_high(void) {}

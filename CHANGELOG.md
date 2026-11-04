@@ -49,6 +49,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   control goes red. Because a pending GPDMA request is not dropped by clearing
   `EN`, the H5 negative control sets `CCR.SUSP` for the window and clears it
   afterwards; F0/F4 keep the enable-bit disable.
+- **The F030 bench is marker-bracketed too.** `STRESS_MARKER_PIN` (default 11)
+  selects the marker GPIO, so the F030 TSSOP20 bench uses PA2, where PA11 is not
+  bonded out. Collisions with the bus (PA10), the console (PA9), the LED (PA4)
+  and SWD (PA13/PA14) are compile-time errors. With PA2 wired to D1 the F030
+  matrix runs through the same marker segmentation and run-identity checks as
+  the F446 and H503, and the re-run reproduces the published result: every
+  level clean at the 5 us default, floor guard 1, `cndtr_late = 0`,
+  capture-drain 7 devices and `88DB0C9D`, injection first-bad 16 us (48 MHz) /
+  20 us (8 MHz).
+- **A truncated capture is retried, not reported as a bus failure.**
+  `dma_pressure.py` and `dma_capture.py` read the analyzer's sample count, and a
+  run that stopped early (USB hiccup, reset during re-enumeration) is repeated
+  before analysis. Such a capture used to surface as "no complete frame" and
+  looked like a driver failure.
 
 ### Changed
 
