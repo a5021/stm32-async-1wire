@@ -36,7 +36,7 @@ import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-FAMILIES = ["f0", "f1", "f3", "f4", "g0", "g4", "h5"]
+FAMILIES = ["f0", "f1", "f3", "f4", "g0", "g4", "l4", "h5"]
 
 # --- the mutations ---------------------------------------------------------
 # find/replace are literal (not regex) and must match exactly once in the

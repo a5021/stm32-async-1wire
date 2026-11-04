@@ -81,6 +81,11 @@ PWR_TypeDef mock_pwr; /* H7 backend only: supply config and voltage scaling */
 FLASH_TypeDef mock_flash; /* G4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* G4 backend only: Range 1 Boost for 170MHz */
 #endif
+#if defined(STM32L4)
+FLASH_TypeDef mock_flash; /* L4 backend only: clock-latency register */
+PWR_TypeDef mock_pwr; /* L4 backend only: Range 1 for 80MHz */
+DMA_Request_TypeDef mock_dma1_cselr; /* L4 backend only: DMA1_CSELR routing */
+#endif
 #if defined(STM32H5)
 FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
@@ -220,6 +225,8 @@ const void* hw_capture_destination(void) {
 uint32_t hw_feed_request(void) {
 #if defined(STM32H5)
     return (mock_feed_ch.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32L4)
+    return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C3S) >> DMA_CSELR_C3S_Pos);
 #elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
     return (uint32_t)mock_dmamux_ch2.CCR;
 #else
@@ -230,6 +237,8 @@ uint32_t hw_feed_request(void) {
 uint32_t hw_capture_request(void) {
 #if defined(STM32H5)
     return (mock_dma1_ch4.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
+#elif defined(STM32L4)
+    return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C4S) >> DMA_CSELR_C4S_Pos);
 #elif defined(STM32G0) || defined(STM32G4) || defined(STM32H7)
     return (uint32_t)mock_dmamux_ch3.CCR;
 #else
@@ -250,7 +259,7 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32H5) || defined(STM32H7)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
@@ -264,6 +273,13 @@ void hw_reset_all(void) {
     /* VOSF starts clear, like hardware after the regulator settles, so the
      * Range-1-Boost wait in configure_system_clock() passes immediately. */
     mock_pwr = (PWR_TypeDef){0};
+#endif
+#if defined(STM32L4)
+    mock_flash = (FLASH_TypeDef){0};
+    /* VOSF starts clear, like hardware after the regulator settles, so the
+     * Range-1 wait in configure_system_clock() passes immediately. */
+    mock_pwr = (PWR_TypeDef){0};
+    mock_dma1_cselr = (DMA_Request_TypeDef){0};
 #endif
 #if defined(STM32H5)
     mock_flash = (FLASH_TypeDef){0};

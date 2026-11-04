@@ -96,6 +96,10 @@
 #if OW_SYSCLK_MHZ != 170
 #error "G4 family-macro selection must default to a 170 MHz system clock"
 #endif
+#elif defined(STM32L476xx) || defined(STM32L4)
+#if OW_SYSCLK_MHZ != 80
+#error "L4 family-macro selection must default to an 80 MHz system clock"
+#endif
 #elif defined(STM32H5)
 #if OW_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
@@ -124,6 +128,12 @@
  * only part tops out at 170MHz. */
 #if (OW_SYSCLK_MHZ) > (OW_G4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_G4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#elif defined(STM32L476xx) || defined(STM32L4)
+/* Same pair for L4 (OW_L4_MAX_SYSCLK_MHZ, owned by the ow_board.h L4 section):
+ * the L476 Range-1 cap is 80MHz, which is also the default. */
+#if (OW_SYSCLK_MHZ) > (OW_L4_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_L4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H5)
 /* Same pair for H5 (OW_H5_MAX_SYSCLK_MHZ, owned by the ow_board.h H5 section): the
@@ -234,7 +244,7 @@
 #ifdef OW_SYSCLK_MHZ
 #error "test_sysclk_fallback: OW_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
 #endif
-#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
+#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_L4) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 #endif /* OW_SYSCLK_VALUES_CHECK */
