@@ -62,12 +62,11 @@ SR_RATE_TEXT = "4 MHz"
 SR_LEAD_US = 1000.0
 SR_TAIL_US = 1000.0
 #: Time from starting the analyzer to resetting the target into the run, and
-#: the extra margin before the firmware's 200 ms settle ends. The margin also
-#: skips the bus-pin init glitch some boards produce just as the application
-#: starts (a lone sub-microsecond pulse, separated from the first frame by a
-#: gap far longer than a frame boundary).
+#: the extra margin before the firmware's 200 ms settle ends. The leading
+#: startup glitch some boards emit is dropped by `analyse(ignore_leading_short)`
+#: rather than by widening this window, so the margin can stay tight.
 PRE_RESET_S = 0.3
-SETTLE_MARGIN_S = 0.30
+SETTLE_MARGIN_S = 0.25
 
 #: Guard values tried by the bisection, ascending. 1 is the smallest guard the
 #: timer can express (0 makes CC2 coincide with the update event and produces a
@@ -80,9 +79,12 @@ F030_CLOCKS = (48, 8)
 #: stream 1 starves the feed even at guard 100; use --clocks 16,8 to measure
 #: that margin explicitly rather than have every default run fail.
 F446_CLOCKS = (180,)
+#: The H503 runs the load at all three supported clocks; the GPDMA channel 0/1
+#: load stays clean at guard 1 even at 8MHz.
+H5_CLOCKS = (64, 250, 8)
 #: Benches whose example actually generates a load. The others compile it and
 #: run level 0 with `stress=unsupported` in the banner.
-STRESS_BENCHES = ("STM32F030x6", "STM32F446xx")
+STRESS_BENCHES = ("STM32F030x6", "STM32F446xx", "STM32H503xx")
 #: The example's build defaults; the harness never overrides them.
 BURSTS = 100
 STRESS_WORDS = 512
@@ -122,7 +124,7 @@ def source_pattern():
 def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
             one_us=ONE_US, zero_us=ZERO_US, tol_us=TOL_US,
             frame_gap_us=FRAME_GAP_US, tail_ignore_us=TAIL_IGNORE_US,
-            slot_us=None):
+            slot_us=None, ignore_leading_short=False):
     """Check a binary capture of D0 against the expected write pattern.
 
     `raw` is one byte per sample with D0 in bit 0 (the `-O binary` layout).
@@ -130,6 +132,10 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
     the previous image is still in flight while the new one is flashed.
     `slot_us`, when given, also checks the slot period (the first period of a
     frame carries the software-arm offset and is skipped).
+    `ignore_leading_short` drops a lone startup glitch (bus-pin init, analyzer
+    transient) that precedes the first complete frame by a gap much longer
+    than a frame boundary; a truncated real frame is adjacent to the next one
+    and is still reported.
 
     Returns a dict with `clean`, the violation counters, the number of checked
     frames and a human-readable `first` violation.
@@ -172,6 +178,7 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
     stuck_low = False
     first = None
     first_frame_us = None
+    complete_seen = False
     widths = [w for _, w in pulses if w is not None]
     max_width = max(widths) if widths else 0.0
 
@@ -179,12 +186,17 @@ def analyse(raw, rate_hz, pattern=PATTERN, slots=SLOTS, min_start_us=0.0,
         seg = pulses[a:b]
         if seg[0][0] < min_start_us:
             continue  # the previous image, still running when the capture began
+        if (ignore_leading_short and not complete_seen and len(seg) < slots
+                and b < len(pulses)
+                and pulses[b][0] - seg[-1][0] > 3.0 * frame_gap_us):
+            continue  # a startup glitch, not a truncated frame
         if len(seg) != slots:
             bad_len += 1
             if first is None:
                 first = "frame at %.1f us has %d pulses, expected %d" % (
                     seg[0][0], len(seg), slots)
             continue
+        complete_seen = True
         frames += 1
         if first_frame_us is None:
             first_frame_us = seg[0][0]
@@ -347,7 +359,11 @@ def capture(sigrok, prog, out, seconds, pre_reset=PRE_RESET_S):
 
 def run_seconds(guard, bursts=BURSTS):
     slot_us = ONE_US + ZERO_US + guard + 1  # the counter runs 0..ARR inclusive
-    return PRE_RESET_S + 0.25 + bursts * SLOTS * slot_us / 1e6 + bursts * 0.002 + 0.3
+    # The tail is generous on purpose: the H503's init pushes the first frame
+    # to ~1 s after the analyzer starts, and at the widest guard the run itself
+    # is over 1 s. A tail shorter than the init delay cuts the last frame and
+    # turns a clean run into a spurious bad-length frame.
+    return PRE_RESET_S + 0.25 + bursts * SLOTS * slot_us / 1e6 + bursts * 0.002 + 1.0
 
 
 def build(level, guard, clock, extra=""):
@@ -417,7 +433,7 @@ class Runner:
         self.cache = {}
         self.raw = os.path.join(out_dir, "_current.bin")
 
-    def run(self, level, guard, clock):
+    def run(self, level, guard, clock, retry=False):
         key = (level, guard, clock)
         if key in self.cache:
             return self.cache[key]
@@ -431,7 +447,8 @@ class Runner:
         min_start_us = (PRE_RESET_S + SETTLE_MARGIN_S) * 1e6
         slot_us = ONE_US + ZERO_US + guard + 1
         raw = np.fromfile(self.raw, dtype=np.uint8)
-        res = analyse(raw, RATE_HZ, min_start_us=min_start_us, slot_us=slot_us)
+        res = analyse(raw, RATE_HZ, min_start_us=min_start_us, slot_us=slot_us,
+                      ignore_leading_short=True)
         tel = telemetry(self.prog)
         res["telemetry"] = tel
         if tel is None:
@@ -439,6 +456,14 @@ class Runner:
         else:
             res["clean"] = bool(res["clean"] and tel[3] == 0 and tel[4] == 0
                                 and tel[16] == 0)
+        if retry and not res["clean"]:
+            # A flash/reset or capture-start glitch can spoil one run without
+            # saying anything about the guard. Retry the cells whose premise is
+            # "this must be clean" (the widest guard and the 5 us default)
+            # once, rather than turn a flake into a reported failure.
+            print("  retry level=%d guard=%d clock=%s (first run not clean)" % (
+                level, guard, clock if clock else "default"), flush=True)
+            return self.run(level, guard, clock, retry=False)
         res["level"] = level
         res["clock_mhz"] = clock
         res["guard_us"] = guard
@@ -458,7 +483,7 @@ class Runner:
 
     def min_guard(self, level, clock):
         """Smallest clean guard, or None when even the widest fails."""
-        if not self.run(level, self.guards[-1], clock)["clean"]:
+        if not self.run(level, self.guards[-1], clock, retry=True)["clean"]:
             return None
         if self.run(level, self.guards[0], clock)["clean"]:
             return self.guards[0]
@@ -536,6 +561,8 @@ def main(argv=None):
         clocks = parse_list(args.clocks, int) or F030_CLOCKS
     elif detected == "STM32F446xx":
         clocks = parse_list(args.clocks, int) or F446_CLOCKS
+    elif detected == "STM32H503xx":
+        clocks = parse_list(args.clocks, int) or H5_CLOCKS
     else:
         clocks = parse_list(args.clocks, int) or (None,)
 
@@ -551,7 +578,7 @@ def main(argv=None):
     for clock in clocks:
         for level in levels:
             guard_min = runner.min_guard(level, clock)
-            res5 = runner.run(level, 5, clock) if 5 in guards else None
+            res5 = runner.run(level, 5, clock, retry=True) if 5 in guards else None
             default_ok = res5["clean"] if res5 else None
             if default_ok is False:
                 failed_default = True

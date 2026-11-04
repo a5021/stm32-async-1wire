@@ -534,7 +534,7 @@ the smallest guard with a clean per-slot geometry bounds the feed latency from
 above. The timer resolution is 1 µs, so guard 1 (a 2 µs window) is the
 measurement floor: a clean run there means a 2 µs window was enough.
 
-| `STRESS_LEVEL` | Load (F0/F4) |
+| `STRESS_LEVEL` | Load (F0/F4/H5) |
 |---|---|
 | 0 | none - the driver's own margin |
 | 1 | CPU hammers the SRAM array in the `onewire_bus_done()` loop |
@@ -544,9 +544,11 @@ measurement floor: a clean run there means a 2 µs window was enough.
 | 5 | level 4 plus the CPU hammer |
 
 On F0 the load channels are DMA1 channel 2 and channel 1; on F4 they are
-DMA2 stream 0 and stream 1 with `DIR=0b10` (memory-to-memory). The other
-families compile the example and run level 0 with `stress=unsupported` in the
-banner, so the all-family build matrix stays green.
+DMA2 stream 0 and stream 1 with `DIR=0b10` (memory-to-memory); on H5 they are
+GPDMA1 channel 0 and channel 1 in direct mode with a software request, where
+`CBR1.BNDT` is a source-byte count. The other families compile the example and
+run level 0 with `stress=unsupported` in the banner, so the all-family build
+matrix stays green.
 
 On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
 window), the same result as the F030. The fixed 512-word CPU hammer is longer
@@ -554,6 +556,12 @@ than a slot at the low clocks: at 16 MHz level 5 needs guard 89, and at 8 MHz
 level 5 starves the feed even at guard 100. That is a measured property of this
 worst-case load, not a generator failure; run
 `python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it.
+
+On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
+measured floor is guard 1 except level 0 at 8 MHz (guard 3) and level 4 at
+8 MHz (guard 2). The GPDMA negative control suspends the channel
+(`CCR.SUSP`) instead of clearing `EN`, because a pending GPDMA request is not
+dropped by clearing the enable bit.
 
 ```bash
 # a build with a load and a narrow guard

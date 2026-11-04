@@ -29,7 +29,7 @@
  *   STRESS_WORDS  halfword transfers per memory-to-memory burst, default 512
  *   STRESS_CAPTURE 1 = run the search/capture mode instead of the write rig
  *   STRESS_INJECT_US  test-only: hold the feed (write mode) or capture (search
- *                     mode) DMA channel disabled for about this many
+ *                     mode) DMA channel out of service for about this many
  *                     microseconds, then restore it. In write mode the window
  *                     is anchored at the frame's first CC2 request (the slot-1
  *                     end marker), so N measures the lateness of the first feed
@@ -38,7 +38,9 @@
  *                     is a channel-disable injection: the bench checks
  *                     whether the resulting delay breaks the timeline. It does
  *                     not assume a particular request-latching rule. The
- *                     library is not modified.
+ *                     library is not modified. F0/F4 clear the channel enable;
+ *                     H5 suspends the GPDMA channel because clearing EN does
+ *                     not drop an already pending request.
  *
  * The default mode is the write rig: a fixed 64-slot pattern, feed DMA only.
  * `STRESS_CAPTURE=1` switches to a Search ROM pass: the DS18B20 search reads
@@ -59,11 +61,13 @@
  *      soon as it drains (circular mode is not allowed in memory-to-memory)
  *   5  level 4 plus the CPU hammer
  *
- * The F0 and F4 backends implement the load generator: F0 uses DMA1 channels
- * 2/1, F4 uses DMA2 streams 0/1 with DIR=0b10 (memory-to-memory). Every other
- * family compiles this example and runs level 0 with `stress=unsupported` in
- * the banner, so the all-family build matrix stays green while the measurement
- * is still being designed. The load channels keep the default DMA priority;
+ * The F0, F4 and H5 backends implement the load generator: F0 uses DMA1
+ * channels 2/1, F4 uses DMA2 streams 0/1 with DIR=0b10 (memory-to-memory), and
+ * H5 uses GPDMA1 channels 0/1 in direct mode with a software request. Every
+ * other family compiles this example and runs level 0 with `stress=unsupported`
+ * in the banner, so the all-family build matrix stays green while the
+ * measurement is still being designed. The load channels keep the default DMA
+ * priority;
  * STRESS_INJECT_US is a test-only channel-disable window, not a priority
  * change. In write mode it is anchored at the first CC2 request: an equivalent
  * window measured from the frame start spends its first 65 us before the feed
@@ -86,6 +90,8 @@
 #include "stm32f0xx.h"
 #elif defined(OW_FAMILY_F4)
 #include "stm32f4xx.h"
+#elif defined(OW_FAMILY_H5)
+#include "stm32h5xx.h"
 #endif
 
 #include <stdint.h>
@@ -134,7 +140,7 @@
 
 /* Families with a load generator. Every other family compiles the example and
  * runs level 0 with `stress=unsupported` in the banner. */
-#if defined(OW_FAMILY_F0) || defined(OW_FAMILY_F4)
+#if defined(OW_FAMILY_F0) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_H5)
 #define STRESS_SUPPORTED 1
 #else
 #define STRESS_SUPPORTED 0
@@ -269,6 +275,8 @@ static volatile uint32_t* stress_feed_control(void) {
 }
 #endif
 
+#define STRESS_INJECT_OFF(save) 0u
+
 #if !STRESS_CAPTURE
 /* Transfers still queued on the CCR3 feed channel. Zero after completion is
  * the driver's contract; anything else means the feed was starved. */
@@ -353,6 +361,8 @@ static volatile uint32_t* stress_feed_control(void) {
 }
 #endif
 
+#define STRESS_INJECT_OFF(save) 0u
+
 #if !STRESS_CAPTURE
 static uint32_t feed_remaining(void) { return DMA2_Stream2->NDTR; }
 
@@ -361,7 +371,104 @@ static uint8_t feed_error_latched(void) {
 }
 #endif
 
-#endif /* OW_FAMILY_F0 || OW_FAMILY_F4 */
+#elif defined(OW_FAMILY_H5)
+
+/* GPDMA direct mode: CTR1 carries the widths and increments, CTR2 the software
+ * request, CBR1.BNDT the source-byte count. Channels 0/1 are the lowest free
+ * channel numbers, so at equal priority they outrank the feed/capture on 2/3,
+ * the same intent as the F0 channels and F4 streams. BNDT counts source bytes,
+ * so a halfword transfer needs twice the word count. */
+#define STRESS_GPDMA_FLAGS                                    \
+    ((1u << DMA_CFCR_TCF_Pos) | (1u << DMA_CFCR_HTF_Pos) |    \
+     (1u << DMA_CFCR_DTEF_Pos) | (1u << DMA_CFCR_ULEF_Pos) |  \
+     (1u << DMA_CFCR_USEF_Pos) | (1u << DMA_CFCR_SUSPF_Pos) | \
+     (1u << DMA_CFCR_TOF_Pos))
+
+static void stress_gpdma_start(DMA_Channel_TypeDef* ch) {
+    ch->CCR = 0u;
+    uint32_t guard = 1000u;
+    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
+    }
+    ch->CLBAR = 0u; /* direct register mode, no linked list */
+    ch->CFCR = STRESS_GPDMA_FLAGS;
+    ch->CSAR = (uint32_t)&stress_src_word;
+    ch->CDAR = (uint32_t)stress_dst;
+    ch->CBR1 = (uint32_t)STRESS_WORDS * 2u; /* BNDT is a source-byte count */
+    ch->CTR2 = (1u << DMA_CTR2_SWREQ_Pos); /* software-triggered mem-to-mem */
+    ch->CTR1 = (1u << DMA_CTR1_SDW_LOG2_Pos) |
+               (1u << DMA_CTR1_DDW_LOG2_Pos) |
+               (1u << DMA_CTR1_DINC_Pos);
+    ch->CCR = DMA_CCR_EN;
+}
+
+static void stress_burst_start(void) {
+    burst_starts++;
+    stress_gpdma_start(GPDMA1_Channel0);
+}
+
+/* Circular mode is not useful here either; level 4/5 restart the finite burst
+ * from the service loop. Channel 1 is the strongest equal-priority contender
+ * after channel 0. */
+static void stress_ch1_burst_start(void) {
+    ch1_starts++;
+    stress_gpdma_start(GPDMA1_Channel1);
+}
+
+static uint8_t stress_burst_done(void) {
+    return (GPDMA1_Channel0->CBR1 & DMA_CBR1_BNDT_Msk) == 0u;
+}
+static uint8_t stress_ch1_done(void) {
+    return (GPDMA1_Channel1->CBR1 & DMA_CBR1_BNDT_Msk) == 0u;
+}
+
+static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch) {
+    ch->CCR = 0u;
+    uint32_t guard = 1000u;
+    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
+    }
+    if ((ch->CCR & DMA_CCR_EN) != 0u) {
+        return 0u;
+    }
+    ch->CBR1 = 0u;
+    ch->CFCR = STRESS_GPDMA_FLAGS;
+    return 1u;
+}
+
+static uint8_t stress_stop(void) {
+    uint8_t ok = stress_stop_channel(GPDMA1_Channel1);
+    ok &= stress_stop_channel(GPDMA1_Channel0);
+    return ok;
+}
+
+#if STRESS_CAPTURE
+static volatile uint32_t* stress_capture_control(void) {
+    return &GPDMA1_Channel3->CCR;
+}
+#else
+static volatile uint32_t* stress_feed_control(void) {
+    return &GPDMA1_Channel2->CCR;
+}
+#endif
+
+/* GPDMA does not drop a pending request when EN is cleared; suspend the
+ * channel instead and keep the rest of CCR (including EN) intact. Clearing
+ * SUSP at the end resumes it. This is still a channel-disable window: the
+ * channel services no request while suspended. */
+#define STRESS_INJECT_OFF(save) ((save) | (1u << DMA_CCR_SUSP_Pos))
+
+#if !STRESS_CAPTURE
+/* BNDT is a source-byte count; the feed source is byte memory, so it equals
+ * the number of transfers still queued. */
+static uint32_t feed_remaining(void) {
+    return GPDMA1_Channel2->CBR1 & DMA_CBR1_BNDT_Msk;
+}
+
+static uint8_t feed_error_latched(void) {
+    return (GPDMA1_Channel2->CSR & DMA_CSR_DTEF) ? 1u : 0u;
+}
+#endif
+
+#endif /* OW_FAMILY_F0 || OW_FAMILY_F4 || OW_FAMILY_H5 */
 
 /* A volatile decrement is about four cycles; divide by four so the knob is
  * roughly microseconds at the bench clocks. The HIL sweeps the knob and
@@ -375,11 +482,12 @@ static void stress_delay_us(uint32_t us) {
 }
 
 /* Test-only negative control: hold the feed (write mode) or capture (search
- * mode) DMA channel disabled, then restore its control register. This is a
- * channel-disable injection: the bench checks whether the resulting delay
+ * mode) DMA channel out of service, then restore its control register. This is
+ * a channel-disable injection: the bench checks whether the resulting delay
  * breaks the timeline. It does not assume a particular request-latching rule
  * for every peripheral DMA. The library is not modified and no priority bit is
- * changed.
+ * changed. F0/F4 write 0 to the enable bit; H5 keeps EN and sets SUSP instead
+ * because a GPDMA request already latched is not dropped by clearing EN.
  *
  * Write mode anchors the window at the frame's first CC2 request, the slot-1
  * end marker at ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE. The channel is disabled
@@ -395,13 +503,13 @@ static void stress_inject(uint32_t us) {
 #if STRESS_CAPTURE
     volatile uint32_t* ctrl = stress_capture_control();
     const uint32_t save = *ctrl;
-    *ctrl = 0u;
+    *ctrl = STRESS_INJECT_OFF(save);
     stress_delay_us(us);
     *ctrl = save;
 #else
     volatile uint32_t* ctrl = stress_feed_control();
     const uint32_t save = *ctrl;
-    *ctrl = 0u;
+    *ctrl = STRESS_INJECT_OFF(save);
     TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
     while ((TIM1->SR & TIM_SR_CC2IF) == 0u) {
     }

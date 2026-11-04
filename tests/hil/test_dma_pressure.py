@@ -136,6 +136,24 @@ def main():
     r = run(waveform(edit=first_slot_wide))
     check("wide first slot is ignored", r["clean"])
 
+    # A board's bus-pin init can emit a lone sub-microsecond pulse well before
+    # the first frame (the F446 and H503 both do). It is not a truncated frame:
+    # a real truncation is adjacent to the next frame, this is isolated by a gap
+    # much longer than a frame boundary.
+    def with_leading_glitch(frames=3):
+        glitch = np.array(
+            [1] * int(round(1000.0 / US_PER_SAMPLE))
+            + [0] * int(round(1.0 / US_PER_SAMPLE))
+            + [1] * int(round(5000.0 / US_PER_SAMPLE)), dtype=np.uint8)
+        return np.concatenate([glitch, waveform(frames=frames)])
+
+    r = run(with_leading_glitch())
+    check("a leading startup glitch is a bad frame by default",
+          not r["clean"] and r["bad_len"] == 1 and r["frames"] == 3)
+    r = run(with_leading_glitch(), ignore_leading_short=True)
+    check("a leading startup glitch is ignored on request",
+          r["clean"] and r["frames"] == 3 and r["bad_len"] == 0)
+
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
         return 1
