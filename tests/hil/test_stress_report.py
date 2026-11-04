@@ -12,6 +12,7 @@ clean guard actually measured.
 
 import json
 import os
+import re
 import sys
 import zipfile
 
@@ -167,6 +168,35 @@ def main():
                   ("../stress/captures/" + name) in actual)
 
     platforms, _ = load_platforms()
+    linked = set()
+    for name, data in platforms:
+        # One representative failing frame per level; a level that already has a
+        # clean guard was not shown as failing and needs no link.
+        best = {}
+        for cell in data["cells"]:
+            if not cell.get("capture_fail"):
+                continue
+            level = cell["level"]
+            best.setdefault(level, []).append(cell)
+        for level, group in best.items():
+            # A not-clean row is shown when no measured guard passed at the
+            # default, mirroring the table's own verdict rule.
+            default_guard = data.get("default_guard_us", 5)
+            by_cell = {(c["level"], c["clock_mhz"], c["guard_us"]): c
+                       for c in data["cells"]}
+            shown = []
+            for cell in group:
+                if cell["clean"]:
+                    continue
+                default = by_cell.get((level, cell["clock_mhz"], default_guard))
+                if default and default["clean"]:
+                    continue
+                shown.append(cell)
+            if not shown:
+                continue
+            shown.sort(key=lambda c: (c["clock_mhz"] or -1, -c["guard_us"]))
+            pick = shown[0]
+            linked.add((name, level, pick["clock_mhz"], pick["guard_us"]))
     for name, data in platforms:
         base = os.path.join(PLATFORMS, name, "captures")
         check("%s platform section is in the report" % name,
@@ -176,6 +206,24 @@ def main():
             if cap:
                 check("%s/%s exists" % (name, cap),
                       os.path.isfile(os.path.join(base, cap)))
+            if cell.get("clean"):
+                continue
+            # The failing frame is the evidence a dirty cell exists for.
+            fail = cell.get("capture_fail")
+            check("%s l%d/%s/g%d keeps its failing frame" % (
+                name, cell["level"], cell["clock_mhz"], cell["guard_us"]),
+                bool(fail), "no capture_fail recorded")
+            if not fail:
+                continue
+            check("%s/%s exists" % (name, fail),
+                  os.path.isfile(os.path.join(base, fail)))
+            # The table links one representative failing frame per level; only
+            # that one is required to be reachable from the page.
+            if (name, cell["level"], cell["clock_mhz"],
+                    cell["guard_us"]) not in linked:
+                continue
+            check("%s/%s is linked" % (name, fail),
+                  ("../stress/platforms/%s/captures/%s" % (name, fail)) in actual)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
