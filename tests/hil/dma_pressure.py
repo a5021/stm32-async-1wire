@@ -429,7 +429,13 @@ def flash_halt(prog):
 
 
 def capture(sigrok, prog, out, seconds, pre_reset=PRE_RESET_S):
-    """Start the analyzer, reset the target into the run, wait for it."""
+    """Start the analyzer, reset the target into the run, wait for it.
+
+    Returns the number of samples actually stored. A run that stops early (a
+    USB hiccup on the analyzer, a reset while the device was re-enumerating)
+    produces a short file, and a short file must not be judged as a bus result:
+    the caller re-runs it.
+    """
     proc = subprocess.Popen(capture_cmd(sigrok, out, seconds),
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True)
@@ -439,6 +445,13 @@ def capture(sigrok, prog, out, seconds, pre_reset=PRE_RESET_S):
     if proc.returncode != 0:
         raise RuntimeError("sigrok-cli failed (%d):\n%s\n%s"
                            % (proc.returncode, stdout, stderr))
+    return os.path.getsize(out) if os.path.isfile(out) else 0
+
+
+def capture_short(samples, seconds, rate_hz=None):
+    """True when the capture is too short to contain the run it asked for."""
+    want = int((rate_hz or RATE_HZ) * seconds * 0.5)
+    return samples < want
 
 
 def run_seconds(guard, bursts=BURSTS):
@@ -453,7 +466,8 @@ def run_seconds(guard, bursts=BURSTS):
 def build(level, guard, clock, extra=""):
     ext = common.BUILD_EXT or ""
     if common.MARKER:
-        ext = (ext + " -DSTRESS_MARKER=1").strip()
+        ext = (ext + " -DSTRESS_MARKER=1 -DSTRESS_MARKER_PIN=%d"
+               % common.MARKER_PIN).strip()
     if LOAD_HIGH:
         ext = (ext + " -DSTRESS_LOAD_HIGH=1").strip()
     ext = (ext + " " if ext else "") + "-DSTRESS_LEVEL=%d -DONEWIRE_GUARD_BAND=%d" % (
@@ -529,7 +543,18 @@ class Runner:
             level, guard, clock if clock else "default"), flush=True)
         build(level, guard, clock)
         flash_halt(self.prog)
-        capture(self.sigrok, self.prog, self.raw, run_seconds(guard))
+        seconds = run_seconds(guard)
+        samples = capture(self.sigrok, self.prog, self.raw, seconds)
+        if retry and capture_short(samples, seconds):
+            # The analyzer stopped early (USB hiccup). That is a harness
+            # failure, not a bus result: re-run the cell instead of reporting
+            # "no complete frame".
+            print("  retry level=%d guard=%d clock=%s (short capture: %d samples)" % (
+                level, guard, clock if clock else "default", samples), flush=True)
+            res = self.run(level, guard, clock, retry=False)
+            res["attempts"] = res.get("attempts", 1) + 1
+            res["first_attempt_short"] = True
+            return res
         # The firmware settles for 200 ms after the reset; the previous image
         # is cut by the reset. Judge only frames that started after it.
         min_start_us = (PRE_RESET_S + SETTLE_MARGIN_S) * 1e6

@@ -224,7 +224,8 @@ level 0/4 outliers disappear once the D1 marker brackets the frames. The GPDMA
 negative control suspends the channel (`CCR.SUSP`) instead of clearing `EN`,
 because a pending GPDMA request is not dropped by clearing the enable bit.
 
-The H503 bench wires PA11 to the logic analyzer's D1. `STRESS_MARKER=1` makes
+The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
+F030 PA2). `STRESS_MARKER=1` makes
 each frame (or the search pass) a D1-high window, so the HIL analyses only the
 D0 traffic inside the marker: a startup glitch or a capture that ends mid-frame
 is outside every frame and cannot be mistaken for one. Every cell also reads

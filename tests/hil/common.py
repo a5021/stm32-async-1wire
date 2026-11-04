@@ -42,6 +42,10 @@ BENCH_PROFILES = {
         "hints": ("STM32F030", "STM32F0xx"),
         "device_id": "0x444",
         "ext": "-DOW_PARASITE_POWER=1",
+        # PA2 -> LA D1: the TSSOP20 has no PA11, and PA2 is otherwise unused
+        # by the bus, the console and the LED.
+        "marker": True,
+        "marker_pin": 2,
     },
     "STM32F446xx": {
         # WeAct F446RET6: 180MHz over-drive default, 8MHz HSE crystal, and the
@@ -87,8 +91,10 @@ DEVICE_ID_RE = re.compile(r"Device ID\s+:\s*(0x[0-9A-Fa-f]+)")
 # The bench the build targets; select_bench() sets both before any build.
 MCU = None
 BUILD_EXT = None
-# True when the bench's PA11 marker is wired to the logic analyzer's D1.
+# True when the bench's marker pin is wired to the logic analyzer's D1.
 MARKER = False
+# GPIO number (PAx) the bench's marker is wired to.
+MARKER_PIN = 11
 
 # Examples that need an extra define to exercise the path the check is about.
 # 7_low_power only prints its WFE mode line (and only sleeps) when
@@ -107,12 +113,13 @@ def build_ext(app):
 
 def select_bench(mcu):
     """Point the build at a bench profile: the OW_MCU macro and its EXT."""
-    global MCU, BUILD_EXT, MARKER
+    global MCU, BUILD_EXT, MARKER, MARKER_PIN
     MCU = mcu
     BUILD_EXT = (
         os.environ["HIL_EXT"] if "HIL_EXT" in os.environ else BENCH_PROFILES[mcu]["ext"]
     )
     MARKER = BENCH_PROFILES[mcu].get("marker", False)
+    MARKER_PIN = BENCH_PROFILES[mcu].get("marker_pin", 11)
     if "HIL_MARKER" in os.environ:
         MARKER = os.environ["HIL_MARKER"].strip().lower() not in ("", "0", "false", "no")
 
