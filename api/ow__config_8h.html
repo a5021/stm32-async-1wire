@@ -26,7 +26,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">stm32-async-1wire<span id="projectnumber">&#160;3.0.0</span>
+   <div id="projectname">stm32-async-1wire<span id="projectnumber">&#160;3.0.1</span>
    </div>
    <div id="projectbrief">Non-blocking 1-Wire master for STM32 with DS18B20 temperature and DS2431 EEPROM drivers</div>
   </td>
@@ -346,13 +346,13 @@ Macros</h2></td></tr>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a> &amp; 3u) &lt;&lt; 4) | ((uint32_t)(<a class="code hl_define" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a> &amp; 0xFFu) &lt;&lt; 6) | \</div>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a> &amp; 0x1FFu) &lt;&lt; 14) |                                     \</div>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a> &amp; 0x1FFu) &lt;&lt; 23))</div>
-<div class="ttc" id="aow__config_8h_html_a074e6e8f57a756da90d8dd4b8533f46b"><div class="ttname"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_SYSCLK_MHZ</div><div class="ttdoc">Compile-time configuration token of the library build.</div><div class="ttdef"><b>Definition</b> ow_config.h:224</div></div>
-<div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:53</div></div>
-<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:169</div></div>
-<div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:145</div></div>
-<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:180</div></div>
-<div class="ttc" id="aow__config_8h_html_a88ba1fd533e4ab1531cc910a370ffbea"><div class="ttname"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_TIM1_MHZ</div><div class="ttdef"><b>Definition</b> ow_config.h:229</div></div>
-<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:209</div></div>
+<div class="ttc" id="aow__config_8h_html_a074e6e8f57a756da90d8dd4b8533f46b"><div class="ttname"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_SYSCLK_MHZ</div><div class="ttdoc">Compile-time configuration token of the library build.</div><div class="ttdef"><b>Definition</b> ow_config.h:234</div></div>
+<div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:63</div></div>
+<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:179</div></div>
+<div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:155</div></div>
+<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:190</div></div>
+<div class="ttc" id="aow__config_8h_html_a88ba1fd533e4ab1531cc910a370ffbea"><div class="ttname"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_TIM1_MHZ</div><div class="ttdef"><b>Definition</b> ow_config.h:239</div></div>
+<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:219</div></div>
 </div><!-- fragment -->
 </div>
 </div>
