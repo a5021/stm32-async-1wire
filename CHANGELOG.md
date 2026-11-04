@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run that stopped early (USB hiccup, reset during re-enumeration) is repeated
   before analysis. Such a capture used to surface as "no complete frame" and
   looked like a driver failure.
+- **`STRESS_LOAD_HIGH` now also selects the F0 load channels.** On F0 the knob
+  moves the load from DMA1 channels 2/1 to channels 5/4 (the F030F4 has no
+  channel 6, so the second load rides channel 4, which the write rig does not
+  use for capture). This is the F0 counterpart of the F4 stream experiment.
 
 ### Changed
 
