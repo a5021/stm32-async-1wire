@@ -25,6 +25,16 @@
 #ifndef OW_CONFIG_H
 #define OW_CONFIG_H
 
+/* Removed public names from earlier releases. They used to be presence-style
+ * flags, so passing one now would compile and silently leave the feature at
+ * its default; fail loudly instead. See the migration table in README.md. */
+#if defined(OW_PORT_LOW_POWER)
+#error "OW_PORT_LOW_POWER was renamed to OW_LOW_POWER in 3.0.0; pass -DOW_LOW_POWER=1"
+#endif
+#if defined(PARASITE_POWER)
+#error "PARASITE_POWER was renamed to OW_PARASITE_POWER; pass -DOW_PARASITE_POWER=1"
+#endif
+
 #include <stdint.h>
 
 /* Backwards-compatible default: on existing builds the TIM1 kernel clock is

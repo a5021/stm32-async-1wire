@@ -29,6 +29,56 @@
 #ifndef OW_BOARD_H
 #define OW_BOARD_H
 
+/* ------------------------------------------------------------------
+ *  Removed public names: fail loudly instead of silently ignoring them.
+ *
+ *  3.0.0 renamed the public macros when the port layer became private and
+ *  dropped every compatibility alias. A build that still passes an old name
+ *  would otherwise compile with the renamed knob at its default, which is
+ *  exactly the silent change the rename was meant to prevent - a build with
+ *  the old low-power flag would quietly lose the WFE path. These guards make
+ *  the migration explicit at the first compiler invocation.
+ * ------------------------------------------------------------------ */
+#if defined(OW_PORT_FAMILY_F0)
+#error "OW_PORT_FAMILY_F0 was renamed to OW_FAMILY_F0 in 3.0.0; select the family via the device macro (e.g. -DSTM32F030x6) or -DSTM32F0"
+#endif
+#if defined(OW_PORT_FAMILY_F1)
+#error "OW_PORT_FAMILY_F1 was renamed to OW_FAMILY_F1 in 3.0.0; select the family via the device macro (e.g. -DSTM32F103xB) or -DSTM32F1"
+#endif
+#if defined(OW_PORT_FAMILY_F3)
+#error "OW_PORT_FAMILY_F3 was renamed to OW_FAMILY_F3 in 3.0.0; select the family via the device macro (e.g. -DSTM32F303xC) or -DSTM32F3"
+#endif
+#if defined(OW_PORT_FAMILY_F4)
+#error "OW_PORT_FAMILY_F4 was renamed to OW_FAMILY_F4 in 3.0.0; select the family via the device macro (e.g. -DSTM32F407xx) or -DSTM32F4"
+#endif
+#if defined(OW_PORT_FAMILY_G0)
+#error "OW_PORT_FAMILY_G0 was renamed to OW_FAMILY_G0 in 3.0.0; select the family via the device macro (e.g. -DSTM32G031xx) or -DSTM32G0"
+#endif
+#if defined(OW_PORT_FAMILY_G4)
+#error "OW_PORT_FAMILY_G4 was renamed to OW_FAMILY_G4 in 3.0.0; select the family via the device macro (e.g. -DSTM32G474xx) or -DSTM32G4"
+#endif
+#if defined(OW_PORT_FAMILY_L4)
+#error "OW_PORT_FAMILY_L4 was renamed to OW_FAMILY_L4 in 3.0.0; select the family via the device macro (e.g. -DSTM32L476xx) or -DSTM32L4"
+#endif
+#if defined(OW_PORT_FAMILY_H5)
+#error "OW_PORT_FAMILY_H5 was renamed to OW_FAMILY_H5 in 3.0.0; select the family via the device macro (e.g. -DSTM32H503xx) or -DSTM32H5"
+#endif
+#if defined(OW_PORT_FAMILY_H7)
+#error "OW_PORT_FAMILY_H7 was renamed to OW_FAMILY_H7 in 3.0.0; select the family via the device macro (e.g. -DSTM32H743xx) or -DSTM32H7"
+#endif
+#if defined(OW_PORT_SYSCLK_MHZ)
+#error "OW_PORT_SYSCLK_MHZ was renamed to OW_SYSCLK_MHZ in 3.0.0; pass -DOW_SYSCLK_MHZ=<MHz>"
+#endif
+#if defined(OW_PORT_F4_MAX_SYSCLK_MHZ)
+#error "OW_PORT_F4_MAX_SYSCLK_MHZ was renamed to OW_F4_MAX_SYSCLK_MHZ in 3.0.0; pass -DOW_F4_MAX_SYSCLK_MHZ=<MHz>"
+#endif
+#if defined(OW_PORT_G4_MAX_SYSCLK_MHZ)
+#error "OW_PORT_G4_MAX_SYSCLK_MHZ was renamed to OW_G4_MAX_SYSCLK_MHZ in 3.0.0; pass -DOW_G4_MAX_SYSCLK_MHZ=<MHz>"
+#endif
+#if defined(OW_PORT_H5_MAX_SYSCLK_MHZ)
+#error "OW_PORT_H5_MAX_SYSCLK_MHZ was renamed to OW_H5_MAX_SYSCLK_MHZ in 3.0.0; pass -DOW_H5_MAX_SYSCLK_MHZ=<MHz>"
+#endif
+
 #include <stdint.h>
 
 /* ------------------------------------------------------------------
