@@ -49,6 +49,7 @@ BENCH_PROFILES = {
         "hints": ("STM32F446", "STM32F4x6"),
         "device_id": "0x421",
         "ext": "-DOW_PARASITE_POWER=1",
+        "marker": True,  # PA11 -> LA D1, bracketed frames
     },
     "STM32F103xB": {
         # CubeProgrammer prints a family-level name for this part ("STM32F10x

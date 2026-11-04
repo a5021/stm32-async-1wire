@@ -204,11 +204,13 @@ run level 0 with `stress=unsupported` in the banner, so the all-family build
 matrix stays green.
 
 On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
-window), the same result as the F030. The fixed 512-word CPU hammer is longer
-than a slot at the low clocks: at 16 MHz level 5 needs guard 89, and at 8 MHz
-level 5 starves the feed even at guard 100. That is a measured property of this
-worst-case load, not a generator failure; run
-`python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it.
+window), the same result as the F030. At 16 and 8 MHz levels 0-4 are also clean
+at guard 1; only level 5 is limited by the fixed 512-word CPU hammer: it needs
+guard 89 at 16 MHz and starves the feed even at guard 100 at 8 MHz. That is a
+measured property of this worst-case synthetic load, not a generator failure;
+run `python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it. The F446
+bench also wires PA11 to D1, so its pressure and capture matrices use the same
+marker-bracketed analysis as the H503.
 
 On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
 measured floor is guard 1 except level 1 at 8 MHz (guard 2), and the earlier
