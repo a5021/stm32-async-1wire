@@ -314,9 +314,22 @@ static volatile uint32_t* stress_feed_control(void) {
 #endif
 
 #define STRESS_INJECT_OFF(save) 0u
-#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & DMA_CCR_EN) == 0u)
-#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & DMA_CCR_EN) != 0u)
 #define STRESS_DMA_EN DMA_CCR_EN
+
+static uint8_t stress_inject_off_ok(volatile uint32_t* ctrl) {
+    uint32_t guard = 1000u;
+    while ((*ctrl & STRESS_DMA_EN) != 0u && guard-- != 0u) {
+    }
+    return (*ctrl & STRESS_DMA_EN) == 0u;
+}
+static uint8_t stress_inject_on_ok(volatile uint32_t* ctrl, uint32_t save) {
+    uint32_t guard = 1000u;
+    while ((*ctrl & STRESS_DMA_EN) == 0u && guard-- != 0u) {
+    }
+    /* EN may auto-clear when the starved transfer finishes; the other control
+     * bits still prove that the saved register value was written back. */
+    return (*ctrl & ~STRESS_DMA_EN) == (save & ~STRESS_DMA_EN);
+}
 
 #if !STRESS_CAPTURE
 /* Transfers still queued on the CCR3 feed channel. Zero after completion is
@@ -403,9 +416,22 @@ static volatile uint32_t* stress_feed_control(void) {
 #endif
 
 #define STRESS_INJECT_OFF(save) 0u
-#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & DMA_SxCR_EN) == 0u)
-#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & DMA_SxCR_EN) != 0u)
 #define STRESS_DMA_EN DMA_SxCR_EN
+
+static uint8_t stress_inject_off_ok(volatile uint32_t* ctrl) {
+    uint32_t guard = 1000u;
+    while ((*ctrl & STRESS_DMA_EN) != 0u && guard-- != 0u) {
+    }
+    return (*ctrl & STRESS_DMA_EN) == 0u;
+}
+static uint8_t stress_inject_on_ok(volatile uint32_t* ctrl, uint32_t save) {
+    uint32_t guard = 1000u;
+    while ((*ctrl & STRESS_DMA_EN) == 0u && guard-- != 0u) {
+    }
+    /* EN may auto-clear when the starved transfer finishes; the other control
+     * bits still prove that the saved register value was written back. */
+    return (*ctrl & ~STRESS_DMA_EN) == (save & ~STRESS_DMA_EN);
+}
 
 #if !STRESS_CAPTURE
 static uint32_t feed_remaining(void) { return DMA2_Stream2->NDTR; }
@@ -499,9 +525,21 @@ static volatile uint32_t* stress_feed_control(void) {
  * SUSP at the end resumes it. This is still a channel-disable window: the
  * channel services no request while suspended. */
 #define STRESS_INJECT_OFF(save) ((save) | (1u << DMA_CCR_SUSP_Pos))
-#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & (1u << DMA_CCR_SUSP_Pos)) != 0u)
-#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & (1u << DMA_CCR_SUSP_Pos)) == 0u)
 #define STRESS_DMA_EN DMA_CCR_EN
+
+static uint8_t stress_inject_off_ok(volatile uint32_t* ctrl) {
+    uint32_t guard = 1000u;
+    while ((*ctrl & (1u << DMA_CCR_SUSP_Pos)) == 0u && guard-- != 0u) {
+    }
+    return (*ctrl & (1u << DMA_CCR_SUSP_Pos)) != 0u;
+}
+static uint8_t stress_inject_on_ok(volatile uint32_t* ctrl, uint32_t save) {
+    (void)save;
+    uint32_t guard = 1000u;
+    while ((*ctrl & (1u << DMA_CCR_SUSP_Pos)) != 0u && guard-- != 0u) {
+    }
+    return (*ctrl & (1u << DMA_CCR_SUSP_Pos)) == 0u;
+}
 
 #if !STRESS_CAPTURE
 /* BNDT is a source-byte count; the feed source is byte memory, so it equals
@@ -555,12 +593,12 @@ static void stress_inject(uint32_t us) {
         stress_inject_flags |= 8u; /* channel was not running */
     }
     *ctrl = STRESS_INJECT_OFF(save);
-    if (STRESS_INJECT_OFF_OK(*ctrl)) {
+    if (stress_inject_off_ok(ctrl)) {
         stress_inject_flags |= 2u;
     }
     stress_delay_us(us);
     *ctrl = save;
-    if (STRESS_INJECT_ON_OK(*ctrl)) {
+    if (stress_inject_on_ok(ctrl, save)) {
         stress_inject_flags |= 4u;
     }
 #else
@@ -570,7 +608,7 @@ static void stress_inject(uint32_t us) {
         stress_inject_flags |= 8u; /* channel was not running */
     }
     *ctrl = STRESS_INJECT_OFF(save);
-    if (STRESS_INJECT_OFF_OK(*ctrl)) {
+    if (stress_inject_off_ok(ctrl)) {
         stress_inject_flags |= 2u;
     }
     TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
@@ -578,7 +616,7 @@ static void stress_inject(uint32_t us) {
     }
     stress_delay_us(us);
     *ctrl = save;
-    if (STRESS_INJECT_ON_OK(*ctrl)) {
+    if (stress_inject_on_ok(ctrl, save)) {
         stress_inject_flags |= 4u;
     }
 #endif

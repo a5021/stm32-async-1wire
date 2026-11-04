@@ -49,12 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The HIL trusts a capture only when the run identity and marker agree.**
   `0_dma_pressure` now writes a run magic, the effective level/clock and the
   injection-state bits into telemetry, and `STRESS_MARKER=1` brackets every
-  frame (or the search pass) on PA11, which the H503 bench wires to the logic
-  analyzer's D1. `tests/hil/dma_pressure.py` and `dma_capture.py` reject a
-  stale image, a wrong level/clock/mode or an injection that did not actually
-  stop the channel, and retry the cell once; cells that pass only on a retry
-  keep `attempts` and `first_attempt_*` in the JSON. The marker removes the
-  startup-glitch and capture-tail heuristics from the H503 path: traffic
+  frame (or the search pass) on PA11, which the H503 and F446 benches wire to
+  the logic analyzer's D1. `tests/hil/dma_pressure.py` and `dma_capture.py`
+  reject a stale image, a wrong level/clock/mode or an injection that did not
+  actually stop the channel, and retry the cell once; cells that pass only on a
+  retry keep `attempts` and `first_attempt_*` in the JSON. The marker removes the
+  startup-glitch and capture-tail heuristics from the H503/F446 path: traffic
   outside a marker window is not a frame. The injection-state readback also
   pins the GPDMA `SUSP` behaviour (clearing `EN` is not enough) and catches a
   future no-op negative control.
