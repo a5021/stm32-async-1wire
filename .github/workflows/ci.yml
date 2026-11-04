@@ -372,10 +372,26 @@ jobs:
           set -e
           DIR=/tmp/gh-pages
           rm -rf "$DIR"
-          if git clone --depth 1 --branch gh-pages "$REPO_URL" "$DIR" 2>/dev/null; then
+          # GitHub occasionally rejects a push or clone with a transient
+          # "Internal Server Error". Retry the network operations; never turn
+          # a failed clone of an existing gh-pages branch into a fresh history.
+          cloned=0
+          for attempt in 1 2 3; do
+            if git clone --depth 1 --branch gh-pages "$REPO_URL" "$DIR" 2>/dev/null; then
+              cloned=1
+              break
+            fi
+            rm -rf "$DIR"
+            sleep $((attempt * 5))
+          done
+          if [ "$cloned" -eq 1 ]; then
             cd "$DIR"
             git rm -rq .
           else
+            if git ls-remote --exit-code --heads "$REPO_URL" gh-pages >/dev/null 2>&1; then
+              echo "gh-pages exists but could not be cloned" >&2
+              exit 1
+            fi
             git init -q -b gh-pages "$DIR"
             cd "$DIR"
             git remote add origin "$REPO_URL"
@@ -388,7 +404,16 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -qm "docs(pages): refresh coverage, API and viewer (${GITHUB_SHA::7})" \
               || echo "nothing to commit"
-          git push -q origin gh-pages
+          for attempt in 1 2 3; do
+            if git push -q origin gh-pages; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "gh-pages push failed after 3 attempts" >&2
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
 
   viewer-selftest:
     # selftest.html is the only executable check of the decoder that ships to
