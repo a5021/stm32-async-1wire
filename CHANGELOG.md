@@ -7,6 +7,20 @@ this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **The visualizer selftest runs in CI.** `tools/1wire_vis/selftest.html` is
+  the only executable check of the decoder that ships to users, but it used to
+  run only when somebody opened the page by hand. `tools/1wire_vis/run_selftest.py`
+  (`make test-viewer`) opens it in headless Chromium from `file://`, waits for
+  `document.body.dataset.result` and prints every failed check;
+  `playwright==1.64.1` is pinned in `requirements-selftest.txt`. A new CI job
+  installs the cached browser and runs it on every pull request, so a decoder
+  change cannot ship without the bundled-capture, CRC, slot and overdrive
+  golden vectors passing.
+
 ## [3.0.1] - 2026-11-04
 
 3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed

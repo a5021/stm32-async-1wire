@@ -390,6 +390,42 @@ jobs:
               || echo "nothing to commit"
           git push -q origin gh-pages
 
+  viewer-selftest:
+    # selftest.html is the only executable check of the decoder that ships to
+    # users: it parses the bundled 32.8 M-sample capture, decodes 44
+    # transactions and runs the golden slot/CRC/overdrive vectors. Without this
+    # job a green selftest depended on somebody opening the page by hand, so a
+    # broken decoder could ship as long as nobody looked. The page runs from
+    # file:// exactly as the README tells users to open it, so the check also
+    # covers the no-server path.
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache pip wheels (playwright)
+        uses: actions/cache@v5
+        with:
+          path: ~/pip-wheels
+          key: ${{ runner.os }}-pip-viewer-${{ hashFiles('tools/1wire_vis/requirements-selftest.txt') }}
+      - name: Install Playwright
+        # The version lives in requirements-selftest.txt; the same pinned pip
+        # cache rule as the format job keeps a stalled index from hanging CI.
+        run: bash tests/ci/pip_install.sh ~/pip-wheels -r tools/1wire_vis/requirements-selftest.txt
+      - name: Cache Playwright browser
+        # Keyed by the pinned Playwright requirement: a browser from another
+        # release is not what the golden values were captured against, so a
+        # version bump must also miss this cache.
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('tools/1wire_vis/requirements-selftest.txt') }}
+      - name: Install Chromium
+        # --with-deps is the official CI recipe. The timeout is the same rule
+        # as tests/ci/apt_install.sh: a stalled apt mirror fails the job in
+        # minutes instead of hanging it.
+        run: timeout 900 python3 -m playwright install --with-deps chromium
+      - name: Run the visualizer selftest
+        run: make test-viewer PYTHON=python3
+
   api-docs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04

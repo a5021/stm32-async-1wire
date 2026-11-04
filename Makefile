@@ -1031,6 +1031,15 @@ test-hil-parsing:
 test-stress-report:
 	@$(PYTHON) tests/hil/test_stress_report.py
 
+# --- Browser decoder selftest (see tools/1wire_vis/run_selftest.py) ---
+# selftest.html is the only executable check of the decoder that ships to
+# users. It needs a real browser (file:// loading, DecompressionStream, the
+# 32.8 M-sample bundled capture), so this target is not part of `make check`:
+# install the pinned Playwright and Chromium first (requirements-selftest.txt).
+.PHONY: test-viewer
+test-viewer:
+	@$(PYTHON) tools/1wire_vis/run_selftest.py
+
 # =============================================================================
 # BUILD TARGETS
 # =============================================================================
@@ -1909,6 +1918,7 @@ help:
 	@echo "  test-removed-macros - Check the removed 3.0.0 names are hard #errors naming their replacement (host gcc)"
 	@echo "  test-public-api - Check inc/ against the committed public-API snapshot and its canary"
 	@echo "  update-public-api - Rewrite tests/api/public-api.txt after a deliberate API change"
+	@echo "  test-viewer     - Run the 1-Wire visualizer selftest in headless Chromium (needs Playwright)"
 	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
