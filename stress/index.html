@@ -274,6 +274,88 @@ asked for anything yet. The search's first capture is later, which is why its
 threshold is higher. The viewer links on the detected rows show the corrupted
 frame/search.</p>
 </section>
+
+<section id="platform-f446">
+<h2>STM32F4 (STM32F446xx)</h2>
+<p class="meta">Measured 2026-11-04 at commit <code>bd203fb0</code> on <code>STM32F446xx</code>.
+Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
+<div class="verdict"><strong>2 level/clock cells do not pass</strong>; they are listed as <em>not clean</em> below.</div>
+<table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
+<th>Default guard</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>0</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_180mhz_g5.sr&amp;speed=standard" title="l0_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_180mhz_g5.sr&amp;speed=standard" title="l1_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_180mhz_g5.sr&amp;speed=standard" title="l2_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_180mhz_g5.sr&amp;speed=standard" title="l3_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_180mhz_g5.sr&amp;speed=standard" title="l4_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>180 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_180mhz_g5.sr&amp;speed=standard" title="l5_180mhz_g5.sr">frame</a></td></tr>
+<tr><td>0</td><td>16 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_16mhz_g5.sr&amp;speed=standard" title="l0_16mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>16 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_16mhz_g5.sr&amp;speed=standard" title="l1_16mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>16 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_16mhz_g5.sr&amp;speed=standard" title="l2_16mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>16 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_16mhz_g5.sr&amp;speed=standard" title="l3_16mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>16 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_16mhz_g5.sr&amp;speed=standard" title="l4_16mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>16 MHz</td><td>89 us</td><td><strong>not clean</strong></td><td class="links"><span class="muted">frame -</span></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_8mhz_g5.sr&amp;speed=standard" title="l0_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_8mhz_g5.sr&amp;speed=standard" title="l1_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_8mhz_g5.sr&amp;speed=standard" title="l2_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_8mhz_g5.sr&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_8mhz_g5.sr&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>never clean</td><td><strong>not clean</strong></td><td class="links"><span class="muted">frame -</span></td></tr></tbody></table>
+<p class="note">The floor column is the smallest clean guard measured here, so
+<em>not clean</em> means even the widest guard in the tested set did not pass.
+The capture links open one representative frame per cell.</p>
+</section>
+
+
+<section id="platform-h503">
+<h2>STM32H5 (STM32H503xx)</h2>
+<p class="meta">Measured 2026-11-04 at commit <code>bd203fb0</code> on <code>STM32H503xx</code>.
+Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
+<div class="verdict"><strong>Every level is clean at the 5 us default</strong>; the measured floor is shown per cell.</div>
+<table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
+<th>Default guard</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>0</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_64mhz_g5.sr&amp;speed=standard" title="l0_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_64mhz_g5.sr&amp;speed=standard" title="l1_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_64mhz_g5.sr&amp;speed=standard" title="l2_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_64mhz_g5.sr&amp;speed=standard" title="l3_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_64mhz_g5.sr&amp;speed=standard" title="l4_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_64mhz_g5.sr&amp;speed=standard" title="l5_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>0</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_250mhz_g5.sr&amp;speed=standard" title="l0_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_250mhz_g5.sr&amp;speed=standard" title="l1_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_250mhz_g5.sr&amp;speed=standard" title="l2_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_250mhz_g5.sr&amp;speed=standard" title="l3_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_250mhz_g5.sr&amp;speed=standard" title="l4_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_250mhz_g5.sr&amp;speed=standard" title="l5_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l0_8mhz_g5.sr&amp;speed=standard" title="l0_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l1_8mhz_g5.sr&amp;speed=standard" title="l1_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l2_8mhz_g5.sr&amp;speed=standard" title="l2_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l3_8mhz_g5.sr&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l4_8mhz_g5.sr&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=../stress/captures/l5_8mhz_g5.sr&amp;speed=standard" title="l5_8mhz_g5.sr">frame</a></td></tr></tbody></table>
+<p class="note">The floor column is the smallest clean guard measured here, so
+<em>not clean</em> means even the widest guard in the tested set did not pass.
+The capture links open one representative frame per cell.</p>
+</section>
+
+
+<section id="priority">
+<h2>Load placement and DMA priority</h2>
+<p>On a classic DMA controller or an F4 DMA stream, equal software priority is
+broken by the lower channel/stream number. The historical load sits on the low
+numbers (F0 channels 2/1, F4 streams 0/1), so it deliberately <em>outranks</em>
+the feed; the "high" runs move the same burst to the higher numbers, where the
+feed wins. The rows below are the same levels and guards with only that
+placement changed.</p>
+<table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
+<th>Clean cells</th><th>Failing cells</th></tr></thead>
+<tbody><tr><td>STM32F0</td><td><code>STM32F030x6</code></td><td>DMA1 channels 2 and 1</td><td>12</td><td>0</td></tr>
+<tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 5 and 6</td><td>18</td><td>0</td></tr></tbody></table>
+<p class="note">A part that stays clean in both rows is bandwidth-bound with
+margin to spare. A part that is clean only with the load below the feed is
+sensitive to arbitration order, which is what the low-number default
+measures.</p>
+</section>
+
+
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
@@ -284,21 +366,25 @@ before completion, including the final release.</li>
 <li>The load is real, not a no-op: channel 1 restarted its finite burst
 thousands of times per run (see the table), and the CPU hammer ran alongside
 it; the feed still met the 2 µs floor.</li>
-<li>The 5 us guard is a 6 us window. Even at the 2 us floor the wire stayed
-clean, so this part does not need a larger default and the library keeps its
-default DMA priority.</li>
+<li>The 6 us guard is a 2 us window, and the https://github.com/a5021/stm32-async-1wire us floor is the smallest guard
+that stayed clean. Even there the wire stayed correct, so this part does not
+need a larger default and the library keeps its default DMA priority.</li>
 </ul>
 </section>
 
 <section id="caveats">
 <h2>Caveats</h2>
 <ul>
-<li><strong>Equal priority only.</strong> Every load channel stays at the
-default DMA priority. An application channel with <code>PL &gt; 0</code> is a
-different arbitration case and is not covered by this run.</li>
-<li><strong>F0 only.</strong> The generator is implemented for the F0 backend
-(STM32F030x6). F4 streams and H5/H7 GPDMA have different arbitration and need
-their own run.</li>
+<li><strong>Equal priority only, but the order matters.</strong> Every load
+channel stays at the default DMA priority. An application channel with
+<code>PL &gt; 0</code> is a different arbitration case and is not covered by
+this run. What <em>is</em> covered is the equal-priority tie-break: the
+historical load sits on the low channel/stream numbers, so it outranks the
+feed; the priority section shows the same load on the high numbers.</li>
+<li><strong>One rig, several benches.</strong> Each measured part used the same
+firmware and loader. Where a part has fewer DMA channels the high-placement
+load uses the next free number (the F030F4 has no channel 6, so it uses
+channel 4). Bench wiring and marker pins differ per board.</li>
 <li><strong>One part, one bench, write-only.</strong> The pattern is not a
 1-Wire transaction and the attached devices are never addressed (no reset), so
 the measurement is the master's timing, not a protocol exchange.</li>
@@ -310,15 +396,15 @@ exactly 1 us".</li>
 
 <section id="reproduce">
 <h2>Reproduce</h2>
-<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 \
+<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 %BACKSLASH%
      EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=5 -DONEWIRE_GUARD_BAND=1"
 
-python tests/hil/dma_pressure.py \
-     --json docs/stress/results.json \
+python tests/hil/dma_pressure.py %BACKSLASH%
+     --json docs/stress/results.json %BACKSLASH%
      --sr-dir docs/stress/captures
 
-python tools/stress_report.py \
-     --data docs/stress/results.json \
+python tools/stress_report.py %BACKSLASH%
+     --data docs/stress/results.json %BACKSLASH%
      --out docs/stress/index.html</pre>
 <p class="note">The matrix needs an fx2lafw logic analyzer and an ST-Link; it
 prints SKIP when either is missing. A full 12-cell run takes a few minutes
@@ -334,6 +420,10 @@ SWD telemetry.</li>
 run.</li>
 <li><code>captures/</code> - one representative frame per cell, in sigrok
 <code>.sr</code> form; the Viewer column above links each one.</li>
+<li><code>platforms/</code> - the same three files per additional bench
+(<code>results.json</code>, <code>capture.json</code>, and where the load
+placement was tested <code>results-high.json</code> with its
+<code>captures-high/</code>), for example <code>platforms/f446/</code>.</li>
 <li><a href="https://github.com/a5021/stm32-async-1wire/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
 and <a href="https://github.com/a5021/stm32-async-1wire/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
 - the rig and the harness.</li>
