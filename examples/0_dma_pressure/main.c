@@ -128,11 +128,11 @@
 #define STRESS_SPLIT_HAMMER 0
 #endif
 
-/* Test-only F4 stream choice: 0 = the historical stream 0/1 load (lower
- * numbers, so it outranks the feed on stream 2 at equal priority), 1 = streams
- * 5/6 (higher numbers, so the feed/capture win). This is for isolating whether
- * the low-clock level-5 failure is stream-priority arbitration or bus
- * bandwidth. */
+/* Test-only load-channel choice, F0 and F4 only: 0 = the historical low-number
+ * load (F0 DMA1 channels 2/1, F4 DMA2 streams 0/1), which outranks the feed at
+ * equal priority; 1 = the same load on the high numbers (F0 channels 5/6, F4
+ * streams 5/6), where the feed and capture win. This is what separates the
+ * stream/channel arbitration rank from raw bus bandwidth. */
 #ifndef STRESS_LOAD_HIGH
 #define STRESS_LOAD_HIGH 0
 #endif
@@ -181,9 +181,10 @@
 #if (STRESS_LOAD_HIGH != 0) && (STRESS_LOAD_HIGH != 1)
 #error "STRESS_LOAD_HIGH must be 0 or 1"
 #endif
-#if STRESS_LOAD_HIGH && !defined(OW_FAMILY_F4)
-#error "STRESS_LOAD_HIGH is an F4 stream-selection knob"
+#if STRESS_LOAD_HIGH && !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F4)
+#error "STRESS_LOAD_HIGH is an F0/F4 channel/stream-selection knob"
 #endif
+
 #if !STRESS_SPLIT_HAMMER && (STRESS_CPU_WORDS != STRESS_WORDS)
 #error "STRESS_CPU_WORDS != STRESS_WORDS requires STRESS_SPLIT_HAMMER=1"
 #endif
@@ -303,43 +304,66 @@ static volatile uint16_t stress_cpu_dst[STRESS_CPU_WORDS];
 
 #if defined(OW_FAMILY_F0)
 
+#if !STRESS_LOAD_HIGH
 #define STRESS_CH1_FLAGS \
     (DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1)
 #define STRESS_CH2_FLAGS \
     (DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 | DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2)
+#define STRESS_LOAD0_DMA DMA1_Channel2
+#define STRESS_LOAD1_DMA DMA1_Channel1
+#define STRESS_LOAD0_FLAGS STRESS_CH2_FLAGS
+#define STRESS_LOAD1_FLAGS STRESS_CH1_FLAGS
+#else
+/* Test-only: channels 5/6 sit above the feed (3) and capture (4) at equal
+ * priority, so this isolates arbitration rank from raw bus bandwidth. The
+ * F030F4 has only DMA1 channels 1-5, so the second load uses channel 4 in
+ * capture mode (CCR4 is not drained: the write rig runs no capture). */
+#define STRESS_CH5_FLAGS \
+    (DMA_IFCR_CGIF5 | DMA_IFCR_CTCIF5 | DMA_IFCR_CHTIF5 | DMA_IFCR_CTEIF5)
+#define STRESS_CH4_FLAGS \
+    (DMA_IFCR_CGIF4 | DMA_IFCR_CTCIF4 | DMA_IFCR_CHTIF4 | DMA_IFCR_CTEIF4)
+#define STRESS_LOAD0_DMA DMA1_Channel5
+#define STRESS_LOAD1_DMA DMA1_Channel4
+#define STRESS_LOAD0_FLAGS STRESS_CH5_FLAGS
+#define STRESS_LOAD1_FLAGS STRESS_CH4_FLAGS
+#endif
+#if STRESS_LOAD_HIGH && STRESS_CAPTURE
+#error "STRESS_LOAD_HIGH uses channel 4 for the F0 load, so it cannot run in capture mode"
+#endif
 
-/* Finite mem-to-memory burst on DMA1 channel 2 (the second-lowest channel
- * number; at equal priority the classic DMA1 arbiter favours lower
- * channels). */
+/* Finite mem-to-memory burst on the first load channel. At equal priority the
+ * classic DMA1 arbiter favours the lower channel number, so the default
+ * channel 2 (levels 2/3) and channel 1 (levels 4/5) outrank the feed on
+ * channel 3; STRESS_LOAD_HIGH moves the load to channels 5/4 for the reverse
+ * case (the F030F4 has no channel 6, so the second load rides channel 4, which
+ * the write rig does not use for capture). */
 static void stress_burst_start(void) {
     burst_starts++;
-    DMA1_Channel2->CCR = 0u;
-    DMA1->IFCR = STRESS_CH2_FLAGS;
-    DMA1_Channel2->CPAR = (uint32_t)&stress_src_word;
-    DMA1_Channel2->CMAR = (uint32_t)stress_dst;
-    DMA1_Channel2->CNDTR = (uint32_t)STRESS_WORDS;
-    DMA1_Channel2->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |
-                         DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+    STRESS_LOAD0_DMA->CCR = 0u;
+    DMA1->IFCR = STRESS_LOAD0_FLAGS;
+    STRESS_LOAD0_DMA->CPAR = (uint32_t)&stress_src_word;
+    STRESS_LOAD0_DMA->CMAR = (uint32_t)stress_dst;
+    STRESS_LOAD0_DMA->CNDTR = (uint32_t)STRESS_WORDS;
+    STRESS_LOAD0_DMA->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |
+                            DMA_CCR_MSIZE_0 | DMA_CCR_EN;
 }
 
-/* Finite mem-to-memory burst on DMA1 channel 1. Circular mode is not allowed
- * with memory-to-memory (RM0091), so level 4/5 restart this finite burst from
- * the service loop; that is a valid continuous stream of transfers. Channel 1
- * has the lowest channel number and therefore wins equal-priority arbitration
- * against channel 2 and the feed channel 3. */
+/* Circular mode is not allowed with memory-to-memory (RM0091), so level 4/5
+ * restart this finite burst from the service loop; that is a valid continuous
+ * stream of transfers. */
 static void stress_ch1_burst_start(void) {
     ch1_starts++;
-    DMA1_Channel1->CCR = 0u;
-    DMA1->IFCR = STRESS_CH1_FLAGS;
-    DMA1_Channel1->CPAR = (uint32_t)&stress_src_word;
-    DMA1_Channel1->CMAR = (uint32_t)stress_dst;
-    DMA1_Channel1->CNDTR = (uint32_t)STRESS_WORDS;
-    DMA1_Channel1->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC |
-                         DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+    STRESS_LOAD1_DMA->CCR = 0u;
+    DMA1->IFCR = STRESS_LOAD1_FLAGS;
+    STRESS_LOAD1_DMA->CPAR = (uint32_t)&stress_src_word;
+    STRESS_LOAD1_DMA->CMAR = (uint32_t)stress_dst;
+    STRESS_LOAD1_DMA->CNDTR = (uint32_t)STRESS_WORDS;
+    STRESS_LOAD1_DMA->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC |
+                            DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
 }
 
-static uint8_t stress_burst_done(void) { return DMA1_Channel2->CNDTR == 0u; }
-static uint8_t stress_ch1_done(void) { return DMA1_Channel1->CNDTR == 0u; }
+static uint8_t stress_burst_done(void) { return STRESS_LOAD0_DMA->CNDTR == 0u; }
+static uint8_t stress_ch1_done(void) { return STRESS_LOAD1_DMA->CNDTR == 0u; }
 
 /* Disable one channel. Returns 1 when EN cleared within the bounded wait, 0 on
  * timeout. On timeout CNDTR is left alone: the channel is not known to be
@@ -358,8 +382,8 @@ static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
 }
 
 static uint8_t stress_stop(void) {
-    uint8_t ok = stress_stop_channel(DMA1_Channel1, STRESS_CH1_FLAGS);
-    ok &= stress_stop_channel(DMA1_Channel2, STRESS_CH2_FLAGS);
+    uint8_t ok = stress_stop_channel(STRESS_LOAD1_DMA, STRESS_LOAD1_FLAGS);
+    ok &= stress_stop_channel(STRESS_LOAD0_DMA, STRESS_LOAD0_FLAGS);
     return ok;
 }
 
