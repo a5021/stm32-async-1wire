@@ -29,7 +29,7 @@
 - [ ] `make test-clocks` passes (per-family clock defaults)
 - [ ] `make test-chips` passes (after adding or editing a `chips/<part>.mk`)
 - [ ] `make check` passes (formatting, `cppcheck`, version declarations, HIL parsers)
-- [ ] README and CHANGELOG updated if behavior/usage changed
+- [ ] `docs/` and CHANGELOG updated if behavior/usage changed
 
 ## Hardware testing
 

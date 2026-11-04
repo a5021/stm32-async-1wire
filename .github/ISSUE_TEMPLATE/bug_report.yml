@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for taking the time to report a bug. Before submitting,
         please check the [Troubleshooting](https://github.com/a5021/stm32-async-1wire#troubleshooting)
-        section of the README — most issues are wiring-related.
+        section of the troubleshooting guide — most issues are wiring-related.
   - type: textarea
     id: describe
     attributes:

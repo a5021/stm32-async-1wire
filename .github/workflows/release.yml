@@ -350,7 +350,8 @@ jobs:
               be confused with a real 0us edge left in the buffer.
             - **Macro rename (breaking).** `OW_PORT_FAMILY_*` -> `OW_FAMILY_*`,
               `OW_PORT_SYSCLK_MHZ` -> `OW_SYSCLK_MHZ`, and the rest of the table;
-              no compatibility aliases. The migration table is in the README.
+              no compatibility aliases. The migration table is in
+              `docs/migration.md`.
             - **Startup checks.** `onewire_clock_ok()` rejects a firmware clocked
               differently from the clock it was compiled for, and
               `onewire_config_token()` catches library/application `-D`
@@ -529,7 +530,8 @@ jobs:
 
             ## Getting started
 
-            See the [README](https://github.com/a5021/stm32-async-1wire#readme):
+            See the [README](https://github.com/a5021/stm32-async-1wire#readme)
+            and the [Getting started guide](https://github.com/a5021/stm32-async-1wire/blob/main/docs/getting-started.md):
             include `ds18b20.h`, call `ds18b20_init()` once, then `ds18b20_poll()` in your main loop.
 
             ---

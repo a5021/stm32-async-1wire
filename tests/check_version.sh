@@ -3,7 +3,7 @@
 #
 # The version is declared in several places: the four macros in inc/ow_version.h,
 # the CMake project(), the PlatformIO manifest, the Doxygen
-# PROJECT_NUMBER, the FetchContent GIT_TAG example in the README, the release
+# PROJECT_NUMBER, the FetchContent GIT_TAG example in docs/building.md, the release
 # notes body in CHANGELOG.md, and the static release title/archive names in
 # release.yml. In a tag-triggered release run, the tag is checked too. This
 # drift is how v1.8.1 shipped with no [1.8.1] section in CHANGELOG.md: the tag
@@ -89,7 +89,7 @@ check() {
 check CMakeLists.txt     "project(stm32_async_1wire VERSION $want " "CMake project version"
 check library.json       "\"version\": \"$want\""                 "PlatformIO library.json"
 check Doxyfile           "PROJECT_NUMBER         = $want"        "Doxygen PROJECT_NUMBER"
-check README.md          "GIT_TAG        v$want"                 "README FetchContent GIT_TAG"
+check docs/building.md  "GIT_TAG        v$want"                 "docs/building.md FetchContent GIT_TAG"
 check .github/workflows/release.yml "## What's new in $want"      "Release notes heading"
 check .github/workflows/release.yml "ship inside \`firmware-$want.zip\`." \
      "Release archive name in What's new section"

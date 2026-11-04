@@ -46,6 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **README split into topic guides under `docs/`.** The landing page keeps the
+  overview, supported devices, features, a short quick start and the
+  documentation index; the detailed material moved to `docs/getting-started.md`,
+  `building.md`, `examples.md`, `hardware.md`, `architecture.md`,
+  `api-reference.md`, `migration.md`, `file-structure.md`, `troubleshooting.md`
+  and `project.md`. Every internal anchor was rewritten to its new page and the
+  cross-page prose references (Clocking invariant, Bus Electrical Model, the
+  1-Wire Layer reference) now link directly. The FetchContent `GIT_TAG` check
+  moved with its example, so `tests/check_version.sh` reads `docs/building.md`;
+  the release notes, issue templates and `CONTRIBUTING.md` point at the new
+  troubleshooting and migration pages. `README.md` drops from ~207 KB to ~14 KB.
 - **DMA-pressure injection is anchored at the first CC2 request.**
   `STRESS_INJECT_US` used to disable the feed channel from the start of the
   frame, so its first 65 us ran before the feed had asked for anything and
