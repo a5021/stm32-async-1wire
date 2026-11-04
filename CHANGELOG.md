@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **STM32L4 backend and NUCLEO-L476RG support.** A new `OW_FAMILY_L4` section
+  drives the bus on PA10 (TIM1_CH3, AF1), captures on TIM1_CH4, and feeds/reloads
+  CCR3 through classic DMA1 channels 3/4 with the request selected in
+  `DMA1_CSELR` (both channels use selection 7: TIM1_CH2 and TIM1_CH4). The clock
+  tree is HSI16-only because the board's HSE crystal is not populated: 80MHz
+  via HSI16+PLL (M=1, N=10, R=2, voltage Range 1, 4 flash wait states) or
+  16MHz raw HSI16, with console on USART1 PA9 (AF7) and the LED on PA5.
+  Adds `chips/l476rg.mk`, `port/stm32l4/` (1MB flash / 96KB SRAM1 linker
+  script and Ozone project), a host mock, the `test-l4` / `test-clocks-l4`
+  matrix entries, CMake dispatch, CI coverage and release builds, the
+  `STM32L476xx` HIL profile, and `OW_L4_CONSOLE_BRR` / clock-tree tests.
+  Bench-validated with 7 DS18B20 in parasite power plus one DS2431 at both
+  clocks: `2_device_search` (7 ROMs, 27.6-27.9 C), `4_scan_mode`,
+  `6_statistics` (5040 pulses, 0 errors), `7_low_power` and `8_ds2431`
+  (read-back baseline+1) pass; the LA geometry check needs
+  `--tolerance-us 5` because HSI16 is a nominal RC (+/-1%).
 - **`0_dma_pressure` diagnostic example and its HIL guard-band matrix.** The
   example transmits a fixed 64-slot pattern under a selectable
   memory-subsystem load (CPU SRAM hammer, finite DMA1 memory-to-memory
