@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-03 19:19:45</td>
+            <td class="headerValue">2026-11-04 07:51:02</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">-</td>
@@ -140,7 +140,7 @@
 <span id="L69"><span class="lineNum">      69</span>                 :             :  *       stale second slot can never fake a device. Single place for that rule.</span>
 <span id="L70"><span class="lineNum">      70</span>                 :             :  */</span>
 <span id="L71"><span class="lineNum">      71</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_has_presence(const volatile uint16_t* cap) {</span>
-<span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">        3962 :     return onewire_present(cap, onewire_reset_captured());</span></span>
+<span id="L72"><span class="lineNum">      72</span>                 :<span class="tlaGNC">        4495 :     return onewire_present(cap, onewire_reset_captured());</span></span>
 <span id="L73"><span class="lineNum">      73</span>                 :             : }</span>
 <span id="L74"><span class="lineNum">      74</span>                 :             : </span>
 <span id="L75"><span class="lineNum">      75</span>                 :             : /**</span>
@@ -153,14 +153,14 @@
 <span id="L82"><span class="lineNum">      82</span>                 :             :  *       bytes mean (prefix, command, payload) stays in the drivers.</span>
 <span id="L83"><span class="lineNum">      83</span>                 :             :  */</span>
 <span id="L84"><span class="lineNum">      84</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_bytes(ow_pulse_t** dst, const uint8_t* src, uint8_t n) {</span>
-<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="Branch 0 was taken 256 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1424 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 528 times"> + </span>]:<span class="tlaGNC">       11356 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 1760 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 220 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3344 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 418 times"> + </span> 
-<span class="lineNum">        </span> <span class="tlaGBC" title="Branch 4 was taken 528 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 66 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 726 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 1064 times"> + </span><span class="tlaGBC" title="Branch 8 was taken 880 times"> + </span> 
-<span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 9 was taken 110 times"> + </span>]
-<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">        8918 :         onewire_encode_byte(*dst, src[i]);</span></span>
-<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">        8918 :         *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="Branch 0 was taken 288 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1602 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 594 times"> + </span>]:<span class="tlaGNC">       12879 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 2000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 250 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3800 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 475 times"> + </span> 
+<span class="lineNum">        </span> <span class="tlaGBC" title="Branch 4 was taken 600 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 825 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 1209 times"> + </span><span class="tlaGBC" title="Branch 8 was taken 1000 times"> + </span> 
+<span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 9 was taken 125 times"> + </span>]
+<span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">       10115 :         onewire_encode_byte(*dst, src[i]);</span></span>
+<span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">       10115 :         *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
 <span id="L88"><span class="lineNum">      88</span>                 :             :     }</span>
-<span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">        2438 :     return n;</span></span>
+<span id="L89"><span class="lineNum">      89</span>                 :<span class="tlaGNC">        2764 :     return n;</span></span>
 <span id="L90"><span class="lineNum">      90</span>                 :             : }</span>
 <span id="L91"><span class="lineNum">      91</span>                 :             : </span>
 <span id="L92"><span class="lineNum">      92</span>                 :             : /**</span>
@@ -173,9 +173,9 @@
 <span id="L99"><span class="lineNum">      99</span>                 :             :  *       protocol constant, identical for every slave.</span>
 <span id="L100"><span class="lineNum">     100</span>                 :             :  */</span>
 <span id="L101"><span class="lineNum">     101</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_skip_rom(ow_pulse_t** dst) {</span>
-<span id="L102"><span class="lineNum">     102</span>                 :<span class="tlaGNC">        2364 :     onewire_encode_byte(*dst, ONEWIRE_SKIP_ROM);</span></span>
-<span id="L103"><span class="lineNum">     103</span>                 :<span class="tlaGNC">        2364 :     *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
-<span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">        2364 :     return 1u;</span></span>
+<span id="L102"><span class="lineNum">     102</span>                 :<span class="tlaGNC">        2680 :     onewire_encode_byte(*dst, ONEWIRE_SKIP_ROM);</span></span>
+<span id="L103"><span class="lineNum">     103</span>                 :<span class="tlaGNC">        2680 :     *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L104"><span class="lineNum">     104</span>                 :<span class="tlaGNC">        2680 :     return 1u;</span></span>
 <span id="L105"><span class="lineNum">     105</span>                 :             : }</span>
 <span id="L106"><span class="lineNum">     106</span>                 :             : </span>
 <span id="L107"><span class="lineNum">     107</span>                 :             : /**</span>
@@ -187,9 +187,9 @@
 <span id="L113"><span class="lineNum">     113</span>                 :             :  *       (when to use Match rather than Skip) stays in the driver.</span>
 <span id="L114"><span class="lineNum">     114</span>                 :             :  */</span>
 <span id="L115"><span class="lineNum">     115</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_match_rom(ow_pulse_t** dst, const uint8_t* rom) {</span>
-<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">         846 :     onewire_encode_byte(*dst, ONEWIRE_MATCH_ROM);</span></span>
-<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">         846 :     *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
-<span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">         846 :     return (uint8_t)(1u + ow_encode_bytes(dst, rom, ONEWIRE_ROM_BYTES));</span></span>
+<span id="L116"><span class="lineNum">     116</span>                 :<span class="tlaGNC">         961 :     onewire_encode_byte(*dst, ONEWIRE_MATCH_ROM);</span></span>
+<span id="L117"><span class="lineNum">     117</span>                 :<span class="tlaGNC">         961 :     *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L118"><span class="lineNum">     118</span>                 :<span class="tlaGNC">         961 :     return (uint8_t)(1u + ow_encode_bytes(dst, rom, ONEWIRE_ROM_BYTES));</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :             : }</span>
 <span id="L120"><span class="lineNum">     120</span>                 :             : </span>
 <span id="L121"><span class="lineNum">     121</span>                 :             : #endif /* OW_GLUE_H */</span>
