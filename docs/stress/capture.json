@@ -349,15 +349,15 @@
     }
   ],
   "capture_supported": true,
-  "commit": "6c5f060c",
+  "commit": "26e419fd",
   "dirty": true,
   "first_bad": {
     "search_48": 200,
     "search_8": 200,
-    "write_48": 80,
-    "write_8": 80
+    "write_48": 16,
+    "write_8": 20
   },
-  "generated": "2026-11-03",
+  "generated": "2026-11-04",
   "inject_cells": [
     {
       "capture": "search/l0_48mhz_g5_i0.sr",
@@ -397,38 +397,6 @@
       "inject_us": 1000,
       "matches": false,
       "mode": "search",
-      "stop_timeout": 0
-    },
-    {
-      "capture": "inject/write_l0_48mhz_g5_i0.sr",
-      "clean": true,
-      "clock_mhz": 48,
-      "inject_us": 0,
-      "mode": "write",
-      "stop_timeout": 0
-    },
-    {
-      "capture": "inject/write_l0_48mhz_g5_i80.sr",
-      "clean": false,
-      "clock_mhz": 48,
-      "inject_us": 80,
-      "mode": "write",
-      "stop_timeout": 0
-    },
-    {
-      "capture": "inject/write_l0_48mhz_g5_i120.sr",
-      "clean": false,
-      "clock_mhz": 48,
-      "inject_us": 120,
-      "mode": "write",
-      "stop_timeout": 0
-    },
-    {
-      "capture": "inject/write_l0_48mhz_g5_i200.sr",
-      "clean": false,
-      "clock_mhz": 48,
-      "inject_us": 200,
-      "mode": "write",
       "stop_timeout": 0
     },
     {
@@ -472,6 +440,46 @@
       "stop_timeout": 0
     },
     {
+      "capture": "inject/write_l0_48mhz_g5_i0.sr",
+      "clean": true,
+      "clock_mhz": 48,
+      "inject_us": 0,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i8.sr",
+      "clean": true,
+      "clock_mhz": 48,
+      "inject_us": 8,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i12.sr",
+      "clean": true,
+      "clock_mhz": 48,
+      "inject_us": 12,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i16.sr",
+      "clean": false,
+      "clock_mhz": 48,
+      "inject_us": 16,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
+      "capture": "inject/write_l0_48mhz_g5_i20.sr",
+      "clean": false,
+      "clock_mhz": 48,
+      "inject_us": 20,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
       "capture": "inject/write_l0_8mhz_g5_i0.sr",
       "clean": true,
       "clock_mhz": 8,
@@ -480,26 +488,34 @@
       "stop_timeout": 0
     },
     {
-      "capture": "inject/write_l0_8mhz_g5_i80.sr",
-      "clean": false,
+      "capture": "inject/write_l0_8mhz_g5_i8.sr",
+      "clean": true,
       "clock_mhz": 8,
-      "inject_us": 80,
+      "inject_us": 8,
       "mode": "write",
       "stop_timeout": 0
     },
     {
-      "capture": "inject/write_l0_8mhz_g5_i120.sr",
-      "clean": false,
+      "capture": "inject/write_l0_8mhz_g5_i12.sr",
+      "clean": true,
       "clock_mhz": 8,
-      "inject_us": 120,
+      "inject_us": 12,
       "mode": "write",
       "stop_timeout": 0
     },
     {
-      "capture": "inject/write_l0_8mhz_g5_i200.sr",
+      "capture": "inject/write_l0_8mhz_g5_i16.sr",
+      "clean": true,
+      "clock_mhz": 8,
+      "inject_us": 16,
+      "mode": "write",
+      "stop_timeout": 0
+    },
+    {
+      "capture": "inject/write_l0_8mhz_g5_i20.sr",
       "clean": false,
       "clock_mhz": 8,
-      "inject_us": 200,
+      "inject_us": 20,
       "mode": "write",
       "stop_timeout": 0
     }
@@ -514,9 +530,10 @@
     ],
     "write": [
       0,
-      80,
-      120,
-      200
+      8,
+      12,
+      16,
+      20
     ]
   },
   "schema": 1

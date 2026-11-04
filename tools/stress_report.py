@@ -202,6 +202,31 @@ those gaps.</p>
 </section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
 
 
+def _first_bad_text(first, prefix):
+    """Per-clock first-bad values, e.g. "16 us (48 MHz) and 20 us (8 MHz)"."""
+    pairs = []
+    for key in sorted(first, key=lambda k: (k.split("_", 1)[1] != "def",
+                                            k.split("_", 1)[1])):
+        value = first[key]
+        if not key.startswith(prefix) or value is None:
+            continue
+        pairs.append((key.split("_", 1)[1], value))
+    if not pairs:
+        return "not detected"
+    groups = {}
+    for clock, value in pairs:
+        groups.setdefault(value, []).append(clock)
+    parts = []
+    for value, clocks in groups.items():
+        if len(clocks) == len(pairs):
+            parts.append("%d us (both clocks)" % value)
+            continue
+        for clock in clocks:
+            parts.append("%d us (%s)" % (value, "default" if clock == "def"
+                                         else "%s MHz" % clock))
+    return " and ".join(parts)
+
+
 def inject_section(capture):
     """The deliberately delayed transfer table, or ""."""
     cells = capture.get("inject_cells") or []
@@ -217,10 +242,8 @@ def inject_section(capture):
             "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
             c["inject_us"], "clean" if good else "<strong>detected</strong>", link))
     first = capture.get("first_bad") or {}
-    feed = [v for k, v in first.items() if k.startswith("write") and v is not None]
-    capd = [v for k, v in first.items() if k.startswith("search") and v is not None]
-    feed_txt = ("%d us" % min(feed)) if feed else "not detected"
-    cap_txt = ("%d us" % min(capd)) if capd else "not detected"
+    feed_txt = _first_bad_text(first, "write")
+    cap_txt = _first_bad_text(first, "search")
     return """<section id="inject">
 <h2>Negative control: a deliberately delayed transfer</h2>
 <p>Detecting a late transfer is not the same as detecting a wrong count or a
@@ -233,10 +256,13 @@ assume a particular request-latching rule. The harness must go red.</p>
 <th>Result</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p>The first delayed feed is detected at <strong>%s</strong> and the first
-delayed capture at <strong>%s</strong>. The write frame's first CC2 request is
-at 65 us, so an 80 us disable already misses the deadline; the search's first
-capture is later, which is why its threshold is higher. The viewer links on
-the detected rows show the corrupted frame/search.</p>
+delayed capture at <strong>%s</strong>. The write window is anchored at the
+frame's first CC2 request (65 us), so these values bound how long the first
+feed transfer may be held <em>after</em> that request; a window measured from
+the frame start could not show anything below 65 us because the feed had not
+asked for anything yet. The search's first capture is later, which is why its
+threshold is higher. The viewer links on the detected rows show the corrupted
+frame/search.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 

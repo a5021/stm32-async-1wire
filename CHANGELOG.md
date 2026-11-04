@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   change cannot ship without the bundled-capture, CRC, slot and overdrive
   golden vectors passing.
 
+### Changed
+
+- **DMA-pressure injection is anchored at the first CC2 request.**
+  `STRESS_INJECT_US` used to disable the feed channel from the start of the
+  frame, so its first 65 us ran before the feed had asked for anything and
+  every value below the old 80 us floor was a no-op. Write-mode injection now
+  disables the channel before the first CC2 slot-end event and holds it for N
+  microseconds *after* that request; search mode stays reset-anchored because
+  its capture channel is the one under test. On the F030 bench the first bad
+  write cell moves to 16 us at 48 MHz and 20 us at 8 MHz, and
+  `docs/stress/` reruns the negative control with 0/8/12/16/20 us. The main
+  stress matrix, its captures and its guard floors are unchanged.
+
 ## [3.0.1] - 2026-11-04
 
 3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed
