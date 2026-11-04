@@ -29,6 +29,27 @@ DATA = os.path.join(REPO, "docs", "stress", "results.json")
 CAPTURE = os.path.join(REPO, "docs", "stress", "capture.json")
 HTML = os.path.join(REPO, "docs", "stress", "index.html")
 CAPTURES = os.path.join(REPO, "docs", "stress", "captures")
+PLATFORMS = os.path.join(REPO, "docs", "stress", "platforms")
+
+
+def load_platforms():
+    """The extra benches, plus their optional high-placement runs."""
+    platforms = []
+    priority = []
+    if not os.path.isdir(PLATFORMS):
+        return platforms, priority
+    for name in sorted(os.listdir(PLATFORMS)):
+        base = os.path.join(PLATFORMS, name)
+        path = os.path.join(base, "results.json")
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            platforms.append((name, json.load(fh)))
+        high = os.path.join(base, "results-high.json")
+        if os.path.isfile(high):
+            with open(high, encoding="utf-8") as fh:
+                priority.append((name, "high", json.load(fh)))
+    return platforms, priority
 
 failures = []
 
@@ -57,7 +78,8 @@ def main():
 
     with open(HTML, encoding="utf-8") as fh:
         actual = fh.read()
-    expected = stress_report.build_report(data, capture)
+    platforms, priority = load_platforms()
+    expected = stress_report.build_report(data, capture, platforms, priority)
     check("index.html is regenerated from results.json + capture.json",
           actual == expected,
           "run python tools/stress_report.py" if actual != expected else "")

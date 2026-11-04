@@ -67,6 +67,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moves the load from DMA1 channels 2/1 to channels 5/4 (the F030F4 has no
   channel 6, so the second load rides channel 4, which the write rig does not
   use for capture). This is the F0 counterpart of the F4 stream experiment.
+- **The published report covers F0, F4 and H5.** `docs/stress/` now carries the
+  F446 and H503 runs next to the F030 one (`platforms/<bench>/results.json`,
+  `capture.json` and their captures), plus a load-placement section that
+  compares the same load above and below the feed in equal-priority
+  arbitration. The generator uses named placeholders and one rendered block for
+  the generated sections, so adding a bench cannot shift the primary table.
+  H503 is clean at every level on 64/250/8 MHz with floor guard 1; on F446 the
+  default low-number streams fail level 5 at 16/8 MHz while the same load on
+  streams 5/6 passes everywhere.
 
 ### Changed
 

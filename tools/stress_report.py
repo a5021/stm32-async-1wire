@@ -54,6 +54,37 @@ def e(value):
     return html.escape("" if value is None else str(value), quote=True)
 
 
+#: The load channel/stream pair per family and per experiment. A "high" run
+#: puts the load above the feed in the equal-priority arbitration order, which
+#: is what the priority section compares.
+LOAD_PLACEMENT = {
+    "f0": {"default": "DMA1 channels 2 and 1", "high": "DMA1 channels 5 and 4"},
+    "f4": {"default": "DMA2 streams 0 and 1", "high": "DMA2 streams 5 and 6"},
+    "h5": {"default": "GPDMA1 channels 0 and 1", "high": "GPDMA1 channels 0 and 1"},
+}
+
+FAMILY_NAMES = {
+    "f0": "STM32F0",
+    "f1": "STM32F1",
+    "f3": "STM32F3",
+    "f4": "STM32F4",
+    "g0": "STM32G0",
+    "g4": "STM32G4",
+    "l4": "STM32L4",
+    "h5": "STM32H5",
+    "h7": "STM32H7",
+}
+
+
+def family_of(mcu):
+    """'STM32F030x6' -> 'f0'; 'STM32H503xx' -> 'h5'."""
+    name = (mcu or "").lower()
+    for fam in ("f0", "f1", "f3", "f4", "g0", "g4", "l4", "h5", "h7"):
+        if name.startswith("stm32" + fam):
+            return fam
+    return None
+
+
 def window_us(guard):
     """The real feed window: ARR+1 - CC2 = guard + 1 microseconds."""
     return None if guard is None else guard + 1
@@ -202,6 +233,109 @@ those gaps.</p>
 </section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
 
 
+def platform_section(name, data):
+    """A second bench measured with the same rig, summarised."""
+    fam = family_of(data.get("mcu") or data.get("bench"))
+    cells = cell_map(data)
+    floors = data.get("guard_min") or []
+    default_guard = data.get("default_guard_us", 5)
+    clocks = []
+    for row in floors:
+        clock = row["clock_mhz"]
+        if clock is not None and clock not in clocks:
+            clocks.append(clock)
+    rows = []
+    fails = []
+    for row in floors:
+        level, clock = row["level"], row["clock_mhz"]
+        guard_min = row["guard_us"]
+        default_cell = cells.get((level, clock, default_guard))
+        default_ok = bool(default_cell and default_cell["clean"])
+        if guard_min is None or not default_ok:
+            fails.append((level, clock, guard_min))
+        rows.append(
+            "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>"
+            % (level,
+               "%d MHz" % clock if clock else "default",
+               fmt_guard(guard_min),
+               "clean" if default_ok else "<strong>not clean</strong>",
+               link_to_viewer(default_cell, "frame")))
+    commit = data.get("commit") or "unknown"
+    generated = data.get("generated") or "unknown"
+    if fails:
+        verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
+                   "listed as <em>not clean</em> below." % len(fails))
+    else:
+        verdict = ("<strong>Every level is clean at the %d us default</strong>; "
+                   "the measured floor is shown per cell." % default_guard)
+    return """
+<section id="platform-%s">
+<h2>%s (%s)</h2>
+<p class="meta">Measured %s at commit <code>%s</code> on <code>%s</code>.
+Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
+<div class="verdict">%s</div>
+<table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
+<th>Default guard</th><th>Viewer</th></tr></thead>
+<tbody>%s</tbody></table>
+<p class="note">The floor column is the smallest clean guard measured here, so
+<em>not clean</em> means even the widest guard in the tested set did not pass.
+The capture links open one representative frame per cell.</p>
+</section>
+""" % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
+       e(data.get("mcu") or data.get("bench")), e(generated), e(commit),
+       e(data.get("bench")), verdict, "\n".join(rows))
+
+
+def priority_section(primary, others):
+    """Compare the same load placed above and below the feed in arbitration."""
+    rows = []
+    seen = set()
+    for label, role, data in (("primary", "default", primary),) + tuple(others):
+        fam = family_of(data.get("mcu") or data.get("bench"))
+        if fam not in LOAD_PLACEMENT:
+            continue
+        key = (fam, data.get("mcu"), role)
+        if key in seen:
+            continue
+        seen.add(key)
+        cells = cell_map(data)
+        floors = data.get("guard_min") or []
+        default_guard = data.get("default_guard_us", 5)
+        if not floors:
+            continue
+        bad = [row for row in floors
+               if row["guard_us"] is None
+               or not (cells.get((row["level"], row["clock_mhz"], default_guard))
+                       or {}).get("clean")]
+        clean = len(floors) - len(bad)
+        clocks = sorted({row["clock_mhz"] for row in floors if row["clock_mhz"]})
+        rows.append("<tr><td>%s</td><td><code>%s</code></td><td>%s</td>"
+                    "<td>%d</td><td>%d</td></tr>"
+                    % (e(FAMILY_NAMES.get(fam) or fam), e(data.get("mcu") or "?"),
+                       e(LOAD_PLACEMENT[fam][role]),
+                       clean, len(bad)))
+    if len(rows) < 2:
+        return ""
+    return """
+<section id="priority">
+<h2>Load placement and DMA priority</h2>
+<p>On a classic DMA controller or an F4 DMA stream, equal software priority is
+broken by the lower channel/stream number. The historical load sits on the low
+numbers (F0 channels 2/1, F4 streams 0/1), so it deliberately <em>outranks</em>
+the feed; the "high" runs move the same burst to the higher numbers, where the
+feed wins. The rows below are the same levels and guards with only that
+placement changed.</p>
+<table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
+<th>Clean cells</th><th>Failing cells</th></tr></thead>
+<tbody>%s</tbody></table>
+<p class="note">A part that stays clean in both rows is bandwidth-bound with
+margin to spare. A part that is clean only with the load below the feed is
+sensitive to arbitration order, which is what the low-number default
+measures.</p>
+</section>
+""" % "\n".join(rows)
+
+
 def _first_bad_text(first, prefix):
     """Per-clock first-bad values, e.g. "16 us (48 MHz) and 20 us (8 MHz)"."""
     pairs = []
@@ -266,13 +400,15 @@ frame/search.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
-def build_report(data, capture=None):
+def build_report(data, capture=None, platforms=None, priority=None):
     capture = capture or {}
     cells = cell_map(data)
     floors = data.get("guard_min") or []
     control = max(data.get("guards") or [100])
     default_guard = data.get("default_guard_us", 5)
     floor_guard = min((row["guard_us"] for row in floors), default=default_guard)
+    if floor_guard is None:
+        floor_guard = default_guard
     floor_window = window_us(floor_guard)
     default_window = window_us(default_guard)
     ratio = (default_window / floor_window) if floor_window else 0.0
@@ -304,6 +440,9 @@ def build_report(data, capture=None):
                 all_no_error = False
             if t[16] not in (0, None):
                 all_stop_ok = False
+
+    ok = (all_floor_clean and all_default_clean and all_cndtr_zero
+          and all_no_error)
 
     load_bits = []
     for clock in clocks:
@@ -413,6 +552,14 @@ def build_report(data, capture=None):
 
     cap_html = capture_section(capture)
     inj_html = inject_section(capture)
+    extra_html = "\n".join(
+        platform_section(name, other) for name, other in (platforms or []))
+    priority_html = priority_section(data, priority or [])
+    # One rendered block for every generated section: the two control tables
+    # first (they belong with the primary results), then the extra platforms
+    # and the load-placement comparison.
+    extra_html = "\n".join(x for x in (cap_html, inj_html, extra_html,
+                                       priority_html) if x)
 
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
@@ -424,57 +571,60 @@ def build_report(data, capture=None):
     bursts = data.get("bursts") or 0
     words = data.get("stress_words") or 0
 
-    return """<!doctype html>
+    class _Lazy(str):
+        pass
+
+    body = ("""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stress test report - stm32-async-1wire</title>
 <style>
-:root{--fg:#182230;--muted:#5b6b85;--line:#dbe2ec;--bg:#fff;--soft:#f6f8fb;
---accent:#1b57c4;--ok:#1f7a3d;--okbg:#eaf6ee;--warn:#9a5b00;--bad:#a12222}
-@media (prefers-color-scheme:dark){:root{--fg:#e7edf5;--muted:#9fb0c7;
+:root{{--fg:#182230;--muted:#5b6b85;--line:#dbe2ec;--bg:#fff;--soft:#f6f8fb;
+--accent:#1b57c4;--ok:#1f7a3d;--okbg:#eaf6ee;--warn:#9a5b00;--bad:#a12222}}
+@media (prefers-color-scheme:dark){{:root{{--fg:#e7edf5;--muted:#9fb0c7;
 --line:#334155;--bg:#0f1722;--soft:#162130;--accent:#7fb0ff;--ok:#6fce8f;
---okbg:#12301e;--warn:#e0a03a;--bad:#ff8a8a}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
-font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
-header{border-bottom:1px solid var(--line);background:var(--soft)}
-header .inner,main{max-width:74rem;margin:0 auto;padding:0 1.25rem}
-header .inner{display:flex;gap:1rem;align-items:baseline;padding-top:.8rem;
-padding-bottom:.8rem;flex-wrap:wrap}
-header a{color:var(--accent);text-decoration:none;font-weight:600}
-header .sep{color:var(--muted)}
-main{padding-top:1.5rem;padding-bottom:3rem}
-h1{font-size:2rem;margin:.2rem 0} h2{margin-top:2.2rem;font-size:1.35rem}
-h3{margin-top:1.3rem;font-size:1.05rem}
-p.lead{color:var(--muted);font-size:1.1rem;margin:.2rem 0 1rem}
-.meta{color:var(--muted);font-size:.92rem}
-.verdict{border:1px solid var(--line);border-left:6px solid var(--ok);
-background:var(--okbg);padding:.9rem 1rem;border-radius:8px;margin:1rem 0}
-.verdict.bad{border-left-color:var(--bad)}
-ul.findings{padding-left:1.2rem} ul.findings li{margin:.35rem 0}
-table{border-collapse:collapse;width:100%%;margin:1rem 0;font-size:.92rem}
-th,td{border:1px solid var(--line);padding:.45rem .55rem;text-align:left;
-vertical-align:top} th{background:var(--soft)}
-td.num{text-align:right;white-space:nowrap}
-td.links a{display:inline-block;margin-right:.5rem;white-space:nowrap}
-a{color:var(--accent)} .muted{color:var(--muted)}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-font-size:.88em} pre{background:var(--soft);border:1px solid var(--line);
-padding:.8rem 1rem;border-radius:8px;overflow:auto}
-.timeline{width:100%%;max-width:700px;display:block;margin:1rem 0}
-.svg-label{font:13px system-ui,sans-serif;fill:currentColor}
-.svg-small{font:12px system-ui,sans-serif;fill:#6b7a90}
-.bars{margin:1rem 0;max-width:46rem}
-.bar{display:grid;grid-template-columns:16rem 1fr 4.5rem;gap:.6rem;
-align-items:center;margin:.35rem 0;font-size:.9rem}
-.bar-label{color:var(--muted)} .track{background:var(--soft);
-border:1px solid var(--line);height:1rem;border-radius:4px;overflow:hidden}
-.fill{display:block;height:100%%;background:var(--accent);opacity:.65}
-.bar-value{text-align:right;font-variant-numeric:tabular-nums}
-.note{color:var(--muted);font-size:.9rem}
-footer{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;
-padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
+--okbg:#12301e;--warn:#e0a03a;--bad:#ff8a8a}}}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}}
+header{{border-bottom:1px solid var(--line);background:var(--soft)}}
+header .inner,main{{max-width:74rem;margin:0 auto;padding:0 1.25rem}}
+header .inner{{display:flex;gap:1rem;align-items:baseline;padding-top:.8rem;
+padding-bottom:.8rem;flex-wrap:wrap}}
+header a{{color:var(--accent);text-decoration:none;font-weight:600}}
+header .sep{{color:var(--muted)}}
+main{{padding-top:1.5rem;padding-bottom:3rem}}
+h1{{font-size:2rem;margin:.2rem 0}} h2{{margin-top:2.2rem;font-size:1.35rem}}
+h3{{margin-top:1.3rem;font-size:1.05rem}}
+p.lead{{color:var(--muted);font-size:1.1rem;margin:.2rem 0 1rem}}
+.meta{{color:var(--muted);font-size:.92rem}}
+.verdict{{border:1px solid var(--line);border-left:6px solid var(--ok);
+background:var(--okbg);padding:.9rem 1rem;border-radius:8px;margin:1rem 0}}
+.verdict.bad{{border-left-color:var(--bad)}}
+ul.findings{{padding-left:1.2rem}} ul.findings li{{margin:.35rem 0}}
+table{{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}}
+th,td{{border:1px solid var(--line);padding:.45rem .55rem;text-align:left;
+vertical-align:top}} th{{background:var(--soft)}}
+td.num{{text-align:right;white-space:nowrap}}
+td.links a{{display:inline-block;margin-right:.5rem;white-space:nowrap}}
+a{{color:var(--accent)}} .muted{{color:var(--muted)}}
+code,pre{{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+font-size:.88em}} pre{{background:var(--soft);border:1px solid var(--line);
+padding:.8rem 1rem;border-radius:8px;overflow:auto}}
+.timeline{{width:100%;max-width:700px;display:block;margin:1rem 0}}
+.svg-label{{font:13px system-ui,sans-serif;fill:currentColor}}
+.svg-small{{font:12px system-ui,sans-serif;fill:#6b7a90}}
+.bars{{margin:1rem 0;max-width:46rem}}
+.bar{{display:grid;grid-template-columns:16rem 1fr 4.5rem;gap:.6rem;
+align-items:center;margin:.35rem 0;font-size:.9rem}}
+.bar-label{{color:var(--muted)}} .track{{background:var(--soft);
+border:1px solid var(--line);height:1rem;border-radius:4px;overflow:hidden}}
+.fill{{display:block;height:100%;background:var(--accent);opacity:.65}}
+.bar-value{{text-align:right;font-variant-numeric:tabular-nums}}
+.note{{color:var(--muted);font-size:.9rem}}
+footer{{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;
+padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 </style>
 </head>
 <body>
@@ -487,18 +637,18 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 </div></header>
 <main>
 <h1>Stress test report</h1>
-<p class="lead">DMA feed margin under memory-subsystem load - %s</p>
-<p class="meta">Measured %s at commit <code>%s</code>%s on <code>%s</code>
-(<code>%s</code>). Build <code>%s</code>, pattern <code>%s</code>,
-%d slots per frame, %d frames per cell, %d halfwords per DMA burst.</p>
+<p class="lead">DMA feed margin under memory-subsystem load - {mcu}</p>
+<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note} on <code>{bench}</code>
+(<code>{rig_mcu}</code>). Build <code>{example}</code>, pattern <code>{pattern}</code>,
+{slots} slots per frame, {bursts} frames per cell, {words} halfwords per DMA burst.</p>
 
 <section id="summary">
 <h2>Summary</h2>
-<div class="verdict%s">
-<strong>%s</strong>
+<div class="verdict{verdict_class}">
+<strong>{verdict_text}</strong>
 </div>
 <ul class="findings">
-%s
+{findings}
 </ul>
 <p>The question was whether memory-subsystem load can delay the CCR3 feed DMA
 past its slot deadline. On this bench it does not: the wire stayed correct at
@@ -512,9 +662,9 @@ throughput.</p>
 value from DMA1 channel 3; the update event starts the next slot. The transfer
 has the window between those two events - <code>guard + 1</code> microseconds,
 because the counter runs from 0 to ARR inclusive.</p>
-%s
+{timeline}
 <table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
-<tbody>%s</tbody></table>
+<tbody>{failure_rows}</tbody></table>
 <p>The port leaves OC3PE off on the DMA-fed paths, so a late CCR3 write acts
 immediately instead of waiting for an update: the failure can appear inside
 the current slot, not only at the next one.</p>
@@ -524,14 +674,14 @@ the current slot, not only at the next one.</p>
 <h2>Rig and method</h2>
 <p><code>examples/0_dma_pressure</code> transmits a fixed 8-byte pattern (64
 slots plus the trailing release) back to back, with a selectable load beside
-the bus. The bench is <code>%s</code>; D0 is the 1-Wire line on PA10. The
-capture runs at %s MS/s and the firmware is flashed halted, reset by the
+the bus. The bench is <code>{rig_bench}</code>; D0 is the 1-Wire line on PA10. The
+capture runs at {rate_mhz} MS/s and the firmware is flashed halted, reset by the
 harness, so only the intended run is judged.</p>
 <table><tbody>
-<tr><th>MCU</th><td><code>%s</code></td></tr>
-<tr><th>Clocks</th><td>%s</td></tr>
-<tr><th>Pattern</th><td><code>%s</code> (LSB first, per byte)</td></tr>
-<tr><th>Frames per cell</th><td>%d</td></tr>
+<tr><th>MCU</th><td><code>{rig_row_mcu}</code></td></tr>
+<tr><th>Clocks</th><td>{clocks}</td></tr>
+<tr><th>Pattern</th><td><code>{rig_pattern}</code> (LSB first, per byte)</td></tr>
+<tr><th>Frames per cell</th><td>{frames_per_cell}</td></tr>
 <tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
 (finite bursts), all at the default priority</td></tr>
 <tr><th>On-chip check</th><td><code>cndtr_late</code> (<code>DMA1_Channel3-&gt;CNDTR</code>
@@ -552,7 +702,7 @@ end-of-frame pulse.</p>
 <h2>Load ladder</h2>
 <table><thead><tr><th>Level</th><th>Load</th><th>What it does</th>
 <th>Evidence at the default guard</th></tr></thead>
-<tbody>%s</tbody></table>
+<tbody>{level_rows}</tbody></table>
 </section>
 
 <section id="results">
@@ -562,51 +712,55 @@ the capture links. The parenthetical is the real transfer window
 (<code>guard + 1</code> us). A clean cell means 100 complete frames with no
 width, period, length or decode violation.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
-<th>Frames @ %d us</th><th>Violations @ %d us</th><th>CNDTR late</th>
+<th>Frames @ {frames_header} us</th><th>Violations @ {violations_header} us</th><th>CNDTR late</th>
 <th>DMA error</th><th>Stop timeout</th><th>Load evidence</th><th>Viewer</th></tr></thead>
-<tbody>%s</tbody></table>
+<tbody>{matrix_rows}</tbody></table>
 <p class="note">The viewer opens one representative frame (64 slots, 1 ms
 lead-in and tail). The pattern is deliberately not a 1-Wire command sequence,
 so the protocol tree stays empty; the Detail view shows the measured low and
 slot widths, which is the evidence. The JSON holds every tested cell,
-including the %d us control and the bisection probes.</p>
+including the {control} us control and the bisection probes.</p>
 <h3>CPU-side work</h3>
 <p>The chart shows the CPU passes completed while the bus was running, at the
 default guard. The ch1 burst stream does not reduce them in this configuration:
 the DMA interleaves between CPU accesses. The load evidence is the burst count
 in the table.</p>
-%s
+{chart}
 <p>The ch1 burst stream and the CPU hammer both ran; the feed still met the
-same %d us floor.</p>
+same {floor_window} us floor.</p>
 </section>
 
-%s
-%s
+{extra_sections}
+
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
-<li>No wire-visible slip at the %d us floor on either clock, under any load
+<li>No wire-visible slip at the {interp_floor} us floor on either clock, under any load
 level.</li>
 <li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
 before completion, including the final release.</li>
 <li>The load is real, not a no-op: channel 1 restarted its finite burst
 thousands of times per run (see the table), and the CPU hammer ran alongside
 it; the feed still met the 2 µs floor.</li>
-<li>The %d us guard is a %d us window. Even at the %d us floor the wire stayed
-clean, so this part does not need a larger default and the library keeps its
-default DMA priority.</li>
+<li>The {guard_window} us guard is a {interp_floor2} us window, and the {repo_url} us floor is the smallest guard
+that stayed clean. Even there the wire stayed correct, so this part does not
+need a larger default and the library keeps its default DMA priority.</li>
 </ul>
 </section>
 
 <section id="caveats">
 <h2>Caveats</h2>
 <ul>
-<li><strong>Equal priority only.</strong> Every load channel stays at the
-default DMA priority. An application channel with <code>PL &gt; 0</code> is a
-different arbitration case and is not covered by this run.</li>
-<li><strong>F0 only.</strong> The generator is implemented for the F0 backend
-(STM32F030x6). F4 streams and H5/H7 GPDMA have different arbitration and need
-their own run.</li>
+<li><strong>Equal priority only, but the order matters.</strong> Every load
+channel stays at the default DMA priority. An application channel with
+<code>PL &gt; 0</code> is a different arbitration case and is not covered by
+this run. What <em>is</em> covered is the equal-priority tie-break: the
+historical load sits on the low channel/stream numbers, so it outranks the
+feed; the priority section shows the same load on the high numbers.</li>
+<li><strong>One rig, several benches.</strong> Each measured part used the same
+firmware and loader. Where a part has fewer DMA channels the high-placement
+load uses the next free number (the F030F4 has no channel 6, so it uses
+channel 4). Bench wiring and marker pins differ per board.</li>
 <li><strong>One part, one bench, write-only.</strong> The pattern is not a
 1-Wire transaction and the attached devices are never addressed (no reset), so
 the measurement is the master's timing, not a protocol exchange.</li>
@@ -618,15 +772,15 @@ exactly 1 us".</li>
 
 <section id="reproduce">
 <h2>Reproduce</h2>
-<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 \\
+<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 %BACKSLASH%
      EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=5 -DONEWIRE_GUARD_BAND=1"
 
-python tests/hil/dma_pressure.py \\
-     --json docs/stress/results.json \\
+python tests/hil/dma_pressure.py %BACKSLASH%
+     --json docs/stress/results.json %BACKSLASH%
      --sr-dir docs/stress/captures
 
-python tools/stress_report.py \\
-     --data docs/stress/results.json \\
+python tools/stress_report.py %BACKSLASH%
+     --data docs/stress/results.json %BACKSLASH%
      --out docs/stress/index.html</pre>
 <p class="note">The matrix needs an fx2lafw logic analyzer and an ST-Link; it
 prints SKIP when either is missing. A full 12-cell run takes a few minutes
@@ -642,8 +796,12 @@ SWD telemetry.</li>
 run.</li>
 <li><code>captures/</code> - one representative frame per cell, in sigrok
 <code>.sr</code> form; the Viewer column above links each one.</li>
-<li><a href="%s/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
-and <a href="%s/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
+<li><code>platforms/</code> - the same three files per additional bench
+(<code>results.json</code>, <code>capture.json</code>, and where the load
+placement was tested <code>results-high.json</code> with its
+<code>captures-high/</code>), for example <code>platforms/f446/</code>.</li>
+<li><a href="{repo_url2}/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
+and <a href="{footer_note}/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
 - the rig and the harness.</li>
 </ul>
 </section>
@@ -653,25 +811,81 @@ and <a href="%s/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</
 <code>make check</code> regenerates it and compares the bytes.</footer>
 </body>
 </html>
-""" % (
-        e(mcu), e(generated), e(commit), e(tree_note), e(bench), e(mcu), e(data.get("example") or "?"),
-        e(pattern), slots, bursts, words,
-        "" if (all_floor_clean and all_default_clean and all_cndtr_zero and all_no_error)
-        else " bad",
-        "No starvation, no corrupt slot, no missing release under the tested loads."
-        if (all_floor_clean and all_default_clean and all_cndtr_zero and all_no_error)
-        else "The published run contains a failure.",
-        "\n".join("<li>%s</li>" % e(f) for f in findings),
-        timeline_svg(), failure_rows,
-        e(bench), e(rate_mhz), e(mcu),
-        e(", ".join("%d MHz" % c for c in clocks) if clocks else "default"),
-        e(pattern), bursts,
-        "\n".join(level_rows), default_guard, default_guard, "\n".join(matrix_rows),
-        control, chart, floor_window,
-        cap_html, inj_html,
-        floor_window, default_guard, default_window, floor_window,
-        REPO_URL, REPO_URL,
-    )
+""")
+    values = {
+        "mcu": e(mcu),
+        "generated": e(generated),
+        "commit": e(commit),
+        "tree_note": e(tree_note),
+        "bench": e(bench),
+        "rig_mcu": e(mcu),
+        "example": e(data.get("example") or "?"),
+        "pattern": e(pattern),
+        "slots": slots,
+        "bursts": bursts,
+        "words": words,
+        "verdict_class": ("" if ok else " bad"),
+        "verdict_text": (
+                    "No starvation, no corrupt slot, no missing release under the tested loads."
+                    if ok
+                    else "The published run contains a failure."
+                ),
+        "findings": "\n".join("<li>%s</li>" % e(f) for f in findings),
+        "timeline": timeline_svg(),
+        "failure_rows": failure_rows,
+        "rig_bench": e(bench),
+        "rate_mhz": e(rate_mhz),
+        "rig_row_mcu": e(mcu),
+        "clocks": e(", ".join("%d MHz" % c for c in clocks) if clocks else "default"),
+        "rig_pattern": e(pattern),
+        "frames_per_cell": bursts,
+        "level_rows": "\n".join(level_rows),
+        "frames_header": default_guard,
+        "violations_header": default_guard,
+        "matrix_rows": "\n".join(matrix_rows),
+        "control": control,
+        "chart": chart,
+        "floor_window": floor_window,
+        "extra_sections": extra_html,
+        "interp_floor": floor_window,
+        "guard_window": default_window,
+        "interp_floor2": floor_window,
+        "repo_url": REPO_URL,
+        "repo_url2": REPO_URL,
+        "footer_note": REPO_URL,
+    }
+    return _fmt(body, values)
+
+
+def _specs(text):
+    import re
+    return re.findall(r"%(?:[-+#0 ]*\d*(?:\.\d+)?[sdifxX])", text)
+
+
+def _fmt(template, values):
+    """Render the template; a missing key names the placeholder."""
+    try:
+        return template.format(**values)
+    except (KeyError, IndexError, ValueError) as exc:
+        raise RuntimeError("template placeholder failed: %s" % exc)
+
+
+def discover_platforms(root):
+    """Every other bench under docs/stress/platforms/<name>/.
+
+    Returns [(name, results)] for the default placement; the caller adds the
+    optional results-high.json siblings to the priority comparison.
+    """
+    platforms = []
+    base = os.path.join(root, "platforms")
+    if not os.path.isdir(base):
+        return platforms
+    for name in sorted(os.listdir(base)):
+        path = os.path.join(base, name, "results.json")
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                platforms.append((name, json.load(fh)))
+    return platforms
 
 
 def main(argv=None):
@@ -680,6 +894,15 @@ def main(argv=None):
     ap.add_argument("--capture", default="docs/stress/capture.json",
                     help="capture-drain and negative-control JSON")
     ap.add_argument("--out", default="docs/stress/index.html")
+    ap.add_argument("--platforms-dir", default="docs/stress/platforms",
+                    help="one subdirectory per additional bench, each with "
+                    "results.json and an optional results-high.json")
+    ap.add_argument("--priority", action="append", default=None,
+                    help="name=path to a results.json measured with the load "
+                    "on the high channels/streams (repeatable; the primary "
+                    "bench uses --data-high)")
+    ap.add_argument("--data-high", default="",
+                    help="the primary bench's high-placement results.json")
     args = ap.parse_args(argv)
     with open(args.data, encoding="utf-8") as fh:
         data = json.load(fh)
@@ -687,7 +910,31 @@ def main(argv=None):
     if args.capture and os.path.isfile(args.capture):
         with open(args.capture, encoding="utf-8") as fh:
             capture = json.load(fh)
-    text = build_report(data, capture)
+
+    platforms = []
+    priority = []
+    if args.platforms_dir and os.path.isdir(args.platforms_dir):
+        for name in sorted(os.listdir(args.platforms_dir)):
+            base = os.path.join(args.platforms_dir, name)
+            path = os.path.join(base, "results.json")
+            if not os.path.isfile(path):
+                continue
+            with open(path, encoding="utf-8") as fh:
+                platforms.append((name, json.load(fh)))
+            high = os.path.join(base, "results-high.json")
+            if os.path.isfile(high):
+                with open(high, encoding="utf-8") as fh:
+                    priority.append((name, "high", json.load(fh)))
+    if args.data_high and os.path.isfile(args.data_high):
+        with open(args.data_high, encoding="utf-8") as fh:
+            priority.insert(0, ("primary", "high", json.load(fh)))
+    for spec in args.priority or []:
+        name, _, path = spec.partition("=")
+        if path and os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                priority.append((name, "high", json.load(fh)))
+
+    text = build_report(data, capture, platforms, priority)
     out_dir = os.path.dirname(os.path.abspath(args.out))
     os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
