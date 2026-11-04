@@ -163,7 +163,7 @@ class Rig:
             slot_us = dp.ONE_US + dp.ZERO_US + guard + 1
             a = dp.analyse(raw, dp.RATE_HZ,
                            min_start_us=(dp.PRE_RESET_S + dp.SETTLE_MARGIN_S) * 1e6,
-                           slot_us=slot_us)
+                           slot_us=slot_us, ignore_leading_short=True)
             clean = bool(a["clean"] and tel[3] == 0 and tel[4] == 0
                          and tel[16] == 0)
             res.update({
@@ -211,14 +211,28 @@ def capture_matrix(rig, clocks, levels):
                 cells.append(res)
                 if level == 0 and guard == 5:
                     baselines[clock] = res
+    # A flash/reset or capture-start glitch can zero one search without saying
+    # anything about the load. Retry the baseline and any non-matching cell once
+    # before calling the run a failure.
+    for clock, base in list(baselines.items()):
+        if not (base["completed"] and base["count"] > 0):
+            baselines[clock] = rig.run("search", 0, 5, clock)
     supported = bool(baselines) and all(
         (b or {}).get("count", 0) for b in baselines.values())
-    for res in cells:
+
+    def matches(res):
         base = baselines.get(res["clock_mhz"])
-        res["matches"] = bool(
+        return bool(
             supported and base and res["completed"] and res["count"] > 0
             and res["count"] == base["count"]
             and res["rom_crc"] == base["rom_crc"])
+
+    for i, res in enumerate(cells):
+        if supported and not matches(res):
+            res = rig.run(res["mode"], res["level"], res["guard_us"],
+                          res["clock_mhz"])
+            cells[i] = res
+        res["matches"] = matches(res)
     return cells, baselines, supported
 
 
@@ -263,6 +277,8 @@ def main(argv=None):
         clocks = [48, 8]
     elif mcu == "STM32F446xx":
         clocks = [180]
+    elif mcu == "STM32H503xx":
+        clocks = [64, 250, 8]
     else:
         clocks = [None]
     levels = list(dp.LEVELS) if stress_supported else [0]

@@ -32,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   At 16 MHz level 5 needs guard 89 and at 8 MHz the fixed 512-word CPU hammer
   plus stream 1 starves the feed even at guard 100, so the F446 default matrix
   runs at 180 MHz and `--clocks 16,8` measures that low-clock margin on purpose.
+- **H503 load generator for `0_dma_pressure`.** Levels 2-5 now run on the H5
+  backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
+  direct mode with a software request; `CBR1.BNDT` is programmed as a
+  source-byte count. The HIL picks up the `STM32H503xx` bench automatically.
+  On the WeAct H503CB at 64, 250 and 8 MHz every level is clean at the 5 us
+  default, with `cndtr_late = 0`; the measured floor is guard 1 except level 0
+  at 8 MHz (guard 3) and level 4 at 8 MHz (guard 2). The capture-drain matrix
+  returns the same 7 devices and checksum at every level, and the injection
+  control goes red. Because a pending GPDMA request is not dropped by clearing
+  `EN`, the H5 negative control sets `CCR.SUSP` for the window and clears it
+  afterwards; F0/F4 keep the enable-bit disable.
 
 ### Changed
 
@@ -45,6 +56,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write cell moves to 16 us at 48 MHz and 20 us at 8 MHz, and
   `docs/stress/` reruns the negative control with 0/8/12/16/20 us. The main
   stress matrix, its captures and its guard floors are unchanged.
+
+- **HIL start/end artifacts no longer look like feed failures.** The analyser
+  drops a lone leading startup glitch (F446 and H503 both emit one while the
+  application bus pin initialises) when `ignore_leading_short` is set, and
+  `run_seconds()` keeps a 1 s tail so the capture cannot cut the last frame on
+  the slower-initialising H503. The pressure matrix retries the widest guard
+  and the 5 us default once, and the capture-drain matrix retries a
+  non-matching cell once, so a single flash/reset flake is not reported as a
+  load failure. A real deterministic failure still goes red on the retry.
 
 ## [3.0.1] - 2026-11-04
 
