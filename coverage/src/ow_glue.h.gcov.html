@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-04 10:07:14</td>
+            <td class="headerValue">2026-11-04 10:12:33</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">-</td>
@@ -153,10 +153,10 @@
 <span id="L82"><span class="lineNum">      82</span>                 :             :  *       bytes mean (prefix, command, payload) stays in the drivers.</span>
 <span id="L83"><span class="lineNum">      83</span>                 :             :  */</span>
 <span id="L84"><span class="lineNum">      84</span>                 :             : __STATIC_FORCEINLINE uint8_t ow_encode_bytes(ow_pulse_t** dst, const uint8_t* src, uint8_t n) {</span>
-<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="Branch 0 was taken 2000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 250 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3800 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 475 times"> + </span> :<span class="tlaGNC">       12879 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
+<span id="L85"><span class="lineNum">      85</span>   [<span class="tlaGBC" title="Branch 0 was taken 288 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1602 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 594 times"> + </span>]:<span class="tlaGNC">       12879 :     for (uint8_t i = 0; i &lt; n; i++) {</span></span>
+<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 2000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 250 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 3800 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 475 times"> + </span> 
 <span class="lineNum">        </span> <span class="tlaGBC" title="Branch 4 was taken 600 times"> + </span><span class="tlaGBC" title="Branch 5 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 6 was taken 825 times"> + </span><span class="tlaGBC" title="Branch 7 was taken 1209 times"> + </span><span class="tlaGBC" title="Branch 8 was taken 1000 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="Branch 9 was taken 125 times"> + </span>]
-<span class="lineNum">        </span>   [<span class="tlaGBC" title="Branch 0 was taken 288 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 36 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1602 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 594 times"> + </span>]
 <span id="L86"><span class="lineNum">      86</span>                 :<span class="tlaGNC">       10115 :         onewire_encode_byte(*dst, src[i]);</span></span>
 <span id="L87"><span class="lineNum">      87</span>                 :<span class="tlaGNC">       10115 :         *dst += ONEWIRE_BITS_PER_BYTE;</span></span>
 <span id="L88"><span class="lineNum">      88</span>                 :             :     }</span>
