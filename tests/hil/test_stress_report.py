@@ -166,6 +166,17 @@ def main():
             check("inject capture %s is linked" % name,
                   ("../stress/captures/" + name) in actual)
 
+    platforms, _ = load_platforms()
+    for name, data in platforms:
+        base = os.path.join(PLATFORMS, name, "captures")
+        check("%s platform section is in the report" % name,
+              ('id="platform-%s"' % name) in actual)
+        for cell in data["cells"]:
+            cap = cell.get("capture")
+            if cap:
+                check("%s/%s exists" % (name, cap),
+                      os.path.isfile(os.path.join(base, cap)))
+
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
         return 1
