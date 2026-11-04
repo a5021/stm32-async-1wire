@@ -1,0 +1,7 @@
+# Browser dependency for tools/1wire_vis/run_selftest.py and `make test-viewer`.
+#
+# Pinned because the selftest starts a real Chromium: a newer Playwright ships a
+# newer browser whose decoder/timing behaviour is not what the golden values
+# were captured against. The CI cache keys hash this file, so bumping the pin
+# retires the old browser and wheels automatically.
+playwright==1.64.1

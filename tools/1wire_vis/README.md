@@ -98,11 +98,22 @@ shape as `tools/la_decode.py` output).
   sigrok-style transcript. Family codes include `0x28` DS18B20, `0x2D` DS2431,
   and `0x3A` DS2413.
 
-## Self-test
+### Self-test
 
 `selftest.html` is a browser page with 95 golden checks (no Node needed). Open
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
-check plus a summary. It covers:
+check plus a summary. `python tools/1wire_vis/run_selftest.py` (or
+`make test-viewer`) runs the same page in headless Chromium and exits non-zero
+with the failed checks in the log; CI runs it on every pull request, so a
+decoder change cannot ship without the golden vectors passing. Install the
+pinned dependency first:
+
+```sh
+python -m pip install -r tools/1wire_vis/requirements-selftest.txt
+python -m playwright install chromium
+```
+
+It covers:
 
 - bundle integrity (`.sr` size, sample count, FNV-1a of all 32.8 M samples);
 - 44 transactions, 7384 slots, 8 unique ROMs, 7× DS18B20 + 1× DS2431;
