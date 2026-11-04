@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installs the cached browser and runs it on every pull request, so a decoder
   change cannot ship without the bundled-capture, CRC, slot and overdrive
   golden vectors passing.
+- **F446 load generator for `0_dma_pressure`.** Levels 2-5 now run on the F4
+  backend through DMA2 stream 0 (levels 2/3) and stream 1 (levels 4/5) in
+  memory-to-memory mode (`DIR=0b10`; the F4 stream has no MEM2MEM bit), at the
+  default low priority so the lower stream number outranks the feed on stream 2
+  exactly as the F0 channels do. The example, the HIL profile
+  (`STM32F446xx`, device id `0x421`, parasite bus) and the stress matrix detect
+  the F446 bench. On the WeAct F446RET6 at 180 MHz every level is clean at
+  guard 1 and `cndtr_late = 0`, matching the F030; the capture-drain matrix
+  returns the same 7 ROMs at every level and the injection control goes red.
+  At 16 MHz level 5 needs guard 89 and at 8 MHz the fixed 512-word CPU hammer
+  plus stream 1 starves the feed even at guard 100, so the F446 default matrix
+  runs at 180 MHz and `--clocks 16,8` measures that low-clock margin on purpose.
 
 ### Changed
 

@@ -41,9 +41,11 @@ CAPTURE_JSON = os.path.join(common.REPO, "docs", "stress", "capture.json")
 #: Search ROM under each load; both the default guard and the measured floor.
 CAPTURE_GUARDS = (5, 1)
 #: Injected channel-disable windows, in microseconds (see STRESS_INJECT_US).
-#: The write values straddle the measured floor: the window starts at the first
-#: CC2 request, so 8/12 us are still clean and 16/20 us (48/8 MHz) are the first
-#: bad cells. The search window is reset-anchored and its floor is later.
+#: On the F030 the write values straddle the measured floor (8/12 us clean,
+#: 16/20 us the first bad cells at 48/8 MHz). On the F446 any nonzero window
+#: breaks the first frame because the F4 stream does not latch the missed CC2
+#: request, so the same sweep is still a valid control there; it just goes red
+#: earlier. The search window is reset-anchored and its floor is later.
 SEARCH_INJECT = (0, 200, 400, 600, 1000)
 WRITE_INJECT = (0, 8, 12, 16, 20)
 
@@ -256,11 +258,16 @@ def main(argv=None):
     if setup is None:
         return 0 if args.json else 1
     mcu, prog, sigrok, sr_dir = setup
-    f030 = mcu.startswith("STM32F0")
-    clocks = [48, 8] if mcu == "STM32F030x6" else [None]
-    levels = list(dp.LEVELS) if f030 else [0]
-    if not f030:
-        print("note: the stress generator is F0-only; measuring level 0")
+    stress_supported = mcu in dp.STRESS_BENCHES
+    if mcu == "STM32F030x6":
+        clocks = [48, 8]
+    elif mcu == "STM32F446xx":
+        clocks = [180]
+    else:
+        clocks = [None]
+    levels = list(dp.LEVELS) if stress_supported else [0]
+    if not stress_supported:
+        print("note: the stress generator is F0/F4-only; measuring level 0")
 
     rig = Rig(mcu, prog, sigrok, args.json, args.keep_runs, sr_dir)
     print("capture drain: Search ROM under load")
