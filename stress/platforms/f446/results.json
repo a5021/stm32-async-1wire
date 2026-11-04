@@ -610,9 +610,10 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 579445.8 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 564661.5 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -641,6 +642,10 @@
         827805003,
         83886088,
         0
+      ],
+      "window_us": [
+        569584.5,
+        575128.5
       ]
     },
     {
@@ -650,9 +655,10 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_8mhz_g100.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 579741.5 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 558518.5 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -681,6 +687,10 @@
         827805003,
         83886088,
         0
+      ],
+      "window_us": [
+        566022.5,
+        577646.5
       ]
     },
     {
@@ -1286,10 +1296,11 @@
     {
       "attempts": 1,
       "bad_bits": 0,
-      "bad_len": 0,
+      "bad_len": 1,
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_16mhz_g1.sr",
       "clean": false,
       "clock_mhz": 16,
       "first_attempt": null,
@@ -1321,6 +1332,10 @@
         827805003,
         83886096,
         0
+      ],
+      "window_us": [
+        587869.0,
+        593157.0
       ]
     },
     {
@@ -1330,9 +1345,10 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_16mhz_g5.sr",
       "clean": false,
       "clock_mhz": 16,
-      "first_attempt": "frame at 574638.5 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 561491.2 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -1361,6 +1377,10 @@
         827805003,
         83886096,
         0
+      ],
+      "window_us": [
+        563957.25,
+        569501.25
       ]
     },
     {
@@ -1370,6 +1390,7 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_16mhz_g13.sr",
       "clean": false,
       "clock_mhz": 16,
       "first_attempt": null,
@@ -1401,6 +1422,10 @@
         827805003,
         83886096,
         0
+      ],
+      "window_us": [
+        569398.5,
+        575454.5
       ]
     },
     {
@@ -1410,6 +1435,7 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_16mhz_g34.sr",
       "clean": false,
       "clock_mhz": 16,
       "first_attempt": null,
@@ -1441,6 +1467,10 @@
         827805003,
         83886096,
         0
+      ],
+      "window_us": [
+        564748.25,
+        572148.25
       ]
     },
     {
@@ -1450,6 +1480,7 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": null,
+      "capture_fail": "fail/l5_16mhz_g55.sr",
       "clean": false,
       "clock_mhz": 16,
       "first_attempt": null,
@@ -1481,6 +1512,10 @@
         827805003,
         83886096,
         0
+      ],
+      "window_us": [
+        564648.0,
+        573392.0
       ]
     },
     {
