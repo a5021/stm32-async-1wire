@@ -111,10 +111,11 @@ def viewer_href(cell, platform=None, key="capture"):
     if not name:
         return None
     tree = "stress/platforms/%s/" % platform if platform else "stress/"
-    # The viewer page is ../viewer/, so `src` is resolved against /viewer/:
-    # captures are two levels up. Getting this wrong makes the viewer look for
-    # /viewer/stress/... and every frame link opens empty.
-    src = quote("../../" + tree + "captures/" + name, safe="/.")
+    # The viewer resolves `src` from its own directory (/viewer/), so captures
+    # are one level up in the path - but a leading `../` makes the URL parser
+    # drop the repository segment of a gh-pages project site. `./../` climbs
+    # the same directory without being stripped.
+    src = quote("./../" + tree + "captures/" + name, safe="/.")
 
     def mark(us):
         return "%.3f" % (us - SR_LEAD_US)
