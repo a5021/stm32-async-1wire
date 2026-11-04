@@ -62,9 +62,12 @@ SR_RATE_TEXT = "4 MHz"
 SR_LEAD_US = 1000.0
 SR_TAIL_US = 1000.0
 #: Time from starting the analyzer to resetting the target into the run, and
-#: the extra margin before the firmware's 200 ms settle ends.
+#: the extra margin before the firmware's 200 ms settle ends. The margin also
+#: skips the bus-pin init glitch some boards produce just as the application
+#: starts (a lone sub-microsecond pulse, separated from the first frame by a
+#: gap far longer than a frame boundary).
 PRE_RESET_S = 0.3
-SETTLE_MARGIN_S = 0.15
+SETTLE_MARGIN_S = 0.30
 
 #: Guard values tried by the bisection, ascending. 1 is the smallest guard the
 #: timer can express (0 makes CC2 coincide with the update event and produces a
@@ -72,6 +75,14 @@ SETTLE_MARGIN_S = 0.15
 GUARDS = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 100)
 LEVELS = (0, 1, 2, 3, 4, 5)
 F030_CLOCKS = (48, 8)
+#: The F446 load rig is characterized at the part's 180MHz default. At 16MHz
+#: level 5 needs guard 89, and at 8MHz the fixed 512-word CPU hammer plus
+#: stream 1 starves the feed even at guard 100; use --clocks 16,8 to measure
+#: that margin explicitly rather than have every default run fail.
+F446_CLOCKS = (180,)
+#: Benches whose example actually generates a load. The others compile it and
+#: run level 0 with `stress=unsupported` in the banner.
+STRESS_BENCHES = ("STM32F030x6", "STM32F446xx")
 #: The example's build defaults; the harness never overrides them.
 BURSTS = 100
 STRESS_WORDS = 512
@@ -516,13 +527,17 @@ def main(argv=None):
         print("SKIP: STM32CubeProgrammer CLI not found")
         return 0
 
-    f0 = detected.startswith("STM32F0")
-    levels = parse_list(args.levels, int) or (LEVELS if f0 else (0,))
-    if not f0:
+    stress_supported = detected in STRESS_BENCHES
+    levels = parse_list(args.levels, int) or (LEVELS if stress_supported else (0,))
+    if not stress_supported:
         levels = tuple(level for level in levels if level == 0) or (0,)
-        print("note: the stress generator is F0-only; measuring level 0")
-    clocks = parse_list(args.clocks, int) or (F030_CLOCKS if detected == "STM32F030x6"
-                                              else (None,))
+        print("note: the stress generator is F0/F4-only; measuring level 0")
+    if detected == "STM32F030x6":
+        clocks = parse_list(args.clocks, int) or F030_CLOCKS
+    elif detected == "STM32F446xx":
+        clocks = parse_list(args.clocks, int) or F446_CLOCKS
+    else:
+        clocks = parse_list(args.clocks, int) or (None,)
 
     out_dir = os.path.join(common.REPO, "bench_logs", "hil", "dma_pressure")
     os.makedirs(out_dir, exist_ok=True)

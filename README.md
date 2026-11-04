@@ -534,18 +534,26 @@ the smallest guard with a clean per-slot geometry bounds the feed latency from
 above. The timer resolution is 1 µs, so guard 1 (a 2 µs window) is the
 measurement floor: a clean run there means a 2 µs window was enough.
 
-| `STRESS_LEVEL` | Load (F0 only) |
+| `STRESS_LEVEL` | Load (F0/F4) |
 |---|---|
 | 0 | none - the driver's own margin |
 | 1 | CPU hammers the SRAM array in the `onewire_bus_done()` loop |
-| 2 | finite mem-to-memory burst on DMA1 channel 2 about every 1 ms |
-| 3 | the same burst restarted as soon as it drains (channel 2 stays busy) |
-| 4 | finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains (circular is not allowed in mem-to-memory) |
+| 2 | finite mem-to-memory burst on the first load channel about every 1 ms |
+| 3 | the same burst restarted as soon as it drains (the channel stays busy) |
+| 4 | finite mem-to-memory burst on the second load channel, restarted as soon as it drains (circular is not allowed in mem-to-memory) |
 | 5 | level 4 plus the CPU hammer |
 
-Levels 1-5 are implemented for the F0 backend only; every other family
-compiles the example and runs level 0 with `stress=unsupported` in the banner,
-so the all-family build matrix stays green.
+On F0 the load channels are DMA1 channel 2 and channel 1; on F4 they are
+DMA2 stream 0 and stream 1 with `DIR=0b10` (memory-to-memory). The other
+families compile the example and run level 0 with `stress=unsupported` in the
+banner, so the all-family build matrix stays green.
+
+On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
+window), the same result as the F030. The fixed 512-word CPU hammer is longer
+than a slot at the low clocks: at 16 MHz level 5 needs guard 89, and at 8 MHz
+level 5 starves the feed even at guard 100. That is a measured property of this
+worst-case load, not a generator failure; run
+`python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it.
 
 ```bash
 # a build with a load and a narrow guard

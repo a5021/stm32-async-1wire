@@ -52,16 +52,17 @@
  *
  *   0  none - measures the driver's own margin
  *   1  CPU hammers the SRAM array in the onewire_bus_done() poll loop
- *   2  one finite mem-to-memory burst on DMA1 channel 2 about every 1 ms
- *   3  a finite mem-to-memory burst on channel 2, restarted as soon as the
- *      previous one drains (the channel stays busy for the whole frame)
- *   4  a finite mem-to-memory burst on channel 1, restarted as soon as it
- *      drains (circular mode is not allowed in memory-to-memory, RM0091)
+ *   2  one finite mem-to-memory burst on the first load channel every ~1 ms
+ *   3  a finite mem-to-memory burst on the first load channel, restarted as
+ *      soon as the previous one drains (the channel stays busy for the frame)
+ *   4  a finite mem-to-memory burst on the second load channel, restarted as
+ *      soon as it drains (circular mode is not allowed in memory-to-memory)
  *   5  level 4 plus the CPU hammer
  *
- * Only the STM32F0 backend implements the load generator; every other family
- * compiles this example and runs level 0 with `stress=unsupported` in the
- * banner, so the all-family build matrix stays green while the measurement
+ * The F0 and F4 backends implement the load generator: F0 uses DMA1 channels
+ * 2/1, F4 uses DMA2 streams 0/1 with DIR=0b10 (memory-to-memory). Every other
+ * family compiles this example and runs level 0 with `stress=unsupported` in
+ * the banner, so the all-family build matrix stays green while the measurement
  * is still being designed. The load channels keep the default DMA priority;
  * STRESS_INJECT_US is a test-only channel-disable window, not a priority
  * change. In write mode it is anchored at the first CC2 request: an equivalent
@@ -83,6 +84,8 @@
 
 #if defined(OW_FAMILY_F0)
 #include "stm32f0xx.h"
+#elif defined(OW_FAMILY_F4)
+#include "stm32f4xx.h"
 #endif
 
 #include <stdint.h>
@@ -129,8 +132,15 @@
 #error "STRESS_INJECT_US must be 0..5000 (test-only channel-disable injection)"
 #endif
 
-/* Non-F0 families compile the whole example but cannot generate the load. */
-#if defined(OW_FAMILY_F0)
+/* Families with a load generator. Every other family compiles the example and
+ * runs level 0 with `stress=unsupported` in the banner. */
+#if defined(OW_FAMILY_F0) || defined(OW_FAMILY_F4)
+#define STRESS_SUPPORTED 1
+#else
+#define STRESS_SUPPORTED 0
+#endif
+
+#if STRESS_SUPPORTED
 #define EFFECTIVE_LEVEL STRESS_LEVEL
 #else
 #define EFFECTIVE_LEVEL 0
@@ -172,21 +182,27 @@ static ow_pulse_t frame[PATTERN_SLOTS + 1u];
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 /* ------------------------------------------------------------------
- *  Memory-subsystem load (F0 only)
+ *  Memory-subsystem load (F0/F4)
  * ------------------------------------------------------------------ */
 
-#if defined(OW_FAMILY_F0)
+#if STRESS_SUPPORTED
 
 static uint32_t ch1_starts;
 static uint32_t burst_starts;
 static uint32_t cpu_passes;
 
-/* One fixed source word (peripheral increment off) and a large destination
- * array (memory increment on). Both transfers are 16-bit, so one burst is
- * STRESS_WORDS halfword reads plus STRESS_WORDS halfword writes - roughly
- * one bus slot of work at 48 MHz with the default size. */
+/* One fixed source word and a large destination array. Both transfers are
+ * 16-bit, so one burst is STRESS_WORDS halfword reads plus STRESS_WORDS
+ * halfword writes - roughly one bus slot of work with the default size. */
 static uint16_t stress_src_word = 0xA5A5u;
 static volatile uint16_t stress_dst[STRESS_WORDS];
+
+#if defined(OW_FAMILY_F0)
+
+#define STRESS_CH1_FLAGS \
+    (DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1)
+#define STRESS_CH2_FLAGS \
+    (DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 | DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2)
 
 /* Finite mem-to-memory burst on DMA1 channel 2 (the second-lowest channel
  * number; at equal priority the classic DMA1 arbiter favours lower
@@ -194,7 +210,7 @@ static volatile uint16_t stress_dst[STRESS_WORDS];
 static void stress_burst_start(void) {
     burst_starts++;
     DMA1_Channel2->CCR = 0u;
-    DMA1->IFCR = DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 | DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2;
+    DMA1->IFCR = STRESS_CH2_FLAGS;
     DMA1_Channel2->CPAR = (uint32_t)&stress_src_word;
     DMA1_Channel2->CMAR = (uint32_t)stress_dst;
     DMA1_Channel2->CNDTR = (uint32_t)STRESS_WORDS;
@@ -210,13 +226,16 @@ static void stress_burst_start(void) {
 static void stress_ch1_burst_start(void) {
     ch1_starts++;
     DMA1_Channel1->CCR = 0u;
-    DMA1->IFCR = DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1;
+    DMA1->IFCR = STRESS_CH1_FLAGS;
     DMA1_Channel1->CPAR = (uint32_t)&stress_src_word;
     DMA1_Channel1->CMAR = (uint32_t)stress_dst;
     DMA1_Channel1->CNDTR = (uint32_t)STRESS_WORDS;
     DMA1_Channel1->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC |
                          DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
 }
+
+static uint8_t stress_burst_done(void) { return DMA1_Channel2->CNDTR == 0u; }
+static uint8_t stress_ch1_done(void) { return DMA1_Channel1->CNDTR == 0u; }
 
 /* Disable one channel. Returns 1 when EN cleared within the bounded wait, 0 on
  * timeout. On timeout CNDTR is left alone: the channel is not known to be
@@ -235,15 +254,117 @@ static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
 }
 
 static uint8_t stress_stop(void) {
-    uint8_t ok = stress_stop_channel(DMA1_Channel1, DMA_IFCR_CGIF1 | DMA_IFCR_CTCIF1 |
-                                                        DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1);
-    ok &= stress_stop_channel(DMA1_Channel2, DMA_IFCR_CGIF2 | DMA_IFCR_CTCIF2 |
-                                                 DMA_IFCR_CHTIF2 | DMA_IFCR_CTEIF2);
+    uint8_t ok = stress_stop_channel(DMA1_Channel1, STRESS_CH1_FLAGS);
+    ok &= stress_stop_channel(DMA1_Channel2, STRESS_CH2_FLAGS);
     return ok;
 }
 
+#if STRESS_CAPTURE
+static volatile uint32_t* stress_capture_control(void) {
+    return &DMA1_Channel4->CCR;
+}
+#else
+static volatile uint32_t* stress_feed_control(void) {
+    return &DMA1_Channel3->CCR;
+}
+#endif
+
+#if !STRESS_CAPTURE
+/* Transfers still queued on the CCR3 feed channel. Zero after completion is
+ * the driver's contract; anything else means the feed was starved. */
+static uint32_t feed_remaining(void) { return DMA1_Channel3->CNDTR; }
+
+static uint8_t feed_error_latched(void) {
+    return (DMA1->ISR & DMA_ISR_TEIF3) ? 1u : 0u;
+}
+#endif
+
+#elif defined(OW_FAMILY_F4)
+
+/* Stream 0 and 1 carry the two load patterns. Memory-to-memory is DIR=0b10 on
+ * the F4 stream (there is no MEM2MEM bit, unlike the F0 channel CCR). Both
+ * streams stay at the default low software priority: at equal priority the
+ * F4 arbiter favours the lower stream number, so stream 0/1 outrank the feed
+ * on stream 2 and the capture on stream 4. That is the contention this rig is
+ * meant to create. */
+#define STRESS_STREAM0_FLAGS                                   \
+    (DMA_LIFCR_CFEIF0 | DMA_LIFCR_CDMEIF0 | DMA_LIFCR_CTEIF0 | \
+     DMA_LIFCR_CHTIF0 | DMA_LIFCR_CTCIF0)
+#define STRESS_STREAM1_FLAGS                                   \
+    (DMA_LIFCR_CFEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CTEIF1 | \
+     DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTCIF1)
+
+static void stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
+    stream->CR = 0u;
+    uint32_t guard = 1000u;
+    while ((stream->CR & DMA_SxCR_EN) != 0u && guard-- != 0u) {
+    }
+    DMA2->LIFCR = flags;
+    stream->PAR = (uint32_t)&stress_src_word;
+    stream->M0AR = (uint32_t)stress_dst;
+    stream->NDTR = (uint32_t)STRESS_WORDS;
+    stream->CR = DMA_SxCR_DIR_1 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
+                 DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+}
+
+static void stress_burst_start(void) {
+    burst_starts++;
+    stress_stream_start(DMA2_Stream0, STRESS_STREAM0_FLAGS);
+}
+
+/* Circular mode is not allowed in memory-to-memory on F4 either (RM0090), so
+ * level 4/5 restart this finite burst from the service loop. Stream 1 is the
+ * second-lowest stream number and therefore the strongest equal-priority
+ * contender after stream 0. */
+static void stress_ch1_burst_start(void) {
+    ch1_starts++;
+    stress_stream_start(DMA2_Stream1, STRESS_STREAM1_FLAGS);
+}
+
+static uint8_t stress_burst_done(void) { return DMA2_Stream0->NDTR == 0u; }
+static uint8_t stress_ch1_done(void) { return DMA2_Stream1->NDTR == 0u; }
+
+static uint8_t stress_stop_stream(DMA_Stream_TypeDef* stream, uint32_t flags) {
+    stream->CR = 0u;
+    uint32_t guard = 1000u;
+    while ((stream->CR & DMA_SxCR_EN) != 0u && guard-- != 0u) {
+    }
+    if ((stream->CR & DMA_SxCR_EN) != 0u) {
+        return 0u;
+    }
+    stream->NDTR = 0u;
+    DMA2->LIFCR = flags;
+    return 1u;
+}
+
+static uint8_t stress_stop(void) {
+    uint8_t ok = stress_stop_stream(DMA2_Stream1, STRESS_STREAM1_FLAGS);
+    ok &= stress_stop_stream(DMA2_Stream0, STRESS_STREAM0_FLAGS);
+    return ok;
+}
+
+#if STRESS_CAPTURE
+static volatile uint32_t* stress_capture_control(void) {
+    return &DMA2_Stream4->CR;
+}
+#else
+static volatile uint32_t* stress_feed_control(void) {
+    return &DMA2_Stream2->CR;
+}
+#endif
+
+#if !STRESS_CAPTURE
+static uint32_t feed_remaining(void) { return DMA2_Stream2->NDTR; }
+
+static uint8_t feed_error_latched(void) {
+    return (DMA2->LISR & DMA_LISR_TEIF2) ? 1u : 0u;
+}
+#endif
+
+#endif /* OW_FAMILY_F0 || OW_FAMILY_F4 */
+
 /* A volatile decrement is about four cycles; divide by four so the knob is
- * roughly microseconds at the 48/8 MHz clocks. The HIL sweeps the knob and
+ * roughly microseconds at the bench clocks. The HIL sweeps the knob and
  * reports the first value that breaks the transaction, so exact duration
  * matters less than monotonicity. */
 static void stress_delay_us(uint32_t us) {
@@ -272,20 +393,20 @@ static void stress_delay_us(uint32_t us) {
  * capture, not to a CC2 slot-end event. */
 static void stress_inject(uint32_t us) {
 #if STRESS_CAPTURE
-    volatile uint32_t* ccr = &DMA1_Channel4->CCR;
-    const uint32_t save = *ccr;
-    *ccr = 0u;
+    volatile uint32_t* ctrl = stress_capture_control();
+    const uint32_t save = *ctrl;
+    *ctrl = 0u;
     stress_delay_us(us);
-    *ccr = save;
+    *ctrl = save;
 #else
-    volatile uint32_t* ccr = &DMA1_Channel3->CCR;
-    const uint32_t save = *ccr;
-    *ccr = 0u;
+    volatile uint32_t* ctrl = stress_feed_control();
+    const uint32_t save = *ctrl;
+    *ctrl = 0u;
     TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
     while ((TIM1->SR & TIM_SR_CC2IF) == 0u) {
     }
     stress_delay_us(us);
-    *ccr = save;
+    *ctrl = save;
 #endif
 }
 
@@ -311,20 +432,21 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
         /* One burst per millisecond; app_millis() is a SysTick read, not a
          * wait, so the loop keeps polling the bus between bursts. */
         uint32_t now = app_millis();
-        if (DMA1_Channel2->CNDTR == 0u && (int32_t)(now - *next_ms) >= 0) {
+        if (stress_burst_done() && (int32_t)(now - *next_ms) >= 0) {
             stress_burst_start();
             *next_ms = now + 1u;
         }
     } else if (level == 3u) {
-        /* Back-to-back finite bursts on channel 2. */
-        if (DMA1_Channel2->CNDTR == 0u) {
+        /* Back-to-back finite bursts on the first load stream. */
+        if (stress_burst_done()) {
             stress_burst_start();
         }
     } else if (level >= 4u) {
-        /* Back-to-back finite bursts on channel 1. Circular mem-to-memory is
-         * not allowed on F0, so the stream is made from restartable finite
-         * transfers; channel 1 is the strongest equal-priority contender. */
-        if (DMA1_Channel1->CNDTR == 0u) {
+        /* Back-to-back finite bursts on the second load stream. Circular
+         * mem-to-memory is not allowed, so the stream is made from restartable
+         * finite transfers; the lowest free stream number is the strongest
+         * equal-priority contender. */
+        if (stress_ch1_done()) {
             stress_ch1_burst_start();
         }
     }
@@ -335,17 +457,7 @@ static void stress_service(uint32_t level, uint32_t* next_ms) {
 
 static uint8_t stress_end(void) { return stress_stop(); }
 
-#if !STRESS_CAPTURE
-/* Transfers still queued on the CCR3 feed channel. Zero after completion is
- * the driver's contract; anything else means the feed was starved. */
-static uint32_t feed_remaining(void) { return DMA1_Channel3->CNDTR; }
-
-static uint8_t feed_error_latched(void) {
-    return (DMA1->ISR & DMA_ISR_TEIF3) ? 1u : 0u;
-}
-#endif
-
-#else /* !OW_FAMILY_F0 */
+#else /* !STRESS_SUPPORTED */
 
 #if !STRESS_CAPTURE
 static const uint32_t ch1_starts = 0u;
@@ -364,7 +476,7 @@ static uint32_t feed_remaining(void) { return 0u; }
 static uint8_t feed_error_latched(void) { return 0u; }
 #endif
 
-#endif /* OW_FAMILY_F0 */
+#endif /* STRESS_SUPPORTED */
 
 /* ------------------------------------------------------------------
  *  Search/capture mode (STRESS_CAPTURE)
@@ -409,7 +521,7 @@ static void print_banner(void) {
 #endif
     uart_write_str(" level=");
     uart_write_int((int)EFFECTIVE_LEVEL);
-#if !defined(OW_FAMILY_F0)
+#if !STRESS_SUPPORTED
     uart_write_str(" requested=");
     uart_write_int((int)STRESS_LEVEL);
     uart_write_str(" stress=unsupported");
