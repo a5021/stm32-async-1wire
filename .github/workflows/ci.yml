@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
@@ -143,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
@@ -181,6 +181,8 @@ jobs:
             make test-f4 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "g4" ]; then
             make test-g4 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "l4" ]; then
+            make test-l4 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "f3" ]; then
             make test-f3 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "h5" ]; then
@@ -200,6 +202,8 @@ jobs:
             make test-lowpower-f4 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "g4" ]; then
             make test-lowpower-g4 COVERAGE=1
+          elif [ "${{ matrix.backend }}" = "l4" ]; then
+            make test-lowpower-l4 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "f3" ]; then
             make test-lowpower-f3 COVERAGE=1
           elif [ "${{ matrix.backend }}" = "h5" ]; then
@@ -624,6 +628,13 @@ jobs:
         run: make clean && make OW_MCU=STM32G474xx
       - name: Build release (G4 backend, 16MHz HSI)
         run: make clean && make OW_MCU=STM32G474xx SYSCLK_MHZ=16
+      # The L476's two HSI16 clocks: 80MHz HSI16+PLL (Range 1, 4 WS) and
+      # 16MHz raw HSI16 (MSI -> HSI16 switch, no PLL). HSE is not populated on
+      # the NUCLEO-L476RG, so there is no crystal build.
+      - name: Build release (L4 backend, 80MHz HSI16+PLL default)
+        run: make clean && make OW_MCU=STM32L476xx
+      - name: Build release (L4 backend, 16MHz raw HSI16)
+        run: make clean && make OW_MCU=STM32L476xx SYSCLK_MHZ=16
       # The H503's three clocks, each its own code path in app.c: the 64MHz
       # raw-HSI default (no PLL, no crystal, no voltage-scaling change), the
       # raw 8MHz HSE (HSERDY wait + CFGR1 switch, 0 wait states) and the 250MHz
@@ -680,7 +691,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
         include:
           - backend: f0
             mcu: STM32F030x6
@@ -694,6 +705,8 @@ jobs:
             mcu: STM32G031xx
           - backend: g4
             mcu: STM32G474xx
+          - backend: l4
+            mcu: STM32L476xx
           - backend: h5
             mcu: STM32H503xx
           - backend: h7
