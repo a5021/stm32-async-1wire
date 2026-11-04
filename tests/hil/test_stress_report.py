@@ -113,7 +113,7 @@ def main():
               res["frames"] == 1 and res["clean"],
               "%d frame(s), %s" % (res["frames"], res["first"]))
         check("%s is linked from the report" % name,
-              ("../stress/captures/" + name) in actual)
+              ("./../stress/captures/" + name) in actual)
 
     for row in data["guard_min"]:
         level, clock, gmin = row["level"], row["clock_mhz"], row["guard_us"]
@@ -147,7 +147,7 @@ def main():
         path = os.path.join(CAPTURES, name)
         check("search capture %s exists" % name, os.path.isfile(path))
         check("search capture %s is linked" % name,
-              ("../stress/captures/" + name) in actual)
+              ("./../stress/captures/" + name) in actual)
         with zipfile.ZipFile(path) as z:
             check("search capture %s is a sigrok archive" % name,
                   {"version", "metadata", "logic-1-1"} <= set(z.namelist()))
@@ -163,9 +163,12 @@ def main():
                   first_bad.get(key) is not None, str(first_bad.get(key)))
     for c in inj_cells:
         name = c.get("capture")
-        if name:
-            check("inject capture %s is linked" % name,
-                  ("../stress/captures/" + name) in actual)
+        good = c.get("clean") if c["mode"] == "write" else c.get("matches")
+        # A failing injection links its kept failure window, not `capture`.
+        target = name if good else c.get("capture_fail")
+        if target:
+            check("inject capture %s is linked" % target,
+                  ("./../stress/captures/" + target) in actual)
 
     platforms, _ = load_platforms()
     linked = set()
@@ -223,7 +226,7 @@ def main():
                     cell["guard_us"]) not in linked:
                 continue
             check("%s/%s is linked" % (name, fail),
-                  ("../stress/platforms/%s/captures/%s" % (name, fail)) in actual)
+                  ("./../stress/platforms/%s/captures/%s" % (name, fail)) in actual)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))

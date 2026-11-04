@@ -291,17 +291,15 @@ def platform_section(name, data):
             # the loader keeps the raw marker window and records it as
             # `capture_fail`. Show the widest measured guard that failed: it is
             # the last one before the level started passing, or the default
-            # guard when the level never passed.
+            # guard when the level never passed. There is no clean frame to
+            # offer alongside it, so the row carries this link only.
             poor = [c for c in data.get("cells") or []
                     if c["level"] == level and c["clock_mhz"] == clock
                     and not c["clean"] and c.get("capture_fail")]
             poor.sort(key=lambda c: c["guard_us"], reverse=True)
-            fail_cell = poor[0] if poor else default_cell
-            links = (
-                link_to_viewer(fail_cell, "failing frame", name,
-                               key="capture_fail")
-                + " "
-                + link_to_viewer(default_cell, "frame", name))
+            links = link_to_viewer(poor[0] if poor else default_cell,
+                                   "failing frame", name,
+                                   key="capture_fail")
         rows.append(
             "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>"
             % (level,
@@ -423,9 +421,9 @@ def inject_section(capture):
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
         # Clean cells keep a decoded frame; a failing injection has only the
         # raw marker window, which is the frame worth looking at.
-        key = "capture" if c.get("capture") else "capture_fail"
+        key = "capture" if c.get("capture") and good else "capture_fail"
         href = viewer_href(c, key=key)
-        label = "frame" if good else "failing frame"
+        label = "failing frame" if key == "capture_fail" else "frame"
         link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
         rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td><td>%s</td></tr>" % (
             e(mode_label(c["mode"])),
@@ -565,6 +563,17 @@ def build_report(data, capture=None, platforms=None, priority=None):
                 continue
             seen.add(guard)
             links.append(link_to_viewer(cell, label))
+        if default_cell and not default_cell.get("clean"):
+            # The default guard is the cell the row's verdict is about: if it
+            # failed, show its kept failure window instead of an empty link.
+            poor = [c for c in data.get("cells") or []
+                    if c["level"] == level and c["clock_mhz"] == clock
+                    and not c["clean"] and c.get("capture_fail")]
+            poor.sort(key=lambda c: -c["guard_us"])
+            if poor:
+                label = "failing frame (%s)" % fmt_guard(poor[0]["guard_us"])
+                links.insert(0, link_to_viewer(poor[0], label,
+                                               key="capture_fail"))
         matrix_rows.append(
             "<tr><td>%d</td><td>%s</td><td>%s%s</td><td>%d</td><td>%s</td>"
             "<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>" % (
