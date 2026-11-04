@@ -63,6 +63,7 @@ BENCH_PROFILES = {
         "hints": ("STM32H503", "STM32H50x"),
         "device_id": "0x474",
         "ext": "-DOW_PARASITE_POWER=1",
+        "marker": True,  # PA11 -> LA D1, bracketed frames
     },
     "STM32L476xx": {
         # NUCLEO-L476RG, parasite-powered bus, external USB-TTL on USART1
@@ -85,6 +86,8 @@ DEVICE_ID_RE = re.compile(r"Device ID\s+:\s*(0x[0-9A-Fa-f]+)")
 # The bench the build targets; select_bench() sets both before any build.
 MCU = None
 BUILD_EXT = None
+# True when the bench's PA11 marker is wired to the logic analyzer's D1.
+MARKER = False
 
 # Examples that need an extra define to exercise the path the check is about.
 # 7_low_power only prints its WFE mode line (and only sleeps) when
@@ -103,11 +106,14 @@ def build_ext(app):
 
 def select_bench(mcu):
     """Point the build at a bench profile: the OW_MCU macro and its EXT."""
-    global MCU, BUILD_EXT
+    global MCU, BUILD_EXT, MARKER
     MCU = mcu
     BUILD_EXT = (
         os.environ["HIL_EXT"] if "HIL_EXT" in os.environ else BENCH_PROFILES[mcu]["ext"]
     )
+    MARKER = BENCH_PROFILES[mcu].get("marker", False)
+    if "HIL_MARKER" in os.environ:
+        MARKER = os.environ["HIL_MARKER"].strip().lower() not in ("", "0", "false", "no")
 
 
 def _git(*args):

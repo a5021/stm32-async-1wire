@@ -116,7 +116,7 @@ class Rig:
         self.raw = os.path.join(common.REPO, "bench_logs", "hil",
                                 "dma_pressure", "_capture.bin")
 
-    def run(self, mode, level, guard, clock, inject_us=0):
+    def run(self, mode, level, guard, clock, inject_us=0, retry=True):
         print("  %s level=%d guard=%d clock=%s inject=%d" % (
             mode, level, guard, clock if clock else "default", inject_us),
             flush=True)
@@ -130,6 +130,18 @@ class Rig:
         dp.capture(self.sigrok, self.prog, self.raw,
                    1.2 if mode == "search" else dp.run_seconds(guard))
         tel = dp.telemetry(self.prog) or [None] * 20
+        capture_mode = 1 if mode == "search" else 0
+        ident, ident_why = dp.identity(tel, level, clock, capture_mode, inject_us)
+        if retry and not ident:
+            print("  retry %s level=%d guard=%d clock=%s inject=%d "
+                  "(identity: %s)" % (mode, level, guard,
+                                      clock if clock else "default", inject_us,
+                                      ident_why), flush=True)
+            res = self.run(mode, level, guard, clock, inject_us, retry=False)
+            res["attempts"] = 2
+            res["first_attempt_identity"] = False
+            res["first_attempt_identity_why"] = ident_why
+            return res
         res = {
             "mode": mode,
             "level": level,
@@ -137,6 +149,9 @@ class Rig:
             "clock_mhz": clock,
             "inject_us": inject_us,
             "telemetry": tel,
+            "identity": ident,
+            "attempts": 1,
+            "first_attempt_identity": ident,
         }
         if mode == "search":
             res.update({
@@ -145,10 +160,14 @@ class Rig:
                 "sink_count": tel[14],
                 "stop_timeout": tel[16],
                 "done": tel[15] == 5,
-                "completed": (tel[13] == 1 and tel[15] == 5 and tel[16] == 0),
+                "completed": bool(ident and tel[13] == 1 and tel[15] == 5
+                                  and tel[16] == 0),
             })
             raw = np.fromfile(self.raw, dtype=np.uint8)
-            first_us = first_reset_us(raw, dp.RATE_HZ)
+            first_us = (dp.first_marker_us(raw, dp.RATE_HZ)
+                        if common.MARKER else None)
+            if first_us is None:
+                first_us = first_reset_us(raw, dp.RATE_HZ)
             if self.sr_dir and first_us is not None:
                 name = "search/l%d_%s_g%d_i%d.sr" % (
                     level, "%dmhz" % clock if clock else "def", guard,
@@ -163,8 +182,9 @@ class Rig:
             slot_us = dp.ONE_US + dp.ZERO_US + guard + 1
             a = dp.analyse(raw, dp.RATE_HZ,
                            min_start_us=(dp.PRE_RESET_S + dp.SETTLE_MARGIN_S) * 1e6,
-                           slot_us=slot_us, ignore_leading_short=True)
-            clean = bool(a["clean"] and tel[3] == 0 and tel[4] == 0
+                           slot_us=slot_us, ignore_leading_short=True,
+                           marker_bit=1 if common.MARKER else None)
+            clean = bool(ident and a["clean"] and tel[3] == 0 and tel[4] == 0
                          and tel[16] == 0)
             res.update({
                 "clean": clean,
@@ -229,8 +249,11 @@ def capture_matrix(rig, clocks, levels):
 
     for i, res in enumerate(cells):
         if supported and not matches(res):
+            prior = res.get("attempts", 1)
             res = rig.run(res["mode"], res["level"], res["guard_us"],
                           res["clock_mhz"])
+            res["attempts"] = prior + res.get("attempts", 1)
+            res["first_attempt_matches"] = False
             cells[i] = res
         res["matches"] = matches(res)
     return cells, baselines, supported
@@ -321,7 +344,10 @@ def main(argv=None):
             {k: res[k] for k in ("mode", "level", "guard_us", "clock_mhz",
                                  "count", "rom_crc", "sink_count", "done",
                                  "completed", "matches", "capture")}
-            | {"stop_timeout": res.get("stop_timeout")}
+            | {"stop_timeout": res.get("stop_timeout"),
+               "identity": res.get("identity"),
+               "attempts": res.get("attempts", 1),
+               "first_attempt_identity": res.get("first_attempt_identity")}
             for res in capture_cells
         ],
         "inject_cells": [
@@ -329,7 +355,10 @@ def main(argv=None):
             | {("clean" if res["mode"] == "write" else "matches"):
                res.get("clean" if res["mode"] == "write" else "matches")}
             | {"capture": res.get("capture"),
-               "stop_timeout": res.get("stop_timeout")}
+               "stop_timeout": res.get("stop_timeout"),
+               "identity": res.get("identity"),
+               "attempts": res.get("attempts", 1),
+               "first_attempt_identity": res.get("first_attempt_identity")}
             for res in inject_cells
         ],
         "inject_values": {"search": list(SEARCH_INJECT), "write": list(WRITE_INJECT)},

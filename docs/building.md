@@ -333,7 +333,10 @@ python tests/hil/dma_capture.py --json docs/stress/capture.json
 The board is auto-detected (`STM32F103xB` reference bench, the
 `STM32H503xx`/`STM32H743xx` WeAct boards, or the `STM32L476xx` NUCLEO); pin it
 with `HIL_MCU=` - a mismatch against the attached target
-fails rather than flashing the wrong part. The COM port is scanned unless
+fails rather than flashing the wrong part. The H503 profile also wires PA11 to
+D1: the DMA-pressure harness builds with `STRESS_MARKER=1`, brackets each frame
+with that marker and checks the run identity and injection bits before it trusts
+a capture. The COM port is scanned unless
 `HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (unset
 uses the bench profile, an explicit empty value means an externally powered
 bus), and `HIL_TIMEOUT=` forces a fixed window

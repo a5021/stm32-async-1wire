@@ -24,7 +24,7 @@ drive real 1-Wire devices.
 
 | APP               | File                                  | Behaviour                                                        |
 |-------------------|---------------------------------------|------------------------------------------------------------------|
-| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0 only; every other family compiles and runs level 0. `STRESS_CAPTURE=1` switches to a Search ROM capture-drain pass; `STRESS_INJECT_US=N` is the deliberately-delayed-transfer negative control. Used by `tests/hil/dma_pressure.py` and `tests/hil/dma_capture.py`. |
+| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0, DMA2 streams 0/1 on F4 and GPDMA1 channels 0/1 on H5; the other families compile and run level 0. `STRESS_CAPTURE=1` switches to a Search ROM capture-drain pass; `STRESS_INJECT_US=N` is the deliberately-delayed-transfer negative control, and `STRESS_MARKER=1` puts a frame marker on PA11 (LA D1). Used by `tests/hil/dma_pressure.py` and `tests/hil/dma_capture.py`. |
 | (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
 | `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
 | `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
@@ -211,10 +211,21 @@ worst-case load, not a generator failure; run
 `python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it.
 
 On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
-measured floor is guard 1 except level 0 at 8 MHz (guard 3) and level 4 at
-8 MHz (guard 2). The GPDMA negative control suspends the channel
-(`CCR.SUSP`) instead of clearing `EN`, because a pending GPDMA request is not
-dropped by clearing the enable bit.
+measured floor is guard 1 except level 1 at 8 MHz (guard 2), and the earlier
+level 0/4 outliers disappear once the D1 marker brackets the frames. The GPDMA
+negative control suspends the channel (`CCR.SUSP`) instead of clearing `EN`,
+because a pending GPDMA request is not dropped by clearing the enable bit.
+
+The H503 bench wires PA11 to the logic analyzer's D1. `STRESS_MARKER=1` makes
+each frame (or the search pass) a D1-high window, so the HIL analyses only the
+D0 traffic inside the marker: a startup glitch or a capture that ends mid-frame
+is outside every frame and cannot be mistaken for one. Every cell also reads
+`dma_pressure_telemetry[17..19]` before trusting the waveform: run magic,
+effective level/clock, capture mode and the injection state bits. A stale image
+or an injection that did not actually stop the channel is retried once and then
+reported as an identity failure, not as a bus failure. Cells that only pass on a
+retry keep `attempts` and `first_attempt_*` in the JSON, so a green result is not
+silently a flake.
 
 ```bash
 # a build with a load and a narrow guard

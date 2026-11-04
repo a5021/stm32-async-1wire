@@ -37,8 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   direct mode with a software request; `CBR1.BNDT` is programmed as a
   source-byte count. The HIL picks up the `STM32H503xx` bench automatically.
   On the WeAct H503CB at 64, 250 and 8 MHz every level is clean at the 5 us
-  default, with `cndtr_late = 0`; the measured floor is guard 1 except level 0
-  at 8 MHz (guard 3) and level 4 at 8 MHz (guard 2). The capture-drain matrix
+  default, with `cndtr_late = 0`; the measured floor is guard 1 except level 1
+  at 8 MHz (guard 2). The capture-drain matrix
   returns the same 7 devices and checksum at every level, and the injection
   control goes red. Because a pending GPDMA request is not dropped by clearing
   `EN`, the H5 negative control sets `CCR.SUSP` for the window and clears it
@@ -46,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The HIL trusts a capture only when the run identity and marker agree.**
+  `0_dma_pressure` now writes a run magic, the effective level/clock and the
+  injection-state bits into telemetry, and `STRESS_MARKER=1` brackets every
+  frame (or the search pass) on PA11, which the H503 bench wires to the logic
+  analyzer's D1. `tests/hil/dma_pressure.py` and `dma_capture.py` reject a
+  stale image, a wrong level/clock/mode or an injection that did not actually
+  stop the channel, and retry the cell once; cells that pass only on a retry
+  keep `attempts` and `first_attempt_*` in the JSON. The marker removes the
+  startup-glitch and capture-tail heuristics from the H503 path: traffic
+  outside a marker window is not a frame. The injection-state readback also
+  pins the GPDMA `SUSP` behaviour (clearing `EN` is not enough) and catches a
+  future no-op negative control.
 - **README split into topic guides under `docs/`.** The landing page keeps the
   overview, supported devices, features, a short quick start and the
   documentation index; the detailed material moved to `docs/getting-started.md`,

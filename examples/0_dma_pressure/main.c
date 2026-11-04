@@ -41,6 +41,10 @@
  *                     library is not modified. F0/F4 clear the channel enable;
  *                     H5 suspends the GPDMA channel because clearing EN does
  *                     not drop an already pending request.
+ *   STRESS_MARKER    1 = drive PA11 high for each frame (or the search pass).
+ *                     The HIL wires PA11 to the logic analyzer's D1 and uses
+ *                     the marker edges to delimit frames, so startup glitches
+ *                     and a capture that ends mid-frame are ignored.
  *
  * The default mode is the write rig: a fixed 64-slot pattern, feed DMA only.
  * `STRESS_CAPTURE=1` switches to a Search ROM pass: the DS18B20 search reads
@@ -120,6 +124,18 @@
 #define STRESS_INJECT_US 0
 #endif
 
+/* Optional PA11 logic-analyzer marker (D1 on the bench). The HIL turns this on
+ * for a bench whose D1 is wired to PA11; the marker brackets every frame so the
+ * analyzer can ignore startup glitches and a capture that ends mid-frame. */
+#ifndef STRESS_MARKER
+#define STRESS_MARKER 0
+#endif
+
+/* Telemetry identity: the HIL compares this magic, the effective level/clock in
+ * word 18 and the injection flags in word 19 before trusting a capture, so a
+ * stale image or a reset that did not take is not analysed as a bus failure. */
+#define STRESS_RUN_MAGIC 0x31574D4Bu
+
 #define FRAME_GAP_MS 2u
 
 #if (STRESS_LEVEL < 0) || (STRESS_LEVEL > 5)
@@ -137,6 +153,12 @@
 #if (STRESS_INJECT_US < 0) || (STRESS_INJECT_US > 5000)
 #error "STRESS_INJECT_US must be 0..5000 (test-only channel-disable injection)"
 #endif
+#if (STRESS_MARKER != 0) && (STRESS_MARKER != 1)
+#error "STRESS_MARKER must be 0 or 1"
+#endif
+#if STRESS_MARKER && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_F4)
+#error "STRESS_MARKER is wired for PA11 on H5/F4 builds only"
+#endif
 
 /* Families with a load generator. Every other family compiles the example and
  * runs level 0 with `stress=unsupported` in the banner. */
@@ -150,6 +172,21 @@
 #define EFFECTIVE_LEVEL STRESS_LEVEL
 #else
 #define EFFECTIVE_LEVEL 0
+#endif
+
+/* PA11 marker (D1): push-pull output, idle low, high for one frame/search. */
+#if STRESS_MARKER
+static void stress_marker_init(void) {
+    GPIOA->MODER = (GPIOA->MODER & ~(3u << (11u * 2u))) | (1u << (11u * 2u));
+    GPIOA->OTYPER &= ~(1u << 11u);
+    GPIOA->BSRR = 1u << (11u + 16u); /* idle low */
+}
+static inline void stress_marker_high(void) { GPIOA->BSRR = 1u << 11u; }
+static inline void stress_marker_low(void) { GPIOA->BSRR = 1u << (11u + 16u); }
+#else
+static void stress_marker_init(void) {}
+static inline void stress_marker_high(void) {}
+static inline void stress_marker_low(void) {}
 #endif
 
 /* ------------------------------------------------------------------
@@ -182,7 +219,7 @@ static ow_pulse_t frame[PATTERN_SLOTS + 1u];
  *    4 aborted    5 ch1_starts   6 burst_starts 7 cpu_passes
  *    8 search_runs 9 search_bad  10 rom_crc     11 search_count
  *    12 inject_us 13 capture_mode 14 sink_count 15 stage
- *    16 stop_timeout 17..19 spare
+ *    16 stop_timeout 17 run magic 18 level/clock 19 inject_flags
  */
 #define TELEMETRY_WORDS 20u
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
@@ -196,6 +233,7 @@ volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 static uint32_t ch1_starts;
 static uint32_t burst_starts;
 static uint32_t cpu_passes;
+static uint32_t stress_inject_flags;
 
 /* One fixed source word and a large destination array. Both transfers are
  * 16-bit, so one burst is STRESS_WORDS halfword reads plus STRESS_WORDS
@@ -276,6 +314,9 @@ static volatile uint32_t* stress_feed_control(void) {
 #endif
 
 #define STRESS_INJECT_OFF(save) 0u
+#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & DMA_CCR_EN) == 0u)
+#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & DMA_CCR_EN) != 0u)
+#define STRESS_DMA_EN DMA_CCR_EN
 
 #if !STRESS_CAPTURE
 /* Transfers still queued on the CCR3 feed channel. Zero after completion is
@@ -362,6 +403,9 @@ static volatile uint32_t* stress_feed_control(void) {
 #endif
 
 #define STRESS_INJECT_OFF(save) 0u
+#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & DMA_SxCR_EN) == 0u)
+#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & DMA_SxCR_EN) != 0u)
+#define STRESS_DMA_EN DMA_SxCR_EN
 
 #if !STRESS_CAPTURE
 static uint32_t feed_remaining(void) { return DMA2_Stream2->NDTR; }
@@ -455,6 +499,9 @@ static volatile uint32_t* stress_feed_control(void) {
  * SUSP at the end resumes it. This is still a channel-disable window: the
  * channel services no request while suspended. */
 #define STRESS_INJECT_OFF(save) ((save) | (1u << DMA_CCR_SUSP_Pos))
+#define STRESS_INJECT_OFF_OK(ctrl) (((ctrl) & (1u << DMA_CCR_SUSP_Pos)) != 0u)
+#define STRESS_INJECT_ON_OK(ctrl) (((ctrl) & (1u << DMA_CCR_SUSP_Pos)) == 0u)
+#define STRESS_DMA_EN DMA_CCR_EN
 
 #if !STRESS_CAPTURE
 /* BNDT is a source-byte count; the feed source is byte memory, so it equals
@@ -500,21 +547,40 @@ static void stress_delay_us(uint32_t us) {
  * under test there, and its first request belongs to the reset/presence
  * capture, not to a CC2 slot-end event. */
 static void stress_inject(uint32_t us) {
+    stress_inject_flags = 1u; /* attempted */
 #if STRESS_CAPTURE
     volatile uint32_t* ctrl = stress_capture_control();
     const uint32_t save = *ctrl;
+    if ((save & STRESS_DMA_EN) == 0u) {
+        stress_inject_flags |= 8u; /* channel was not running */
+    }
     *ctrl = STRESS_INJECT_OFF(save);
+    if (STRESS_INJECT_OFF_OK(*ctrl)) {
+        stress_inject_flags |= 2u;
+    }
     stress_delay_us(us);
     *ctrl = save;
+    if (STRESS_INJECT_ON_OK(*ctrl)) {
+        stress_inject_flags |= 4u;
+    }
 #else
     volatile uint32_t* ctrl = stress_feed_control();
     const uint32_t save = *ctrl;
+    if ((save & STRESS_DMA_EN) == 0u) {
+        stress_inject_flags |= 8u; /* channel was not running */
+    }
     *ctrl = STRESS_INJECT_OFF(save);
+    if (STRESS_INJECT_OFF_OK(*ctrl)) {
+        stress_inject_flags |= 2u;
+    }
     TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
     while ((TIM1->SR & TIM_SR_CC2IF) == 0u) {
     }
     stress_delay_us(us);
     *ctrl = save;
+    if (STRESS_INJECT_ON_OK(*ctrl)) {
+        stress_inject_flags |= 4u;
+    }
 #endif
 }
 
@@ -572,6 +638,7 @@ static const uint32_t ch1_starts = 0u;
 static const uint32_t burst_starts = 0u;
 static const uint32_t cpu_passes = 0u;
 #endif
+static const uint32_t stress_inject_flags = 0u;
 
 static void stress_begin(uint32_t level) { (void)level; }
 static void stress_service(uint32_t level, uint32_t* next_ms) {
@@ -683,6 +750,7 @@ static void idle_gap(void) {
 
 int main(void) {
     app_init(); // clock, UART and LED GPIO
+    stress_marker_init(); // PA11/D1, idle low
 #if STRESS_CAPTURE
     ds18b20_init(); // also calls onewire_init(); the search context needs it
 #if OW_PARASITE_POWER
@@ -709,6 +777,7 @@ int main(void) {
     search_count = 0u;
     search_rom_crc = 2166136261u;
     uint8_t stop_timeout = 0u;
+    stress_marker_high();
     ds18b20_search_start(search_sink, SEARCH_MAX);
     if (!ds18b20_search_poll()) {
         stress_begin(EFFECTIVE_LEVEL);
@@ -720,6 +789,7 @@ int main(void) {
             stop_timeout = 1u;
         }
     }
+    stress_marker_low();
     uint32_t found = ds18b20_search_count();
     for (uint8_t i = 0; i < TELEMETRY_WORDS; i++) {
         dma_pressure_telemetry[i] = 0u;
@@ -732,6 +802,10 @@ int main(void) {
     dma_pressure_telemetry[14] = search_count;
     dma_pressure_telemetry[15] = 5u;
     dma_pressure_telemetry[16] = stop_timeout;
+    dma_pressure_telemetry[17] = STRESS_RUN_MAGIC;
+    dma_pressure_telemetry[18] = ((uint32_t)EFFECTIVE_LEVEL << 24) |
+                                 ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
+    dma_pressure_telemetry[19] = stress_inject_flags;
 
     uart_write_str("DONE mode=search count=");
     uart_write_int((int)found);
@@ -758,7 +832,9 @@ int main(void) {
     uint8_t stop_timeout = 0u;
 
     while (frames < (uint32_t)STRESS_BURSTS) {
+        stress_marker_high();
         if (!onewire_write_slots(frame, PATTERN_SLOTS)) {
+            stress_marker_low();
             break;
         }
         stress_begin(EFFECTIVE_LEVEL);
@@ -769,7 +845,9 @@ int main(void) {
         while (!onewire_bus_done()) {
             stress_service(EFFECTIVE_LEVEL, &next_ms);
         }
-        if (!stress_end()) {
+        uint8_t stop_ok = stress_end();
+        stress_marker_low();
+        if (!stop_ok) {
             stop_timeout = 1u;
             aborted = 1u;
             break;
@@ -810,6 +888,10 @@ int main(void) {
     dma_pressure_telemetry[12] = STRESS_INJECT_US;
     dma_pressure_telemetry[13] = 0u;
     dma_pressure_telemetry[16] = stop_timeout;
+    dma_pressure_telemetry[17] = STRESS_RUN_MAGIC;
+    dma_pressure_telemetry[18] = ((uint32_t)EFFECTIVE_LEVEL << 24) |
+                                 ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
+    dma_pressure_telemetry[19] = stress_inject_flags;
 
     uart_write_str("DONE frames=");
     uart_write_int((int)frames);
