@@ -328,6 +328,13 @@ python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
 python tests/hil/dma_pressure.py --json docs/stress/results.json \
                                  --sr-dir docs/stress/captures
 python tests/hil/dma_capture.py --json docs/stress/capture.json
+
+# the other benches go under platforms/<bench>/ with the same files, plus a
+# results-high.json / captures-high/ pair when the load placement is measured
+python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results.json \
+                                 --sr-dir docs/stress/platforms/h503/captures \
+                                 --clocks 64,250,8
+python tools/stress_report.py --data docs/stress/results.json --out docs/stress/index.html
 ```
 
 The board is auto-detected (`STM32F103xB` reference bench, the
