@@ -14,7 +14,7 @@
  * shared timer/DMA engine and returns immediately; the caller advances by
  * polling ow_port_bus_done(). The CPU is never in the timing-critical path.
  *
- * Layout: protocol constants, then the target facts (ow_mcu.h: the seven MCU
+ * Layout: protocol constants, then the target facts (ow_mcu.h: the nine MCU
  * sections, plus the family dispatch and ow_pulse_t from the public
  * ow_board.h), then the shared TIM1+DMA engine below.  Library-internal:
  * src/onewire.c is the only consumer, and the public headers never reach it.
@@ -183,9 +183,9 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  * examples/app/app.c, chips/ and the host tests.) */
 
 /* ============================================================
- *  The TIM1 + DMA core shared by all seven families
+ *  The TIM1 + DMA core shared by all supported families
  *
- *  The 1-Wire bus on all seven of these families is the same machine: TIM1 in
+ *  The 1-Wire bus on all these families is the same machine: TIM1 in
  *  one-pulse mode drives the slot pulse on CH3, CH4 captures the bus in
  *  indirect mode, and a plain CH2 compare at ONE+ZERO us is the end-of-slot
  *  marker that triggers the feed DMA into CCR3.  Those 20 functions are one
@@ -230,7 +230,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *  family-spelled registers, with init clocks/pins/drive arriving through
  *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks — and H5
  *  through GPDMA CTR1/CTR2/REQSEL vocabulary overrides the same way.  Even the
- *  merged write+read pass is shared by all seven families with no
+ *  merged write+read pass is shared by all supported families with no
  *  per-family knobs left: two arm-order experiments on F446 (UG-vs-DMA order,
  *  early direction-pulse arm) both behave identically, so one order serves
  *  all - see the note above ow_port_write_then_read.
@@ -281,7 +281,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
 #endif
 
 /* --- CH4 input-capture digital filter (IC4F): one selection for every clock,
- *     living here because the shared core is the one place all seven families
+ *     living here because the shared core is the one place all supported families
  *     are processed.  The F4 section uses this same ladder through the core
  *     (it overrides only the DMA register spelling, not the timer setup), and
  *     so does H5 (GPDMA CTR1/CTR2/REQSEL overrides only).

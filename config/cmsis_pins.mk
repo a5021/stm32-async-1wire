@@ -14,7 +14,7 @@
 # system_stm32f3xx.c drifted upstream (VTOR setup) and moved firmware images
 # without any repository change.
 #
-# Pinned 2026-10-14 (branch tips that day; verify with
+# Pinned 2026-11-03 (branch tips that day; verify with
 # git ls-remote <url> HEAD before bumping).
 #
 # To update: re-run the ls-remote commands, replace the SHAs below, delete
@@ -28,6 +28,7 @@ CMSIS_DEVICE_REF_F3 = 402c039a0a6d73c31303a05e6a1d6b8b59474fa1
 CMSIS_DEVICE_REF_F4 = 9192c7b9df75a142f2027ab266601fe061fc00b3
 CMSIS_DEVICE_REF_G0 = 7c77b7cbcee497dfbb5cc08f9562a80515e78013
 CMSIS_DEVICE_REF_G4 = 626ee412334a5ed2e5b320af5a8d77d69f03a558
+CMSIS_DEVICE_REF_L4 = ca0bfa2b8b68dc2994b27fba0a10dfd28d086ee1
 CMSIS_DEVICE_REF_H5 = 884b8dc78e41cbfca008363342b17f4a9e8641f7
 CMSIS_DEVICE_REF_H7 = 81db1ec63cdc191fae1565b772da3ea5aa29a683
 CMSIS_SVD_REF = c65f8551e57c770344d229dcaa0bf838fa29aff4

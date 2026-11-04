@@ -34,7 +34,7 @@
 
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other seven families and lives in src/ow_port.h; what is left here is the
+ *  other supported families and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F030: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note. */
 #if defined(OW_FAMILY_F0)
@@ -113,7 +113,7 @@
 
 /* === STM32F1 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in src/ow_port.h; what is left here is the
+ *  other backends and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F103: which clocks to gate, and how PA10 is put
  *  into alternate-function open-drain mode (legacy CRH). */
 #if defined(OW_FAMILY_F1)
@@ -189,7 +189,7 @@
 
 /* === STM32F3 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in src/ow_port.h; what is left here is the
+ *  other backends and lives in src/ow_port.h; what is left here is the
  *  part that is genuinely an F303: which clocks to gate, the PA10 pin-mux
  *  tokens, and the DMA assignment note.
  *
@@ -509,7 +509,7 @@
 
 /* === STM32G0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in src/ow_port.h.  G0 differs in three ways,
+ *  other backends and lives in src/ow_port.h.  G0 differs in three ways,
  *  all of them here: the bus pins are remapped, the GPIO register macros
  *  have a different spelling, and DMA requests go through DMAMUX instead of
  *  a fixed map. */
@@ -614,7 +614,7 @@
 
 /* === STM32G4 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
- *  other six families and lives in src/ow_port.h.  G4 differs in four ways,
+ *  other backends and lives in src/ow_port.h.  G4 differs in four ways,
  *  all of them here: the clock gates (AHB1 for DMA+DMAMUX, AHB2 for GPIO,
  *  APB2 for TIM1+SYSCFG), the AF number of TIM1_CH3 on PA10, the DMAMUX
  *  request IDs, and the default clock (HSE+PLL to 170MHz). */
@@ -727,6 +727,124 @@
  *       DMA1_Channel4 (TIM1_CH4) - the core D13/D14 defaults; only the
  *       DMAMUX routing above is G4-specific. */
 #endif /* OW_FAMILY_G4 */
+
+/* === STM32L4 ===
+ *  Family-specific half only.  The TIM1/DMA state machine is shared with the
+ *  other backends and lives in src/ow_port.h.  L4 uses the classic DMA1
+ *  channels (CCR/CNDTR/CPAR/CMAR) like F0/F1/F3/G0/G4, but its peripheral
+ *  request map is selected per channel through DMA1_CSELR, so the feed and
+ *  capture channels have to be routed before every operation.
+ *
+ *  Clocking is HSI16-only: the NUCLEO-L476RG has no HSE crystal populated.
+ *  The reset clock is MSI (4MHz), so even the 16MHz mode has to switch to
+ *  HSI16; 80MHz is HSI16 (16MHz) / 1 x 10 / 2 with voltage Range 1 and four
+ *  flash wait states.  Both leave AHB/APB at /1, so TIM1 = PCLK2 = SYSCLK and
+ *  the shared core's PSC = SYSCLK_MHZ - 1 is the 1us tick.
+ */
+#if defined(OW_FAMILY_L4)
+#include "stm32l4xx.h"
+
+/* ------------------------------------------------------------------
+ *  Per-family facts owned by this port.  inc/ow_board.h owns the family
+ *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
+ *  below record this family's rationale for them.
+ *  - ow_pulse_t: 8-bit feed entry.  The classic-DMA backend feeds CCR3 with a
+ *    16-bit peripheral read narrowed to byte memory (the RX8/TX defaults in the
+ *    shared core), exactly like F0/F1/F3/G0/G4.  Capture-side durations are
+ *    always uint16_t.
+ *  - OW_SYSCLK_MHZ: system clock in MHz (80 HSI16+PLL, or 16 raw HSI16, see
+ *    app.c).  The build systems pass it explicitly
+ *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without it the
+ *    shared core reads the CMSIS SystemCoreClock at startup instead.
+ *  - OW_L4_MAX_SYSCLK_MHZ: the L476 Range-1 ceiling (80MHz); app.c rejects more.
+ *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path.  L4
+ *    splits it from TIM16 in the vector table, so this is TIM1_UP_TIM16_IRQn
+ *    (the same combined vector name G4 uses).
+ */
+
+#if OW_LOW_POWER
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UP_TIM16_IRQn
+#endif
+
+/* L4 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
+ * gives a 1us tick here): TIM1 is on APB2 (RM0351), and
+ * configure_system_clock() (app.c) leaves every prescaler at /1 on both
+ * supported clocks - 80MHz (HSI16+PLL) and 16MHz (raw HSI16) - so TIM1 =
+ * PCLK2 = SYSCLK directly, with no x2 doubling. */
+
+/* @brief Gate DMA1, GPIOA and TIM1.
+ *
+ *  L4 splits the gates three ways: DMA1 on AHB1, GPIO on AHB2, TIM1 on APB2
+ *  (RM0351).  PWR is gated separately by the clock path in app.c.  The APB2
+ *  read-back settles the APB clock before the first TIM1 access below.
+ */
+#define OW_PORT_ENABLE_BUS_CLOCKS()                               \
+    do {                                                          \
+        RC.AHB1ENR |= RCC_AHB1ENR_DMA1EN;                         \
+        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                        \
+        RC.APB2ENR |= RCC_APB2ENR_TIM1EN;                         \
+        (void)RC.APB2ENR; /* settle APB before the TIM1 access */ \
+    } while (0)
+
+/* @brief PA10: alternate function, open-drain, AF1 (TIM1_CH3).
+ *
+ *  AF1 carries TIM1_CH3 on PA10 for the L4 family (DS10198 alternate-function
+ *  table).  USART1_TX on PA9 is AF7, so the console and the bus share the port
+ *  without touching each other.  Drive strength is configurable via
+ *  OW_BUS_DRIVE, default MAX.
+ */
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODER10) | GPIO_MODER_MODER10_1;           \
+        PA.OTYPER |= GPIO_OTYPER_OT_10;                                               \
+        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos); \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
+    } while (0)
+
+/* @brief Toggle the bus pin between open-drain and push-pull.
+ *
+ *  Push-pull is only used by the experimental active-drive write path
+ *  (OW_DRIVE_ACTIVE); the slave has to be able to pull the line LOW while the
+ *  master reads, so every read and reset phase returns to open-drain.
+ */
+#define OW_PORT_SET_PIN_MODE(push_pull)                                   \
+    do {                                                                  \
+        if (push_pull) {                                                  \
+            PA.OTYPER &= ~GPIO_OTYPER_OT_10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                          \
+            PA.OTYPER |= GPIO_OTYPER_OT_10; /* PP -> OD (release) */      \
+        }                                                                 \
+    } while (0)
+
+/* @brief DMA1 request selectors (RM0351 DMA1 request mapping table): on
+ *  DMA1_Channel3 selection 7 is TIM1_CH2 and on DMA1_Channel4 selection 7 is
+ *  TIM1_CH4/TRIG/COM.  The selector values are per-channel, not global
+ *  request numbers - that is why both read 7 while the channels differ.
+ *
+ *  Written before every operation through DMA1_CSELR, so the routing cannot be
+ *  left pointing at a previous request.  Double-sourced from the RM0351 table
+ *  and STM32CubeL4 (the NUCLEO-L476RG TIM_DMA example uses the same request 7
+ *  for a TIM1 CC channel on a classic DMA1 channel).
+ */
+#define OW_PORT_CSELR_REQ_TIM1_CH2 7u
+#define OW_PORT_CSELR_REQ_TIM1_CH4 7u
+
+#define OW_PORT_ROUTE_CAPTURE()                                                \
+    do {                                                                       \
+        DMA1_CSELR->CSELR = (DMA1_CSELR->CSELR & ~DMA_CSELR_C4S) |             \
+                            (OW_PORT_CSELR_REQ_TIM1_CH4 << DMA_CSELR_C4S_Pos); \
+    } while (0)
+#define OW_PORT_ROUTE_FEED()                                                   \
+    do {                                                                       \
+        DMA1_CSELR->CSELR = (DMA1_CSELR->CSELR & ~DMA_CSELR_C3S) |             \
+                            (OW_PORT_CSELR_REQ_TIM1_CH2 << DMA_CSELR_C3S_Pos); \
+    } while (0)
+
+/* @brief DMA channel assignment: feed rides TIM1_CH2 on DMA1_Channel3,
+ *       capture rides TIM1_CH4 on DMA1_Channel4 - the core D13/D14 defaults.
+ *       Unlike F0/F1, the request is selected in DMA1_CSELR above. */
+#endif /* OW_FAMILY_L4 */
 
 /* === STM32H5 ===
  *  Vocabulary overrides over the shared TIM1+GPDMA core.
