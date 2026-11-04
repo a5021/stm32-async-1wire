@@ -17,7 +17,7 @@ project(ow_consumer_installed C)
 # the install tree, and hardcoding them would make the package depend on the
 # paths of whichever machine built it. So a consumer supplies its own - from
 # STM32Cube, PlatformIO, or a manual checkout. cmake/stm32_async_1wireConfig.cmake.in
-# documents the same contract, and README repeats it.
+# documents the same contract, and docs/building.md repeats it.
 foreach(_ow_var OW_CMSIS_CORE_INCLUDE OW_CMSIS_DEVICE_INCLUDE)
     if(NOT ${_ow_var})
         message(FATAL_ERROR

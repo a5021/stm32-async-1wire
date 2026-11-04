@@ -4,7 +4,7 @@
 
 /* Pin the expected layout: natural alignment puts each sensor record at
  * 28 B (8 + 2 + 2 pad + 4 × 4) and the whole context at 300 B.  These sizes
- * are quoted in the ow_stats.h / README RAM-cost notes. */
+ * are quoted in the ow_stats.h / API-reference RAM-cost notes. */
 _Static_assert(sizeof(ow_stats_sensor_t) == 28u, "ow_stats_sensor_t layout drift");
 _Static_assert(sizeof(ow_stats_t) == 300u, "ow_stats_t layout drift");
 

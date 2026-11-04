@@ -15,8 +15,8 @@ uphold this code.
 
 ### Reporting bugs
 
-Before creating a bug report, please check the [Troubleshooting](README.md#troubleshooting)
-section of the README — most hardware issues are wiring-related.
+Before creating a bug report, please check the [Troubleshooting](docs/troubleshooting.md)
+guide — most hardware issues are wiring-related.
 
 When creating an issue, use the **Bug Report** template and include:
 
@@ -58,7 +58,8 @@ interrupt-free, minimal CPU usage).
      run `make deps-all` once.
    - Use the `clang-format` release the `format` job pins (step 2 above);
      `make format-check` prints the one it invoked.
-5. Update the README and the [CHANGELOG](CHANGELOG.md) if your change
+5. Update the relevant guide under `docs/` (or the README for the overview) and
+   the [CHANGELOG](CHANGELOG.md) if your change
    affects behavior or usage.
 6. Commit your changes with a concise, descriptive message.
 7. Push to the branch and open a Pull Request using the PR template.

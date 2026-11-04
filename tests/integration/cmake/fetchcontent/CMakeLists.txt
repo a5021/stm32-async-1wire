@@ -1,5 +1,5 @@
 # Downstream consumer of the library as a *subproject*, which is the shape the
-# README documents with FetchContent_Declare(... GIT_REPOSITORY ... GIT_TAG ...).
+# docs/building.md documents with FetchContent_Declare(... GIT_REPOSITORY ... GIT_TAG ...).
 # Here the source comes from the local checkout instead of a clone, so the
 # fixture needs no network and cannot drift from the commit under test.
 #
@@ -30,5 +30,5 @@ add_library(ow_consumer STATIC
 )
 
 # The un-namespaced target: add_subdirectory() yields the plain name, which is
-# what the README tells downstream projects to link.
+# what docs/building.md tells downstream projects to link.
 target_link_libraries(ow_consumer PRIVATE stm32_async_1wire)

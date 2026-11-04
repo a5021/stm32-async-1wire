@@ -520,8 +520,8 @@ jobs:
 
       - name: Check the project version is consistent
         # inc/ds18b20.h is the source; the CMake project(), both PlatformIO
-        # manifests, the Doxygen PROJECT_NUMBER and the README GIT_TAG example
-        # must agree, and CHANGELOG.md must carry a dated section for the version
+        # manifests, the Doxygen PROJECT_NUMBER and the docs/building.md GIT_TAG
+        # example must agree, and CHANGELOG.md must carry a dated section for the version
         # being released. v1.8.1 shipped with no [1.8.1] section at all because
         # nothing checked for one.
         run: make test-version
@@ -897,7 +897,7 @@ jobs:
           test -f build/cmake-variants-${{ matrix.backend }}/examples/9_multi.bin
       - name: Build the standalone-consumer template (OW_MCU=${{ matrix.mcu }})
         if: matrix.backend == 'h5'
-        # The vendored integration path the README documents: a downstream
+        # The vendored integration path docs/building.md documents: a downstream
         # project that references inc/ + src/ in place and wires them with the
         # drop-in helper cmake/ow_add_library.cmake. This is the only thing that
         # exercises the helper's PUBLIC compile *and* link flags end to end -
