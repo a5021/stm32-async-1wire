@@ -29,9 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the F446 bench. On the WeAct F446RET6 at 180 MHz every level is clean at
   guard 1 and `cndtr_late = 0`, matching the F030; the capture-drain matrix
   returns the same 7 ROMs at every level and the injection control goes red.
-  At 16 MHz level 5 needs guard 89 and at 8 MHz the fixed 512-word CPU hammer
-  plus stream 1 starves the feed even at guard 100, so the F446 default matrix
-  runs at 180 MHz and `--clocks 16,8` measures that low-clock margin on purpose.
+  At 16/8 MHz levels 0-4 are clean at guard 1. Level 5 is a fixed 512-word DMA
+  burst plus the CPU hammer, not a load normalized to the slot: an isolation
+  sweep at 8 MHz is clean at 128 words with a minimal hammer, fails at 160, and
+  a 512-word burst with a one-word hammer is clean again at guard 100. That is
+  a load-design limit, not a driver failure; the F446 default matrix stays at
+  180 MHz and `--clocks 16,8` is a stress-to-failure run. The test-only
+  `STRESS_WORDS`, `STRESS_CPU_WORDS` and `STRESS_SPLIT_HAMMER` knobs make the
+  isolation reproducible.
 - **H503 load generator for `0_dma_pressure`.** Levels 2-5 now run on the H5
   backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
   direct mode with a software request; `CBR1.BNDT` is programmed as a

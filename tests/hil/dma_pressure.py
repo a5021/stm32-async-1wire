@@ -74,10 +74,12 @@ SETTLE_MARGIN_S = 0.25
 GUARDS = (1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 100)
 LEVELS = (0, 1, 2, 3, 4, 5)
 F030_CLOCKS = (48, 8)
-#: The F446 load rig is characterized at the part's 180MHz default. At 16MHz
-#: level 5 needs guard 89, and at 8MHz the fixed 512-word CPU hammer plus
-#: stream 1 starves the feed even at guard 100; use --clocks 16,8 to measure
-#: that margin explicitly rather than have every default run fail.
+#: The F446 load rig is characterized at the part's 180MHz default. At 16/8MHz
+#: levels 0-4 are clean at guard 1. Level 5 uses a fixed 512-word DMA burst,
+#: which is longer than the low-clock slot and is a stress-to-failure point,
+#: not a normalized load: at 8MHz 128 words with a minimal hammer is clean, 160
+#: fails, and 512 words with a one-word hammer is clean again at guard 100.
+#: Use --clocks 16,8 to measure that limit explicitly.
 F446_CLOCKS = (180,)
 #: The H503 runs the load at all three supported clocks; the GPDMA channel 0/1
 #: load stays clean at guard 1 even at 8MHz.
