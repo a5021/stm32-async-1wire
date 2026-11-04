@@ -116,6 +116,18 @@
 #define STRESS_WORDS 512
 #endif
 
+/* Test-only isolation knobs for the level-5 CPU hammer. `STRESS_CPU_WORDS`
+ * defaults to the DMA burst size; changing it needs a separate destination
+ * array, which `STRESS_SPLIT_HAMMER=1` allocates. Neither affects a normal
+ * build (both default to the original shared-array behaviour). */
+#ifndef STRESS_CPU_WORDS
+#define STRESS_CPU_WORDS STRESS_WORDS
+#endif
+
+#ifndef STRESS_SPLIT_HAMMER
+#define STRESS_SPLIT_HAMMER 0
+#endif
+
 #ifndef STRESS_CAPTURE
 #define STRESS_CAPTURE 0
 #endif
@@ -146,6 +158,15 @@
 #endif
 #if (STRESS_WORDS < 1) || (STRESS_WORDS > 65535)
 #error "STRESS_WORDS must be 1..65535 (DMA CNDTR is 16-bit)"
+#endif
+#if (STRESS_CPU_WORDS < 1) || (STRESS_CPU_WORDS > 65535)
+#error "STRESS_CPU_WORDS must be 1..65535"
+#endif
+#if (STRESS_SPLIT_HAMMER != 0) && (STRESS_SPLIT_HAMMER != 1)
+#error "STRESS_SPLIT_HAMMER must be 0 or 1"
+#endif
+#if !STRESS_SPLIT_HAMMER && (STRESS_CPU_WORDS != STRESS_WORDS)
+#error "STRESS_CPU_WORDS != STRESS_WORDS requires STRESS_SPLIT_HAMMER=1"
 #endif
 #if (STRESS_CAPTURE != 0) && (STRESS_CAPTURE != 1)
 #error "STRESS_CAPTURE must be 0 (write rig) or 1 (search/capture mode)"
@@ -240,6 +261,12 @@ static uint32_t stress_inject_flags;
  * halfword writes - roughly one bus slot of work with the default size. */
 static uint16_t stress_src_word = 0xA5A5u;
 static volatile uint16_t stress_dst[STRESS_WORDS];
+#if STRESS_SPLIT_HAMMER
+static volatile uint16_t stress_cpu_dst[STRESS_CPU_WORDS];
+#define STRESS_HAMMER_ARRAY stress_cpu_dst
+#else
+#define STRESS_HAMMER_ARRAY stress_dst
+#endif
 
 #if defined(OW_FAMILY_F0)
 
@@ -627,8 +654,8 @@ static void stress_inject(uint32_t us) {
  * shares the same bus for the whole pass. */
 static void cpu_hammer(void) {
     cpu_passes++;
-    for (uint32_t i = 0; i < STRESS_WORDS; i++) {
-        stress_dst[i] = (uint16_t)(stress_dst[i] + 1u);
+    for (uint32_t i = 0; i < STRESS_CPU_WORDS; i++) {
+        STRESS_HAMMER_ARRAY[i] = (uint16_t)(STRESS_HAMMER_ARRAY[i] + 1u);
     }
 }
 

@@ -205,11 +205,18 @@ matrix stays green.
 
 On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
 window), the same result as the F030. At 16 and 8 MHz levels 0-4 are also clean
-at guard 1; only level 5 is limited by the fixed 512-word CPU hammer: it needs
-guard 89 at 16 MHz and starves the feed even at guard 100 at 8 MHz. That is a
-measured property of this worst-case synthetic load, not a generator failure;
-run `python tests/hil/dma_pressure.py --clocks 16,8` to reproduce it. The F446
-bench also wires PA11 to D1, so its pressure and capture matrices use the same
+at guard 1. Level 5 is different: it uses a fixed 512-word DMA burst plus the
+CPU hammer, and that load is **not normalized to the slot or the clock**. An
+isolation sweep at 8 MHz shows the cell is clean at 128 words with a minimal
+hammer, starts failing at 160 words, and a 512-word burst with a one-word hammer
+is clean again at guard 100. The low-clock level-5 failure is therefore a
+load-design limit, not evidence that the driver cannot run at 8 MHz: the fixed
+512-word burst is longer than a 71 µs slot, and any CPU work shifts it over the
+edge. The F446 default matrix runs at 180 MHz; `--clocks 16,8` is a
+stress-to-failure run, not a normalized pass/fail. The test-only knobs
+`STRESS_WORDS`, `STRESS_CPU_WORDS` and `STRESS_SPLIT_HAMMER=1` make the
+isolation reproducible without changing a normal build. The F446 bench also
+wires PA11 to D1, so its pressure and capture matrices use the same
 marker-bracketed analysis as the H503.
 
 On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
