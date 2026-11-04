@@ -110,6 +110,20 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 #define OW_G4_CONSOLE_BRR USART_BRR_CALC(OW_G4_PCLK2_MHZ * 1000000u, 115200)
 #endif /* OW_FAMILY_G4 */
 
+/* --- L4 console divisor ----------------------------------------------------
+ *
+ * Same shape as G4: USART1 is on APB2, left at /1 on both supported clocks
+ * (80MHz HSI16+PLL and 16MHz raw HSI16), so PCLK2 = SYSCLK.  It lives here for
+ * the same reason: the BRR write is inside hardware_init(), which no host
+ * build compiles, so test_timing pins OW_L4_CONSOLE_BRR instead.
+ */
+#if defined(OW_FAMILY_L4)
+/** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
+#define OW_L4_PCLK2_MHZ ((OW_SYSCLK_MHZ))
+/** @brief Console BRR on USART1/APB2 at 115200 baud */
+#define OW_L4_CONSOLE_BRR USART_BRR_CALC(OW_L4_PCLK2_MHZ * 1000000u, 115200)
+#endif /* OW_FAMILY_L4 */
+
 /* --- H5 console divisor ----------------------------------------------------
  *
  * Same shape as G4: USART1 is on APB2, left at /1, so PCLK2 = SYSCLK and the
@@ -174,21 +188,21 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Configure system clock (exposed for the F4/G4/H5/H7 host harness)
+ * @brief Configure system clock (exposed for the F4/G4/L4/H5/H7 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
- *       Under DS18B20_TEST_HARNESS the F4/G4 suite drives the real clock path
+ *       Under DS18B20_TEST_HARNESS the F4/G4/L4 suite drives the real clock path
  *       against the RCC/FLASH mocks (test_timing), so it needs external
  *       linkage. Other families keep the function out of the harness.
  */
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Whether the requested clock actually started (F4/G4/H5/H7 harness surface)
- * @note F4/G4/H5/H7 report a clock that never came up through this rather than through a
+ * @brief Whether the requested clock actually started (F4/G4/L4/H5/H7 harness surface)
+ * @note F4/G4/L4/H5/H7 report a clock that never came up through this rather than through a
  *       return value: changing configure_system_clock()'s signature changed
  *       codegen in the families that cannot fail, for no benefit. 1 = running,
  *       0 = a bounded oscillator, regulator/supply, or clock-switch wait failed.

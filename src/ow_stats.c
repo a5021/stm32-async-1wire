@@ -22,6 +22,8 @@
 #include "stm32g0xx.h"
 #elif defined(OW_FAMILY_G4)
 #include "stm32g4xx.h"
+#elif defined(OW_FAMILY_L4)
+#include "stm32l4xx.h"
 #elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
 #elif defined(OW_FAMILY_H7)

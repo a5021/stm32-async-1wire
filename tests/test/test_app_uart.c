@@ -19,6 +19,8 @@
 #include "stm32g0xx.h"
 #elif defined(STM32G4)
 #include "stm32g4xx.h"
+#elif defined(STM32L4)
+#include "stm32l4xx.h"
 #elif defined(STM32H5)
 #include "stm32h5xx.h"
 #elif defined(STM32H7)
@@ -34,9 +36,9 @@
 #define TXE_BIT USART_ISR_TXE_TXFNF
 #define TX_SR ISR
 #define TX_DR TDR
-#elif defined(STM32F0) || defined(STM32F3)
-/* F0 and F3 both use the modern USART registers: the TXE flag is plain
- * USART_ISR_TXE and data goes to TDR. F3 has no TXFNF - unlike G0. */
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32L4)
+/* F0, F3 and L4 use the modern USART registers but the TXE flag keeps its
+ * plain USART_ISR_TXE spelling (no TXFNF yet). */
 #define TXE_BIT USART_ISR_TXE
 #define TX_SR ISR
 #define TX_DR TDR

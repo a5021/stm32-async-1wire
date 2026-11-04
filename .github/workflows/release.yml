@@ -139,6 +139,21 @@ jobs:
             "5_commands|STM32G474xx|16|ds18b20_5_commands_g4_16mhz|"
             "6_statistics|STM32G474xx|16|ds18b20_6_statistics_g4_16mhz|"
             "7_low_power|STM32G474xx|16|ds18b20_7_low_power_lp_g4_16mhz|lowpower"
+            # STM32L476xx (NUCLEO-L476RG) - 80MHz HSI16+PLL default, 16MHz raw HSI16; no HSE fitted
+            "1_basic|STM32L476xx|-|ds18b20_1_basic_l4_80mhz|"
+            "2_device_search|STM32L476xx|-|ds18b20_2_device_search_l4_80mhz|"
+            "3_round_robin|STM32L476xx|-|ds18b20_3_round_robin_l4_80mhz|"
+            "4_scan_mode|STM32L476xx|-|ds18b20_4_scan_mode_l4_80mhz|"
+            "5_commands|STM32L476xx|-|ds18b20_5_commands_l4_80mhz|"
+            "6_statistics|STM32L476xx|-|ds18b20_6_statistics_l4_80mhz|"
+            "7_low_power|STM32L476xx|-|ds18b20_7_low_power_lp_l4_80mhz|lowpower"
+            "1_basic|STM32L476xx|16|ds18b20_1_basic_l4_16mhz|"
+            "2_device_search|STM32L476xx|16|ds18b20_2_device_search_l4_16mhz|"
+            "3_round_robin|STM32L476xx|16|ds18b20_3_round_robin_l4_16mhz|"
+            "4_scan_mode|STM32L476xx|16|ds18b20_4_scan_mode_l4_16mhz|"
+            "5_commands|STM32L476xx|16|ds18b20_5_commands_l4_16mhz|"
+            "6_statistics|STM32L476xx|16|ds18b20_6_statistics_l4_16mhz|"
+            "7_low_power|STM32L476xx|16|ds18b20_7_low_power_lp_l4_16mhz|lowpower"
             # STM32H503xx (WeAct Core) - 64MHz raw-HSI default, 250MHz via HSE+PLL1, 8MHz raw HSE
             "1_basic|STM32H503xx|-|ds18b20_1_basic_h5_64mhz|"
             "2_device_search|STM32H503xx|-|ds18b20_2_device_search_h5_64mhz|"
@@ -225,6 +240,7 @@ jobs:
             "8_ds2431|STM32G031xx|-|ds18b20_8_ds2431_g0_64mhz|"
             "8_ds2431|STM32F303xC|-|ds18b20_8_ds2431_f3_72mhz|"
             "8_ds2431|STM32G474xx|-|ds18b20_8_ds2431_g4_170mhz|"
+            "8_ds2431|STM32L476xx|-|ds18b20_8_ds2431_l4_80mhz|"
             "8_ds2431|STM32H503xx|-|ds18b20_8_ds2431_h5_64mhz|"
             "8_ds2431|STM32F407xx|-|ds18b20_8_ds2431_f407xx_168mhz|"
             "8_ds2431|STM32F401xC|-|ds18b20_8_ds2431_f401xc_84mhz|"
@@ -237,6 +253,7 @@ jobs:
             "9_multi|STM32G031xx|-|ds18b20_9_multi_g0_64mhz|"
             "9_multi|STM32F303xC|-|ds18b20_9_multi_f3_72mhz|"
             "9_multi|STM32G474xx|-|ds18b20_9_multi_g4_170mhz|"
+            "9_multi|STM32L476xx|-|ds18b20_9_multi_l4_80mhz|"
             "9_multi|STM32H503xx|-|ds18b20_9_multi_h5_64mhz|"
             "9_multi|STM32F407xx|-|ds18b20_9_multi_f407xx_168mhz|"
             "9_multi|STM32F401xC|-|ds18b20_9_multi_f401xc_84mhz|"
@@ -288,10 +305,10 @@ jobs:
             DS2431 EEPROM drivers built on top - bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA - no interrupts,
             no software delays, minimal CPU usage. One MCU-independent core and
-            eight header-only backends (F0/F1/F3/F4/G0/G4/H5/H7) selected at build time with
+            nine header-only backends (F0/F1/F3/F4/G0/G4/L4/H5/H7) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
-            `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32H503xx` /
-            `make OW_MCU=STM32H743xx`.
+            `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
+            `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
 
             ## What's new in 3.0.0
 
@@ -456,6 +473,8 @@ jobs:
             | STM32F303VC | 64MHz (HSI/2 + PLL) | `ds18b20_1_basic_f3_64mhz`, ...`2_device_search_f3_64mhz`, ...`3_round_robin_f3_64mhz`, ...`4_scan_mode_f3_64mhz`, `ds18b20_5_commands_f3_64mhz`, `ds18b20_6_statistics_f3_64mhz`, `ds18b20_7_low_power_lp_f3_64mhz` |
             | STM32G474CB (WeAct) | 170MHz (HSE+PLL) | `ds18b20_1_basic_g4_170mhz`, ...`2_device_search_g4_170mhz`, `3_round_robin_g4_170mhz`, `4_scan_mode_g4_170mhz`, `ds18b20_5_commands_g4_170mhz`, `ds18b20_6_statistics_g4_170mhz`, `ds18b20_7_low_power_lp_g4_170mhz`, `ds18b20_8_ds2431_g4_170mhz`, `ds18b20_9_multi_g4_170mhz` |
             | STM32G474CB (WeAct) | 16MHz HSI16 | `ds18b20_1_basic_g4_16mhz`, ...`2_device_search_g4_16mhz`, `3_round_robin_g4_16mhz`, `4_scan_mode_g4_16mhz`, `ds18b20_5_commands_g4_16mhz`, `ds18b20_6_statistics_g4_16mhz`, `ds18b20_7_low_power_lp_g4_16mhz` |
+            | STM32L476RG (NUCLEO) | 80MHz (HSI16+PLL, default; no HSE) | `ds18b20_1_basic_l4_80mhz`, ...`2_device_search_l4_80mhz`, `3_round_robin_l4_80mhz`, `4_scan_mode_l4_80mhz`, `ds18b20_5_commands_l4_80mhz`, `ds18b20_6_statistics_l4_80mhz`, `ds18b20_7_low_power_lp_l4_80mhz`, `ds18b20_8_ds2431_l4_80mhz`, `ds18b20_9_multi_l4_80mhz` |
+            | STM32L476RG (NUCLEO) | 16MHz raw HSI16 | `ds18b20_1_basic_l4_16mhz`, ...`2_device_search_l4_16mhz`, `3_round_robin_l4_16mhz`, `4_scan_mode_l4_16mhz`, `ds18b20_5_commands_l4_16mhz`, `ds18b20_6_statistics_l4_16mhz`, `ds18b20_7_low_power_lp_l4_16mhz` |
             | STM32H503CB (WeAct) | 64MHz raw HSI (default) | `ds18b20_1_basic_h5_64mhz`, ...`2_device_search_h5_64mhz`, ...`3_round_robin_h5_64mhz`, ...`4_scan_mode_h5_64mhz`, `ds18b20_5_commands_h5_64mhz`, `ds18b20_6_statistics_h5_64mhz`, `ds18b20_7_low_power_lp_h5_64mhz`, `ds18b20_8_ds2431_h5_64mhz`, `ds18b20_9_multi_h5_64mhz` |
             | STM32H503CB (WeAct) | 250MHz (HSE+PLL1) | `ds18b20_1_basic_h5_250mhz`, ...`2_device_search_h5_250mhz`, ...`3_round_robin_h5_250mhz`, ...`4_scan_mode_h5_250mhz`, `ds18b20_5_commands_h5_250mhz`, `ds18b20_6_statistics_h5_250mhz`, `ds18b20_7_low_power_lp_h5_250mhz` |
             | STM32H503CB (WeAct) | 8MHz raw HSE | `ds18b20_1_basic_h5_8mhz`, ...`2_device_search_h5_8mhz`, ...`3_round_robin_h5_8mhz`, ...`4_scan_mode_h5_8mhz`, `ds18b20_5_commands_h5_8mhz`, `ds18b20_6_statistics_h5_8mhz`, `ds18b20_7_low_power_lp_h5_8mhz` |
@@ -484,7 +503,7 @@ jobs:
             - **True non-blocking 1-Wire**: TIM1 Output Compare + Input Capture with DMA - a hardware state machine does the timing, the CPU just polls a flag
             - **Zero interrupts**: no NVIC IRQs at all
             - **Pure bare-metal C**: register-level, no HAL/LL, arm-none-eabi-gcc
-            - **Eight MCU backends**: STM32F0 (bus on PA10), STM32F1 (bus on PA10), STM32F3 (bus on PA10), STM32F4 (bus on PA10), STM32G0 (bus on PA12 via remap), STM32G4 (bus on PA10), STM32H5 (bus on PA10), STM32H7 (bus on PA10), one shared core
+            - **Nine MCU backends**: STM32F0 (bus on PA10), STM32F1 (bus on PA10), STM32F3 (bus on PA10), STM32F4 (bus on PA10), STM32G0 (bus on PA12 via remap), STM32G4 (bus on PA10), STM32L4 (bus on PA10), STM32H5 (bus on PA10), STM32H7 (bus on PA10), one shared core
             - **Accuracy**: 0.1 C resolution, +/-0.5 C typical, one reading every ~0.76 s
             - **CRC-8 validation** on every 9-byte scratchpad read
             - **Weak callbacks** `ds18b20_busy()` / `ds18b20_complete()`

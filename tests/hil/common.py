@@ -32,7 +32,9 @@ FLASH_ADDR = "0x08000000"
 # Both benches run a parasite-powered bus, so both profiles build with the
 # strong pull-up enabled: without it the sensors brown out mid-conversion
 # (127.9 C) and report their power-on-reset value (85.0 C). HIL_EXT= (empty)
-# opts out for an externally powered bus.
+# opts out for an externally powered bus. The NUCLEO-L476RG profile uses the
+# same parasite setting and an external USB-TTL on USART1 PA9; the on-board VCP
+# (USART2) is not used.
 BENCH_PROFILES = {
     "STM32F030x6": {
         # TSSOP20 STM32F030F4P6-class board (16KB flash / 4KB RAM): the
@@ -53,6 +55,14 @@ BENCH_PROFILES = {
     "STM32H503xx": {
         "hints": ("STM32H503", "STM32H50x"),
         "device_id": "0x474",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
+    "STM32L476xx": {
+        # NUCLEO-L476RG, parasite-powered bus, external USB-TTL on USART1
+        # PA9 (the on-board VCP is USART2 and is not used). HIL_PORT must name
+        # the adapter's COM port.
+        "hints": ("STM32L476", "STM32L4x6"),
+        "device_id": "0x415",
         "ext": "-DOW_PARASITE_POWER=1",
     },
     "STM32H743xx": {

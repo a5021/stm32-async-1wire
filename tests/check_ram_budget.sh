@@ -35,6 +35,7 @@
 #   f0             329                 652              432
 #   f4             434                 756              536
 #   g4             329                 652              432
+#   l4             329                 652              432
 #   h5             329                 652              432
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
@@ -212,6 +213,7 @@ fi
 check STM32F030x6 329 652 432
 check STM32F407xx 434 756 536
 check STM32G474xx 329 652 432
+check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
 
 check_app STM32F030x6 0_dma_pressure 2360 1476

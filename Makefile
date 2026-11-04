@@ -47,20 +47,23 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # OW_MCU selects one exact STMicroelectronics device macro and is the primary
 # selector: f0 STM32F030x6, f1 STM32F103xB, f3 STM32F303xC, f4 STM32F407xx /
 # STM32F401xC / STM32F401xE / STM32F446xx, g0 STM32G031xx, g4 STM32G474xx,
-# h5 STM32H503xx, h7 STM32H743xx.
+# l4 STM32L476xx, h5 STM32H503xx, h7 STM32H743xx.
 #   make OW_MCU=STM32F030x6
+#   make OW_MCU=STM32L476xx APP=1_basic SYSCLK_MHZ=16
 #   make OW_MCU=STM32H503xx APP=2_device_search SYSCLK_MHZ=250 HSE_MHZ=8
 #   make OW_MCU=STM32H743xx APP=2_device_search SYSCLK_MHZ=480 TIM1_MHZ=240
 # OW_TARGET selects the MCU family and remains accepted for compatibility:
 # f0 (STM32F030x6), f1 (STM32F103xB, default),
-# f3 (STM32F303xC), f4 (STM32F407xx / STM32F401 family), g0 (STM32G031xx) or
-# g4 (STM32G474CB, e.g. the WeAct G474 Long).
+# f3 (STM32F303xC), f4 (STM32F407xx / STM32F401 family), g0 (STM32G031xx),
+# g4 (STM32G474CB, e.g. the WeAct G474 Long) or l4 (STM32L476RG, e.g. the
+# NUCLEO-L476RG).
 #   make                -> F1 firmware
 #   make OW_TARGET=f0   -> F0 firmware
 #   make OW_TARGET=f3   -> F3 firmware (STM32F303VC, e.g. the F3-DISCOVERY)
 #   make OW_TARGET=g0   -> G0 firmware
 #   make OW_TARGET=f4   -> F4 firmware (default part f407xx)
 #   make OW_TARGET=g4   -> G4 firmware (default part g474cb)
+#   make OW_TARGET=l4   -> L4 firmware (default part l476rg)
 #   make OW_TARGET=h5   -> H5 firmware (default part h503cb)
 #   make OW_TARGET=h7   -> H7 firmware (default part h743vi)
 #
@@ -75,7 +78,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # compatibility, but when OW_MCU is set they must either be unset or agree
 # with it. Board-level defaults stay in the selected chips/<part>.mk for now.
 OW_MCU ?=
-OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32H503xx STM32H743xx
+OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx
 OW_MCU_TARGET_STM32F030x6 = f0
 OW_MCU_CHIP_STM32F030x6 = f030x6
 OW_MCU_TARGET_STM32F103xB = f1
@@ -94,6 +97,8 @@ OW_MCU_TARGET_STM32G031xx = g0
 OW_MCU_CHIP_STM32G031xx = g031xx
 OW_MCU_TARGET_STM32G474xx = g4
 OW_MCU_CHIP_STM32G474xx = g474cb
+OW_MCU_TARGET_STM32L476xx = l4
+OW_MCU_CHIP_STM32L476xx = l476rg
 OW_MCU_TARGET_STM32H503xx = h5
 OW_MCU_CHIP_STM32H503xx = h503cb
 OW_MCU_TARGET_STM32H743xx = h7
@@ -137,7 +142,7 @@ endif
 # worse than not building at all. An explicitly empty OW_TARGET is still an
 # error; only an unset OW_TARGET receives the F1 default. A typo such as
 # OW_TARGET=f401-84 therefore cannot silently compile a Blue Pill.
-OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 h5 h7
+OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 l4 h5 h7
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -155,6 +160,9 @@ SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),g4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+MCU = -mcpu=cortex-m4 -mthumb
+else ifeq ($(OW_TARGET),l4)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32l4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),h5)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
@@ -179,6 +187,8 @@ else ifeq ($(OW_TARGET),g0)
 OW_CHIP ?= g031xx
 else ifeq ($(OW_TARGET),g4)
 OW_CHIP ?= g474cb
+else ifeq ($(OW_TARGET),l4)
+OW_CHIP ?= l476rg
 else ifeq ($(OW_TARGET),h5)
 OW_CHIP ?= h503cb
 else ifeq ($(OW_TARGET),h7)
@@ -428,6 +438,7 @@ F3_URL = $(ST_URL)cmsis-device-f3/$(CMSIS_DEVICE_REF_F3)
 F4_URL = $(ST_URL)cmsis_device_f4/$(CMSIS_DEVICE_REF_F4)
 G0_URL = $(ST_URL)cmsis_device_g0/$(CMSIS_DEVICE_REF_G0)
 G4_URL = $(ST_URL)cmsis_device_g4/$(CMSIS_DEVICE_REF_G4)
+L4_URL = $(ST_URL)cmsis_device_l4/$(CMSIS_DEVICE_REF_L4)
 H5_URL = $(ST_URL)cmsis_device_h5/$(CMSIS_DEVICE_REF_H5)
 H7_URL = $(ST_URL)cmsis_device_h7/$(CMSIS_DEVICE_REF_H7)
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F030.svd
@@ -438,6 +449,7 @@ SVD_URL_F401 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSI
 SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F446.svd
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G031.svd
 SVD_URL_G4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G474xx.svd
+SVD_URL_L4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32L4x6.svd
 
 # Required external files (needed for build but not in repo)
 # The part-specific entries come from chips/<part>.mk, so download-deps fetches
@@ -477,6 +489,14 @@ CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
 CMSIS_DEVICE_FAMILY_HDR = stm32g4xx.h
 CMSIS_SYSTEM_HDR = system_stm32g4xx.h
 CMSIS_SYSTEM_SRC = system_stm32g4xx.c
+else ifeq ($(OW_TARGET),l4)
+# Same as F3/F4/G4: a Cortex-M4, so core_cm4.h pulls in mpu_armv7.h
+# unconditionally.
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm4.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv7.h
+CMSIS_DEVICE_FAMILY_HDR = stm32l4xx.h
+CMSIS_SYSTEM_HDR = system_stm32l4xx.h
+CMSIS_SYSTEM_SRC = system_stm32l4xx.c
 else ifeq ($(OW_TARGET),h5)
 # Cortex-M33: core_cm33.h pulls in mpu_armv8.h unconditionally.
 CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm33.h \
@@ -616,6 +636,13 @@ CMSIS_DOWNLOADS_G4 = \
   system_stm32g4xx.h|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Include/system_stm32g4xx.h \
   system_stm32g4xx.c|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Source/Templates/system_stm32g4xx.c \
   startup_stm32g474xx.s|$(CMSIS_DEVICE_DIR)|$(G4_URL)/Source/Templates/gcc/startup_stm32g474xx.s
+# cmsis_device_l4 headers and sources (Apache 2.0)
+CMSIS_DOWNLOADS_L4 = \
+  stm32l4xx.h|$(CMSIS_DEVICE_DIR)|$(L4_URL)/Include/stm32l4xx.h \
+  stm32l476xx.h|$(CMSIS_DEVICE_DIR)|$(L4_URL)/Include/stm32l476xx.h \
+  system_stm32l4xx.h|$(CMSIS_DEVICE_DIR)|$(L4_URL)/Include/system_stm32l4xx.h \
+  system_stm32l4xx.c|$(CMSIS_DEVICE_DIR)|$(L4_URL)/Source/Templates/system_stm32l4xx.c \
+  startup_stm32l476xx.s|$(CMSIS_DEVICE_DIR)|$(L4_URL)/Source/Templates/gcc/startup_stm32l476xx.s
 # cmsis_device_h5 headers and sources (Apache 2.0). No SVD upstream
 # (cmsis-svd-data carries no STM32H503 file), so the H5 part file leaves
 # CHIP_SVD empty; ST-Link flashing and debugging do not need it.
@@ -643,13 +670,15 @@ CMSIS_DOWNLOADS_SVD = \
   STM32F401.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F401) \
   STM32F446.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F446) \
   STM32G031.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G0) \
-  STM32G474xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G4)
+  STM32G474xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G4) \
+  STM32L4x6.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_L4)
 
 CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F0) \
                  $(CMSIS_DOWNLOADS_F1) $(CMSIS_DOWNLOADS_F3) \
                  $(CMSIS_DOWNLOADS_F4) $(CMSIS_DOWNLOADS_G0) \
-                 $(CMSIS_DOWNLOADS_G4) $(CMSIS_DOWNLOADS_H5) \
-                 $(CMSIS_DOWNLOADS_H7) $(CMSIS_DOWNLOADS_SVD)
+                 $(CMSIS_DOWNLOADS_G4) $(CMSIS_DOWNLOADS_L4) \
+                 $(CMSIS_DOWNLOADS_H5) $(CMSIS_DOWNLOADS_H7) \
+                 $(CMSIS_DOWNLOADS_SVD)
 
 # Generate the rules. $$(call ...) rather than $(call ...), and $$@ rather
 # than $@: the body is expanded twice before the rule ever runs (once by
@@ -716,7 +745,7 @@ clean-deps:
 # tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
 # because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
 # - the inner reference expands before t is bound and comes out empty.
-MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb h5:h503cb h7:h743vi
+MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb l4:l476rg h5:h503cb h7:h743vi
 test-mocks:
 	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
@@ -819,7 +848,7 @@ format-check:
 
 # --- Every CMSIS family at once ---
 # The cppcheck passes (and the full host matrix in CI) need the device headers
-# of all seven families, and within F4 the F446 is a separate download: the
+# of all eight families, and within F4 the F446 is a separate download: the
 # pack ships every part header, but the dependency list fetches only the one
 # the selected chip names, so F407xx does not bring stm32f446xx.h with it.
 # Downloads only what is missing, so it is cheap on a tree that already has
@@ -835,6 +864,7 @@ deps-all:
 	@$(MAKE) --no-print-directory OW_MCU=STM32F446xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32G031xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32G474xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32L476xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32H503xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32H743xx download-deps
 
@@ -865,8 +895,8 @@ CPPCHECK_INCLUDES = -I. -Iinc -Isrc -Iexamples/app \
 CPPCHECK_SOURCES = src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c \
                    examples/app/app.c $(wildcard examples/*/main.c)
 CPPCHECK_DEVICES = stm32f103xb.h stm32f030x6.h stm32g031xx.h stm32f303xc.h \
-                   stm32f407xx.h stm32f446xx.h stm32g474xx.h stm32h503xx.h \
-                   stm32h743xx.h
+                   stm32f407xx.h stm32f446xx.h stm32g474xx.h stm32l476xx.h \
+                   stm32h503xx.h stm32h743xx.h
 # label|defines (quoted: the shell would read the pipe and the spaces as
 # syntax, and each item must stay one word of the for list)
 CPPCHECK_PASSES = \
@@ -878,6 +908,8 @@ CPPCHECK_PASSES = \
 	'f446-180|-DSTM32F446xx -DOW_SYSCLK_MHZ=180 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'g4-170|-DSTM32G474xx -DOW_SYSCLK_MHZ=170 -D__GNUC__' \
 	'g4-16|-DSTM32G474xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
+	'l4-80|-DSTM32L476xx -DOW_SYSCLK_MHZ=80 -D__GNUC__' \
+	'l4-16|-DSTM32L476xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
 	'h5-64|-DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
 	'h5-250|-DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'h5-8|-DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__' \
@@ -1263,6 +1295,9 @@ TEST_EXE = $(TEST_OUT)/ds18b20_test_g0.exe
 else ifeq ($(OW_TARGET),g4)
 TEST_PORT_FLAG = -DSTM32G4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
+else ifeq ($(OW_TARGET),l4)
+TEST_PORT_FLAG = -DSTM32L4
+TEST_EXE = $(TEST_OUT)/ds18b20_test_l4.exe
 else ifeq ($(OW_TARGET),h5)
 TEST_PORT_FLAG = -DSTM32H5
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
@@ -1317,6 +1352,15 @@ TEST_G4_16_FLAG = $(TEST_FLAG) -DSTM32G474xx -DOW_SYSCLK_MHZ=16
 TEST_G4_16_EXE = $(TEST_OUT)/ds18b20_test_g4_16mhz.exe
 TEST_EXTRA_EXES = $(TEST_G4_16_EXE)
 endif
+# The L4's 80MHz HSI16+PLL default and 16MHz raw-HSI16 branch are different
+# code paths: the low clock turns the PLL on not at all, so a regression in
+# either cannot hide behind the other build passing. The default build covers
+# 80MHz through chips/l476rg.mk, hence the extra executable forces 16MHz.
+ifneq ($(filter l4,$(OW_TARGET)),)
+TEST_L4_16_FLAG = $(TEST_FLAG) -DSTM32L476xx -DOW_SYSCLK_MHZ=16
+TEST_L4_16_EXE = $(TEST_OUT)/ds18b20_test_l4_16mhz.exe
+TEST_EXTRA_EXES = $(TEST_L4_16_EXE)
+endif
 # H5 carries two extra clocks, both genuinely different code paths from the
 # 64MHz raw-HSI default: 250MHz is the HSE+PLL1 branch (VOS0, 5 wait states,
 # PLL1CFGR/PLL1DIVR and the CFGR1 switch) and 8MHz is the raw-HSE branch (an
@@ -1350,7 +1394,7 @@ endif
 # two left the active-drive and ndebug names with an unbalanced paren, which
 # only the ndebug job noticed - and it failed on CI while all five host-test
 # jobs went red on an artefact name rather than on a test.
-TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter h5,$(OW_TARGET)),_h5,$(if $(filter h7,$(OW_TARGET)),_h7,)))))))
+TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter l4,$(OW_TARGET)),_l4,$(if $(filter h5,$(OW_TARGET)),_h5,$(if $(filter h7,$(OW_TARGET)),_h7,))))))))
 
 # --- DS2431 EEPROM driver (second 1-Wire device driver) host tests ----------
 # The DS2431 driver is compiled through tests/mock/ds2431_test_access.c (which
@@ -1397,7 +1441,7 @@ $(TEST_DS2431_NG_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewi
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
-TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter h5,$(1)),STM32H5,$(if $(filter h7,$(1)),STM32H743xx,STM32F1)))))))
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter l4,$(1)),STM32L476xx,$(if $(filter h5,$(1)),STM32H5,$(if $(filter h7,$(1)),STM32H743xx,STM32F1))))))))
 # This one defaults to _f1 rather than to nothing, so the family-macro compile
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.
@@ -1589,6 +1633,12 @@ $(TEST_F4_180_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exa
 # names the clock it happened at.
 $(TEST_G4_16_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_G4_16_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+# The L4 suite at the 16MHz raw-HSI16 clock: same sources and test_main, only
+# the clock differs, so a regression in the PLL branch or the direct-HSI branch
+# cannot hide behind the other build passing.
+$(TEST_L4_16_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_L4_16_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 # The H5 suite at its two crystal clocks. Same sources and same test_main, only
 # the clock differs, so the suite's own expectations have to hold at 250MHz and
@@ -1863,7 +1913,7 @@ help:
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
 	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC, STM32F401xE,"
 	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx, STM32H503xx, STM32H743xx)"
-	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|h5|h7 - MCU family (firmware build)"
+	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|l4|h5|h7 - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
 	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"

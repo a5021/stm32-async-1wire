@@ -189,6 +189,11 @@ def main():
     ap.add_argument("--channel", type=int, default=0)
     ap.add_argument("--parasite", action="store_true",
                     help="the parasite build raises the guard band")
+    ap.add_argument("--tolerance-us", type=float, default=TOLERANCE_US,
+                    help="pulse-width tolerance in us (default 1.5, edge "
+                         "quantisation; raise it for a nominal-RC clock whose "
+                         "own accuracy exceeds that, e.g. HSI16 at +/-1%%: "
+                         "2.4us on a 480us reset)")
     ap.add_argument("--wait-ms", type=float, default=0.0,
                     help="expected long wait in ms (e.g. 750 for a 12-bit "
                          "conversion); 0 = don't check")
@@ -224,7 +229,9 @@ def main():
     print("\n=== сверка с конфигурацией ===")
     checks = []
 
-    def check(name, measured, expected, tol=TOLERANCE_US):
+    def check(name, measured, expected, tol=None):
+        if tol is None:
+            tol = args.tolerance_us
         if measured is None:
             checks.append((name, None, expected, False))
             return

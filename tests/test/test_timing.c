@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32H5) || defined(STM32H7)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -400,6 +400,48 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
+#endif
+#elif defined(STM32L4)
+    /* Preset the ready flags configure_system_clock() waits on: the mock does
+     * not model the oscillator start or the PLL lock. SWS is preset because
+     * the mock does not mirror SW -> SWS; the switch write preserves it. */
+    mock_rcc.CR = RCC_CR_HSIRDY | RCC_CR_PLLRDY;
+#if (OW_SYSCLK_MHZ) == 80
+    mock_rcc.CFGR = RCC_CFGR_SWS_PLL;
+#else
+    mock_rcc.CFGR = RCC_CFGR_SWS_HSI;
+#endif
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* APB1 and APB2 stay /1 at both L4 clocks, so TIM1 = PCLK2 = SYSCLK. */
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE1_Msk);
+    TEST_ASSERT_EQUAL_UINT32(0, mock_rcc.CFGR & RCC_CFGR_PPRE2_Msk);
+    /* MSI is the reset clock and must be turned off after the switch. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CR & RCC_CR_MSION);
+#if (OW_SYSCLK_MHZ) == 80
+    /* Range 1 (VOS = 01) before the clock: 80MHz is above the Range-2
+     * ceiling, so running in the reset scale is out of spec. PWR sits on
+     * APB1, so its clock has to be on before CR1 is writable. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_APB1ENR1_PWREN, mock_rcc.APB1ENR1 & RCC_APB1ENR1_PWREN);
+    TEST_ASSERT_EQUAL_UINT32(PWR_CR1_VOS_0, mock_pwr.CR1 & PWR_CR1_VOS);
+    /* The switch happened. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_SW_PLL, mock_rcc.CFGR & RCC_CFGR_SW);
+    /* 4 wait states + prefetch (RM0351 Table 10: 80MHz at Range 1). */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS,
+                             mock_flash.ACR);
+    /* HSI16 (16MHz) / M=1 x N=10 / R=2 -> 80MHz. Field widths: PLLM 3 bits,
+     * PLLN 7, PLLR 2. Asserted as literals, not the code's own formulas. */
+    TEST_ASSERT_EQUAL_UINT32(0u, (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLM_Pos) & 0x7u);
+    TEST_ASSERT_EQUAL_UINT32(10u, (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLN_Pos) & 0x7Fu);
+    TEST_ASSERT_EQUAL_UINT32(0u, (mock_rcc.PLLCFGR >> RCC_PLLCFGR_PLLR_Pos) & 0x3u);
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLLREN, mock_rcc.PLLCFGR & RCC_PLLCFGR_PLLREN);
+    TEST_ASSERT_EQUAL_UINT32(RCC_PLLCFGR_PLLSRC_HSI,
+                             mock_rcc.PLLCFGR & RCC_PLLCFGR_PLLSRC);
+#else
+    /* Raw HSI16: the reset clock is MSI, so SW must move to HSI16; no PLL. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR_SW_HSI, mock_rcc.CFGR & RCC_CFGR_SW);
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN, mock_flash.ACR);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
 #endif
 #elif defined(STM32H5)
 #if (OW_SYSCLK_MHZ) == 64
@@ -808,6 +850,30 @@ void test_g4_console_baud_divisor(void) {
 }
 #endif /* STM32G4 */
 
+#if defined(STM32L4)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  The BRR write lives in hardware_init() - inside
+ *  #if !defined(DS18B20_TEST_HARNESS), so no host build has ever compiled it -
+ *  and a per-clock table without the new clock falls through silently. The L4
+ *  backend leaves APB2 at /1 at both clocks, so PCLK2 = SYSCLK; asserting the
+ *  app.h value pins that against both executables (80 default, 16 second).
+ *-------------------------------------------------------------*/
+void test_l4_console_baud_divisor(void) {
+    uint32_t brr_expected;
+
+    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_L4_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_L4_CONSOLE_BRR);
+    /* At 80MHz the divisor is 694; at 16MHz it is 139. A SYSCLK-sized
+     * mistake (using the reset 4MHz MSI, say) would give 35. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 2000u);
+}
+#endif /* STM32L4 */
+
 #if defined(STM32H5)
 /*-------------------------------------------------------------
  *  The console UART divisor must follow the APB prescalers.
@@ -885,6 +951,9 @@ void run_test_timing(void) {
 #endif
 #if defined(STM32G4)
     TEST_RUN(test_g4_console_baud_divisor);
+#endif
+#if defined(STM32L4)
+    TEST_RUN(test_l4_console_baud_divisor);
 #endif
 #if defined(STM32H5)
     TEST_RUN(test_h5_console_baud_divisor);

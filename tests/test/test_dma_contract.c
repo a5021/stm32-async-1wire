@@ -143,6 +143,10 @@ static const dma_ledger_row_t k_ledger[] = {
      * channel (TIM1_CH2 -> 21/43, TIM1_CH4 -> 23/45). */
     {"g0", 21u, 23u, "DMAMUX channel request id"},
     {"g4", 43u, 45u, "DMAMUX channel request id"},
+    /* L4: classic DMA1 channels, but the request is selected in DMA1_CSELR
+     * (TIM1_CH2 -> selection 7 on channel 3, TIM1_CH4 -> selection 7 on
+     * channel 4; the selector is per-channel, not a global request number). */
+    {"l4", 7u, 7u, "DMA1_CSELR channel selection"},
     /* H7: no fixed map - the request is selected in the DMAMUX channel
      * (TIM1_CH2 -> 12, TIM1_CH4 -> 14). */
     {"h7", 12u, 14u, "DMAMUX channel request id"},
@@ -163,6 +167,8 @@ static const dma_ledger_row_t k_ledger[] = {
 #define CURRENT_FAMILY "g0"
 #elif defined(STM32G4)
 #define CURRENT_FAMILY "g4"
+#elif defined(STM32L4)
+#define CURRENT_FAMILY "l4"
 #elif defined(STM32H5)
 #define CURRENT_FAMILY "h5"
 #elif defined(STM32H7)

@@ -10,13 +10,13 @@
 #
 # Input variable (one of the following):
 #   OW_MCU   device macro (STM32H503xx) or family macro (STM32H5)
-#   OW_TARGET  family code (f0, f1, f3, f4, g0, g4, h5, h7) - used as fallback
+#   OW_TARGET  family code (f0, f1, f3, f4, g0, g4, l4, h5, h7) - used as fallback
 #              when OW_MCU is unset (root CMakeLists.txt path).
 #
 # Output variables:
-#   OW_FAMILY      f0 | f1 | f3 | f4 | g0 | g4 | h5 | h7
+#   OW_FAMILY      f0 | f1 | f3 | f4 | g0 | g4 | l4 | h5 | h7
 #   OW_CPU         cortex-m0 | cortex-m3 | cortex-m4 | cortex-m0plus | cortex-m33 | cortex-m7
-#   OW_FAMILY_DEF  STM32F0 | STM32F1 | STM32F3 | STM32F4 | STM32G0 | STM32G4 | STM32H5 | STM32H7
+#   OW_FAMILY_DEF  STM32F0 | STM32F1 | STM32F3 | STM32F4 | STM32G0 | STM32G4 | STM32L4 | STM32H5 | STM32H7
 #   OW_MCU_FLAGS   -mcpu=<cpu> -mthumb
 #   OW_SYSTEM_SRC  system_stm32*.xx.c
 #   OW_DEVICE_REPO https://github.com/STMicroelectronics/cmsis_device_*.git
@@ -39,6 +39,8 @@ if(NOT OW_MCU AND OW_TARGET)
         set(OW_MCU "STM32G0")
     elseif(OW_TARGET STREQUAL "g4")
         set(OW_MCU "STM32G4")
+    elseif(OW_TARGET STREQUAL "l4")
+        set(OW_MCU "STM32L4")
     elseif(OW_TARGET STREQUAL "h5")
         set(OW_MCU "STM32H5")
     elseif(OW_TARGET STREQUAL "h7")
@@ -97,6 +99,13 @@ elseif(OW_MCU STREQUAL "STM32G474xx" OR OW_MCU STREQUAL "STM32G4")
     set(OW_MCU_FLAGS   -mcpu=cortex-m4 -mthumb)
     set(OW_SYSTEM_SRC  system_stm32g4xx.c)
     set(OW_DEVICE_REPO https://github.com/STMicroelectronics/cmsis_device_g4.git)
+elseif(OW_MCU STREQUAL "STM32L476xx" OR OW_MCU STREQUAL "STM32L4")
+    set(OW_FAMILY      l4)
+    set(OW_CPU         cortex-m4)
+    set(OW_FAMILY_DEF  STM32L4)
+    set(OW_MCU_FLAGS   -mcpu=cortex-m4 -mthumb)
+    set(OW_SYSTEM_SRC  system_stm32l4xx.c)
+    set(OW_DEVICE_REPO https://github.com/STMicroelectronics/cmsis_device_l4.git)
 elseif(OW_MCU STREQUAL "STM32H503xx" OR OW_MCU STREQUAL "STM32H5")
     set(OW_FAMILY      h5)
     set(OW_CPU         cortex-m33)
@@ -116,5 +125,6 @@ else()
         "cmake/ow_flags.cmake: unsupported OW_MCU '${OW_MCU}'. Pass a device "
         "macro (STM32F030x6, STM32F103xB, STM32F303xC, STM32F407xx, "
         "STM32F401xC, STM32F401xE, STM32F446xx, STM32G031xx, STM32G474xx, "
-        "STM32H503xx, STM32H743xx) or a family macro (STM32F0/F1/F3/F4/G0/G4/H5/H7).")
+        "STM32L476xx, STM32H503xx, STM32H743xx) or a family macro "
+        "(STM32F0/F1/F3/F4/G0/G4/L4/H5/H7).")
 endif()
