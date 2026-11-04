@@ -775,6 +775,30 @@ test-mcu-dispatch:
 test-header-hygiene:
 	@sh tests/check_header_hygiene.sh
 
+# --- Removed macro names must be hard errors (see tests/check_removed_macros.sh) ---
+# 3.0.0 dropped every compatibility alias, so a consumer still passing
+# -DOW_PORT_LOW_POWER=1 compiled and silently lost the feature. The guards in
+# inc/ow_board.h and inc/ow_config.h turn that into an #error naming the
+# replacement; this check proves each guard fires. Host compiler only, so it
+# runs in CI's part-matrix next to the header hygiene, not in `make check`.
+.PHONY: test-removed-macros
+test-removed-macros:
+	@sh tests/check_removed_macros.sh
+
+# --- Public API snapshot (see tests/api/public_api.py) ---
+# A text record of the declarations a consumer sees in inc/. It turns an
+# accidental rename, removal or signature change into a reviewable diff and
+# catches the next 3.0.0-style break at home. No compiler and no ARM
+# toolchain: this is a text check, so it belongs in `make check`.
+# `update-public-api` is the only way the committed snapshot should change.
+.PHONY: test-public-api update-public-api
+test-public-api:
+	@$(PYTHON) tests/api/public_api.py --check
+	@$(PYTHON) tests/api/test_public_api.py
+
+update-public-api:
+	@$(PYTHON) tests/api/public_api.py --update
+
 # --- Would the suite notice a broken DMA contract? ---
 # Deliberately break the port and see whether the host suite catches it. The
 # defect is applied in a scratch git worktree, so the working tree is never
@@ -939,7 +963,7 @@ cppcheck:
 # the HIL parsers. `make test` is the functional suite and `make` the firmware
 # build; neither is repeated here.
 .PHONY: check
-check: format-check cppcheck test-version test-hil-parsing test-stress-report
+check: format-check cppcheck test-version test-hil-parsing test-stress-report test-public-api
 
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
@@ -1882,6 +1906,9 @@ help:
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"
 	@echo "  test-header-hygiene - Check the public headers do not leak the port register vocabulary (host gcc)"
+	@echo "  test-removed-macros - Check the removed 3.0.0 names are hard #errors naming their replacement (host gcc)"
+	@echo "  test-public-api - Check inc/ against the committed public-API snapshot and its canary"
+	@echo "  update-public-api - Rewrite tests/api/public-api.txt after a deliberate API change"
 	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"

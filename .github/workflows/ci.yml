@@ -461,9 +461,19 @@ jobs:
         # src/onewire.c) and written in the register vocabulary at the top of
         # src/ow_port.h; ow_port.h withdraws it at its end and nothing else
         # guards that block, so a moved include resurrected the leak once
-        # already (v2.1.0, 8dba9d2). Host-gcc preprocessor check over the four
-        # public headers plus the two engine headers.
+        # already (v2.1.0, 8dba9d2). Host-gcc preprocessor check over the six
+        # public headers plus the three engine headers.
         run: make test-header-hygiene
+      - name: Check the removed macro names are hard errors
+        # 3.0.0 dropped every compatibility alias, so -DOW_PORT_LOW_POWER=1
+        # used to compile and silently disable the WFE path. A host-gcc TU per
+        # removed name must fail and name its replacement.
+        run: make test-removed-macros
+      - name: Check the public API declaration snapshot
+        # A text snapshot of inc/ declarations plus a canary that proves the
+        # check goes red on a rename, a removal and a signature change. No
+        # compiler; the snapshot lives in tests/api/public-api.txt.
+        run: make test-public-api
       - name: Check the PlatformIO library manifest
         # PlatformIO resolves consumers through library.json rather than an
         # install tree, and nothing was reading it. This is a host-gcc check of

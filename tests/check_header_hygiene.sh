@@ -25,8 +25,8 @@
 #
 # The check preprocesses a one-line TU per header/family with -dM and fails if
 # any vocabulary name is defined. A marker macro proves the include actually
-# took effect, so a broken include path cannot pass vacuously. All six headers
-# are covered - the four public ones, plus the two engine headers under src/
+# took effect, so a broken include path cannot pass vacuously. All nine headers
+# are covered - the six public ones, plus the three engine headers under src/
 # (reached with -Isrc).
 #
 # Run: make test-header-hygiene
@@ -51,7 +51,7 @@ MOCK=tests/mock
 # with one.
 PATTERN='^#define (RCC_BITS|RCC_AHBENR|RCC_APB2ENR|GPIO_CRH|TIM_CR1|TIM_DIER|TIM_BDTR|TIM_SR|TIM_EGR|TIM_CCMR2|TIM_CCER|DMA_CCR|DMA_LIFCR|DMA_HIFCR|DMA_SxCR|OW_BITFIELDS|OW_BF_CHOOSER2|OW_BF_CHOOSER1|OW_BF_CHOOSER|OW_BF_NARG_|OW_BF_NARG|OW_BF_ONE|OW_BF_8|OW_BF_7|OW_BF_6|OW_BF_5|OW_BF_4|OW_BF_3|OW_BF_2|OW_BF_1|D13|D14|D2|PA|RC|T1)[ (]'
 
-FAMS="STM32F0 STM32F1 STM32F3 STM32F4 STM32G0 STM32G4 STM32H5"
+FAMS="STM32F0 STM32F1 STM32F3 STM32F4 STM32G0 STM32G4 STM32L4 STM32H5 STM32H7"
 fail=0
 checks=0
 
@@ -85,6 +85,8 @@ check_header() {
 
 check_header onewire.h ONEWIRE_ROM_BYTES
 check_header ow_board.h OW_BOARD_H
+check_header ow_config.h OW_CONFIG_H
+check_header ow_stats.h OW_STATS_H
 check_header ow_port.h OW_PORT_LONG_STAGE_US
 check_header ow_mcu.h OW_MCU_H
 check_header ow_glue.h OW_GLUE_H
@@ -103,10 +105,13 @@ check_header ds2431.h DS2431_FAMILY_CODE
 # moment the engine is refactored.
 #
 # This is the tie for the 3.0.0 rename: the public macros were renamed in one
-# sweep, and this stops a new OW_PORT_* from creeping back into inc/.
+# sweep, and this stops a new OW_PORT_* from creeping back into inc/. The one
+# exception is the migration guard itself: its #error message has to name the
+# removed macro so the compiler can tell the user what to replace.
 check_public_names() {
     for hdr in "$INC"/*.h; do
-        hits=$(grep -nE 'OW_PORT_[A-Z0-9_]*|ow_port_[a-z0-9_]*' "$hdr" 2>/dev/null)
+        hits=$(grep -nE 'OW_PORT_[A-Z0-9_]*|ow_port_[a-z0-9_]*' "$hdr" 2>/dev/null |
+               grep -vE ':[[:space:]]*#(if defined[(]OW_PORT_[A-Z0-9_]+[)]|error "OW_PORT_[A-Z0-9_]+ was renamed to OW_[A-Z0-9_]+ in 3[.]0[.]0)')
         if [ -n "$hits" ]; then
             echo "  $hdr: names the private port vocabulary:" >&2
             printf '%s\n' "$hits" | sed 's/^/    /' >&2
