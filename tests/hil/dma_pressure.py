@@ -394,6 +394,51 @@ def first_marker_us(raw, rate_hz, marker_bit=1):
     return float(rises[0]) / rate_hz * 1e6 if rises.size else None
 
 
+def first_capture_edge_us(raw, rate_hz, after_us=0.0):
+    """Time of the first D0 falling edge after `after_us`, or None.
+
+    A failing cell has no decodable frame, so its `.sr` window cannot start at
+    a recognised frame; this finds the raw traffic instead.
+    """
+    raw = np.asarray(raw, dtype=np.uint8)
+    d0 = raw & 1
+    falls = np.flatnonzero((d0[1:] == 0) & (d0[:-1] == 1)) + 1
+    start = int(after_us * 1e-6 * rate_hz)
+    falls = falls[falls >= start]
+    return float(falls[0]) / rate_hz * 1e6 if falls.size else None
+
+
+def first_after_marker_us(raw, rate_hz, after_us=0.0, marker_bit=1):
+    """Time of the first D0 activity inside a marker-high window after `after_us`.
+
+    The marker brackets exactly one frame, so this is where the corruption of a
+    failing cell lives even when `analyse()` cannot recognise the frame.
+    """
+    raw = np.asarray(raw, dtype=np.uint8)
+    d0 = raw & 1
+    marker = (raw >> marker_bit) & 1
+    mch = np.flatnonzero(marker[1:] != marker[:-1]) + 1
+    rises = mch[marker[mch] == 1]
+    falls = mch[marker[mch] == 0]
+    start = int(after_us * 1e-6 * rate_hz)
+    j = 0
+    last = float(after_us)
+    for rise in rises:
+        if rise < start:
+            continue
+        while j < len(falls) and falls[j] <= rise:
+            j += 1
+        end = falls[j] if j < len(falls) else marker.size
+        last = float(rise) / rate_hz * 1e6
+        inside = np.flatnonzero((d0[rise:end][1:] == 0) & (d0[rise:end][:-1] == 1))
+        if inside.size:
+            return float(rise + inside[0] + 1) / rate_hz * 1e6
+    # A dead run has no pulse at all inside the marker. Fall back to the last
+    # marker instead of the capture start: the window must still contain the
+    # marker so the viewer and analyse() see the same run.
+    return last if last > after_us else None
+
+
 def la_present(sigrok):
     try:
         proc = subprocess.run([sigrok, "-d", "fx2lafw", "--scan"],
@@ -594,6 +639,7 @@ class Runner:
         res["clock_mhz"] = clock
         res["guard_us"] = guard
         res["capture"] = None
+        res["capture_fail"] = None
         if self.sr_dir and res["first_frame_us"] is not None:
             name = "l%d_%s_g%d.sr" % (
                 level, "%dmhz" % clock if clock else "def", guard)
@@ -601,6 +647,27 @@ class Runner:
                      res["first_frame_us"] - SR_LEAD_US,
                      res["first_frame_us"] + SLOTS * slot_us + SR_TAIL_US)
             res["capture"] = name
+        if self.sr_dir and not res["clean"]:
+            # A failing cell has no recognised frame, so the window above never
+            # existed and the only evidence was thrown away. Keep the raw run
+            # from the first marker window after the settle instead: the marker
+            # brackets the frame even when the frame cannot be decoded, and the
+            # report links this as the failing frame.
+            fail_from = first_after_marker_us(raw, RATE_HZ, min_start_us)
+            if fail_from is None:
+                fail_from = first_capture_edge_us(raw, RATE_HZ, min_start_us)
+            if fail_from is None:
+                fail_from = min_start_us
+            name = "fail/l%d_%s_g%d.sr" % (
+                level, "%dmhz" % clock if clock else "def", guard)
+            res["window_us"] = [fail_from,
+                                fail_from + SLOTS * slot_us + SR_TAIL_US]
+            start = max(0.0, fail_from - SR_LEAD_US)
+            dst = os.path.join(self.sr_dir, name)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            write_sr(raw, RATE_HZ, dst, start,
+                     start + SR_LEAD_US + SLOTS * slot_us + SR_TAIL_US)
+            res["capture_fail"] = name
         self.cache[key] = res
         if self.keep_all or not res["clean"]:
             tag = "l%d_g%d_c%s" % (level, guard, clock if clock else "def")
@@ -761,6 +828,8 @@ def main(argv=None):
                 "stuck_low": res["stuck_low"],
                 "first_frame_us": res["first_frame_us"],
                 "capture": res.get("capture"),
+                "capture_fail": res.get("capture_fail"),
+                "window_us": res.get("window_us"),
                 "telemetry": res.get("telemetry"),
                 "identity": res.get("identity"),
                 "attempts": res.get("attempts", 1),

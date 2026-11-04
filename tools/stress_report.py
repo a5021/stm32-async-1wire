@@ -49,6 +49,9 @@ FAILURE_CLASSES = [
      "line can be parked low - complete starvation."),
 ]
 
+#: Samples before the frame start kept in every `.sr`, matching the HIL loader.
+SR_LEAD_US = 1000.0
+
 
 def e(value):
     return html.escape("" if value is None else str(value), quote=True)
@@ -103,24 +106,43 @@ def telemetry(cell):
     return t + [None] * (20 - len(t))
 
 
-def viewer_href(cell, platform=None):
-    name = (cell or {}).get("capture")
+def viewer_href(cell, platform=None, key="capture"):
+    name = (cell or {}).get(key)
     if not name:
         return None
-    if platform:
-        src = quote("../stress/platforms/%s/captures/%s" % (platform, name), safe="/.")
-    else:
-        src = quote("../stress/captures/" + name, safe="/.")
+    tree = "stress/platforms/%s/" % platform if platform else "stress/"
+    # The viewer page is ../viewer/, so `src` is resolved against /viewer/:
+    # captures are two levels up. Getting this wrong makes the viewer look for
+    # /viewer/stress/... and every frame link opens empty.
+    src = quote("../../" + tree + "captures/" + name, safe="/.")
+
+    def mark(us):
+        return "%.3f" % (us - SR_LEAD_US)
+
+    bounds = (cell or {}).get("window_us")
+    bounds = bounds or []
+    # The viewer opens on the start of the capture, but the frame sits after
+    # the settle and the marker lead: pin it to the frame itself.
+    start = bounds[0] if bounds else (cell or {}).get("first_frame_us")
+    end = bounds[1] if len(bounds) > 1 else None
+    if start is not None:
+        # A capture windowed from `first_frame_us - SR_LEAD_US` puts the frame
+        # at the lead, not at `first_frame_us`.
+        if not bounds:
+            start -= SR_LEAD_US
+        src += "&t0=" + mark(start)
+        if end is not None:
+            src += "&t1=" + mark(end)
     # Speed is pinned: the 60 us '0' pulses of a diagnostic pattern would
     # otherwise look like overdrive resets to the auto detector.
     return "../viewer/?src=" + src + "&speed=standard"
 
 
-def link_to_viewer(cell, label, platform=None):
-    href = viewer_href(cell, platform)
+def link_to_viewer(cell, label, platform=None, key="capture"):
+    href = viewer_href(cell, platform, key)
     if not href:
         return '<span class="muted">%s -</span>' % e(label)
-    name = cell["capture"]
+    name = cell[key]
     return '<a href="%s" title="%s">%s</a>' % (e(href), e(name), e(label))
 
 
@@ -199,8 +221,12 @@ def capture_section(capture):
         return ""
     rows = []
     for c in sorted(cells, key=lambda c: (c["clock_mhz"] or -1, c["guard_us"], c["level"])):
-        href = viewer_href(c)
-        link = ('<a href="%s">frame</a>' % e(href)) if href else '<span class="muted">-</span>'
+        # A mismatching search has no decoded frame either; link its kept
+        # failure window instead of dropping the evidence.
+        key = "capture" if c.get("capture") else "capture_fail"
+        href = viewer_href(c, key=key)
+        label = "failing frame" if key == "capture_fail" else "frame"
+        link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
         rows.append(
             "<tr><td>%d</td><td>%s</td><td>%d us</td><td>%s</td><td><code>%08X</code></td>"
             "<td>%s</td><td>%s</td><td>%s</td></tr>" % (
@@ -257,13 +283,31 @@ def platform_section(name, data):
         default_ok = bool(default_cell and default_cell["clean"])
         if guard_min is None or not default_ok:
             fails.append((level, clock, guard_min))
+        if default_ok:
+            links = link_to_viewer(default_cell, "frame", name)
+        else:
+            # The interesting frame: a failing cell has no decodable frame, so
+            # the loader keeps the raw marker window and records it as
+            # `capture_fail`. Show the widest measured guard that failed: it is
+            # the last one before the level started passing, or the default
+            # guard when the level never passed.
+            poor = [c for c in data.get("cells") or []
+                    if c["level"] == level and c["clock_mhz"] == clock
+                    and not c["clean"] and c.get("capture_fail")]
+            poor.sort(key=lambda c: c["guard_us"], reverse=True)
+            fail_cell = poor[0] if poor else default_cell
+            links = (
+                link_to_viewer(fail_cell, "failing frame", name,
+                               key="capture_fail")
+                + " "
+                + link_to_viewer(default_cell, "frame", name))
         rows.append(
             "<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>"
             % (level,
                "%d MHz" % clock if clock else "default",
                fmt_guard(guard_min),
                "clean" if default_ok else "<strong>not clean</strong>",
-               link_to_viewer(default_cell, "frame", name)))
+               links))
     commit = data.get("commit") or "unknown"
     generated = data.get("generated") or "unknown"
     if fails:
@@ -272,8 +316,6 @@ def platform_section(name, data):
     else:
         verdict = ("<strong>Every level is clean at the %d us default</strong>; "
                    "the measured floor is shown per cell." % default_guard)
-    if not has_captures:
-        pass
     return """
 <section id="platform-%s">
 <h2>%s (%s)</h2>
@@ -378,8 +420,12 @@ def inject_section(capture):
     rows = []
     for c in sorted(cells, key=lambda c: (c["mode"], c["clock_mhz"] or -1, c["inject_us"])):
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
-        href = viewer_href(c)
-        link = ('<a href="%s">frame</a>' % e(href)) if href else '<span class="muted">-</span>'
+        # Clean cells keep a decoded frame; a failing injection has only the
+        # raw marker window, which is the frame worth looking at.
+        key = "capture" if c.get("capture") else "capture_fail"
+        href = viewer_href(c, key=key)
+        label = "frame" if good else "failing frame"
+        link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
         rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td><td>%s</td></tr>" % (
             e(mode_label(c["mode"])),
             "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
