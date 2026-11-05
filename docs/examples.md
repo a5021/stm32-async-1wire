@@ -285,13 +285,19 @@ wires PA11 to D1, so its pressure and capture matrices use the same
 marker-bracketed analysis as the H503.
 
 On the H503, re-measured on 2026-11-05 at `84f32003` from a clean tree, every
-level is clean at the 5 µs default at 64, 250 and 8 MHz, and the measured floor
-is guard 1 in every cell; the earlier level 0/4 outliers disappear once the D1
-marker brackets the frames. The GPDMA negative control suspends the channel
-(`CCR.SUSP`) and waits for the hardware acknowledgement in `CSR.SUSPF`; taking
-a live channel down adds `IDLEF` and `CCR.RESET`, because clearing `EN` alone
-does not drop a pending request. That corrected sequence is what the current
-data measures.
+level is clean at the 5 µs default at 64, 250 and 8 MHz **at equal priority**,
+and the measured floor is guard 1 in every cell; the earlier level 0/4 outliers
+disappear once the D1 marker brackets the frames. The GPDMA negative control
+suspends the channel (`CCR.SUSP`) and waits for the hardware acknowledgement in
+`CSR.SUSPF`; taking a live channel down adds `IDLEF` and `CCR.RESET`, because
+clearing `EN` alone does not drop a pending request. That corrected sequence is
+what the current data measures.
+
+Raising the load to `CCR.PRIO 3` against the feed's `PRIO 0` is the second
+model, and it is a different picture: 250 MHz stays clean at guard 1, 64 MHz
+needs up to 13 µs (levels 2-4), and at 8 MHz level 2 needs 100 µs while levels
+3-5 never pass. The fixed high class really does outrank the feed; the
+equal-priority round-robin above does not.
 
 The Search ROM pass under the same loads matched the baseline in 33 of 36
 cells. At 8 MHz levels 3 and 4 lost the bus entirely (count 0, or one device at

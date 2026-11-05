@@ -367,6 +367,9 @@ python tests/hil/dma_capture.py --json docs/stress/capture.json
 python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results.json \
                                  --sr-dir docs/stress/platforms/h503/captures \
                                  --clocks 64,250,8
+python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results-high.json \
+                                 --sr-dir docs/stress/platforms/h503/captures-high \
+                                 --clocks 64,250,8 --gpdma-prio 3
 python tests/hil/dma_pressure.py --json docs/stress/platforms/f446/results.json \
                                  --sr-dir docs/stress/platforms/f446/captures \
                                  --clocks 180,16,8

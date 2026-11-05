@@ -223,9 +223,16 @@ def main():
         slot_us = dp.ONE_US + dp.ZERO_US + cell["guard_us"] + 1
         a = dp.analyse(raw, pdata.get("capture_rate_hz") or rate_hz,
                        slot_us=slot_us)
-        check("%s is one clean frame" % label,
-              a["frames"] == 1 and a["clean"],
-              "%d frame(s), %s" % (a["frames"], a["first"]))
+        if cell.get("clean"):
+            check("%s is one clean frame" % label,
+                  a["frames"] == 1 and a["clean"],
+                  "%d frame(s), %s" % (a["frames"], a["first"]))
+        else:
+            # A failing cell may still record the frame it could not decode;
+            # the archive only has to replay to a verdict, not to a clean one.
+            check("%s replays to a verdict" % label,
+                  a["frames"] >= 0 and (a["frames"] > 0 or bool(a["first"])),
+                  "%d frame(s), %s" % (a["frames"], a["first"]))
 
     for name, _role, data_high in priority:
         base = os.path.join(PLATFORMS, name, "captures-high")
