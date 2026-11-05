@@ -613,7 +613,11 @@ Two things to know:
 
 #### 3. Vendored copy + `ow_add_library.cmake`
 
-Copy `inc/` and `src/` into your project tree, then use the drop-in CMake helper:
+Copy `inc/` and `src/` into your project tree, then use the drop-in CMake helper.
+A complete working example of this layout is
+[`templates/standalone-consumer/`](../templates/standalone-consumer/README.md):
+it wires the vendored copy through `ow_add_library()`, with an H5 `board.c`,
+`main.c` and its own README of knobs and gotchas.
 
 ```text
 your-project/

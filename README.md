@@ -37,8 +37,10 @@ build are in [Getting started](docs/getting-started.md).
 |---|---|
 | [Getting started](docs/getting-started.md) | Requirements, what to know before integrating, and the first build |
 | [Building, testing and integration](docs/building.md) | Make/CMake/PlatformIO, the host and fuzz suites, HIL, STM32CubeIDE, VSCode, tunables |
+| [Standalone consumer template](templates/standalone-consumer/README.md) | Vendored `inc/` + `src/` CMake template, board glue and build knobs |
 | [Examples](docs/examples.md) | The ten examples, including the DMA-pressure diagnostic rig |
 | [Hardware](docs/hardware.md) | Verified boards, wiring, electrical notes |
+| [Bench notes: F1](port/stm32f1/HARDWARE-NOTES.md) / [F4](port/stm32f4/HARDWARE-NOTES.md) | Per-port bring-up, DMA and timing measurements |
 | [Architecture and RTOS](docs/architecture.md) | The TIM1+DMA engine, layer contracts, state machine, RTOS use |
 | [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash footprint, clocks and timing presets |
 | [Migrating from earlier releases](docs/migration.md) | The 3.0 `OW_PORT_*` rename table and other breaking changes |

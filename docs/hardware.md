@@ -5,7 +5,10 @@
 ## Hardware Verified
 
 The subsections below describe the boards the driver runs on (wiring, clocks,
-console). Measurement logs are deliberately not kept in the repo.
+console). Measurement logs are deliberately not kept in the repo. Deeper
+per-port bring-up and timing notes live next to the linker scripts:
+[STM32F1](../port/stm32f1/HARDWARE-NOTES.md) and
+[STM32F4](../port/stm32f4/HARDWARE-NOTES.md).
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -18,6 +21,8 @@ Read Scratchpad / Copy Scratchpad / Read Memory cycle on every DS2431 the
 search finds — and re-checked on demand with the HIL harness
 (`make test-hil HIL_SCRIPT=ds2431`); the read-back matched the write pattern on
 every device.
+
+Bring-up, DMA and timing notes: [port/stm32f1/HARDWARE-NOTES.md](../port/stm32f1/HARDWARE-NOTES.md).
 
 ### STM32F030F4P6 (TSSOP20)
 
@@ -90,13 +95,14 @@ board whose console really is on PA9, build with
 `-DOW_UART_USART1_PA9` (`make OW_MCU=STM32F446xx EXT=-DOW_UART_USART1_PA9`)
 or attach the USB-TTL adapter to PB6. `SYSCLK_MHZ=16` selects raw HSI.
 The F4-specific DMA topology and timing choices are documented in
-`port/stm32f4/HARDWARE-NOTES.md`.
+[port/stm32f4/HARDWARE-NOTES.md](../port/stm32f4/HARDWARE-NOTES.md).
 
 ### STM32F401CC (F401 Black Pill)
 
 The **same `src/ow_mcu.h` F4 section** drives the 84 MHz-capped STM32F401 family: TIM1,
 the DMA2 dual-stream topology and the `CHSEL=6` request map are identical to
-the F407 (RM0368 §9.3.3 Table 29 via `port/stm32f4/HARDWARE-NOTES.md`), so the
+the F407 (RM0368 §9.3.3 Table 29 via
+[port/stm32f4/HARDWARE-NOTES.md](../port/stm32f4/HARDWARE-NOTES.md)), so the
 port layer is chip-generic. The chip-specific parts (CMSIS device header
 `stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
 script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
