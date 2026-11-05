@@ -263,12 +263,12 @@ frames per cell, D0 on PA10, 4 MS/s). Every cell is clean at guard 1;
 | 0 | none | clean | clean |
 | 1 | 3300 / 700 CPU passes | clean | clean |
 | 2 | 500 / 501 DMA bursts | clean | clean |
-| 3 | 8400 / 1400 DMA bursts | clean | clean |
-| 4 | 8400 / 1400 ch1 bursts | clean | clean |
-| 5 | 3300 / 700 ch1 bursts + 3300 / 700 CPU passes | clean | clean |
+| 3 | 8300 / 1400 DMA bursts | clean | clean |
+| 4 | 8300 / 1400 ch1 bursts | clean | clean |
+| 5 | 3500 / 700 ch1 bursts + 3500 / 700 CPU passes | clean | clean |
 
-The load is real: channel 1 restarted its finite burst 8400/1400 times at
-level 4 and 3300/700 times at level 5 (the CPU hammer takes part of the
+The load is real: channel 1 restarted its finite burst 8300/1400 times at
+level 4 and 3500/700 times at level 5 (the CPU hammer takes part of the
 restart time), and the CPU passes are in the table. The feed stayed clean at
 a 2 µs window in every cell. On this evidence the 5 µs default needs no change
 on F0. The result is F030-specific; other DMA IPs (F4 streams, H5/H7 GPDMA)
@@ -285,8 +285,9 @@ ROMs and checksum, and the viewer shows all 8 responders on the bench (seven
 DS18B20 plus one DS2431). `STRESS_INJECT_US=N` is the negative control: it
 holds the feed (write mode) or capture (search mode) channel disabled for N
 microseconds, then restores it. The write harness detects the first delayed
-feed at 80 µs and the search harness detects the first delayed capture at
-200 µs - a late transfer, not only a wrong count or route.
+feed at 16 µs at 48 MHz and 20 µs at 8 MHz; the search harness detects the
+first delayed capture at 200 µs - a late transfer, not only a wrong count or
+route.
 
 Two geometry notes the analyser accounts for. Guard 0 is not an operating
 point: `CC2` then coincides with the update event and the release write
