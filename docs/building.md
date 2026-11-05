@@ -90,34 +90,25 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make program` | Flash via ST-LINK |
 | `make jprogram` | Flash via J-LINK |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
+| `make test-f1` | Same against the STM32F1 backend mock (`make test` is the same target) |
 | `make test-f3` | Build and run host tests against the STM32F3 backend mock |
-| `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-f4` | Build and run host tests against the STM32F4 backend mock |
+| `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-g4` | Build and run host tests against the STM32G4 backend mock |
+| `make test-l4` | Build and run host tests against the STM32L4 backend mock |
 | `make test-h5` | Build and run host tests against the STM32H5 backend mock |
+| `make test-h7` | Build and run host tests against the STM32H7 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
-| `make test-active-f0` | Same as above against the STM32F0 backend mock |
-| `make test-active-f3` | Same as above against the STM32F3 backend mock |
-| `make test-active-g0` | Same as above against the STM32G0 backend mock |
-| `make test-active-f4` | Same as above against the STM32F4 backend mock |
-| `make test-active-g4` | Same as above against the STM32G4 backend mock |
+| `make test-active-<family>` | Same as above for one backend: `<family>` is `f0`, `f1`, `f3`, `f4`, `g0`, `g4`, `l4`, `h5` or `h7` |
 | `make test-lowpower` | Same suite rebuilt with `-DOW_LOW_POWER=1` (WFE path, F1) |
-| `make test-lowpower-f0` | Same as above against the STM32F0 backend mock |
-| `make test-lowpower-f3` | Same as above against the STM32F3 backend mock |
-| `make test-lowpower-g0` | Same as above against the STM32G0 backend mock |
-| `make test-lowpower-f4` | Same as above against the STM32F4 backend mock |
-| `make test-lowpower-g4` | Same as above against the STM32G4 backend mock |
+| `make test-lowpower-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
-| `make test-ndebug-f0` | Same as above against the STM32F0 backend mock |
-| `make test-ndebug-f3` | Same as above against the STM32F3 backend mock |
-| `make test-ndebug-g0` | Same as above against the STM32G0 backend mock |
-| `make test-ndebug-f4` | Same as above against the STM32F4 backend mock |
-| `make test-ndebug-g4` | Same as above against the STM32G4 backend mock |
-| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (26 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
+| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/h5`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/h5/h7`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
@@ -151,18 +142,22 @@ hardware required:
 make test        # host tests against the STM32F1 backend mock
 make test-f0     # same suite against the STM32F0 backend mock
 make test-f3     # same suite against the STM32F3 backend mock
-make test-g0     # same suite against the STM32G0 backend mock
 make test-f4     # same suite against the STM32F4 backend mock
+make test-g0     # same suite against the STM32G0 backend mock
 make test-g4     # same suite against the STM32G4 backend mock
+make test-l4     # same suite against the STM32L4 backend mock
 make test-h5     # same suite against the STM32H5 backend mock
-make test-ds2431 # DS2431 EEPROM suite (26 tests; also runs inside every make test)
+make test-h7     # same suite against the STM32H7 backend mock
+make test-all-families  # every backend above in one run
+make test-ds2431 # DS2431 EEPROM suite (34 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
 unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header (`tests/mock/stm32f0xx.h` / `stm32f1xx.h` / `stm32f3xx.h` /
-`stm32f4xx.h` / `stm32g0xx.h` / `stm32g4xx.h` / `stm32h5xx.h`) — each suite runs
+`stm32f4xx.h` / `stm32g0xx.h` / `stm32g4xx.h` / `stm32l4xx.h` / `stm32h5xx.h` /
+`stm32h7xx.h`) — each suite runs
 the full driver against its own
 backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
     too: `src/ds18b20.c` `#include`s its four functional parts, so the whole
@@ -171,16 +166,20 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    owns the context and the public API, engine TU `src/ds2431_txn.c` works
    on the caller-owned context via `src/ds2431_internal.h`
    (`tests/mock/ds2431_test_access.c` pulls both plus `src/onewire.c`
-   into one test object). The base suite runs 309 tests against the F0/F1 mocks, 310
-   against the F3 and F4 backends (the F4 target also builds and runs its
-   180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe` as an
-   extra, same count) and 311 against G0 (which adds two DMAMUX
-   request-routing tests), 312 against G4 (same two DMAMUX tests plus the
-   G4 console-baud test; the 16 MHz variant `ds18b20_test_g4_16mhz.exe`
-   runs as an extra, same count) and 313 against H5 (which also runs the
-   250 MHz and 8 MHz host variants `ds18b20_test_h5_250mhz.exe` and
-   `ds18b20_test_h5_8mhz.exe` as extras, same count). Every wrapper runs
-   the DS2431 suite alongside it (26 tests, see `make test-ds2431`).
+   into one test object). The base suite runs 322 tests against the F0 and F1
+   mocks, 323 against the F3, F4, L4 and H7 backends (the F4 target also builds
+   and runs its 180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe`
+   as an extra; the L4 target runs its 16 MHz variant
+   `ds18b20_test_l4_16mhz.exe`; the H7 target runs its 64 MHz and 480/240 MHz
+   variants `ds18b20_test_h7_64mhz.exe` and
+   `ds18b20_test_h7_480_240mhz.exe`; all with the same count), 324 against G0
+   (which adds two DMAMUX request-routing tests), 325 against G4 (same two
+   DMAMUX tests plus the G4 console-baud test; the 16 MHz variant
+   `ds18b20_test_g4_16mhz.exe` runs as an extra, same count) and 326 against H5
+   (which also runs the 250 MHz and 8 MHz host variants
+   `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` as extras, same
+   count). Every wrapper runs the DS2431 suite alongside it (34 tests, see
+   `make test-ds2431`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -238,10 +237,10 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     end-to-end write cycle
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 26-test DS2431 suite, every family), `make test-lowpower` (full
-suite + low-power WFE path, 325 tests against F0/F1, 326 against F3/F4,
-327 against G0, 328 against G4, plus the same 26 DS2431 tests) and
-`make test-ndebug` (322 / 323 / 324 / 325 + the same 26, asserts off).
+tests + the 34-test DS2431 suite, every family), `make test-lowpower` (full
+suite + low-power WFE path: 339 tests against F0/F1, 340 against F3/F4/L4/H7,
+341 against G0, 342 against G4, 343 against H5, plus the same 34 DS2431 tests)
+and `make test-ndebug` (335 / 336 / 337 / 338 / 339 + the same 34, asserts off).
 
 ### Does the suite actually notice a broken DMA contract?
 
@@ -516,7 +515,7 @@ that did not take.
 The measured geometry and decoded frames of the F1 bench, and what they are
 for, are in `port/stm32f1/HARDWARE-NOTES.md`.
 
-### Integration: four ways to use the library
+### Integration: five ways to use the library
 
 Pick the path that matches your build system:
 
@@ -600,7 +599,7 @@ Copy `inc/` and `src/` into your project tree, then use the drop-in CMake helper
 ```text
 your-project/
 ├── inc/     <- copy of stm32-async-1wire/inc/
-└── src/     <- onewire.c, ds18b20.c, ds2431.c, ow_stats.c
+└── src/     <- onewire.c, ds18b20.c, ds2431.c, ds2431_txn.c, ow_stats.c
 ```
 
 ```cmake
@@ -613,7 +612,7 @@ ow_add_library(stm32_async_1wire
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
 ```
 
-It creates a static library from the four driver sources, adds `inc/` and your CMSIS include directories, and attaches the device macro, the clock define, the feature defines (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`, `STATS`) and the family's `-mcpu`/`-mthumb` — all `PUBLIC`, so your own sources compile against the same target. It does **not** fetch CMSIS: pass your own include directories through `CMSIS_INCLUDE_DIRS`. Anything else (`MAX_DEVICES` for `-DDS18B20_MAX_DEVICES`, or any `OW_*` the helper has no knob for) goes through `EXTRA_DEFINITIONS`.
+It creates a static library from the five driver sources, adds `inc/` and your CMSIS include directories, and attaches the device macro, the clock define, the feature defines (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`, `STATS`) and the family's `-mcpu`/`-mthumb` — all `PUBLIC`, so your own sources compile against the same target. It does **not** fetch CMSIS: pass your own include directories through `CMSIS_INCLUDE_DIRS`. Anything else (`MAX_DEVICES` for `-DDS18B20_MAX_DEVICES`, or any `OW_*` the helper has no knob for) goes through `EXTRA_DEFINITIONS`.
 
 **The copy is not self-contained.** A consumer also needs:
 
@@ -628,7 +627,7 @@ This helper is for the vendored layout only. On the FetchContent / `add_subdirec
 
 #### 4. Plain Make / `make lib`
 
-If you build with plain GCC/make (no CMake), use `make lib` to compile just the four driver sources into a static archive:
+If you build with plain GCC/make (no CMake), use `make lib` to compile just the five driver sources into a static archive:
 
 ```bash
 make OW_MCU=STM32H503xx lib
