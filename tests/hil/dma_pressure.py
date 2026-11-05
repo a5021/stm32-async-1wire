@@ -582,7 +582,7 @@ class Runner:
         self.cache = {}
         self.raw = os.path.join(out_dir, "_current.bin")
 
-    def run(self, level, guard, clock, retry=False):
+    def run(self, level, guard, clock, retry=False, retry_hiccup=True):
         key = (level, guard, clock)
         if key in self.cache:
             return self.cache[key]
@@ -592,7 +592,20 @@ class Runner:
         self.image_sha256 = common.sha256(HEX)
         flash_halt(self.prog)
         seconds = run_seconds(guard)
-        samples = capture(self.sigrok, self.prog, self.raw, seconds)
+        try:
+            samples = capture(self.sigrok, self.prog, self.raw, seconds)
+        except RuntimeError as exc:
+            # fx2lafw occasionally needs a second scan after the probe; that is
+            # a harness hiccup, not a bus result. Retry the cell once.
+            if not retry_hiccup or "No devices found" not in str(exc):
+                raise
+            print("  retry level=%d guard=%d clock=%s (analyzer not found)"
+                  % (level, guard, clock if clock else "default"), flush=True)
+            res = self.run(level, guard, clock, retry=retry,
+                           retry_hiccup=False)
+            res["attempts"] = res.get("attempts", 1) + 1
+            res["first_attempt_short"] = True
+            return res
         if retry and capture_short(samples, seconds):
             # The analyzer stopped early (USB hiccup). That is a harness
             # failure, not a bus result: re-run the cell instead of reporting
@@ -726,7 +739,7 @@ def main(argv=None):
     # writes the captures and the JSON: output files must not make the source
     # look modified. The image hash below pins each binary regardless.
     head = common._git("rev-parse", "--short", "HEAD")
-    dirty = bool(common._git("status", "--porcelain"))
+    dirty = common.source_dirty()
     global LOAD_HIGH
     LOAD_HIGH = args.load_high
 
@@ -860,7 +873,7 @@ def main(argv=None):
             "marker": bool(common.MARKER),
             "tooling_commit": commit,
             "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
-                       if args.sr_dir else ""),
+                       .replace(os.sep, "/") if args.sr_dir else ""),
             "pattern": pattern.hex().upper(),
             "slots": SLOTS,
             "bursts": BURSTS,

@@ -136,6 +136,18 @@ def _git(*args):
     return proc.stdout.strip() if proc.returncode == 0 else ""
 
 
+def source_dirty():
+    """True when the tracked tree differs outside the published stress output.
+
+    The measurement writes `docs/stress` itself (JSON, captures, the generated
+    page). Those files are the result, not the source that built the image, so
+    they must not make a run look dirty; a change to the library, an example or
+    the harness does.
+    """
+    return bool(_git("status", "--porcelain", "--", ".",
+                     ":(exclude)docs/stress"))
+
+
 def library_version():
     """STM32_ASYNC_1WIRE_VERSION_STRING from inc/ow_version.h, or "?".
 
