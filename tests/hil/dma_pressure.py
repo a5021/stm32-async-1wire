@@ -536,7 +536,7 @@ def telemetry(prog):
     Index order: frames, cndtr_late, cndtr_max, dma_error, aborted,
     ch1_starts, burst_starts, cpu_passes, search_runs, search_bad, rom_crc,
     search_count, inject_us, capture_mode, sink_count, stage, stop_timeout,
-    run magic, level/clock, inject_flags.
+    run magic, level/clock, inject_flags, start_timeout.
     """
     nm = shutil.which("arm-none-eabi-nm")
     if not nm or not os.path.isfile(ELF):
@@ -550,14 +550,16 @@ def telemetry(prog):
             return None
         addr = int(m.group(1), 16)
         out = subprocess.run(
-            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "80"],
+            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "84"],
             capture_output=True, text=True, errors="replace").stdout
         words = []
         for line in out.splitlines():
             mm = re.match(r"^0x[0-9a-fA-F]+ : (.*)$", line)
             if mm:
                 words += [int(x, 16) for x in mm.group(1).split()]
-        return words if len(words) == 20 else None
+        # A 20-word image predates start_timeout; read what is there and let
+        # the caller treat the missing word as zero.
+        return (words + [None] * 21)[:21] if len(words) >= 20 else None
     except (OSError, ValueError):
         return None
 
@@ -587,6 +589,7 @@ class Runner:
         print("  run level=%d guard=%d clock=%s" % (
             level, guard, clock if clock else "default"), flush=True)
         build(level, guard, clock)
+        self.image_sha256 = common.sha256(HEX)
         flash_halt(self.prog)
         seconds = run_seconds(guard)
         samples = capture(self.sigrok, self.prog, self.raw, seconds)
@@ -610,6 +613,9 @@ class Runner:
                       marker_bit=1 if common.MARKER else None)
         tel = telemetry(self.prog)
         res["telemetry"] = tel
+        start_timeout = (tel[20] if tel is not None and len(tel) > 20
+                         and tel[20] is not None else 0)
+        res["start_timeout"] = start_timeout
         ident, ident_why = identity(tel, level, clock, 0, 0)
         res["identity"] = ident
         if not ident:
@@ -619,7 +625,9 @@ class Runner:
             res["clean"] = False
         else:
             res["clean"] = bool(res["clean"] and tel[3] == 0 and tel[4] == 0
-                                and tel[16] == 0)
+                                and tel[16] == 0 and not start_timeout)
+            if start_timeout:
+                res["first"] = "start timeout"
         if retry and not res["clean"]:
             # A flash/reset or capture-start glitch can spoil one run without
             # saying anything about the guard. Retry the cells whose premise is
@@ -638,6 +646,7 @@ class Runner:
         res["level"] = level
         res["clock_mhz"] = clock
         res["guard_us"] = guard
+        res["image_sha256"] = getattr(self, "image_sha256", None)
         res["capture"] = None
         res["capture_fail"] = None
         if self.sr_dir and res["first_frame_us"] is not None:
@@ -713,6 +722,11 @@ def main(argv=None):
                     help="F4 only: move the load to DMA2 streams 5/6 instead of "
                     "0/1, so the feed wins equal-priority arbitration")
     args = ap.parse_args(argv)
+    # Identity of the tree that builds the images, sampled before the run
+    # writes the captures and the JSON: output files must not make the source
+    # look modified. The image hash below pins each binary regardless.
+    head = common._git("rev-parse", "--short", "HEAD")
+    dirty = bool(common._git("status", "--porcelain"))
     global LOAD_HIGH
     LOAD_HIGH = args.load_high
 
@@ -807,8 +821,6 @@ def main(argv=None):
             tel[7] if tel[7] is not None else "?"))
 
     if args.json:
-        head = common._git("rev-parse", "--short", "HEAD")
-        dirty = bool(common._git("status", "--porcelain"))
         commit = head or None
         cells = []
         for (level, guard, clock), res in sorted(
@@ -832,17 +844,23 @@ def main(argv=None):
                 "window_us": res.get("window_us"),
                 "telemetry": res.get("telemetry"),
                 "identity": res.get("identity"),
+                "image_sha256": res.get("image_sha256"),
+                "start_timeout": res.get("start_timeout"),
                 "attempts": res.get("attempts", 1),
                 "first_attempt_clean": res.get("first_attempt_clean"),
                 "first_attempt": res.get("first_attempt"),
             })
         data = {
-            "schema": 1,
+            "schema": 2,
             "title": "Stress test report",
             "generated": time.strftime("%Y-%m-%d"),
             "bench": detected,
             "mcu": common.MCU,
             "example": APP,
+            "marker": bool(common.MARKER),
+            "tooling_commit": commit,
+            "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
+                       if args.sr_dir else ""),
             "pattern": pattern.hex().upper(),
             "slots": SLOTS,
             "bursts": BURSTS,

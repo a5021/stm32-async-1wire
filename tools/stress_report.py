@@ -308,6 +308,10 @@ def platform_section(name, data):
                "clean" if default_ok else "<strong>not clean</strong>",
                links))
     commit = data.get("commit") or "unknown"
+    tree_note = " (working tree)" if data.get("dirty") else ""
+    image = next((c.get("image_sha256") for c in data.get("cells") or []
+                  if c.get("image_sha256")), None)
+    image_note = (", image <code>%s</code>" % e(image[:12])) if image else ""
     generated = data.get("generated") or "unknown"
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
@@ -318,7 +322,7 @@ def platform_section(name, data):
     return """
 <section id="platform-%s">
 <h2>%s (%s)</h2>
-<p class="meta">Measured %s at commit <code>%s</code> on <code>%s</code>.
+<p class="meta">Measured %s at commit <code>%s</code>%s%s on <code>%s</code>.
 Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
 <div class="verdict">%s</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
@@ -330,7 +334,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
 </section>
 """ % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
        e(data.get("mcu") or data.get("bench")), e(generated), e(commit),
-       e(data.get("bench")), verdict, "\n".join(rows),
+       e(tree_note), image_note, e(data.get("bench")), verdict, "\n".join(rows),
        "The capture links open one representative frame per cell."
        if has_captures else
        "No one-frame captures were recorded for this bench.")
@@ -628,6 +632,9 @@ def build_report(data, capture=None, platforms=None, priority=None):
 
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
+    image = next((c.get("image_sha256") for c in data.get("cells") or []
+                  if c.get("image_sha256")), None)
+    image_note = (", image <code>%s</code>" % e(image[:12])) if image else ""
     generated = data.get("generated") or "unknown"
     bench = data.get("bench") or "unknown"
     mcu = data.get("mcu") or bench
@@ -703,7 +710,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 <main>
 <h1>Stress test report</h1>
 <p class="lead">DMA feed margin under memory-subsystem load - {mcu}</p>
-<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note} on <code>{bench}</code>
+<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note}{image_note} on <code>{bench}</code>
 (<code>{rig_mcu}</code>). Build <code>{example}</code>, pattern <code>{pattern}</code>,
 {slots} slots per frame, {bursts} frames per cell, {words} halfwords per DMA burst.</p>
 
@@ -882,6 +889,7 @@ and <a href="{footer_note}/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pr
         "generated": e(generated),
         "commit": e(commit),
         "tree_note": e(tree_note),
+        "image_note": image_note,
         "bench": e(bench),
         "rig_mcu": e(mcu),
         "example": e(data.get("example") or "?"),

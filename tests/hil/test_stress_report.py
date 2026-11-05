@@ -131,6 +131,8 @@ def main():
         check("cndtr_late is 0 for %s/%s" % (level, clock), tel[1] == 0)
         check("dma_error is 0 for %s/%s" % (level, clock), tel[3] == 0)
         check("stop_timeout is 0 for %s/%s" % (level, clock), tel[16] == 0)
+        check("start_timeout is 0 for %s/%s" % (level, clock),
+              not (default_cell or {}).get("start_timeout"))
 
     check("the report has a row per level and clock",
           len(data["guard_min"]) == 12, "got %d" % len(data["guard_min"]))
@@ -170,7 +172,7 @@ def main():
             check("inject capture %s is linked" % target,
                   ("./../stress/captures/" + target) in actual)
 
-    platforms, _ = load_platforms()
+    platforms, priority = load_platforms()
     linked = set()
     for name, data in platforms:
         # One representative failing frame per level; a level that already has a
@@ -200,15 +202,42 @@ def main():
             shown.sort(key=lambda c: (c["clock_mhz"] or -1, -c["guard_us"]))
             pick = shown[0]
             linked.add((name, level, pick["clock_mhz"], pick["guard_us"]))
-    for name, data in platforms:
+    def replay_capture(cell, base, pdata, label):
+        """Decode a committed capture and require the verdict the data claims."""
+        path = os.path.join(base, cell["capture"])
+        check("%s exists" % label, os.path.isfile(path))
+        if not os.path.isfile(path):
+            return
+        with zipfile.ZipFile(path) as z:
+            check("%s is a sigrok archive" % label,
+                  {"version", "metadata", "logic-1-1"} <= set(z.namelist()))
+            raw = np.frombuffer(z.read("logic-1-1"), dtype=np.uint8)
+        slot_us = dp.ONE_US + dp.ZERO_US + cell["guard_us"] + 1
+        a = dp.analyse(raw, pdata.get("capture_rate_hz") or rate_hz,
+                       slot_us=slot_us)
+        check("%s is one clean frame" % label,
+              a["frames"] == 1 and a["clean"],
+              "%d frame(s), %s" % (a["frames"], a["first"]))
+
+    for name, _role, data_high in priority:
+        base = os.path.join(PLATFORMS, name, "captures-high")
+        for cell in data_high["cells"]:
+            if cell.get("capture"):
+                replay_capture(cell, base, data_high,
+                               "%s-high/%s" % (name, cell["capture"]))
+
+    for name, pdata in platforms:
         base = os.path.join(PLATFORMS, name, "captures")
         check("%s platform section is in the report" % name,
               ('id="platform-%s"' % name) in actual)
-        for cell in data["cells"]:
-            cap = cell.get("capture")
-            if cap:
-                check("%s/%s exists" % (name, cap),
-                      os.path.isfile(os.path.join(base, cap)))
+        for cell in pdata["cells"]:
+            if cell.get("capture"):
+                replay_capture(cell, base, pdata,
+                               "%s/%s" % (name, cell["capture"]))
+            if cell.get("clean"):
+                check("%s l%d/%s/g%d has no start timeout" % (
+                    name, cell["level"], cell["clock_mhz"], cell["guard_us"]),
+                    not cell.get("start_timeout"))
             if cell.get("clean"):
                 continue
             # The failing frame is the evidence a dirty cell exists for.
@@ -227,6 +256,19 @@ def main():
                 continue
             check("%s/%s is linked" % (name, fail),
                   ("./../stress/platforms/%s/captures/%s" % (name, fail)) in actual)
+
+    for label, pdata in [("primary", data)] + platforms:
+        if pdata.get("schema", 1) < 2:
+            continue
+        check("%s records its capture directory" % label,
+              bool(pdata.get("sr_dir")))
+        check("%s records an image hash" % label,
+              all(c.get("image_sha256") for c in pdata["cells"]
+                  if c.get("capture")))
+    dirty_sections = sum(1 for d in [data] + [p for _n, p in platforms]
+                         if d.get("dirty"))
+    check("the working-tree flag is rendered for every dirty run",
+          actual.count("(working tree)") >= dirty_sections)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))

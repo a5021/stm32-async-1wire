@@ -126,6 +126,7 @@ class Rig:
         if inject_us:
             extra += " -DSTRESS_INJECT_US=%d" % inject_us
         dp.build(level, guard, clock, extra=extra)
+        self.image_sha256 = common.sha256(dp.HEX)
         dp.flash_halt(self.prog)
         seconds = 1.2 if mode == "search" else dp.run_seconds(guard)
         samples = dp.capture(self.sigrok, self.prog, self.raw, seconds)
@@ -138,7 +139,8 @@ class Rig:
             res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_short"] = True
             return res
-        tel = dp.telemetry(self.prog) or [None] * 20
+        tel = dp.telemetry(self.prog) or [None] * 21
+        start_timeout = tel[20] if len(tel) > 20 else None
         capture_mode = 1 if mode == "search" else 0
         ident, ident_why = dp.identity(tel, level, clock, capture_mode, inject_us)
         if retry and not ident:
@@ -159,6 +161,8 @@ class Rig:
             "inject_us": inject_us,
             "telemetry": tel,
             "identity": ident,
+            "image_sha256": getattr(self, "image_sha256", None),
+            "start_timeout": start_timeout,
             "attempts": 1,
             "first_attempt_identity": ident,
         }
@@ -170,7 +174,7 @@ class Rig:
                 "stop_timeout": tel[16],
                 "done": tel[15] == 5,
                 "completed": bool(ident and tel[13] == 1 and tel[15] == 5
-                                  and tel[16] == 0),
+                                  and tel[16] == 0 and not start_timeout),
             })
             raw = np.fromfile(self.raw, dtype=np.uint8)
             first_us = (dp.first_marker_us(raw, dp.RATE_HZ)
@@ -194,7 +198,7 @@ class Rig:
                            slot_us=slot_us, ignore_leading_short=True,
                            marker_bit=1 if common.MARKER else None)
             clean = bool(ident and a["clean"] and tel[3] == 0 and tel[4] == 0
-                         and tel[16] == 0)
+                         and tel[16] == 0 and not start_timeout)
             res.update({
                 "clean": clean,
                 "stop_timeout": tel[16],
@@ -304,6 +308,9 @@ def main(argv=None):
     if setup is None:
         return 0 if args.json else 1
     mcu, prog, sigrok, sr_dir = setup
+    # The source identity, sampled before the run writes any capture or JSON.
+    head = common._git("rev-parse", "--short", "HEAD")
+    dirty = bool(common._git("status", "--porcelain"))
     stress_supported = mcu in dp.STRESS_BENCHES
     if mcu == "STM32F030x6":
         clocks = [48, 8]
@@ -337,11 +344,15 @@ def main(argv=None):
             res["inject_us"], "clean" if good else "BAD"))
 
     data = {
-        "schema": 1,
+        "schema": 2,
         "bench": mcu,
         "generated": time.strftime("%Y-%m-%d"),
-        "commit": common._git("rev-parse", "--short", "HEAD") or None,
-        "dirty": bool(common._git("status", "--porcelain")),
+        "commit": head or None,
+        "dirty": dirty,
+        "marker": bool(common.MARKER),
+        "tooling_commit": head or None,
+        "sr_dir": os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
+                  if args.sr_dir else "",
         "capture_supported": supported,
         "capture_baseline": {
             str(clock if clock is not None else "def"): {
@@ -354,6 +365,8 @@ def main(argv=None):
                                  "count", "rom_crc", "sink_count", "done",
                                  "completed", "matches", "capture")}
             | {"stop_timeout": res.get("stop_timeout"),
+               "start_timeout": res.get("start_timeout"),
+               "image_sha256": res.get("image_sha256"),
                "identity": res.get("identity"),
                "attempts": res.get("attempts", 1),
                "first_attempt_identity": res.get("first_attempt_identity")}
@@ -365,6 +378,8 @@ def main(argv=None):
                res.get("clean" if res["mode"] == "write" else "matches")}
             | {"capture": res.get("capture"),
                "stop_timeout": res.get("stop_timeout"),
+               "start_timeout": res.get("start_timeout"),
+               "image_sha256": res.get("image_sha256"),
                "identity": res.get("identity"),
                "attempts": res.get("attempts", 1),
                "first_attempt_identity": res.get("first_attempt_identity")}
