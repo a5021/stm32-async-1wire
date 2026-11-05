@@ -673,6 +673,44 @@ logic-analyzer capture was recorded.
 - Accuracy: ±0.5°C (typical)
 - CPU Usage: Minimal; CPU is free to perform other tasks during waits.
 
+### Footprint
+
+The driver keeps all of its state in `.bss`; the flash cost is the driver plus
+the application. `make test-ram` (`tests/check_ram_budget.sh`) gates both with
+exact ceilings, so any growth has to be a deliberate budget change. The numbers
+below are the ceilings enforced there.
+
+Driver-owned `.bss` is the sum of the DS18B20 context, search and transaction
+statics in the `5_commands` image (the one example that links every context at
+once):
+
+| Family | Driver `.bss` | Total `.bss`, `5_commands` | Total `.bss`, `1_basic` |
+| --- | ---: | ---: | ---: |
+| STM32F0 | 329 B | 652 B | 432 B |
+| STM32F4 | 434 B | 756 B | 536 B |
+| STM32G4 | 329 B | 652 B | 432 B |
+| STM32L4 | 329 B | 652 B | 432 B |
+| STM32H5 | 329 B | 652 B | 432 B |
+
+The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4 and
+H5 latch 8-bit entries like F0. The F1, F3 and H7 backends are not part of this
+gate; F1/F3 use the 8-bit layout and H7 the 16-bit one, so their numbers track
+F0 and F4 respectively.
+
+Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
+
+| Example | `.text` | Total `.bss` |
+| --- | ---: | ---: |
+| `0_dma_pressure` | 2424 B | 1480 B |
+| `6_statistics` | 6264 B | 1784 B |
+| `8_ds2431` | 6156 B | 768 B |
+| `9_multi` | 11752 B | 1296 B |
+
+`6_statistics` owns the largest `.bss` (1024 B UART ring + ~300 B stats state);
+`9_multi` owns the largest `.text` (DS18B20 + DS2431 in one image, about 72% of
+the 16 KB flash). The DS2431 driver is dropped by `--gc-sections` from images
+that never call it.
+
 ## Configuration
 
 ### Part selection: one `OW_MCU` key

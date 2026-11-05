@@ -40,7 +40,7 @@ build are in [Getting started](docs/getting-started.md).
 | [Examples](docs/examples.md) | The ten examples, including the DMA-pressure diagnostic rig |
 | [Hardware](docs/hardware.md) | Verified boards, wiring, electrical notes |
 | [Architecture and RTOS](docs/architecture.md) | The TIM1+DMA engine, layer contracts, state machine, RTOS use |
-| [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash/CPU numbers, clocks and timing presets |
+| [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash footprint, clocks and timing presets |
 | [Migrating from earlier releases](docs/migration.md) | The 3.0 `OW_PORT_*` rename table and other breaking changes |
 | [Repository file structure](docs/file-structure.md) | Where the sources, ports, tests and tools live |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging tips |
