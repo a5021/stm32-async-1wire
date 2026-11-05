@@ -229,12 +229,18 @@ F030 PA2). `STRESS_MARKER=1` makes
 each frame (or the search pass) a D1-high window, so the HIL analyses only the
 D0 traffic inside the marker: a startup glitch or a capture that ends mid-frame
 is outside every frame and cannot be mistaken for one. Every cell also reads
-`dma_pressure_telemetry[17..19]` before trusting the waveform: run magic,
-effective level/clock, capture mode and the injection state bits. A stale image
-or an injection that did not actually stop the channel is retried once and then
-reported as an identity failure, not as a bus failure. Cells that only pass on a
-retry keep `attempts` and `first_attempt_*` in the JSON, so a green result is not
-silently a flake.
+`dma_pressure_telemetry[17..20]` before trusting the waveform: run magic,
+effective level/clock, capture mode, the injection state bits and the start
+timeout. A stale image, an injection that did not actually stop the channel, or
+a load channel that did not stop before being re-armed is retried once and then
+reported as an identity or start-timeout failure, not as a bus failure. Cells
+that only pass on a retry keep `attempts` and `first_attempt_*` in the JSON, so
+a green result is not silently a flake.
+
+Both extra benches were measured on 2026-11-04 at `bd203fb0`: the F446 from a
+clean tree, the H503 from a working tree. They predate the start-timeout status
+word and have not been re-run on the current code; the report marks the H503
+working tree next to its commit.
 
 ```bash
 # a build with a load and a narrow guard
@@ -246,8 +252,11 @@ make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
 python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
 ```
 
-Measured on the F030 bench (100 frames per cell, D0 on PA10, 4 MS/s). Every
-cell is clean at guard 1; `cndtr_late` is 0 everywhere:
+Re-measured on 2026-11-05 at commit `12921ecd` on a clean source tree with the
+PA2 marker and the run-identity checks; `docs/stress/results.json` carries a
+SHA-256 of the flashed image for every cell. Measured on the F030 bench (100
+frames per cell, D0 on PA10, 4 MS/s). Every cell is clean at guard 1;
+`cndtr_late` is 0 everywhere:
 
 | Level | Load evidence (48 MHz / 8 MHz) | guard 5 | guard 1 |
 |---|---|---|---|

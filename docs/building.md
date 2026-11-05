@@ -337,11 +337,18 @@ python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results.json 
 python tools/stress_report.py --data docs/stress/results.json --out docs/stress/index.html
 ```
 
+The JSON records the commit, the capture directory, the marker setting, a
+start-timeout field per cell and a SHA-256 of the flashed image per cell (level
+and guard are compiled in, so the image differs per cell). `dirty` is sampled
+before the run writes anything and ignores `docs/stress`: a run's own output
+does not make the source tree look modified.
+
 The board is auto-detected (`STM32F103xB` reference bench, the
 `STM32H503xx`/`STM32H743xx` WeAct boards, or the `STM32L476xx` NUCLEO); pin it
 with `HIL_MCU=` - a mismatch against the attached target
-fails rather than flashing the wrong part. The H503 and F446 profiles also wire
-PA11 to D1: the DMA-pressure harness builds with `STRESS_MARKER=1`, brackets
+fails rather than flashing the wrong part. The H503 and F446 profiles wire
+PA11 to D1 and the F030 wires PA2: the DMA-pressure harness builds with
+`STRESS_MARKER=1`, brackets
 each frame with that marker and checks the run identity and injection bits
 before it trusts a capture. On the F446, `dma_pressure.py --load-high` moves the
 pressure load from DMA2 stream 0/1 to stream 5/6; without it the lower-numbered
