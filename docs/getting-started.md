@@ -161,7 +161,7 @@ Both callbacks are optional; the driver ships empty weak implementations. The
 shared example layer `examples/app/app.c` supplies a strong `ds18b20_busy()`
 that drives the onboard LED (F0/G0: PA4, F1: PC13, F3: PE8, F4: PD12 — or PB2
 with `-DOW_F4_LED_PB2` on a WeAct F446RET6, G4: PA8 on a WeAct G474 Long,
-H5: PC13 on a WeAct H503).
+L4: PA5 on a NUCLEO-L476RG, H5: PC13 on a WeAct H503, H7: PE3 on a WeAct H743).
 There is no shared
 `ds18b20_complete()`: each example implements its own, because the output
 format differs.
@@ -173,9 +173,11 @@ format differs.
 > F3-DISCOVERY); F4 uses PD12 **active-high** (LD4 green on the F4DISCOVERY),
 > or PB2 active-high with `-DOW_F4_LED_PB2` (the WeAct F446RET6's B2 LED —
 > PC13 is that board's user button, not an LED); G4 uses PA8 active-high
-> (WeAct G474 Long blue LED — PC13 there is the user button too); H5 uses PC13
-> **active-low** (WeAct H503 blue LED). On F0/G0/G4
-> the same logic targets `GPIOA` instead of `GPIOC`.
+> (WeAct G474 Long blue LED — PC13 there is the user button too); L4 uses PA5
+> **active-high** (green LD2 on the NUCLEO-L476RG); H5 uses PC13 **active-low**
+> (WeAct H503 blue LED); H7 uses PE3 **active-high** (WeAct H743 blue LED).
+> On F0/G0/G4/L4 the same logic targets `GPIOA` instead of `GPIOC`; H7 targets
+> `GPIOE` (PE3).
 
 ```C
 // Busy indicator — e.g. LED toggling during measurement

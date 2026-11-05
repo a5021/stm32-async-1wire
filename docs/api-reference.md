@@ -10,7 +10,8 @@
 void ds18b20_init(void);
 ```
 Initialize the DS18B20 driver. Enables the peripherals the backend needs (the bus
-GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0, DMA2 on F4) and sets
+GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4,
+GPDMA1 on H5, DMA1 through DMAMUX1 on H7) and sets
 up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start a measurement.
 
 ```C
@@ -97,7 +98,7 @@ hold `slots + 1` entries, the last one equal to `ONEWIRE_RELEASE_PULSE` — the
 hardware bus-release sentinel, not an extra slot (a single-slot write uses a
 separate path and reads only entry 0). `onewire_encode_byte()` and the
 `ow_pulse_t` type are declared in `inc/onewire.h` alongside the rest of the
-layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0 and 16 bits on F4.
+layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0/G4/L4/H5 and 16 bits on F4/H7.
 
 Two startup checks guard the two silent mismatches between the archive and the
 application. `onewire_config_token()` reports the `OW_CONFIG_TOKEN` the
@@ -366,7 +367,8 @@ the pull-up must also source the conversion current:
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
   alone: a six-device broadcast cycle completed without a single CRC error.
 - Budget ~1.5mA per simultaneously converting sensor against the pin's drive
-  capability (~25mA source on F0/F1/F3/F4/G0/G4) and the VOH droop across your pull-up
+  capability (roughly 20-25mA source depending on the family) and the VOH droop
+  across your pull-up
   arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
 - For longer buses or larger fleets use a dedicated strong-pull-up IC, or add
   a P-MOSFET high-side switch driven by its own GPIO. The current API cannot

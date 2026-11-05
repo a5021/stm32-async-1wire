@@ -21,7 +21,8 @@ protocol on embedded systems:
 **Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA
 channels (the capture drain from CCR4 and the marker feed into CCR3: DMA1
 channels 3/4 on F0/F1/F3/G0/G4/L4 (via DMAMUX on G0/G4, via DMA1_CSELR on L4),
-DMA2 streams 2/4 on F4) — that
+DMA2 streams 2/4 on F4, GPDMA1 channels 2/3 on H5, and DMA1 streams 2/3 through
+DMAMUX1 on H7) — that
 cannot be used for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
 needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
@@ -44,8 +45,8 @@ The 1-Wire layer uses a hybrid of several hardware features:
 
 1. Timer-Driven Sequences: TIM1 is configured in One-Pulse Mode (OPM). Each state machine step configures the timer for a specific operation (reset, write byte, read byte, wait) and starts it.
 2. DMA for Data Transfer: DMA is used in two key ways:
-   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3 on F0/F1/F3/G0/G4/L4 (DMAMUX request 21 on G0, 43 on G4, DMA1_CSELR selection 7 on L4), or DMA2 stream 2 at `CHSEL=6` on F4.
-   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4 on F0/F1/F3/G0/G4/L4 (DMAMUX request 23 on G0, 45 on G4, DMA1_CSELR selection 7 on L4), or DMA2 stream 4 on F4.
+   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3 on F0/F1/F3/G0/G4/L4 (DMAMUX request 21 on G0, 43 on G4, DMA1_CSELR selection 7 on L4), DMA2 stream 2 at `CHSEL=6` on F4, GPDMA1 channel 2 at `REQSEL=59` on H5, or DMA1 stream 2 through DMAMUX1 request 12 on H7.
+   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4 on F0/F1/F3/G0/G4/L4 (DMAMUX request 23 on G0, 45 on G4, DMA1_CSELR selection 7 on L4), DMA2 stream 4 on F4, GPDMA1 channel 3 at `REQSEL=61` on H5, or DMA1 stream 3 through DMAMUX1 request 14 on H7.
 3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750ms) is finished.
 4. True Zero-ISR Overhead: The ds18b20_poll() function checks this flag. When set, it clears the flag and advances the state machine to the next step. This makes the entire driver event-driven by hardware completion signals without using interrupts.
 
@@ -116,10 +117,10 @@ do not "fix" them without re-reading the reasoning:
   selection into the build system would break the CubeIDE path. The token is
   public because the application layer (`app.c`) needs it too; what it selects
   — the register-level per-family facts — stays private in `src/ow_mcu.h`.
-- **`ow_pulse_t` is family-sized.** F4 feeds CCR3 in DMA direct mode
+- **`ow_pulse_t` is family-sized.** F4 and H7 feed CCR3 in DMA direct mode
   (halfword, `uint16_t`); the other families use `uint8_t`. An
   always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;
-  casts would hide the F4 halfword requirement the backends document. It is
+  casts would hide the F4/H7 halfword requirement the backends document. It is
   declared next to the family token, in `inc/ow_board.h`.
 - **The public/private header split is acyclic.** `onewire.h` includes only
   `ow_config.h` and `ow_board.h`; the engine `src/ow_port.h` includes
@@ -258,10 +259,11 @@ are identical across all families.
   | STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
   | STM32F3 | TIM1 | PA10 (AF6) | Fixed, same pair as F0/F1: CC2→DMA1 **ch3**, CH4→DMA1 **ch4** | RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA |
   | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
-   | STM32G4 | TIM1 | PA10 (AF6) | DMAMUX: CC2=#43, CH4=#45 | APB2=/1, no x2 doubling; 8-bit feed tables |
-   | STM32L4 | TIM1 | PA10 (AF1) | DMA1_CSELR: ch3 sel 7 = TIM1_CH2 (feeds CCR3), ch4 sel 7 = TIM1_CH4 | HSI16-only (no HSE on NUCLEO-L476RG); 80MHz HSI16+PLL or 16MHz raw HSI16; 8-bit feed tables |
-   | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
-   | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; CBR1.BNDT is a byte count (x2 per halfword capture); bench-validated (64MHz HSI, 8MHz HSE, 250MHz HSE+PLL1) |
+  | STM32G4 | TIM1 | PA10 (AF6) | DMAMUX: CC2=#43, CH4=#45 | APB2=/1, no x2 doubling; 8-bit feed tables |
+  | STM32L4 | TIM1 | PA10 (AF1) | DMA1_CSELR: ch3 sel 7 = TIM1_CH2 (feeds CCR3), ch4 sel 7 = TIM1_CH4 | HSI16-only (no HSE on NUCLEO-L476RG); 80MHz HSI16+PLL or 16MHz raw HSI16; 8-bit feed tables |
+  | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
+  | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; CBR1.BNDT is a byte count (x2 per halfword capture); bench-validated (64MHz HSI, 8MHz HSE, 250MHz HSE+PLL1) |
+  | STM32H7 | TIM1 | PA10 (AF1) | DMAMUX1: CC2=#12 (DMA1 stream 2, feeds CCR3), CH4=#14 (DMA1 stream 3) | 16-bit feed tables in direct mode; 240MHz default with opt-in 480/240MHz CPU/TIM1 split; D-cache off |
   
   The DMA column is the one thing here that is **not** interchangeable between
   families, and getting it wrong is silent: on a family whose CC2/CH4 requests sit
@@ -397,7 +399,8 @@ Practical consequences for RTOS use:
 The driver is safe to call from an RTOS task, but it is **not re-entrant and
 not thread-safe by itself**. All driver state is global and shared: the DS18B20
 state machine, the 1-Wire search context (`search_ctx`, in `onewire.c`), and
-the TIM1/DMA peripherals (DMA1 on F0/F1/F3/G0, DMA2 on F4). There is no internal lock. The ownership guards
+the TIM1/DMA peripherals (DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4, GPDMA1 on H5,
+DMA1 through DMAMUX1 on H7). There is no internal lock. The ownership guards
 (`txn_can_start`, the `ds18b20_search_*` checks) only prevent *logical*
 conflicts within a single-threaded model — they are plain flag checks, not
 atomic across tasks.
@@ -435,7 +438,9 @@ Rules for correct RTOS use:
     - **The DMA pair** — DMA1 channels 3 (feeds CCR3) and 4 (drains CCR4) on
       F0/F1/F3, the same two channels via DMAMUX requests 21 (TIM1_CC2) and 23
       (TIM1_CH4) on G0, requests 43 and 45 on G4, DMA1_CSELR selection 7 on both
-      channels on L4, and **DMA2 streams 2 and 4 at `CHSEL=6`** on F4.
+      channels on L4, **DMA2 streams 2 and 4 at `CHSEL=6`** on F4, GPDMA1
+      channels 2 and 3 at `REQSEL=59/61` on H5, and DMA1 streams 2 and 3 through
+      DMAMUX1 requests 12 (TIM1_CC2) and 14 (TIM1_CH4) on H7.
     - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or
       the physical PA12 pad remapped to logical PA10 on G0 (those pads must
       not be used as plain GPIO while the driver is active).

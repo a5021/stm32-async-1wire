@@ -39,7 +39,7 @@
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/H5) are not stored in the
+ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/L4/H5/H7) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -697,7 +697,11 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `OW_MCU=STM32F303xC`; `STM32F407xx` (Cortex-M4) with `OW_MCU=STM32F407xx`,
     `STM32F401xC` with `OW_MCU=STM32F401xC`, `STM32F401xE` with
     `OW_MCU=STM32F401xE` or `STM32F446xx` with `OW_MCU=STM32F446xx`;
-    `STM32G031xx` (Cortex-M0+) with `OW_MCU=STM32G031xx`.
+    `STM32G031xx` (Cortex-M0+) with `OW_MCU=STM32G031xx`;
+    `STM32G474xx` (Cortex-M4) with `OW_MCU=STM32G474xx`;
+    `STM32L476xx` (Cortex-M4) with `OW_MCU=STM32L476xx`;
+    `STM32H503xx` (Cortex-M33) with `OW_MCU=STM32H503xx`;
+    `STM32H743xx` (Cortex-M7) with `OW_MCU=STM32H743xx`.
 
 -   **Target Selection:** `make OW_MCU=STM32F030x6` builds for the STM32F0 backend
     (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
@@ -713,10 +717,18 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     (180MHz default clock with the over-drive sequence,
     `port/stm32f4/STM32F446RE_FLASH.ld`),
     `make OW_MCU=STM32G031xx` for the STM32G0 backend (64MHz default clock,
-    `port/stm32g0/STM32G031X6_FLASH.ld`). Each part's
+    `port/stm32g0/STM32G031X6_FLASH.ld`),
+    `make OW_MCU=STM32G474xx` for the STM32G4 backend (170MHz default clock,
+    `port/stm32g4/STM32G474CB_FLASH.ld`),
+    `make OW_MCU=STM32L476xx` for the STM32L4 backend (80MHz default clock,
+    `port/stm32l4/STM32L476RGTX_FLASH.ld`),
+    `make OW_MCU=STM32H503xx` for the STM32H5 backend (64MHz default clock,
+    `port/stm32h5/STM32H503CB_FLASH.ld`) and
+    `make OW_MCU=STM32H743xx` for the STM32H7 backend (240MHz default clock,
+    `port/stm32h7/STM32H743VI_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default
-    target is STM32F103 (bus on PA10 for F0/F1/F3/F4, logical PA10 via PA12 remap
-    for G0).
+    target is STM32F103 (bus on PA10 for every family except G0, which uses
+    logical PA10 via the PA12 remap).
 
 -   **8MHz RC Build:** On the STM32F103 target the firmware runs on HSE 8MHz
     + PLL ×9 = 72MHz by default. Pass `SYSCLK_MHZ=8` to use the internal RC

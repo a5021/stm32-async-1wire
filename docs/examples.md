@@ -307,3 +307,27 @@ level/clock/guard cell in the viewer, is at
 <https://a5021.github.io/stm32-async-1wire/stress/>. It is generated from
 `docs/stress/results.json` by `tools/stress_report.py`; `make
 test-stress-report` regenerates it and decodes every linked capture.
+
+### Low-power mode (7_low_power)
+
+`7_low_power` runs the same search + sequential loop as `2_device_search`, but a
+build with `-DOW_LOW_POWER=1` lets the driver idle the core in `__WFE()` while a
+*long* stage (strictly more than 1 ms) is in progress. TIM1+DMA keep generating
+the bus timing, so 1-Wire execution and result timing are unchanged — only the
+CPU stops spinning.
+
+- Stages treated as long: the temperature conversion (up to 750 ms), the
+  scratchpad read (~5 ms) and an EEPROM hold-off (10 ms). Reset, commands and
+  search reads stay on the normal polling path.
+- The TIM1 update **interrupt source** (UIE) is enabled only to generate a
+  pending event that wakes `WFE()` via `SEVONPEND`; no ISR is installed and no
+  NVIC interrupt is enabled.
+- Power draw is not measured yet: the example establishes the mechanism and the
+  CPU-time saving.
+
+One caveat applies to the application's millisecond counter: `app_millis()`
+counts *observed* SysTick wraps, so it under-counts while the core sleeps inside
+`ds18b20_poll()` for up to 750 ms. In a low-power build the figure is valid for
+the pauses between cycles (where the loop spins) and deliberately excludes the
+conversion time. `make fuzz-lowpower` drives the sleep loop on the host with
+`-DMOCK_WFE_HOOK`; see [Building, testing and integration](building.md#testing).

@@ -53,11 +53,11 @@
 │   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 │   ├── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10
-    ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
-    └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
+│   │   ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
+│   │   └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
 │   └── stm32h7/            # STM32H7: TIM1 + DMA1/DMAMUX1 + PA10
-    ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
-    └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
+│       ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
+│       └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
 ├── chips/                  # Per-part build identity, one file per part
@@ -71,7 +71,7 @@
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 │   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
 │   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)
-│   └── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
+│   ├── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
 │   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
@@ -117,6 +117,7 @@
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 14 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
+│   ├── api/                # Public-API declaration snapshot + mutation canary
 │   ├── hil/                # Hardware-in-the-loop harness (needs a bench)
 │   ├── ci/                 # CI helper scripts (apt/pip installers)
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
@@ -130,10 +131,21 @@
 │   └── mutation_check.py       # Deliberate defects the host suite must catch
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
+│   ├── ow_add_library.cmake      # Drop-in helper for vendored inc/ + src/ copies
+│   ├── ow_flags.cmake            # MCU -> family/core/-mcpu/CMSIS table shared by both paths
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
+├── tools/                  # Standalone host tools (not part of the library build)
+│   ├── 1wire_vis/          # Browser 1-Wire capture viewer + bundled 9_multi capture
+│   ├── stress_report.py    # Generates docs/stress/index.html
+│   ├── la_capture.py       # Logic-analyzer capture helper
+│   ├── la_decode.py        # Logic-analyzer transport decoder
+│   ├── uart_capture.py     # UART capture helper
+│   └── check_records.py    # Bench-record checker
+├── templates/              # Copyable consumer projects
+│   └── standalone-consumer/  # Vendored inc/ + src/ CMake template (H5 board.c + main.c)
 ├── docs/                   # Topic guides, stress report and bench records
-│   ├── api/                # Doxygen-generated API reference
-│   ├── stress/             # Published DMA-pressure report and captures
+│   ├── api/                # Doxygen-generated API reference (generated, gitignored)
+│   └── stress/             # Published DMA-pressure report and captures
 ├── .github/                # GitHub configuration
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
 │   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates
