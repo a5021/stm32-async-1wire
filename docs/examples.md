@@ -299,9 +299,9 @@ F030 PA2). `STRESS_MARKER=1` makes
 each frame (or the search pass) a D1-high window, so the HIL analyses only the
 D0 traffic inside the marker: a startup glitch or a capture that ends mid-frame
 is outside every frame and cannot be mistaken for one. Every cell also reads
-`dma_pressure_telemetry[17..20]` before trusting the waveform: run magic,
-effective level/clock, capture mode, the injection state bits and the start
-timeout. A stale image, an injection that did not actually stop the channel, or
+`dma_pressure_telemetry[17..21]` (plus the capture-mode word) before trusting
+the waveform: run magic, effective level/clock, injection state, start timeout
+and load error. A stale image, an injection that did not actually stop the channel, or
 a load channel that did not stop before being re-armed is retried once and then
 reported as an identity or start-timeout failure, not as a bus failure. Cells
 that only pass on a retry keep `attempts` and `first_attempt_*` in the JSON, so
