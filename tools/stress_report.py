@@ -263,7 +263,7 @@ those gaps.</p>
 </section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
 
 
-def platform_section(name, data):
+def platform_section(name, data, capture=None):
     """A second bench measured with the same rig, summarised."""
     fam = family_of(data.get("mcu") or data.get("bench"))
     cells = cell_map(data)
@@ -312,6 +312,23 @@ def platform_section(name, data):
     has_hashes = any(c.get("image_sha256") for c in data.get("cells") or [])
     image_note = " Each cell carries its image SHA-256." if has_hashes else ""
     generated = data.get("generated") or "unknown"
+    cap_html = ""
+    ccells = (capture or {}).get("capture_cells") or []
+    if ccells:
+        bad = [c for c in ccells if not c.get("matches")]
+        if bad:
+            where = ", ".join(
+                "l%d/%s/g%d" % (c["level"],
+                                "%d MHz" % c["clock_mhz"] if c["clock_mhz"]
+                                else "default", c["guard_us"])
+                for c in bad)
+            cap_html = (
+                '<p class="note">Search ROM under load lost the bus in %d of '
+                '%d cells (%s); the capture JSON keeps both attempts.</p>'
+                % (len(bad), len(ccells), e(where)))
+        else:
+            cap_html = ('<p class="note">Search ROM under load matched the '
+                        'baseline in all %d cells.</p>' % len(ccells))
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
@@ -327,6 +344,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.%s</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
 <th>Default guard</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
+%s
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.
 %s</p>
@@ -334,6 +352,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.%s</p>
 """ % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
        e(data.get("mcu") or data.get("bench")), e(generated), e(commit),
        e(tree_note), e(data.get("bench")), image_note, verdict, "\n".join(rows),
+       cap_html,
        "The capture links open one representative frame per cell."
        if has_captures else
        "No one-frame captures were recorded for this bench.")
@@ -457,7 +476,8 @@ frame/search.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
-def build_report(data, capture=None, platforms=None, priority=None):
+def build_report(data, capture=None, platforms=None, priority=None,
+                 platform_captures=None):
     capture = capture or {}
     cells = cell_map(data)
     floors = data.get("guard_min") or []
@@ -621,7 +641,8 @@ def build_report(data, capture=None, platforms=None, priority=None):
     cap_html = capture_section(capture)
     inj_html = inject_section(capture)
     extra_html = "\n".join(
-        platform_section(name, other) for name, other in (platforms or []))
+        platform_section(name, other, (platform_captures or {}).get(name))
+        for name, other in (platforms or []))
     priority_html = priority_section(data, priority or [])
     # One rendered block for every generated section: the two control tables
     # first (they belong with the primary results), then the extra platforms
@@ -985,6 +1006,7 @@ def main(argv=None):
 
     platforms = []
     priority = []
+    platform_captures = {}
     if args.platforms_dir and os.path.isdir(args.platforms_dir):
         for name in sorted(os.listdir(args.platforms_dir)):
             base = os.path.join(args.platforms_dir, name)
@@ -993,6 +1015,10 @@ def main(argv=None):
                 continue
             with open(path, encoding="utf-8") as fh:
                 platforms.append((name, json.load(fh)))
+            cap = os.path.join(base, "capture.json")
+            if os.path.isfile(cap):
+                with open(cap, encoding="utf-8") as fh:
+                    platform_captures[name] = json.load(fh)
             high = os.path.join(base, "results-high.json")
             if os.path.isfile(high):
                 with open(high, encoding="utf-8") as fh:
@@ -1006,7 +1032,7 @@ def main(argv=None):
             with open(path, encoding="utf-8") as fh:
                 priority.append((name, "high", json.load(fh)))
 
-    text = build_report(data, capture, platforms, priority)
+    text = build_report(data, capture, platforms, priority, platform_captures)
     out_dir = os.path.dirname(os.path.abspath(args.out))
     os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
