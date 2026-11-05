@@ -122,6 +122,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-matching cell once, so a single flash/reset flake is not reported as a
   load failure. A real deterministic failure still goes red on the retry.
 
+### Removed
+
+- **Dropped the unvalidated 512 KB/128 KB F401 variant.** Its part file, linker
+  script and J-Flash/Ozone projects are gone, and the build no longer accepts
+  that flash-density code. The STM32F401CC keeps the same 84 MHz cap and DMA
+  topology in 256 KB/64 KB, and is bench-validated; the F4 backend, routing and
+  console path are unchanged.
+
 ## [3.0.1] - 2026-11-04
 
 3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed
@@ -288,7 +296,7 @@ Those three are source-breaking; the migration notes are in the README under
   so is halved for the halfword capture) says exactly how many edges arrived.
   `onewire_present()` now takes that count:
 
-  ```C
+  ```c
   uint8_t onewire_reset_captured(void);
   uint8_t onewire_present(const volatile uint16_t *pulses, uint8_t captured);
   ```
@@ -887,7 +895,7 @@ Those three are source-breaking; the migration notes are in the README under
   active-high, verified on the bench (active-low drove it inverted).
 
 - **Lone device macros resolve to their family.** A bare `-DSTM32F446xx`
-  fell through the F4 branch (only F407xx/F401xC/F401xE were listed) and a
+  fell through the F4 branch (only F407xx/F401xC were listed) and a
   bare `-DSTM32F303xC` through the F3 branch, ending in `#error no family
   selected` despite the documented concrete-device-spelling acceptance. Both
   spellings are accepted now; existing branches are untouched.
@@ -1419,7 +1427,7 @@ per-part matrix and a separate knob for the board's crystal frequency.
 
 - **A per-part build matrix in `chips/<part>.mk`.** `OW_TARGET` selects the
   family (unchanged); the new `OW_CHIP` selects the part *within* it by naming
-  a file: `f030x6`, `f103xb`, `f407xx`, `f401xc`, `f401xe`, `g031xx`. Each file
+  a file: `f030x6`, `f103xb`, `f407xx`, `f401xc`, `g031xx`. Each file
   holds only the part identity — CMSIS device macro, device header, startup
   file, linker script, J-Flash and Ozone projects, SVD and default clock — while
   everything a family shares (MCU flags, the port header, the timer/DMA/pin
@@ -1431,20 +1439,6 @@ per-part matrix and a separate knob for the board's crystal frequency.
   or clock; CMake gains `-DOW_CHIP=` and `-DOW_SYSCLK_MHZ=` to match.
   `make test-chips` (hooked into `make test-clocks`) verifies that every part's
   repository-side files exist and that an unknown family or part is rejected.
-
-- **STM32F401xE support** (`OW_CHIP=f401xe`). The `xE` parts (F401CD/RD/VD/CE/
-  RE/VE) are the same core as the xC parts with 512KB flash / 128KB RAM instead
-  of 256KB / 64KB, so they share the port backend, the 84MHz clock default and
-  the app.c clock branch and differ only in the memory map: a new
-  `STM32F401RE_FLASH.ld` linker script, the `stm32f401xe.h` /
-  `startup_stm32f401xe.s` CMSIS layer, and J-Flash / Ozone projects. The linker
-  map confirms 0x80000 flash for xE against 0x40000 for xC. **Not validated on
-  hardware** — no F401xE part was available.
-
-  This also closes a silent mismatch: `inc/onewire.h` has always honoured the
-  `STM32F401xE` device macro, but the build could only produce `STM32F401xC`,
-  so a hand-rolled `-DSTM32F401xE` linked against the xC script's 256K/64K
-  memory map without a diagnostic. The header now promises a part that exists.
 
 - **Interrupt-free polled time base for the examples (`examples/app`).**
   `app_time_init()` (called from `app_init()`) programs SysTick at 1 kHz
@@ -1727,8 +1721,8 @@ per-part matrix and a separate knob for the board's crystal frequency.
   1MHz makes both dividers fall out - `PLLM = HSE_MHZ`, `PLLN = 2 x SYSCLK` - so an
   8MHz crystal still produces the M=8/N=336 and M=8/N=168 the F407 was validated at,
   unchanged, and a 25MHz board reaches the F401's 84MHz cap with M=25/N=168.
-  `chips/f401xc.mk` declares `CHIP_HSE_MHZ = 25` for the Black Pill, `chips/f401xe.mk`
-  declares 8, the header default is 8, and the command line overrides both. A
+  `chips/f401xc.mk` declares `CHIP_HSE_MHZ = 25` for the Black Pill, the
+  header default is 8, and the command line overrides both. A
   `_Static_assert` rejects an unreachable combination at build time.
 
   Two silent-failure paths came with it. `SYSCLK_MHZ=8` used to select "raw HSE"
@@ -1832,19 +1826,13 @@ per-part matrix and a separate knob for the board's crystal frequency.
   cascade is bypassed entirely and the part file alone decides, while
   `test_sysclk_fallback.c` deliberately omits the define to check the
   cascade that only a PlatformIO or CubeMX build ever sees. Nothing connected
-  the two. Setting `CHIP_SYSCLK_MHZ = 168` in `chips/f401xe.mk` compiled the
+  the two. Setting `CHIP_SYSCLK_MHZ = 168` in an F4 part file compiled the
   firmware against a 168 MHz timer prescaler on a part that runs at 84 MHz -
   every 1-Wire slot half as long as intended, so the sensors would have read
   nonsense - and `make test` for all four families, `clock-ref-check` and
   `test-chips` all still passed. The build now passes the part file's value to
   the check as `OW_CHIP_SYSCLK_MHZ` and the check compares it against the
   header default, so the mutation fails the build for every family.
-
-- **The `STM32F401xE` branch of the clock-default check was never compiled.**
-  `test_sysclk_fallback.c` has handled `STM32F401xE` since the check was
-  written, but only `f401xc` was ever built through it, so that branch was
-  dead. Both F401 parts are now enumerated in one list (`F401_CLOCK_CHECKS`),
-  which also means a future F401 variant cannot ship without a guard.
 
 - **`ow_bits.h` was missing from the PlatformIO `headers` list.** Every
   `ow_port_<family>.h` includes it for the register-address macros, and CMake
@@ -1862,7 +1850,7 @@ per-part matrix and a separate knob for the board's crystal frequency.
   because the CMSIS cache in CI is keyed on the Makefile and had been warm.
   `core_cm3.h` and `core_cm0.h` reach that header only behind `__MPU_PRESENT`,
   which the F0 and F1 parts do not define, so only the F4 list needed the entry.
-  Verified by rebuilding f0, f1, f4, f4/f401xc, f4/f401xe and g0 from an empty
+  Verified by rebuilding f0, f1, f4, f4/f401xc and g0 from an empty
   `CMSIS/`.
 
 - **`make jprogram` had no J-Flash project for the STM32F401CC.** `JFLASH` was

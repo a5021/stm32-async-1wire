@@ -448,7 +448,7 @@ jobs:
               measurements, and is defined once in the example's source instead of
               being forced by both build systems.
             - **`OW_CHIP=f401` -> `OW_CHIP=f401xc`**: the part is named by its CMSIS
-              flash-density code, and `f401xe` joins it.
+              flash-density code.
 
             New in this release:
 

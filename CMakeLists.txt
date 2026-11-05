@@ -5,13 +5,13 @@ project(stm32_async_1wire VERSION 3.0.1 LANGUAGES C ASM)
 # Options
 # ---------------------------------------------------------------------------
 set(OW_MCU "" CACHE STRING "Exact STMicroelectronics device macro (e.g. STM32F030x6, STM32F103xB, STM32H503xx); empty = use OW_TARGET/OW_CHIP")
-set_property(CACHE OW_MCU PROPERTY STRINGS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx)
+set_property(CACHE OW_MCU PROPERTY STRINGS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx)
 set(OW_TARGET "" CACHE STRING "MCU family: f0, f1, f3, f4, g0, g4, l4, h5, h7; empty = derived from OW_MCU, otherwise f1")
 set_property(CACHE OW_TARGET PROPERTY STRINGS f0 f1 f3 f4 g0 g4 l4 h5 h7)
 # Part within the family, named after the chips/<part>.mk file the Makefile
 # build uses. Both build systems read the same part file, so they cannot drift
 # on the device macro, startup file, linker script or clock default.
-set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f401xe, f446xx, g031xx, g474cb, l476rg, h503cb, h743vi); empty = derived from OW_MCU, otherwise the family's default")
+set(OW_CHIP "" CACHE STRING "Part within OW_TARGET (e.g. f030x6, f103xb, f303xc, f407xx, f401xc, f446xx, g031xx, g474cb, l476rg, h503cb, h743vi); empty = derived from OW_MCU, otherwise the family's default")
 set(OW_SYSCLK_MHZ "" CACHE STRING "System clock in MHz; empty = the part's own default from chips/<part>.mk (mirrors the Makefile's SYSCLK_MHZ)")
 set(OW_TIM1_MHZ "" CACHE STRING "TIM1 kernel clock in MHz; empty = OW_SYSCLK_MHZ (e.g. H7 split clock: SYSCLK=480, TIM1=240)")
 # The CMake counterpart of the Makefile's EXT="...": extra -D definitions applied
@@ -25,7 +25,7 @@ option(OW_BUILD_EXAMPLES "Build example applications" OFF)
 # Exact STMicroelectronics device macros supported by chips/<part>.mk. This is
 # the same table the Makefile uses for OW_MCU; ow_mcu_selection() keeps the
 # macro -> family/part mapping in one place for both directions below.
-set(OW_KNOWN_MCUS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx)
+set(OW_KNOWN_MCUS STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx)
 function(ow_mcu_selection macro out_target out_chip)
     if(macro STREQUAL "STM32F030x6")
         set(${out_target} "f0" PARENT_SCOPE)
@@ -42,9 +42,6 @@ function(ow_mcu_selection macro out_target out_chip)
     elseif(macro STREQUAL "STM32F401xC")
         set(${out_target} "f4" PARENT_SCOPE)
         set(${out_chip} "f401xc" PARENT_SCOPE)
-    elseif(macro STREQUAL "STM32F401xE")
-        set(${out_target} "f4" PARENT_SCOPE)
-        set(${out_chip} "f401xe" PARENT_SCOPE)
     elseif(macro STREQUAL "STM32F446xx")
         set(${out_target} "f4" PARENT_SCOPE)
         set(${out_chip} "f446xx" PARENT_SCOPE)

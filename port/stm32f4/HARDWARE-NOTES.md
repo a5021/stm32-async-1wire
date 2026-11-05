@@ -11,7 +11,7 @@ the F446 section records its own separate bench run on a WeAct F446RET6.
 
 ## F446 specifics (`OW_MCU=STM32F446xx`)
 
-**Validated on hardware** (WeAct F446RET6, 8MHz crystal, 7 DS18B20 in parasite
+**Validated on hardware** (WeAct F446RET6, 8 MHz crystal, 7 DS18B20 in parasite
 power on one bus, console on the on-board CP210x at 115200). The part file, the
 clock branch and the host tests are unchanged from what was written before the
 board existed; what follows is the bench result. The build/case layer is the
@@ -21,26 +21,26 @@ PA10 as AF1, are the same mapping the F407 uses.
 
 What was checked before a board, and how:
 
-- **Memory.** 512KB flash / 128KB SRAM, and no CCM. Confirmed against ST's own
+- **Memory.** 512 KB flash / 128 KB SRAM, and no CCM. Confirmed against ST's own
   `STM32F446ZETX_FLASH.ld` and against the upstream CMSIS header and SVD, which
   contain no `CCM` peripheral at all (unlike the F405/F407, whose linker scripts
-  name a 64KB CCM bank), and then confirmed on the part: `st-info --probe`
+  name a 64 KB CCM bank), and then confirmed on the part: `st-info --probe`
   reports `flash: 524288`, `sram: 131072`, `dev-type: STM32F446`, and the
-  program's `_estack` links at `0x20020000` (top of 128KB). So
+  program's `_estack` links at `0x20020000` (top of 128 KB). So
   `STM32F446RE_FLASH.ld` is a single contiguous RAM block, and the backend's
   DMA writes need nothing beyond it.
-- **Clock layout.** 180MHz with 8MHz HSE, M=8 N=360 P=2, APB1 `/4`, APB2 `/2`,
+- **Clock layout.** 180 MHz with 8 MHz HSE, M=8 N=360 P=2, APB1 `/4`, APB2 `/2`,
   5 flash wait states, over-drive — taken from ST's `RCC_ClockConfig` example
   for the F446ZE Nucleo rather than inferred from the F407's numbers. The
-  APB1 45MHz / APB2 90MHz results are that part's own limits, which is why this
-  is a separate branch in `app.c` and not a divisor away from 168MHz.
+  APB1 45 MHz / APB2 90 MHz results are that part's own limits, which is why this
+  is a separate branch in `app.c` and not a divisor away from 168 MHz.
 - **Over-drive registers.** `PWR_CR_ODEN` (bit 16), `PWR_CR_ODSWEN` (bit 17),
   `PWR_CSR_ODRDY` (bit 16), `PWR_CSR_ODSWRDY` (bit 17), all read from
   `stm32f446xx.h`. The F407's header defines none of them, which is why the
-  sequence lives in the 180MHz branch. The four values are pinned against that
+  sequence lives in the 180 MHz branch. The four values are pinned against that
   header by `tests/check_mock_headers.sh`, and `test_timing.c` asserts the whole
-  sequence at register level in the 180MHz host suite.
-- **VOS left alone — now checked against RM0390, not inferred.** The 180MHz path
+  sequence at register level in the 180 MHz host suite.
+- **VOS left alone — now checked against RM0390, not inferred.** The 180 MHz path
   does not write `PWR_CR.VOS`. RM0390 (Power controller, *Bits 15:14 VOS[1:0]*)
   gives the field in full:
 
@@ -51,7 +51,7 @@ What was checked before a board, and how:
   | `10` | Scale 2 mode |
   | `11` | **Scale 1 mode (reset value)** |
 
-  So the part comes out of reset already in Scale 1, which is the scale 180MHz
+  So the part comes out of reset already in Scale 1, which is the scale 180 MHz
   is rated for, and nothing needs writing. Measured to match: on the F446RET6
   `PWR_CR` reads `0x0003C000` with over-drive engaged — VOS = `0b11`, `ODEN` and
   `ODSWEN` set — and `PWR_CSR` reads `0x00034000` with `ODRDY`, `ODSWRDY` and
@@ -80,7 +80,7 @@ What was checked before a board, and how:
 - **The over-drive order is correct, per the same manual.** RM0390, *Bit 16
   ODEN*: "To set or reset the ODEN bit, the HSI or HSE must be selected as system
   clock," and with ODEN set the application must wait for `ODRDY` before setting
-  `ODSWEN`. The 180MHz branch enables both while still running from HSI and
+  `ODSWEN`. The 180 MHz branch enables both while still running from HSI and
   before the PLL switch, and waits on `ODRDY` in between — so the sequence
   matches the requirement rather than merely happening to work.
 
@@ -89,7 +89,7 @@ of each recorded after the dash:
 
 0. **Get a console first — check which pin the board actually uses** — *done,
    and PB6 was right.* The F4 console is USART1/TX on **PB6** by default. That
-   is where the STM32F4DISCOVERY routes its ST-LINK virtual COM port, and a
+   is where the STM32F4DISCOVERY routes its ST-Link virtual COM port, and a
    WeAct F446RET6 does the same: its CP210x VCP answers on PB6, so the default
    build talks to it with no extra flags. (Measured — do not "fix" this by
    assuming PA9.) `-DOW_UART_USART1_PA9` still exists (`make OW_MCU=STM32F446xx
@@ -114,23 +114,23 @@ of each recorded after the dash:
    baud-rate hunt before the preprocessor nesting was checked.
 
    If output appears but is garbage at 115200, that *is* a baud problem, and
-   worth naming separately: a wrong APB2 assumption is exactly 2× off at 180MHz
+   worth naming separately: a wrong APB2 assumption is exactly 2× off at 180 MHz
    and shows up as garbage rather than as nothing. Silence and garbage are
    different bugs with different causes — do not chase baud first.
 
 1. **`SYSCLK_MHZ=180` boots and the clock is really 180** — *done.* A working
    console at 115200 on USART1 is the cheap first signal — its divisor assumes
-   APB2 = 90MHz, so a mis-set APB2 divider shows up as wrong baud rather than
+   APB2 = 90 MHz, so a mis-set APB2 divider shows up as wrong baud rather than
    as a silent mis-timing. Five clocks (180/168/84/16/raw-HSE) each produced a
    clean console with a *different* `BRR` (781/729/365/139/69), which is what
    pins APB2 — and therefore SYSCLK — at each one. Measured on the 1-Wire line
    with a logic analyzer as well: low-pulse distributions are identical at
-   180MHz and 16MHz (p25 = 5.562 µs, p75 = 60.0 µs both), which is the intended
+   180 MHz and 16 MHz (p25 = 5.562 µs, p75 = 60.0 µs both), which is the intended
    result and not a null one, because `PSC = SYSCLK_MHZ - 1` keeps the tick at
    1 µs on every supported clock. Do not expect 1-Wire timings to *scale* with
    the clock on this backend; there is nothing on the wire that does.
 2. **The over-drive actually engages** — *done.* `PWR_CR` reads back with
-   `ODEN` (bit 16) and `ODSWEN` (bit 17) both set after the 180MHz boot, and
+   `ODEN` (bit 16) and `ODSWEN` (bit 17) both set after the 180 MHz boot, and
    none of the bounded waits timed out. If the sequence had been skipped the
    part would still run, just out of spec, and nothing on the bus would say so.
 3. **The DMA2 request map behaves as the F407's does** — *done, by consequence.*
@@ -142,35 +142,35 @@ of each recorded after the dash:
    The whole fleet below runs on PA10 as AF1: 7 devices found, valid CRC8.
    (`-DOW_PORT_BUS_PE13=1` was once the documented move for a board where
    PA10 is not available; removed unvalidated and untested — PA10 only.)
-5. **All three clocks on real hardware:** 180MHz (default), 16MHz raw HSI, and
-   raw 8MHz HSE — *done, and two more besides.* 168MHz and 84MHz were added
+5. **All three clocks on real hardware:** 180 MHz (default), 16 MHz raw HSI, and
+   raw 8 MHz HSE — *done, and two more besides.* 168 MHz and 84 MHz were added
    because they are the two other distinct APB-divider cases, and all five
-   built and ran; see the matrix below. The 8MHz mode is the tight one: the
-   F407 measurements below leave roughly 1µs of margin for
+   built and ran; see the matrix below. The 8 MHz mode is the tight one: the
+   F407 measurements below leave roughly 1 µs of margin for
    `ONEWIRE_SHORT_PULSE_MAX`, and it is clean here.
-6. **The capture-chain numbers.** *Not recorded for 180MHz.* The F407
-   baselines at the bottom of this file are 168MHz-specific; at 180MHz the TIM1
+6. **The capture-chain numbers.** *Not recorded for 180 MHz.* The F407
+   baselines at the bottom of this file are 168 MHz-specific; at 180 MHz the TIM1
    kernel clock is 180 instead of 168, so IC4 offsets and CCR4 `'1'`/`'0'`
    counts move. The LA captures taken here were used only to confirm the
-   1-Wire timing is clock-independent (item 1); a full 180MHz capture-chain
+   1-Wire timing is clock-independent (item 1); a full 180 MHz capture-chain
    characterisation is still outstanding.
 
 7. **The IC4F filter, if the captures come out wrong** — *not needed; captures
-   were correct at 180MHz with the default `fDTS/16, N=6`.* For the record,
-   168MHz gets `fDTS/8, N=6` (T_f ≈ 286ns) while 180MHz gets `fDTS/16, N=6`
-   (T_f ≈ 533ns) — the F407 tier was picked for 84MHz and undershoots the
-   ~500ns target as the clock rises, so the F446 needed its own row rather than
+   were correct at 180 MHz with the default `fDTS/16, N=6`.* For the record,
+   168 MHz gets `fDTS/8, N=6` (T_f ≈ 286 ns) while 180 MHz gets `fDTS/16, N=6`
+   (T_f ≈ 533 ns) — the F407 tier was picked for 84 MHz and undershoots the
+   ~500 ns target as the clock rises, so the F446 needed its own row rather than
    inheriting one that no longer fits. That is arithmetic from the ICxF
    encoding table in `src/ow_port.h`, not a measurement, and it is the one
    choice on this part that has still never been swept on a board. It is only
-   worth sweeping if the captures are actually wrong: the F407's 286ns is the
+   worth sweeping if the captures are actually wrong: the F407's 286 ns is the
    empirically proven setting for this bus, so `SYSCLK_MHZ=180
-   -DOW_PORT_IC4F_ARGS=IC4F_3` (fDTS/8, N=6, ≈267ns) is the fallback to try
-    before anything else, and `IC4F_2|IC4F_3` (fDTS/16 N=5, ≈444ns) is the next
+   -DOW_PORT_IC4F_ARGS=IC4F_3` (fDTS/8, N=6, ≈267 ns) is the fallback to try
+    before anything else, and `IC4F_2|IC4F_3` (fDTS/16 N=5, ≈444 ns) is the next
     step down from the default.
 
     *Correction: the ladder has since changed — the code now programs
-    `IC4F_3` (fCK_INT/32, N=3) at and below 168MHz and
+    `IC4F_3` (fCK_INT/32, N=3) at and below 168 MHz and
     `IC4F_0|IC4F_1|IC4F_3` (fCK_INT/4, N=3) above it (see the ladder comment
     in `src/ow_port.h`; the driver never sets CKD, so fDTS
     here equals fCK_INT). The fDTS/N values recorded above describe the older
@@ -182,7 +182,7 @@ of each recorded after the dash:
 `PWR_CR.VOS` used to be listed here as the one thing the bench run had not
 settled, on the grounds that the scale was an inference from the F407. It is now
 measured and checked against RM0390: the F446 resets into Scale 1, which is what
-180MHz needs, and the field is correctly left unwritten. The reasoning behind the
+180 MHz needs, and the field is correctly left unwritten. The reasoning behind the
 original entry was wrong in a way worth flagging to the next reader — the header
 *does* define `_0`/`_1`, and the write those names invite selects Scale 3. See the
 VOS bullet above.
@@ -194,7 +194,7 @@ Nothing else is outstanding on this part.
 Every example built (`-Os -flto`, release default) and flashed to the WeAct
 F446RET6's 7 parasite-powered DS18B20s, at the two extremes of the range. Each
 measurement is the **first boot after programming** — the second boot is
-useless as a test here, and using it is what previously made 180MHz look broken
+useless as a test here, and using it is what previously made 180 MHz look broken
 when it is not (see the settling note below).
 
 | Example (parasite) | 16 MHz (raw HSI) | 180 MHz (HSE+PLL+OD) |
@@ -218,8 +218,8 @@ annotates the second one itself.
 
 **This is the finding that mattered most on this part, and it is not a clock
 issue.** The first search after a reset found nothing while every later one found
-all seven — a fault that looked like 168/180MHz being unreliable and was not:
-8/16/84MHz were solid, 168 and 180 failed intermittently, which reads exactly
+all seven — a fault that looked like 168/180 MHz being unreliable and was not:
+8/16/84 MHz were solid, 168 and 180 failed intermittently, which reads exactly
 like a clock problem.
 
 Two measurements killed that reading:
@@ -272,18 +272,18 @@ The ICxF ladder in `src/ow_port.h` was transcribed wrong and the entries do not
 mean what the comments claimed. ICxF is a 4-bit ladder whose N only reaches 5, so
 the documented "N=6" and "N=8" values do not exist, and the values actually
 written decode to `fCK_INT/16 N=1`, `fCK_INT/4 N=1`, `fCK_INT/4 N=2`,
-`fCK_INT/32 N=3` and — for the >168MHz tier — `fCK_INT/4 N=3`, a *shorter*
-window than the 168MHz entry rather than the longer one the comment claimed.
+`fCK_INT/32 N=3` and — for the >168 MHz tier — `fCK_INT/4 N=3`, a *shorter*
+window than the 168 MHz entry rather than the longer one the comment claimed.
 
-That defect was worth chasing here because 180MHz was failing, and it was **not**
-the cause: forcing the 168MHz value (`-DOW_PORT_IC4F_ARGS=IC4F_3`) at 180MHz
+That defect was worth chasing here because 180 MHz was failing, and it was **not**
+the cause: forcing the 168 MHz value (`-DOW_PORT_IC4F_ARGS=IC4F_3`) at 180 MHz
 failed identically, and so did the default. Both fail for the settling reason
-above. The current >168MHz value now runs the whole matrix on this bus, which is
+above. The current >168 MHz value now runs the whole matrix on this bus, which is
 more than the old comment could claim, so it stays — with the correction
 recorded rather than quietly applied.
 
-The useful consequence: the "~500ns filter" framing in that comment is fiction.
-At 180MHz the ladder's finest window is `fCK_INT/16` ≈ 5.6 ns, and no encoding
+The useful consequence: the "~500 ns filter" framing in that comment is fiction.
+At 180 MHz the ladder's finest window is `fCK_INT/16` ≈ 5.6 ns, and no encoding
 reaches 500 ns.
 
 
@@ -291,26 +291,25 @@ reaches 500 ns.
 
 The F401 needs no port-level changes — only the build/case layer: `STM32F401xC`
 CMSIS device + startup (`stm32f401xc.h` / `startup_stm32f401xc.s`), the
-`STM32F401CC_FLASH.ld` linker script (256KB flash / 64KB SRAM; F401 has no
-CCM), an 84MHz clock-config branch in `app.c`, and a library clock default of
-84MHz for the `STM32F401xC` / `STM32F401xE` device macros. The console UART paths
-in `app.c` derive PCLK1/PCLK2 from the active prescalers, so 84MHz gets the
-correct 42MHz baud clocks. `SYSCLK_MHZ=16` (raw HSI) is the no-crystal fallback.
+`STM32F401CC_FLASH.ld` linker script (256 KB flash / 64 KB SRAM; F401 has no
+CCM), an 84 MHz clock-config branch in `app.c`, and a library clock default of
+84 MHz for the `STM32F401xC` device macro. The console UART paths
+in `app.c` derive PCLK1/PCLK2 from the active prescalers, so 84 MHz gets the
+correct 42 MHz baud clocks. `SYSCLK_MHZ=16` (raw HSI) is the no-crystal fallback.
 
 ### The crystal is a board property, not a part property
 
-The 84MHz branch used to hardcode `M=8`, which silently assumed an 8MHz crystal —
+The 84 MHz branch used to hardcode `M=8`, which silently assumed an 8 MHz crystal —
 true of the F4DISCOVERY this file is written from, false of the F401 Black Pill,
-which carries **25MHz**. With M=8 a 25MHz crystal puts 25/8 = 3.125MHz into a PLL
-input specified for 1–2MHz, the PLL never locks, and the wait on `PLLRDY` never
+which carries **25 MHz**. With M=8 a 25 MHz crystal puts 25/8 = 3.125 MHz into a PLL
+input specified for 1–2 MHz, the PLL never locks, and the wait on `PLLRDY` never
 ends: the board is silent, with nothing to distinguish it from a dead one.
 
-The divider is now derived instead of encoded. Aiming the PLL input at exactly 1MHz
-gives `PLLM = OW_HSE_MHZ` and `PLLN = 2 × SYSCLK`, so 8MHz still yields M=8/N=336
-at 168MHz and M=8/N=168 at 84MHz — the F407 numbers this file validated, unchanged
-— while 25MHz reaches the F401's cap with M=25/N=168. `HSE_MHZ=N` sets it;
-`chips/f401xc.mk` declares 25 for the Black Pill and `chips/f401xe.mk` 8, and the
-header default is 8.
+The divider is now derived instead of encoded. Aiming the PLL input at exactly 1 MHz
+gives `PLLM = OW_HSE_MHZ` and `PLLN = 2 × SYSCLK`, so 8 MHz still yields M=8/N=336
+at 168 MHz and M=8/N=168 at 84 MHz — the F407 numbers this file validated, unchanged
+— while 25 MHz reaches the F401's cap with M=25/N=168. `HSE_MHZ=N` sets it;
+`chips/f401xc.mk` declares 25 for the Black Pill, and the header default is 8.
 
 Two consequences worth keeping in mind:
 
@@ -318,16 +317,16 @@ Two consequences worth keeping in mind:
   the application prints the reason and stops. It does *not* fall back to the HSI —
   `PSC`, `SysTick` and the console divisor are all compiled against the requested
   frequency, so carrying on would scale every 1-Wire timing by an unknown factor.
-- `SYSCLK_MHZ=8` used to mean "raw HSE" whatever the crystal was, so on a 25MHz
+- `SYSCLK_MHZ=8` used to mean "raw HSE" whatever the crystal was, so on a 25 MHz
   board it compiled and ran with every timing scaled by 3.125. It is now selected
   only when `SYSCLK_MHZ == HSE_MHZ`, and mismatches are a build error.
 
-#### Validated on the F401CC (WeAct F401 Black Pill, 25MHz crystal)
+#### Validated on the F401CC (WeAct F401 Black Pill, 25 MHz crystal)
 
-`OW_MCU=STM32F401xC`, default 84MHz over the board's 25MHz crystal (`HSE_MHZ=25`,
+`OW_MCU=STM32F401xC`, default 84 MHz over the board's 25 MHz crystal (`HSE_MHZ=25`,
 `M=25/N=168`), 7 × DS18B20 in parasite power on one bus on **PA10**, console on
 USART1 TX / **PB6** at 115200 8N1, flashed over SWD. Flashed with
-`EXT="-DOW_PARASITE_POWER=1"`, no other clock overrides - the 84MHz default is
+`EXT="-DOW_PARASITE_POWER=1"`, no other clock overrides - the 84 MHz default is
 what ships.
 
 | Example | Result |
@@ -337,13 +336,13 @@ what ships.
 | `4_scan_mode` | 49 measurements, 0 CRC failures |
 | `5_commands` | parasite detected, 4 × scratchpad CRC ok, EEPROM copy/recall round-trip restored TH=0x19/TL=0x0F; the one CRC fail is the expected Read ROM with 7 devices on the bus |
 | `6_statistics` | banner `stats dump every 10 sweeps (70 samples with 7 devices)`, exactly 10 sweep markers per batch, `t=70c 0e`, `n10`/`e0` on all seven, histogram 1814+2307+919 = **5040 = 70 × 72** |
-| `7_low_power` | `OW_LOW_POWER enabled - WFE sleep on stages > 1ms`, 8 measurements, 0 errors, 24.3–24.6 °C |
+| `7_low_power` | `OW_LOW_POWER enabled - WFE sleep on stages > 1 ms`, 8 measurements, 0 errors, 24.3–24.6 °C |
 
 The millisecond counter is the reason to trust the rest: `MEASURE_PERIOD_MS` is
 5000, and ~8 full per-device cycles fit in 60 s, i.e. ~6.0 s each against the
 F407DISCOVERY's 5.75–5.84 s. A wrong `SysTick->LOAD` would scale that by the clock
-ratio - 11.5 s at a 168MHz-derived reload of 84000 ticks - and it does not. So the
-1 µs tick, `PSC` and the polled `app_millis()` are all correct at 84MHz, not merely
+ratio - 11.5 s at a 168 MHz-derived reload of 84000 ticks - and it does not. So the
+1 µs tick, `PSC` and the polled `app_millis()` are all correct at 84 MHz, not merely
 plausible.
 
 
@@ -387,7 +386,7 @@ staging copy.
 `ow_port_update_event()` forces a timer update (EGR=UG) to reload the
 ARR/RCR/CCR preloads and give a freshly scheduled operation a clean
 completion flag. On the F4 the UG-raised UIF appears a few timer cycles
-*after* the EGR write (APB2 = 84MHz, TIM1 = 168MHz — the timer is 2×
+*after* the EGR write (APB2 = 84 MHz, TIM1 = 168 MHz — the timer is 2×
 faster), so clearing SR immediately after EGR=UG races the set and can
 drop the clear. The stale UIF then makes the next ow_port_bus_done()
 report the operation complete before it has started — seen on hardware
@@ -398,7 +397,7 @@ Current fix: a dummy `(void)T1.SR` read flushes posted APB writes into the
 timer domain, so UG is fully processed and UIF guaranteed set before the
 subsequent `SR=0` clear — the clear cannot lose the race. Verified in both
 `ow_port_update_event()` (SR-read flush) and `ow_port_kick()` (`__DSB()`)
-on F407 (example 2_device_search, 7 devices, parasite power, 168MHz).
+on F407 (example 2_device_search, 7 devices, parasite power, 168 MHz).
 
 ## No-presence reset leaves the capture stream armed — EN-ack now waits
 

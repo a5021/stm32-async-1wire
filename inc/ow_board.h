@@ -88,7 +88,7 @@
  *  macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32L4,
  *  STM32H5, STM32H7).  Concrete device spellings are accepted for the parts this project
  *  supports (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
- *  STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx for F4;
+ *  STM32F407xx / STM32F401xC / STM32F446xx for F4;
  *  STM32G031xx for G0; STM32G474xx for G4; STM32L476xx for L4;
  *  STM32H503xx for H5; STM32H743xx for H7).
  * ------------------------------------------------------------------ */
@@ -98,7 +98,7 @@
 #define OW_FAMILY_F1
 #elif defined(STM32F303xC) || defined(STM32F3)
 #define OW_FAMILY_F3
-#elif defined(STM32F407xx) || defined(STM32F401xC) || defined(STM32F401xE) || \
+#elif defined(STM32F407xx) || defined(STM32F401xC) || \
     defined(STM32F446xx) || defined(STM32F4)
 #define OW_FAMILY_F4
 #elif defined(STM32G031xx) || defined(STM32G0)
@@ -112,7 +112,7 @@
 #elif defined(STM32H743xx) || defined(STM32H7)
 #define OW_FAMILY_H7
 #else
-#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H743xx) or its family macro (e.g. -DSTM32H7). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F401xE/STM32F446xx/STM32G031xx/STM32G474xx/STM32L476xx/STM32H503xx/STM32H743xx or -DSTM32F0/F1/F3/F4/G0/G4/L4/H5/H7 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
+#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H743xx) or its family macro (e.g. -DSTM32H7). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F446xx/STM32G031xx/STM32G474xx/STM32L476xx/STM32H503xx/STM32H743xx or -DSTM32F0/F1/F3/F4/G0/G4/L4/H5/H7 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
 #endif
 
 /**
@@ -147,7 +147,7 @@ typedef uint8_t ow_pulse_t;
 #if !defined(OW_F4_MAX_SYSCLK_MHZ)
 #if defined(STM32F446xx)
 #define OW_F4_MAX_SYSCLK_MHZ 180 /* F446: the only part here that needs the over-drive sequence */
-#elif defined(STM32F401xC) || defined(STM32F401xE)
+#elif defined(STM32F401xC)
 #define OW_F4_MAX_SYSCLK_MHZ 84 /* F401 parts top out at 84MHz */
 #else
 #define OW_F4_MAX_SYSCLK_MHZ 168 /* F405/F407 cap */

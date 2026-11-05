@@ -108,7 +108,7 @@ with the failed checks in the log; CI runs it on every pull request, so a
 decoder change cannot ship without the golden vectors passing. Install the
 pinned dependency first:
 
-```sh
+```bash
 python -m pip install -r tools/1wire_vis/requirements-selftest.txt
 python -m playwright install chromium
 ```

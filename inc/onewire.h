@@ -60,10 +60,12 @@ extern "C" {
  *  The token resolves from the CMSIS device macro of the target (e.g.
  *  -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX
  *  projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4,
- *  STM32G0, STM32G4, STM32H5).  Concrete device spellings are accepted for
- *  the parts this project supports (STM32F030x6 for F0; STM32F103xB for F1;
- *  STM32F303xC for F3; STM32F407xx / STM32F401xC / STM32F401xE / STM32F446xx
- *  for F4; STM32G031xx for G0; STM32G474xx for G4; STM32H503xx for H5).
+ *  STM32G0, STM32G4, STM32L4, STM32H5, STM32H7).  Concrete device spellings
+ *  are accepted for the parts this project supports (STM32F030x6 for F0;
+ *  STM32F103xB for F1; STM32F303xC for F3;
+ *  STM32F407xx / STM32F401xC / STM32F446xx for F4;
+ *  STM32G031xx for G0; STM32G474xx for G4; STM32L476xx for L4;
+ *  STM32H503xx for H5; STM32H743xx for H7).
  *  The token is the single point of family selection: app.c takes the device
  *  header and clock configuration from it, and the per-family facts
  *  ow_pulse_t and the OW_HSE_MHZ / OW_*_MAX_SYSCLK_MHZ defaults live in

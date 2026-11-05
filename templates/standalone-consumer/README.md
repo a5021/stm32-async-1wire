@@ -16,7 +16,7 @@ they manage CMSIS for you and this template's glue is unnecessary.
 | --- | --- |
 | `CMakeLists.txt` | Wires the library through `cmake/ow_add_library.cmake` and links a firmware ELF. |
 | `main.c` | The application: `board_init()`, `ds18b20_init()`, non-blocking poll loop. |
-| `board.c` / `board.h` | Board bring-up the library does **not** provide: 64MHz clock, USART1 console, polled 1ms tick. Replace with your own. |
+| `board.c` / `board.h` | Board bring-up the library does **not** provide: 64 MHz clock, USART1 console, polled 1 ms tick. Replace with your own. |
 
 The library owns the whole 1-Wire port (`src/ow_port.h` is a header of static
 inline register writes, private to the library), so there is no port glue to
@@ -35,7 +35,7 @@ write - only the clock, a console and a tick, which any board already has.
 
 **In-tree** (reuses the checkout's own downloaded CMSIS):
 
-```sh
+```bash
 make OW_TARGET=h5 download-deps        # fetches CMSIS/ into the repo
 cmake -S templates/standalone-consumer -B build/standalone \
     -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi-gcc.cmake \
@@ -50,7 +50,7 @@ The result is `build/standalone/ow_consumer.elf`.
 three CMSIS file paths explicitly (a stock STM32Cube layout keeps the headers,
 the system source and the startup file in different directories):
 
-```sh
+```bash
 cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE=/path/to/stm32-async-1wire/cmake/arm-none-eabi-gcc.cmake \
     -DOW_LIBRARY_DIR=/path/to/stm32-async-1wire \
@@ -86,8 +86,8 @@ pair well with a native `make` plus a Cygwin `sh`.
 
 ## Adapting
 
-- **Other H5 clocks (250MHz HSE+PLL).** `board_clock_init()` implements only the
-  64MHz raw-HSI bring-up clock. For 250MHz, follow the H5 branch of
+- **Other H5 clocks (250 MHz HSE+PLL).** `board_clock_init()` implements only the
+  64 MHz raw-HSI bring-up clock. For 250 MHz, follow the H5 branch of
   `examples/app/app.c`, pass `-DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=<crystal>`; the
   port is already timing-correct for both.
 - **Other families.** `board.c` is H5-only. `ow_add_library()` accepts every
@@ -101,7 +101,7 @@ pair well with a native `make` plus a Cygwin `sh`.
 
 ## Gotchas
 
-- **H5 reset clock.** The H5 boots at 32MHz (HSIDIV=/2), not 64MHz. Clearing
+- **H5 reset clock.** The H5 boots at 32 MHz (HSIDIV=/2), not 64 MHz. Clearing
   `RCC_CR.HSIDIV` and setting the flash latency first is not optional - a wrong
   core clock scales every 1-Wire timing.
 - **Parasite power.** With `OW_PARASITE=ON` the driver holds the bus high through

@@ -2,6 +2,21 @@
 
 [Back to the README](../README.md)
 
+## Contents
+
+- [Comparison with Common 1-Wire Techniques](#comparison-with-common-1-wire-techniques)
+  - [Trade-offs](#trade-offs)
+- [Architecture](#architecture)
+  - [Hybrid Hardware Automation](#hybrid-hardware-automation)
+  - [Non-Blocking, Interrupt-Free Design Principles](#non-blocking-interrupt-free-design-principles)
+  - [Shared 1-Wire Layer](#shared-1-wire-layer)
+  - [Layer Contracts](#layer-contracts)
+  - [Required Timer Capabilities](#required-timer-capabilities)
+  - [State Machine Flow (hardware-timed; polled on UIF)](#state-machine-flow-hardware-timed-polled-on-uif)
+- [RTOS Integration](#rtos-integration)
+  - [Bus Idle Behaviour](#bus-idle-behaviour)
+  - [Multithreading and Concurrency](#multithreading-and-concurrency)
+
 ## Comparison with Common 1-Wire Techniques
 
 The DS18B20 uses the 1-Wire bus protocol, which communicates over a single data
@@ -21,7 +36,8 @@ protocol on embedded systems:
 **Cost.** This driver consumes dedicated hardware resources — TIM1 and two DMA
 channels (the capture drain from CCR4 and the marker feed into CCR3: DMA1
 channels 3/4 on F0/F1/F3/G0/G4/L4 (via DMAMUX on G0/G4, via DMA1_CSELR on L4),
-DMA2 streams 2/4 on F4) — that
+DMA2 streams 2/4 on F4, GPDMA1 channels 2/3 on H5, and DMA1 streams 2/3 through
+DMAMUX1 on H7) — that
 cannot be used for other purposes. The 1-Wire data line itself occupies one GPIO (PA10), but any approach
 needs a GPIO pin for the bus, so that is not an extra cost. Bit-banging
 approaches, by contrast, need only that one pin and no DMA, making them more
@@ -44,9 +60,20 @@ The 1-Wire layer uses a hybrid of several hardware features:
 
 1. Timer-Driven Sequences: TIM1 is configured in One-Pulse Mode (OPM). Each state machine step configures the timer for a specific operation (reset, write byte, read byte, wait) and starts it.
 2. DMA for Data Transfer: DMA is used in two key ways:
-   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values to TIM1->CCR3 to automatically generate the precise waveform for writing commands or bits. The feed request comes from the CH2 slot-end marker compare and rides DMA1 channel 3 on F0/F1/F3/G0/G4/L4 (DMAMUX request 21 on G0, 43 on G4, DMA1_CSELR selection 7 on L4), or DMA2 stream 2 at `CHSEL=6` on F4.
-   - Capture: Automatically stores values from the TIM1->CCR4 capture register into memory to record pulse timings during read operations or presence detection; the capture drain rides DMA1 channel 4 on F0/F1/F3/G0/G4/L4 (DMAMUX request 23 on G0, 45 on G4, DMA1_CSELR selection 7 on L4), or DMA2 stream 4 on F4.
-3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750ms) is finished.
+   - Transmit: Feeds a pre-calculated sequence of Compare Register (CCR) values
+     to TIM1->CCR3 to automatically generate the precise waveform for writing
+     commands or bits. The feed request comes from the CH2 slot-end marker
+     compare and rides DMA1 channel 3 on F0/F1/F3/G0/G4/L4 (DMAMUX request 21
+     on G0, 43 on G4, DMA1_CSELR selection 7 on L4), DMA2 stream 2 at
+     `CHSEL=6` on F4, GPDMA1 channel 2 at `REQSEL=59` on H5, or DMA1 stream 2
+     through DMAMUX1 request 12 on H7.
+   - Capture: Automatically stores values from the TIM1->CCR4 capture register
+     into memory to record pulse timings during read operations or presence
+     detection; the capture drain rides DMA1 channel 4 on F0/F1/F3/G0/G4/L4
+     (DMAMUX request 23 on G0, 45 on G4, DMA1_CSELR selection 7 on L4), DMA2
+     stream 4 on F4, GPDMA1 channel 3 at `REQSEL=61` on H5, or DMA1 stream 3
+     through DMAMUX1 request 14 on H7.
+3. Update Event as Completion Signal: The core polling mechanism checks the Timer Update Flag (TIM1->SR UIF). This flag is set when the timer completes its one-pulse countdown, signaling that the autonomous hardware operation (e.g., sending a reset pulse, waiting 750 ms) is finished.
 4. True Zero-ISR Overhead: The ds18b20_poll() function checks this flag. When set, it clears the flag and advances the state machine to the next step. This makes the entire driver event-driven by hardware completion signals without using interrupts.
 
 ### Non-Blocking, Interrupt-Free Design Principles
@@ -116,10 +143,10 @@ do not "fix" them without re-reading the reasoning:
   selection into the build system would break the CubeIDE path. The token is
   public because the application layer (`app.c`) needs it too; what it selects
   — the register-level per-family facts — stays private in `src/ow_mcu.h`.
-- **`ow_pulse_t` is family-sized.** F4 feeds CCR3 in DMA direct mode
+- **`ow_pulse_t` is family-sized.** F4 and H7 feed CCR3 in DMA direct mode
   (halfword, `uint16_t`); the other families use `uint8_t`. An
   always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;
-  casts would hide the F4 halfword requirement the backends document. It is
+  casts would hide the F4/H7 halfword requirement the backends document. It is
   declared next to the family token, in `inc/ow_board.h`.
 - **The public/private header split is acyclic.** `onewire.h` includes only
   `ow_config.h` and `ow_board.h`; the engine `src/ow_port.h` includes
@@ -165,7 +192,7 @@ complete topology simultaneously on **one timer instance** and its DMA
 routing; having the individual features somewhere in the MCU is not
 sufficient.  The topology is:
 
-```
+```text
                 ONE TIMER
                     │
         ┌───────────┼───────────┐
@@ -207,7 +234,8 @@ be moved to an arbitrary pin: the chosen GPIO must be the CH3/CH4 pair's
 output/capture pin on the selected timer.  On STM32F1 this is PA10
 (default AFIO map); on STM32F0, PA10 (AF2); on STM32F3, PA10 (AF6); on
 STM32G0, the PA12 pad remapped to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`;
-on STM32G4, PA10 (AF6); on STM32F4, PA10 (AF1).
+on STM32G4, PA10 (AF6); on STM32L4, PA10 (AF1); on STM32F4, PA10 (AF1); and on
+STM32H5 and STM32H7, PA10 (AF1).
 
 #### 3. DMA
 
@@ -224,14 +252,18 @@ channel 4 = CC4, confirmed empirically.  G0 uses a DMAMUX: TIM1_CC2 = request
 request 45.  L4 keeps the classic DMA1 channels but selects the request in
 `DMA1_CSELR`: selection 7 is TIM1_CH2 on channel 3 and TIM1_CH4 on channel 4
 (the selector is per-channel).  F4 uses DMA2 with the per-stream `CHSEL` field
-set to 6 (`TIM1_CH2`/`TIM1_CH4`): stream 2 = feed, stream 4 = capture.  A new
+set to 6 (`TIM1_CH2`/`TIM1_CH4`): stream 2 = feed, stream 4 = capture.  H5 uses
+GPDMA1 with `REQSEL` 59 (feed) and 61 (capture); H7 uses DMA1 streams 2/3 with
+DMAMUX1 requests 12 (feed) and 14 (capture).  A new
 backend must verify the DMA request numbers for its target; the channel roles
 are identical across all families.
 
 #### 4. Clocking invariant
 
   The invariant is not "APB prescaler = /1" but **"the TIM1 kernel clock equals
-  SYSCLK"**, which is what makes `PSC = SYSCLK_MHZ - 1` a 1 µs tick.  STM32
+  the timer clock the port was compiled for"** (`OW_TIM1_MHZ`, which defaults
+  to `OW_SYSCLK_MHZ`), which is what makes `PSC = TIM1_MHZ - 1` a 1 µs tick.
+  STM32
   timers double their clock when the APB prescaler feeding them is >1
   (`timer clock = 2 × PCLK`), so each family reaches SYSCLK its own way.  All
   supported families satisfy the invariant by construction: F1 keeps
@@ -240,7 +272,10 @@ are identical across all families.
   taking APB1 down to /2 for the 36 MHz limit; F4 runs PPRE2=/2 at 168, 84
   and 180 MHz and *relies* on the doubling (84→168, 42→84, 90→180), with
   PPRE2=/1 only on the raw-HSI and raw-HSE paths; G4 and L4 leave every
-  prescaler at /1 at both of their clocks.  See `examples/app/app.c`.
+  prescaler at /1 at both of their clocks; H5 leaves every prescaler at /1 at
+  64, 8 and 250 MHz; H7 runs APB1/2/3/4 at /2, so the timer doubling gives
+  TIM1 = 240 MHz even when CPU/SYSCLK is the opt-in 480 MHz.  See
+  `examples/app/app.c`.
   
   #### 5. GPIO
   
@@ -258,10 +293,11 @@ are identical across all families.
   | STM32F0 | TIM1 | PA10 (AF2) | Fixed: same mapping | TSSOP20: PA8 not bonded out, CH3/CH4 is the only viable pair |
   | STM32F3 | TIM1 | PA10 (AF6) | Fixed, same pair as F0/F1: CC2→DMA1 **ch3**, CH4→DMA1 **ch4** | RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA |
   | STM32G0 | TIM1 | PA10 via PA12 remap | DMAMUX: CC2=#21, CH4=#23 | SYSCFG `PA12_RMP`; PA11/PA12 cannot be used as GPIO while driver is active |
-   | STM32G4 | TIM1 | PA10 (AF6) | DMAMUX: CC2=#43, CH4=#45 | APB2=/1, no x2 doubling; 8-bit feed tables |
-   | STM32L4 | TIM1 | PA10 (AF1) | DMA1_CSELR: ch3 sel 7 = TIM1_CH2 (feeds CCR3), ch4 sel 7 = TIM1_CH4 | HSI16-only (no HSE on NUCLEO-L476RG); 80MHz HSI16+PLL or 16MHz raw HSI16; 8-bit feed tables |
-   | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
-   | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; CBR1.BNDT is a byte count (x2 per halfword capture); bench-validated (64MHz HSI, 8MHz HSE, 250MHz HSE+PLL1) |
+  | STM32G4 | TIM1 | PA10 (AF6) | DMAMUX: CC2=#43, CH4=#45 | APB2=/1, no x2 doubling; 8-bit feed tables |
+  | STM32L4 | TIM1 | PA10 (AF1) | DMA1_CSELR: ch3 sel 7 = TIM1_CH2 (feeds CCR3), ch4 sel 7 = TIM1_CH4 | HSI16-only (no HSE on NUCLEO-L476RG); 80 MHz HSI16+PLL or 16 MHz raw HSI16; 8-bit feed tables |
+  | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
+  | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; CBR1.BNDT is a byte count (x2 per halfword capture); bench-validated (64 MHz HSI, 8 MHz HSE, 250 MHz HSE+PLL1) |
+  | STM32H7 | TIM1 | PA10 (AF1) | DMAMUX1: CC2=#12 (DMA1 stream 2, feeds CCR3), CH4=#14 (DMA1 stream 3) | 16-bit feed tables in direct mode; 240 MHz default with opt-in 480/240 MHz CPU/TIM1 split; D-cache off |
   
   The DMA column is the one thing here that is **not** interchangeable between
   families, and getting it wrong is silent: on a family whose CC2/CH4 requests sit
@@ -310,7 +346,13 @@ shared too, with no per-family arm order left.
 ### State Machine Flow (hardware-timed; polled on UIF)
 
 Explicit-start behavior
-- The driver measures **only when asked**: after `ds18b20_init()` the bus stays idle, and one `ds18b20_start_measure()` call requests exactly one conversion + scratchpad-read cycle. Afterwards the driver parks at IDLE again — it never restarts a cycle on its own, so the measurement cadence, the retry policy and any idle interval are the application's decision. Nothing else starts a conversion either: finishing a device search, a resolution change or a command transaction leaves the bus idle.
+- The driver measures **only when asked**: after `ds18b20_init()` the bus stays
+  idle, and one `ds18b20_start_measure()` call requests exactly one conversion +
+  scratchpad-read cycle. Afterwards the driver parks at IDLE again — it never
+  restarts a cycle on its own, so the measurement cadence, the retry policy and
+  any idle interval are the application's decision. Nothing else starts a
+  conversion either: finishing a device search, a resolution change or a command
+  transaction leaves the bus idle.
 
 - IDLE (state 0)
   - The driver is parked here. A pending UIF (raised by `ds18b20_start_measure()`) falls through into START, which turns the busy indicator **on** and arms the bus reset. The data union is not touched here: `capture[]`, `pulse[]` and `scratchpad[]` are three views of one union, and decoding must consume `pulse[]` before writing `scratchpad[]`.
@@ -318,7 +360,7 @@ Explicit-start behavior
 
 - START (state 1)
   - LED on. Run reset_bus():
-    - CH3 issues active-low reset pulse (~480µs within ~960µs slot).
+    - CH3 issues active-low reset pulse (~480 µs within ~960 µs slot).
     - CH4 (indirect input) captures presence timing into ctx.capture[0..1] via DMA from CCR4.
   - Set state=2.
 
@@ -332,8 +374,8 @@ Explicit-start behavior
 
 - WAIT (state 3)
   - On UIF: wait_conversion() schedules exactly the conversion time of the
-    configured resolution `ctx.resolution` (9-bit: 93.75ms; 10-bit: 187.5ms;
-    11-bit: 375ms; 12-bit: 750ms). The driver states that duration; the
+    configured resolution `ctx.resolution` (9-bit: 93.75 ms; 10-bit: 187.5 ms;
+    11-bit: 375 ms; 12-bit: 750 ms). The driver states that duration; the
     engine picks the timer periods that produce it. The
     resolution is auto-derived from each valid scratchpad read and updated
     by `ds18b20_set_resolution()`; set state=4.
@@ -350,7 +392,7 @@ Explicit-start behavior
     - Else: report NO_SENSOR; set state=0 (parked until the next ds18b20_start_measure()).
 
 - READ (state 6)
-  - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70µs). CH3 emits ~5µs active-low kick at each slot start and then releases; CH4 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
+  - On UIF: read_data() schedules 72 slots (RCR=71; ARR=70 µs). CH3 emits ~5 µs active-low kick at each slot start and then releases; CH4 captures sensor pulse timing; DMA fills ctx.pulse[72]. Set state=7.
 
 - DECODE (state 7)
   - On UIF: decode_scratchpad() from ctx.pulse[] into ctx.scratchpad[], LED off; reject an all-0xFF frame from an absent addressed device (`NO_SENSOR`), verify the reserved scratchpad bytes (byte 5 = 0xFF, byte 7 = 0x10), then verify CRC; report temperature or CRC_FAIL; set state=0 (parked until the next ds18b20_start_measure()).
@@ -397,7 +439,8 @@ Practical consequences for RTOS use:
 The driver is safe to call from an RTOS task, but it is **not re-entrant and
 not thread-safe by itself**. All driver state is global and shared: the DS18B20
 state machine, the 1-Wire search context (`search_ctx`, in `onewire.c`), and
-the TIM1/DMA peripherals (DMA1 on F0/F1/F3/G0, DMA2 on F4). There is no internal lock. The ownership guards
+the TIM1/DMA peripherals (DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4, GPDMA1 on H5,
+DMA1 through DMAMUX1 on H7). There is no internal lock. The ownership guards
 (`txn_can_start`, the `ds18b20_search_*` checks) only prevent *logical*
 conflicts within a single-threaded model — they are plain flag checks, not
 atomic across tasks.
@@ -412,7 +455,7 @@ Rules for correct RTOS use:
    sequence (start + poll loop). Two tasks touching the driver at once corrupt
    the shared state machine and the TIM1/DMA registers. Example (FreeRTOS):
 
-   ```C
+   ```c
    xSemaphoreTake(ow_mutex, portMAX_DELAY);
    ds18b20_set_alarm_thresholds(0x19, 0x0F);
    while (!ds18b20_set_alarm_thresholds_poll()) {
@@ -435,7 +478,9 @@ Rules for correct RTOS use:
     - **The DMA pair** — DMA1 channels 3 (feeds CCR3) and 4 (drains CCR4) on
       F0/F1/F3, the same two channels via DMAMUX requests 21 (TIM1_CC2) and 23
       (TIM1_CH4) on G0, requests 43 and 45 on G4, DMA1_CSELR selection 7 on both
-      channels on L4, and **DMA2 streams 2 and 4 at `CHSEL=6`** on F4.
+      channels on L4, **DMA2 streams 2 and 4 at `CHSEL=6`** on F4, GPDMA1
+      channels 2 and 3 at `REQSEL=59/61` on H5, and DMA1 streams 2 and 3 through
+      DMAMUX1 requests 12 (TIM1_CC2) and 14 (TIM1_CH4) on H7.
     - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or
       the physical PA12 pad remapped to logical PA10 on G0 (those pads must
       not be used as plain GPIO while the driver is active).
@@ -450,7 +495,7 @@ Rules for correct RTOS use:
    Behaviour*). A build with `OW_LOW_POWER=1` is the one case where the call
    does not return straight away: the driver then idles the core in `WFE()`
    while a long stage runs, so the CPU does not spin (rule 5, and
-   [Examples](examples.md#examples — `7_low_power`). Two practical patterns:
+   [7_low_power](examples.md#low-power-mode-7_low_power)). Two practical patterns:
    - **Dedicated polling task:** loop `ds18b20_poll(); osDelay(1);` (or
      `vTaskDelay(1)`). This gives low latency without saturating the CPU; the
      750 ms conversion wait is a hardware timer, so the task yields during it.
@@ -483,7 +528,7 @@ Rules for correct RTOS use:
    a long hardware stage runs, so the CPU does not spin. That is a sleep, not
    a wait for a result — the application's code is unchanged, and the result
    is ready at the same moment either way (see
-   [Examples](examples.md#examples), `7_low_power`).
+   [7_low_power](examples.md#low-power-mode-7_low_power)).
 
 6. **Preemption mid-byte is safe.** A task may be preempted while a byte is
    being transmitted: the DMA completes the whole byte in hardware and the bus

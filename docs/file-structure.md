@@ -4,10 +4,11 @@
 
 ## File Structure
 
-```
+```text
 ├── inc/                    # Public headers: the whole consumer surface
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── ds2431.h            # DS2431 EEPROM driver interface (commands + async API)
+│   ├── ds2413.h            # DS2413 placeholder: family code + ROM size only (no driver yet)
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_board.h          # Board facts: family select, ow_pulse_t, clock defaults
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
@@ -41,23 +42,20 @@
 │   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
-│   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
 │   │   ├── STM32F446RE_FLASH.ld    # Linker script, STM32F446xE (512KB flash / 128KB RAM, no CCM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
-│   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
 │   │   ├── stm32f446re.jflash      # J-Flash project file (STM32F446xE)
 │   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
-│   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
 │   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 │   ├── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10
-    ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
-    └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
+│   │   ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
+│   │   └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
 │   └── stm32h7/            # STM32H7: TIM1 + DMA1/DMAMUX1 + PA10
-    ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
-    └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
+│       ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
+│       └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
 ├── chips/                  # Per-part build identity, one file per part
@@ -67,11 +65,10 @@
 │   ├── f407xx.mk           #   (selected by OW_MCU=<device macro>; the legacy
 │   ├── f303xc.mk           #   OW_TARGET/OW_CHIP pair selects them too)
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
-│   ├── f401xe.mk           # 512KB flash / 128KB RAM
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 │   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
 │   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)
-│   └── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
+│   ├── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
 │   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
@@ -84,6 +81,7 @@
 │   ├── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer.
 │   │                       # Compiles as ONE translation unit: #includes its
 │   │                       # four functional parts in dependency order.
+│   ├── ds18b20_internal.h  # Private split header shared by the include-only parts
 │   ├── ds18b20_search.c    # (include-only part) ROM device table + search/alarm
 │   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
@@ -93,8 +91,9 @@
 │   │                       # API (core TU).
 │   ├── ds2431_internal.h   # Private DS2431 interface: context layout + engine
 │   │                       # entry points shared by the core and engine TUs.
-│   └── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
-│                           # caller-owned context (no globals).
+│   ├── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
+│   │                       # caller-owned context (no globals).
+│   └── ds2413.c            # Placeholder TU: empty by design, not part of the build
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -117,6 +116,7 @@
 │   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 14 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
+│   ├── api/                # Public-API declaration snapshot + mutation canary
 │   ├── hil/                # Hardware-in-the-loop harness (needs a bench)
 │   ├── ci/                 # CI helper scripts (apt/pip installers)
 │   ├── check_chips.sh      # Part-matrix check (make test-chips)
@@ -127,13 +127,26 @@
 │   ├── check_header_hygiene.sh  # Public headers stay free of engine internals
 │   ├── check_mcu_dispatch.sh  # Makefile and CMake dispatch agree on flags
 │   ├── check_elf_variant.sh    # Each build links its own objects
+│   ├── check_removed_macros.sh # Removed names are hard #errors naming their replacement
 │   └── mutation_check.py       # Deliberate defects the host suite must catch
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
+│   ├── ow_add_library.cmake      # Drop-in helper for vendored inc/ + src/ copies
+│   ├── ow_flags.cmake            # MCU -> family/core/-mcpu/CMSIS table shared by both paths
 │   └── stm32_async_1wireConfig.cmake.in  # find_package() config template
+├── tools/                  # Standalone host tools (not part of the library build)
+│   ├── 1wire_vis/          # Browser 1-Wire capture viewer + bundled 9_multi capture
+│   ├── stress_report.py    # Generates docs/stress/index.html
+│   ├── la_capture.py       # Logic-analyzer capture helper
+│   ├── la_decode.py        # Logic-analyzer transport decoder
+│   ├── uart_capture.py     # UART capture helper
+│   └── check_records.py    # Bench-record checker
+├── templates/              # Copyable consumer projects
+│   └── standalone-consumer/  # Vendored inc/ + src/ CMake template (H5 board.c + main.c)
 ├── docs/                   # Topic guides, stress report and bench records
-│   ├── api/                # Doxygen-generated API reference
-│   ├── stress/             # Published DMA-pressure report and captures
+│   ├── *.md                # The topic guides linked from the README
+│   ├── api/                # Doxygen-generated API reference (generated, gitignored)
+│   └── stress/             # Published DMA-pressure report and captures
 ├── .github/                # GitHub configuration
 │   ├── workflows/          # CI (build.yml, ci.yml) and release (release.yml)
 │   ├── ISSUE_TEMPLATE/     # Bug report / feature request templates

@@ -5,19 +5,37 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
 
-Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every slot, so the CPU never performs timing-critical busy-waits inside a transaction and never enters an interrupt; operations advance by polling hardware completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431 EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...) can ride it as-is.
+Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a
+DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns
+the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every
+slot, so the CPU never performs timing-critical busy-waits inside a transaction
+and never enters an interrupt; operations advance by polling hardware
+completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431
+EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...)
+can ride it as-is.
 
-The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public surface is the headers under `inc/`: `onewire.h` (the bus API), `ow_board.h` (the family selection token, `ow_pulse_t` and the board clock defaults), `ow_config.h` (the compile-time tunables), `ow_stats.h` (the optional statistics module) and the per-driver headers. The TIM1+DMA engine (`src/ow_port.h`) and the register-level per-family facts (`src/ow_mcu.h`) are library-internal: a consumer needs only `-Iinc` and never sees the port. Nine families ship today:
+The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public
+surface is the headers under `inc/`: `onewire.h` (the bus API), `ow_board.h`
+(the family selection token, `ow_pulse_t` and the board clock defaults),
+`ow_config.h` (the compile-time tunables), `ow_stats.h` (the optional statistics
+module) and the per-driver headers. The TIM1+DMA engine (`src/ow_port.h`) and
+the register-level per-family facts (`src/ow_mcu.h`) are library-internal: a
+consumer needs only `-Iinc` and never sees the port.
 
-- `src/ow_mcu.h` (STM32F1 section) — STM32F103C8T6 (Blue Pill): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `src/ow_mcu.h` (STM32F0 section) — STM32F030x6 (e.g. TSSOP20 STM32F030F4P6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4.
-- `src/ow_mcu.h` (STM32F3 section) — STM32F303VC (F3-DISCOVERY / MB1035B): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 — the same fixed pair as F0/F1 (RM0316 Table 78; channel 4 also carries USART1_TX and channel 3 USART3_TX, harmless because no UART byte moves by DMA).
-- `src/ow_mcu.h` (STM32G0 section) — STM32G031x6 (e.g. TSSOP20 STM32G031F6P6): bus on PA10 via the SYSCFG PA12 remap, TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 21/23).
-- `src/ow_mcu.h` (STM32G4 section) — STM32G474CB (WeAct STM32G474CBT6 Long): bus on PA10 (AF6), TIM1 CH3 output / CH4 capture, DMA1 channels 3/4 through DMAMUX (requests 43/45), 8-bit feed tables. HSE+PLL to 170MHz (M=2, N=85, R=2, Range 1 Boost) or raw HSI16 at 16MHz. USART1 TX on PA9 (AF7).
-- `src/ow_mcu.h` (STM32L4 section) — STM32L476RG (NUCLEO-L476RG): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, classic DMA1 channels 3/4 with the request selected in `DMA1_CSELR` (both channels use selection 7: TIM1_CH2 on channel 3, TIM1_CH4 on channel 4), 8-bit feed tables. HSI16 only — the board's HSE crystal is not populated: 80MHz via HSI16+PLL (M=1, N=10, R=2, voltage Range 1, 4 flash wait states) or 16MHz raw HSI16. USART1 TX on PA9 (AF7, external USB-TTL), LED PA5. Bench-validated with 7 DS18B20 in parasite power plus one DS2431: search, measurement, scan, statistics and DS2431 read-back all pass at both clocks.
-- `src/ow_mcu.h` (STM32F4 section) — STM32F407VGT6 (STM32F4DISCOVERY), STM32F401CC (e.g. WeAct F401 Black Pill) and STM32F446RE (e.g. WeAct F446RET6): bus on PA10, TIM1 CH3 output / CH4 capture, DMA2 streams 2/4 (feed 16-bit, direct mode). Same section for all three parts — the chip selects the CMSIS device layer, linker script and clock default. The F446 additionally runs 180MHz, which needs the PWR over-drive sequence (see [Clocking invariant](docs/architecture.md#4-clocking-invariant)).
-- `src/ow_mcu.h` (STM32H5 section) — STM32H503CB (WeAct STM32H503Cx Core Board): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, GPDMA1 channels 2/3 (requests 59/61, no DMAMUX), 8-bit feed tables. Raw HSI at 64MHz (bring-up clock, default), raw 8MHz HSE (crystal Y2), or HSE+PLL1 to 250MHz (VOS0, 5 flash wait states). USART1 TX on PA9 (AF7). Bench-validated on the WeAct board — all seven examples flashed and captured at each clock with correct 22.8-23.1C readings and 0 errors in 6_statistics.
-- `src/ow_mcu.h` (STM32H7 section) — H743 Rev V (DEV_ID `0x450`, REV_ID `0x2003`; the WeAct Studio STM32H7XX board under current test): bus on PA10 (AF1), TIM1 CH3 output / CH4 capture, DMA1 streams 2/3 through DMAMUX1 (requests 12/14), 16-bit feed tables (direct mode, like F4). HSE+PLL to 240MHz (M=HSE/5, N=96, P=2 through PLL1P); the LDO supply is configured and ACTVOSRDY awaited before the VOS1→VOS0 Rev V sequence. Four flash wait states; APB1/2/3/4 are /2, so TIM1 remains at the 240MHz driver ceiling; Rev V can optionally run CPU/SYSCLK at 480MHz with HCLK and TIM1 at 240MHz. USART1 TX on PA9 (AF7). The D-cache stays off: SRAM1 is cacheable and no maintenance hooks run in this backend (see the H7 section).
+Nine families ship today; the verified board, wiring and clock details are in
+[Hardware](docs/hardware.md).
+
+| Family | Verified part / board | Bus pin | DMA route | Notes |
+| --- | --- | --- | --- | --- |
+| STM32F0 | STM32F030x6 (TSSOP20) | PA10 (AF2) | DMA1 channels 3/4 | 48 MHz default; PA8 is not bonded out on the TSSOP20 package |
+| STM32F1 | STM32F103C8T6 (Blue Pill) | PA10 (default AFIO) | DMA1 channels 3/4 | 72 MHz default; no `OSPEEDR` on this family |
+| STM32F3 | STM32F303VC (F3-DISCOVERY) | PA10 (AF6) | DMA1 channels 3/4 | 72 MHz HSE-bypass; bench-validated with 7 × DS18B20 |
+| STM32F4 | F407VGT6 / F401CC / F446RE | PA10 (AF1) | DMA2 streams 2/4 (`CHSEL=6`) | 16-bit feed; the F446 runs 180 MHz with the over-drive sequence |
+| STM32G0 | STM32G031x6 (TSSOP20) | PA12 pad → logical PA10 | DMAMUX requests 21/23 | 64 MHz HSI16+PLL; PA11/PA12 must stay in AF mode |
+| STM32G4 | STM32G474CB (WeAct Long) | PA10 (AF6) | DMAMUX requests 43/45 | 170 MHz HSE+PLL; 8-bit feed tables |
+| STM32L4 | STM32L476RG (NUCLEO-L476RG) | PA10 (AF1) | DMA1_CSELR selection 7 | 80 MHz HSI16+PLL, no HSE; bench-validated with 7 × DS18B20 + DS2431 |
+| STM32H5 | STM32H503CB (WeAct Core) | PA10 (AF1) | GPDMA1 channels 2/3 (`REQSEL` 59/61) | 64 MHz HSI, 8 MHz HSE or 250 MHz PLL1; 8-bit feed |
+| STM32H7 | STM32H743VI (WeAct H7) | PA10 (AF1) | DMA1 streams 2/3, DMAMUX1 requests 12/14 | 240 MHz HSE+PLL, opt-in 480/240 MHz split; 16-bit feed; D-cache off |
 
 ## Quick start
 
@@ -37,10 +55,12 @@ build are in [Getting started](docs/getting-started.md).
 |---|---|
 | [Getting started](docs/getting-started.md) | Requirements, what to know before integrating, and the first build |
 | [Building, testing and integration](docs/building.md) | Make/CMake/PlatformIO, the host and fuzz suites, HIL, STM32CubeIDE, VSCode, tunables |
+| [Standalone consumer template](templates/standalone-consumer/README.md) | Vendored `inc/` + `src/` CMake template, board glue and build knobs |
 | [Examples](docs/examples.md) | The ten examples, including the DMA-pressure diagnostic rig |
 | [Hardware](docs/hardware.md) | Verified boards, wiring, electrical notes |
+| [Bench notes: F1](port/stm32f1/HARDWARE-NOTES.md) / [F4](port/stm32f4/HARDWARE-NOTES.md) | Per-port bring-up, DMA and timing measurements |
 | [Architecture and RTOS](docs/architecture.md) | The TIM1+DMA engine, layer contracts, state machine, RTOS use |
-| [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash/CPU numbers, clocks and timing presets |
+| [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash footprint, clocks and timing presets |
 | [Migrating from earlier releases](docs/migration.md) | The 3.0 `OW_PORT_*` rename table and other breaking changes |
 | [Repository file structure](docs/file-structure.md) | Where the sources, ports, tests and tools live |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging tips |
@@ -119,7 +139,7 @@ on the bus primitives.
   validation of every sensor reading — see [Weak Callbacks](docs/api-reference.md#weak-callbacks)
   and [Error Codes](docs/api-reference.md#error-codes).
 - Resolution-Aware Conversion Wait: the driver waits exactly as long as the
-  configured conversion resolution requires (93.75ms @ 9-bit … 750ms @
+  configured conversion resolution requires (93.75 ms @ 9-bit … 750 ms @
   12-bit), so lowering the resolution speeds up the measurement cycle.
 - Non-blocking across the board — each operation advances one hardware
   operation per `*_poll()` call from the main loop:
@@ -148,5 +168,6 @@ This project is released under the MIT License. See the LICENSE file for details
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution
 guide, [docs/project.md](docs/project.md) for support and
-references, and [docs/troubleshooting.md](docs/troubleshooting.md)
-for common wiring and integration issues.
+references, [docs/troubleshooting.md](docs/troubleshooting.md)
+for common wiring and integration issues, and [CHANGELOG.md](CHANGELOG.md)
+for the release history. Security reports follow [SECURITY.md](SECURITY.md).

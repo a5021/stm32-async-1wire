@@ -3,8 +3,9 @@
 # =============================================================================
 #
 # For projects that copy the library's inc/ and src/ into their own tree (see
-# the README "Vendoring" section) and drive the build with CMake. It creates a
-# static library target compiling the four driver sources and attaches the
+# the vendored-copy path in docs/building.md, or start from
+# templates/standalone-consumer/) and drive the build with CMake. It creates a
+# static library target compiling the five driver sources and attaches the
 # include directory, the target/clock/feature defines and the family's -mcpu
 # flags, so a consumer writes:
 #
@@ -81,7 +82,7 @@ function(ow_add_library tgt)
     if(NOT OW_MCU)
         message(FATAL_ERROR
             "ow_add_library(${tgt}): MCU is required, e.g. MCU STM32H503xx "
-            "(see README, \"Vendoring\")")
+            "(see docs/building.md, \"Vendored copy\")")
     endif()
     if(NOT OW_SOURCE_DIR)
         if(DEFINED OW_LIBRARY_ROOT)
@@ -101,6 +102,7 @@ function(ow_add_library tgt)
         "${OW_SOURCE_DIR}/src/onewire.c"
         "${OW_SOURCE_DIR}/src/ds18b20.c"
         "${OW_SOURCE_DIR}/src/ds2431.c"
+        "${OW_SOURCE_DIR}/src/ds2431_txn.c"
         "${OW_SOURCE_DIR}/src/ow_stats.c"
     )
     foreach(_ow_s IN LISTS _ow_srcs)

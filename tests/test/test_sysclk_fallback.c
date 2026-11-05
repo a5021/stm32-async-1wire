@@ -29,7 +29,7 @@
  * so it could check the cascade the PlatformIO / CubeMX path got.
  *
  * The consequence was a silent one: with CHIP_SYSCLK_MHZ = 168 in
- * chips/f401xe.mk, the firmware compiled against a 168 MHz prescaler while the
+ * an F4 part file, the firmware compiled against a 168 MHz prescaler while the
  * part actually runs at 84 MHz - every 1-Wire slot half as long as intended -
  * and clock-ref-check, test-chips and all sixteen host configurations still
  * passed. The header cascade is now gone (no family header may define a
@@ -75,7 +75,7 @@
 #error "F3: 72MHz is HSE x PLLMUL9, so the board oscillator must be 8MHz; the HSI-only ceiling is 64MHz (SYSCLK_MHZ=64)"
 #endif
 #elif defined(STM32F4)
-#if defined(STM32F401xC) || defined(STM32F401xE)
+#if defined(STM32F401xC)
 #if OW_SYSCLK_MHZ != 84
 #error "F4/STM32F401 family-macro selection must default to an 84 MHz system clock"
 #endif
