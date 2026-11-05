@@ -367,6 +367,14 @@ python tests/hil/dma_capture.py --json docs/stress/capture.json
 python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results.json \
                                  --sr-dir docs/stress/platforms/h503/captures \
                                  --clocks 64,250,8
+python tests/hil/dma_pressure.py --json docs/stress/platforms/f446/results.json \
+                                 --sr-dir docs/stress/platforms/f446/captures \
+                                 --clocks 180,16,8
+python tests/hil/dma_pressure.py --json docs/stress/platforms/f446/results-high.json \
+                                 --sr-dir docs/stress/platforms/f446/captures-high \
+                                 --clocks 180,16,8 --load-high
+python tests/hil/dma_capture.py --json docs/stress/platforms/f446/capture.json \
+                                --sr-dir docs/stress/platforms/f446/captures
 python tools/stress_report.py --data docs/stress/results.json --out docs/stress/index.html
 ```
 

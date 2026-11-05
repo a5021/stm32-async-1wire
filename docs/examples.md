@@ -309,10 +309,13 @@ a green result is not silently a flake. The same applies to a load channel that
 latches a transfer error: `dma_pressure_telemetry[21]` raises `load_error`, the
 cell fails, and the verdict cannot claim a load that had already stopped.
 
-Both extra benches were measured on 2026-11-04 at `bd203fb0`: the F446 from a
-clean tree, the H503 from a working tree. They predate the start-timeout status
-word and have not been re-run on the current code; the report marks the H503
-working tree next to its commit.
+The F446 was re-measured on 2026-11-05 at `f2ff4fe7` from a clean tree, with
+per-cell image hashes in `results.json` / `results-high.json`; the same run
+reproduced the split above (level 5 at 16 MHz needs 89 µs, at 8 MHz never
+passes; with the load on streams 5/6 every cell is clean at guard 1). The H503
+figures are the 2026-11-04 `bd203fb0` run from a working tree: they predate the
+corrected GPDMA suspend sequence and the PRIO model, so they are not evidence
+for the current firmware and need their own re-run.
 
 ```bash
 # a build with a load and a narrow guard
