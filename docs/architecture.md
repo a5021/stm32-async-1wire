@@ -455,7 +455,7 @@ Rules for correct RTOS use:
    Behaviour*). A build with `OW_LOW_POWER=1` is the one case where the call
    does not return straight away: the driver then idles the core in `WFE()`
    while a long stage runs, so the CPU does not spin (rule 5, and
-   [Examples](examples.md#examples — `7_low_power`). Two practical patterns:
+   [7_low_power](examples.md#low-power-mode-7_low_power)). Two practical patterns:
    - **Dedicated polling task:** loop `ds18b20_poll(); osDelay(1);` (or
      `vTaskDelay(1)`). This gives low latency without saturating the CPU; the
      750 ms conversion wait is a hardware timer, so the task yields during it.
@@ -488,7 +488,7 @@ Rules for correct RTOS use:
    a long hardware stage runs, so the CPU does not spin. That is a sleep, not
    a wait for a result — the application's code is unchanged, and the result
    is ready at the same moment either way (see
-   [Examples](examples.md#examples), `7_low_power`).
+   [7_low_power](examples.md#low-power-mode-7_low_power)).
 
 6. **Preemption mid-byte is safe.** A task may be preempted while a byte is
    being transmitted: the DMA completes the whole byte in hardware and the bus

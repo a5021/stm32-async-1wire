@@ -361,7 +361,7 @@ while (!ds18b20_detect_parasite_poll()) {
 
 Wiring guidance, from bench validation on an STM32F103 with a 2.2kΩ pull-up —
 deliberately stronger than the 4.7kΩ recommended for externally powered buses
-(see [Hardware Connections](hardware.md#hardware-connections), because on a parasite bus
+(see [Hardware Connections](hardware.md#hardware-connections)), because on a parasite bus
 the pull-up must also source the conversion current:
 
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin

@@ -17,7 +17,7 @@
 
 2. Temperature readings are infrequent
    - Cause: The ds18b20_poll() function is called slowly from the main loop. The driver operates correctly but advances through its states (e.g., the 750ms conversion wait) at a slower pace.
-   - Fix: This is often not a problem if a slow update rate is acceptable. If faster updates are needed, ensure the main loop runs frequently and avoids other blocking code. The driver never waits for a result and does not cause this slowdown; the one build that can delay a `poll()` call is the opt-in `OW_LOW_POWER=1` one, where the driver idles the core until the stage is done (see [Examples](examples.md#examples, `7_low_power`).
+   - Fix: This is often not a problem if a slow update rate is acceptable. If faster updates are needed, ensure the main loop runs frequently and avoids other blocking code. The driver never waits for a result and does not cause this slowdown; the one build that can delay a `poll()` call is the opt-in `OW_LOW_POWER=1` one, where the driver idles the core until the stage is done — see [7_low_power](examples.md#low-power-mode-7_low_power).
 
 ### Debugging Tips
 
