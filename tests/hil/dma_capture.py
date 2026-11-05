@@ -59,7 +59,13 @@ def bench_setup(argv):
     ap.add_argument("--sigrok", default=os.environ.get("SIGROK_CLI",
                     r"C:\tools\sigrok-cli\sigrok-cli.exe"))
     ap.add_argument("--keep-runs", action="store_true")
+    ap.add_argument("--gpdma-prio", type=int, default=None,
+                    help="H5 only: CCR.PRIO for the load channels (0..3)")
     args = ap.parse_args(argv)
+    if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
+        print("FAIL: --gpdma-prio must be 0..3")
+        return None, args
+    dp.GPDMA_PRIO = args.gpdma_prio
 
     if not dp.la_present(args.sigrok):
         print("SKIP: no fx2lafw logic analyzer found (SIGROK_CLI=%s)" % args.sigrok)
@@ -153,8 +159,9 @@ class Rig:
             res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_short"] = True
             return res
-        tel = dp.telemetry(self.prog) or [None] * 21
+        tel = dp.telemetry(self.prog) or [None] * 22
         start_timeout = tel[20] if len(tel) > 20 else None
+        load_error = tel[21] if len(tel) > 21 else None
         capture_mode = 1 if mode == "search" else 0
         ident, ident_why = dp.identity(tel, level, clock, capture_mode, inject_us)
         if retry and not ident:
@@ -177,6 +184,7 @@ class Rig:
             "identity": ident,
             "image_sha256": getattr(self, "image_sha256", None),
             "start_timeout": start_timeout,
+            "load_error": load_error,
             "attempts": 1,
             "first_attempt_identity": ident,
         }
@@ -188,7 +196,8 @@ class Rig:
                 "stop_timeout": tel[16],
                 "done": tel[15] == 5,
                 "completed": bool(ident and tel[13] == 1 and tel[15] == 5
-                                  and tel[16] == 0 and not start_timeout),
+                                  and tel[16] == 0 and not start_timeout
+                                  and not load_error),
             })
             raw = np.fromfile(self.raw, dtype=np.uint8)
             first_us = (dp.first_marker_us(raw, dp.RATE_HZ)
@@ -212,7 +221,8 @@ class Rig:
                            slot_us=slot_us, ignore_leading_short=True,
                            marker_bit=1 if common.MARKER else None)
             clean = bool(ident and a["clean"] and tel[3] == 0 and tel[4] == 0
-                         and tel[16] == 0 and not start_timeout)
+                         and tel[16] == 0 and not start_timeout
+                         and not load_error)
             res.update({
                 "clean": clean,
                 "stop_timeout": tel[16],
@@ -365,6 +375,7 @@ def main(argv=None):
         "dirty": dirty,
         "marker": bool(common.MARKER),
         "tooling_commit": head or None,
+        "gpdma_prio": dp.GPDMA_PRIO,
         "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
                    .replace(os.sep, "/") if args.sr_dir else ""),
         "capture_supported": supported,
@@ -380,6 +391,7 @@ def main(argv=None):
                                  "completed", "matches", "capture")}
             | {"stop_timeout": res.get("stop_timeout"),
                "start_timeout": res.get("start_timeout"),
+               "load_error": res.get("load_error"),
                "image_sha256": res.get("image_sha256"),
                "identity": res.get("identity"),
                "attempts": res.get("attempts", 1),
@@ -393,6 +405,7 @@ def main(argv=None):
             | {"capture": res.get("capture"),
                "stop_timeout": res.get("stop_timeout"),
                "start_timeout": res.get("start_timeout"),
+               "load_error": res.get("load_error"),
                "image_sha256": res.get("image_sha256"),
                "identity": res.get("identity"),
                "attempts": res.get("attempts", 1),

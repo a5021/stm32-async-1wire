@@ -133,6 +133,8 @@ def main():
         check("stop_timeout is 0 for %s/%s" % (level, clock), tel[16] == 0)
         check("start_timeout is 0 for %s/%s" % (level, clock),
               not (default_cell or {}).get("start_timeout"))
+        check("load_error is 0 for %s/%s" % (level, clock),
+              not (default_cell or {}).get("load_error"))
 
     check("the report has a row per level and clock",
           len(data["guard_min"]) == 12, "got %d" % len(data["guard_min"]))
@@ -238,6 +240,9 @@ def main():
                 check("%s l%d/%s/g%d has no start timeout" % (
                     name, cell["level"], cell["clock_mhz"], cell["guard_us"]),
                     not cell.get("start_timeout"))
+                check("%s l%d/%s/g%d has no load-channel error" % (
+                    name, cell["level"], cell["clock_mhz"], cell["guard_us"]),
+                    not cell.get("load_error"))
             if cell.get("clean"):
                 continue
             # The failing frame is the evidence a dirty cell exists for.

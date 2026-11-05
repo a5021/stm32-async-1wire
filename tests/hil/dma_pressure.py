@@ -91,6 +91,8 @@ STRESS_BENCHES = ("STM32F030x6", "STM32F446xx", "STM32H503xx")
 #: Test-only F4 stream choice: True moves the load to streams 5/6 so the feed
 #: wins the equal-priority arbitration; False keeps the historical 0/1 load.
 LOAD_HIGH = False
+#: H5 load-channel priority (CCR.PRIO). None keeps the example's default 0.
+GPDMA_PRIO = None
 #: The example's build defaults; the harness never overrides them.
 BURSTS = 100
 STRESS_WORDS = 512
@@ -515,6 +517,8 @@ def build(level, guard, clock, extra=""):
                % common.MARKER_PIN).strip()
     if LOAD_HIGH:
         ext = (ext + " -DSTRESS_LOAD_HIGH=1").strip()
+    if GPDMA_PRIO is not None:
+        ext = (ext + " -DSTRESS_GPDMA_PRIO=%d" % GPDMA_PRIO).strip()
     ext = (ext + " " if ext else "") + "-DSTRESS_LEVEL=%d -DONEWIRE_GUARD_BAND=%d" % (
         level, guard)
     if extra:
@@ -536,7 +540,7 @@ def telemetry(prog):
     Index order: frames, cndtr_late, cndtr_max, dma_error, aborted,
     ch1_starts, burst_starts, cpu_passes, search_runs, search_bad, rom_crc,
     search_count, inject_us, capture_mode, sink_count, stage, stop_timeout,
-    run magic, level/clock, inject_flags, start_timeout.
+    run magic, level/clock, inject_flags, start_timeout, load_error.
     """
     nm = shutil.which("arm-none-eabi-nm")
     if not nm or not os.path.isfile(ELF):
@@ -550,16 +554,16 @@ def telemetry(prog):
             return None
         addr = int(m.group(1), 16)
         out = subprocess.run(
-            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "84"],
+            [prog, "-c", "port=SWD", "-r32", "0x%08x" % addr, "88"],
             capture_output=True, text=True, errors="replace").stdout
         words = []
         for line in out.splitlines():
             mm = re.match(r"^0x[0-9a-fA-F]+ : (.*)$", line)
             if mm:
                 words += [int(x, 16) for x in mm.group(1).split()]
-        # A 20-word image predates start_timeout; read what is there and let
-        # the caller treat the missing word as zero.
-        return (words + [None] * 21)[:21] if len(words) >= 20 else None
+        # A 20-word image predates start_timeout/load_error; read what is there
+        # and let the caller treat the missing words as zero.
+        return (words + [None] * 22)[:22] if len(words) >= 20 else None
     except (OSError, ValueError):
         return None
 
@@ -629,6 +633,9 @@ class Runner:
         start_timeout = (tel[20] if tel is not None and len(tel) > 20
                          and tel[20] is not None else 0)
         res["start_timeout"] = start_timeout
+        load_error = (tel[21] if tel is not None and len(tel) > 21
+                      and tel[21] is not None else 0)
+        res["load_error"] = load_error
         ident, ident_why = identity(tel, level, clock, 0, 0)
         res["identity"] = ident
         if not ident:
@@ -638,9 +645,12 @@ class Runner:
             res["clean"] = False
         else:
             res["clean"] = bool(res["clean"] and tel[3] == 0 and tel[4] == 0
-                                and tel[16] == 0 and not start_timeout)
+                                and tel[16] == 0 and not start_timeout
+                                and not load_error)
             if start_timeout:
                 res["first"] = "start timeout"
+            elif load_error:
+                res["first"] = "load channel error"
         if retry and not res["clean"]:
             # A flash/reset or capture-start glitch can spoil one run without
             # saying anything about the guard. Retry the cells whose premise is
@@ -734,14 +744,22 @@ def main(argv=None):
     ap.add_argument("--load-high", action="store_true",
                     help="F4 only: move the load to DMA2 streams 5/6 instead of "
                     "0/1, so the feed wins equal-priority arbitration")
+    ap.add_argument("--gpdma-prio", type=int, default=None,
+                    help="H5 only: CCR.PRIO for the load channels (0..3). The "
+                         "default 0 is the equal-priority experiment; 3 puts "
+                         "the load in the fixed high-priority class")
     args = ap.parse_args(argv)
+    if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
+        print("FAIL: --gpdma-prio must be 0..3")
+        return 1
     # Identity of the tree that builds the images, sampled before the run
     # writes the captures and the JSON: output files must not make the source
     # look modified. The image hash below pins each binary regardless.
     head = common._git("rev-parse", "--short", "HEAD")
     dirty = common.source_dirty()
-    global LOAD_HIGH
+    global LOAD_HIGH, GPDMA_PRIO
     LOAD_HIGH = args.load_high
+    GPDMA_PRIO = args.gpdma_prio
 
     guards = parse_list(args.guards, int) or GUARDS
     if list(guards) != sorted(guards) or guards[0] < 1:
@@ -859,6 +877,7 @@ def main(argv=None):
                 "identity": res.get("identity"),
                 "image_sha256": res.get("image_sha256"),
                 "start_timeout": res.get("start_timeout"),
+                "load_error": res.get("load_error"),
                 "attempts": res.get("attempts", 1),
                 "first_attempt_clean": res.get("first_attempt_clean"),
                 "first_attempt": res.get("first_attempt"),
@@ -872,6 +891,8 @@ def main(argv=None):
             "example": APP,
             "marker": bool(common.MARKER),
             "tooling_commit": commit,
+            "load_high": bool(LOAD_HIGH),
+            "gpdma_prio": GPDMA_PRIO,
             "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
                        .replace(os.sep, "/") if args.sr_dir else ""),
             "pattern": pattern.hex().upper(),
