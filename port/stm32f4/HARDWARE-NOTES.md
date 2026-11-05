@@ -293,7 +293,7 @@ The F401 needs no port-level changes — only the build/case layer: `STM32F401xC
 CMSIS device + startup (`stm32f401xc.h` / `startup_stm32f401xc.s`), the
 `STM32F401CC_FLASH.ld` linker script (256KB flash / 64KB SRAM; F401 has no
 CCM), an 84MHz clock-config branch in `app.c`, and a library clock default of
-84MHz for the `STM32F401xC` / `STM32F401xE` device macros. The console UART paths
+84MHz for the `STM32F401xC` device macro. The console UART paths
 in `app.c` derive PCLK1/PCLK2 from the active prescalers, so 84MHz gets the
 correct 42MHz baud clocks. `SYSCLK_MHZ=16` (raw HSI) is the no-crystal fallback.
 
@@ -309,8 +309,7 @@ The divider is now derived instead of encoded. Aiming the PLL input at exactly 1
 gives `PLLM = OW_HSE_MHZ` and `PLLN = 2 × SYSCLK`, so 8MHz still yields M=8/N=336
 at 168MHz and M=8/N=168 at 84MHz — the F407 numbers this file validated, unchanged
 — while 25MHz reaches the F401's cap with M=25/N=168. `HSE_MHZ=N` sets it;
-`chips/f401xc.mk` declares 25 for the Black Pill and `chips/f401xe.mk` 8, and the
-header default is 8.
+`chips/f401xc.mk` declares 25 for the Black Pill, and the header default is 8.
 
 Two consequences worth keeping in mind:
 

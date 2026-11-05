@@ -763,7 +763,7 @@ point of how the project is laid out:
 
   | Variable | Meaning |
   |---|---|
-  | `CHIP_DEV_DEF` | CMSIS device macro (`-DSTM32F401xE`) |
+  | `CHIP_DEV_DEF` | CMSIS device macro (`-DSTM32F401xC`) |
   | `CHIP_DEVICE_HDR` | device header fetched by `make download-deps` |
   | `CHIP_STARTUP` | startup assembly fetched by `make download-deps` |
   | `CHIP_LINKER` | linker script — the memory map is the part's own |

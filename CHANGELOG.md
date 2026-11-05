@@ -122,6 +122,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-matching cell once, so a single flash/reset flake is not reported as a
   load failure. A real deterministic failure still goes red on the retry.
 
+### Removed
+
+- **STM32F401xE support (never bench-validated).** The xE part file, its
+  512 KB/128 KB linker script and its J-Flash/Ozone projects are gone, and
+  `STM32F401xE`/`f401xe` are no longer accepted by the Make/CMake dispatch or
+  `ow_board.h`. The STM32F401CC keeps the same 84 MHz cap and DMA topology in
+  256 KB/64 KB, and is bench-validated; the F4 backend, routing and console
+  path are unchanged.
+
 ## [3.0.1] - 2026-11-04
 
 3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed

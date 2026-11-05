@@ -69,9 +69,6 @@ make OW_MCU=STM32F407xx APP=4_scan_mode
 
 # STM32F401CC target (F401 Black Pill, 84MHz HSE+PLL default):
 make OW_MCU=STM32F401xC APP=4_scan_mode
-
-# STM32F401xE target (512KB flash / 128KB RAM, same 84MHz default):
-make OW_MCU=STM32F401xE APP=4_scan_mode
 # ... or on the raw internal RC (no HSE crystal needed):
 make OW_MCU=STM32F401xC SYSCLK_MHZ=16 APP=4_scan_mode
 

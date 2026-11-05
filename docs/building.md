@@ -127,7 +127,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/h5/h7`, where the F4 one covers `f401xc`, `f401xe` and `f446xx`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/h5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
@@ -717,8 +717,8 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
 -   **MCU Flags:** `STM32F030x6` (Cortex-M0) with `OW_MCU=STM32F030x6`;
     `STM32F103xB` (Cortex-M3) by default; `STM32F303xC` (Cortex-M4) with
     `OW_MCU=STM32F303xC`; `STM32F407xx` (Cortex-M4) with `OW_MCU=STM32F407xx`,
-    `STM32F401xC` with `OW_MCU=STM32F401xC`, `STM32F401xE` with
-    `OW_MCU=STM32F401xE` or `STM32F446xx` with `OW_MCU=STM32F446xx`;
+    `STM32F401xC` with `OW_MCU=STM32F401xC` or `STM32F446xx` with
+    `OW_MCU=STM32F446xx`;
     `STM32G031xx` (Cortex-M0+) with `OW_MCU=STM32G031xx`;
     `STM32G474xx` (Cortex-M4) with `OW_MCU=STM32G474xx`;
     `STM32L476xx` (Cortex-M4) with `OW_MCU=STM32L476xx`;
@@ -732,9 +732,7 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `make OW_MCU=STM32F407xx` for the STM32F4
     backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
     `make OW_MCU=STM32F401xC` for the F401CC variant of the same backend
-    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`) and
-    `make OW_MCU=STM32F401xE` for the 512KB/128KB xE parts
-    (`port/stm32f4/STM32F401RE_FLASH.ld`, same 84MHz default), and
+    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`), and
     `make OW_MCU=STM32F446xx` for the STM32F446
     (180MHz default clock with the over-drive sequence,
     `port/stm32f4/STM32F446RE_FLASH.ld`),
@@ -890,8 +888,7 @@ from any backend directory; the project resolves its SVD and ELF paths
 relative to its own location. The F3 directory holds
 `project-f303vc.jdebug` for the F303VC; the F4 directory holds one project per
 part — `project.jdebug` for the F407VGT6 default, `project-f401cc.jdebug` for
-the F401CC, `project-f401re.jdebug` for the xE parts and
-`project-f446re.jdebug` for the F446, since each part has its own device name
+the F401CC and `project-f446re.jdebug` for the F446, since each part has its own device name
 and SVD.
 
 **J-Link:** Connect a SEGGER J-Link debugger via SWD.  

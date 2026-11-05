@@ -77,7 +77,7 @@ elseif(OW_MCU STREQUAL "STM32F303xC" OR OW_MCU STREQUAL "STM32F3")
     set(OW_SYSTEM_SRC  system_stm32f3xx.c)
     set(OW_DEVICE_REPO https://github.com/STMicroelectronics/cmsis-device-f3.git)
 elseif(OW_MCU STREQUAL "STM32F407xx" OR OW_MCU STREQUAL "STM32F401xC" OR
-       OW_MCU STREQUAL "STM32F401xE" OR OW_MCU STREQUAL "STM32F446xx" OR
+       OW_MCU STREQUAL "STM32F446xx" OR
        OW_MCU STREQUAL "STM32F4")
     set(OW_FAMILY      f4)
     set(OW_CPU         cortex-m4)
@@ -124,7 +124,7 @@ else()
     message(FATAL_ERROR
         "cmake/ow_flags.cmake: unsupported OW_MCU '${OW_MCU}'. Pass a device "
         "macro (STM32F030x6, STM32F103xB, STM32F303xC, STM32F407xx, "
-        "STM32F401xC, STM32F401xE, STM32F446xx, STM32G031xx, STM32G474xx, "
+        "STM32F401xC, STM32F446xx, STM32G031xx, STM32G474xx, "
         "STM32L476xx, STM32H503xx, STM32H743xx) or a family macro "
         "(STM32F0/F1/F3/F4/G0/G4/L4/H5/H7).")
 endif()

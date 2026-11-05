@@ -46,7 +46,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # Define the C source files, assembly source file, linker script, and preprocessor definitions
 # OW_MCU selects one exact STMicroelectronics device macro and is the primary
 # selector: f0 STM32F030x6, f1 STM32F103xB, f3 STM32F303xC, f4 STM32F407xx /
-# STM32F401xC / STM32F401xE / STM32F446xx, g0 STM32G031xx, g4 STM32G474xx,
+# STM32F401xC / STM32F446xx, g0 STM32G031xx, g4 STM32G474xx,
 # l4 STM32L476xx, h5 STM32H503xx, h7 STM32H743xx.
 #   make OW_MCU=STM32F030x6
 #   make OW_MCU=STM32L476xx APP=1_basic SYSCLK_MHZ=16
@@ -78,7 +78,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # compatibility, but when OW_MCU is set they must either be unset or agree
 # with it. Board-level defaults stay in the selected chips/<part>.mk for now.
 OW_MCU ?=
-OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F401xE STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx
+OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx
 OW_MCU_TARGET_STM32F030x6 = f0
 OW_MCU_CHIP_STM32F030x6 = f030x6
 OW_MCU_TARGET_STM32F103xB = f1
@@ -89,8 +89,6 @@ OW_MCU_TARGET_STM32F407xx = f4
 OW_MCU_CHIP_STM32F407xx = f407xx
 OW_MCU_TARGET_STM32F401xC = f4
 OW_MCU_CHIP_STM32F401xC = f401xc
-OW_MCU_TARGET_STM32F401xE = f4
-OW_MCU_CHIP_STM32F401xE = f401xe
 OW_MCU_TARGET_STM32F446xx = f4
 OW_MCU_CHIP_STM32F446xx = f446xx
 OW_MCU_TARGET_STM32G031xx = g0
@@ -614,13 +612,11 @@ CMSIS_DOWNLOADS_F4 = \
   stm32f4xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f4xx.h \
   stm32f407xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f407xx.h \
   stm32f401xc.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xc.h \
-  stm32f401xe.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f401xe.h \
   stm32f446xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/stm32f446xx.h \
   system_stm32f4xx.h|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Include/system_stm32f4xx.h \
   system_stm32f4xx.c|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/system_stm32f4xx.c \
   startup_stm32f407xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f407xx.s \
   startup_stm32f401xc.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xc.s \
-  startup_stm32f401xe.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f401xe.s \
   startup_stm32f446xx.s|$(CMSIS_DEVICE_DIR)|$(F4_URL)/Source/Templates/gcc/startup_stm32f446xx.s
 # cmsis_device_g0 headers and sources (Apache 2.0)
 CMSIS_DOWNLOADS_G0 = \
@@ -1592,7 +1588,7 @@ $(TEST_AUTO_EXE): tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c $(TEST_H
 # (180 MHz is a different PLL branch from 168, not just a different number).
 # f407xx is left out on purpose: 168 MHz is the family-wide value that
 # test_sysclk_fallback_f4.o already covers with the plain STM32F4 macro.
-F4_PART_CLOCK_CHECKS = f401xc f401xe f446xx
+F4_PART_CLOCK_CHECKS = f401xc f446xx
 F4_PART_CLOCK_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_fallback_$(c).o)
 F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sysclk_nodefault_$(c).o)
 
@@ -1948,12 +1944,12 @@ help:
 	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431|9_multi - example application to build"
 	@echo "  OW_MCU=<mcu>                     - primary selector: one ST device macro selects"
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
-	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC, STM32F401xE,"
+	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC,"
 	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx, STM32H503xx, STM32H743xx)"
 	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|l4|h5|h7 - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
-	@echo "                                    f401xc, f401xe, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"
+	@echo "                                    f401xc, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
 	@echo "                                    default (per-family defaults are 48/72/72/168/64/170/64/240"
 	@echo "                                    for f0/f1/f3/f4/g0/g4/h5/h7; F401=84, F446=180; 8/16 raw RC)"

@@ -41,15 +41,12 @@
 │   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
-│   │   ├── STM32F401RE_FLASH.ld    # Linker script, STM32F401xE (512KB flash / 128KB RAM)
 │   │   ├── STM32F446RE_FLASH.ld    # Linker script, STM32F446xE (512KB flash / 128KB RAM, no CCM)
 │   │   ├── stm32f407vgt6.jflash    # J-Flash project file
 │   │   ├── stm32f401cc.jflash      # J-Flash project file (STM32F401CC)
-│   │   ├── stm32f401re.jflash      # J-Flash project file (STM32F401xE)
 │   │   ├── stm32f446re.jflash      # J-Flash project file (STM32F446xE)
 │   │   ├── project.jdebug          # SEGGER Ozone project (STM32F407VGT6, SWD)
 │   │   ├── project-f401cc.jdebug   # SEGGER Ozone project (STM32F401CC, SWD)
-│   │   ├── project-f401re.jdebug   # SEGGER Ozone project (STM32F401xE, SWD)
 │   │   ├── project-f446re.jdebug   # SEGGER Ozone project (STM32F446xE, SWD)
 │   │   └── HARDWARE-NOTES.md  # F4-specific DMA/timing notes
 │   ├── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10
@@ -67,7 +64,6 @@
 │   ├── f407xx.mk           #   (selected by OW_MCU=<device macro>; the legacy
 │   ├── f303xc.mk           #   OW_TARGET/OW_CHIP pair selects them too)
 │   ├── f401xc.mk           # 256KB flash / 64KB RAM
-│   ├── f401xe.mk           # 512KB flash / 128KB RAM
 │   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
 │   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
 │   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)

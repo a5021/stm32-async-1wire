@@ -99,7 +99,7 @@ The F4-specific DMA topology and timing choices are documented in
 
 ### STM32F401CC (F401 Black Pill)
 
-The **same `src/ow_mcu.h` F4 section** drives the 84 MHz-capped STM32F401 family: TIM1,
+The **same `src/ow_mcu.h` F4 section** drives the 84 MHz-capped STM32F401CC: TIM1,
 the DMA2 dual-stream topology and the `CHSEL=6` request map are identical to
 the F407 (RM0368 §9.3.3 Table 29 via
 [port/stm32f4/HARDWARE-NOTES.md](../port/stm32f4/HARDWARE-NOTES.md)), so the
@@ -108,6 +108,9 @@ port layer is chip-generic. The chip-specific parts (CMSIS device header
 script, the `app.c` 84MHz HSE+PLL clock-config branch, and the library's 84MHz
 clock default) are selected with `OW_MCU=STM32F401xC` — all of it in
 `chips/f401xc.mk`.
+
+Bench-validated on a WeAct F401 Black Pill at the 84 MHz default (25 MHz
+crystal, HSE+PLL); `SYSCLK_MHZ=16` remains the no-crystal raw-HSI fallback.
 
 **The crystal is the one thing the part cannot decide.** This board carries a
 **25 MHz** crystal, not the 8 MHz the F407DISCOVERY does, and the F4 PLL divides
@@ -124,16 +127,6 @@ Expected wiring matches the F407: bus on **PA10** (TIM1 CH3/CH4, DMA2 streams
 2/4), parasite mode on the same 2.2 kΩ pull-up, and the console on **PB6** —
 not PA9, because the F4 UART path is pinned to PB6 for the F4DISCOVERY, which
 carries no signal on the default PA9 USART1 pad.
-
-The `xE` parts (F401CD/RD/VD/CE/RE/VE, 512KB flash / 128KB RAM) are the same
-core with twice the memory, so they share everything above and differ only in
-the memory map: `OW_MCU=STM32F401xE` selects `chips/f401xe.mk` with
-`STM32F401RE_FLASH.ld` (512K/128K) and the `stm32f401xe.h` /
-`startup_stm32f401xe.s` device layer. Like the xC variant it is unproven on
-hardware — no F401xE part was available. Note that the CMSIS `STM32F401xE`
-macro was already honoured by `onewire.h` before it had a linker script to go
-with it, so a hand-rolled `-DSTM32F401xE` used to link against the xC script's
-256K/64K; `make test-chips` now checks that every part's script exists.
 
 ### STM32F446RE (WeAct F446RET6)
 
