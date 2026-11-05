@@ -284,15 +284,21 @@ the actionable point is to keep heavy continuous DMA off stream 0/1 — streams
 wires PA11 to D1, so its pressure and capture matrices use the same
 marker-bracketed analysis as the H503.
 
-On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
-measured floor is guard 1 except level 1 at 8 MHz (guard 2), and the earlier
-level 0/4 outliers disappear once the D1 marker brackets the frames. The GPDMA
-negative control suspends the channel (`CCR.SUSP`) and waits for the hardware
-acknowledgement in `CSR.SUSPF`; taking a live channel down uses that sequence
-followed by `CCR.RESET`, because clearing `EN` alone does not drop a pending
-GPDMA request. Those H503 numbers predate that fix: the suspend was checked on
-the request bit and the channel numbers were treated as an arbitration rank,
-which GPDMA does not do. They need a re-run with the current firmware.
+On the H503, re-measured on 2026-11-05 at `84f32003` from a clean tree, every
+level is clean at the 5 µs default at 64, 250 and 8 MHz, and the measured floor
+is guard 1 in every cell; the earlier level 0/4 outliers disappear once the D1
+marker brackets the frames. The GPDMA negative control suspends the channel
+(`CCR.SUSP`) and waits for the hardware acknowledgement in `CSR.SUSPF`; taking
+a live channel down adds `IDLEF` and `CCR.RESET`, because clearing `EN` alone
+does not drop a pending request. That corrected sequence is what the current
+data measures.
+
+The Search ROM pass under the same loads matched the baseline in 33 of 36
+cells. At 8 MHz levels 3 and 4 lost the bus entirely (count 0, or one device at
+level 3/guard 1) on both attempts; the feed matrix is clean in those cells, so
+this is capture-path margin at 8 MHz, not a feed deadline miss. The failing
+searches are kept under `platforms/h503/captures/search/` and the report names
+them.
 
 The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
 F030 PA2). `STRESS_MARKER=1` makes
@@ -313,9 +319,8 @@ The F446 was re-measured on 2026-11-05 at `f2ff4fe7` from a clean tree, with
 per-cell image hashes in `results.json` / `results-high.json`; the same run
 reproduced the split above (level 5 at 16 MHz needs 89 µs, at 8 MHz never
 passes; with the load on streams 5/6 every cell is clean at guard 1). The H503
-figures are the 2026-11-04 `bd203fb0` run from a working tree: they predate the
-corrected GPDMA suspend sequence and the PRIO model, so they are not evidence
-for the current firmware and need their own re-run.
+was re-measured the same day at `84f32003`; both platform runs are schema 2
+with a per-cell image hash.
 
 ```bash
 # a build with a load and a narrow guard

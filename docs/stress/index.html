@@ -300,6 +300,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l3_8mhz_g5.sr&amp;t0=566457.250&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l4_8mhz_g5.sr&amp;t0=559111.000&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>5</td><td>8 MHz</td><td>never clean</td><td><strong>not clean</strong></td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/fail/l5_8mhz_g100.sr&amp;t0=562806.750&amp;t1=574430.750&amp;speed=standard" title="fail/l5_8mhz_g100.sr">failing frame</a></td></tr></tbody></table>
+<p class="note">Search ROM under load matched the baseline in all 12 cells.</p>
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.
 The capture links open one representative frame per cell.</p>
@@ -308,29 +309,30 @@ The capture links open one representative frame per cell.</p>
 
 <section id="platform-h503">
 <h2>STM32H5 (STM32H503xx)</h2>
-<p class="meta">Measured 2026-11-04 at commit <code>bd203fb0</code> (working tree) on <code>STM32H503xx</code>.
-Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
+<p class="meta">Measured 2026-11-05 at commit <code>84f32003</code> on <code>STM32H503xx</code>.
+Same rig, same loader, marker-bracketed frames and run-identity checks. Each cell carries its image SHA-256.</p>
 <div class="verdict"><strong>Every level is clean at the 5 us default</strong>; the measured floor is shown per cell.</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
 <th>Default guard</th><th>Viewer</th></tr></thead>
-<tbody><tr><td>0</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_64mhz_g5.sr&amp;t0=682822.500&amp;speed=standard" title="l0_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>1</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_64mhz_g5.sr&amp;t0=681052.000&amp;speed=standard" title="l1_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>2</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_64mhz_g5.sr&amp;t0=652470.250&amp;speed=standard" title="l2_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>3</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_64mhz_g5.sr&amp;t0=717870.500&amp;speed=standard" title="l3_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>4</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_64mhz_g5.sr&amp;t0=755017.750&amp;speed=standard" title="l4_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>5</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_64mhz_g5.sr&amp;t0=731787.500&amp;speed=standard" title="l5_64mhz_g5.sr">frame</a></td></tr>
-<tr><td>0</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_250mhz_g5.sr&amp;t0=711109.500&amp;speed=standard" title="l0_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>1</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_250mhz_g5.sr&amp;t0=717271.750&amp;speed=standard" title="l1_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>2</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_250mhz_g5.sr&amp;t0=684637.000&amp;speed=standard" title="l2_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>3</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_250mhz_g5.sr&amp;t0=676221.500&amp;speed=standard" title="l3_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>4</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_250mhz_g5.sr&amp;t0=677484.250&amp;speed=standard" title="l4_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>5</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_250mhz_g5.sr&amp;t0=680258.000&amp;speed=standard" title="l5_250mhz_g5.sr">frame</a></td></tr>
-<tr><td>0</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_8mhz_g5.sr&amp;t0=683676.250&amp;speed=standard" title="l0_8mhz_g5.sr">frame</a></td></tr>
-<tr><td>1</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_8mhz_g5.sr&amp;t0=687223.750&amp;speed=standard" title="l1_8mhz_g5.sr">frame</a></td></tr>
-<tr><td>2</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_8mhz_g5.sr&amp;t0=695877.250&amp;speed=standard" title="l2_8mhz_g5.sr">frame</a></td></tr>
-<tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_8mhz_g5.sr&amp;t0=678553.750&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
-<tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_8mhz_g5.sr&amp;t0=683713.750&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
-<tr><td>5</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_8mhz_g5.sr&amp;t0=683340.750&amp;speed=standard" title="l5_8mhz_g5.sr">frame</a></td></tr></tbody></table>
+<tbody><tr><td>0</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_64mhz_g5.sr&amp;t0=687988.000&amp;speed=standard" title="l0_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_64mhz_g5.sr&amp;t0=680744.000&amp;speed=standard" title="l1_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_64mhz_g5.sr&amp;t0=677454.250&amp;speed=standard" title="l2_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_64mhz_g5.sr&amp;t0=676972.000&amp;speed=standard" title="l3_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_64mhz_g5.sr&amp;t0=680419.500&amp;speed=standard" title="l4_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>64 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_64mhz_g5.sr&amp;t0=686146.750&amp;speed=standard" title="l5_64mhz_g5.sr">frame</a></td></tr>
+<tr><td>0</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_250mhz_g5.sr&amp;t0=682254.250&amp;speed=standard" title="l0_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_250mhz_g5.sr&amp;t0=684661.000&amp;speed=standard" title="l1_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_250mhz_g5.sr&amp;t0=674467.500&amp;speed=standard" title="l2_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_250mhz_g5.sr&amp;t0=684974.750&amp;speed=standard" title="l3_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_250mhz_g5.sr&amp;t0=685453.000&amp;speed=standard" title="l4_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>250 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_250mhz_g5.sr&amp;t0=679285.500&amp;speed=standard" title="l5_250mhz_g5.sr">frame</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l0_8mhz_g5.sr&amp;t0=682923.250&amp;speed=standard" title="l0_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l1_8mhz_g5.sr&amp;t0=680391.750&amp;speed=standard" title="l1_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l2_8mhz_g5.sr&amp;t0=682011.250&amp;speed=standard" title="l2_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_8mhz_g5.sr&amp;t0=683006.750&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_8mhz_g5.sr&amp;t0=684864.500&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_8mhz_g5.sr&amp;t0=682723.000&amp;speed=standard" title="l5_8mhz_g5.sr">frame</a></td></tr></tbody></table>
+<p class="note">Search ROM under load lost the bus in 3 of 36 cells (l3/8 MHz/g5, l4/8 MHz/g5, l3/8 MHz/g1); the capture JSON keeps both attempts.</p>
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.
 The capture links open one representative frame per cell.</p>

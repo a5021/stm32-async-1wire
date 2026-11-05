@@ -34,11 +34,12 @@ PLATFORMS = os.path.join(REPO, "docs", "stress", "platforms")
 
 
 def load_platforms():
-    """The extra benches, plus their optional high-placement runs."""
+    """The extra benches, their optional high-placement runs, and captures."""
     platforms = []
     priority = []
+    captures = {}
     if not os.path.isdir(PLATFORMS):
-        return platforms, priority
+        return platforms, priority, captures
     for name in sorted(os.listdir(PLATFORMS)):
         base = os.path.join(PLATFORMS, name)
         path = os.path.join(base, "results.json")
@@ -46,11 +47,15 @@ def load_platforms():
             continue
         with open(path, encoding="utf-8") as fh:
             platforms.append((name, json.load(fh)))
+        cap = os.path.join(base, "capture.json")
+        if os.path.isfile(cap):
+            with open(cap, encoding="utf-8") as fh:
+                captures[name] = json.load(fh)
         high = os.path.join(base, "results-high.json")
         if os.path.isfile(high):
             with open(high, encoding="utf-8") as fh:
                 priority.append((name, "high", json.load(fh)))
-    return platforms, priority
+    return platforms, priority, captures
 
 failures = []
 
@@ -79,8 +84,9 @@ def main():
 
     with open(HTML, encoding="utf-8") as fh:
         actual = fh.read()
-    platforms, priority = load_platforms()
-    expected = stress_report.build_report(data, capture, platforms, priority)
+    platforms, priority, platform_captures = load_platforms()
+    expected = stress_report.build_report(data, capture, platforms, priority,
+                                          platform_captures)
     check("index.html is regenerated from results.json + capture.json",
           actual == expected,
           "run python tools/stress_report.py" if actual != expected else "")
@@ -174,7 +180,7 @@ def main():
             check("inject capture %s is linked" % target,
                   ("./../stress/captures/" + target) in actual)
 
-    platforms, priority = load_platforms()
+    platforms, priority, platform_captures = load_platforms()
     linked = set()
     for name, pdata in platforms:
         # One representative failing frame per level; a level that already has a
@@ -261,6 +267,21 @@ def main():
                 continue
             check("%s/%s is linked" % (name, fail),
                   ("./../stress/platforms/%s/captures/%s" % (name, fail)) in actual)
+
+    for name, pdata in platforms:
+        cap = platform_captures.get(name)
+        if not cap:
+            continue
+        ccells = cap.get("capture_cells") or []
+        check("%s capture cells record a verdict" % name,
+              bool(ccells) and all("matches" in c for c in ccells))
+        bad = [c for c in ccells if not c.get("matches")]
+        if bad:
+            check("%s capture failures are named in the report" % name,
+                  ("lost the bus in %d of %d cells"
+                   % (len(bad), len(ccells))) in actual)
+            check("%s capture failures keep both attempts" % name,
+                  all(c.get("attempts", 1) >= 2 for c in bad))
 
     for label, pdata in [("primary", data)] + platforms:
         if pdata.get("schema", 1) < 2:
