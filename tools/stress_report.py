@@ -309,9 +309,8 @@ def platform_section(name, data):
                links))
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
-    image = next((c.get("image_sha256") for c in data.get("cells") or []
-                  if c.get("image_sha256")), None)
-    image_note = (", image <code>%s</code>" % e(image[:12])) if image else ""
+    has_hashes = any(c.get("image_sha256") for c in data.get("cells") or [])
+    image_note = ", per-cell image hashes in the JSON" if has_hashes else ""
     generated = data.get("generated") or "unknown"
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
@@ -632,9 +631,8 @@ def build_report(data, capture=None, platforms=None, priority=None):
 
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
-    image = next((c.get("image_sha256") for c in data.get("cells") or []
-                  if c.get("image_sha256")), None)
-    image_note = (", image <code>%s</code>" % e(image[:12])) if image else ""
+    has_hashes = any(c.get("image_sha256") for c in data.get("cells") or [])
+    image_note = ", per-cell image hashes in the JSON" if has_hashes else ""
     generated = data.get("generated") or "unknown"
     bench = data.get("bench") or "unknown"
     mcu = data.get("mcu") or bench

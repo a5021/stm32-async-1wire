@@ -116,7 +116,8 @@ class Rig:
         self.raw = os.path.join(common.REPO, "bench_logs", "hil",
                                 "dma_pressure", "_capture.bin")
 
-    def run(self, mode, level, guard, clock, inject_us=0, retry=True):
+    def run(self, mode, level, guard, clock, inject_us=0, retry=True,
+            retry_hiccup=True):
         print("  %s level=%d guard=%d clock=%s inject=%d" % (
             mode, level, guard, clock if clock else "default", inject_us),
             flush=True)
@@ -129,7 +130,20 @@ class Rig:
         self.image_sha256 = common.sha256(dp.HEX)
         dp.flash_halt(self.prog)
         seconds = 1.2 if mode == "search" else dp.run_seconds(guard)
-        samples = dp.capture(self.sigrok, self.prog, self.raw, seconds)
+        try:
+            samples = dp.capture(self.sigrok, self.prog, self.raw, seconds)
+        except RuntimeError as exc:
+            if not retry_hiccup or "No devices found" not in str(exc):
+                raise
+            print("  retry %s level=%d guard=%d clock=%s inject=%d "
+                  "(analyzer not found)" % (mode, level, guard,
+                                            clock if clock else "default",
+                                            inject_us), flush=True)
+            res = self.run(mode, level, guard, clock, inject_us, retry=retry,
+                           retry_hiccup=False)
+            res["attempts"] = res.get("attempts", 1) + 1
+            res["first_attempt_short"] = True
+            return res
         if retry and dp.capture_short(samples, seconds):
             print("  retry %s level=%d guard=%d clock=%s inject=%d "
                   "(short capture: %d samples)" % (mode, level, guard,
@@ -310,7 +324,7 @@ def main(argv=None):
     mcu, prog, sigrok, sr_dir = setup
     # The source identity, sampled before the run writes any capture or JSON.
     head = common._git("rev-parse", "--short", "HEAD")
-    dirty = bool(common._git("status", "--porcelain"))
+    dirty = common.source_dirty()
     stress_supported = mcu in dp.STRESS_BENCHES
     if mcu == "STM32F030x6":
         clocks = [48, 8]
@@ -351,8 +365,8 @@ def main(argv=None):
         "dirty": dirty,
         "marker": bool(common.MARKER),
         "tooling_commit": head or None,
-        "sr_dir": os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
-                  if args.sr_dir else "",
+        "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
+                   .replace(os.sep, "/") if args.sr_dir else ""),
         "capture_supported": supported,
         "capture_baseline": {
             str(clock if clock is not None else "def"): {
