@@ -20,7 +20,7 @@
 # so they are the first to break on innocent growth. Both text (flash proxy;
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
-#   0_dma_pressure 2424    1480   (diagnostic; 1024 B of it is the stress array)
+#   0_dma_pressure 2456    1484   (diagnostic; 1024 B of it is the stress array)
 #   6_statistics   6264    1784
 #   8_ds2431       6156    768
 #   9_multi        11756   1296
@@ -36,6 +36,8 @@
 # is 0, which is the default used by this budget).
 # 2026-11-05: 0_dma_pressure text 2392->2424, bss 1476->1480 for the stress
 # start-timeout status and its telemetry word (the extra word is 4 B).
+# 2026-11-05: text 2424->2456, bss 1480->1484 for the load-channel error
+# telemetry word and the checks around it.
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
 #   f0             329                 652              432
 #   f4             434                 756              536
@@ -221,7 +223,7 @@ check STM32G474xx 329 652 432
 check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
 
-check_app STM32F030x6 0_dma_pressure 2424 1480
+check_app STM32F030x6 0_dma_pressure 2456 1484
 check_app STM32F030x6 6_statistics 6264 1784
 check_app STM32F030x6 8_ds2431 6156 768
 check_app STM32F030x6 9_multi 11752 1296
