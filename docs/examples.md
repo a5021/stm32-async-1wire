@@ -262,9 +262,12 @@ measurement floor: a clean run there means a 2 µs window was enough.
 On F0 the load channels are DMA1 channel 2 and channel 1; on F4 they are
 DMA2 stream 0 and stream 1 with `DIR=0b10` (memory-to-memory); on H5 they are
 GPDMA1 channel 0 and channel 1 in direct mode with a software request, where
-`CBR1.BNDT` is a source-byte count. The other families compile the example and
-run level 0 with `stress=unsupported` in the banner, so the all-family build
-matrix stays green.
+`CBR1.BNDT` is a source-byte count and at most 32767 halfwords fit. GPDMA does
+not break a tie by channel number: arbitration is by `CCR.PRIO` (PRIO 3 is a
+fixed class, PRIO 0/1/2 share a weighted round-robin), so `-DSTRESS_GPDMA_PRIO=N`
+selects the load class: 0 is the equal-priority case, 3 the priority case. The
+other families compile the example and run level 0 with `stress=unsupported` in
+the banner, so the all-family build matrix stays green.
 
 On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
 window), the same result as the F030. At 16 and 8 MHz levels 0-4 are also clean
@@ -284,8 +287,12 @@ marker-bracketed analysis as the H503.
 On the H503 every level is clean at the 5 µs default at 64, 250 and 8 MHz; the
 measured floor is guard 1 except level 1 at 8 MHz (guard 2), and the earlier
 level 0/4 outliers disappear once the D1 marker brackets the frames. The GPDMA
-negative control suspends the channel (`CCR.SUSP`) instead of clearing `EN`,
-because a pending GPDMA request is not dropped by clearing the enable bit.
+negative control suspends the channel (`CCR.SUSP`) and waits for the hardware
+acknowledgement in `CSR.SUSPF`; taking a live channel down uses that sequence
+followed by `CCR.RESET`, because clearing `EN` alone does not drop a pending
+GPDMA request. Those H503 numbers predate that fix: the suspend was checked on
+the request bit and the channel numbers were treated as an arbitration rank,
+which GPDMA does not do. They need a re-run with the current firmware.
 
 The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
 F030 PA2). `STRESS_MARKER=1` makes
@@ -298,7 +305,9 @@ timeout. A stale image, an injection that did not actually stop the channel, or
 a load channel that did not stop before being re-armed is retried once and then
 reported as an identity or start-timeout failure, not as a bus failure. Cells
 that only pass on a retry keep `attempts` and `first_attempt_*` in the JSON, so
-a green result is not silently a flake.
+a green result is not silently a flake. The same applies to a load channel that
+latches a transfer error: `dma_pressure_telemetry[21]` raises `load_error`, the
+cell fails, and the verdict cannot claim a load that had already stopped.
 
 Both extra benches were measured on 2026-11-04 at `bd203fb0`: the F446 from a
 clean tree, the H503 from a working tree. They predate the start-timeout status
