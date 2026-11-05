@@ -32,8 +32,9 @@ body:
     attributes:
       label: Scope of change
       options:
-        - Driver API change (inc/ds18b20.h)
-        - Driver internals (src/ds18b20.c)
+        - 1-Wire layer (inc/onewire.h, src/onewire.c)
+        - DS18B20 driver (inc/ds18b20.h, src/ds18b20*.c)
+        - DS2431 driver (inc/ds2431.h, src/ds2431*.c)
         - Demo application (examples/)
         - Build system / tooling
         - Documentation

@@ -2,6 +2,21 @@
 
 [Back to the README](../README.md)
 
+## Contents
+
+- ["No sensor detected" or "CRC check failed"](#no-sensor-detected-or-crc-check-failed)
+- [Temperature readings are infrequent](#temperature-readings-are-infrequent)
+- [The bus looks dead, or every timing is scaled](#the-bus-looks-dead-or-every-timing-is-scaled)
+- [STM32H5 console is garbled and everything runs at half speed](#stm32h5-console-is-garbled-and-everything-runs-at-half-speed)
+- [STM32F4 console is silent on PA9](#stm32f4-console-is-silent-on-pa9)
+- [Build fails with "no MCU selected", or selects the wrong backend](#build-fails-with-no-mcu-selected-or-selects-the-wrong-backend)
+- [Link fails with undefined references after enabling LTO](#link-fails-with-undefined-references-after-enabling-lto)
+- [An operation never completes, or the two drivers interfere](#an-operation-never-completes-or-the-two-drivers-interfere)
+- [Parasite-powered sensors read 85.0 °C or 127.9 °C, or conversions fail](#parasite-powered-sensors-read-850-c-or-1279-c-or-conversions-fail)
+- [`ds18b20_poll()` blocks for hundreds of milliseconds](#ds18b20_poll-blocks-for-hundreds-of-milliseconds)
+- [The wrong pin is used, or a peripheral conflict appears](#the-wrong-pin-is-used-or-a-peripheral-conflict-appears)
+- [Debugging Tips](#debugging-tips)
+
 ## Troubleshooting
 
 ### "No sensor detected" or "CRC check failed"
@@ -59,7 +74,7 @@
 ### STM32F4 console is silent on PA9
 
 - **Cause:** the F4 examples put USART1 TX on **PB6**, which is where the
-  F4DISCOVERY's ST-LINK VCP and the WeAct F446's CP210x answer. PA9 carries no
+  F4DISCOVERY's ST-Link VCP and the WeAct F446's CP210x answer. PA9 carries no
   console signal on those boards.
 - **Fix:** wire the USB-UART adapter to PB6 (115200 8N1), or build with
   `-DOW_UART_USART1_PA9` when your board really routes USART1 to PA9. The F4
@@ -148,10 +163,10 @@
   by `ds18b20_poll()`.
 - Inspect the GPIO: Use an oscilloscope on the data pin (PA10) to verify the 1-Wire
   waveforms. Look for:
-  - A clean ~480µs reset pulse (MCU pulls low, then releases).
-  - A presence pulse ~60-240µs after the reset pulse (sensor pulls low).
-  - Precise write slots: a short ~5µs low for a '1', a long ~60µs low
-    for a '0' (slot = 5 + 60 + 5 = 70µs).
+  - A clean ~480 µs reset pulse (MCU pulls low, then releases).
+  - A presence pulse ~60-240 µs after the reset pulse (sensor pulls low).
+  - Precise write slots: a short ~5 µs low for a '1', a long ~60 µs low
+    for a '0' (slot = 5 + 60 + 5 = 70 µs).
 - Inspect Captured Data: after a reset, call `onewire_reset_captured()` and
   require 2 before trusting `ctx.capture[1]`; with no device the second slot
   is stale and may look like a valid presence. `ctx.capture[0]` is the reset

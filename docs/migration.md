@@ -60,7 +60,7 @@ Presence is no longer encoded as a zeroed second capture slot. The reset
 geometry is one hardware fact, so the function takes the number of edges the
 reset actually captured:
 
-```C
+```c
 uint8_t onewire_reset_captured(void);
 uint8_t onewire_present(const volatile uint16_t *pulses, uint8_t captured);
 ```

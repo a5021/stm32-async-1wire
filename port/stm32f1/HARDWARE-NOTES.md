@@ -6,7 +6,7 @@ comments and in the "Required Timer Capabilities" section of `README.md`;
 this file keeps the experiments.
 
 Everything below was measured on the **STM32F103CB** ("Blue Pill") reference
-bench: 8MHz crystal, 72MHz SYSCLK, 7 DS18B20 on one bus **in parasite
+bench: 8 MHz crystal, 72 MHz SYSCLK, 7 DS18B20 on one bus **in parasite
 power**, console on a CP210x at 115200. The bus is shared with a second
 DS2431 (the EEPROM driver uses the same bus).
 
@@ -101,7 +101,7 @@ Geometry and duration say the line was driven correctly; they say nothing
 about *what* was driven. `tests/hil/la_decode.py` reads the bits and rebuilds
 the frames. Run against the 2026-10-22 capture of the wait run, it produced:
 
-```
+```text
 транзакция 1: reset 481.8 мкс, presence 128.8 мкс (через 29.0)
   MATCH ROM 28 20 78 92 07 00 00 67  CRC ok
   READ SCRATCHPAD: 70 01 19 0F 7F FF 10 10 BB  CRC ok. 23.0000 C
@@ -134,7 +134,7 @@ search, which is the boot the log belongs to, so that round is not mixed in.
 **The DS2431 memory cycle.** A third capture (`make test-hil HIL_SCRIPT=ds2431`,
 also armed before the flash) decoded the EEPROM traffic of both `2D` parts:
 
-```
+```text
   MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
   READ MEMORY  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
   MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
@@ -171,7 +171,7 @@ own next value (every byte plus one). The first proof, a 30 s / 4 MHz capture
 taken while the recipe still needed `HIL_EXT=-DOW_PARASITE_POWER=1` explicitly,
 decoded:
 
-```
+```text
     MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
     READ MEMORY  TA1=00 TA2=00: DE AD BE EF 01 02 03 04
     MATCH ROM 2D F8 47 60 26 00 00 69  CRC ok
@@ -186,7 +186,7 @@ decoded:
 
 The same cycle ran on the second `2D` part. In the report:
 
-```
+```text
 DS2431 2D F8 47 60 26 00 00 69: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
 DS2431 2D C9 AB 5D 26 00 00 9D: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
 DS2431: 2 из них изменили ряд - копирование доказано

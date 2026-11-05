@@ -1190,7 +1190,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@
 
 # --- Library-only target ------------------------------------------------------
-# Builds just the four driver sources into a static archive, using the same
+# Builds just the five driver sources into a static archive, using the same
 # flags (CPU core, device macro, clock, includes, optimization) as the
 # firmware build. A downstream project links this archive into its own
 # firmware and supplies its own CMSIS headers, startup file, linker script
@@ -1916,7 +1916,7 @@ help:
 	@echo "  update-public-api - Rewrite tests/api/public-api.txt after a deliberate API change"
 	@echo "  test-viewer     - Run the 1-Wire visualizer selftest in headless Chromium (needs Playwright)"
 	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
-	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also per-family -f0..-h5)"
+	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  check           - Pre-push gate: formatting, cppcheck, version, HIL parsers (no toolchain)"
@@ -1941,7 +1941,7 @@ help:
 	@echo "  gccversion      - Show compiler version"
 	@echo "  help            - Show this help"
 	@echo "Variables:"
-	@echo "  APP=1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431|9_multi - example application to build"
+	@echo "  APP=0_dma_pressure|1_basic|2_device_search|3_round_robin|4_scan_mode|5_commands|6_statistics|7_low_power|8_ds2431|9_multi - example application to build"
 	@echo "  OW_MCU=<mcu>                     - primary selector: one ST device macro selects"
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
 	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC,"
@@ -1951,8 +1951,8 @@ help:
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
 	@echo "                                    f401xc, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
-	@echo "                                    default (per-family defaults are 48/72/72/168/64/170/64/240"
-	@echo "                                    for f0/f1/f3/f4/g0/g4/h5/h7; F401=84, F446=180; 8/16 raw RC)"
+	@echo "                                    default (f0 48, f1 72, f3 72, f4 168/84/180,"
+	@echo "                                    g0 64, g4 170, l4 80, h5 64, h7 240; 8/16 raw RC)"
 	@echo "  TIM1_MHZ=N                       - timer kernel clock in MHz (defaults to SYSCLK_MHZ); H7 supports 480/240 core/TIM1 on Rev V"
 	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4/H5/H7 only"
 

@@ -30,23 +30,36 @@
 
 ### Core Functions
 
-```C
+```c
 void ds18b20_init(void);
 ```
 Initialize the DS18B20 driver. Enables the peripherals the backend needs (the bus
 GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4,
-GPDMA1 on H5, DMA1 through DMAMUX1 on H7) and sets
-up the timer prescaler for 1µs resolution. System clock configuration is handled separately in the application (see `app.c`). This function does NOT start a measurement.
+GPDMA1 on H5, DMA1 through DMAMUX1 on H7) and sets up the timer prescaler for a
+1 µs resolution. System clock configuration is handled separately in the
+application (see `app.c`). This function does NOT start a measurement.
 
-```C
+```c
 void ds18b20_start_measure(void);
 ```
-Request exactly one measurement cycle (broadcast `Convert T` + scratchpad read) on the currently selected device, or on every discovered device in scan mode. The result is reported through `ds18b20_complete()`. When the cycle finishes the driver parks at IDLE and waits for the next request — it never starts a cycle on its own, so the measurement cadence, retries and idle intervals are entirely the application's decision. Ignored (no-op) while a measurement cycle, a device search, a resolution change or a command transaction owns the bus.
+Request exactly one measurement cycle (broadcast `Convert T` + scratchpad read)
+on the currently selected device, or on every discovered device in scan mode.
+The result is reported through `ds18b20_complete()`. When the cycle finishes the
+driver parks at IDLE and waits for the next request — it never starts a cycle on
+its own, so the measurement cadence, retries and idle intervals are entirely the
+application's decision. Ignored (no-op) while a measurement cycle, a device
+search, a resolution change or a command transaction owns the bus.
 
-```C
+```c
 void ds18b20_poll(void);
 ```
-The Core Driver Function: Must be called from the main loop. It checks the Timer Update Flag (UIF). If the flag is set, it means the hardware has finished the previous operation (e.g., sending a command, waiting for conversion). The function then clears the flag and advances the internal state machine to the next step. The driver's state is persistent, so this function can be called at any rate without risk of getting stuck. At IDLE it does nothing until `ds18b20_start_measure()` requests a cycle.
+The Core Driver Function: Must be called from the main loop. It checks the Timer
+Update Flag (UIF). If the flag is set, it means the hardware has finished the
+previous operation (e.g., sending a command, waiting for conversion). The
+function then clears the flag and advances the internal state machine to the next
+step. The driver's state is persistent, so this function can be called at any
+rate without risk of getting stuck. At IDLE it does nothing until
+`ds18b20_start_measure()` requests a cycle.
 
 ### 1-Wire Layer (shared)
 
@@ -54,7 +67,7 @@ The 1-Wire bus primitives and the Search ROM engine are **not** part of the
 driver — they live in the shared 1-Wire layer (`inc/onewire.h` +
 `src/onewire.c`) that `src/ds18b20.c` is built on. Full interface:
 
-```C
+```c
 void        onewire_init(void);
 uint8_t     onewire_bus_done(void);
 void        onewire_reset(volatile uint16_t *reset_pulses);
@@ -73,7 +86,12 @@ void        onewire_decode_pulses(uint8_t *dst, const volatile uint8_t *pulse,
 void        onewire_encode_byte(ow_pulse_t *out, uint8_t byte);
 static inline uint8_t onewire_bit_from_pulse(uint16_t dur);
 void        onewire_strong_pullup(uint8_t on);
+#if OW_LOW_POWER
+uint8_t     onewire_long_wait_pending(void);
+void        onewire_sleep_until_done(void);
+#endif
 uint8_t     onewire_crc8(const uint8_t *data, uint8_t len);
+uint16_t    onewire_crc16(const uint8_t *data, uint8_t len);
 void        onewire_search_start(onewire_search_sink_t sink,
                                  uint8_t max_devices, uint8_t command,
                                  uint8_t family);
@@ -128,11 +146,11 @@ Two startup checks guard the two silent mismatches between the archive and the
 application. `onewire_config_token()` reports the `OW_CONFIG_TOKEN` the
 library was compiled with — compare it with the application's own
 `OW_CONFIG_TOKEN` (it mixes `OW_PARASITE_POWER`, `OW_LOW_POWER`,
-`OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`, `OW_BUS_DRIVE` and
-`DS18B20_MAX_DEVICES`) and refuse to run on a mismatch. `onewire_clock_ok()`
+`OW_DRIVE_ACTIVE`, `OW_STATS_ENABLE`, `OW_BUS_DRIVE`, `DS18B20_MAX_DEVICES`,
+`OW_SYSCLK_MHZ` and `OW_TIM1_MHZ`) and refuse to run on a mismatch. `onewire_clock_ok()`
 compares a runtime MHz reading (e.g. `SystemCoreClock / 1000000u`) against the
-clock the port timing was built for; on 0 the firmware is clocked differently
-from the build and every 1-Wire slot is scaled.
+clock the port timing was built for; a return of 0 means the runtime clock does
+not match the build, so every 1-Wire slot is scaled.
 
 #### Timing
 
@@ -142,7 +160,7 @@ those exact durations. There is no runtime profile switching and no timing
 state — the values fold into the TIM1/DMA register arithmetic and can be
 overridden individually via `-D`.
 
-```C
+```c
 #define ONEWIRE_ONE_PULSE       5   /* µs: short low = write-1 / read pulse       */
 #define ONEWIRE_ZERO_PULSE     60   /* µs: long low = write-0                     */
 #define ONEWIRE_GUARD_BAND      5   /* µs: slot tail (external-power default)     */
@@ -151,7 +169,7 @@ void onewire_strong_pullup(uint8_t on);  /* parasite power: drive bus HIGH */
 ```
 
 On a parasite-powered bus the release margin must be wider: define
-`OW_PARASITE_POWER` as 1 (`-DOW_PARASITE_POWER=1`) to select the 100µs guard
+`OW_PARASITE_POWER` as 1 (`-DOW_PARASITE_POWER=1`) to select the 100 µs guard
 band default, or pass `-DONEWIRE_GUARD_BAND=...` explicitly. The Makefile
 presets in [Configuration → Timing](#timing-1) select whole value sets.
 
@@ -159,19 +177,31 @@ Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
 `onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
 for its own `ds18b20_search_*` / `ds18b20_alarm_search_*` wrappers.
 
+`onewire_long_wait_pending()` and `onewire_sleep_until_done()` exist only in
+`OW_LOW_POWER=1` builds. They are the bus-layer vocabulary the bundled drivers
+use to idle the core during a long hardware stage; an application normally uses
+the driver start/poll pairs and never calls them directly.
+
+The DS2413 is a placeholder: `inc/ds2413.h` defines only the family code and ROM
+size, and `src/ds2413.c` is an intentionally empty translation unit that is not
+part of the build. There is no DS2413 driver yet.
+
 ### CRC Utility
 
-```C
+```c
 uint8_t ds18b20_crc8(const uint8_t *data, uint8_t len);
 ```
 Calculates the Dallas/Maxim CRC-8 used by the driver to validate ROM codes and
 scratchpad data. Exposed publicly as a small utility (e.g., for host tools).
 It is a thin DS18B20-namespaced wrapper around the shared `onewire_crc8()`
 (see [1-Wire Layer](#1-wire-layer-shared)); both compute the same checksum.
+The shared layer also provides `onewire_crc16()` — the Maxim CRC-16/ARC
+remainder used by the DS2431 (the device transmits the inverted form; the
+caller complements it when comparing against the wire).
 
 ### Device Search
 
-```C
+```c
 void ds18b20_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 uint8_t ds18b20_search_poll(void);
 uint8_t ds18b20_search_count(void);
@@ -188,7 +218,7 @@ are reported. See `examples/3_round_robin/main.c`.
 
 ### Alarm Search
 
-```C
+```c
 void ds18b20_alarm_search_start(ds18b20_search_sink_t sink, uint8_t max_devices);
 uint8_t ds18b20_alarm_search_poll(void);
 uint8_t ds18b20_alarm_search_count(void);
@@ -205,7 +235,7 @@ the main loop until it returns 1, then read `ds18b20_alarm_search_count()`.
 
 ### Per-Device Addressing
 
-```C
+```c
 void ds18b20_select(const uint8_t *rom);
 ```
 Selects which DS18B20 device the non-blocking measurement path targets, using
@@ -242,7 +272,7 @@ device search and the resolution change: each transaction owns TIM1/DMA while
 it runs (reset → presence → write → read | timed wait) and leaves the bus idle
 when it finishes.
 
-```C
+```c
 void     ds18b20_read_rom(uint8_t *rom);
 uint8_t  ds18b20_read_rom_poll(void);
 void     ds18b20_set_alarm_thresholds(uint8_t th, uint8_t tl);
@@ -304,7 +334,7 @@ uint8_t  ds18b20_last_command_ok(void);
 
 Example — set TH/TL and persist them to the EEPROM:
 
-```C
+```c
 ds18b20_set_alarm_thresholds(0x19, 0x0F);   // +25°C / +15°C
 while (!ds18b20_set_alarm_thresholds_poll()) {
     /* keep calling from the main loop */
@@ -317,7 +347,7 @@ while (!ds18b20_copy_scratchpad_poll()) {
 
 ### Simultaneous Multi-Device Conversion
 
-```C
+```c
 void ds18b20_scan_start(void);
 uint8_t ds18b20_device_count(void);
 const uint8_t* ds18b20_device_rom(uint8_t index);
@@ -347,7 +377,7 @@ reports `DS18B20_TEMP_ERROR_NO_SENSOR` and the scan continues. See
 
 Example:
 
-```C
+```c
 ds18b20_scan_start();     // enter scan mode (once)
 ds18b20_start_measure();   // request one simultaneous-conversion round
 while (1) {
@@ -366,14 +396,14 @@ void ds18b20_complete(int16_t temp) {
 
 With VDD tied to GND the DS18B20 draws its operating current from the data
 line. The bus pull-up then has to deliver the conversion current — about
-**1.5mA per converting sensor** — for the whole conversion window (up to
-750ms at 12-bit), which a passive resistor cannot do. The driver solves this
+**1.5 mA per converting sensor** — for the whole conversion window (up to
+750 ms at 12-bit), which a passive resistor cannot do. The driver solves this
 by switching the bus pin to push-pull HIGH for every conversion and EEPROM
 hold-off window (`ds18b20_set_parasite(1)`). It releases the pin back to the
 passive pull-up only where the bus has to be free — the reset pulses and the
 scratchpad read — and deliberately keeps it engaged while parked at IDLE.
 
-```C
+```c
 ds18b20_init();
 ds18b20_detect_parasite();          // query the wiring (0xCC + Read Power Supply)
 while (!ds18b20_detect_parasite_poll()) {
@@ -383,17 +413,17 @@ while (!ds18b20_detect_parasite_poll()) {
 /* ds18b20_parasite_mode() now reflects the detected wiring */
 ```
 
-Wiring guidance, from bench validation on an STM32F103 with a 2.2kΩ pull-up —
-deliberately stronger than the 4.7kΩ recommended for externally powered buses
+Wiring guidance, from bench validation on an STM32F103 with a 2.2 kΩ pull-up —
+deliberately stronger than the 4.7 kΩ recommended for externally powered buses
 (see [Hardware Connections](hardware.md#hardware-connections)), because on a parasite bus
 the pull-up must also source the conversion current:
 
 - A handful of sensors on short wires (<30cm) converts reliably on the MCU pin
   alone: a six-device broadcast cycle completed without a single CRC error.
-- Budget ~1.5mA per simultaneously converting sensor against the pin's drive
-  capability (roughly 20-25mA source depending on the family) and the VOH droop
+- Budget ~1.5 mA per simultaneously converting sensor against the pin's drive
+  capability (roughly 20-25 mA source depending on the family) and the VOH droop
   across your pull-up
-  arrangement; keep the bus HIGH above the DS18B20's ~2.96V minimum.
+  arrangement; keep the bus HIGH above the DS18B20's ~2.96 V minimum.
 - For longer buses or larger fleets use a dedicated strong-pull-up IC, or add
   a P-MOSFET high-side switch driven by its own GPIO. The current API cannot
   drive a separate gate: `onewire_strong_pullup()` only switches the bus pin
@@ -403,7 +433,7 @@ the pull-up must also source the conversion current:
 The example applications accept a compile-time flag to run over parasite
 wiring out of the box:
 
-```sh
+```bash
 make APP=1_basic EXT="-DOW_PARASITE_POWER=1"        # all seven DS18B20 examples gate ds18b20_set_parasite(1) on it
 ```
 
@@ -414,7 +444,7 @@ and a global histogram across measurement cycles.  Enabled by defining
 `OW_STATS_ENABLE=1` at build time.  When the macro is 0, every inline
 body compiles away to nothing — zero overhead in production builds.
 
-```C
+```c
 #include "ow_stats.h"
 
 void ow_stats_init(void);
@@ -470,7 +500,7 @@ one pass over every sensor, so the period is a count of passes rather than
 of individual measurements, and it reads the same on a one-sensor bus as on
 a seven-sensor one:
 
-```C
+```c
 #include "ow_stats.h"
 
 #ifndef STATS_DUMP_SWEEPS
@@ -512,7 +542,7 @@ int main(void) {
 
 Build with the statistics module:
 
-```sh
+```bash
 make APP=6_statistics                                  # external power (OW_STATS_ENABLE auto-added)
 make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"            # parasite power
 ```
@@ -528,7 +558,7 @@ make APP=6_statistics EXT="-DOW_PARASITE_POWER=1"            # parasite power
 
 UART output format (compact, one sensor per line):
 
-```
+```text
 --- stats [100 c] ---
 28 20 78 92 07 00 00 67:5-29 n17 e0
 28 78 B8 AC 0B 00 00 2C:5-31 n17 e0
@@ -547,7 +577,7 @@ cycle count, E = total error count.
 
 ### Resolution Change
 
-```C
+```c
 void ds18b20_set_resolution(uint8_t bits);
 uint8_t ds18b20_set_resolution_poll(void);
 uint8_t ds18b20_get_resolution(void);
@@ -567,14 +597,14 @@ non-blocking and without interrupts, mirroring the device search state machine:
 - Poll `ds18b20_set_resolution_poll()` from the main loop until it returns 1,
   then call `ds18b20_start_measure()` for the next cycle. That measurement waits
   exactly as long as
-  the new resolution requires (e.g. 93.75ms at 9-bit instead of 750ms).
+  the new resolution requires (e.g. 93.75 ms at 9-bit instead of 750 ms).
 - `ds18b20_get_resolution()` returns the current resolution. It is updated by a
   successful resolution change and auto-derived from every valid scratchpad
   read (byte 4, R1/R0), so it also tracks a resolution changed externally.
 
 Example — drop to 9-bit to measure 8× faster:
 
-```C
+```c
 ds18b20_set_resolution(9);
 while (!ds18b20_set_resolution_poll()) {
     /* keep calling from the main loop; the poll never waits for a result */
@@ -585,12 +615,12 @@ while (!ds18b20_set_resolution_poll()) {
 
 ### Weak Callbacks
 
-```C
+```c
 void ds18b20_busy(unsigned action);
 ```
 Called to indicate busy/idle status — toggle an LED, for example. `action` is non-zero for busy (measurement in progress), 0 for idle.
 
-```C
+```c
 void ds18b20_complete(int16_t temp);
 ```
 Called when a measurement cycle completes — provides temperature data in tenths of degrees Celsius, or an error code (`DS18B20_TEMP_ERROR_*`).
@@ -610,7 +640,7 @@ two drivers take turns owning the bus, one operation at a time, and are never
 polled concurrently (see `examples/9_multi`). Address DS2431s with
 `ds2431_select()`.
 
-```C
+```c
 void    ds2431_init(void);
 void    ds2431_select(const uint8_t* rom);
 void    ds2431_set_parasite(uint8_t parasite);
@@ -627,7 +657,7 @@ uint8_t ds2431_last_command_ok(void);
   invalid (PF), the written data read back unchanged, and a Copy Scratchpad
   returned the device's 0xAA completion pattern.
 
-```C
+```c
 void    ds2431_read_memory(uint8_t* dst, uint16_t addr, uint8_t len);
 uint8_t ds2431_read_memory_poll(void);
 uint8_t ds2431_write_scratchpad(uint16_t addr, const uint8_t* data, uint8_t len);
@@ -682,7 +712,7 @@ logic-analyzer capture was recorded.
 
 ## Performance
 
-- Time to result (one measurement): 93.75ms @ 9-bit … ~0.76 s @ 12-bit
+- Time to result (one measurement): 93.75 ms @ 9-bit … ~0.76 s @ 12-bit
   (conversion + protocol overhead; the conversion wait follows the configured
   resolution, see `ds18b20_set_resolution()`)
 - Measurement cadence: **application-defined**. The driver measures one cycle per
@@ -718,8 +748,8 @@ once):
 
 The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4 and
 H5 latch 8-bit entries like F0. The F1, F3 and H7 backends are not part of this
-gate; F1/F3 use the 8-bit layout and H7 the 16-bit one, so their numbers track
-F0 and F4 respectively.
+gate; F1/F3 use the 8-bit layout and H7 the 16-bit one, so expect their numbers
+to land in the same range as F0 and F4 respectively.
 
 Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 
@@ -742,7 +772,7 @@ that never call it.
 A single build knob names the exact STMicroelectronics part by its standard
 device macro — the same string the CMSIS device header is named after:
 
-```sh
+```bash
 make OW_MCU=STM32F401xC APP=4_scan_mode   # Makefile
 cmake -S . -B build -DOW_MCU=STM32F401xC  # CMake (same chips/*.mk)
 ```
@@ -767,9 +797,9 @@ point of how the project is laid out:
   | `CHIP_DEVICE_HDR` | device header fetched by `make download-deps` |
   | `CHIP_STARTUP` | startup assembly fetched by `make download-deps` |
   | `CHIP_LINKER` | linker script — the memory map is the part's own |
-  | `CHIP_JFLASH` / `CHIP_JDEBUG` | J-Flash and SEGGER Ozone projects |
-  | `CHIP_SVD` | register view for debuggers |
-  | `CHIP_HSE_MHZ` | the board crystal the part file is named after (F3/F4 only), overridable via `HSE_MHZ` |
+  | `CHIP_JFLASH` / `CHIP_JDEBUG` | J-Flash (where available) and SEGGER Ozone projects |
+  | `CHIP_SVD` | register view for debuggers (optional; no upstream SVD for H503/H743) |
+  | `CHIP_HSE_MHZ` | the board crystal the part file is named after (F3/F4/G4/L4/H5/H7), overridable via `HSE_MHZ` |
   | `CHIP_SYSCLK_MHZ` | the part's default clock, overridable via `SYSCLK_MHZ` |
 
 Both build systems read the same file, so they cannot drift on the device macro,
@@ -800,7 +830,7 @@ Slot timing is fixed at **compile time** via the `ONEWIRE_*` macros in
 overridable with `-D`, so a specific board or bus length pins its values without
 any runtime state. The reset-pulse bounds are defined in `src/onewire.c`:
 
-```C
+```c
 /* inc/ow_config.h — defaults */
 #define ONEWIRE_ONE_PULSE           5     // µs (short low = write-1)
 #define ONEWIRE_ZERO_PULSE         60    // µs (long low = write-0)
@@ -814,7 +844,7 @@ any runtime state. The reset-pulse bounds are defined in `src/onewire.c`:
 
 Slot formula:
 
-```
+```text
 ARR = one_pulse + zero_pulse + guard_band
 ```
 
@@ -822,11 +852,11 @@ The Makefile presets set all four values at once (`make TIMING=SLOW`):
 
 | Preset     | `one` | `zero` | `guard` | `short≤` | Slot  |
 |------------|------:|-------:|--------:|---------:|------:|
-| FAST       | 5µs  | 60µs  | 3µs    | 10µs    | 68µs |
-| STANDARD   | 5µs  | 60µs  | 5µs    | 10µs    | 70µs |
-| SLOW       | 8µs  | 90µs  | 20µs   | 15µs    | 118µs|
-| ROBUST     | 10µs | 110µs | 30µs   | 18µs    | 150µs|
-| CUSTOM     | 1µs  | 60µs  | 1µs    | 15µs    | 62µs |
+| FAST       | 5 µs  | 60 µs  | 3 µs    | 10 µs    | 68 µs |
+| STANDARD   | 5 µs  | 60 µs  | 5 µs    | 10 µs    | 70 µs |
+| SLOW       | 8 µs  | 90 µs  | 20 µs   | 15 µs    | 118 µs|
+| ROBUST     | 10 µs | 110 µs | 30 µs   | 18 µs    | 150 µs|
+| CUSTOM     | 1 µs  | 60 µs  | 1 µs    | 15 µs    | 62 µs |
 
 SLOW / ROBUST widen the bit slot (118 µs / 150 µs instead of 70 µs), which trades
 **protocol throughput** — every command and every bit read costs proportionally
@@ -835,16 +865,16 @@ is fixed by the resolution alone (93.75 ms … 750 ms). They are intended for
 long wiring, parasite buses or electrically noisy setups.
 
 On a parasite-powered bus the strong-pullup release must not clip the sensor's
-slot sampling, so the guard band needs to be wider than the 5µs external-power
+slot sampling, so the guard band needs to be wider than the 5 µs external-power
 default. Compile with `-DOW_PARASITE_POWER=1`: when `ONEWIRE_GUARD_BAND` is not
-defined by a preset or an explicit `-D`, it defaults to 100µs. Presets always
+defined by a preset or an explicit `-D`, it defaults to 100 µs. Presets always
 pin the guard explicitly, so on long or noisy parasite wiring pass the value
 directly instead — e.g. `make TIMING=ROBUST EXT="-DONEWIRE_GUARD_BAND=250"`.
 
 CUSTOM uses the minimum slot timing allowed by the 1-Wire standard
-(t_LOW1 = 1µs, t_LOW0 = 60µs, t_REC = 1µs). It is an experimental setting:
-a 1µs read/write pulse is **below the values validated on hardware** (a 2µs
-pulse already broke slot decoding on an F030 at 8MHz — see also the note in
+(t_LOW1 = 1 µs, t_LOW0 = 60 µs, t_REC = 1 µs). It is an experimental setting:
+a 1 µs read/write pulse is **below the values validated on hardware** (a 2 µs
+pulse already broke slot decoding on an F030 at 8 MHz — see also the note in
 `inc/ow_config.h`). Use it only for experiments or electrically ideal setups.
 
 **OC3 output-compare preload (`OC3PE`).** The write/capture paths that must

@@ -12,18 +12,44 @@
 - Sensor: DS18B20 temperature sensor and/or DS2431 EEPROM; one firmware image
   drives one of the two drivers (see [DS2431 EEPROM Driver](api-reference.md#ds2431-eeprom-driver))
 - Toolchain: GCC ARM (arm-none-eabi)
-- Clock Configuration: STM32F103 — 72MHz via HSE+PLL (default) or 8MHz via internal RC (`make SYSCLK_MHZ=8`); STM32F030 — 48MHz via HSI+PLL (default) or 8MHz via internal RC. STM32G031 — 64MHz via HSI16+PLL (default) or 16MHz via raw HSI16. STM32F303VC — 72MHz via HSE-bypass + PLL (default; the ST-LINK drives the board's 8MHz crystal onto OSC_IN), 64MHz via HSI/2 + PLL (this family has no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach), or 8MHz on the raw HSI. STM32F407 — 168MHz via HSE+PLL (default), 16MHz via internal RC (`SYSCLK_MHZ=16`) or the crystal's own frequency (`SYSCLK_MHZ=<HSE_MHZ>`). STM32F401 — 84MHz via HSE+PLL (default with `OW_MCU=STM32F401xC`), 16MHz via internal RC, or the crystal's own frequency. STM32F446 — 180MHz via HSE+PLL with the over-drive sequence (default with `OW_MCU=STM32F446xx`), plus the same 16MHz / crystal-frequency options. STM32G474 — 170MHz via HSE+PLL with Range 1 Boost (default with `OW_MCU=STM32G474xx`), or 16MHz via raw HSI16. STM32L476 — 80MHz via HSI16+PLL (default with `OW_MCU=STM32L476xx`; M=1, N=10, R=2, voltage Range 1, 4 flash wait states) or 16MHz via raw HSI16; the NUCLEO-L476RG has no HSE crystal populated, so there is deliberately no crystal clock. STM32H503 — 64MHz via raw HSI (default with `OW_MCU=STM32H503xx`), 8MHz via the raw HSE crystal (`SYSCLK_MHZ=8`, `HSE_MHZ=8`), or 250MHz via HSE+PLL1 (`SYSCLK_MHZ=250`, `HSE_MHZ=8`; M=HSE/4, N=125, P=2 through PLL1P, VOS0 and 5 flash wait states). STM32H743 — 240MHz via HSE+PLL (default with `OW_MCU=STM32H743xx`; M=HSE/5, N=96, P=2 through PLL1P, LDO supply setup and Rev V VOS1-to-VOS0, 4 flash wait states; the 25MHz crystal of the WeAct Studio STM32H7XX board). Rev V also supports CPU=480MHz/TIM1=240MHz with `SYSCLK_MHZ=480 TIM1_MHZ=240`; HPRE=/2 keeps HCLK=240MHz. On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's* property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider from it, so a 25MHz board reaches the F401's 84MHz cap with M=25/N=168, an 8MHz board the F407's 168MHz with M=8/N=336 and the F446's 180MHz with M=8/N=360. Part files carry a default for the board they are named after — `chips/f401xc.mk` says 25MHz for the WeAct F401 Black Pill — and `HSE_MHZ=N` overrides it. The default is 8MHz everywhere else except H7 (25MHz, the WeAct Studio STM32H7XX crystal). A wrong value is not a compile error: the PLL simply never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and the application reports the failure over the console and stops rather than running on a clock its timings were not compiled for.
+- Clock Configuration: defaults and fallbacks are listed below; `SYSCLK_MHZ=N`
+  overrides the part default.
 
-  The 180MHz mode is the one clock on F4 that is above 168MHz, and it is a
-  different code path rather than a different number: it needs the PWR over-drive
-  sequence (`ODEN`→`ODRDY`, `ODSWEN`→`ODSWRDY`), its own flash-latency and APB
-  values, and PLLN=360. Only the F446 offers it, so a build that asks for 180MHz
-  on any other F4 part is rejected at compile time rather than quietly run out of
-  spec — each part's ceiling is `OW_F4_MAX_SYSCLK_MHZ` in
-  the `inc/ow_board.h` F4 block.
-  APB2 is `/2` at 180MHz as it is at 168, so the timer clock still doubles to
-  2 × 90 = 180MHz and the 1µs-tick invariant (`PSC = SYSCLK_MHZ - 1`) is
-  unchanged.
+| Family / part | Default | Alternatives and notes |
+| --- | --- | --- |
+| STM32F103 | 72 MHz HSE+PLL | 8 MHz raw HSI (`SYSCLK_MHZ=8`) |
+| STM32F030 | 48 MHz HSI/2+PLL | 8 MHz raw HSI |
+| STM32F303VC | 72 MHz HSE-bypass+PLL | 64 MHz HSI/2+PLL (the HSI ceiling; no HSI16); 8 MHz raw HSI. The ST-Link drives the board crystal onto OSC_IN in bypass mode. |
+| STM32F407 | 168 MHz HSE+PLL | 16 MHz raw HSI; the crystal frequency (`SYSCLK_MHZ=<HSE_MHZ>`) |
+| STM32F401CC | 84 MHz HSE+PLL | 16 MHz raw HSI; the crystal frequency |
+| STM32F446 | 180 MHz HSE+PLL + over-drive | 16 MHz raw HSI; the crystal frequency |
+| STM32G031 | 64 MHz HSI16+PLL | 16 MHz raw HSI16 |
+| STM32G474 | 170 MHz HSE+PLL + Range 1 Boost | 16 MHz raw HSI16 |
+| STM32L476 | 80 MHz HSI16+PLL (M=1, N=10, R=2, Range 1, 4 WS) | 16 MHz raw HSI16. The NUCLEO-L476RG has no HSE crystal populated, so there is deliberately no crystal clock. |
+| STM32H503 | 64 MHz raw HSI | 8 MHz raw HSE (`SYSCLK_MHZ=8`, `HSE_MHZ=8`); 250 MHz HSE+PLL1 (M=HSE/4, N=125, P=2, VOS0, 5 WS) |
+| STM32H743 | 240 MHz HSE+PLL (M=HSE/5, N=96, P=2, LDO, VOS0, 4 WS; 25 MHz crystal) | 480/240 MHz split (`SYSCLK_MHZ=480 TIM1_MHZ=240`, HPRE=/2 keeps HCLK=240 MHz) |
+
+On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's*
+property while `SYSCLK_MHZ` is the application's: the PLL takes its M divider
+from it, so a 25 MHz board reaches the F401's 84 MHz cap with M=25/N=168, an
+8 MHz board the F407's 168 MHz with M=8/N=336 and the F446's 180 MHz with
+M=8/N=360. Part files carry a default for the board they are named after —
+`chips/f401xc.mk` says 25 MHz for the WeAct F401 Black Pill — and `HSE_MHZ=N`
+overrides it. The default is 8 MHz elsewhere except H7 (25 MHz, the WeAct
+Studio STM32H7XX crystal). A wrong value is not a compile error: the PLL simply
+never locks, so the HSE, PLL and (on the F446) over-drive waits are bounded and
+`app_init()` reports the failure over the console and stops rather than running
+on a clock its timings were not compiled for.
+
+The 180 MHz mode is the one clock on F4 that is above 168 MHz, and it is a
+different code path rather than a different number: it needs the PWR over-drive
+sequence (`ODEN`→`ODRDY`, `ODSWEN`→`ODSWRDY`), its own flash-latency and APB
+values, and PLLN=360. Only the F446 offers it, so a build that asks for 180 MHz
+on any other F4 part is rejected at compile time rather than quietly run out of
+spec — each part's ceiling is `OW_F4_MAX_SYSCLK_MHZ` in the `inc/ow_board.h`
+F4 block. APB2 is `/2` at 180 MHz as it is at 168, so the timer clock still
+doubles to 2 × 90 = 180 MHz and the 1 µs-tick invariant
+(`PSC = SYSCLK_MHZ - 1`) is unchanged.
 
 ## Before you integrate
 
@@ -59,7 +85,7 @@ facts before wiring or porting:
 
 ### 1. Include the Driver
 
-```C
+```c
 #include "ds18b20.h"
 ```
 
@@ -93,7 +119,7 @@ kernel clock must equal SYSCLK either way.
 **Single sensor (Skip ROM).** With one DS18B20 on the bus there is no need for
 a ROM search — the driver uses Skip ROM (broadcast) addressing by default:
 
-```C
+```c
 #include "ds18b20.h"
 
 int main(void) {
@@ -113,7 +139,7 @@ int main(void) {
 Search ROM state machine, then address each sensor by ROM with
 `ds18b20_select()`:
 
-```C
+```c
 #include "ds18b20.h"
 
 static uint8_t found_roms[8][DS18B20_ROM_BYTES];
@@ -179,7 +205,7 @@ format differs.
 > On F0/G0/G4/L4 the same logic targets `GPIOA` instead of `GPIOC`; H7 targets
 > `GPIOE` (PE3).
 
-```C
+```c
 // Busy indicator — e.g. LED toggling during measurement
 // STM32F1 (Blue Pill): onboard LED on PC13, active-low.
 void ds18b20_busy(unsigned action) {

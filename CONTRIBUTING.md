@@ -47,13 +47,13 @@ interrupt-free, minimal CPU usage).
    - Keep the driver non-blocking and interrupt-free
    - Register-level access only — no HAL/LL
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
-   and `make SYSCLK_MHZ=8` for the 8MHz RC variant.
+   and `make SYSCLK_MHZ=8` for the 8 MHz RC variant.
 4. Run the code quality checks used in CI. `make check` runs all of them that
    need no compiler: formatting (`make format-check`, or `make format` to
    rewrite in place), static analysis (`make cppcheck`), the version
-   declarations and the HIL parsers. The file list, the cppcheck passes and
-   the suppression list live in the Makefile, so this is the same command the
-   workflow runs.
+   declarations, the public-API snapshot, the HIL parsers and the published
+   stress report. The file list, the cppcheck passes and the suppression list
+   live in the Makefile, so this is the same command the workflow runs.
    - `make cppcheck` needs the CMSIS headers of every family; on a fresh clone
      run `make deps-all` once.
    - Use the `clang-format` release the `format` job pins (step 2 above);

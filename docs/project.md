@@ -29,6 +29,8 @@ For issues and questions, please open an issue on GitHub.
 - DS18B20 Datasheet  
   https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
 
+- DS2431 Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/DS2431.pdf
+
 - STM32F103 Reference Manual  
   https://www.st.com/resource/en/reference_manual/cd00171190-stm32f101xx-stm32f102xx-stm32f103xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf
 
@@ -42,6 +44,10 @@ For issues and questions, please open an issue on GitHub.
 - STM32F401 Reference Manual (RM0368)
 - STM32F446 Reference Manual (RM0390)
 - STM32F303 Reference Manual (RM0316)
+- STM32G4 Reference Manual (RM0440)
+- STM32L4 Reference Manual (RM0394)
+- STM32H5 Reference Manual (RM0492)
+- STM32H7 Reference Manual (RM0433)
 
 - 1-Wire Protocol Specification  
   https://www.analog.com/en/resources/technical-articles/1wire-communication.html

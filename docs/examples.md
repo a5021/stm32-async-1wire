@@ -22,18 +22,20 @@ drive real 1-Wire devices.
 > with no data you need to keep; do not run these demos repeatedly on deployed
 > sensors.
 
-| APP               | File                                  | Behaviour                                                        |
-|-------------------|---------------------------------------|------------------------------------------------------------------|
-| `0_dma_pressure`  | `examples/0_dma_pressure/main.c`      | Diagnostic, no sensor needed: transmits a fixed 8-byte pattern (64 slots, then the hardware release) back to back while a build-time selectable memory-subsystem load runs. `STRESS_LEVEL=0..5`, `STRESS_BURSTS=100` and `STRESS_WORDS=512` select the load. The console reports `cndtr_late` (the feed channel still had transfers queued at completion: complete starvation) and `dma_error`; the same counters are mirrored in `dma_pressure_telemetry` for a debugger. Levels 1-5 drive DMA1 channels 1/2 on F0, DMA2 streams 0/1 on F4 and GPDMA1 channels 0/1 on H5; the other families compile and run level 0. `STRESS_CAPTURE=1` switches to a Search ROM capture-drain pass; `STRESS_INJECT_US=N` is the deliberately-delayed-transfer negative control, and `STRESS_MARKER=1` puts a frame marker on PA11 (LA D1). Used by `tests/hil/dma_pressure.py` and `tests/hil/dma_capture.py`. |
-| (default)         | `examples/1_basic/main.c`             | Unconditional polling of a single DS18B20 via Skip ROM (0xCC).   |
-| `2_device_search` | `examples/2_device_search/main.c`     | Startup device search + per-device polling: each sensor is converted and read back individually via Match ROM (one `Convert T` per device, no broadcast conversion). |
-| `3_round_robin`   | `examples/3_round_robin/main.c`       | Startup device search + sequential polling of every sensor found (up to `DS18B20_MAX_DEVICES`). |
-| `4_scan_mode`     | `examples/4_scan_mode/main.c`         | Startup device search + simultaneous broadcast conversion: one `Convert T` (Skip ROM) converts all sensors in parallel, then each is read back via Match ROM. |
-| `5_commands`      | `examples/5_commands/main.c`          | Startup device search + non-blocking command transactions on the first sensor: Read Power Supply (0xB4), raw Read Scratchpad (0xBE), Write Scratchpad TH/TL (0x4E), Copy Scratchpad (0x48) to the EEPROM, Recall EEPROM (0xB8), single-device Read ROM (0x33), forced alarm thresholds plus Alarm Search (0xEC) showing that only alarmed devices respond, then steady-state measurement of the selected device. |
-| `6_statistics`    | `examples/6_statistics/main.c`        | Startup device search + sequential measurement with signal statistics. The `6_statistics` target auto-enables `-DOW_STATS_ENABLE=1`. Accumulates per-sensor pulse-width min/max, a global histogram and error counters over N sweeps - one sweep being one pass over every device - then streams the full report over UART as a non-blocking dump. The period is `STATS_DUMP_SWEEPS`, default 10, defined only in the example's source and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. |
-| `7_low_power`     | `examples/7_low_power/main.c`         | Low-power example (same search + sequential loop as `2_device_search`): with `-DOW_LOW_POWER=1` the **driver** enters `__WFE()` inside `ds18b20_poll()` while a long 1-Wire stage (> 1 ms: temperature conversion, scratchpad read, EEPROM hold-off) is running, so the CPU idles instead of spinning. The application's code and its result timing are unchanged — it never waits for a result — and the interval between cycles is a plain `app_millis()` deadline. Without the define, the example uses the standard polling loop. |
-| `8_ds2431`        | `examples/8_ds2431/main.c`            | Startup device search + a full DS2431 EEPROM write cycle: Read Memory (baseline), Write Scratchpad, Read Scratchpad (TA/ES echo and written-data read-back check), Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data landed in EEPROM. The pattern written is the row's own next value (every byte plus one), so the read-back differs from the baseline and proves the copy instead of re-reading bytes that were already there. Every step runs through the public `ds2431.h` interface. The write cycle is one-shot: once every device has been served the example prints `Demo done.` and then keeps re-running the family-filtered search once a second, so it goes on streaming its `Found N device(s)` census and ROMs instead of falling idle. |
-| `9_multi`         | `examples/9_multi/main.c`             | Application example: a peak/low temperature logger with seven DS18B20 sensors and one DS2431 EEPROM on the same bus. One explicit bus-owner state machine uses the two drivers strictly in sequence, because they share TIM1/DMA and neither may be polled while the other owns the timer: DS18B20 search, a second full-family search to locate the DS2431, boot-read of four EEPROM blocks, then measurement rounds. Rounds run in scan mode (one broadcast `Convert T`) and fall back to the sequential Match ROM path if a scan fails. The round maximum and minimum are compared with the stored peak and low; a new record is queued as Write Scratchpad → Read Scratchpad (echo + data verify) → Copy Scratchpad → Read Memory, with the sensor's ROM block written before the record that refers to it, so a power cut cannot leave a record pointing at a ROM that is not there. Records are self-validating 8-byte blocks (magic, version, flags, counter, temperature, sensor index, CRC-8); `PEAK_RESET=1` ignores the stored records at boot. Every stage is a `poll()` loop paced by `app_millis()` — no delay, no wait, no interrupt. |
+| APP | File | What it demonstrates |
+| --- | --- | --- |
+| `0_dma_pressure` | `examples/0_dma_pressure/main.c` | Diagnostic: 64-slot write pattern under a selectable memory-subsystem load; reports feed starvation. |
+| `1_basic` (default) | `examples/1_basic/main.c` | Single DS18B20 via Skip ROM. |
+| `2_device_search` | `examples/2_device_search/main.c` | Startup search, then one Match ROM conversion per device. |
+| `3_round_robin` | `examples/3_round_robin/main.c` | Startup search, then round-robin measurement of every device. |
+| `4_scan_mode` | `examples/4_scan_mode/main.c` | Broadcast convert for the whole fleet, then Match ROM reads. |
+| `5_commands` | `examples/5_commands/main.c` | Read ROM, power supply, thresholds, Copy/Recall EEPROM and Alarm Search. |
+| `6_statistics` | `examples/6_statistics/main.c` | Sequential measurement plus the optional `ow_stats` report. |
+| `7_low_power` | `examples/7_low_power/main.c` | The standard loop with the opt-in `OW_LOW_POWER=1` WFE path. |
+| `8_ds2431` | `examples/8_ds2431/main.c` | Full DS2431 EEPROM write/read-back cycle. |
+| `9_multi` | `examples/9_multi/main.c` | Peak/low logger: seven DS18B20 plus one DS2431 on one bus. |
+
+### Build
 
 ```bash
 make                                          # build 1_basic -> build/ds18b20_1_basic.elf
@@ -58,7 +60,7 @@ make OW_MCU=STM32G031xx SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32F303VC target (F3-DISCOVERY / MB1035B, bus on PA10, console on PA9):
 # 72MHz is the default and needs the board's 8MHz external clock, which the
-# ST-LINK drives onto OSC_IN and which is read in bypass mode. This family has
+# ST-Link drives onto OSC_IN and which is read in bypass mode. This family has
 # no HSI16 and PLLMUL tops out at 16, so 64MHz is all the internal RC can reach.
 make OW_MCU=STM32F303xC APP=4_scan_mode
 make OW_MCU=STM32F303xC SYSCLK_MHZ=64 APP=4_scan_mode   # HSI/2 + PLL, no external clock
@@ -95,69 +97,133 @@ make OW_MCU=STM32H503xx APP=4_scan_mode
 make OW_MCU=STM32H743xx APP=4_scan_mode
 ```
 
-Notes:
+### Example details
+
+#### `0_dma_pressure`
+
+Diagnostic only, no sensor needed. The build-time knobs are `STRESS_LEVEL=0..5`,
+`STRESS_BURSTS`, `STRESS_WORDS`, `STRESS_CAPTURE`, `STRESS_INJECT_US` and
+`STRESS_MARKER`; the measured matrix and the analyzer contract are in
+[Measuring DMA feed margin](#measuring-dma-feed-margin-0_dma_pressure) below.
+
+#### `1_basic`
+
+Single sensor via Skip ROM (0xCC). With several sensors on the bus all of them
+answer the read command and the data collides, so CRC failures are expected.
+
+#### `2_device_search`
+
+Startup Search ROM, then each discovered sensor is measured **individually**
+via Match ROM (one `Convert T` per device, no broadcast conversion) in
+round-robin order. A separator line is printed between full rounds. With one
+sensor it behaves like `1_basic` but with ROM addressing; with N sensors a round
+costs `N × conversion`. Supports `-DOW_PARASITE_POWER=1` (the strong pull-up is
+handled per conversion).
+
+#### `3_round_robin`
+
+Measures the devices found at startup one at a time, in round-robin order. With
+exactly one sensor it behaves like `1_basic`.
+
+#### `4_scan_mode`
+
+Converts every discovered sensor in parallel: one conversion wait covers all
+devices, so N devices take `1 × conversion + N × read` instead of
+`N × conversion`. Before converting, it programs the conversion resolution to
+every sensor with one broadcast Write Scratchpad
+(`ds18b20_set_resolution()`), because scan mode assumes a uniform resolution:
+the single conversion wait must match the whole fleet. Skipping this can make a
+12-bit sensor that follows a 9-bit one read back its 85.0 °C power-on-reset
+value. Each reading is reported through `ds18b20_complete()` in device-table
+order; `ds18b20_scan_index()` / `ds18b20_device_rom()` identify the sensor. Scan
+mode is mutually exclusive with `ds18b20_select()`.
+
+With several parasite-powered devices, a simultaneous broadcast conversion draws
+all their current from the one strong pull-up. A sagging supply (for example
+feeding the bus from a USB adapter) can brown out a marginal sensor (a stuck
+127.9 °C reading with a valid CRC). Feed the fleet from a dedicated supply with
+an adequate pull-up — see the STM32F407VGT6 section in Hardware Verified — and
+the broadcast conversion stays reliable at the high PLL clock.
+
+#### `5_commands`
+
+Targets the first sensor found by the search (Match ROM) and runs the
+non-blocking command sequence once at startup: power supply, raw scratchpad,
+TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and the
+single-device Read ROM. Persistence is real and nothing undoes it: the Copy
+leaves the demo's TH/TL (0x19 / +25 °C, 0x0F / +15 °C) in the sensor's EEPROM,
+not the pair it shipped with, and they load again at the next power-up. Each
+command advances by one hardware operation per `*_poll()` call;
+`ds18b20_last_command_ok()` verifies the result. The sequence closes with forced
+alarm thresholds (TH=-55 °C, TL=+125 °C on the selected device, so it alarms
+deterministically whatever the room temperature) plus an Alarm Search (0xEC)
+pass that reports only alarmed devices — the only example exercising
+`ds18b20_alarm_search_start()` / `ds18b20_alarm_search_poll()` /
+`ds18b20_alarm_search_count()`. Other fleet members may join from thresholds
+retained in their own RAM/EEPROM.
+
+#### `6_statistics`
+
+Extends the `3_round_robin` sequential loop with signal statistics
+(`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
+`STATS_DUMP_SWEEPS` sweeps — one sweep is one pass over every device, so a batch
+covers `STATS_DUMP_SWEEPS × devices` measurements and yields that many samples
+per sensor — the accumulated per-sensor pulse-width min/max, 13-bucket histogram
+(0–60+ µs) and error counters are streamed over UART by `ow_stats_dump_poll()`
+(one line per call, non-blocking); the measurement loop is paused during the dump
+and resumed afterwards via `ow_stats_reset()`. The period is
+`STATS_DUMP_SWEEPS` (default 10), defined only in the example's source and
+overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. Supports
+`-DOW_PARASITE_POWER=1`.
+
+#### `7_low_power`
+
+The same search + sequential loop as `2_device_search`, built with
+`-DOW_LOW_POWER=1`. The driver then idles the core in `__WFE()` while a long
+stage runs; the mechanism and the SysTick caveat are in
+[Low-power mode](#low-power-mode-7_low_power) below. Without the define the
+example uses the standard polling loop.
+
+#### `8_ds2431`
+
+Startup search plus a full DS2431 EEPROM write cycle: Read Memory (baseline),
+Write Scratchpad, Read Scratchpad (TA/ES echo and written-data read-back check),
+Copy Scratchpad (t_PROG hold-off), then Read Memory again to confirm the data
+landed in EEPROM. The pattern written is the row's own next value (every byte
+plus one), so the read-back differs from the baseline and proves the copy instead
+of re-reading bytes that were already there. Every step runs through the public
+`ds2431.h` interface. The write cycle is one-shot: once every device has been
+served the example prints `Demo done.` and then keeps re-running the
+family-filtered search once a second, so it goes on streaming its
+`Found N device(s)` census and ROMs instead of falling idle.
+
+#### `9_multi`
+
+A peak/low temperature logger with seven DS18B20 sensors and one DS2431 EEPROM
+on the same bus. One explicit bus-owner state machine uses the two drivers
+strictly in sequence, because they share TIM1/DMA and neither may be polled while
+the other owns the timer: DS18B20 search, a second full-family search to locate
+the DS2431, boot-read of four EEPROM blocks, then measurement rounds. Rounds run
+in scan mode (one broadcast `Convert T`) and fall back to the sequential Match
+ROM path if a scan fails. The round maximum and minimum are compared with the
+stored peak and low; a new record is queued as Write Scratchpad → Read Scratchpad
+(echo + data verify) → Copy Scratchpad  → Read Memory, with the sensor's ROM block
+written before the record that refers to it, so a power cut cannot leave a record
+pointing at a ROM that is not there. Records are self-validating 8-byte blocks
+(magic, version, flags, counter, temperature, sensor index, CRC-8);
+`PEAK_RESET=1` ignores the stored records at boot. Every stage is a `poll()` loop
+paced by `app_millis()` — no delay, no wait, no interrupt.
+
+### Common notes
 
 - All examples use `app_init()` (from `examples/app/app.h`) to set up the system
   clock, USART1 TX and the busy LED in a single call.
-- `1_basic` uses Skip ROM, so it is meant for a **single sensor** on the bus.
-  With several sensors connected, all of them respond to the read command and
-  the bus data collides (CRC failures are expected).
-- `2_device_search` performs a startup Search ROM, then measures each discovered sensor
-  **individually** via Match ROM (one `Convert T` per device, no broadcast
-  conversion) in round-robin order. A separator `--------------------------------`
-  is printed between full rounds. With one sensor it behaves like `1_basic` but
-  with ROM addressing; with N sensors a round costs `N × conversion`. Supports
-  `-DOW_PARASITE_POWER=1` (strong pull-up handled per conversion).
-- `3_round_robin` measures the devices found at startup one at a time, in round-robin
-  order. With exactly one sensor it behaves like `1_basic`.
-- `4_scan_mode` (scan mode) converts every discovered sensor in parallel: a single
-  conversion wait covers all devices, so N devices take `1 x conversion + N x
-  read` instead of `N x conversion`. Before converting, it programs the
-  conversion resolution to every sensor with one broadcast Write Scratchpad
-  (`ds18b20_set_resolution()`), because scan mode assumes a uniform resolution:
-  the single conversion wait must match the whole fleet. Skipping this can make
-  a 12-bit sensor that follows a 9-bit one read back its 85.0 °C power-on-reset
-  value. Each reading is reported through `ds18b20_complete()` in device-table
-  order; `ds18b20_scan_index()` / `ds18b20_device_rom()` identify the sensor.
-  Scan mode is mutually exclusive with `ds18b20_select()`.
-  With several parasite-powered devices, a simultaneous broadcast conversion
-  draws all their current from the one strong pull-up. A sagging supply (for
-  example feeding the bus from a USB adapter) can brown out a marginal sensor
-  (a stuck 127.9 °C reading with a valid CRC). Feed the fleet from a dedicated
-  supply with an adequate pull-up — see the STM32F407VGT6 section in Hardware
-  Verified — and the broadcast conversion stays reliable at the high PLL clock.
-- `5_commands` targets the first sensor found by the search (Match ROM) and runs the
-  non-blocking command sequence once at startup: power supply, raw scratchpad,
-  TH/TL write with a Copy/Recall pair to demonstrate EEPROM persistence, and
-  the single-device Read ROM. Persistence is real and nothing undoes it: the
-  Copy leaves the demo's TH/TL (0x19 / +25C, 0x0F / +15C) in the sensor's
-  EEPROM, not the pair it shipped with, and they load again at the next
-  power-up. Each command advances by one hardware operation
-  per `*_poll()` call; `ds18b20_last_command_ok()` verifies the result. The
-  sequence closes with forced alarm thresholds (TH=-55C, TL=+125C on the
-  selected device, so it alarms deterministically whatever the room
-  temperature) plus an Alarm Search (0xEC) pass that reports only alarmed
-  devices — the only example exercising
-  `ds18b20_alarm_search_start()` / `ds18b20_alarm_search_poll()` /
-  `ds18b20_alarm_search_count()`. Other fleet members may join from thresholds
-  retained in their own RAM/EEPROM.
-- `6_statistics` extends the `3_round_robin` sequential loop with signal statistics
-  (`-DOW_STATS_ENABLE=1`, auto-enabled by `make APP=6_statistics`). After
-  `STATS_DUMP_SWEEPS` sweeps - one sweep is one pass over every device, so a
-  batch covers `STATS_DUMP_SWEEPS * devices` measurements and yields that
-  many samples per sensor - the accumulated
-  per-sensor pulse-width min/max,
-  13-bucket histogram (0–60+ µs) and error counters are streamed over UART by
-  `ow_stats_dump_poll()` (one line per call, non-blocking); the measurement
-  loop is paused during the dump and resumed afterwards via `ow_stats_reset()`.
-  Supports `-DOW_PARASITE_POWER=1`.
-- Programming targets (`make jprogram` / `make program`) flash whichever
-  example is currently selected by `APP`.
+- Programming targets (`make jprogram` / `make program`) flash whichever example
+  is currently selected by `APP`.
 - Two build knobs have no dedicated example by design: `-DOW_DRIVE_ACTIVE=1`
   switches master-only write slots to push-pull (experimental; covered by the
-  `test-active` host suite, same loop as every example so nothing demo-specific
-  would show on the console), and `-DDS18B20_MAX_DEVICES=1` trims the scan
-  table from 64 to 8 bytes for single-sensor builds (see CHANGELOG).
+  `test-active` host suite), and `-DDS18B20_MAX_DEVICES=1` trims the scan table
+  from 64 to 8 bytes for single-sensor builds (see CHANGELOG).
 
 ### Measuring DMA feed margin (0_dma_pressure)
 

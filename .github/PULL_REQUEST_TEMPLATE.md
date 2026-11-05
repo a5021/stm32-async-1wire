@@ -25,10 +25,10 @@
 
 - [ ] `make` builds cleanly (release, `-Werror`)
 - [ ] `make SYSCLK_MHZ=8` builds cleanly
-- [ ] `make test` passes (and `-f0` / `-f4` / `-g0` if a backend was touched)
-- [ ] `make test-clocks` passes (per-family clock defaults)
+- [ ] `make test` passes; for a backend change run `make test-all-families` (or `make test-<family>` for one)
+- [ ] `make test-clocks` passes (per-family and per-part clock defaults)
 - [ ] `make test-chips` passes (after adding or editing a `chips/<part>.mk`)
-- [ ] `make check` passes (formatting, `cppcheck`, version declarations, HIL parsers)
+- [ ] `make check` passes (formatting, `cppcheck`, version declarations, public-API snapshot, HIL parsers, stress report)
 - [ ] `docs/` and CHANGELOG updated if behavior/usage changed
 
 ## Hardware testing

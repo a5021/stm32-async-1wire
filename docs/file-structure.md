@@ -4,10 +4,11 @@
 
 ## File Structure
 
-```
+```text
 ├── inc/                    # Public headers: the whole consumer surface
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── ds2431.h            # DS2431 EEPROM driver interface (commands + async API)
+│   ├── ds2413.h            # DS2413 placeholder: family code + ROM size only (no driver yet)
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_board.h          # Board facts: family select, ow_pulse_t, clock defaults
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
@@ -80,6 +81,7 @@
 │   ├── ds18b20.c           # Driver: DS18B20 command set on the 1-Wire layer.
 │   │                       # Compiles as ONE translation unit: #includes its
 │   │                       # four functional parts in dependency order.
+│   ├── ds18b20_internal.h  # Private split header shared by the include-only parts
 │   ├── ds18b20_search.c    # (include-only part) ROM device table + search/alarm
 │   ├── ds18b20_txn.c       # (include-only part) command transactions + parasite
 │   ├── ds18b20_resolution.c # (include-only part) non-blocking resolution change
@@ -89,8 +91,9 @@
 │   │                       # API (core TU).
 │   ├── ds2431_internal.h   # Private DS2431 interface: context layout + engine
 │   │                       # entry points shared by the core and engine TUs.
-│   └── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
-│                           # caller-owned context (no globals).
+│   ├── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
+│   │                       # caller-owned context (no globals).
+│   └── ds2413.c            # Placeholder TU: empty by design, not part of the build
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -124,6 +127,7 @@
 │   ├── check_header_hygiene.sh  # Public headers stay free of engine internals
 │   ├── check_mcu_dispatch.sh  # Makefile and CMake dispatch agree on flags
 │   ├── check_elf_variant.sh    # Each build links its own objects
+│   ├── check_removed_macros.sh # Removed names are hard #errors naming their replacement
 │   └── mutation_check.py       # Deliberate defects the host suite must catch
 ├── cmake/                  # CMake package
 │   ├── arm-none-eabi-gcc.cmake  # Bare-metal cross-compilation toolchain file
@@ -140,6 +144,7 @@
 ├── templates/              # Copyable consumer projects
 │   └── standalone-consumer/  # Vendored inc/ + src/ CMake template (H5 board.c + main.c)
 ├── docs/                   # Topic guides, stress report and bench records
+│   ├── *.md                # The topic guides linked from the README
 │   ├── api/                # Doxygen-generated API reference (generated, gitignored)
 │   └── stress/             # Published DMA-pressure report and captures
 ├── .github/                # GitHub configuration

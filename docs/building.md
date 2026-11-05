@@ -45,8 +45,13 @@
     targets (including `make download-deps`) need a Linux-like environment —
     Git Bash, MSYS2 or WSL. `cmd`/PowerShell are **not** supported for builds.
 -   **Programmer tools:**
-    -   **ST-LINK:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
-    -   **J-LINK:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
+    -   **ST-Link:** `st-flash` (Linux/macOS) or `ST-LINK_CLI.exe` (Windows)
+    -   **J-Link:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
+    -   **STM32CubeProgrammer CLI:** `STM32_Programmer_CLI` — used by the
+        hardware-in-the-loop harness
+-   **Logic-analyzer tools (optional):** `sigrok-cli` and `numpy` for the
+    wire-geometry and HIL capture checks; the viewer selftest also needs the
+    pinned Playwright package (see `tools/1wire_vis/README.md`).
 
 > **Building on Windows.** The `Makefile` uses POSIX shell constructs
 > (`mkdir -p`, `rm -rf`, `awk`, `sleep`, `command -v`) and downloads
@@ -89,6 +94,9 @@ make debug      # Debug build (-Og -g3 -gdwarf)
 
 Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1_basic.elf` for the default `APP=1_basic`).
 
+The CMake path is `cmake -S . -B build && cmake --build build`. To build the API
+reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
+
 ### Common Targets
 
 | Target | Description |
@@ -97,7 +105,7 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
 | `make test-all-families` | Run the plain host suite once per backend in `OW_KNOWN_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix |
-| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
+| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
 | `make format` | Rewrite the same files in place |
@@ -106,8 +114,8 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make download-deps` | Download CMSIS dependencies |
 | `make deps-all` | Download CMSIS for every family at once, including the F446 part the F407 download does not carry (needed by `make cppcheck`, and by the full host-test matrix in CI) |
 | `make clean-deps` | Remove downloaded dependencies (`CMSIS/`, plus a root-level `_deps/`; `build/_deps/` goes with `make clean`) |
-| `make program` | Flash via ST-LINK |
-| `make jprogram` | Flash via J-LINK |
+| `make program` | Flash via ST-Link |
+| `make jprogram` | Flash via J-Link |
 | `make test-f0` | Build and run host tests against the STM32F0 backend mock |
 | `make test-f1` | Same against the STM32F1 backend mock (`make test` is the same target) |
 | `make test-f3` | Build and run host tests against the STM32F3 backend mock |
@@ -125,6 +133,8 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
+| `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/h5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
@@ -138,19 +148,24 @@ Output goes to `build/` (`ds18b20_<app>.elf`, `.hex`, `.bin` — e.g. `ds18b20_1
 | `make gccversion` | Show the detected compiler and linker versions |
 | `make help` | Show all targets |
 
+The remaining gate targets — `test-mocks`, `test-version`, `test-public-api`,
+`test-header-hygiene`, `test-removed-macros`, `test-elf-variant`, `test-viewer`,
+`test-hil-parsing`, `test-stress-report` and `update-public-api` — are listed by
+`make help`. `make check` runs the subset that needs no compiler.
+
 Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 
 | Flag | Effect |
 |------|--------|
 | `OW_DRIVE_ACTIVE=1` | Enable the optional active-drive write path (`-DOW_DRIVE_ACTIVE=1`): during master-only write slots the bus pin is temporarily switched to push-pull (see [Bus Electrical Model](architecture.md#bus-electrical-model)). The default remains open-drain. |
 | `TIMING=SLOW` | Apply a compile-time timing preset (default `STANDARD`; also `FAST`/`SLOW`/`ROBUST`/`CUSTOM`). Expands into `-DONEWIRE_ONE_PULSE=... -DONEWIRE_ZERO_PULSE=... -DONEWIRE_GUARD_BAND=... -DONEWIRE_SHORT_PULSE_MAX=...` for that preset. Override any single value with `EXT="-DONEWIRE_GUARD_BAND=100"`. See [Configuration → Timing](api-reference.md#timing-1). |
-| `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every DS18B20 example (1-7) with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See 6_statistics. |
-| `EXT="-DOW_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define builds are byte-identical to the original. |
+| `EXT="-DOW_PARASITE_POWER=1"` | Parasite-powered bus: raises the default guard band from 5 µs to 100 µs and builds every DS18B20 example (1-7) with `ds18b20_set_parasite(1)` — the strong-pull-up window is engaged at runtime per conversion. See [`6_statistics`](examples.md#6_statistics). |
+| `EXT="-DOW_LOW_POWER=1"` | Enable the opt-in low-power path: the TIM1 update **interrupt source** (UIE) is enabled only to generate a pending event that wakes `WFE()` via `SEVONPEND`, so the **driver** sleeps during long 1-Wire stages (> 1 ms) while the hardware completes the transaction. The sleep sits inside `ds18b20_poll()`, so no application call site changes. No ISR is installed and `NVIC_EnableIRQ` is never called. Without this define the poll path is the standard non-blocking one. |
 
 ### Flash
 
--   **ST-LINK:** `make program` (uses `st-flash` / `ST-LINK_CLI.exe`)
--   **J-LINK:** `make jprogram` (uses `JFlashExe` / `JFlash.Exe`)
+-   **ST-Link:** `make program` (uses `st-flash` / `ST-LINK_CLI.exe`)
+-   **J-Link:** `make jprogram` (uses `JFlashExe` / `JFlash.Exe`)
 
 ### Testing
 
@@ -575,11 +590,12 @@ The cache variables are:
 | Variable | Meaning |
 |----------|---------|
 | `OW_MCU` | Exact STM32 device macro (`STM32F103xB`, `STM32H503xx`, ...); selects the part file automatically |
-| `OW_TARGET` / `OW_CHIP` | Legacy family (`f0`...`h5`) and part (`f401xc`, ...) selectors; still honoured, but `OW_MCU` is the documented interface |
+| `OW_TARGET` / `OW_CHIP` | Legacy family (`f0`...`h7`) and part (`f401xc`, ...) selectors; still honoured, but `OW_MCU` is the documented interface |
 | `OW_SYSCLK_MHZ` | System clock in MHz; empty = the part's own default from `chips/<part>.mk` (mirrors the Makefile's `SYSCLK_MHZ`) |
 | `OW_EXTRA_DEFINES` | Extra `-D` definitions applied to every target, e.g. `"-DOW_PARASITE_POWER=1;-DOW_LOW_POWER=1"` |
 | `OW_BUILD_EXAMPLES` | Build the example applications (`OFF` by default) |
 | `OW_CMSIS_CORE_INCLUDE` / `OW_CMSIS_DEVICE_INCLUDE` | Your own CMSIS `core` and device include dirs (STM32Cube, PlatformIO, manual checkout). Pass both together to skip both FetchContent clones; one without the other is an error |
+| `OW_CMSIS_SYSTEM_SRC` / `OW_CMSIS_STARTUP_SRC` | `system_<family>xx.c` and `startup_<part>.s` for the example platform; required with `OW_BUILD_EXAMPLES=ON` when you supply your own CMSIS |
 
 Already carrying CMSIS (STM32Cube/PlatformIO project)? Pass both include dirs and nothing is downloaded:
 
@@ -617,7 +633,8 @@ Copy `inc/` and `src/` into your project tree, then use the drop-in CMake helper
 A complete working example of this layout is
 [`templates/standalone-consumer/`](../templates/standalone-consumer/README.md):
 it wires the vendored copy through `ow_add_library()`, with an H5 `board.c`,
-`main.c` and its own README of knobs and gotchas.
+`main.c` and its own README of knobs and gotchas. The template requires
+CMake 3.20; the library's own build stays at 3.14.
 
 ```text
 your-project/
@@ -635,7 +652,14 @@ ow_add_library(stm32_async_1wire
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
 ```
 
-It creates a static library from the five driver sources, adds `inc/` and your CMSIS include directories, and attaches the device macro, the clock define, the feature defines (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`, `STATS`) and the family's `-mcpu`/`-mthumb` — all `PUBLIC`, so your own sources compile against the same target. It does **not** fetch CMSIS: pass your own include directories through `CMSIS_INCLUDE_DIRS`. Anything else (`MAX_DEVICES` for `-DDS18B20_MAX_DEVICES`, or any `OW_*` the helper has no knob for) goes through `EXTRA_DEFINITIONS`.
+It creates a static library from the five driver sources, adds `inc/` and your
+CMSIS include directories, and attaches the device macro, the clock define, the
+feature defines (`PARASITE`, `LOW_POWER`, `ACTIVE_DRIVE`, `STATS`) and the
+family's `-mcpu`/`-mthumb` — all `PUBLIC`, so your own sources compile against
+the same target. It does **not** fetch CMSIS: pass your own include directories
+through `CMSIS_INCLUDE_DIRS`. Anything else (`MAX_DEVICES` for
+`-DDS18B20_MAX_DEVICES`, or any `OW_*` the helper has no knob for) goes through
+`EXTRA_DEFINITIONS`.
 
 **The copy is not self-contained.** A consumer also needs:
 
@@ -646,7 +670,9 @@ It creates a static library from the five driver sources, adds `inc/` and your C
 
 And **exactly one** target macro: the ST device macro (`STM32H503xx`) or its family macro (`STM32H5`). `OW_SYSCLK_MHZ` is optional — omit it and the port reads `SystemCoreClock` at startup (keep it current with `SystemCoreClockUpdate()`).
 
-This helper is for the vendored layout only. On the FetchContent / `add_subdirectory` path you do not need it — the library's own `CMakeLists.txt` already provides the `stm32_async_1wire` target with CMSIS managed.
+This helper is for the vendored layout only. On the FetchContent /
+`add_subdirectory` path you do not need it — the library's own `CMakeLists.txt`
+already provides the `stm32_async_1wire` target with CMSIS managed.
 
 #### 4. Plain Make / `make lib`
 
@@ -726,45 +752,45 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `STM32H743xx` (Cortex-M7) with `OW_MCU=STM32H743xx`.
 
 -   **Target Selection:** `make OW_MCU=STM32F030x6` builds for the STM32F0 backend
-    (48MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
-    `make OW_MCU=STM32F303xC` for the STM32F3 backend (72MHz default clock,
+    (48 MHz default clock, `port/stm32f0/STM32F030X6_FLASH.ld`),
+    `make OW_MCU=STM32F303xC` for the STM32F3 backend (72 MHz default clock,
     `port/stm32f3/STM32F303XC_FLASH.ld`),
     `make OW_MCU=STM32F407xx` for the STM32F4
-    backend (168MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
+    backend (168 MHz default clock, `port/stm32f4/STM32F407VGT6_FLASH.ld`),
     `make OW_MCU=STM32F401xC` for the F401CC variant of the same backend
-    (84MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`), and
+    (84 MHz default clock, `port/stm32f4/STM32F401CC_FLASH.ld`), and
     `make OW_MCU=STM32F446xx` for the STM32F446
-    (180MHz default clock with the over-drive sequence,
+    (180 MHz default clock with the over-drive sequence,
     `port/stm32f4/STM32F446RE_FLASH.ld`),
-    `make OW_MCU=STM32G031xx` for the STM32G0 backend (64MHz default clock,
+    `make OW_MCU=STM32G031xx` for the STM32G0 backend (64 MHz default clock,
     `port/stm32g0/STM32G031X6_FLASH.ld`),
-    `make OW_MCU=STM32G474xx` for the STM32G4 backend (170MHz default clock,
+    `make OW_MCU=STM32G474xx` for the STM32G4 backend (170 MHz default clock,
     `port/stm32g4/STM32G474CB_FLASH.ld`),
-    `make OW_MCU=STM32L476xx` for the STM32L4 backend (80MHz default clock,
+    `make OW_MCU=STM32L476xx` for the STM32L4 backend (80 MHz default clock,
     `port/stm32l4/STM32L476RGTX_FLASH.ld`),
-    `make OW_MCU=STM32H503xx` for the STM32H5 backend (64MHz default clock,
+    `make OW_MCU=STM32H503xx` for the STM32H5 backend (64 MHz default clock,
     `port/stm32h5/STM32H503CB_FLASH.ld`) and
-    `make OW_MCU=STM32H743xx` for the STM32H7 backend (240MHz default clock,
+    `make OW_MCU=STM32H743xx` for the STM32H7 backend (240 MHz default clock,
     `port/stm32h7/STM32H743VI_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default
     target is STM32F103 (bus on PA10 for every family except G0, which uses
     logical PA10 via the PA12 remap).
 
--   **8MHz RC Build:** On the STM32F103 target the firmware runs on HSE 8MHz
-    + PLL ×9 = 72MHz by default. Pass `SYSCLK_MHZ=8` to use the internal RC
-    oscillator (HSI) at 8MHz without an external crystal or PLL:
+-   **8 MHz RC Build:** On the STM32F103 target the firmware runs on HSE 8 MHz
+    + PLL ×9 = 72 MHz by default. Pass `SYSCLK_MHZ=8` to use the internal RC
+    oscillator (HSI) at 8 MHz without an external crystal or PLL:
 
     ```bash
     make SYSCLK_MHZ=8
     make debug SYSCLK_MHZ=8
     ```
 
-    On the STM32F030 target the default clock is already HSI+PLL (48MHz);
-    there `SYSCLK_MHZ=8` selects the raw 8MHz HSI instead. On the STM32F303
-    the default is the 8MHz HSE-bypass signal ×9 = 72MHz, and `SYSCLK_MHZ=8`
-    selects the raw 8MHz HSI (64MHz is the HSI ceiling there). On F4 the
-    default is HSE+PLL (168/84/180MHz per part), and `SYSCLK_MHZ=16` selects
-    the raw 16MHz HSI.
+    On the STM32F030 target the default clock is already HSI+PLL (48 MHz);
+    there `SYSCLK_MHZ=8` selects the raw 8 MHz HSI instead. On the STM32F303
+    the default is the 8 MHz HSE-bypass signal ×9 = 72 MHz, and `SYSCLK_MHZ=8`
+    selects the raw 8 MHz HSI (64 MHz is the HSI ceiling there). On F4 the
+    default is HSE+PLL (168/84/180 MHz per part), and `SYSCLK_MHZ=16` selects
+    the raw 16 MHz HSI.
 
     The knob maps to the portable `OW_SYSCLK_MHZ` define — a single
     value in MHz that every clock-dependent setting derives from: the
@@ -883,7 +909,8 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 The SVD file for the selected family is downloaded by `make download-deps`
 and loaded automatically for peripheral register views in the debug
-sidebar. Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
+sidebar where an SVD is available (F0/F1/F3/F4/G0/G4/L4; there is no upstream
+SVD for H503 or H743 yet). Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
 from any backend directory; the project resolves its SVD and ELF paths
 relative to its own location. The F3 directory holds
 `project-f303vc.jdebug` for the F303VC; the F4 directory holds one project per
