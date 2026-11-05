@@ -275,8 +275,9 @@ static ow_pulse_t frame[PATTERN_SLOTS + 1u];
  *    8 search_runs 9 search_bad  10 rom_crc     11 search_count
  *    12 inject_us 13 capture_mode 14 sink_count 15 stage
  *    16 stop_timeout 17 run magic 18 level/clock 19 inject_flags
+ *    20 start_timeout
  */
-#define TELEMETRY_WORDS 20u
+#define TELEMETRY_WORDS 21u
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 /* ------------------------------------------------------------------
@@ -337,29 +338,46 @@ static volatile uint16_t stress_cpu_dst[STRESS_CPU_WORDS];
  * channel 3; STRESS_LOAD_HIGH moves the load to channels 5/4 for the reverse
  * case (the F030F4 has no channel 6, so the second load rides channel 4, which
  * the write rig does not use for capture). */
-static void stress_burst_start(void) {
+/* Stop the channel and wait until EN reads back clear. A channel that does not
+ * stop is left alone: reprogramming it would race a transfer that is still
+ * running, so the caller reports the timeout instead. */
+static uint8_t stress_channel_idle(DMA_Channel_TypeDef* ch) {
+    ch->CCR = 0u;
+    uint32_t guard = 1000u;
+    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
+    }
+    return (ch->CCR & DMA_CCR_EN) == 0u;
+}
+
+static uint8_t stress_burst_start(void) {
     burst_starts++;
-    STRESS_LOAD0_DMA->CCR = 0u;
+    if (!stress_channel_idle(STRESS_LOAD0_DMA)) {
+        return 0u;
+    }
     DMA1->IFCR = STRESS_LOAD0_FLAGS;
     STRESS_LOAD0_DMA->CPAR = (uint32_t)&stress_src_word;
     STRESS_LOAD0_DMA->CMAR = (uint32_t)stress_dst;
     STRESS_LOAD0_DMA->CNDTR = (uint32_t)STRESS_WORDS;
     STRESS_LOAD0_DMA->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |
                             DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+    return 1u;
 }
 
 /* Circular mode is not allowed with memory-to-memory (RM0091), so level 4/5
  * restart this finite burst from the service loop; that is a valid continuous
  * stream of transfers. */
-static void stress_ch1_burst_start(void) {
+static uint8_t stress_ch1_burst_start(void) {
     ch1_starts++;
-    STRESS_LOAD1_DMA->CCR = 0u;
+    if (!stress_channel_idle(STRESS_LOAD1_DMA)) {
+        return 0u;
+    }
     DMA1->IFCR = STRESS_LOAD1_FLAGS;
     STRESS_LOAD1_DMA->CPAR = (uint32_t)&stress_src_word;
     STRESS_LOAD1_DMA->CMAR = (uint32_t)stress_dst;
     STRESS_LOAD1_DMA->CNDTR = (uint32_t)STRESS_WORDS;
     STRESS_LOAD1_DMA->CCR = DMA_CCR_MEM2MEM | DMA_CCR_MINC |
                             DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN;
+    return 1u;
 }
 
 static uint8_t stress_burst_done(void) { return STRESS_LOAD0_DMA->CNDTR == 0u; }
@@ -369,11 +387,7 @@ static uint8_t stress_ch1_done(void) { return STRESS_LOAD1_DMA->CNDTR == 0u; }
  * timeout. On timeout CNDTR is left alone: the channel is not known to be
  * stopped, and pretending otherwise would hide the failure. */
 static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch, uint32_t flags) {
-    ch->CCR = 0u;
-    uint32_t guard = 1000u;
-    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
-    }
-    if ((ch->CCR & DMA_CCR_EN) != 0u) {
+    if (!stress_channel_idle(ch)) {
         return 0u;
     }
     ch->CNDTR = 0u;
@@ -462,10 +476,15 @@ static uint8_t feed_error_latched(void) {
 #define STRESS_LOAD1_FLAGS STRESS_STREAM6_FLAGS
 #endif
 
-static void stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
+static uint8_t stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
     stream->CR = 0u;
     uint32_t guard = 1000u;
     while ((stream->CR & DMA_SxCR_EN) != 0u && guard-- != 0u) {
+    }
+    if ((stream->CR & DMA_SxCR_EN) != 0u) {
+        /* The stream did not stop; arming it now would race the transfer that
+         * is still in flight. Report the timeout and leave the registers be. */
+        return 0u;
     }
     STRESS_LOAD_IFCR = flags;
     stream->PAR = (uint32_t)&stress_src_word;
@@ -473,19 +492,20 @@ static void stress_stream_start(DMA_Stream_TypeDef* stream, uint32_t flags) {
     stream->NDTR = (uint32_t)STRESS_WORDS;
     stream->CR = DMA_SxCR_DIR_1 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
                  DMA_SxCR_MSIZE_0 | DMA_SxCR_EN;
+    return 1u;
 }
 
-static void stress_burst_start(void) {
+static uint8_t stress_burst_start(void) {
     burst_starts++;
-    stress_stream_start(STRESS_LOAD0_STREAM, STRESS_LOAD0_FLAGS);
+    return stress_stream_start(STRESS_LOAD0_STREAM, STRESS_LOAD0_FLAGS);
 }
 
 /* Circular mode is not allowed in memory-to-memory on F4 either (RM0090), so
  * level 4/5 restart this finite burst from the service loop. The second load
  * stream is the next equal-priority contender after the first. */
-static void stress_ch1_burst_start(void) {
+static uint8_t stress_ch1_burst_start(void) {
     ch1_starts++;
-    stress_stream_start(STRESS_LOAD1_STREAM, STRESS_LOAD1_FLAGS);
+    return stress_stream_start(STRESS_LOAD1_STREAM, STRESS_LOAD1_FLAGS);
 }
 
 static uint8_t stress_burst_done(void) { return STRESS_LOAD0_STREAM->NDTR == 0u; }
@@ -559,10 +579,31 @@ static uint8_t feed_error_latched(void) {
      (1u << DMA_CFCR_USEF_Pos) | (1u << DMA_CFCR_SUSPF_Pos) | \
      (1u << DMA_CFCR_TOF_Pos))
 
-static void stress_gpdma_start(DMA_Channel_TypeDef* ch) {
-    ch->CCR = 0u;
+/* Take a possibly-live channel out of service. GPDMA keeps a pending request
+ * when EN is cleared, so suspend first and only then drop EN; if either
+ * handshake times out the channel is left alone and the start reports it. */
+static uint8_t stress_gpdma_idle(DMA_Channel_TypeDef* ch) {
+    if ((ch->CCR & DMA_CCR_EN) == 0u) {
+        return 1u;
+    }
+    const uint32_t susp = 1u << DMA_CCR_SUSP_Pos;
+    ch->CCR |= susp;
     uint32_t guard = 1000u;
+    while ((ch->CCR & susp) == 0u && guard-- != 0u) {
+    }
+    if ((ch->CCR & susp) == 0u) {
+        return 0u;
+    }
+    ch->CCR &= ~DMA_CCR_EN;
+    guard = 1000u;
     while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
+    }
+    return (ch->CCR & DMA_CCR_EN) == 0u;
+}
+
+static uint8_t stress_gpdma_start(DMA_Channel_TypeDef* ch) {
+    if (!stress_gpdma_idle(ch)) {
+        return 0u;
     }
     ch->CLBAR = 0u; /* direct register mode, no linked list */
     ch->CFCR = STRESS_GPDMA_FLAGS;
@@ -573,20 +614,21 @@ static void stress_gpdma_start(DMA_Channel_TypeDef* ch) {
     ch->CTR1 = (1u << DMA_CTR1_SDW_LOG2_Pos) |
                (1u << DMA_CTR1_DDW_LOG2_Pos) |
                (1u << DMA_CTR1_DINC_Pos);
-    ch->CCR = DMA_CCR_EN;
+    ch->CCR = DMA_CCR_EN; /* clears SUSP and re-arms the channel */
+    return 1u;
 }
 
-static void stress_burst_start(void) {
+static uint8_t stress_burst_start(void) {
     burst_starts++;
-    stress_gpdma_start(GPDMA1_Channel0);
+    return stress_gpdma_start(GPDMA1_Channel0);
 }
 
 /* Circular mode is not useful here either; level 4/5 restart the finite burst
  * from the service loop. Channel 1 is the strongest equal-priority contender
  * after channel 0. */
-static void stress_ch1_burst_start(void) {
+static uint8_t stress_ch1_burst_start(void) {
     ch1_starts++;
-    stress_gpdma_start(GPDMA1_Channel1);
+    return stress_gpdma_start(GPDMA1_Channel1);
 }
 
 static uint8_t stress_burst_done(void) {
@@ -597,11 +639,7 @@ static uint8_t stress_ch1_done(void) {
 }
 
 static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch) {
-    ch->CCR = 0u;
-    uint32_t guard = 1000u;
-    while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
-    }
-    if ((ch->CCR & DMA_CCR_EN) != 0u) {
+    if (!stress_gpdma_idle(ch)) {
         return 0u;
     }
     ch->CBR1 = 0u;
@@ -744,32 +782,35 @@ static void stress_begin(uint32_t level) {
     }
 }
 
-static void stress_service(uint32_t level, uint32_t* next_ms) {
+static uint8_t stress_service(uint32_t level, uint32_t* next_ms) {
     if (level == 2u) {
         /* One burst per millisecond; app_millis() is a SysTick read, not a
          * wait, so the loop keeps polling the bus between bursts. */
         uint32_t now = app_millis();
         if (stress_burst_done() && (int32_t)(now - *next_ms) >= 0) {
-            stress_burst_start();
+            if (!stress_burst_start()) {
+                return 0u;
+            }
             *next_ms = now + 1u;
         }
     } else if (level == 3u) {
         /* Back-to-back finite bursts on the first load stream. */
-        if (stress_burst_done()) {
-            stress_burst_start();
+        if (stress_burst_done() && !stress_burst_start()) {
+            return 0u;
         }
     } else if (level >= 4u) {
         /* Back-to-back finite bursts on the second load stream. Circular
          * mem-to-memory is not allowed, so the stream is made from restartable
          * finite transfers; the lowest free stream number is the strongest
          * equal-priority contender. */
-        if (stress_ch1_done()) {
-            stress_ch1_burst_start();
+        if (stress_ch1_done() && !stress_ch1_burst_start()) {
+            return 0u;
         }
     }
     if (level == 1u || level == 5u) {
         cpu_hammer();
     }
+    return 1u;
 }
 
 static uint8_t stress_end(void) { return stress_stop(); }
@@ -784,9 +825,10 @@ static const uint32_t cpu_passes = 0u;
 static const uint32_t stress_inject_flags = 0u;
 
 static void stress_begin(uint32_t level) { (void)level; }
-static void stress_service(uint32_t level, uint32_t* next_ms) {
+static uint8_t stress_service(uint32_t level, uint32_t* next_ms) {
     (void)level;
     (void)next_ms;
+    return 1u;
 }
 static uint8_t stress_end(void) { return 1u; }
 #if !STRESS_CAPTURE
@@ -920,17 +962,21 @@ int main(void) {
     search_count = 0u;
     search_rom_crc = 2166136261u;
     uint8_t stop_timeout = 0u;
+    uint8_t start_timeout = 0u;
     stress_marker_high();
     ds18b20_search_start(search_sink, SEARCH_MAX);
     if (!ds18b20_search_poll()) {
         stress_begin(EFFECTIVE_LEVEL);
         uint32_t next_ms = app_millis();
         while (!ds18b20_search_poll()) {
-            stress_service(EFFECTIVE_LEVEL, &next_ms);
+            if (!stress_service(EFFECTIVE_LEVEL, &next_ms)) {
+                start_timeout = 1u;
+                break;
+            }
         }
-        if (!stress_end()) {
-            stop_timeout = 1u;
-        }
+    }
+    if (!stress_end()) {
+        stop_timeout = 1u;
     }
     stress_marker_low();
     uint32_t found = ds18b20_search_count();
@@ -949,6 +995,7 @@ int main(void) {
     dma_pressure_telemetry[18] = ((uint32_t)EFFECTIVE_LEVEL << 24) |
                                  ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
     dma_pressure_telemetry[19] = stress_inject_flags;
+    dma_pressure_telemetry[20] = start_timeout;
 
     uart_write_str("DONE mode=search count=");
     uart_write_int((int)found);
@@ -961,6 +1008,8 @@ int main(void) {
     uart_write_int((int)STRESS_INJECT_US);
     uart_write_str(" stop_timeout=");
     uart_write_int((int)stop_timeout);
+    uart_write_str(" start_timeout=");
+    uart_write_int((int)start_timeout);
     uart_write_str("\r\n");
     uart_flush();
     for (;;) {
@@ -973,6 +1022,7 @@ int main(void) {
     uint8_t aborted = 0u;
     uint8_t dma_error = 0u;
     uint8_t stop_timeout = 0u;
+    uint8_t start_timeout = 0u;
 
     while (frames < (uint32_t)STRESS_BURSTS) {
         stress_marker_high();
@@ -986,12 +1036,19 @@ int main(void) {
          * The feed itself is hardware-timed and does not need the CPU. */
         uint32_t next_ms = app_millis();
         while (!onewire_bus_done()) {
-            stress_service(EFFECTIVE_LEVEL, &next_ms);
+            if (!stress_service(EFFECTIVE_LEVEL, &next_ms)) {
+                start_timeout = 1u;
+                break;
+            }
         }
         uint8_t stop_ok = stress_end();
         stress_marker_low();
         if (!stop_ok) {
             stop_timeout = 1u;
+            aborted = 1u;
+            break;
+        }
+        if (start_timeout) {
             aborted = 1u;
             break;
         }
@@ -1035,6 +1092,7 @@ int main(void) {
     dma_pressure_telemetry[18] = ((uint32_t)EFFECTIVE_LEVEL << 24) |
                                  ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
     dma_pressure_telemetry[19] = stress_inject_flags;
+    dma_pressure_telemetry[20] = start_timeout;
 
     uart_write_str("DONE frames=");
     uart_write_int((int)frames);
@@ -1050,6 +1108,8 @@ int main(void) {
     uart_write_int((int)STRESS_INJECT_US);
     uart_write_str(" stop_timeout=");
     uart_write_int((int)stop_timeout);
+    uart_write_str(" start_timeout=");
+    uart_write_int((int)start_timeout);
     uart_write_str("\r\n");
     uart_flush();
 
