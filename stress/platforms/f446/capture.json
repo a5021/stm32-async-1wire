@@ -17,11 +17,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "e182b7c5110db32f51927363c31964280b956200e202a5b1c7a6b0813c6a795c",
       "level": 0,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -34,11 +37,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "65960e17caa38f1dbf8462bb4b62820364b584ff5c97f1d4d3a97a35382521c5",
       "level": 1,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -51,11 +57,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "235a688c48c8d3879457f2754f9670812408ccfe3222f04c4721d86306f0783d",
       "level": 2,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -68,11 +77,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "1a419626d00ab61a53e38e88738d2fb832921143772d7aee3bcbc744071c70d3",
       "level": 3,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -85,11 +97,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "8d8d16acde3514e784b28400f734be1e51d5ab4ff3807196d51555b4741e6bc2",
       "level": 4,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -102,11 +117,14 @@
       "first_attempt_identity": true,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "de02e57ad8cdf00d4dac9273c4c933013194df2f5eebc0bee095a30dc74bec90",
       "level": 5,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -119,11 +137,14 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "172b85d850a104d597468d4824351d5dc0e84c646d9e39bfa7046c95adf601bd",
       "level": 0,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -136,11 +157,14 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "47f0ad09742e1a983bffe96dcd59ab7d319ae2677c9c935cc930574ac36cf478",
       "level": 1,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -153,11 +177,14 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "abeccee9d481a266979947abc1582c2da96938910019baf5c1d870499430afab",
       "level": 2,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -170,11 +197,14 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "4a8b7089151d0a3b5eb243fef601527e19ca22d9fe6906d3caee1c06fb4321c1",
       "level": 3,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -187,11 +217,14 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "788420f2d0329f1563e3a743cc9f263cdc1180f1cdbea6d1cc613c60182f4616",
       "level": 4,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -204,22 +237,26 @@
       "first_attempt_identity": true,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "2ef91a8d11975b79647f96089280552609b647a66dcc734358403642997ea6de",
       "level": 5,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
       "rom_crc": 2296056989,
       "sink_count": 7,
+      "start_timeout": 0,
       "stop_timeout": 0
     }
   ],
   "capture_supported": true,
-  "commit": "bd203fb0",
+  "commit": "f2ff4fe7",
   "dirty": false,
   "first_bad": {
     "search_180": 200,
     "write_180": 8
   },
-  "generated": "2026-11-04",
+  "generated": "2026-11-05",
+  "gpdma_prio": null,
   "inject_cells": [
     {
       "attempts": 1,
@@ -227,9 +264,12 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "e182b7c5110db32f51927363c31964280b956200e202a5b1c7a6b0813c6a795c",
       "inject_us": 0,
+      "load_error": 0,
       "matches": true,
       "mode": "search",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -238,9 +278,12 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "2214b4f9b8a024934d33e1148ccbf7f2459b19076de1cf341caef1d347d310d7",
       "inject_us": 200,
+      "load_error": 0,
       "matches": false,
       "mode": "search",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -249,9 +292,12 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "0f090add33e54ded10ae9c6bf49b0047083e0c7dbdb924da297934777acfafcb",
       "inject_us": 400,
+      "load_error": 0,
       "matches": false,
       "mode": "search",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -260,9 +306,12 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "f5a99b1c7926be1f77f4e9e21bf33e270dd1eb70b7d1fe8aa7d12170d734e906",
       "inject_us": 600,
+      "load_error": 0,
       "matches": false,
       "mode": "search",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -271,9 +320,12 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "f4efc933098d3af762d9845412c542a68f5d40e2467e91843a33071d119761a3",
       "inject_us": 1000,
+      "load_error": 0,
       "matches": false,
       "mode": "search",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -283,8 +335,11 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "4c9653bf8dc19f0c97b543466872ddc6ee9c5345adf024b3aaa2f4842cf44897",
       "inject_us": 0,
+      "load_error": 0,
       "mode": "write",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -294,8 +349,11 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "9ccb249ef5a92e97061c935e55727d6afbbcfb2ddf9b086e86a41cc5c3504ea2",
       "inject_us": 8,
+      "load_error": 0,
       "mode": "write",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -305,8 +363,11 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "d02df9c1ae476f17864c2746fee44445deadab92279ea523c4662161248e3063",
       "inject_us": 12,
+      "load_error": 0,
       "mode": "write",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -316,8 +377,11 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "76ae031c3b8df8275ae78e8e73f48eb15679b87ca136ee2a503a705f5fd11133",
       "inject_us": 16,
+      "load_error": 0,
       "mode": "write",
+      "start_timeout": 0,
       "stop_timeout": 0
     },
     {
@@ -327,8 +391,11 @@
       "clock_mhz": 180,
       "first_attempt_identity": true,
       "identity": true,
+      "image_sha256": "487b38a739d90ebbdddfc4ade7c418ae18ca38d884ada7f1a1e9481fc0882516",
       "inject_us": 20,
+      "load_error": 0,
       "mode": "write",
+      "start_timeout": 0,
       "stop_timeout": 0
     }
   ],
@@ -348,5 +415,8 @@
       20
     ]
   },
-  "schema": 1
+  "marker": true,
+  "schema": 2,
+  "sr_dir": "docs/stress/platforms/f446/captures",
+  "tooling_commit": "f2ff4fe7"
 }

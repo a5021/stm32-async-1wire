@@ -10,15 +10,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_8mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 576719.5,
+      "first_frame_us": 557044.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "96945b5e1b054b9f1a5f828c9e7d7849c990ba9bf08fe108042c501b74594678",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -40,8 +44,11 @@
         0,
         827805003,
         8,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -50,15 +57,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_8mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 602119.0,
+      "first_frame_us": 552324.75,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "3bc85e0c6515e7a9a4858b4443ca5a9330c8bd00643e7af729680bca73f7b8e9",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -80,8 +91,11 @@
         0,
         827805003,
         8,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -90,15 +104,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_8mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 563600.5,
+      "first_frame_us": 560269.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "3318ed83724f621a4e6bcf64edd34c1f18b4933d2c687a2c17109ecd4f841bcf",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -120,8 +138,11 @@
         0,
         827805003,
         8,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -130,15 +151,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_8mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 570636.75,
+      "first_frame_us": 566886.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "15ab14804aa5a1dead6f21824f5f4a676e988d8d965f65330a20c09e232b2b25",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -160,8 +185,11 @@
         0,
         827805003,
         16777224,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -170,15 +198,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_8mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 603183.5,
+      "first_frame_us": 564406.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "92efffa5e295f5b8e55a97eacca64472087a7bcd66a5e53daf723af73e1d8de4",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -200,8 +232,11 @@
         0,
         827805003,
         16777224,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -210,15 +245,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_8mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 564086.0,
+      "first_frame_us": 566942.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "29b7a131c9a4c71435dabed93da6f6e3ae5b7e0e547d7d89bcc1017897858235",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -240,8 +279,11 @@
         0,
         827805003,
         16777224,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -250,15 +292,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_8mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 554370.25,
-      "frames": 98,
+      "first_frame_us": 569603.5,
+      "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "3a73f26294b22ea5097107cda09812dce7fdb8ab948f8bcad5350d7bcfc07b76",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -280,8 +326,11 @@
         0,
         827805003,
         33554440,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -290,15 +339,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_8mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 551650.75,
+      "first_frame_us": 567473.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "99d0188ca62907ce2ced24ba114493cb485b66c194b109c5b2af550b6403f9f8",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -320,8 +373,11 @@
         0,
         827805003,
         33554440,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -330,15 +386,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_8mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 569367.0,
+      "first_frame_us": 563427.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "b2cbc4d1248909caa7f29abf1948a1e291d28de86d69e06f0081a97616319f64",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -360,8 +420,11 @@
         0,
         827805003,
         33554440,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -370,15 +433,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_8mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 574664.75,
+      "first_frame_us": 567769.25,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "02c0c9db3a03e5260adb9fecd2534fa3486706f4738a69dfa9fbe0ef6bea3963",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -400,8 +467,11 @@
         0,
         827805003,
         50331656,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -410,15 +480,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_8mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 578671.25,
+      "first_frame_us": 568457.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "0912feb374deb210d6131f5049acd9b50be956deccce7c6d482d0405cebafc6e",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -440,8 +514,11 @@
         0,
         827805003,
         50331656,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -450,15 +527,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_8mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 574413.75,
+      "first_frame_us": 572420.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "8f24745e936eaca6b8c6d489a9fcf45a790363bc5904f4416b96b17772cc50c8",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -480,8 +561,11 @@
         0,
         827805003,
         50331656,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -490,15 +574,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_8mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 587744.0,
+      "first_frame_us": 570138.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "b392274501c87d775046a25e61927dc9d410b2320b11f97a34cf1cef77156b85",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -520,8 +608,11 @@
         0,
         827805003,
         67108872,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -530,15 +621,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_8mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 576153.0,
+      "first_frame_us": 561111.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "1f4802d5b28feffd788310f8845cbad32a025cdc7488cf3defbbb584c76ecb38",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -560,8 +655,11 @@
         0,
         827805003,
         67108872,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -570,15 +668,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_8mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 594007.0,
+      "first_frame_us": 564475.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "feab5be68331ed337b9a8b5818aa1ba627c920535c0b6bb3a8649039581bbe77",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -600,8 +702,11 @@
         0,
         827805003,
         67108872,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 2,
@@ -613,13 +718,16 @@
       "capture_fail": "fail/l5_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 564661.5 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 559517.8 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "4b2dd699206705ec1005c9cc69c996be299be5037dd74e6f7ae913d97753f7d0",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         1,
@@ -641,11 +749,13 @@
         0,
         827805003,
         83886088,
+        0,
+        0,
         0
       ],
       "window_us": [
-        569584.5,
-        575128.5
+        564255.75,
+        569799.75
       ]
     },
     {
@@ -658,18 +768,21 @@
       "capture_fail": "fail/l5_8mhz_g100.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 558518.5 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 568767.0 us has 65 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "8caa3b04310fe415ae5f454bc1086468261d7cf0bbbbd459a8c4a2d8fc116d3e",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         1,
         1,
-        4,
+        5,
         0,
         1,
         15,
@@ -686,11 +799,13 @@
         0,
         827805003,
         83886088,
+        0,
+        0,
         0
       ],
       "window_us": [
-        566022.5,
-        577646.5
+        563806.75,
+        575430.75
       ]
     },
     {
@@ -700,15 +815,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_16mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 576404.5,
+      "first_frame_us": 561620.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "4928a46802468a1e93fed19c28fb68f1dcf8f4108ca2fa765f77518e23ccd680",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -730,8 +849,11 @@
         0,
         827805003,
         16,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -740,15 +862,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_16mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 577586.5,
+      "first_frame_us": 562010.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "306852187542f2899ba19095cf161f38fc1fcd7b0176b1cdd75c85eb19b645e0",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -770,8 +896,11 @@
         0,
         827805003,
         16,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -780,15 +909,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 566395.25,
+      "first_frame_us": 559933.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "782ed45e880e15b5e545b28cf787294a7b9a3f4f8dc8c9b22ebd503fdff06d35",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -810,8 +943,11 @@
         0,
         827805003,
         16,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -820,15 +956,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_16mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 624009.5,
+      "first_frame_us": 568246.25,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "fbb664baacec019f997553a755fea82a8d80a94983cc5fbdcf392c196b03752d",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -850,8 +990,11 @@
         0,
         827805003,
         16777232,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -860,15 +1003,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_16mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 571642.5,
+      "first_frame_us": 570055.75,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "480860640760d68a86fe6c56e2fe863882c9cb3015b4f9a95e26af4061857bd9",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -890,8 +1037,11 @@
         0,
         827805003,
         16777232,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -900,15 +1050,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 571870.5,
+      "first_frame_us": 560686.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "1a6269913f0d67d59d1da4449ed0e91425d19d1866991953f0ca6f4a4fb5a841",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -930,8 +1084,11 @@
         0,
         827805003,
         16777232,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -940,15 +1097,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_16mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 561172.5,
+      "first_frame_us": 571795.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "83c1cc003d1379fce03b32d0517dd86d40851844eac217bbbf6707e8f7ce0dbb",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -970,8 +1131,11 @@
         0,
         827805003,
         33554448,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -980,15 +1144,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_16mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 619333.0,
+      "first_frame_us": 558109.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "1f877b3824c46a4e2368266017465109dbfa8722d2e541a1c71fb265264eba78",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1010,8 +1178,11 @@
         0,
         827805003,
         33554448,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1020,15 +1191,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 564000.5,
+      "first_frame_us": 564666.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "30161b9a9e3ed3cfdcfcb9524521f0fcbfc1f6940bcfac89481d1d4dfa9ba250",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1050,8 +1225,11 @@
         0,
         827805003,
         33554448,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1060,15 +1238,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_16mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 604525.0,
+      "first_frame_us": 557089.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "c84978853f33e2e7f9414475d69310697298aeb0ff0c4965893cdd1989a88a6a",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1090,8 +1272,11 @@
         0,
         827805003,
         50331664,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1100,15 +1285,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_16mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 585652.5,
+      "first_frame_us": 567165.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "798d9f352f4e959d42c4c9921b007f03bab50e44d77a3b39cc1bf8955c7e3713",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1130,8 +1319,11 @@
         0,
         827805003,
         50331664,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1140,15 +1332,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 581851.25,
+      "first_frame_us": 555868.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "954e982c63836612927cbe080239c73131ed61be9d320ebe10b03f401650d264",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1170,8 +1366,11 @@
         0,
         827805003,
         50331664,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1180,15 +1379,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_16mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 569139.5,
+      "first_frame_us": 574085.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "36d3e8c246f42bf6dd5688a299d626f5b60515557b4ecd0a39810b1587cface8",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1210,8 +1413,11 @@
         0,
         827805003,
         67108880,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1220,15 +1426,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_16mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 573504.0,
+      "first_frame_us": 558857.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "5f019d13b8bf1bd0c0a34a1303e0ca253fc3b3c013eaf1bbfbab072f20586ae1",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1250,8 +1460,11 @@
         0,
         827805003,
         67108880,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1260,15 +1473,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 573401.25,
+      "first_frame_us": 557912.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "ec13d4732cb0180696334601be1bc04be4790e8d1039d824b43d8c17d8ce3575",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1290,8 +1507,11 @@
         0,
         827805003,
         67108880,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1309,12 +1529,15 @@
       "frames": 0,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "6b039b2629b54b20a648d42cb069c22b9b0f13bcec14aeb2f7acde9c0fcba451",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         1,
         1,
-        10,
+        9,
         0,
         1,
         13,
@@ -1331,11 +1554,13 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
       ],
       "window_us": [
-        587869.0,
-        593157.0
+        562738.25,
+        568026.25
       ]
     },
     {
@@ -1348,13 +1573,16 @@
       "capture_fail": "fail/l5_16mhz_g5.sr",
       "clean": false,
       "clock_mhz": 16,
-      "first_attempt": "frame at 561491.2 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 566052.5 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "5e30a4df3d84ed3f71c8e29f3f0a0d2addd450c9994c8bc44410d3a8717d07b8",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1376,11 +1604,13 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
       ],
       "window_us": [
-        563957.25,
-        569501.25
+        559064.25,
+        564608.25
       ]
     },
     {
@@ -1399,12 +1629,15 @@
       "frames": 0,
       "guard_us": 13,
       "identity": true,
+      "image_sha256": "98ea3f6bf9ccdeb168a40aeb77d0f542f83b3d433c5117a6c53c83452897f0ed",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         1,
         1,
-        4,
+        7,
         0,
         1,
         15,
@@ -1421,11 +1654,13 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
       ],
       "window_us": [
-        569398.5,
-        575454.5
+        563380.5,
+        569436.5
       ]
     },
     {
@@ -1444,7 +1679,10 @@
       "frames": 0,
       "guard_us": 34,
       "identity": true,
+      "image_sha256": "68211eef7fe30988ad338bf0ba9917194e6547d787a2fefc044709ba511370d1",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1466,11 +1704,13 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
       ],
       "window_us": [
-        564748.25,
-        572148.25
+        559455.25,
+        566855.25
       ]
     },
     {
@@ -1489,7 +1729,10 @@
       "frames": 0,
       "guard_us": 55,
       "identity": true,
+      "image_sha256": "0f47e249d3868dd7e6dcccbda41a0688975a08565821a9b95b31f337fab95721",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1511,11 +1754,13 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
       ],
       "window_us": [
-        564648.0,
-        573392.0
+        558561.25,
+        567305.25
       ]
     },
     {
@@ -1525,15 +1770,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l5_16mhz_g89.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 572554.25,
+      "first_frame_us": 565926.75,
       "frames": 100,
       "guard_us": 89,
       "identity": true,
+      "image_sha256": "23bf185ed5b7fccf6b172e708a08a10a341457570338cb9d5db6500fd2b43275",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1541,9 +1790,9 @@
         0,
         0,
         0,
-        2900,
+        2800,
         0,
-        2900,
+        2800,
         0,
         0,
         0,
@@ -1555,8 +1804,11 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1565,15 +1817,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l5_16mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 16,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 569567.25,
-      "frames": 100,
+      "first_frame_us": 557132.5,
+      "frames": 99,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "74efca058e648be3533277da7ed04467159ae152eadff1c7706db7e37f899b0c",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1581,9 +1837,9 @@
         0,
         0,
         0,
-        3100,
+        3000,
         0,
-        3100,
+        3000,
         0,
         0,
         0,
@@ -1595,8 +1851,11 @@
         0,
         827805003,
         83886096,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1605,15 +1864,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 565471.0,
+      "first_frame_us": 579680.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "8985e9720aedb87bb9fa91ef3d069d44bc14494c43fc350b47730241515d5e5a",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1635,8 +1898,11 @@
         0,
         827805003,
         180,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1645,15 +1911,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 574541.5,
+      "first_frame_us": 559672.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "4c9653bf8dc19f0c97b543466872ddc6ee9c5345adf024b3aaa2f4842cf44897",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1675,8 +1945,11 @@
         0,
         827805003,
         180,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1685,15 +1958,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l0_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 561754.25,
+      "first_frame_us": 566028.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "3bd11db605bb869c9be3b034514ce2b7f4fb5ff5f87fc4c49578046c0f04404e",
       "level": 0,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1715,8 +1992,11 @@
         0,
         827805003,
         180,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1725,15 +2005,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 577584.0,
+      "first_frame_us": 567537.0,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "95dfb17ea293a5e8513bd009143a932af636927420e22557d557e73fe8077ad9",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1755,8 +2039,11 @@
         0,
         827805003,
         16777396,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1765,15 +2052,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 578554.0,
+      "first_frame_us": 566646.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "81ef596c9915211d57109543754aa53192b890eb28170958108899f1565be521",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1795,8 +2086,11 @@
         0,
         827805003,
         16777396,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1805,15 +2099,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l1_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 574524.25,
+      "first_frame_us": 559440.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "cf260c081e18e50cb32bb95e2ba8593e6dffadd02ad1cf1182cdc7f30a7f808a",
       "level": 1,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1835,8 +2133,11 @@
         0,
         827805003,
         16777396,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1845,15 +2146,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 574954.0,
+      "first_frame_us": 562174.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "5acc5d8ea051b14d43b53149a651853bad2799a4f52a095253554251661ff25d",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1875,8 +2180,11 @@
         0,
         827805003,
         33554612,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1885,15 +2193,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 573726.25,
+      "first_frame_us": 563060.75,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "e0af26632fa6f7bf7a82ff8c76eb95f8955a87839bda73c7a77999a67e001cff",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1915,8 +2227,11 @@
         0,
         827805003,
         33554612,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1925,15 +2240,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l2_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 584013.75,
+      "first_frame_us": 566952.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "df2a45b7e33c3067e2a3eb43d7c6810c3e2343011f360daef5b7ffe1eea031d7",
       "level": 2,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1955,8 +2274,11 @@
         0,
         827805003,
         33554612,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -1965,15 +2287,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 571245.0,
+      "first_frame_us": 565804.0,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "dcc1aaae1293a369739a344962c0d20b10c94e08acd562e851a21ecc99dd860e",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -1982,7 +2308,7 @@
         0,
         0,
         0,
-        37200,
+        36900,
         0,
         0,
         0,
@@ -1995,8 +2321,11 @@
         0,
         827805003,
         50331828,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2005,15 +2334,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 663168.25,
+      "first_frame_us": 563531.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "ae709abe00aacdffe1df8519e027a02998b367e238f3baf94cf76f7205c23a3b",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2022,7 +2355,7 @@
         0,
         0,
         0,
-        39400,
+        39100,
         0,
         0,
         0,
@@ -2035,8 +2368,11 @@
         0,
         827805003,
         50331828,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2045,15 +2381,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l3_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 552838.0,
+      "first_frame_us": 564721.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "50583c95c2fd886f0309dfdcee700c82eef3e97b1afbce7bb7edcd1003391b6c",
       "level": 3,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2062,7 +2402,7 @@
         0,
         0,
         0,
-        92000,
+        91500,
         0,
         0,
         0,
@@ -2075,8 +2415,11 @@
         0,
         827805003,
         50331828,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2085,15 +2428,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 558720.25,
+      "first_frame_us": 568297.25,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "15a3e4a67fe0eb668e1606366b125135f8b36ba717f6349ec451b21686b53f27",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2101,7 +2448,7 @@
         0,
         0,
         0,
-        37200,
+        37000,
         0,
         0,
         0,
@@ -2115,8 +2462,11 @@
         0,
         827805003,
         67109044,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2125,15 +2475,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 566104.5,
+      "first_frame_us": 560786.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "9cd1a3eb8eae1e71466468a20c0cf7a2b1e096790a11b22de03f66346263d811",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2141,7 +2495,7 @@
         0,
         0,
         0,
-        39400,
+        39101,
         0,
         0,
         0,
@@ -2155,8 +2509,11 @@
         0,
         827805003,
         67109044,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2165,15 +2522,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l4_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 561093.0,
+      "first_frame_us": 561722.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "4229adcc52d5360bdde7bc277708ab24bc4244e647085c45dde5b606ead7cf5b",
       "level": 4,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2181,7 +2542,7 @@
         0,
         0,
         0,
-        92100,
+        91500,
         0,
         0,
         0,
@@ -2195,8 +2556,11 @@
         0,
         827805003,
         67109044,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2205,15 +2569,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l5_180mhz_g1.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 554405.75,
-      "frames": 98,
+      "first_frame_us": 561616.0,
+      "frames": 100,
       "guard_us": 1,
       "identity": true,
+      "image_sha256": "f43270d2ed0d918c1d795597567130260baaee95146ac8fad2574e619273f18e",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2221,9 +2589,9 @@
         0,
         0,
         0,
-        13700,
+        13600,
         0,
-        13700,
+        13600,
         0,
         0,
         0,
@@ -2235,8 +2603,11 @@
         0,
         827805003,
         83886260,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2245,15 +2616,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l5_180mhz_g5.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 560023.25,
+      "first_frame_us": 566268.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
+      "image_sha256": "52a0924c04ca1c3d9b1a4ef0e91b4d3ba0b0d127acdebb773941761995efecac",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2261,9 +2636,9 @@
         0,
         0,
         0,
-        14500,
+        14499,
         0,
-        14500,
+        14499,
         0,
         0,
         0,
@@ -2275,8 +2650,11 @@
         0,
         827805003,
         83886260,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     },
     {
       "attempts": 1,
@@ -2285,15 +2663,19 @@
       "bad_period": 0,
       "bad_width": 0,
       "capture": "l5_180mhz_g100.sr",
+      "capture_fail": null,
       "clean": true,
       "clock_mhz": 180,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 556397.0,
+      "first_frame_us": 562691.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
+      "image_sha256": "957be7ea2f9b00d98d31e58fa6ed2c28897d0bb4840109b688a772d6265f3f73",
       "level": 5,
+      "load_error": 0,
+      "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
         100,
@@ -2301,9 +2683,9 @@
         0,
         0,
         0,
-        33800,
+        33700,
         0,
-        33800,
+        33700,
         0,
         0,
         0,
@@ -2315,15 +2697,19 @@
         0,
         827805003,
         83886260,
+        0,
+        0,
         0
-      ]
+      ],
+      "window_us": null
     }
   ],
-  "commit": "bd203fb0",
+  "commit": "f2ff4fe7",
   "default_guard_us": 5,
   "dirty": false,
   "example": "0_dma_pressure",
-  "generated": "2026-11-04",
+  "generated": "2026-11-05",
+  "gpdma_prio": null,
   "guard_min": [
     {
       "clock_mhz": 180,
@@ -2429,10 +2815,14 @@
     89,
     100
   ],
+  "load_high": false,
+  "marker": true,
   "mcu": "STM32F446xx",
   "pattern": "00FFAA550FF03CC3",
-  "schema": 1,
+  "schema": 2,
   "slots": 64,
+  "sr_dir": "docs/stress/platforms/f446/captures",
   "stress_words": 512,
-  "title": "Stress test report"
+  "title": "Stress test report",
+  "tooling_commit": "f2ff4fe7"
 }
