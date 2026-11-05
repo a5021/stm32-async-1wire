@@ -324,8 +324,8 @@ def platform_section(name, data, capture=None):
                                 else "default", c["guard_us"])
                 for c in bad)
             cap_html = (
-                '<p class="note">Search ROM under load lost the bus in %d of '
-                '%d cells (%s); the capture JSON keeps both attempts.</p>'
+                '<p class="note">Search ROM under load returned no devices in '
+                '%d of %d cells (%s); the capture JSON keeps both attempts.</p>'
                 % (len(bad), len(ccells), e(where)))
         else:
             cap_html = ('<p class="note">Search ROM under load matched the '

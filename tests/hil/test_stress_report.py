@@ -285,7 +285,7 @@ def main():
         bad = [c for c in ccells if not c.get("matches")]
         if bad:
             check("%s capture failures are named in the report" % name,
-                  ("lost the bus in %d of %d cells"
+                  ("returned no devices in %d of %d cells"
                    % (len(bad), len(ccells))) in actual)
             check("%s capture failures keep both attempts" % name,
                   all(c.get("attempts", 1) >= 2 for c in bad))

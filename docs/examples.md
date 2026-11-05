@@ -300,11 +300,12 @@ needs up to 13 µs (levels 2-4), and at 8 MHz level 2 needs 100 µs while levels
 equal-priority round-robin above does not.
 
 The Search ROM pass under the same loads matched the baseline in 33 of 36
-cells. At 8 MHz levels 3 and 4 lost the bus entirely (count 0, or one device at
-level 3/guard 1) on both attempts; the feed matrix is clean in those cells, so
-this is capture-path margin at 8 MHz, not a feed deadline miss. The failing
-searches are kept under `platforms/h503/captures/search/` and the report names
-them.
+cells. At 8 MHz levels 3 and 4 returned no devices (count 0, or one device at
+level 3/guard 1) on both attempts. The waveform of a failing cell shows the
+reset, the presence pulse and the `0xF0` command correctly; the tree then ends
+empty. The feed matrix is clean in those cells, so this is the search itself
+losing the device tree at 8 MHz, not a dead bus. The failing searches are kept
+under `platforms/h503/captures/search/` and the report names them.
 
 The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
 F030 PA2). `STRESS_MARKER=1` makes
