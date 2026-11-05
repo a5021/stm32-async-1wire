@@ -63,7 +63,8 @@ def e(value):
 LOAD_PLACEMENT = {
     "f0": {"default": "DMA1 channels 2 and 1", "high": "DMA1 channels 5 and 4"},
     "f4": {"default": "DMA2 streams 0 and 1", "high": "DMA2 streams 5 and 6"},
-    "h5": {"default": "GPDMA1 channels 0 and 1", "high": "GPDMA1 channels 0 and 1"},
+    "h5": {"default": "GPDMA1 channels 0/1, CCR.PRIO 0",
+           "high": "GPDMA1 channels 0/1, CCR.PRIO 3"},
 }
 
 FAMILY_NAMES = {
@@ -395,8 +396,10 @@ def priority_section(primary, others):
 broken by the lower channel/stream number. The historical load sits on the low
 numbers (F0 channels 2/1, F4 streams 0/1), so it deliberately <em>outranks</em>
 the feed; the "high" runs move the same burst to the higher numbers, where the
-feed wins. The rows below are the same levels and guards with only that
-placement changed.</p>
+feed wins. GPDMA has no such tie: <code>CCR.PRIO</code> selects the class, so
+the H5 "high" run keeps channels 0/1 and raises the load to PRIO 3 against the
+feed's PRIO 0. The rows below are the same levels and guards with only that
+placement or priority changed.</p>
 <table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
 <th>Clean cells</th><th>Failing cells</th></tr></thead>
 <tbody>%s</tbody></table>
@@ -643,7 +646,10 @@ def build_report(data, capture=None, platforms=None, priority=None,
     extra_html = "\n".join(
         platform_section(name, other, (platform_captures or {}).get(name))
         for name, other in (platforms or []))
-    priority_html = priority_section(data, priority or [])
+    priority_rows = ([(name, "default", other)
+                      for name, other in (platforms or [])]
+                     + list(priority or []))
+    priority_html = priority_section(data, priority_rows)
     # One rendered block for every generated section: the two control tables
     # first (they belong with the primary results), then the extra platforms
     # and the load-placement comparison.

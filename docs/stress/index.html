@@ -345,12 +345,17 @@ The capture links open one representative frame per cell.</p>
 broken by the lower channel/stream number. The historical load sits on the low
 numbers (F0 channels 2/1, F4 streams 0/1), so it deliberately <em>outranks</em>
 the feed; the "high" runs move the same burst to the higher numbers, where the
-feed wins. The rows below are the same levels and guards with only that
-placement changed.</p>
+feed wins. GPDMA has no such tie: <code>CCR.PRIO</code> selects the class, so
+the H5 "high" run keeps channels 0/1 and raises the load to PRIO 3 against the
+feed's PRIO 0. The rows below are the same levels and guards with only that
+placement or priority changed.</p>
 <table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
 <th>Clean cells</th><th>Failing cells</th></tr></thead>
 <tbody><tr><td>STM32F0</td><td><code>STM32F030x6</code></td><td>DMA1 channels 2 and 1</td><td>12</td><td>0</td></tr>
-<tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 5 and 6</td><td>18</td><td>0</td></tr></tbody></table>
+<tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 0 and 1</td><td>16</td><td>2</td></tr>
+<tr><td>STM32H5</td><td><code>STM32H503xx</code></td><td>GPDMA1 channels 0/1, CCR.PRIO 0</td><td>18</td><td>0</td></tr>
+<tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 5 and 6</td><td>18</td><td>0</td></tr>
+<tr><td>STM32H5</td><td><code>STM32H503xx</code></td><td>GPDMA1 channels 0/1, CCR.PRIO 3</td><td>12</td><td>6</td></tr></tbody></table>
 <p class="note">A part that stays clean in both rows is bandwidth-bound with
 margin to spare. A part that is clean only with the load below the feed is
 sensitive to arbitration order, which is what the low-number default
