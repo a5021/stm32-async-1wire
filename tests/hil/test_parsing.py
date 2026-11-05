@@ -201,9 +201,16 @@ def test_log_identity():
     check("the bench and the clock are named",
           fields.get("mcu") == "STM32F103xB"
           and fields.get("sysclk") == "72MHz")
-    check("the tree identifies itself",
-          fields.get("fw") == version
-          and fields.get("commit") not in (None, "", "?"))
+    # A source archive has no .git: there is no commit to name, and the header
+    # says so instead of pretending. A real checkout must name its commit.
+    has_git = bool(common._git("rev-parse", "--short", "HEAD"))
+    if has_git:
+        check("the tree identifies itself",
+              fields.get("fw") == version
+              and fields.get("commit") not in (None, "", "?"))
+    else:
+        check("a source archive without .git names the commit as unknown",
+              fields.get("fw") == version and fields.get("commit") == "?")
     check("an image hash is only written when there is an image",
           "sha256" not in fields)
     check("a run with no build flags says so",
