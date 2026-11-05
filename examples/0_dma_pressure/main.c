@@ -71,7 +71,7 @@
  * other family compiles this example and runs level 0 with `stress=unsupported`
  * in the banner, so the all-family build matrix stays green while the
  * measurement is still being designed. The load channels keep the default DMA
- * priority;
+ * priority (on H5 that is CCR.PRIO 0; STRESS_GPDMA_PRIO selects another class);
  * STRESS_INJECT_US is a test-only channel-disable window, not a priority
  * change. In write mode it is anchored at the first CC2 request: an equivalent
  * window measured from the frame start spends its first 65 us before the feed
@@ -275,9 +275,9 @@ static ow_pulse_t frame[PATTERN_SLOTS + 1u];
  *    8 search_runs 9 search_bad  10 rom_crc     11 search_count
  *    12 inject_us 13 capture_mode 14 sink_count 15 stage
  *    16 stop_timeout 17 run magic 18 level/clock 19 inject_flags
- *    20 start_timeout
+ *    20 start_timeout 21 load_error
  */
-#define TELEMETRY_WORDS 21u
+#define TELEMETRY_WORDS 22u
 volatile uint32_t dma_pressure_telemetry[TELEMETRY_WORDS];
 
 /* ------------------------------------------------------------------
@@ -314,6 +314,8 @@ static volatile uint16_t stress_cpu_dst[STRESS_CPU_WORDS];
 #define STRESS_LOAD1_DMA DMA1_Channel1
 #define STRESS_LOAD0_FLAGS STRESS_CH2_FLAGS
 #define STRESS_LOAD1_FLAGS STRESS_CH1_FLAGS
+#define STRESS_LOAD0_TEIF DMA_ISR_TEIF2
+#define STRESS_LOAD1_TEIF DMA_ISR_TEIF1
 #else
 /* Test-only: channels 5/6 sit above the feed (3) and capture (4) at equal
  * priority, so this isolates arbitration rank from raw bus bandwidth. The
@@ -327,6 +329,8 @@ static volatile uint16_t stress_cpu_dst[STRESS_CPU_WORDS];
 #define STRESS_LOAD1_DMA DMA1_Channel4
 #define STRESS_LOAD0_FLAGS STRESS_CH5_FLAGS
 #define STRESS_LOAD1_FLAGS STRESS_CH4_FLAGS
+#define STRESS_LOAD0_TEIF DMA_ISR_TEIF5
+#define STRESS_LOAD1_TEIF DMA_ISR_TEIF4
 #endif
 #if STRESS_LOAD_HIGH && STRESS_CAPTURE
 #error "STRESS_LOAD_HIGH uses channel 4 for the F0 load, so it cannot run in capture mode"
@@ -438,6 +442,13 @@ static uint8_t feed_error_latched(void) {
     return (DMA1->ISR & DMA_ISR_TEIF3) ? 1u : 0u;
 }
 #endif
+
+/* A load channel that latches a transfer error stops moving data while the
+ * feed keeps running. Without this check the cell would be reported as clean
+ * under a load that had already died. Read before any flag clear. */
+static uint8_t stress_load_error(void) {
+    return (DMA1->ISR & (STRESS_LOAD0_TEIF | STRESS_LOAD1_TEIF)) ? 1u : 0u;
+}
 
 #elif defined(OW_FAMILY_F4)
 
@@ -566,39 +577,83 @@ static uint8_t feed_error_latched(void) {
 }
 #endif
 
+/* See the F0 note: a dead load channel must fail the cell, not end the load
+ * silently. Streams 0/1 report in LISR, streams 5/6 in HISR. */
+#if !STRESS_LOAD_HIGH
+static uint8_t stress_load_error(void) {
+    return (DMA2->LISR & (DMA_LISR_TEIF0 | DMA_LISR_TEIF1)) ? 1u : 0u;
+}
+#else
+static uint8_t stress_load_error(void) {
+    return (DMA2->HISR & (DMA_HISR_TEIF5 | DMA_HISR_TEIF6)) ? 1u : 0u;
+}
+#endif
+
 #elif defined(OW_FAMILY_H5)
 
 /* GPDMA direct mode: CTR1 carries the widths and increments, CTR2 the software
- * request, CBR1.BNDT the source-byte count. Channels 0/1 are the lowest free
- * channel numbers, so at equal priority they outrank the feed/capture on 2/3,
- * the same intent as the F0 channels and F4 streams. BNDT counts source bytes,
- * so a halfword transfer needs twice the word count. */
+ * request, CBR1.BNDT the source-byte count. Channel number does not break a
+ * tie on this controller: arbitration is by CCR.PRIO, where PRIO 3 is a fixed
+ * priority class and PRIO 0/1/2 share a weighted round-robin; channels of one
+ * class are served round-robin. The load uses the default PRIO 0 unless
+ * STRESS_GPDMA_PRIO is set, which is the equal-priority experiment; a higher
+ * value is the priority experiment. BNDT counts source bytes, so a halfword
+ * transfer needs twice the word count and the 16-bit field caps the burst at
+ * 32767 halfwords. */
+#ifndef STRESS_GPDMA_PRIO
+#define STRESS_GPDMA_PRIO 0u
+#endif
+#if (STRESS_GPDMA_PRIO > 3)
+#error "STRESS_GPDMA_PRIO must be 0..3"
+#endif
+#if (STRESS_WORDS < 1) || (STRESS_WORDS > 32767)
+#error "GPDMA CBR1.BNDT is a 16-bit byte count: at most 32767 halfwords"
+#endif
+
 #define STRESS_GPDMA_FLAGS                                    \
     ((1u << DMA_CFCR_TCF_Pos) | (1u << DMA_CFCR_HTF_Pos) |    \
      (1u << DMA_CFCR_DTEF_Pos) | (1u << DMA_CFCR_ULEF_Pos) |  \
      (1u << DMA_CFCR_USEF_Pos) | (1u << DMA_CFCR_SUSPF_Pos) | \
      (1u << DMA_CFCR_TOF_Pos))
+#define STRESS_GPDMA_CCR \
+    (DMA_CCR_EN | ((uint32_t)STRESS_GPDMA_PRIO << DMA_CCR_PRIO_Pos))
+#define STRESS_GPDMA_ERRORS \
+    (DMA_CSR_DTEF | DMA_CSR_ULEF | DMA_CSR_USEF | DMA_CSR_TOF)
 
-/* Take a possibly-live channel out of service. GPDMA keeps a pending request
- * when EN is cleared, so suspend first and only then drop EN; if either
- * handshake times out the channel is left alone and the start reports it. */
+/* Take a live channel down the sequence the reference manual gives: request a
+ * suspend in CCR, wait for the hardware acknowledgement in CSR.SUSPF, then
+ * reset the channel. RESET self-clears when the channel is idle; only then is
+ * it safe to reprogram it. Clearing EN alone does not stop a pending GPDMA
+ * request. */
 static uint8_t stress_gpdma_idle(DMA_Channel_TypeDef* ch) {
     if ((ch->CCR & DMA_CCR_EN) == 0u) {
         return 1u;
     }
-    const uint32_t susp = 1u << DMA_CCR_SUSP_Pos;
-    ch->CCR |= susp;
+    ch->CCR |= DMA_CCR_SUSP;
     uint32_t guard = 1000u;
-    while ((ch->CCR & susp) == 0u && guard-- != 0u) {
+    while ((ch->CSR & DMA_CSR_SUSPF) == 0u && guard-- != 0u) {
     }
-    if ((ch->CCR & susp) == 0u) {
+    if ((ch->CSR & DMA_CSR_SUSPF) == 0u) {
         return 0u;
     }
-    ch->CCR &= ~DMA_CCR_EN;
+    /* Suspension stops new requests; the channel still has to reach idle
+     * before a reset is defined. */
+    guard = 1000u;
+    while ((ch->CSR & DMA_CSR_IDLEF) == 0u && guard-- != 0u) {
+    }
+    if ((ch->CSR & DMA_CSR_IDLEF) == 0u) {
+        return 0u;
+    }
+    ch->CCR |= DMA_CCR_RESET;
     guard = 1000u;
     while ((ch->CCR & DMA_CCR_EN) != 0u && guard-- != 0u) {
     }
-    return (ch->CCR & DMA_CCR_EN) == 0u;
+    if ((ch->CCR & DMA_CCR_EN) != 0u) {
+        return 0u;
+    }
+    ch->CCR = 0u; /* drop the reset and suspend request bits */
+    ch->CFCR = STRESS_GPDMA_FLAGS;
+    return 1u;
 }
 
 static uint8_t stress_gpdma_start(DMA_Channel_TypeDef* ch) {
@@ -614,7 +669,7 @@ static uint8_t stress_gpdma_start(DMA_Channel_TypeDef* ch) {
     ch->CTR1 = (1u << DMA_CTR1_SDW_LOG2_Pos) |
                (1u << DMA_CTR1_DDW_LOG2_Pos) |
                (1u << DMA_CTR1_DINC_Pos);
-    ch->CCR = DMA_CCR_EN; /* clears SUSP and re-arms the channel */
+    ch->CCR = STRESS_GPDMA_CCR;
     return 1u;
 }
 
@@ -624,8 +679,8 @@ static uint8_t stress_burst_start(void) {
 }
 
 /* Circular mode is not useful here either; level 4/5 restart the finite burst
- * from the service loop. Channel 1 is the strongest equal-priority contender
- * after channel 0. */
+ * from the service loop. Channel 1 is the second load channel; with equal
+ * PRIO the two share their class round-robin with the feed/capture. */
 static uint8_t stress_ch1_burst_start(void) {
     ch1_starts++;
     return stress_gpdma_start(GPDMA1_Channel1);
@@ -642,7 +697,6 @@ static uint8_t stress_stop_channel(DMA_Channel_TypeDef* ch) {
     if (!stress_gpdma_idle(ch)) {
         return 0u;
     }
-    ch->CBR1 = 0u;
     ch->CFCR = STRESS_GPDMA_FLAGS;
     return 1u;
 }
@@ -651,6 +705,16 @@ static uint8_t stress_stop(void) {
     uint8_t ok = stress_stop_channel(GPDMA1_Channel1);
     ok &= stress_stop_channel(GPDMA1_Channel0);
     return ok;
+}
+
+/* See the F0 note: a load channel that stops on an error must fail the cell.
+ * DTEF covers data-transfer errors; ULEF/USEF/TOF catch a malformed setting,
+ * a rejected user setting and a trigger overrun. */
+static uint8_t stress_load_error(void) {
+    return (((GPDMA1_Channel0->CSR | GPDMA1_Channel1->CSR) &
+             STRESS_GPDMA_ERRORS) != 0u)
+               ? 1u
+               : 0u;
 }
 
 #if STRESS_CAPTURE
@@ -664,24 +728,28 @@ static volatile uint32_t* stress_feed_control(void) {
 #endif
 
 /* GPDMA does not drop a pending request when EN is cleared; suspend the
- * channel instead and keep the rest of CCR (including EN) intact. Clearing
- * SUSP at the end resumes it. This is still a channel-disable window: the
- * channel services no request while suspended. */
-#define STRESS_INJECT_OFF(save) ((save) | (1u << DMA_CCR_SUSP_Pos))
+ * channel instead and keep the rest of CCR (including EN) intact. CCR.SUSP is
+ * only the request: the acknowledgement is CSR.SUSPF, and the hold window
+ * starts after that flag, not after the write. Clearing SUSP at the end
+ * resumes the channel. CSR sits immediately before CCR in the channel struct,
+ * so the control pointer the inject code already has gives both registers. */
+#define STRESS_INJECT_OFF(save) ((save) | DMA_CCR_SUSP)
 #define STRESS_DMA_EN DMA_CCR_EN
 
 static uint8_t stress_inject_off_ok(volatile uint32_t* ctrl) {
+    volatile uint32_t* csr = ctrl - 1;
     uint32_t guard = 1000u;
-    while ((*ctrl & (1u << DMA_CCR_SUSP_Pos)) == 0u && guard-- != 0u) {
+    while ((*csr & DMA_CSR_SUSPF) == 0u && guard-- != 0u) {
     }
-    return (*ctrl & (1u << DMA_CCR_SUSP_Pos)) != 0u;
+    return (*csr & DMA_CSR_SUSPF) != 0u;
 }
 static uint8_t stress_inject_on_ok(volatile uint32_t* ctrl, uint32_t save) {
+    /* SUSPF is sticky: resuming clears SUSP, but the acknowledgement stays set
+     * until CFCR clears it. CFCR sits two words before CCR. */
+    volatile uint32_t* cfcr = ctrl - 2;
+    *cfcr = DMA_CFCR_SUSPF;
     (void)save;
-    uint32_t guard = 1000u;
-    while ((*ctrl & (1u << DMA_CCR_SUSP_Pos)) != 0u && guard-- != 0u) {
-    }
-    return (*ctrl & (1u << DMA_CCR_SUSP_Pos)) == 0u;
+    return (*ctrl & ~STRESS_DMA_EN) == (save & ~STRESS_DMA_EN);
 }
 
 #if !STRESS_CAPTURE
@@ -782,7 +850,13 @@ static void stress_begin(uint32_t level) {
     }
 }
 
+/* Returns 1 when the load is still running as asked, 0 when a channel did not
+ * stop before a restart, and 2 when a load channel latched an error: the cell
+ * must fail either way, because the announced load is no longer there. */
 static uint8_t stress_service(uint32_t level, uint32_t* next_ms) {
+    if (level >= 2u && stress_load_error()) {
+        return 2u;
+    }
     if (level == 2u) {
         /* One burst per millisecond; app_millis() is a SysTick read, not a
          * wait, so the loop keeps polling the bus between bursts. */
@@ -799,10 +873,9 @@ static uint8_t stress_service(uint32_t level, uint32_t* next_ms) {
             return 0u;
         }
     } else if (level >= 4u) {
-        /* Back-to-back finite bursts on the second load stream. Circular
-         * mem-to-memory is not allowed, so the stream is made from restartable
-         * finite transfers; the lowest free stream number is the strongest
-         * equal-priority contender. */
+        /* Back-to-back finite bursts on the second load channel. Circular
+         * mem-to-memory is not allowed, so the load is made from restartable
+         * finite transfers. */
         if (stress_ch1_done() && !stress_ch1_burst_start()) {
             return 0u;
         }
@@ -825,6 +898,7 @@ static const uint32_t cpu_passes = 0u;
 static const uint32_t stress_inject_flags = 0u;
 
 static void stress_begin(uint32_t level) { (void)level; }
+static uint8_t stress_load_error(void) { return 0u; }
 static uint8_t stress_service(uint32_t level, uint32_t* next_ms) {
     (void)level;
     (void)next_ms;
@@ -963,17 +1037,26 @@ int main(void) {
     search_rom_crc = 2166136261u;
     uint8_t stop_timeout = 0u;
     uint8_t start_timeout = 0u;
+    uint8_t load_error = 0u;
     stress_marker_high();
     ds18b20_search_start(search_sink, SEARCH_MAX);
     if (!ds18b20_search_poll()) {
         stress_begin(EFFECTIVE_LEVEL);
         uint32_t next_ms = app_millis();
         while (!ds18b20_search_poll()) {
-            if (!stress_service(EFFECTIVE_LEVEL, &next_ms)) {
-                start_timeout = 1u;
+            uint8_t status = stress_service(EFFECTIVE_LEVEL, &next_ms);
+            if (status != 1u) {
+                if (status == 2u) {
+                    load_error = 1u;
+                } else {
+                    start_timeout = 1u;
+                }
                 break;
             }
         }
+    }
+    if (EFFECTIVE_LEVEL >= 2u && stress_load_error()) {
+        load_error = 1u;
     }
     if (!stress_end()) {
         stop_timeout = 1u;
@@ -996,6 +1079,7 @@ int main(void) {
                                  ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
     dma_pressure_telemetry[19] = stress_inject_flags;
     dma_pressure_telemetry[20] = start_timeout;
+    dma_pressure_telemetry[21] = load_error;
 
     uart_write_str("DONE mode=search count=");
     uart_write_int((int)found);
@@ -1010,6 +1094,8 @@ int main(void) {
     uart_write_int((int)stop_timeout);
     uart_write_str(" start_timeout=");
     uart_write_int((int)start_timeout);
+    uart_write_str(" load_error=");
+    uart_write_int((int)load_error);
     uart_write_str("\r\n");
     uart_flush();
     for (;;) {
@@ -1023,6 +1109,7 @@ int main(void) {
     uint8_t dma_error = 0u;
     uint8_t stop_timeout = 0u;
     uint8_t start_timeout = 0u;
+    uint8_t load_error = 0u;
 
     while (frames < (uint32_t)STRESS_BURSTS) {
         stress_marker_high();
@@ -1036,10 +1123,18 @@ int main(void) {
          * The feed itself is hardware-timed and does not need the CPU. */
         uint32_t next_ms = app_millis();
         while (!onewire_bus_done()) {
-            if (!stress_service(EFFECTIVE_LEVEL, &next_ms)) {
-                start_timeout = 1u;
+            uint8_t status = stress_service(EFFECTIVE_LEVEL, &next_ms);
+            if (status != 1u) {
+                if (status == 2u) {
+                    load_error = 1u;
+                } else {
+                    start_timeout = 1u;
+                }
                 break;
             }
+        }
+        if (EFFECTIVE_LEVEL >= 2u && stress_load_error()) {
+            load_error = 1u;
         }
         uint8_t stop_ok = stress_end();
         stress_marker_low();
@@ -1048,7 +1143,7 @@ int main(void) {
             aborted = 1u;
             break;
         }
-        if (start_timeout) {
+        if (start_timeout || load_error) {
             aborted = 1u;
             break;
         }
@@ -1093,6 +1188,7 @@ int main(void) {
                                  ((uint32_t)OW_SYSCLK_MHZ & 0xFFFFu);
     dma_pressure_telemetry[19] = stress_inject_flags;
     dma_pressure_telemetry[20] = start_timeout;
+    dma_pressure_telemetry[21] = load_error;
 
     uart_write_str("DONE frames=");
     uart_write_int((int)frames);
@@ -1110,6 +1206,8 @@ int main(void) {
     uart_write_int((int)stop_timeout);
     uart_write_str(" start_timeout=");
     uart_write_int((int)start_timeout);
+    uart_write_str(" load_error=");
+    uart_write_int((int)load_error);
     uart_write_str("\r\n");
     uart_flush();
 

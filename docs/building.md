@@ -371,7 +371,8 @@ python tools/stress_report.py --data docs/stress/results.json --out docs/stress/
 ```
 
 The JSON records the commit, the capture directory, the marker setting, a
-start-timeout field per cell and a SHA-256 of the flashed image per cell (level
+start-timeout and a load-channel-error field per cell, the load placement
+(`load_high`, `gpdma_prio`) and a SHA-256 of the flashed image per cell (level
 and guard are compiled in, so the image differs per cell). `dirty` is sampled
 before the run writes anything and ignores `docs/stress`: a run's own output
 does not make the source tree look modified.
@@ -385,7 +386,10 @@ PA11 to D1 and the F030 wires PA2: the DMA-pressure harness builds with
 each frame with that marker and checks the run identity and injection bits
 before it trusts a capture. On the F446, `dma_pressure.py --load-high` moves the
 pressure load from DMA2 stream 0/1 to stream 5/6; without it the lower-numbered
-load streams are the equal-priority worst case and outrank the feed. The COM
+load streams are the equal-priority worst case and outrank the feed. On the H5,
+channel number is not an arbitration rank: `--gpdma-prio N` sets `CCR.PRIO` on
+the load channels (0 keeps the equal-priority case, 3 puts them in the fixed
+high-priority class). The COM
 port is scanned unless
 `HIL_PORT=` names one, `HIL_EXT=` overrides the bench's strong pull-up (unset
 uses the bench profile, an explicit empty value means an externally powered
