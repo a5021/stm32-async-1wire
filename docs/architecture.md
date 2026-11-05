@@ -2,6 +2,21 @@
 
 [Back to the README](../README.md)
 
+## Contents
+
+- [Comparison with Common 1-Wire Techniques](#comparison-with-common-1-wire-techniques)
+  - [Trade-offs](#trade-offs)
+- [Architecture](#architecture)
+  - [Hybrid Hardware Automation](#hybrid-hardware-automation)
+  - [Non-Blocking, Interrupt-Free Design Principles](#non-blocking-interrupt-free-design-principles)
+  - [Shared 1-Wire Layer](#shared-1-wire-layer)
+  - [Layer Contracts](#layer-contracts)
+  - [Required Timer Capabilities](#required-timer-capabilities)
+  - [State Machine Flow (hardware-timed; polled on UIF)](#state-machine-flow-hardware-timed-polled-on-uif)
+- [RTOS Integration](#rtos-integration)
+  - [Bus Idle Behaviour](#bus-idle-behaviour)
+  - [Multithreading and Concurrency](#multithreading-and-concurrency)
+
 ## Comparison with Common 1-Wire Techniques
 
 The DS18B20 uses the 1-Wire bus protocol, which communicates over a single data

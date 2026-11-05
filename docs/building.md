@@ -2,6 +2,25 @@
 
 [Back to the README](../README.md)
 
+## Contents
+
+- [Building](#building)
+  - [Prerequisites](#prerequisites)
+  - [CMSIS Dependencies](#cmsis-dependencies)
+  - [Build](#build)
+  - [Common Targets](#common-targets)
+  - [Flash](#flash)
+  - [Testing](#testing)
+  - [Does the suite actually notice a broken DMA contract?](#does-the-suite-actually-notice-a-broken-dma-contract)
+  - [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)
+  - [Integration: five ways to use the library](#integration-five-ways-to-use-the-library)
+  - [STM32CubeIDE](#stm32cubeide)
+  - [Configuration Notes](#configuration-notes)
+  - [Compile-time Tunables (`inc/ow_config.h`)](#compile-time-tunables-incow_configh)
+- [VSCode Integration](#vscode-integration)
+  - [Building (VSCode)](#building-1)
+  - [Debugging](#debugging)
+
 ## Building
 
 ### Prerequisites

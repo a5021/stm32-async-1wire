@@ -2,6 +2,30 @@
 
 [Back to the README](../README.md)
 
+## Contents
+
+- [API Reference](#api-reference)
+  - [Core Functions](#core-functions)
+  - [1-Wire Layer (shared)](#1-wire-layer-shared)
+  - [CRC Utility](#crc-utility)
+  - [Device Search](#device-search)
+  - [Alarm Search](#alarm-search)
+  - [Per-Device Addressing](#per-device-addressing)
+  - [Command Transactions](#command-transactions)
+  - [Simultaneous Multi-Device Conversion](#simultaneous-multi-device-conversion)
+  - [Parasite Power](#parasite-power)
+  - [Signal Statistics Module (`ow_stats`)](#signal-statistics-module-ow_stats)
+  - [Resolution Change](#resolution-change)
+  - [Weak Callbacks](#weak-callbacks)
+  - [Error Codes](#error-codes)
+  - [DS2431 EEPROM Driver](#ds2431-eeprom-driver)
+  - [Multi-Device Application (`9_multi`)](#multi-device-application-9_multi)
+- [Performance](#performance)
+  - [Footprint](#footprint)
+- [Configuration](#configuration)
+  - [Part selection: one `OW_MCU` key](#part-selection-one-ow_mcu-key)
+  - [Timing](#timing-1)
+
 ## API Reference
 
 ### Core Functions
