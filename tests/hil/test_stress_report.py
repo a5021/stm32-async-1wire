@@ -174,11 +174,11 @@ def main():
 
     platforms, priority = load_platforms()
     linked = set()
-    for name, data in platforms:
+    for name, pdata in platforms:
         # One representative failing frame per level; a level that already has a
         # clean guard was not shown as failing and needs no link.
         best = {}
-        for cell in data["cells"]:
+        for cell in pdata["cells"]:
             if not cell.get("capture_fail"):
                 continue
             level = cell["level"]
@@ -186,9 +186,9 @@ def main():
         for level, group in best.items():
             # A not-clean row is shown when no measured guard passed at the
             # default, mirroring the table's own verdict rule.
-            default_guard = data.get("default_guard_us", 5)
+            default_guard = pdata.get("default_guard_us", 5)
             by_cell = {(c["level"], c["clock_mhz"], c["guard_us"]): c
-                       for c in data["cells"]}
+                       for c in pdata["cells"]}
             shown = []
             for cell in group:
                 if cell["clean"]:

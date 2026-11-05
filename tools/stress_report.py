@@ -310,7 +310,7 @@ def platform_section(name, data):
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
     has_hashes = any(c.get("image_sha256") for c in data.get("cells") or [])
-    image_note = ", per-cell image hashes in the JSON" if has_hashes else ""
+    image_note = " Each cell carries its image SHA-256." if has_hashes else ""
     generated = data.get("generated") or "unknown"
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
@@ -321,8 +321,8 @@ def platform_section(name, data):
     return """
 <section id="platform-%s">
 <h2>%s (%s)</h2>
-<p class="meta">Measured %s at commit <code>%s</code>%s%s on <code>%s</code>.
-Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
+<p class="meta">Measured %s at commit <code>%s</code>%s on <code>%s</code>.
+Same rig, same loader, marker-bracketed frames and run-identity checks.%s</p>
 <div class="verdict">%s</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
 <th>Default guard</th><th>Viewer</th></tr></thead>
@@ -333,7 +333,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.</p>
 </section>
 """ % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
        e(data.get("mcu") or data.get("bench")), e(generated), e(commit),
-       e(tree_note), image_note, e(data.get("bench")), verdict, "\n".join(rows),
+       e(tree_note), e(data.get("bench")), image_note, verdict, "\n".join(rows),
        "The capture links open one representative frame per cell."
        if has_captures else
        "No one-frame captures were recorded for this bench.")
@@ -632,7 +632,8 @@ def build_report(data, capture=None, platforms=None, priority=None):
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
     has_hashes = any(c.get("image_sha256") for c in data.get("cells") or [])
-    image_note = ", per-cell image hashes in the JSON" if has_hashes else ""
+    image_note = (" Each cell carries the SHA-256 of its image in "
+                  "<code>results.json</code>" if has_hashes else "")
     generated = data.get("generated") or "unknown"
     bench = data.get("bench") or "unknown"
     mcu = data.get("mcu") or bench
@@ -708,9 +709,9 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 <main>
 <h1>Stress test report</h1>
 <p class="lead">DMA feed margin under memory-subsystem load - {mcu}</p>
-<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note}{image_note} on <code>{bench}</code>
+<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note} on <code>{bench}</code>
 (<code>{rig_mcu}</code>). Build <code>{example}</code>, pattern <code>{pattern}</code>,
-{slots} slots per frame, {bursts} frames per cell, {words} halfwords per DMA burst.</p>
+{slots} slots per frame, {bursts} frames per cell, {words} halfwords per DMA burst.{image_note}</p>
 
 <section id="summary">
 <h2>Summary</h2>
@@ -811,8 +812,8 @@ level.</li>
 before completion, including the final release.</li>
 <li>The load is real, not a no-op: channel 1 restarted its finite burst
 thousands of times per run (see the table), and the CPU hammer ran alongside
-it; the feed still met the 2 µs floor.</li>
-<li>The {guard_window} us guard is a {interp_floor2} us window, and the {repo_url} us floor is the smallest guard
+it; the feed still met the {interp_floor} us floor.</li>
+<li>The {guard_window} us guard is a {interp_floor2} us window, and the {interp_floor2} us floor is the smallest guard
 that stayed clean. Even there the wire stayed correct, so this part does not
 need a larger default and the library keeps its default DMA priority.</li>
 </ul>
