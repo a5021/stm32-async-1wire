@@ -244,24 +244,21 @@ def capture_section(capture):
     return """<section id="capture">
 <h2>Capture drain under load</h2>
 <p class="meta">Search ROM matrix measured %s at commit <code>%s</code>%s.</p>
-<p>The Search ROM pass reads every bit through the capture DMA (channel 4),
-so it exercises the other deadline the Reddit question names. One search runs
-per boot at each level and clock, at the default guard and at the 1 us floor.
-The unloaded level-0 pass is the baseline (%s); a stressed pass must return
-the same DS18B20 count and the same FNV-1a checksum over the found ROMs.</p>
+<p>The Search ROM pass reads every bit through the capture DMA (channel 4), so
+it tests the other deadline. One search runs per boot at each level and clock,
+at the default guard and the 1 us floor. The unloaded level-0 pass is the
+baseline (%s); a stressed pass must return the same DS18B20 count and FNV-1a
+checksum.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th>
 <th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th>
 <th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
-<p class="note">All %d stressed cells match. The DS18B20 search filters family
-0x28, so the firmware counts seven sensors while the viewer shows all eight
-responders on the bench (seven DS18B20 plus one DS2431). <code>SEARCH_MAX</code>
-caps the search at eight DS18B20s, so the count/checksum is not a full bus
-census beyond that. The viewer opens the whole search: the protocol tree shows
-the reset, the search command and the ROM triplets. At the highest stress
-levels the poll loop can stretch the inter-bit gaps; the firmware's
-count/checksum remains the primary check and the viewer splits the search at
-those gaps.</p>
+<p class="note">All %d stressed cells match. The search filters family 0x28, so
+the firmware counts 7 sensors while the viewer shows 8 responders (7 DS18B20
+plus 1 DS2431). <code>SEARCH_MAX</code> caps the count at 8, so this is not a
+full bus census. At high load the poll loop can stretch the gaps between bits;
+the firmware count/checksum is the main check, and the viewer splits the search
+at those gaps.</p>
 </section>""" % (e(capture.get("generated") or "unknown"),
                          e(capture.get("commit") or "unknown"),
                          " (working tree)" if capture.get("dirty") else "",
@@ -356,8 +353,8 @@ Same rig, same loader, marker-bracketed frames and run-identity checks.%s</p>
 <th>Default guard</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 %s
-<p class="note">The floor column is the smallest clean guard measured here, so
-<em>not clean</em> means even the widest guard in the tested set did not pass.
+<p class="note">The floor is the smallest clean guard measured. <em>not
+clean</em> means even the widest guard tested did not pass.
 %s</p>
 </section>
 """ % (name, e(FAMILY_NAMES.get(fam) or (data.get("mcu") or name)),
@@ -404,23 +401,22 @@ def priority_section(primary, others):
 <h2>Load placement and DMA priority</h2>
 <p>On a classic DMA controller or an F4 DMA stream, equal software priority is
 broken by the lower channel/stream number. The historical load sits on the low
-numbers (F0 channels 2/1, F4 streams 0/1), so it deliberately <em>outranks</em>
-the feed; the "high" runs move the same burst to the higher numbers, where the
-feed wins. GPDMA has no such tie: <code>CCR.PRIO</code> selects the class, so
-the H5 "high" run keeps channels 0/1 and raises the load to PRIO 3 against the
-feed's PRIO 0. The rows below are the same levels and guards with only that
-placement or priority changed.</p>
+numbers (F0 channels 2/1, F4 streams 0/1), so it outranks the feed; the "high"
+runs move the same burst to the higher numbers, where the feed wins. GPDMA has
+no such tie: <code>CCR.PRIO</code> selects the class, so the H5 "high" run keeps
+channels 0/1 and raises the load to PRIO 3 against the feed's PRIO 0. The rows
+below are the same levels and guards with only that placement or priority
+changed.</p>
 <table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
 <th>Clean cells (default guard)</th><th>Failing cells (default guard)</th></tr></thead>
 <tbody>%s</tbody></table>
-<p class="note">These counts are level/clock cells in the <em>write-frame</em>
-matrix at the bench's default guard - not the Search ROM capture matrix above.
-A failing cell is a write frame that did not decode clean. On the H503 PRIO 3
-row all six carry <code>start_timeout = 0</code> and
-<code>load_error = 0</code>, so the higher priority really did starve the feed;
-the equal-priority H503 row stays clean. A part that stays clean in both rows
-is bandwidth-bound with margin to spare, and a part that is clean only with the
-load below the feed is sensitive to arbitration order.</p>
+<p class="note">These are level/clock cells in the <em>write-frame</em> matrix
+at the default guard, not the Search ROM matrix above. A failing cell is a
+write frame that did not decode clean. On the H503 PRIO 3 row all six have
+<code>start_timeout = 0</code> and <code>load_error = 0</code>, so the higher
+priority starved the feed; the equal-priority H503 row is clean. A part that is
+clean in both rows has spare bandwidth; a part that is clean only with the load
+below the feed is sensitive to arbitration order.</p>
 </section>
 """ % "\n".join(rows)
 
@@ -473,23 +469,20 @@ def inject_section(capture):
     cap_txt = _first_bad_text(first, "search")
     return """<section id="inject">
 <h2>Negative control: a deliberately delayed transfer</h2>
-<p>Detecting a late transfer is not the same as detecting a wrong count or a
-wrong route. This is a positive control: <code>STRESS_INJECT_US</code> holds
-the feed channel (write mode) or the capture channel (search mode) disabled
-for N microseconds, then restores it. This is a channel-disable injection:
-the bench checks whether the resulting delay breaks the timeline; it does not
-assume a particular request-latching rule. The harness must go red.</p>
+<p>This control checks that the harness notices a late transfer.
+<code>STRESS_INJECT_US</code> disables the feed channel (write mode) or the
+capture channel (search mode) for N microseconds, then re-enables it. The delay
+must make the cell fail.</p>
 <table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
 <th>Result</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
-<p>The first delayed feed is detected at <strong>%s</strong> and the first
-delayed capture at <strong>%s</strong>. The write window is anchored at the
-frame's first CC2 request (65 us), so these values bound how long the first
-feed transfer may be held <em>after</em> that request; a window measured from
-the frame start could not show anything below 65 us because the feed had not
-asked for anything yet. The search's first capture is later, which is why its
-threshold is higher. The viewer links on the detected rows show the corrupted
-frame/search.</p>
+<p>The first delayed feed is detected at <strong>%s</strong>; the first
+delayed capture at <strong>%s</strong>. The write window starts at the frame's
+first CC2 request (65 us), so these values bound how long the first feed
+transfer may be held <em>after</em> that request. A window from the frame start
+could not show anything below 65 us: the feed had not asked yet. The search's
+first capture is later, so its threshold is higher. The viewer links on the
+detected rows show the corrupted frame or search.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
@@ -546,18 +539,17 @@ def build_report(data, capture=None, platforms=None, priority=None,
                              % (clock, t4[5]))
 
     findings = [
-        "Every level x clock cell is clean at the %s floor (a %d us window)."
+        "Every level and clock is clean at the %s floor (a %d us window)."
         % (fmt_guard(floor_guard), floor_window),
-        "cndtr_late is 0, no DMA error was latched and no channel-stop "
-        "timeout occurred in any cell: not even a queued transfer remained "
-        "at completion.",
-        "The load is real: " + "; ".join(load_bits) +
+        "cndtr_late is 0, no DMA error was latched, and no channel-stop "
+        "timeout occurred in any cell.",
+        "Load activity: " + "; ".join(load_bits) +
         " (level 4; level 5 adds the CPU hammer)."
         if load_bits else
-        "The load is real: the stress counters in the table show every channel "
+        "Load activity: the stress counters in the table show every channel "
         "running.",
-        "The %d us guard is a %d us window, %.1fx the measured %d us floor; "
-        "the library and the DMA priority stay unchanged."
+        "The %d us guard is a %d us window, %.1fx the measured %d us floor. "
+        "The library and DMA priority stay unchanged."
         % (default_guard, default_window, ratio, floor_window),
     ]
     if not (all_floor_clean and all_default_clean and all_cndtr_zero
@@ -571,8 +563,8 @@ def build_report(data, capture=None, platforms=None, priority=None,
             base_count = next(iter(baseline.values()), {}).get("count")
             findings.append(
                 "Search ROM under the same loads returned the same %s devices "
-                "and checksum in all %d cells: the capture DMA met its deadline "
-                "too." % (base_count, len(cap_cells)))
+                "and checksum in all %d cells."
+                % (base_count, len(cap_cells)))
         first_bad = capture.get("first_bad") or {}
         feed = [v for k, v in first_bad.items()
                 if k.startswith("write") and v is not None]
@@ -580,9 +572,9 @@ def build_report(data, capture=None, platforms=None, priority=None,
                 if k.startswith("search") and v is not None]
         if feed and capd:
             findings.append(
-                "A deliberately delayed feed (%d us) and capture (%d us) both "
-                "turn the checks red: the harness catches a late transfer, not "
-                "just a wrong count or route." % (min(feed), min(capd)))
+                "A delayed feed (%d us) and capture (%d us) both fail the "
+                "checks, so the harness catches a late transfer."
+                % (min(feed), min(capd)))
 
     # Main matrix.
     matrix_rows = []
@@ -762,33 +754,31 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 <ul class="findings">
 {findings}
 </ul>
-<p>The question was whether memory-subsystem load can delay the CCR3 feed DMA
-past its slot deadline. On this bench it does not: the wire stayed correct at
-the timer's smallest valid guard even when the load halved the CPU's own SRAM
-throughput.</p>
+<p>This test checks whether memory load can delay the CCR3 feed DMA past its
+slot deadline. On this bench it cannot: the transfer always landed before the
+update, even when the load halved the CPU's SRAM throughput.</p>
 </section>
 
 <section id="mechanism">
 <h2>What can go wrong</h2>
-<p>Each write slot is one TIM1 period. The CC2 compare requests the next CCR3
-value from DMA1 channel 3; the update event starts the next slot. The transfer
-has the window between those two events - <code>guard + 1</code> microseconds,
-because the counter runs from 0 to ARR inclusive.</p>
+<p>Each write slot is one TIM1 period. At CC2, DMA1 channel 3 is asked for the
+next CCR3 value. The update event starts the next slot. The transfer must land
+between those events: <code>guard + 1</code> microseconds (the counter runs
+from 0 to ARR inclusive).</p>
 {timeline}
 <table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
 <tbody>{failure_rows}</tbody></table>
-<p>The port leaves OC3PE off on the DMA-fed paths, so a late CCR3 write acts
-immediately instead of waiting for an update: the failure can appear inside
-the current slot, not only at the next one.</p>
+<p>On DMA-fed paths OC3PE is off. A late CCR3 write takes effect immediately,
+so a failure can appear inside the current slot, not only at the next one.</p>
 </section>
 
 <section id="rig">
 <h2>Rig and method</h2>
-<p><code>examples/0_dma_pressure</code> transmits a fixed 8-byte pattern (64
-slots plus the trailing release) back to back, with a selectable load beside
-the bus. The bench is <code>{rig_bench}</code>; D0 is the 1-Wire line on PA10. The
-capture runs at {rate_mhz} MS/s and the firmware is flashed halted, reset by the
-harness, so only the intended run is judged.</p>
+<p><code>examples/0_dma_pressure</code> sends a fixed 8-byte pattern (64 slots
+plus the release) back to back while a selectable load runs beside the bus. The
+bench is <code>{rig_bench}</code>; D0 is the 1-Wire line on PA10. The capture
+runs at {rate_mhz} MS/s. The harness flashes the firmware halted and resets it,
+so only the intended run is measured.</p>
 <table><tbody>
 <tr><th>MCU</th><td><code>{rig_row_mcu}</code></td></tr>
 <tr><th>Clocks</th><td>{clocks}</td></tr>
@@ -802,12 +792,12 @@ at completion) and <code>TEIF3</code>, read back over SWD</td></tr>
 period matches the build, all 64 bits decode, and the frame has exactly 64
 pulses and a release</td></tr>
 </tbody></table>
-<p class="note">The first slot of a frame is armed by a register write, not by
-the feed DMA: its width includes the CPU gap between enabling OC3 and starting
-the timer (about 1 us at 48 MHz, 7 us at 8 MHz). The check skips that slot's
-width and the first period of each frame. Guard 0 is not an operating point:
-CC2 then coincides with the update and the release write produces a spurious
-end-of-frame pulse.</p>
+<p class="note">The first slot is armed by a register write, not the feed DMA.
+Its width includes the CPU gap between enabling OC3 and starting the timer
+(about 1 us at 48 MHz, 7 us at 8 MHz), so the check skips that slot's width and
+the first period of each frame. Guard 0 is not an operating point: CC2 then
+coincides with the update, and the release write adds a spurious end-of-frame
+pulse.</p>
 </section>
 
 <section id="levels">
@@ -819,27 +809,24 @@ end-of-frame pulse.</p>
 
 <section id="results">
 <h2>Results</h2>
-<p>Smallest clean guard per level and clock, with the default-guard cell and
-the capture links. The parenthetical is the real transfer window
-(<code>guard + 1</code> us). A clean cell means 100 complete frames with no
-width, period, length or decode violation.</p>
+<p>Smallest clean guard per level and clock. The parenthetical is the real
+transfer window (<code>guard + 1</code> us). A clean cell has 100 complete
+frames with no width, period, length or decode violation.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
 <th>Frames @ {frames_header} us</th><th>Violations @ {violations_header} us</th><th>CNDTR late</th>
 <th>DMA error</th><th>Stop timeout</th><th>Load evidence</th><th>Viewer</th></tr></thead>
 <tbody>{matrix_rows}</tbody></table>
 <p class="note">The viewer opens one representative frame (64 slots, 1 ms
-lead-in and tail). The pattern is deliberately not a 1-Wire command sequence,
-so the protocol tree stays empty; the Detail view shows the measured low and
-slot widths, which is the evidence. The JSON holds every tested cell,
-including the {control} us control and the bisection probes.</p>
+lead-in and tail). The pattern is not a 1-Wire command, so the protocol tree
+stays empty; the Detail view shows the measured low and slot widths. The JSON
+holds every tested cell, including the {control} us control and the bisection
+probes.</p>
 <h3>CPU-side work</h3>
-<p>The chart shows the CPU passes completed while the bus was running, at the
-default guard. The ch1 burst stream does not reduce them in this configuration:
-the DMA interleaves between CPU accesses. The load evidence is the burst count
-in the table.</p>
+<p>CPU passes completed while the bus was running, at the default guard. The
+ch1 burst stream does not reduce them here: the DMA interleaves between CPU
+accesses. The burst count in the table shows the load.</p>
 {chart}
-<p>The ch1 burst stream and the CPU hammer both ran; the feed still met the
-same {floor_window} us floor.</p>
+<p>Both loads ran, and the feed still met the {floor_window} us floor.</p>
 </section>
 
 {extra_sections}
@@ -847,38 +834,36 @@ same {floor_window} us floor.</p>
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
-<li>No wire-visible slip at the {interp_floor} us floor on either clock, under any load
-level.</li>
+<li>No wire-visible slip at the {interp_floor} us floor on either clock, under any load.</li>
 <li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
 before completion, including the final release.</li>
-<li>The load is real, not a no-op: channel 1 restarted its finite burst
-thousands of times per run (see the table), and the CPU hammer ran alongside
-it; the feed still met the {interp_floor} us floor.</li>
-<li>The {guard_window} us guard is a {interp_floor2} us window, and the {interp_floor2} us floor is the smallest guard
-that stayed clean. Even there the wire stayed correct, so this part does not
-need a larger default and the library keeps its default DMA priority.</li>
+<li>Load activity: channel 1 restarted thousands of times per run (see the
+table), and the CPU hammer ran too. The feed still met the {interp_floor} us
+floor.</li>
+<li>The {guard_window} us guard is a {interp_floor2} us window, and {interp_floor2} us is
+the smallest guard that stayed clean. The wire stayed correct there, so this
+part does not need a larger default and the library keeps its DMA priority.</li>
 </ul>
 </section>
 
 <section id="caveats">
 <h2>Caveats</h2>
 <ul>
-<li><strong>Equal priority only, but the order matters.</strong> Every load
-channel stays at the default DMA priority. An application channel with
-<code>PL &gt; 0</code> is a different arbitration case and is not covered by
-this run. What <em>is</em> covered is the equal-priority tie-break: the
-historical load sits on the low channel/stream numbers, so it outranks the
-feed; the priority section shows the same load on the high numbers.</li>
-<li><strong>One rig, several benches.</strong> Each measured part used the same
-firmware and loader. Where a part has fewer DMA channels the high-placement
-load uses the next free number (the F030F4 has no channel 6, so it uses
-channel 4). Bench wiring and marker pins differ per board.</li>
+<li><strong>Equal priority only.</strong> Every load channel uses the default
+DMA priority. An application channel with <code>PL &gt; 0</code> is a different
+case and is not covered. The equal-priority tie-break is covered: the load sits
+on low channel/stream numbers, so it outranks the feed; the priority section
+shows the same load on high numbers.</li>
+<li><strong>One rig, several benches.</strong> Each part used the same firmware
+and loader. On parts with fewer channels the high-placement load uses the next
+free number (the F030F4 has no channel 6, so it uses 4). Wiring and marker pins
+differ per board.</li>
 <li><strong>One part, one bench, write-only.</strong> The pattern is not a
-1-Wire transaction and the attached devices are never addressed (no reset), so
-the measurement is the master's timing, not a protocol exchange.</li>
-<li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below
-1; the report therefore says "a 2 us window was enough", not "the latency is
-exactly 1 us".</li>
+1-Wire transaction and the devices are never addressed, so this measures master
+timing, not a protocol exchange.</li>
+<li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
+The report says "a 2 us window was enough", not "the latency is exactly
+1 us".</li>
 </ul>
 </section>
 
@@ -939,7 +924,7 @@ and <a href="{footer_note}/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pr
         "words": words,
         "verdict_class": ("" if ok else " bad"),
         "verdict_text": (
-                    "No starvation, no corrupt slot, no missing release under the tested loads."
+                    "The wire stayed correct under every tested load."
                     if ok
                     else "The published run contains a failure."
                 ),
