@@ -362,6 +362,11 @@ python tests/hil/dma_pressure.py --json docs/stress/results.json \
                                  --sr-dir docs/stress/captures
 python tests/hil/dma_capture.py --json docs/stress/capture.json
 
+# decode one Search ROM trace bit by bit (a truncated pass also ends after a
+# read pair, so read the telemetry before calling it an engine stop)
+python tests/hil/search_trace.py \
+    docs/stress/platforms/h503/captures/search/l3_8mhz_g5_i0.sr --bits
+
 # the other benches go under platforms/<bench>/ with the same files, plus a
 # results-high.json / captures-high/ pair when the load placement is measured
 python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results.json \
