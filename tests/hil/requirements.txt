@@ -1,0 +1,2 @@
+# Python dependencies for HIL testing and logic-analyzer decoders
+numpy>=1.20.0

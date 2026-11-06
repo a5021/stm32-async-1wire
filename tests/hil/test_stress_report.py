@@ -16,7 +16,11 @@ import re
 import sys
 import zipfile
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    print("test_stress_report: SKIP (numpy not installed)")
+    sys.exit(0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))

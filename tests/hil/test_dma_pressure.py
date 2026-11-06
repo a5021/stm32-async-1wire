@@ -13,7 +13,11 @@ synthesize each shape at a known geometry and check the verdict.
 import os
 import sys
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    print("test_dma_pressure: SKIP (numpy not installed)")
+    sys.exit(0)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

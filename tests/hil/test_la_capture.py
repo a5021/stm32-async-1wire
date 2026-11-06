@@ -17,7 +17,11 @@ import os
 import sys
 import tempfile
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    print("test_la_capture: SKIP (numpy not installed)")
+    sys.exit(0)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

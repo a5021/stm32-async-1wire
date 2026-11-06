@@ -424,7 +424,7 @@ endif
 WGET := $(shell command -v wget 2> /dev/null)
 CURL := $(shell command -v curl 2> /dev/null)
 DOWNLOAD_TOOL  = $(or $(WGET),$(CURL))
-DOWNLOAD_FLAGS = $(if $(WGET),-q -O,-s -o)
+DOWNLOAD_FLAGS = $(if $(WGET),-q -O,-f -s -S -o)
 
 # Base URLs
 RAW_URL = https://raw.githubusercontent.com
@@ -549,14 +549,15 @@ define download_file
 	fi
 	@n=1; ok=0; \
 	while [ $$n -le 5 ]; do \
-		if $(DOWNLOAD_TOOL) $(DOWNLOAD_FLAGS) "$(2)" "$(1)"; then \
+		if $(DOWNLOAD_TOOL) $(DOWNLOAD_FLAGS) "$(2)" "$(1)" && [ -s "$(2)" ]; then \
 			ok=1; break; \
 		fi; \
+		rm -f "$(2)"; \
 		echo "    attempt $$n failed, retrying..."; \
 		n=$$((n+1)); \
 		sleep 2; \
 	done; \
-	if [ $$ok -eq 1 ]; then echo "    OK"; else echo "    FAILED"; exit 1; fi
+	if [ $$ok -eq 1 ]; then echo "    OK"; else rm -f "$(2)"; echo "    FAILED"; exit 1; fi
 endef
 
 # Create CMSIS directories
