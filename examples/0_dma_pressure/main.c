@@ -718,12 +718,14 @@ static uint8_t stress_load_error(void) {
 }
 
 #if STRESS_CAPTURE
+#define STRESS_INJECT_CHANNEL GPDMA1_Channel3
 static volatile uint32_t* stress_capture_control(void) {
-    return &GPDMA1_Channel3->CCR;
+    return &STRESS_INJECT_CHANNEL->CCR;
 }
 #else
+#define STRESS_INJECT_CHANNEL GPDMA1_Channel2
 static volatile uint32_t* stress_feed_control(void) {
-    return &GPDMA1_Channel2->CCR;
+    return &STRESS_INJECT_CHANNEL->CCR;
 }
 #endif
 
@@ -731,25 +733,23 @@ static volatile uint32_t* stress_feed_control(void) {
  * channel instead and keep the rest of CCR (including EN) intact. CCR.SUSP is
  * only the request: the acknowledgement is CSR.SUSPF, and the hold window
  * starts after that flag, not after the write. Clearing SUSP at the end
- * resumes the channel. CSR sits immediately before CCR in the channel struct,
- * so the control pointer the inject code already has gives both registers. */
+ * resumes the channel. SUSPF is sticky, so CFCR clears it once resumed. */
 #define STRESS_INJECT_OFF(save) ((save) | DMA_CCR_SUSP)
 #define STRESS_DMA_EN DMA_CCR_EN
 
 static uint8_t stress_inject_off_ok(volatile uint32_t* ctrl) {
-    volatile uint32_t* csr = ctrl - 1;
+    (void)ctrl;
+    DMA_Channel_TypeDef* ch = STRESS_INJECT_CHANNEL;
     uint32_t guard = 1000u;
-    while ((*csr & DMA_CSR_SUSPF) == 0u && guard-- != 0u) {
+    while ((ch->CSR & DMA_CSR_SUSPF) == 0u && guard-- != 0u) {
     }
-    return (*csr & DMA_CSR_SUSPF) != 0u;
+    return (ch->CSR & DMA_CSR_SUSPF) != 0u;
 }
 static uint8_t stress_inject_on_ok(volatile uint32_t* ctrl, uint32_t save) {
-    /* SUSPF is sticky: resuming clears SUSP, but the acknowledgement stays set
-     * until CFCR clears it. CFCR sits two words before CCR. */
-    volatile uint32_t* cfcr = ctrl - 2;
-    *cfcr = DMA_CFCR_SUSPF;
-    (void)save;
-    return (*ctrl & ~STRESS_DMA_EN) == (save & ~STRESS_DMA_EN);
+    DMA_Channel_TypeDef* ch = STRESS_INJECT_CHANNEL;
+    ch->CFCR = DMA_CFCR_SUSPF;
+    return ((ch->CCR & DMA_CCR_SUSP) == 0u) &&
+           ((*ctrl & ~STRESS_DMA_EN) == (save & ~STRESS_DMA_EN));
 }
 
 #if !STRESS_CAPTURE

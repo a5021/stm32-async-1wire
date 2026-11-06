@@ -55,7 +55,12 @@ typedef struct {
  * consumes 2 BNDT bytes; mock_target.h carries the per-target conversion
  * (MOCK_CAP_CNDTR / MOCK_CAP_TRANSFERS). */
 typedef struct {
+    volatile uint32_t CLBAR;
+    uint32_t RESERVED1[2];
+    volatile uint32_t CFCR;
+    volatile uint32_t CSR;
     volatile uint32_t CCR;
+    uint32_t RESERVED2[10];
     volatile uint32_t CTR1;
     volatile uint32_t CTR2;
     union {
@@ -66,13 +71,14 @@ typedef struct {
     volatile uint32_t CDAR;
     volatile uint32_t CTR3;
     volatile uint32_t CBR2;
-    volatile uint32_t CSR;
-    volatile uint32_t CFCR;
+    uint32_t RESERVED3[8];
+    volatile uint32_t CLLR;
 } GPDMA_Channel_TypeDef;
 
 /* hw_model.c declares its storage objects with the F1-era type name; alias it
  * so the model stays family-agnostic. */
 typedef GPDMA_Channel_TypeDef DMA1_Channel_TypeDef;
+typedef GPDMA_Channel_TypeDef DMA_Channel_TypeDef;
 
 typedef struct {
     volatile uint32_t MODER;
