@@ -79,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   H503 is clean at every level on 64/250/8 MHz with floor guard 1; on F446 the
   default low-number streams fail level 5 at 16/8 MHz while the same load on
   streams 5/6 passes everywhere.
+- **HIL Python dependency specification.** `tests/hil/requirements.txt` specifies
+  `numpy>=1.20.0` for wire geometry and logic analyzer decoding. HIL unit tests
+  (`test_la_capture.py`, `test_la_decode.py`, `test_dma_pressure.py`,
+  `test_stress_report.py`) now gracefully skip with exit code 0 when `numpy` is
+  absent rather than aborting test execution.
 
 ### Changed
 
@@ -132,6 +137,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that flash-density code. The STM32F401CC keeps the same 84 MHz cap and DMA
   topology in 256 KB/64 KB, and is bench-validated; the F4 backend, routing and
   console path are unchanged.
+
+### Fixed
+
+- **GPDMA negative-control register addressing in `0_dma_pressure`.**
+  `stress_inject_off_ok()` and `stress_inject_on_ok()` previously calculated
+  `CSR` and `CFCR` addresses using negative offsets (`ctrl - 1`, `ctrl - 2`) from
+  the `CCR` pointer, pointing out of bounds because `CSR` and `CFCR` reside after
+  `CCR` in `DMA_Channel_TypeDef`. Both helpers now accept `DMA_Channel_TypeDef*`
+  directly, ensuring `CSR.SUSPF` is properly awaited and cleared.
+- **CMSIS mock struct layout for GPDMA channels.** `GPDMA_Channel_TypeDef` in
+  `tests/mock/stm32h5xx.h` is synchronized with RM0481 and vendor CMSIS headers
+  (`CCR`, `CTR1`, `CTR2`, `CBR1`, `CSAR`, `CDAR`, `CTR3`, `CBR2`, `CSR`, `CFCR`),
+  correcting offsets for host mock builds.
+- **Robust dependency downloads in `Makefile`.** `DOWNLOAD_FLAGS` now includes
+  `-f -S` for `curl`, downloads are verified to be non-empty (`[ -s ]`), and any
+  failed or truncated download is deleted immediately, preventing zero-byte
+  files from breaking subsequent builds.
+- **Trailing newline in `src/ds2431.c`.** Restored the missing POSIX newline at
+  the end of the file.
 
 ## [3.0.1] - 2026-11-04
 

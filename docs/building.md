@@ -49,7 +49,7 @@
     -   **J-Link:** `JFlashExe` / `JFlash.Exe` / `JLinkGDBServerCL.exe`
     -   **STM32CubeProgrammer CLI:** `STM32_Programmer_CLI` — used by the
         hardware-in-the-loop harness
--   **Logic-analyzer tools (optional):** `sigrok-cli` and `numpy` for the
+-   **Logic-analyzer tools (optional):** `sigrok-cli` and `numpy` (install via `tests/hil/requirements.txt`) for the
     wire-geometry and HIL capture checks; the viewer selftest also needs the
     pinned Playwright package (see `tools/1wire_vis/README.md`).
 
@@ -428,7 +428,7 @@ the 1-Wire line (PA10) with a logic analyzer and checks the measured pulse
 widths and slot period against the configuration in `inc/ow_config.h` — the
 schedule a consumer's bus has to live with, checked on the wire and not only
 in a register. It needs `sigrok-cli` (set `SIGROK_CLI` to point at it) and
-numpy:
+numpy (`pip install -r tests/hil/requirements.txt`):
 
 ```bash
 python tests/hil/la_capture.py --parasite   # the parasite bus: guard 100 us
