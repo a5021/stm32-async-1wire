@@ -638,8 +638,7 @@ static uint8_t stress_gpdma_idle(DMA_Channel_TypeDef* ch) {
      * restart fails on exactly the cells that re-arm back-to-back: the 8 MHz
      * benches, where the gap between the two accesses is longest in real
      * time, reported it as a search failure. */
-    while (((ch->CSR & (DMA_CSR_SUSPF | DMA_CSR_IDLEF)) == 0u)
-           && guard-- != 0u) {
+    while (((ch->CSR & (DMA_CSR_SUSPF | DMA_CSR_IDLEF)) == 0u) && guard-- != 0u) {
     }
     if ((ch->CSR & (DMA_CSR_SUSPF | DMA_CSR_IDLEF)) == 0u) {
         return 0u;
