@@ -294,9 +294,10 @@ level is clean at the 5 µs default at 64, 250 and 8 MHz **at equal priority**,
 and the measured floor is guard 1 in every cell; the earlier level 0/4 outliers
 disappear once the D1 marker brackets the frames. The GPDMA negative control
 suspends the channel (`CCR.SUSP`) and waits for the hardware acknowledgement in
-`CSR.SUSPF`; taking a live channel down adds `IDLEF` and `CCR.RESET`, because
-clearing `EN` alone does not drop a pending request. That corrected sequence is
-what the current data measures.
+`CSR.SUSPF`; taking a live channel down also accepts `IDLEF`, because the
+transfer may have finished before the suspend request landed, and then uses
+`CCR.RESET`, since clearing `EN` alone does not drop a pending request. That
+corrected sequence is what the current data measures.
 
 Raising the load to `CCR.PRIO 3` against the feed's `PRIO 0` is the second
 model, and it is a different picture: 250 MHz stays clean at guard 1, 64 MHz
@@ -304,13 +305,21 @@ needs up to 13 µs (levels 2-4), and at 8 MHz level 2 needs 100 µs while levels
 3-5 never pass. The fixed high class really does outrank the feed; the
 equal-priority round-robin above does not.
 
-The Search ROM pass under the same loads matched the baseline in 33 of 36
-cells. At 8 MHz levels 3 and 4 returned no devices (count 0, or one device at
-level 3/guard 1) on both attempts. The waveform of a failing cell shows the
-reset, the presence pulse and the `0xF0` command correctly; the tree then ends
-empty. The feed matrix is clean in those cells, so this is the search itself
-losing the device tree at 8 MHz, not a dead bus. The failing searches are kept
-under `platforms/h503/captures/search/` and the report names them.
+The Search ROM pass under the same loads matched the baseline in all 36 cells
+in the current run (2026-11-06 at `ac57ff8`): 7 devices and `88DB0C9D` at 64,
+250 and 8 MHz, guards 5 and 1. An earlier run reported 33 of 36 and blamed the
+capture engine for losing the device tree at 8 MHz (levels 3/4). That diagnosis
+was wrong. Every failing cell carried `start_timeout = 1`: the load channel had
+finished its finite burst between the `CCR.EN` read and the `CCR.SUSP` write in
+`stress_gpdma_idle()`, so hardware had already cleared `EN` and the suspend was
+never acknowledged. The harness then left the search loop at the next service
+call, and the analyzer window ended mid-pass. The 8 MHz cells hit it because
+the gap between those two accesses is longest in real time, and levels 3/4
+re-arm bursts back-to-back. Accepting `IDLEF` as well as `SUSPF` - either
+proves that no transfer is active - fixes the restart. The republished
+`platforms/h503/capture.json` replaces the three aborted runs; an aborted trace
+still shows the reset, presence and `0xF0` correctly and then stops after a
+read pair, which is why the old waveform reading looked like a search failure.
 
 The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
 F030 PA2). `STRESS_MARKER=1` makes

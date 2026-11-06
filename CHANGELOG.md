@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run that stopped early (USB hiccup, reset during re-enumeration) is repeated
   before analysis. Such a capture used to surface as "no complete frame" and
   looked like a driver failure.
+- **A wire-level Search ROM decoder for HIL captures.** `tests/hil/search_trace.py`
+  turns a sigrok `.sr` archive or raw bus capture back into the reset, the
+  `0xF0` command, every id/cmp pair and the direction writes, so a failing
+  search cell can be compared with what actually reached the wire. A trace that
+  stops after a read pair is reported as truncated, not as an engine abort: an
+  abandoned pass has the same shape unless the telemetry agrees.
 - **`STRESS_LOAD_HIGH` now also selects the F0 load channels.** On F0 the knob
   moves the load from DMA1 channels 2/1 to channels 5/4 (the F030F4 has no
   channel 6, so the second load rides channel 4, which the write rig does not
@@ -140,6 +146,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **H5 load restart raced a finishing burst.** `stress_gpdma_idle()` in
+  `0_dma_pressure` read `CCR.EN` and then wrote `CCR.SUSP`. When the finite
+  load burst completed in between, hardware cleared `EN`, the channel went
+  idle and the suspend request was never acknowledged, so the bounded wait
+  failed and the harness reported `start_timeout`. The 8 MHz cells that re-arm
+  bursts back-to-back (levels 3/4) hit it reliably; three Search ROM cells were
+  published as capture losses even though the wire was healthy. The wait now
+  accepts `IDLEF` as well as `SUSPF` - either proves that no transfer is active
+  - before the channel reset. All 36 H503 capture cells match the unloaded
+  baseline after the fix, and the republished `platforms/h503/capture.json`
+  replaces the three aborted runs.
 - **GPDMA negative-control register addressing in `0_dma_pressure`.**
   `stress_inject_off_ok()` and `stress_inject_on_ok()` previously calculated
   `CSR` and `CFCR` addresses using negative offsets (`ctrl - 1`, `ctrl - 2`) from
