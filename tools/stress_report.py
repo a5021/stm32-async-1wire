@@ -401,12 +401,16 @@ the H5 "high" run keeps channels 0/1 and raises the load to PRIO 3 against the
 feed's PRIO 0. The rows below are the same levels and guards with only that
 placement or priority changed.</p>
 <table><thead><tr><th>Family</th><th>Part</th><th>Load placement</th>
-<th>Clean cells</th><th>Failing cells</th></tr></thead>
+<th>Clean cells (default guard)</th><th>Failing cells (default guard)</th></tr></thead>
 <tbody>%s</tbody></table>
-<p class="note">A part that stays clean in both rows is bandwidth-bound with
-margin to spare. A part that is clean only with the load below the feed is
-sensitive to arbitration order, which is what the low-number default
-measures.</p>
+<p class="note">These counts are level/clock cells in the <em>write-frame</em>
+matrix at the bench's default guard - not the Search ROM capture matrix above.
+A failing cell is a write frame that did not decode clean. On the H503 PRIO 3
+row all six carry <code>start_timeout = 0</code> and
+<code>load_error = 0</code>, so the higher priority really did starve the feed;
+the equal-priority H503 row stays clean. A part that stays clean in both rows
+is bandwidth-bound with margin to spare, and a part that is clean only with the
+load below the feed is sensitive to arbitration order.</p>
 </section>
 """ % "\n".join(rows)
 
