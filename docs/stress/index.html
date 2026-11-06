@@ -97,8 +97,8 @@ because the counter runs from 0 to ARR inclusive.</p>
   <rect x="528.6" y="58" width="44.5" height="28" fill="#f0a020" opacity="0.35"/>
   <line x1="528.6" y1="50" x2="528.6" y2="94" stroke="#b06a00" stroke-width="2"/>
   <line x1="573.2" y1="50" x2="573.2" y2="94" stroke="#b06a00" stroke-width="2"/>
-  <text x="528.6" y="40" text-anchor="middle" class="svg-label">CC2: feed request</text>
-  <text x="573.2" y="40" text-anchor="middle" class="svg-label">update: next slot</text>
+  <text x="522.6" y="40" text-anchor="end" class="svg-label">CC2: feed request</text>
+  <text x="579.2" y="40" text-anchor="start" class="svg-label">update: next slot</text>
   <text x="46.0" y="112" class="svg-label">guard window: 6 us at guard 5, 2 us at guard 1</text>
 </svg>
 <table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
@@ -193,6 +193,7 @@ same 2 us floor.</p>
 
 <section id="capture">
 <h2>Capture drain under load</h2>
+<p class="meta">Search ROM matrix measured 2026-11-05 at commit <code>1c6aaa87</code>.</p>
 <p>The Search ROM pass reads every bit through the capture DMA (channel 4),
 so it exercises the other deadline the Reddit question names. One search runs
 per boot at each level and clock, at the default guard and at the 1 us floor.
@@ -277,7 +278,7 @@ frame/search.</p>
 
 <section id="platform-f446">
 <h2>STM32F4 (STM32F446xx)</h2>
-<p class="meta">Measured 2026-11-05 at commit <code>f2ff4fe7</code> on <code>STM32F446xx</code>.
+<p class="meta">Write matrix measured 2026-11-05 at commit <code>f2ff4fe7</code> on <code>STM32F446xx</code>.
 Same rig, same loader, marker-bracketed frames and run-identity checks. Each cell carries its image SHA-256.</p>
 <div class="verdict"><strong>2 level/clock cells do not pass</strong>; they are listed as <em>not clean</em> below.</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
@@ -300,6 +301,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l3_8mhz_g5.sr&amp;t0=566457.250&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l4_8mhz_g5.sr&amp;t0=559111.000&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>5</td><td>8 MHz</td><td>never clean</td><td><strong>not clean</strong></td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/fail/l5_8mhz_g100.sr&amp;t0=562806.750&amp;t1=574430.750&amp;speed=standard" title="fail/l5_8mhz_g100.sr">failing frame</a></td></tr></tbody></table>
+<p class="meta">Search ROM matrix measured 2026-11-05 at commit <code>f2ff4fe7</code>.</p>
 <p class="note">Search ROM under load matched the baseline in all 12 cells.</p>
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.
@@ -309,7 +311,7 @@ The capture links open one representative frame per cell.</p>
 
 <section id="platform-h503">
 <h2>STM32H5 (STM32H503xx)</h2>
-<p class="meta">Measured 2026-11-05 at commit <code>84f32003</code> on <code>STM32H503xx</code>.
+<p class="meta">Write matrix measured 2026-11-05 at commit <code>84f32003</code> on <code>STM32H503xx</code>.
 Same rig, same loader, marker-bracketed frames and run-identity checks. Each cell carries its image SHA-256.</p>
 <div class="verdict"><strong>Every level is clean at the 5 us default</strong>; the measured floor is shown per cell.</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
@@ -332,6 +334,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l3_8mhz_g5.sr&amp;t0=683006.750&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l4_8mhz_g5.sr&amp;t0=684864.500&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>5</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/h503/captures/l5_8mhz_g5.sr&amp;t0=682723.000&amp;speed=standard" title="l5_8mhz_g5.sr">frame</a></td></tr></tbody></table>
+<p class="meta">Search ROM matrix measured 2026-11-06 at commit <code>ac57ff86</code>.</p>
 <p class="note">Search ROM under load matched the baseline in all 36 cells.</p>
 <p class="note">The floor column is the smallest clean guard measured here, so
 <em>not clean</em> means even the widest guard in the tested set did not pass.

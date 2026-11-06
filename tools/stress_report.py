@@ -190,12 +190,12 @@ def timeline_svg():
   <rect x="%.1f" y="58" width="%.1f" height="28" fill="#f0a020" opacity="0.35"/>
   <line x1="%.1f" y1="50" x2="%.1f" y2="94" stroke="#b06a00" stroke-width="2"/>
   <line x1="%.1f" y1="50" x2="%.1f" y2="94" stroke="#b06a00" stroke-width="2"/>
-  <text x="%.1f" y="40" text-anchor="middle" class="svg-label">CC2: feed request</text>
-  <text x="%.1f" y="40" text-anchor="middle" class="svg-label">update: next slot</text>
+  <text x="%.1f" y="40" text-anchor="end" class="svg-label">CC2: feed request</text>
+  <text x="%.1f" y="40" text-anchor="start" class="svg-label">update: next slot</text>
   <text x="%.1f" y="112" class="svg-label">guard window: 6 us at guard 5, 2 us at guard 1</text>
 </svg>""" % (
         x(0), x(80), guard_l, guard_r - guard_l, guard_l, guard_l, guard_r, guard_r,
-        guard_l, guard_r, x0,
+        guard_l - 6.0, guard_r + 6.0, x0,
     )
 
 
@@ -243,6 +243,7 @@ def capture_section(capture):
             clock if clock != "def" else "default", b.get("count"), b.get("rom_crc") or 0))
     return """<section id="capture">
 <h2>Capture drain under load</h2>
+<p class="meta">Search ROM matrix measured %s at commit <code>%s</code>%s.</p>
 <p>The Search ROM pass reads every bit through the capture DMA (channel 4),
 so it exercises the other deadline the Reddit question names. One search runs
 per boot at each level and clock, at the default guard and at the 1 us floor.
@@ -261,7 +262,10 @@ the reset, the search command and the ROM triplets. At the highest stress
 levels the poll loop can stretch the inter-bit gaps; the firmware's
 count/checksum remains the primary check and the viewer splits the search at
 those gaps.</p>
-</section>""" % (", ".join(base_bits), "\n".join(rows), len(cells))
+</section>""" % (e(capture.get("generated") or "unknown"),
+                         e(capture.get("commit") or "unknown"),
+                         " (working tree)" if capture.get("dirty") else "",
+                         ", ".join(base_bits), "\n".join(rows), len(cells))
 
 
 def platform_section(name, data, capture=None):
@@ -316,6 +320,11 @@ def platform_section(name, data, capture=None):
     cap_html = ""
     ccells = (capture or {}).get("capture_cells") or []
     if ccells:
+        cap_meta = ('<p class="meta">Search ROM matrix measured %s at commit '
+                    '<code>%s</code>%s.</p>'
+                    % (e(capture.get("generated") or "unknown"),
+                       e(capture.get("commit") or "unknown"),
+                       " (working tree)" if capture.get("dirty") else ""))
         bad = [c for c in ccells if not c.get("matches")]
         if bad:
             where = ", ".join(
@@ -323,13 +332,14 @@ def platform_section(name, data, capture=None):
                                 "%d MHz" % c["clock_mhz"] if c["clock_mhz"]
                                 else "default", c["guard_us"])
                 for c in bad)
-            cap_html = (
+            cap_html = cap_meta + "\n" + (
                 '<p class="note">Search ROM under load returned no devices in '
                 '%d of %d cells (%s); the capture JSON keeps both attempts.</p>'
                 % (len(bad), len(ccells), e(where)))
         else:
-            cap_html = ('<p class="note">Search ROM under load matched the '
-                        'baseline in all %d cells.</p>' % len(ccells))
+            cap_html = cap_meta + "\n" + (
+                '<p class="note">Search ROM under load matched the '
+                'baseline in all %d cells.</p>' % len(ccells))
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
@@ -339,7 +349,7 @@ def platform_section(name, data, capture=None):
     return """
 <section id="platform-%s">
 <h2>%s (%s)</h2>
-<p class="meta">Measured %s at commit <code>%s</code>%s on <code>%s</code>.
+<p class="meta">Write matrix measured %s at commit <code>%s</code>%s on <code>%s</code>.
 Same rig, same loader, marker-bracketed frames and run-identity checks.%s</p>
 <div class="verdict">%s</div>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
