@@ -631,9 +631,17 @@ static uint8_t stress_gpdma_idle(DMA_Channel_TypeDef* ch) {
     }
     ch->CCR |= DMA_CCR_SUSP;
     uint32_t guard = 1000u;
-    while ((ch->CSR & DMA_CSR_SUSPF) == 0u && guard-- != 0u) {
+    /* A transfer can finish between the EN read above and this write: the
+     * channel then goes idle with EN cleared by hardware and has nothing left
+     * to suspend, so SUSP is never acknowledged. IDLEF proves the same thing
+     * SUSPF does - no transfer is active - so accept either. Without this the
+     * restart fails on exactly the cells that re-arm back-to-back: the 8 MHz
+     * benches, where the gap between the two accesses is longest in real
+     * time, reported it as a search failure. */
+    while (((ch->CSR & (DMA_CSR_SUSPF | DMA_CSR_IDLEF)) == 0u)
+           && guard-- != 0u) {
     }
-    if ((ch->CSR & DMA_CSR_SUSPF) == 0u) {
+    if ((ch->CSR & (DMA_CSR_SUSPF | DMA_CSR_IDLEF)) == 0u) {
         return 0u;
     }
     /* Suspension stops new requests; the channel still has to reach idle
