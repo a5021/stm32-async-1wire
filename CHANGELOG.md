@@ -41,17 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   size, so there is no single word-count threshold. Level 5 is a
   stress-to-failure point, not a driver limit. Keep heavy continuous DMA off
   stream 0/1, or raise the feed priority.
-- **H503 load generator for `0_dma_pressure`.** Levels 2-5 now run on the H5
+- **H503 load generator for `0_dma_pressure`.** Levels 2-5 run on the H5
   backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
-  direct mode with a software request; `CBR1.BNDT` is programmed as a
-  source-byte count. The HIL picks up the `STM32H503xx` bench automatically.
-  On the WeAct H503CB at 64, 250 and 8 MHz every level is clean at the 5 us
-  default, with `cndtr_late = 0`; the measured floor is guard 1 except level 1
-  at 8 MHz (guard 2). The capture-drain matrix
-  returns the same 7 devices and checksum at every level, and the injection
-  control goes red. Because a pending GPDMA request is not dropped by clearing
-  `EN`, the H5 negative control sets `CCR.SUSP` for the window and clears it
-  afterwards; F0/F4 keep the enable-bit disable.
+  direct mode with a software request. `CBR1.BNDT` is a source-byte count. The
+  HIL detects the `STM32H503xx` bench automatically. On the WeAct H503CB at 64,
+  250 and 8 MHz every level is clean at the 5 us default with `cndtr_late = 0`;
+  the floor is guard 1 in every cell. The capture matrix returns the same 7
+  devices and checksum at every level, and the injection control fails as
+  expected. Clearing `EN` does not drop a pending GPDMA request, so the H5
+  negative control sets `CCR.SUSP` for the window and clears it afterwards;
+  F0/F4 keep the enable-bit disable.
 - **The F030 bench is marker-bracketed too.** `STRESS_MARKER_PIN` (default 11)
   selects the marker GPIO, so the F030 TSSOP20 bench uses PA2, where PA11 is not
   bonded out. Collisions with the bus (PA10), the console (PA9), the LED (PA4)
@@ -66,12 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run that stopped early (USB hiccup, reset during re-enumeration) is repeated
   before analysis. Such a capture used to surface as "no complete frame" and
   looked like a driver failure.
-- **A wire-level Search ROM decoder for HIL captures.** `tests/hil/search_trace.py`
-  turns a sigrok `.sr` archive or raw bus capture back into the reset, the
-  `0xF0` command, every id/cmp pair and the direction writes, so a failing
-  search cell can be compared with what actually reached the wire. A trace that
-  stops after a read pair is reported as truncated, not as an engine abort: an
-  abandoned pass has the same shape unless the telemetry agrees.
+- **Wire-level Search ROM decoder for HIL captures.**
+  `tests/hil/search_trace.py` decodes a sigrok `.sr` archive or raw bus capture
+  into the reset, `0xF0` command, id/cmp pairs and direction writes. A trace
+  that stops after a read pair is reported as truncated, not as an engine
+  abort, because an abandoned pass has the same shape unless the telemetry
+  agrees.
 - **`STRESS_LOAD_HIGH` now also selects the F0 load channels.** On F0 the knob
   moves the load from DMA1 channels 2/1 to channels 5/4 (the F030F4 has no
   channel 6, so the second load rides channel 4, which the write rig does not
@@ -94,16 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The HIL trusts a capture only when the run identity and marker agree.**
-  `0_dma_pressure` now writes a run magic, the effective level/clock and the
-  injection-state bits into telemetry, and `STRESS_MARKER=1` brackets every
-  frame (or the search pass) on PA11, which the H503 and F446 benches wire to
-  the logic analyzer's D1. `tests/hil/dma_pressure.py` and `dma_capture.py`
-  reject a stale image, a wrong level/clock/mode or an injection that did not
-  actually stop the channel, and retry the cell once; cells that pass only on a
-  retry keep `attempts` and `first_attempt_*` in the JSON. The marker removes the
-  startup-glitch and capture-tail heuristics from the H503/F446 path: traffic
-  outside a marker window is not a frame. The injection-state readback also
-  pins the GPDMA `SUSP` behaviour (clearing `EN` is not enough) and catches a
+  `0_dma_pressure` writes a run magic, the effective level/clock and the
+  injection-state bits into telemetry. `STRESS_MARKER=1` brackets every frame
+  (or the search pass) on PA11, which the H503 and F446 benches wire to D1.
+  `dma_pressure.py` and `dma_capture.py` reject a stale image, a wrong
+  level/clock/mode or an injection that did not stop the channel, and retry the
+  cell once; cells that pass only on a retry keep `attempts` and
+  `first_attempt_*`. Traffic outside a marker window is not a frame, so the
+  startup-glitch and capture-tail heuristics are gone on the H503/F446 path.
+  The injection readback also pins the GPDMA `SUSP` behaviour and catches a
   future no-op negative control.
 - **README split into topic guides under `docs/`.** The landing page keeps the
   overview, supported devices, features, a short quick start and the
@@ -128,13 +126,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stress matrix, its captures and its guard floors are unchanged.
 
 - **HIL start/end artifacts no longer look like feed failures.** The analyser
-  drops a lone leading startup glitch (F446 and H503 both emit one while the
-  application bus pin initialises) when `ignore_leading_short` is set, and
-  `run_seconds()` keeps a 1 s tail so the capture cannot cut the last frame on
-  the slower-initialising H503. The pressure matrix retries the widest guard
-  and the 5 us default once, and the capture-drain matrix retries a
-  non-matching cell once, so a single flash/reset flake is not reported as a
-  load failure. A real deterministic failure still goes red on the retry.
+  drops a lone leading startup glitch on the F446 and H503 when
+  `ignore_leading_short` is set, and `run_seconds()` keeps a 1 s tail so the
+  capture cannot cut the last frame on the slower H503. The pressure matrix
+  retries the widest guard and the 5 us default once, and the capture matrix
+  retries a non-matching cell once, so a single flash/reset flake is not
+  reported as a load failure. A real deterministic failure still fails on the
+  retry.
 
 ### Removed
 
@@ -147,16 +145,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **H5 load restart raced a finishing burst.** `stress_gpdma_idle()` in
-  `0_dma_pressure` read `CCR.EN` and then wrote `CCR.SUSP`. When the finite
-  load burst completed in between, hardware cleared `EN`, the channel went
-  idle and the suspend request was never acknowledged, so the bounded wait
-  failed and the harness reported `start_timeout`. The 8 MHz cells that re-arm
-  bursts back-to-back (levels 3/4) hit it reliably; three Search ROM cells were
-  published as capture losses even though the wire was healthy. The wait now
-  accepts `IDLEF` as well as `SUSPF` - either proves that no transfer is active
-  - before the channel reset. All 36 H503 capture cells match the unloaded
-  baseline after the fix, and the republished `platforms/h503/capture.json`
-  replaces the three aborted runs.
+  `0_dma_pressure` read `CCR.EN` and then wrote `CCR.SUSP`. If the load burst
+  finished in between, hardware cleared `EN`, the channel went idle, and the
+  suspend was never acknowledged. The bounded wait failed and the harness
+  reported `start_timeout`. The 8 MHz cells that re-arm bursts back-to-back
+  (levels 3/4) hit it reliably; three Search ROM cells were published as
+  capture losses even though the wire was healthy. The wait now accepts
+  `IDLEF` or `SUSPF`, since either means no transfer is active, before the
+  channel reset. All 36 H503 capture cells match the baseline after the fix,
+  and the republished `platforms/h503/capture.json` replaces the three aborted
+  runs.
 - **GPDMA negative-control register addressing in `0_dma_pressure`.**
   `stress_inject_off_ok()` and `stress_inject_on_ok()` previously calculated
   `CSR` and `CFCR` addresses using negative offsets (`ctrl - 1`, `ctrl - 2`) from

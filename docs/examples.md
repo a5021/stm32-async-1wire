@@ -289,52 +289,47 @@ streams 5/6/7 let the feed win — or to raise the feed priority. The F446 bench
 also wires PA11 to D1, so its pressure and capture matrices use the same
 marker-bracketed analysis as the H503.
 
-On the H503, re-measured on 2026-11-05 at `84f32003` from a clean tree, every
-level is clean at the 5 µs default at 64, 250 and 8 MHz **at equal priority**,
-and the measured floor is guard 1 in every cell; the earlier level 0/4 outliers
-disappear once the D1 marker brackets the frames. The GPDMA negative control
-suspends the channel (`CCR.SUSP`) and waits for the hardware acknowledgement in
-`CSR.SUSPF`; taking a live channel down also accepts `IDLEF`, because the
-transfer may have finished before the suspend request landed, and then uses
-`CCR.RESET`, since clearing `EN` alone does not drop a pending request. That
-corrected sequence is what the current data measures.
+On the H503, the equal-priority write matrix was measured on 2026-11-05 at
+`84f32003`. Every level is clean at the 5 µs default at 64, 250 and 8 MHz, and
+the floor is guard 1 in every cell. The earlier level 0/4 outliers disappear
+once the D1 marker brackets the frames.
 
-Raising the load to `CCR.PRIO 3` against the feed's `PRIO 0` is the second
-model, and it is a different picture: 250 MHz stays clean at guard 1, 64 MHz
-needs up to 13 µs (levels 2-4), and at 8 MHz level 2 needs 100 µs while levels
-3-5 never pass. The fixed high class really does outrank the feed; the
-equal-priority round-robin above does not.
+The GPDMA negative control suspends the channel (`CCR.SUSP`) and waits for
+`CSR.SUSPF`. Taking a live channel down also accepts `IDLEF`, because the
+transfer may have finished before the suspend landed, then uses `CCR.RESET`;
+clearing `EN` alone does not drop a pending request.
 
-The Search ROM pass under the same loads matched the baseline in all 36 cells
-in the current run (2026-11-06 at `ac57ff8`): 7 devices and `88DB0C9D` at 64,
-250 and 8 MHz, guards 5 and 1. An earlier run reported 33 of 36 and blamed the
-capture engine for losing the device tree at 8 MHz (levels 3/4). That diagnosis
-was wrong. Every failing cell carried `start_timeout = 1`: the load channel had
-finished its finite burst between the `CCR.EN` read and the `CCR.SUSP` write in
-`stress_gpdma_idle()`, so hardware had already cleared `EN` and the suspend was
-never acknowledged. The harness then left the search loop at the next service
-call, and the analyzer window ended mid-pass. The 8 MHz cells hit it because
-the gap between those two accesses is longest in real time, and levels 3/4
-re-arm bursts back-to-back. Accepting `IDLEF` as well as `SUSPF` - either
-proves that no transfer is active - fixes the restart. The republished
-`platforms/h503/capture.json` replaces the three aborted runs; an aborted trace
-still shows the reset, presence and `0xF0` correctly and then stops after a
-read pair, which is why the old waveform reading looked like a search failure.
+Raising the load to `CCR.PRIO 3` gives a different result. At 250 MHz every
+cell is clean at guard 1. At 64 MHz levels 2-4 need up to 13 µs. At 8 MHz level
+2 needs 100 µs, and levels 3-5 never pass. The fixed high class outranks the
+feed; the equal-priority round-robin does not.
 
-The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11 and the
-F030 PA2). `STRESS_MARKER=1` makes
-each frame (or the search pass) a D1-high window, so the HIL analyses only the
-D0 traffic inside the marker: a startup glitch or a capture that ends mid-frame
-is outside every frame and cannot be mistaken for one. Every cell also reads
-`dma_pressure_telemetry[17..21]` (plus the capture-mode word) before trusting
-the waveform: run magic, effective level/clock, injection state, start timeout
-and load error. A stale image, an injection that did not actually stop the channel, or
-a load channel that did not stop before being re-armed is retried once and then
-reported as an identity or start-timeout failure, not as a bus failure. Cells
-that only pass on a retry keep `attempts` and `first_attempt_*` in the JSON, so
-a green result is not silently a flake. The same applies to a load channel that
-latches a transfer error: `dma_pressure_telemetry[21]` raises `load_error`, the
-cell fails, and the verdict cannot claim a load that had already stopped.
+The Search ROM matrix was re-run on 2026-11-06 at `ac57ff8`: all 36 cells match
+the baseline with 7 devices and `88DB0C9D` at 64, 250 and 8 MHz, guards 5 and
+1. An earlier run reported 33 of 36 and blamed the capture engine at 8 MHz
+(levels 3/4). That was wrong. Every failing cell had `start_timeout = 1`: the
+load burst finished between the `CCR.EN` read and the `CCR.SUSP` write in
+`stress_gpdma_idle()`, so hardware cleared `EN` and the suspend was never
+acknowledged. The harness left the search loop, and the analyzer window ended
+mid-pass. The 8 MHz cells hit it because that gap is longest in real time, and
+levels 3/4 re-arm bursts back-to-back. Accepting `IDLEF` or `SUSPF` fixes the
+restart, since either means no transfer is active. The republished
+`platforms/h503/capture.json` replaces the three aborted runs. Such a trace
+still shows the reset, presence and `0xF0` correctly, then stops after a read
+pair; that is why the old waveform looked like a search failure.
+
+The H503 bench wires PA11 to the logic analyzer's D1 (the F446 uses PA11, the
+F030 PA2). With `STRESS_MARKER=1`, each frame or search pass is a D1-high
+window, so the HIL only analyses D0 traffic inside the marker. A startup glitch
+or a capture that ends mid-frame is outside every window. Every cell also reads
+`dma_pressure_telemetry[17..21]` and the capture-mode word before trusting the
+waveform: run magic, effective level/clock, injection state, start timeout and
+load error. A stale image, an injection that did not stop the channel, or a
+load channel that did not stop before re-arming is retried once and then
+reported as an identity or start-timeout failure, not a bus failure. Cells that
+pass only on a retry keep `attempts` and `first_attempt_*` in the JSON. A load
+channel that latches a transfer error raises `load_error`; the cell fails, so
+the verdict cannot claim a load that had already stopped.
 
 The F446 was re-measured on 2026-11-05 at `f2ff4fe7` from a clean tree, with
 per-cell image hashes in `results.json` / `results-high.json`; the same run
