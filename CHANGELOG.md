@@ -34,10 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lower-numbered load streams outrank the feed on stream 2 at equal priority.
   Moving the same 512-word burst + CPU hammer to stream 5/6 (`--load-high` or
   `STRESS_LOAD_HIGH=1`) makes the whole 0-5 matrix clean at guard 1 at 8 and
-  16 MHz as well. The burst sweep on stream 0/1 (128 words with a minimal
-  hammer clean, 160 failing) gives the threshold when application DMA really
-  does outrank the feed. Keep heavy continuous DMA off stream 0/1, or raise
-  the feed priority.
+  16 MHz as well. Level 5 is a fixed 512-word burst plus the hammer, not a load
+  normalized to the slot: a manual isolation sweep on 2026-11-04 (test-only
+  `STRESS_WORDS` / `STRESS_CPU_WORDS` knobs, not part of the published JSON,
+  guard not recorded) showed the outcome flips with burst length and hammer
+  size, so there is no single word-count threshold. Level 5 is a
+  stress-to-failure point, not a driver limit. Keep heavy continuous DMA off
+  stream 0/1, or raise the feed priority.
 - **H503 load generator for `0_dma_pressure`.** Levels 2-5 now run on the H5
   backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
   direct mode with a software request; `CBR1.BNDT` is programmed as a

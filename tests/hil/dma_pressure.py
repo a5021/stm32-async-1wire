@@ -78,9 +78,11 @@ F030_CLOCKS = (48, 8)
 #: levels 0-4 are clean at guard 1. Level 5 with the default load on stream 0/1
 #: fails because those lower-numbered streams outrank the feed on stream 2 at
 #: equal priority; the same 512-word burst + hammer on stream 5/6
-#: (--load-high) is clean at guard 1 at 8/16MHz. A burst sweep on stream 0/1
-#: (128 words clean, 160 failing with a minimal hammer) gives the threshold when
-#: app DMA really outranks the feed.
+#: (--load-high) is clean at guard 1 at 8/16MHz. Level 5 is a fixed 512-word
+#: burst plus the hammer, not a load normalized to the slot; a manual isolation
+#: sweep on 2026-11-04 (not in the published JSON, guard not recorded) showed
+#: the outcome flips with burst length and hammer size, so there is no single
+#: word-count threshold.
 F446_CLOCKS = (180,)
 #: The H503 runs the load at all three supported clocks; the GPDMA channel 0/1
 #: load stays clean at guard 1 even at 8MHz.

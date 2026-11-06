@@ -276,12 +276,17 @@ but that is the **stream-priority experiment**, not a timer limit: stream 0/1
 are lower-numbered than the feed on stream 2, so at equal priority the F4
 arbiter runs the load first. Moving the same 512-word burst + CPU hammer to
 stream 5/6 (`--load-high`, or `STRESS_LOAD_HIGH=1`) makes the whole 0-5 matrix
-clean at guard 1 at both 8 and 16 MHz (and 180 MHz is already clean). The burst
-sweep on stream 0/1 (128 words with a minimal hammer clean, 160 failing) gives
-the threshold when application DMA really does outrank the feed. For real code
-the actionable point is to keep heavy continuous DMA off stream 0/1 — streams
-5/6/7 let the feed win — or to raise the feed priority. The F446 bench also
-wires PA11 to D1, so its pressure and capture matrices use the same
+clean at guard 1 at both 8 and 16 MHz (and 180 MHz is already clean). Level 5
+is a fixed 512-word burst plus the CPU hammer, not a load normalized to the
+slot: a manual isolation sweep on 2026-11-04 (test-only `STRESS_WORDS` /
+`STRESS_CPU_WORDS` knobs, not part of the published JSON, guard not recorded)
+showed the outcome flips with burst length and hammer size — 128 words with a
+minimal hammer stayed clean at 8 MHz, 160 words failed, and 512 words with a
+one-word hammer was clean again at guard 100. There is no single word-count
+threshold; level 5 is a stress-to-failure point, not a driver limit. For real
+code the actionable point is to keep heavy continuous DMA off stream 0/1 —
+streams 5/6/7 let the feed win — or to raise the feed priority. The F446 bench
+also wires PA11 to D1, so its pressure and capture matrices use the same
 marker-bracketed analysis as the H503.
 
 On the H503, re-measured on 2026-11-05 at `84f32003` from a clean tree, every
