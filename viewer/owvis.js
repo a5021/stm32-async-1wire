@@ -422,7 +422,6 @@ OWVis.decodeSlots = function (samples, samplerate, channel, speed) {
 };
 
 OWVis.SLOT_PITCH_US = 120;  // fallback start-to-start period for a lone slot
-OWVis.SLOT_MAX_US = 500;    // never shade across a host idle gap
 
 /**
  * Resolve a `?src=` capture reference against the page URL.
@@ -471,7 +470,6 @@ OWVis.buildTransactions = function (events, samplerate) {
   const rate = samplerate > 0 ? samplerate : 1e6;
   const us = rate / 1e6;
   const defaultPitch = Math.max(1, Math.round(OWVis.SLOT_PITCH_US * us));
-  const maxSpan = Math.max(defaultPitch, Math.round(OWVis.SLOT_MAX_US * us));
   const txns = [];
   let cur = null;
   for (const e of events) {
@@ -487,9 +485,9 @@ OWVis.buildTransactions = function (events, samplerate) {
     }
   }
   txns.forEach((txn) => {
-    // The last slot has no successor; estimate its period from the median
-    // start-to-start spacing of the preceding slots instead of a fixed count
-    // of samples (which was wrong at every samplerate but 1 MHz).
+    // A slot is shaded from its falling edge to the next one. The last slot
+    // has no successor, so it reuses the median start-to-start spacing of the
+    // preceding slots instead of a fixed cap.
     const deltas = [];
     for (let i = 1; i < txn.bits.length; i++) {
       const d = txn.bits[i].t - txn.bits[i - 1].t;
@@ -499,7 +497,7 @@ OWVis.buildTransactions = function (events, samplerate) {
     const pitch = deltas.length ? deltas[deltas.length >> 1] : defaultPitch;
     txn.bits.forEach((slot, i) => {
       const next = i + 1 < txn.bits.length ? txn.bits[i + 1].t : slot.t + pitch;
-      slot.endT = Math.min(next, slot.t + maxSpan);
+      slot.endT = next;
       slot.role = "unknown";
       slot.phase = "unclassified";
       slot.byteIndex = -1;
