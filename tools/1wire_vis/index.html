@@ -209,6 +209,7 @@ try {
   let interp = [];
   let groups = [];
   let slotIndex = [];
+  let maxSlotSpan = 0;
   let byteIndex = [];
   let sel = -1;
   const groupOpen = new Set();
@@ -499,9 +500,9 @@ try {
     ctx.stroke();
     // Decoded overlays follow the viewport, not the selection: every slot,
     // byte and reset whose time falls in view is drawn. Selection only
-    // drives the info line and the reset label. Each slot is shaded whole,
-    // like the reset band, tinted by its bit value.
-    const slotLookback = Math.round(OWVis.SLOT_MAX_US * cap.samplerate / 1e6);
+    // drives the info line and the reset label. Each slot is shaded from its
+    // falling edge to the next, so the lookback is the widest real span.
+    const slotLookback = maxSlotSpan;
     const roleColor = (slot) => {
       if (slot.phase.indexOf("direction") >= 0) return P.roleDirection;
       if (slot.role === "master-tx") return P.roleMaster;
@@ -1002,6 +1003,7 @@ try {
     interp = [];
     groups = [];
     slotIndex = [];
+    maxSlotSpan = 0;
     byteIndex = [];
     sel = -1;
     zeroSample = null;
@@ -1037,7 +1039,11 @@ try {
       curASnapped = curBSnapped = false;
       groups = OWVis.groupTransactions(txns, interp);
       slotIndex = [];
-      txns.forEach((t, ti) => t.bits.forEach((slot, si) => slotIndex.push({ t: slot.t, slot, ti, si })));
+      maxSlotSpan = 0;
+      txns.forEach((t, ti) => t.bits.forEach((slot, si) => {
+        slotIndex.push({ t: slot.t, slot, ti, si });
+        maxSlotSpan = Math.max(maxSlotSpan, slot.endT - slot.t);
+      }));
       byteIndex = [];
       txns.forEach((t, ti) => {
         const d = interp[ti];
