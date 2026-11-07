@@ -298,8 +298,8 @@ continuous DMA off stream 0/1 (streams 5/6/7 let the feed win) or raise the feed
 priority. The F446 bench also wires PA11 to D1, so its pressure and capture
 matrices use the same marker-bracketed analysis as the H503.
 
-On the H503, the equal-priority write matrix was measured on 2026-11-05 at
-`84f32003`. Every level is clean at the 5 µs default at 64, 250 and 8 MHz, and
+On the H503, the equal-priority write matrix was measured on 2026-11-07 at
+`a19462ae`. Every level is clean at the 5 µs default at 64, 250 and 8 MHz, and
 the floor is guard 1 in every cell. The earlier level 0/4 outliers disappear
 once the D1 marker brackets the frames.
 
@@ -308,10 +308,13 @@ The GPDMA negative control suspends the channel (`CCR.SUSP`) and waits for
 transfer may have finished before the suspend landed, then uses `CCR.RESET`;
 clearing `EN` alone does not drop a pending request.
 
-Raising the load to `CCR.PRIO 3` gives a different result. At 250 MHz every
-cell is clean at guard 1. At 64 MHz levels 2-4 need up to 13 µs. At 8 MHz level
-2 needs 100 µs, and levels 3-5 never pass. The fixed high class outranks the
-feed; the equal-priority round-robin does not.
+Raising the load to `CCR.PRIO 3` gives a different result. At 250 MHz levels
+0-4 are clean at guard 1 and level 5 needs 2 µs, so the 5 µs default still
+passes. At 64 MHz levels 0-1 pass at guard 1, level 2 needs 2 µs, levels 3-4
+need 5 µs, and level 5 needs 13 µs and fails at the default. At 8 MHz level 0
+passes at guard 1, levels 1-2 fail at the default, and levels 3-5 never pass.
+The fixed high class outranks the feed; the equal-priority round-robin does
+not.
 
 The Search ROM matrix was re-run on 2026-11-06 at `ac57ff8`: all 36 cells match
 the baseline with 7 devices and `88DB0C9D` at 64, 250 and 8 MHz, guards 5 and
