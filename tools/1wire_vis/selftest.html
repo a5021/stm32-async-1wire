@@ -524,13 +524,19 @@
     /* ---------- shareable viewer parameters ---------- */
     eq("parseViewerQuery: src and pinned speed",
       JSON.stringify(OWVis.parseViewerQuery("?src=captures/a.sr&speed=standard")),
-      JSON.stringify({ src: "captures/a.sr", speed: "standard" }));
+      JSON.stringify({ src: "captures/a.sr", speed: "standard", chan: null }));
+    eq("parseViewerQuery: channel is pinned",
+      JSON.stringify(OWVis.parseViewerQuery("?src=captures/a.sr&chan=1")),
+      JSON.stringify({ src: "captures/a.sr", speed: null, chan: 1 }));
+    eq("parseViewerQuery: out-of-range channel is ignored",
+      JSON.stringify(OWVis.parseViewerQuery("?chan=9")),
+      JSON.stringify({ src: null, speed: null, chan: null }));
     eq("parseViewerQuery: unknown speed is ignored",
       JSON.stringify(OWVis.parseViewerQuery("?speed=fast")),
-      JSON.stringify({ src: null, speed: null }));
+      JSON.stringify({ src: null, speed: null, chan: null }));
     eq("parseViewerQuery: empty query",
       JSON.stringify(OWVis.parseViewerQuery("")),
-      JSON.stringify({ src: null, speed: null }));
+      JSON.stringify({ src: null, speed: null, chan: null }));
 
   } catch (e) {
     check("self-test completed without throwing", false, e && e.stack ? e.stack.split("\n")[0] : String(e));

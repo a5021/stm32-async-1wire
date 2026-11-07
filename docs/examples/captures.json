@@ -1,0 +1,66 @@
+{
+  "apps": {
+    "0_dma_pressure": {
+      "description": "Diagnostic 64-slot write pattern at stress level 0.",
+      "file": "captures/0_dma_pressure.sr",
+      "seconds": 3.0,
+      "window_us": 2500000
+    },
+    "1_basic": {
+      "skip": "Not captured: this example assumes a single DS18B20 and Skip ROM; the reference bench has several devices, so Skip ROM would collide. Use 2_device_search for the multi-drop equivalent."
+    },
+    "2_device_search": {
+      "description": "Startup Search ROM, then a Match ROM measurement.",
+      "file": "captures/2_device_search.sr",
+      "seconds": 9.0,
+      "window_us": 7500000
+    },
+    "3_round_robin": {
+      "description": "Search ROM and a round-robin measurement with resolution changes.",
+      "file": "captures/3_round_robin.sr",
+      "seconds": 9.0,
+      "window_us": 7500000
+    },
+    "4_scan_mode": {
+      "description": "Broadcast Convert T followed by Match ROM read-back.",
+      "file": "captures/4_scan_mode.sr",
+      "seconds": 9.0,
+      "window_us": 7500000
+    },
+    "5_commands": {
+      "description": "ROM, power-supply, scratchpad and EEPROM commands.",
+      "file": "captures/5_commands.sr",
+      "seconds": 10.0,
+      "window_us": 8500000
+    },
+    "6_statistics": {
+      "description": "Sequential measurements with statistics enabled.",
+      "file": "captures/6_statistics.sr",
+      "seconds": 8.0,
+      "window_us": 6500000
+    },
+    "7_low_power": {
+      "description": "Low-power build: the same search and measurement with WFE waits.",
+      "file": "captures/7_low_power.sr",
+      "seconds": 9.0,
+      "window_us": 7500000
+    },
+    "8_ds2431": {
+      "description": "DS2431 EEPROM write, copy and read-back.",
+      "file": "captures/8_ds2431.sr",
+      "seconds": 7.0,
+      "window_us": 5500000
+    },
+    "9_multi": {
+      "description": "DS18B20 scan plus a DS2431 record update.",
+      "file": "captures/9_multi.sr",
+      "seconds": 10.0,
+      "window_us": 8500000
+    }
+  },
+  "bench": "STM32F030x6",
+  "capture_rate_hz": 4000000,
+  "channel": 0,
+  "commit": "c400d2d9",
+  "generated": "2026-11-07"
+}

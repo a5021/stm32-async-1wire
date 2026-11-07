@@ -960,7 +960,7 @@ cppcheck:
 # the HIL parsers. `make test` is the functional suite and `make` the firmware
 # build; neither is repeated here.
 .PHONY: check
-check: format-check cppcheck test-version test-hil-parsing test-stress-report test-public-api
+check: format-check cppcheck test-version test-hil-parsing test-stress-report test-example-captures test-public-api
 
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
@@ -1027,6 +1027,14 @@ test-hil-parsing:
 .PHONY: test-stress-report
 test-stress-report:
 	@$(PYTHON) tests/hil/test_stress_report.py
+
+# --- Published example captures (see tests/hil/example_capture.py) ---
+# The archives are produced on the F030 bench; this gate checks the committed
+# files, their samplerate and the viewer links in docs/examples.md. No
+# hardware needed.
+.PHONY: test-example-captures
+test-example-captures:
+	@$(PYTHON) tests/hil/test_example_captures.py
 
 # --- Browser decoder selftest (see tools/1wire_vis/run_selftest.py) ---
 # selftest.html is the only executable check of the decoder that ships to
@@ -1929,6 +1937,7 @@ help:
 	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
 	@echo "  test-hil-parsing - Check the bench harness, analyzer, wire decoder and HIL_EXT forwarding (no hardware needed)"
 	@echo "  test-stress-report - Check the published stress report and its one-frame captures (no hardware needed)"
+	@echo "  test-example-captures - Check the committed example captures and their viewer links (no hardware needed)"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"

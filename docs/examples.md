@@ -33,6 +33,14 @@ The repository has ten example applications. Pick one with `APP`.
 | `8_ds2431` | `examples/8_ds2431/main.c` | Full DS2431 EEPROM write/read-back cycle. |
 | `9_multi` | `examples/9_multi/main.c` | Peak/low logger: seven DS18B20 plus one DS2431 on one bus. |
 
+### Captures
+
+Each example below has a logic-analyzer capture committed under
+`docs/examples/captures/`. The links open one window in the browser viewer
+(STM32F030x6 bench, parasite-powered bus on PA10/D0, 4 MS/s). `1_basic` has no
+capture because it needs a single sensor; the reference bench has several, so
+Skip ROM would collide.
+
 ### Build
 
 ```bash
@@ -103,11 +111,14 @@ Diagnostic only; no sensor is needed. Build-time knobs are `STRESS_LEVEL=0..5`,
 `STRESS_BURSTS`, `STRESS_WORDS`, `STRESS_CAPTURE`, `STRESS_INJECT_US` and
 `STRESS_MARKER`. The measured matrix and analyzer contract are in
 [Measuring DMA feed margin](#measuring-dma-feed-margin-0_dma_pressure) below.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/0_dma_pressure.sr&chan=0&speed=standard).
 
 #### `1_basic`
 
 Reads one sensor with Skip ROM (0xCC). With several sensors on the bus, all of
 them answer and the data collides, so CRC failures are expected.
+No capture: this example needs a single DS18B20, so Skip ROM would collide on
+the multi-drop bench. See [2_device_search](#2_device_search).
 
 #### `2_device_search`
 
@@ -117,11 +128,13 @@ A separator line marks each full round. With one sensor it behaves like
 `1_basic`, but with ROM addressing. With N sensors a round costs
 `N × conversion`. Supports `-DOW_PARASITE_POWER=1`; the strong pull-up is
 handled per conversion.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/2_device_search.sr&chan=0&speed=standard).
 
 #### `3_round_robin`
 
 Measures the devices found at startup one at a time in round-robin order. With
 one sensor it behaves like `1_basic`.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/3_round_robin.sr&chan=0&speed=standard).
 
 #### `4_scan_mode`
 
@@ -141,6 +154,7 @@ can brown out a marginal sensor and produce a stuck 127.9 °C reading with a
 valid CRC. Use a dedicated supply with an adequate pull-up (see the
 STM32F407VGT6 section in Hardware Verified). The broadcast conversion then
 stays reliable at the high PLL clock.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/4_scan_mode.sr&chan=0&speed=standard).
 
 #### `5_commands`
 
@@ -155,6 +169,7 @@ regardless of room temperature) and an Alarm Search (0xEC) pass. This is the
 only example that uses `ds18b20_alarm_search_start()`,
 `ds18b20_alarm_search_poll()` and `ds18b20_alarm_search_count()`. Other sensors
 may join from thresholds kept in their own RAM or EEPROM.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/5_commands.sr&chan=0&speed=standard).
 
 #### `6_statistics`
 
@@ -168,6 +183,7 @@ measurement loop pauses during the dump and resumes with `ow_stats_reset()`.
 The period is `STATS_DUMP_SWEEPS` (default 10), defined in the example source
 and overridable with `-DSTATS_DUMP_SWEEPS=N` in `EXT`. Supports
 `-DOW_PARASITE_POWER=1`.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/6_statistics.sr&chan=0&speed=standard).
 
 #### `7_low_power`
 
@@ -176,6 +192,7 @@ Same search and sequential loop as `2_device_search`, built with
 The mechanism and the SysTick caveat are in
 [Low-power mode](#low-power-mode-7_low_power) below. Without the define, the
 example uses the normal polling loop.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/7_low_power.sr&chan=0&speed=standard).
 
 #### `8_ds2431`
 
@@ -188,6 +205,7 @@ step uses the public `ds2431.h` interface. The write cycle runs once. After
 every device is served, the example prints `Demo done.` and then repeats the
 family-filtered search once a second, so it keeps printing `Found N device(s)`
 and the ROMs instead of going idle.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/8_ds2431.sr&chan=0&speed=standard).
 
 #### `9_multi`
 
@@ -205,6 +223,7 @@ pointing at a missing ROM. Records are self-validating 8-byte blocks (magic,
 version, flags, counter, temperature, sensor index, CRC-8); `PEAK_RESET=1`
 ignores stored records at boot. Every stage is a `poll()` loop paced by
 `app_millis()`; there are no delays, waits or interrupts.
+Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=0&speed=standard).
 
 ### Common notes
 

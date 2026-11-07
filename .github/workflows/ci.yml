@@ -365,6 +365,11 @@ jobs:
         run: |
           mkdir -p publish/stress
           cp -r docs/stress/. publish/stress/
+      - name: Stage example captures
+        # docs/examples.md links the viewer at /viewer/ to these archives.
+        run: |
+          mkdir -p publish/examples
+          cp -r docs/examples/captures publish/examples/
       - name: Publish to gh-pages
         env:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git

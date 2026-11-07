@@ -1572,6 +1572,9 @@ try {
   // &speed=standard|overdrive pins the bus profile; auto-detection is wrong
   // for a diagnostic pattern whose long '0' pulses resemble overdrive resets.
   const linked = OWVis.parseViewerQuery(location.search);
+  if (linked.src && linked.chan !== null) {
+    $("chan").value = String(linked.chan);
+  }
   if (linked.src && linked.speed) {
     $("speed").value = linked.speed;
   }
