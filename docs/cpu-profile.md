@@ -145,15 +145,14 @@ application latency bound, which other code can also set.
   completion; the elapsed wait is not CPU time.
 - The application loop outside the public poll calls. It is the "other
   application loop" residual in the breakdown, not separately instrumented.
-- Interrupt handlers are not profiled separately. These examples install no
-  ISR; if one fires inside a measured interval, its execution time is included
-  in the elapsed time.
 
 ## Limits
 
-- `SysTick->VAL` counts elapsed core-clock ticks. In the absence of interrupts
-  this is the code's execution time in cycles; with an ISR inside the interval,
-  the ISR time is included too. It is not a retired-instruction count.
+- `SysTick->VAL` counts elapsed core-clock ticks. These examples install no
+  interrupt handlers: SysTick is polled and the driver's UIE is only a WFE
+  wake-up event, never an ISR. The measured intervals are therefore code
+  execution time, not a retired-instruction count. An application that adds an
+  ISR would have its time included in the elapsed interval.
 - One example, one seven-sensor parasite-powered bench, one `-Os -flto` build.
 - A "work event" is a state-machine segment, not a full instruction-level
   profile. The cycles are measured with `SysTick->VAL`, whose period is 1 ms;
