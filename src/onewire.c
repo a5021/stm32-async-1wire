@@ -1,6 +1,7 @@
 ﻿#include "onewire.h"
 #include "ow_glue.h"
 #include "ow_port.h"
+#include "ow_profile.h"
 
 #include <string.h>
 
@@ -426,6 +427,7 @@ uint8_t onewire_search_poll(void) {
         return 0;
     }
 
+    OW_PROFILE_WORK_BEGIN();
     switch (search_ctx.phase) {
     case ONEWIRE_SEARCH_RESET:
         // Reset completed: a presence pulse means at least one device is on
@@ -487,7 +489,10 @@ uint8_t onewire_search_poll(void) {
         // stop the search early with a non-zero return value.
         if (search_ctx.family == 0u || search_ctx.rom[0] == search_ctx.family) {
             search_ctx.found++;
-            if (search_ctx.sink && search_ctx.sink(search_ctx.rom)) {
+            OW_PROFILE_WORK_END();
+            uint8_t stop = search_ctx.sink ? search_ctx.sink(search_ctx.rom) : 0u;
+            OW_PROFILE_WORK_BEGIN();
+            if (stop) {
                 search_ctx.phase = ONEWIRE_SEARCH_DONE;
                 break;
             }
@@ -526,6 +531,7 @@ uint8_t onewire_search_poll(void) {
         break;
     }
 
+    OW_PROFILE_WORK_END();
     return 0;
 }
 
