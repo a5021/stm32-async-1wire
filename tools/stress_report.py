@@ -216,19 +216,16 @@ def mode_label(mode):
     return "feed (write frame)" if mode == "write" else "capture (Search ROM)"
 
 
-def capture_section(capture):
-    """The Search ROM under load table, or "" when the section did not run."""
-    cells = capture.get("capture_cells") or []
-    if not capture.get("capture_supported") or not cells:
-        return ""
+def search_table_html(capture, platform=None):
+    """Search ROM rows with links to the capture on the owning bench."""
     rows = []
-    for c in sorted(cells, key=lambda c: (c["clock_mhz"] or -1, c["guard_us"], c["level"])):
+    for c in sorted((capture or {}).get("capture_cells") or [],
+                    key=lambda c: (c["clock_mhz"] or -1, c["guard_us"], c["level"])):
         # A mismatching search has no decoded frame either; link its kept
         # failure window instead of dropping the evidence.
         key = "capture" if c.get("capture") else "capture_fail"
-        href = viewer_href(c, key=key)
         label = "failing frame" if key == "capture_fail" else "frame"
-        link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
+        link = link_to_viewer(c, label, platform, key=key)
         rows.append(
             "<tr><td>%d</td><td>%s</td><td>%d us</td><td>%s</td><td><code>%08X</code></td>"
             "<td>%s</td><td>%s</td><td>%s</td></tr>" % (
@@ -236,6 +233,20 @@ def capture_section(capture):
                 c["guard_us"], c["count"] if c.get("count") is not None else "?",
                 c.get("rom_crc") or 0, c.get("sink_count", "?"),
                 "yes" if c.get("matches") else "no", link))
+    if not rows:
+        return ""
+    return ("<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th>"
+            "<th>DS18B20s</th><th>ROM checksum</th><th>ROM callbacks</th>"
+            "<th>Matches baseline</th><th>Viewer</th></tr></thead>"
+            "<tbody>%s</tbody></table>" % "\n".join(rows))
+
+
+def capture_section(capture):
+    """The Search ROM under load table, or "" when the section did not run."""
+    cells = capture.get("capture_cells") or []
+    if not capture.get("capture_supported") or not cells:
+        return ""
+    rows = search_table_html(capture)
     baseline = capture.get("capture_baseline") or {}
     base_bits = []
     for clock, b in sorted(baseline.items(), key=lambda kv: str(kv[0])):
@@ -249,20 +260,18 @@ it tests the other deadline. One search runs per boot at each level and clock,
 at the default guard and the 1 us floor. The unloaded level-0 pass is the
 baseline (%s); a stressed pass must return the same DS18B20 count and FNV-1a
 checksum.</p>
-<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th>
-<th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th>
-<th>Viewer</th></tr></thead>
-<tbody>%s</tbody></table>
+%s
 <p class="note">All %d stressed cells match. The search filters family 0x28, so
 the firmware counts 7 sensors while the viewer shows 8 responders (7 DS18B20
 plus 1 DS2431). <code>SEARCH_MAX</code> caps the count at 8, so this is not a
 full bus census. At high load the poll loop can stretch the gaps between bits;
-the firmware count/checksum is the main check, and the viewer splits the search
-at those gaps.</p>
+the firmware count/checksum is the main check, and the viewer marks the
+stretched gaps as bus idle - they are real host idle time, not dropped
+samples.</p>
 </section>""" % (e(capture.get("generated") or "unknown"),
                          e(capture.get("commit") or "unknown"),
                          " (working tree)" if capture.get("dirty") else "",
-                         ", ".join(base_bits), "\n".join(rows), len(cells))
+                         ", ".join(base_bits), rows, len(cells))
 
 
 def platform_section(name, data, capture=None):
@@ -337,6 +346,11 @@ def platform_section(name, data, capture=None):
             cap_html = cap_meta + "\n" + (
                 '<p class="note">Search ROM under load matched the '
                 'baseline in all %d cells.</p>' % len(ccells))
+        cap_html += "\n" + search_table_html(capture, name) + "\n" + (
+            '<p class="note">Every row links the capture on this bench. Blank '
+            'bands in the viewer are bus idle: the host stretched the gap '
+            'between slots under load. They are real idle time, not dropped '
+            'samples, and each Search ROM bit is still decoded.</p>')
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
