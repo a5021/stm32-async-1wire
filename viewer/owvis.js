@@ -422,6 +422,7 @@ OWVis.decodeSlots = function (samples, samplerate, channel, speed) {
 };
 
 OWVis.SLOT_PITCH_US = 120;  // fallback start-to-start period for a lone slot
+OWVis.SLOT_GAP_FACTOR = 2.5; // an interval this many times the last regular slot is host idle
 
 /**
  * Resolve a `?src=` capture reference against the page URL.
@@ -485,19 +486,22 @@ OWVis.buildTransactions = function (events, samplerate) {
     }
   }
   txns.forEach((txn) => {
-    // A slot is shaded from its falling edge to the next one. The last slot
-    // has no successor, so it reuses the median start-to-start spacing of the
-    // preceding slots instead of a fixed cap.
-    const deltas = [];
-    for (let i = 1; i < txn.bits.length; i++) {
-      const d = txn.bits[i].t - txn.bits[i - 1].t;
-      if (d > 0) deltas.push(d);
-    }
-    deltas.sort((a, b) => a - b);
-    const pitch = deltas.length ? deltas[deltas.length >> 1] : defaultPitch;
+    // A regular slot is shaded from its falling edge to the next one. A host
+    // idle gap is much wider than the previous slot, so stop at the last
+    // regular width and leave the rest blank. The last slot has no successor
+    // and reuses that same width.
+    let lastRegular = defaultPitch;
     txn.bits.forEach((slot, i) => {
-      const next = i + 1 < txn.bits.length ? txn.bits[i + 1].t : slot.t + pitch;
-      slot.endT = next;
+      const next = i + 1 < txn.bits.length ? txn.bits[i + 1].t : null;
+      let span = lastRegular;
+      if (next !== null) {
+        const delta = next - slot.t;
+        if (delta <= lastRegular * OWVis.SLOT_GAP_FACTOR) {
+          span = delta;
+          lastRegular = delta;
+        }
+      }
+      slot.endT = slot.t + span;
       slot.role = "unknown";
       slot.phase = "unclassified";
       slot.byteIndex = -1;

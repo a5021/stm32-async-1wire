@@ -149,14 +149,14 @@
       for (let i = 0; i < t.bits.length; i++) {
         const s = t.bits[i];
         const next = i + 1 < t.bits.length ? t.bits[i + 1].t : null;
-        if (!(s.endT > s.t) || (next !== null && s.endT !== next)) {
+        if (!(s.endT > s.t) || (next !== null && s.endT > next)) {
           badSpan = { t: s.t, endT: s.endT, next };
           break;
         }
       }
       if (badSpan) break;
     }
-    check("every slot ends at the next falling edge", !badSpan,
+    check("every slot ends no later than the next falling edge", !badSpan,
       badSpan ? "t=" + badSpan.t + ", endT=" + badSpan.endT +
         ", next=" + badSpan.next : "7384 spans");
 
@@ -183,18 +183,21 @@
     eq("fallback pitch for a lone slot at 2 MHz (samples)",
       lone[0].bits[0].endT - lone[0].bits[0].t, OWVis.SLOT_PITCH_US * 2);
 
-    // A long host gap must not be capped: the fill runs to the next falling
-    // edge, and the last slot reuses the previous slot width.
+    // A host gap is much wider than the preceding slot: shade the fallback
+    // width, then recover the regular width on the next slot.
     const wide = OWVis.buildTransactions([
       { type: "reset", t: 0, presence: true, presT: 0, presLen: 0, lowLen: 0 },
       { type: "bit", t: 1000, bit: 0, lowLen: 10 },
       { type: "bit", t: 3000, bit: 1, lowLen: 10 },
-      { type: "bit", t: 5000, bit: 0, lowLen: 10 },
+      { type: "bit", t: 3333, bit: 0, lowLen: 10 },
+      { type: "bit", t: 3666, bit: 1, lowLen: 10 },
     ], 2000000);
-    eq("slot spans the full gap to the next falling edge (samples)",
-      wide[0].bits[0].endT - wide[0].bits[0].t, 2000);
-    eq("last slot reuses the previous slot width (samples)",
-      wide[0].bits[2].endT - wide[0].bits[2].t, 2000);
+    eq("host gap stops at the fallback width (samples)",
+      wide[0].bits[0].endT - wide[0].bits[0].t, OWVis.SLOT_PITCH_US * 2);
+    eq("slot after a host gap uses the regular width (samples)",
+      wide[0].bits[1].endT - wide[0].bits[1].t, 333);
+    eq("last slot reuses the previous regular width (samples)",
+      wide[0].bits[2].endT - wide[0].bits[2].t, 333);
 
     /* ---------- ROM enumeration ---------- */
     const romSet = new Map();
