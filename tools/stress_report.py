@@ -265,8 +265,8 @@ checksum.</p>
 the firmware counts 7 sensors while the viewer shows 8 responders (7 DS18B20
 plus 1 DS2431). <code>SEARCH_MAX</code> caps the count at 8, so this is not a
 full bus census. At high load the poll loop can stretch the gaps between bits;
-the firmware count/checksum is the main check; the viewer leaves those gaps
-blank, and they are real host idle time, not dropped samples.</p>
+the firmware count/checksum is the main check; the gaps are real host idle
+time, not dropped samples.</p>
 </section>""" % (e(capture.get("generated") or "unknown"),
                          e(capture.get("commit") or "unknown"),
                          " (working tree)" if capture.get("dirty") else "",
@@ -347,9 +347,8 @@ def platform_section(name, data, capture=None):
                 'baseline in all %d cells.</p>' % len(ccells))
         cap_html += "\n" + search_table_html(capture, name) + "\n" + (
             '<p class="note">Every row links the capture on this bench. The '
-            'viewer leaves stretched gaps blank: the host stretched the gap '
-            'between slots under load. They are real idle time, not dropped '
-            'samples, and each Search ROM bit is still decoded.</p>')
+            'gaps between slots are real host idle time, not dropped samples, '
+            'and each Search ROM bit is still decoded.</p>')
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
