@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CPU profile for the non-blocking driver.** `docs/cpu-profile.md` measures
+  the cycles spent inside the state-machine branch that actually advances a
+  search or measurement, with idle polling and application callbacks excluded.
+  On the H503 at 250 MHz one measurement costs 8,727 cycles (34.9 µs) and a
+  seven-device search 219,159 cycles (0.877 ms); on the F030 at 8 MHz the same
+  work costs 6,821 cycles (852.6 µs) and 134,100 cycles (16.76 ms). The profiler
+  hooks are opt-in (`APP_PROFILE=1 OW_PROFILE=1`) and compile to nothing
+  otherwise.
 - **The visualizer selftest runs in CI.** `tools/1wire_vis/selftest.html` is
   the only executable check of the decoder that ships to users, but it used to
   run only when somebody opened the page by hand. `tools/1wire_vis/run_selftest.py`

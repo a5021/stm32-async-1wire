@@ -129,6 +129,7 @@ A separator line marks each full round. With one sensor it behaves like
 `N × conversion`. Supports `-DOW_PARASITE_POWER=1`; the strong pull-up is
 handled per conversion.
 Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/2_device_search.sr&chan=0&speed=standard).
+CPU cost: [measured driver work](cpu-profile.md).
 
 #### `3_round_robin`
 

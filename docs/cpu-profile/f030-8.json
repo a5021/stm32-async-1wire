@@ -1,0 +1,37 @@
+{
+  "app": "2_device_search",
+  "calibration_cycles": 10,
+  "mcu": "STM32F030x6",
+  "measure": {
+    "active_ms_avg": 791.0192307692307,
+    "count": 52,
+    "cycle_ms_avg": 5791.0192307692305,
+    "cycles_avg": 6821.153846153846,
+    "cycles_max": 6830,
+    "cycles_min": 6814,
+    "cycles_p95": 6830,
+    "cycles_per_event": 852.6442307692307,
+    "events_avg": 8.0,
+    "load_active_pct": 0.10779058177132715,
+    "load_full_pct": 0.014723560685809925,
+    "worst_avg": 2809.0,
+    "worst_max": 2809
+  },
+  "search": {
+    "active_ms_avg": 293.0,
+    "count": 1,
+    "cycle_ms_avg": 293.0,
+    "cycles_avg": 134100.0,
+    "cycles_max": 134100,
+    "cycles_min": 134100,
+    "cycles_p95": 134100,
+    "cycles_per_event": 246.96132596685084,
+    "events_avg": 543.0,
+    "load_active_pct": 5.7209897610921505,
+    "load_full_pct": 5.7209897610921505,
+    "worst_avg": 1114.0,
+    "worst_max": 1114
+  },
+  "seconds": 300,
+  "sysclk_mhz": 8
+}

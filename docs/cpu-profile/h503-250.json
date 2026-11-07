@@ -1,0 +1,37 @@
+{
+  "app": "2_device_search",
+  "calibration_cycles": 18,
+  "mcu": "STM32H503xx",
+  "measure": {
+    "active_ms_avg": 790.0192307692307,
+    "count": 52,
+    "cycle_ms_avg": 5790.0192307692305,
+    "cycles_avg": 8727.0,
+    "cycles_max": 8727,
+    "cycles_min": 8727,
+    "cycles_p95": 8727,
+    "cycles_per_event": 1090.875,
+    "events_avg": 8.0,
+    "load_active_pct": 0.0044186266157104255,
+    "load_full_pct": 0.0006028995519478147,
+    "worst_avg": 3390.0,
+    "worst_max": 3390
+  },
+  "search": {
+    "active_ms_avg": 274.0,
+    "count": 1,
+    "cycle_ms_avg": 274.0,
+    "cycles_avg": 219159.0,
+    "cycles_max": 219159,
+    "cycles_min": 219159,
+    "cycles_p95": 219159,
+    "cycles_per_event": 403.6077348066298,
+    "events_avg": 543.0,
+    "load_active_pct": 0.31994014598540144,
+    "load_full_pct": 0.31994014598540144,
+    "worst_avg": 1686.0,
+    "worst_max": 1686
+  },
+  "seconds": 300,
+  "sysclk_mhz": 250
+}
