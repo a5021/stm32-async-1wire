@@ -184,6 +184,20 @@ def git_head():
         return "unknown"
 
 
+def merge_manifest(existing, updates, meta):
+    """Merge selected app entries into an existing manifest.
+
+    A full run starts from an empty dict; `--only` passes the loaded manifest
+    so the other examples and their skip reasons survive a partial refresh.
+    """
+    out = dict(existing or {})
+    out.update(meta)
+    apps = dict(out.get("apps") or {})
+    apps.update(updates)
+    out["apps"] = apps
+    return out
+
+
 def capture_one(entry, args):
     app = entry["app"]
     raw_path = os.path.join(RAW_DIR, app + ".bin")
@@ -197,30 +211,50 @@ def capture_one(entry, args):
             common.flash(hexpath)
             print("  flashed %s" % app, flush=True)
 
+    raw = None
+    first = None
+    capture_seconds = entry["seconds"]
+    start = 0.0
     for attempt in (1, 2):
-        samples = dp.capture(args.sigrok, args.prog, raw_path, entry["seconds"])
-        if samples >= int(RATE_HZ * entry["seconds"] * 0.5):
+        capture_seconds = entry["seconds"] + (attempt - 1) * 2.0
+        samples = dp.capture(args.sigrok, args.prog, raw_path, capture_seconds)
+        if samples < int(RATE_HZ * capture_seconds * 0.5):
+            if attempt == 2:
+                raise RuntimeError("short capture for %s (%d bytes)" % (app, samples))
+            print("  retrying short capture for %s" % app, flush=True)
+            continue
+        raw = np.fromfile(raw_path, dtype=np.uint8)
+        first = first_reset_us(raw, RATE_HZ, CHANNEL)
+        if first is None and entry.get("allow_no_reset"):
+            first = first_falling_us(raw, RATE_HZ, CHANNEL)
+        if first is None:
+            if attempt == 2:
+                raise RuntimeError("no reset found on D%d in %s" % (CHANNEL, app))
+            print("  retrying %s: no reset in the window" % app, flush=True)
+            continue
+        start = max(0.0, first - 500.0)
+        available_us = len(raw) / RATE_HZ * 1e6
+        need_us = start + entry["window_us"]
+        if available_us >= need_us:
             break
         if attempt == 2:
-            raise RuntimeError("short capture for %s (%d bytes)" % (app, samples))
-        print("  retrying short capture for %s" % app, flush=True)
+            raise RuntimeError(
+                "capture for %s is too short: need %.0f us after the reset, "
+                "have %.0f us" % (app, need_us, available_us))
+        print("  retrying %s: window needs %.0f us, have %.0f us" % (
+            app, need_us, available_us), flush=True)
 
-    raw = np.fromfile(raw_path, dtype=np.uint8)
-    first = first_reset_us(raw, RATE_HZ, CHANNEL)
-    if first is None and entry.get("allow_no_reset"):
-        first = first_falling_us(raw, RATE_HZ, CHANNEL)
-    if first is None:
-        raise RuntimeError("no reset found on D%d in %s" % (CHANNEL, app))
-    start = max(0.0, first - 500.0)
-    end = min(len(raw) / RATE_HZ * 1e6, start + entry["window_us"])
+    if raw is None or first is None:
+        raise RuntimeError("capture for %s produced no data" % app)
+    end = start + entry["window_us"]
     dst = os.path.join(args.out_dir, app + ".sr")
     write_sr(raw, RATE_HZ, dst, start, end)
     print("  %s: reset at %.1f us, kept %.1f ms -> %s" % (
         app, first, (end - start) / 1000.0, os.path.relpath(dst, REPO)), flush=True)
     return {
         "file": os.path.relpath(dst, os.path.dirname(args.json)).replace(os.sep, "/"),
-        "seconds": entry["seconds"],
-        "window_us": int(entry["window_us"]),
+        "seconds": capture_seconds,
+        "window_us": int(round(end - start)),
         "description": entry["description"],
     }
 
@@ -258,16 +292,27 @@ def main(argv=None):
                   file=sys.stderr)
             return 1
 
-    manifest = {
+    manifest_meta = {
         "bench": args.mcu,
         "channel": CHANNEL,
         "capture_rate_hz": RATE_HZ,
         "generated": time.strftime("%Y-%m-%d"),
         "commit": git_head(),
-        "apps": {},
     }
+    existing = {}
+    if args.only and os.path.isfile(args.json):
+        try:
+            with open(args.json, encoding="utf-8") as fh:
+                existing = json.load(fh)
+        except (OSError, ValueError) as exc:
+            print("example_capture: cannot read %s: %s" % (args.json, exc),
+                  file=sys.stderr)
+            return 1
+    manifest = merge_manifest(existing, {}, manifest_meta)
+    if not args.only:
+        manifest["apps"] = {}
     for app, reason in SKIPPED.items():
-        manifest["apps"][app] = {"skip": reason}
+        manifest["apps"].setdefault(app, {"skip": reason})
 
     print("capturing %d example(s) on %s, D%d" % (len(selected), args.mcu, CHANNEL))
     for entry in selected:
