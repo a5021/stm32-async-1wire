@@ -241,6 +241,16 @@ def main():
     for name, _role, data_high in priority:
         base = os.path.join(PLATFORMS, name, "captures-high")
         for cell in data_high["cells"]:
+            label = "%s-high l%d/%s/g%d" % (
+                name, cell["level"],
+                "%d MHz" % cell["clock_mhz"] if cell["clock_mhz"] else "default",
+                cell["guard_us"])
+            check("%s has a valid run identity" % label,
+                  cell.get("identity") is True)
+            tel = cell.get("telemetry") or []
+            check("%s has live telemetry" % label,
+                  any(v not in (None, 0) for v in tel),
+                  "all-zero telemetry")
             if cell.get("capture"):
                 replay_capture(cell, base, data_high,
                                "%s-high/%s" % (name, cell["capture"]))

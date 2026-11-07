@@ -394,14 +394,14 @@ changed.</p>
 <tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 0 and 1</td><td>16</td><td>2</td></tr>
 <tr><td>STM32H5</td><td><code>STM32H503xx</code></td><td>GPDMA1 channels 0/1, CCR.PRIO 0</td><td>18</td><td>0</td></tr>
 <tr><td>STM32F4</td><td><code>STM32F446xx</code></td><td>DMA2 streams 5 and 6</td><td>18</td><td>0</td></tr>
-<tr><td>STM32H5</td><td><code>STM32H503xx</code></td><td>GPDMA1 channels 0/1, CCR.PRIO 3</td><td>12</td><td>6</td></tr></tbody></table>
+<tr><td>STM32H5</td><td><code>STM32H503xx</code></td><td>GPDMA1 channels 0/1, CCR.PRIO 3</td><td>13</td><td>5</td></tr></tbody></table>
 <p class="note">These are level/clock cells in the <em>write-frame</em> matrix
 at the default guard, not the Search ROM matrix above. A failing cell is a
-write frame that did not decode clean. On the H503 PRIO 3 row all six have
-<code>start_timeout = 0</code> and <code>load_error = 0</code>, so the higher
-priority starved the feed; the equal-priority H503 row is clean. A part that is
-clean in both rows has spare bandwidth; a part that is clean only with the load
-below the feed is sensitive to arbitration order.</p>
+write frame that did not decode clean. On the H503 PRIO 3 row every failing
+cell has <code>start_timeout = 0</code> and <code>load_error = 0</code>, so the
+higher priority starved the feed; the equal-priority H503 row is clean. A part
+that is clean in both rows has spare bandwidth; a part that is clean only with
+the load below the feed is sensitive to arbitration order.</p>
 </section>
 
 

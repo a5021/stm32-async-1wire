@@ -15,7 +15,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 678332.0,
+      "first_frame_us": 755248.25,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -62,7 +62,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 682452.25,
+      "first_frame_us": 747097.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -109,7 +109,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681633.25,
+      "first_frame_us": 715143.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -150,117 +150,17 @@
       "bad_len": 0,
       "bad_period": 0,
       "bad_width": 0,
-      "capture": null,
-      "capture_fail": "fail/l1_8mhz_g1.sr",
-      "clean": false,
-      "clock_mhz": 8,
-      "first_attempt": null,
-      "first_attempt_clean": false,
-      "first_frame_us": null,
-      "frames": 0,
-      "guard_us": 1,
-      "identity": false,
-      "image_sha256": "7478ffcfd1fc8bf7ed7f9de7916e38b6b9d4fcd718b653b396f3de932e3bde8f",
-      "level": 1,
-      "load_error": 0,
-      "start_timeout": 0,
-      "stuck_low": false,
-      "telemetry": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "window_us": [
-        2178005.0,
-        2183293.0
-      ]
-    },
-    {
-      "attempts": 1,
-      "bad_bits": 0,
-      "bad_len": 0,
-      "bad_period": 0,
-      "bad_width": 0,
-      "capture": null,
-      "capture_fail": "fail/l1_8mhz_g2.sr",
-      "clean": false,
-      "clock_mhz": 8,
-      "first_attempt": null,
-      "first_attempt_clean": false,
-      "first_frame_us": null,
-      "frames": 0,
-      "guard_us": 2,
-      "identity": false,
-      "image_sha256": "f801324eff41ece4c2137776e6c53856d8ff7b97d8c2ff13a70cc802dff8ac23",
-      "level": 1,
-      "load_error": 0,
-      "start_timeout": 0,
-      "stuck_low": false,
-      "telemetry": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "window_us": [
-        2185005.0,
-        2190357.0
-      ]
-    },
-    {
-      "attempts": 1,
-      "bad_bits": 0,
-      "bad_len": 0,
-      "bad_period": 0,
-      "bad_width": 0,
-      "capture": "l1_8mhz_g3.sr",
+      "capture": "l1_8mhz_g1.sr",
       "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 692521.25,
+      "first_frame_us": 721138.75,
       "frames": 100,
-      "guard_us": 3,
+      "guard_us": 1,
       "identity": true,
-      "image_sha256": "b16cb76ecc0b5541960b93ef406577bc4fe3b23030c79a864b45695b2f4140f9",
+      "image_sha256": "7478ffcfd1fc8bf7ed7f9de7916e38b6b9d4fcd718b653b396f3de932e3bde8f",
       "level": 1,
       "load_error": 0,
       "start_timeout": 0,
@@ -292,72 +192,22 @@
       "window_us": null
     },
     {
-      "attempts": 2,
-      "bad_bits": 0,
-      "bad_len": 0,
-      "bad_period": 0,
-      "bad_width": 0,
-      "capture": null,
-      "capture_fail": "fail/l1_8mhz_g5.sr",
-      "clean": false,
-      "clock_mhz": 8,
-      "first_attempt": "identity: stale image (magic 0x00000000)",
-      "first_attempt_clean": false,
-      "first_frame_us": null,
-      "frames": 0,
-      "guard_us": 5,
-      "identity": false,
-      "image_sha256": "21980aeaf287c50321b1a3742ffce7de9a0b5f792dd52ee426654289f88d0822",
-      "level": 1,
-      "load_error": 0,
-      "start_timeout": 0,
-      "stuck_low": false,
-      "telemetry": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "window_us": [
-        2204005.0,
-        2209549.0
-      ]
-    },
-    {
       "attempts": 1,
       "bad_bits": 0,
       "bad_len": 0,
       "bad_period": 0,
       "bad_width": 0,
-      "capture": "l1_8mhz_g13.sr",
+      "capture": "l1_8mhz_g5.sr",
       "capture_fail": null,
       "clean": true,
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 692140.75,
+      "first_frame_us": 733539.5,
       "frames": 100,
-      "guard_us": 13,
+      "guard_us": 5,
       "identity": true,
-      "image_sha256": "1d2b7b0333093067c2b79f4fd4e8460911f81e8d34130f91f664193ab93642ba",
+      "image_sha256": "21980aeaf287c50321b1a3742ffce7de9a0b5f792dd52ee426654289f88d0822",
       "level": 1,
       "load_error": 0,
       "start_timeout": 0,
@@ -370,7 +220,7 @@
         0,
         0,
         0,
-        900,
+        800,
         0,
         0,
         0,
@@ -400,7 +250,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 687100.75,
+      "first_frame_us": 726342.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -481,32 +331,39 @@
         0
       ],
       "window_us": [
-        688559.0,
-        693847.0
+        742406.25,
+        747694.25
       ]
     },
     {
       "attempts": 2,
-      "bad_bits": 0,
-      "bad_len": 0,
-      "bad_period": 0,
-      "bad_width": 0,
-      "capture": null,
+      "bad_bits": 88,
+      "bad_len": 12,
+      "bad_period": 88,
+      "bad_width": 122,
+      "capture": "l2_8mhz_g5.sr",
       "capture_fail": "fail/l2_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 681141.2 us has 65 pulses, expected 64",
+      "first_attempt": "frame at 735049.2 us has 65 pulses, expected 64",
       "first_attempt_clean": false,
-      "first_frame_us": null,
-      "frames": 0,
+      "first_frame_us": 760885.0,
+      "frames": 88,
       "guard_us": 5,
-      "identity": false,
+      "identity": true,
       "image_sha256": "39083532f76fd8825bb5e8521c102ff4069c19e3e575868a2d95bb7afbd38b8a",
       "level": 2,
       "load_error": 0,
       "start_timeout": 0,
       "stuck_low": false,
       "telemetry": [
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        500,
         0,
         0,
         0,
@@ -517,22 +374,15 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
+        827805003,
+        33554440,
         0,
         0,
         0
       ],
       "window_us": [
-        2204005.0,
-        2209549.0
+        748215.25,
+        753759.25
       ]
     },
     {
@@ -581,8 +431,8 @@
         0
       ],
       "window_us": [
-        693920.25,
-        699976.25
+        741698.0,
+        747754.0
       ]
     },
     {
@@ -597,7 +447,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 690063.75,
+      "first_frame_us": 745108.5,
       "frames": 1,
       "guard_us": 34,
       "identity": true,
@@ -631,8 +481,8 @@
         0
       ],
       "window_us": [
-        690066.75,
-        697466.75
+        745111.25,
+        752511.25
       ]
     },
     {
@@ -647,7 +497,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 692582.0,
+      "first_frame_us": 726969.25,
       "frames": 99,
       "guard_us": 55,
       "identity": true,
@@ -681,8 +531,8 @@
         0
       ],
       "window_us": [
-        683006.5,
-        691750.5
+        717393.75,
+        726137.75
       ]
     },
     {
@@ -697,7 +547,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 682973.75,
+      "first_frame_us": 712762.5,
       "frames": 1,
       "guard_us": 89,
       "identity": true,
@@ -731,8 +581,8 @@
         0
       ],
       "window_us": [
-        682976.75,
-        693896.75
+        712765.25,
+        723685.25
       ]
     },
     {
@@ -747,7 +597,7 @@
       "clock_mhz": 8,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 690144.0,
+      "first_frame_us": 737344.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -792,7 +642,7 @@
       "capture_fail": "fail/l3_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 681386.5 us has 68 pulses, expected 64",
+      "first_attempt": "frame at 735719.2 us has 68 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -828,8 +678,8 @@
         0
       ],
       "window_us": [
-        679251.0,
-        684795.0
+        732918.0,
+        738462.0
       ]
     },
     {
@@ -842,9 +692,9 @@
       "capture_fail": "fail/l3_8mhz_g100.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 673712.2 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 708606.8 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
-      "first_frame_us": 692798.0,
+      "first_frame_us": 721629.75,
       "frames": 99,
       "guard_us": 100,
       "identity": true,
@@ -878,8 +728,8 @@
         0
       ],
       "window_us": [
-        680303.75,
-        691927.75
+        709135.5,
+        720759.5
       ]
     },
     {
@@ -892,7 +742,7 @@
       "capture_fail": "fail/l4_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 685491.0 us has 68 pulses, expected 64",
+      "first_attempt": "frame at 721113.0 us has 68 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -928,12 +778,12 @@
         0
       ],
       "window_us": [
-        683249.0,
-        688793.0
+        742698.0,
+        748242.0
       ]
     },
     {
-      "attempts": 2,
+      "attempts": 3,
       "bad_bits": 0,
       "bad_len": 1,
       "bad_period": 0,
@@ -942,9 +792,9 @@
       "capture_fail": "fail/l4_8mhz_g100.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 693365.0 us has 66 pulses, expected 64",
+      "first_attempt": "frame at 732121.8 us has 66 pulses, expected 64",
       "first_attempt_clean": false,
-      "first_frame_us": 698575.75,
+      "first_frame_us": 763592.0,
       "frames": 99,
       "guard_us": 100,
       "identity": true,
@@ -978,8 +828,8 @@
         0
       ],
       "window_us": [
-        686081.5,
-        697705.5
+        751098.0,
+        762722.0
       ]
     },
     {
@@ -992,7 +842,7 @@
       "capture_fail": "fail/l5_8mhz_g5.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 668427.2 us has 67 pulses, expected 64",
+      "first_attempt": "frame at 742791.8 us has 67 pulses, expected 64",
       "first_attempt_clean": false,
       "first_frame_us": null,
       "frames": 0,
@@ -1028,8 +878,8 @@
         0
       ],
       "window_us": [
-        686543.0,
-        692087.0
+        719628.75,
+        725172.75
       ]
     },
     {
@@ -1042,9 +892,9 @@
       "capture_fail": "fail/l5_8mhz_g100.sr",
       "clean": false,
       "clock_mhz": 8,
-      "first_attempt": "frame at 687599.2 us decodes 0000000011111111000100011110111011110000000011110011110011000011, expected 0000000011111111010101011010101011110000000011110011110011000011",
+      "first_attempt": "frame at 732139.0 us decodes 0000000011111111000100011110111011110000000011110011110011000011, expected 0000000011111111010101011010101011110000000011110011110011000011",
       "first_attempt_clean": false,
-      "first_frame_us": 683681.25,
+      "first_frame_us": 754353.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -1078,8 +928,8 @@
         0
       ],
       "window_us": [
-        683684.0,
-        695308.0
+        754356.25,
+        765980.25
       ]
     },
     {
@@ -1094,7 +944,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 696506.0,
+      "first_frame_us": 709143.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -1141,7 +991,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 693402.75,
+      "first_frame_us": 711373.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -1188,7 +1038,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 691416.0,
+      "first_frame_us": 730212.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -1235,7 +1085,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 673495.25,
+      "first_frame_us": 727347.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -1282,7 +1132,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681981.25,
+      "first_frame_us": 731485.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -1329,7 +1179,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 693309.5,
+      "first_frame_us": 697239.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -1376,7 +1226,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 683916.0,
+      "first_frame_us": 731827.5,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -1410,8 +1260,8 @@
         0
       ],
       "window_us": [
-        683916.5,
-        689204.5
+        731828.0,
+        737116.0
       ]
     },
     {
@@ -1426,7 +1276,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 682423.25,
+      "first_frame_us": 733229.5,
       "frames": 100,
       "guard_us": 2,
       "identity": true,
@@ -1473,7 +1323,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 694638.5,
+      "first_frame_us": 715592.5,
       "frames": 100,
       "guard_us": 3,
       "identity": true,
@@ -1520,7 +1370,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 684386.25,
+      "first_frame_us": 773506.25,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -1567,7 +1417,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681435.25,
+      "first_frame_us": 709437.25,
       "frames": 100,
       "guard_us": 13,
       "identity": true,
@@ -1614,7 +1464,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 689164.5,
+      "first_frame_us": 735377.75,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -1661,7 +1511,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 688400.0,
+      "first_frame_us": 735363.25,
       "frames": 99,
       "guard_us": 1,
       "identity": true,
@@ -1695,8 +1545,8 @@
         0
       ],
       "window_us": [
-        682444.25,
-        687732.25
+        729406.75,
+        734694.75
       ]
     },
     {
@@ -1711,7 +1561,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 688441.5,
+      "first_frame_us": 716646.0,
       "frames": 99,
       "guard_us": 3,
       "identity": true,
@@ -1745,8 +1595,8 @@
         0
       ],
       "window_us": [
-        682486.25,
-        687902.25
+        710690.5,
+        716106.5
       ]
     },
     {
@@ -1761,7 +1611,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 686889.0,
+      "first_frame_us": 751428.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -1808,7 +1658,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 686438.25,
+      "first_frame_us": 733685.75,
       "frames": 100,
       "guard_us": 13,
       "identity": true,
@@ -1855,7 +1705,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 684192.75,
+      "first_frame_us": 687795.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -1902,7 +1752,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 688086.0,
+      "first_frame_us": 735671.25,
       "frames": 99,
       "guard_us": 1,
       "identity": true,
@@ -1936,8 +1786,8 @@
         0
       ],
       "window_us": [
-        682130.5,
-        687418.5
+        729716.0,
+        735004.0
       ]
     },
     {
@@ -1952,7 +1802,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 695682.0,
+      "first_frame_us": 711093.0,
       "frames": 99,
       "guard_us": 3,
       "identity": true,
@@ -1986,8 +1836,8 @@
         0
       ],
       "window_us": [
-        689726.75,
-        695142.75
+        705136.0,
+        710552.0
       ]
     },
     {
@@ -2002,7 +1852,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 691642.25,
+      "first_frame_us": 716252.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2049,7 +1899,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 683384.5,
+      "first_frame_us": 770121.75,
       "frames": 100,
       "guard_us": 13,
       "identity": true,
@@ -2096,7 +1946,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 667682.0,
+      "first_frame_us": 716244.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -2143,7 +1993,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 680510.25,
+      "first_frame_us": 713435.25,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -2177,8 +2027,8 @@
         0
       ],
       "window_us": [
-        680510.5,
-        685798.5
+        713435.75,
+        718723.75
       ]
     },
     {
@@ -2193,7 +2043,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 677982.75,
+      "first_frame_us": 711082.75,
       "frames": 100,
       "guard_us": 3,
       "identity": true,
@@ -2227,8 +2077,8 @@
         0
       ],
       "window_us": [
-        677983.0,
-        683399.0
+        711083.25,
+        716499.25
       ]
     },
     {
@@ -2243,7 +2093,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": false,
-      "first_frame_us": 680835.0,
+      "first_frame_us": 710071.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2277,8 +2127,8 @@
         0
       ],
       "window_us": [
-        680835.5,
-        686379.5
+        710071.25,
+        715615.25
       ]
     },
     {
@@ -2327,8 +2177,8 @@
         0
       ],
       "window_us": [
-        672705.75,
-        678441.75
+        717872.25,
+        723608.25
       ]
     },
     {
@@ -2343,7 +2193,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681465.5,
+      "first_frame_us": 714550.5,
       "frames": 100,
       "guard_us": 13,
       "identity": true,
@@ -2390,7 +2240,7 @@
       "clock_mhz": 64,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 684491.5,
+      "first_frame_us": 721345.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -2437,7 +2287,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 684259.25,
+      "first_frame_us": 727264.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -2484,7 +2334,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 680325.0,
+      "first_frame_us": 719540.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2531,7 +2381,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 693255.5,
+      "first_frame_us": 711109.0,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -2578,7 +2428,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 676971.5,
+      "first_frame_us": 707521.0,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -2625,7 +2475,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 677149.0,
+      "first_frame_us": 719502.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2672,7 +2522,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 700004.5,
+      "first_frame_us": 703969.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -2719,7 +2569,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 678649.25,
+      "first_frame_us": 738397.0,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -2766,7 +2616,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 673070.0,
+      "first_frame_us": 736690.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2813,7 +2663,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681078.25,
+      "first_frame_us": 806890.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -2860,7 +2710,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 687170.75,
+      "first_frame_us": 738565.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -2907,7 +2757,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 684921.75,
+      "first_frame_us": 747583.5,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -2954,7 +2804,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 704199.75,
+      "first_frame_us": 722997.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -3001,7 +2851,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 688085.0,
+      "first_frame_us": 770178.75,
       "frames": 100,
       "guard_us": 1,
       "identity": true,
@@ -3048,7 +2898,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 681204.25,
+      "first_frame_us": 728758.75,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -3095,7 +2945,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 694225.0,
+      "first_frame_us": 809119.25,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -3176,8 +3026,8 @@
         0
       ],
       "window_us": [
-        688526.5,
-        693814.5
+        732604.25,
+        737892.25
       ]
     },
     {
@@ -3192,7 +3042,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 680045.75,
+      "first_frame_us": 719412.25,
       "frames": 100,
       "guard_us": 2,
       "identity": true,
@@ -3239,7 +3089,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 678041.25,
+      "first_frame_us": 728453.5,
       "frames": 100,
       "guard_us": 3,
       "identity": true,
@@ -3286,7 +3136,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 672473.25,
+      "first_frame_us": 750158.0,
       "frames": 100,
       "guard_us": 5,
       "identity": true,
@@ -3333,7 +3183,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 675738.0,
+      "first_frame_us": 728200.25,
       "frames": 100,
       "guard_us": 13,
       "identity": true,
@@ -3380,7 +3230,7 @@
       "clock_mhz": 250,
       "first_attempt": null,
       "first_attempt_clean": true,
-      "first_frame_us": 757754.25,
+      "first_frame_us": 734957.5,
       "frames": 100,
       "guard_us": 100,
       "identity": true,
@@ -3416,7 +3266,7 @@
       "window_us": null
     }
   ],
-  "commit": "a19462ae",
+  "commit": "2f6164f3",
   "default_guard_us": 5,
   "dirty": false,
   "example": "0_dma_pressure",
@@ -3490,7 +3340,7 @@
     },
     {
       "clock_mhz": 8,
-      "guard_us": 3,
+      "guard_us": 1,
       "level": 1
     },
     {
@@ -3536,5 +3386,5 @@
   "sr_dir": "docs/stress/platforms/h503/captures-high",
   "stress_words": 512,
   "title": "Stress test report",
-  "tooling_commit": "a19462ae"
+  "tooling_commit": "2f6164f3"
 }

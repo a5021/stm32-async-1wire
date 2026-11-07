@@ -311,8 +311,8 @@ clearing `EN` alone does not drop a pending request.
 Raising the load to `CCR.PRIO 3` gives a different result. At 250 MHz levels
 0-4 are clean at guard 1 and level 5 needs 2 µs, so the 5 µs default still
 passes. At 64 MHz levels 0-1 pass at guard 1, level 2 needs 2 µs, levels 3-4
-need 5 µs, and level 5 needs 13 µs and fails at the default. At 8 MHz level 0
-passes at guard 1, levels 1-2 fail at the default, and levels 3-5 never pass.
+need 5 µs, and level 5 needs 13 µs and fails at the default. At 8 MHz levels
+0-1 pass at guard 1, level 2 fails at the default, and levels 3-5 never pass.
 The fixed high class outranks the feed; the equal-priority round-robin does
 not.
 

@@ -47,12 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   HIL detects the `STM32H503xx` bench automatically. On the WeAct H503CB at 64,
   250 and 8 MHz every level is clean at the 5 us default with `cndtr_late = 0`;
   the floor is guard 1 in every cell. Raising the load to `CCR.PRIO 3` starves
-  the feed: at 8 MHz levels 1-5 fail at the default and at 64 MHz level 5 fails,
-  so the default equal-priority placement is the safe one. The capture matrix
-  returns the same 7 devices and checksum at every level, and the injection
-  control fails as expected. Clearing `EN` does not drop a pending GPDMA
-  request, so the H5 negative control sets `CCR.SUSP` for the window and clears
-  it afterwards; F0/F4 keep the enable-bit disable.
+  the feed: at 8 MHz level 2 fails at the default and levels 3-5 never pass; at
+  64 MHz level 5 fails, so the default equal-priority placement is the safe one.
+  The capture matrix returns the same 7 devices and checksum at every level, and
+  the injection control fails as expected. Clearing `EN` does not drop a pending
+  GPDMA request, so the H5 negative control sets `CCR.SUSP` for the window and
+  clears it afterwards; F0/F4 keep the enable-bit disable.
 - **The F030 bench is marker-bracketed too.** `STRESS_MARKER_PIN` (default 11)
   selects the marker GPIO, so the F030 TSSOP20 bench uses PA2, where PA11 is not
   bonded out. Collisions with the bus (PA10), the console (PA9), the LED (PA4)
