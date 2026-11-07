@@ -23,6 +23,9 @@ except ImportError:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+import example_capture as ec  # noqa: E402
+
 MANIFEST = os.path.join(REPO, "docs", "examples", "captures.json")
 DOCS = os.path.join(REPO, "docs", "examples.md")
 
@@ -59,7 +62,30 @@ def edge_counts(raw, rate_hz, channel):
     return len(falls), resets
 
 
+def test_manifest_merge():
+    """A partial refresh must not delete the other app entries."""
+    existing = {
+        "bench": "old",
+        "apps": {
+            "2_device_search": {"file": "captures/2_device_search.sr"},
+            "9_multi": {"file": "captures/9_multi.sr"},
+        },
+    }
+    merged = ec.merge_manifest(
+        existing,
+        {"2_device_search": {"file": "captures/new.sr"}},
+        {"bench": "new", "channel": 0},
+    )
+    check("manifest merge updates the selected app",
+          merged["apps"]["2_device_search"]["file"] == "captures/new.sr")
+    check("manifest merge keeps the other app",
+          merged["apps"]["9_multi"]["file"] == "captures/9_multi.sr")
+    check("manifest merge keeps unrelated metadata",
+          merged["bench"] == "new" and merged["channel"] == 0)
+
+
 def main():
+    test_manifest_merge()
     try:
         with open(MANIFEST, encoding="utf-8") as fh:
             manifest = json.load(fh)
@@ -121,6 +147,15 @@ def main():
         else:
             check("%s contains a 1-Wire reset" % app, resets >= 1,
                   "%d resets" % resets)
+
+        duration_us = len(raw) / manifest["capture_rate_hz"] * 1e6
+        check("%s archive covers the declared window" % app,
+              duration_us + 1.0 >= entry["window_us"],
+              "%.0f us < %.0f us" % (duration_us, entry["window_us"]))
+        check("%s window fits the raw capture" % app,
+              entry["window_us"] <= entry["seconds"] * 1e6,
+              "window %.0f us, raw %.0f us" % (
+                  entry["window_us"], entry["seconds"] * 1e6))
 
         link = ("viewer/?src=./../examples/captures/%s.sr&chan=0&speed=standard"
                 % app)
