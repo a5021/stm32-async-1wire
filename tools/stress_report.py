@@ -424,11 +424,11 @@ changed.</p>
 <tbody>%s</tbody></table>
 <p class="note">These are level/clock cells in the <em>write-frame</em> matrix
 at the default guard, not the Search ROM matrix above. A failing cell is a
-write frame that did not decode clean. On the H503 PRIO 3 row all six have
-<code>start_timeout = 0</code> and <code>load_error = 0</code>, so the higher
-priority starved the feed; the equal-priority H503 row is clean. A part that is
-clean in both rows has spare bandwidth; a part that is clean only with the load
-below the feed is sensitive to arbitration order.</p>
+write frame that did not decode clean. On the H503 PRIO 3 row every failing
+cell has <code>start_timeout = 0</code> and <code>load_error = 0</code>, so the
+higher priority starved the feed; the equal-priority H503 row is clean. A part
+that is clean in both rows has spare bandwidth; a part that is clean only with
+the load below the feed is sensitive to arbitration order.</p>
 </section>
 """ % "\n".join(rows)
 
