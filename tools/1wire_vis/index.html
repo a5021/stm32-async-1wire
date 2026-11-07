@@ -154,8 +154,7 @@ try {
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
-      <span class="sw" style="background:#15803D"></span>presence answer
-      <span class="sw" style="background:#94A3B8"></span>bus idle</div>
+      <span class="sw" style="background:#15803D"></span>presence answer</div>
     <canvas id="detail" width="1120" height="179"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
@@ -235,7 +234,6 @@ try {
       roleUnknown: "rgba(91,107,133,.14)",
       reset: "#DC2626", presence: "#15803D", resetBand: "rgba(220,38,38,.07)",
       presenceBand: "rgba(21,128,61,.16)", byteDivider: "rgba(51,65,85,.55)",
-      idle: "#94A3B8", idleBand: "rgba(148,163,184,.14)",
       crcOk: "#15803D", crcBad: "#DC2626",
       crcOkBg: "rgba(21,128,61,.16)", crcBadBg: "rgba(220,38,38,.16)",
       cursorA: "#2563EB", cursorB: "#B45309", cursorShade: "rgba(37,99,235,.07)",
@@ -252,7 +250,6 @@ try {
       roleUnknown: "rgba(148,163,184,.15)",
       reset: "#F87171", presence: "#4ADE80", resetBand: "rgba(248,113,113,.12)",
       presenceBand: "rgba(74,222,128,.14)", byteDivider: "rgba(148,163,184,.38)",
-      idle: "#94A3B8", idleBand: "rgba(148,163,184,.18)",
       crcOk: "#4ADE80", crcBad: "#F87171",
       crcOkBg: "rgba(74,222,128,.14)", crcBadBg: "rgba(248,113,113,.14)",
       cursorA: "#60A5FA", cursorB: "#FBBF24", cursorShade: "rgba(96,165,250,.10)",
@@ -530,18 +527,6 @@ try {
     }
     for (let k = lo; k < slotIndex.length && slotIndex[k].t <= visibleEnd; k++) {
       const slot = slotIndex[k].slot;
-      // Idle between slots: the bus is high but no listener is driving.
-      // `endT` is capped for shading, `nextT` is the real start of the next
-      // slot, so the leftover span is drawn as neutral bus idle rather than
-      // leaving an unexplained blank or tinting it as a bit.
-      if (slot.nextT > slot.endT) {
-        const ix0 = xOf(slot.endT), ix1 = xOf(slot.nextT);
-        if (ix1 >= 0 && ix0 <= W) {
-          ctx.fillStyle = P.idleBand;
-          ctx.fillRect(Math.max(0, ix0), plotTop,
-            Math.min(W, ix1) - Math.max(0, ix0), plotH);
-        }
-      }
       // One span per slot, computed in buildTransactions and shared with the
       // hover readout. The old renderer used a separate 90 us cap, which left
       // visible gaps on this capture's 166 us slot period.
