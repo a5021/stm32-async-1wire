@@ -1,4 +1,5 @@
 #include "app.h"
+#include "app_profile.h"
 #include "ds18b20.h"
 
 #ifndef DS18B20_SEARCH_MAX_DEVICES
@@ -15,6 +16,24 @@ static uint8_t search_running = 1;
 
 /** app_millis() value at which the pause after the last result expires */
 static uint32_t pause_end_ms;
+
+#if APP_PROFILE
+static app_profile_t prof_search;
+static app_profile_t prof_measure;
+static uint32_t prof_search_start_ms;
+static uint32_t prof_cycle_start_ms;
+static uint32_t prof_measure_active_ms;
+static uint8_t prof_measure_done;
+#endif
+
+static void start_measure_profiled(void) {
+#if APP_PROFILE
+    app_profile_reset(&prof_measure);
+    prof_cycle_start_ms = app_millis();
+    prof_measure_done = 0;
+#endif
+    ds18b20_start_measure();
+}
 
 static uint8_t device_found_sink(const uint8_t* rom) {
     for (uint8_t i = 0; i < DS18B20_ROM_BYTES; i++) {
@@ -40,7 +59,7 @@ static void report_search_result(void) {
         select_index = 0;
         ds18b20_select(found_roms[select_index]);
         pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
-        ds18b20_start_measure(); // Request the first measurement cycle
+        start_measure_profiled(); // Request the first measurement cycle
     }
 }
 
@@ -80,6 +99,10 @@ void ds18b20_complete(int16_t temp) {
     }
     /* The conversion has finished: start counting the pause to the next cycle. */
     pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
+#if APP_PROFILE
+    prof_measure_active_ms = app_millis() - prof_cycle_start_ms;
+    prof_measure_done = 1;
+#endif
 }
 
 int main(void) {
@@ -90,19 +113,51 @@ int main(void) {
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1);
 #endif
+#if APP_PROFILE
+    uint32_t overhead = app_profile_calibrate();
+    prof_search.overhead = overhead;
+    prof_measure.overhead = overhead;
+    app_profile_reset(&prof_search);
+    app_profile_print_cal(overhead);
+    prof_search_start_ms = app_millis();
+#endif
     ds18b20_search_start(device_found_sink, DS18B20_SEARCH_MAX_DEVICES);
 
     for (;;) {
         if (search_running) {
-            if (ds18b20_search_poll()) {
+            /* Keep the polled millisecond clock advancing during the search;
+             * app_millis() only counts when it is called. */
+            (void)app_millis();
+#if APP_PROFILE
+            app_profile_select(&prof_search);
+#endif
+            uint8_t search_done = ds18b20_search_poll();
+            if (search_done) {
                 search_running = 0;
+#if APP_PROFILE
+                uint32_t search_ms = app_millis() - prof_search_start_ms;
+                if (search_ms == 0u) search_ms = 1u;
+                app_profile_print_timed("s", &prof_search,
+                                        search_ms, search_ms);
+#endif
                 report_search_result();
             }
         } else {
+#if APP_PROFILE
+            app_profile_select(&prof_measure);
+#endif
             ds18b20_poll();
+#if APP_PROFILE
+            if (prof_measure_done) {
+                prof_measure_done = 0;
+                app_profile_print_timed(
+                    "m", &prof_measure, prof_measure_active_ms,
+                    prof_measure_active_ms + MEASURE_PERIOD_MS);
+            }
+#endif
             if ((int32_t)(app_millis() - pause_end_ms) >= 0) {
                 pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
-                ds18b20_start_measure();
+                start_measure_profiled();
             }
         }
         uart_poll_tx();

@@ -57,6 +57,7 @@ build are in [Getting started](docs/getting-started.md).
 | [Building, testing and integration](docs/building.md) | Make/CMake/PlatformIO, the host and fuzz suites, HIL, STM32CubeIDE, VSCode, tunables |
 | [Standalone consumer template](templates/standalone-consumer/README.md) | Vendored `inc/` + `src/` CMake template, board glue and build knobs |
 | [Examples](docs/examples.md) | The ten examples, including the DMA-pressure diagnostic rig |
+| [CPU profile](docs/cpu-profile.md) | Measured driver work for one measurement and one Search ROM pass |
 | [Hardware](docs/hardware.md) | Verified boards, wiring, electrical notes |
 | [Bench notes: F1](port/stm32f1/HARDWARE-NOTES.md) / [F4](port/stm32f4/HARDWARE-NOTES.md) | Per-port bring-up, DMA and timing measurements |
 | [Architecture and RTOS](docs/architecture.md) | The TIM1+DMA engine, layer contracts, state machine, RTOS use |

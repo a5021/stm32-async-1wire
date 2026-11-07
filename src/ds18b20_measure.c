@@ -7,6 +7,8 @@
 #error "ds18b20_measure.c is an include-only driver part; compile src/ds18b20.c"
 #endif
 
+#include "ow_profile.h"
+
 /**
  * @defgroup DS18B20_Measurement_Internal DS18B20 Measurement State Machine
  * @{
@@ -168,6 +170,7 @@ void ds18b20_poll(void) {
 
     if (!done) return;
 
+    OW_PROFILE_WORK_BEGIN();
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
     case DS18B20_ST_IDLE:
@@ -296,7 +299,9 @@ void ds18b20_poll(void) {
                 }
             }
             if (all_ones) {
+                OW_PROFILE_WORK_END();
                 ds18b20_complete(DS18B20_TEMP_ERROR_NO_SENSOR);
+                OW_PROFILE_WORK_BEGIN();
                 ow_stats_count_error(DS18B20_TEMP_ERROR_NO_SENSOR,
                                      ctx.selected_rom);
                 scan_finish_or_next();
@@ -308,7 +313,9 @@ void ds18b20_poll(void) {
         // Byte 5 must be 0xFF, Byte 7 must be 0x10.
         // This catches all-zero, all-0xFF, and bus fault conditions.
         if (ctx.scratchpad[5] != 0xFF || ctx.scratchpad[7] != 0x10) {
+            OW_PROFILE_WORK_END();
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            OW_PROFILE_WORK_BEGIN();
             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
                                  ctx.selected_rom);
             scan_finish_or_next();
@@ -326,10 +333,14 @@ void ds18b20_poll(void) {
             // It is derived only on a valid CRC so a corrupted config byte can
             // never shorten the next conversion wait prematurely.
             ctx.resolution = DS18B20_RES_MIN + ((ctx.scratchpad[4] >> 5) & 0x3);
+            OW_PROFILE_WORK_END();
             ds18b20_complete(decode_temperature());
+            OW_PROFILE_WORK_BEGIN();
         } else {
             // CRC invalid - report error (resolution kept unchanged)
+            OW_PROFILE_WORK_END();
             ds18b20_complete(DS18B20_TEMP_ERROR_CRC_FAIL);
+            OW_PROFILE_WORK_BEGIN();
             ow_stats_count_error(DS18B20_TEMP_ERROR_CRC_FAIL,
                                  ctx.selected_rom);
         }
@@ -343,11 +354,14 @@ void ds18b20_poll(void) {
     default:
         // Unexpected state - report generic error
         ctx.current_state = DS18B20_ST_IDLE;
+        OW_PROFILE_WORK_END();
         ds18b20_complete(DS18B20_TEMP_ERROR_GENERIC);
+        OW_PROFILE_WORK_BEGIN();
         ow_stats_count_error(DS18B20_TEMP_ERROR_GENERIC,
                              (const uint8_t*)0);
         break;
     }
+    OW_PROFILE_WORK_END();
 }
 
 /**
