@@ -19,7 +19,9 @@ static uint32_t pause_end_ms;
 
 #if APP_PROFILE
 static app_profile_t prof_search;
+static app_profile_t prof_search_poll;
 static app_profile_t prof_measure;
+static app_profile_t prof_measure_poll;
 static uint32_t prof_search_start_ms;
 static uint32_t prof_cycle_start_ms;
 static uint32_t prof_measure_active_ms;
@@ -29,6 +31,7 @@ static uint8_t prof_measure_done;
 static void start_measure_profiled(void) {
 #if APP_PROFILE
     app_profile_reset(&prof_measure);
+    app_profile_reset(&prof_measure_poll);
     prof_cycle_start_ms = app_millis();
     prof_measure_done = 0;
 #endif
@@ -116,8 +119,11 @@ int main(void) {
 #if APP_PROFILE
     uint32_t overhead = app_profile_calibrate();
     prof_search.overhead = overhead;
+    prof_search_poll.overhead = overhead;
     prof_measure.overhead = overhead;
+    prof_measure_poll.overhead = overhead;
     app_profile_reset(&prof_search);
+    app_profile_reset(&prof_search_poll);
     app_profile_print_cal(overhead);
     prof_search_start_ms = app_millis();
 #endif
@@ -130,8 +136,12 @@ int main(void) {
             (void)app_millis();
 #if APP_PROFILE
             app_profile_select(&prof_search);
+            uint32_t poll_start = app_profile_now();
 #endif
             uint8_t search_done = ds18b20_search_poll();
+#if APP_PROFILE
+            app_profile_record(&prof_search_poll, poll_start);
+#endif
             if (search_done) {
                 search_running = 0;
 #if APP_PROFILE
@@ -139,19 +149,26 @@ int main(void) {
                 if (search_ms == 0u) search_ms = 1u;
                 app_profile_print_timed("s", &prof_search,
                                         search_ms, search_ms);
+                app_profile_print_timed("sp", &prof_search_poll,
+                                        search_ms, search_ms);
 #endif
                 report_search_result();
             }
         } else {
 #if APP_PROFILE
             app_profile_select(&prof_measure);
+            uint32_t poll_start = app_profile_now();
 #endif
             ds18b20_poll();
 #if APP_PROFILE
+            app_profile_record(&prof_measure_poll, poll_start);
             if (prof_measure_done) {
                 prof_measure_done = 0;
                 app_profile_print_timed(
                     "m", &prof_measure, prof_measure_active_ms,
+                    prof_measure_active_ms + MEASURE_PERIOD_MS);
+                app_profile_print_timed(
+                    "p", &prof_measure_poll, prof_measure_active_ms,
                     prof_measure_active_ms + MEASURE_PERIOD_MS);
             }
 #endif
