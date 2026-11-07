@@ -286,6 +286,16 @@ def main():
         ccells = cap.get("capture_cells") or []
         check("%s capture cells record a verdict" % name,
               bool(ccells) and all("matches" in c for c in ccells))
+        for c in ccells:
+            cname = c.get("capture")
+            if not cname:
+                continue
+            path = os.path.join(PLATFORMS, name, "captures", cname)
+            check("%s search capture %s exists" % (name, cname),
+                  os.path.isfile(path))
+            check("%s search capture %s is linked" % (name, cname),
+                  ("./../stress/platforms/%s/captures/%s" % (name, cname))
+                  in actual)
         bad = [c for c in ccells if not c.get("matches")]
         if bad:
             check("%s capture failures are named in the report" % name,
