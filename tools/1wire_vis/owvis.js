@@ -499,6 +499,7 @@ OWVis.buildTransactions = function (events, samplerate) {
     const pitch = deltas.length ? deltas[deltas.length >> 1] : defaultPitch;
     txn.bits.forEach((slot, i) => {
       const next = i + 1 < txn.bits.length ? txn.bits[i + 1].t : slot.t + pitch;
+      slot.nextT = next;
       slot.endT = Math.min(next, slot.t + maxSpan);
       slot.role = "unknown";
       slot.phase = "unclassified";
