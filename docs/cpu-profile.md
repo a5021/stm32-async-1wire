@@ -96,6 +96,11 @@ The example busy-polls, so the CPU is fully occupied during the active phase.
 The last row is the remainder of the main loop (`app_millis()`,
 `uart_poll_tx()`, branches), not idle sleep.
 
+The public poll is a separate result from the useful work: 15.11% of the H503
+active phase and 23.35% on the F030, against 0.0043% and 0.108% of useful
+driver work. This is why low driver work does not necessarily imply low
+application CPU utilization.
+
 ## How to read the percentages
 
 The percentages are a snapshot of this example, not a universal CPU load:
@@ -126,9 +131,10 @@ matters when other tasks share the CPU.
 | Worst search work event | 6.76 µs | 139.4 µs |
 | Worst search public poll | 20.6 µs | 417.1 µs |
 
-On the F030 a single measurement work event can keep the main loop busy for
-351 µs, and a public poll for almost 900 µs. That is the number to check when
-another task has a latency budget; the average CPU share says nothing about it.
+On the F030 the longest measured driver step is 351 µs and the longest public
+poll is almost 900 µs. During that step the main loop cannot execute other
+code; this is a measured driver/poll bound, not necessarily the absolute
+application latency bound, which other code can also set.
 
 ## What is not included
 
@@ -139,8 +145,9 @@ another task has a latency budget; the average CPU share says nothing about it.
   completion; the elapsed wait is not CPU time.
 - The application loop outside the public poll calls. It is the "other
   application loop" residual in the breakdown, not separately instrumented.
-- Interrupts or other RTOS tasks. These examples install no ISR; if one fires
-  inside a measured interval, its time is included by `SysTick`.
+- Interrupt handlers are not profiled separately. These examples install no
+  ISR; if one fires inside a measured interval, its execution time is included
+  in the elapsed time.
 
 ## Limits
 
