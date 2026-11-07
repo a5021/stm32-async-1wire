@@ -155,7 +155,7 @@ try {
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
       <span class="sw" style="background:#15803D"></span>presence answer
-      <span class="sw" style="background:#94A3B8"></span>bus idle</div>
+      <span class="sw" style="background:#94A3B8;height:3px;margin-top:4px;border-radius:1px"></span>bus idle</div>
     <canvas id="detail" width="1120" height="179"></canvas>
     <div id="tip"></div>
     <div class="row" style="margin-top:8px">
@@ -235,7 +235,7 @@ try {
       roleUnknown: "rgba(91,107,133,.14)",
       reset: "#DC2626", presence: "#15803D", resetBand: "rgba(220,38,38,.07)",
       presenceBand: "rgba(21,128,61,.16)", byteDivider: "rgba(51,65,85,.55)",
-      idle: "#94A3B8", idleBand: "rgba(148,163,184,.14)",
+      idle: "#94A3B8",
       crcOk: "#15803D", crcBad: "#DC2626",
       crcOkBg: "rgba(21,128,61,.16)", crcBadBg: "rgba(220,38,38,.16)",
       cursorA: "#2563EB", cursorB: "#B45309", cursorShade: "rgba(37,99,235,.07)",
@@ -252,7 +252,7 @@ try {
       roleUnknown: "rgba(148,163,184,.15)",
       reset: "#F87171", presence: "#4ADE80", resetBand: "rgba(248,113,113,.12)",
       presenceBand: "rgba(74,222,128,.14)", byteDivider: "rgba(148,163,184,.38)",
-      idle: "#94A3B8", idleBand: "rgba(148,163,184,.18)",
+      idle: "#94A3B8",
       crcOk: "#4ADE80", crcBad: "#F87171",
       crcOkBg: "rgba(74,222,128,.14)", crcBadBg: "rgba(248,113,113,.14)",
       cursorA: "#60A5FA", cursorB: "#FBBF24", cursorShade: "rgba(96,165,250,.10)",
@@ -532,14 +532,28 @@ try {
       const slot = slotIndex[k].slot;
       // Idle between slots: the bus is high but no listener is driving.
       // `endT` is capped for shading, `nextT` is the real start of the next
-      // slot, so the leftover span is drawn as neutral bus idle rather than
-      // leaving an unexplained blank or tinting it as a bit.
+      // slot. A thin rail marks the leftover span without filling it like a
+      // bit; the full-height fill made the gap read as a stretched bit.
       if (slot.nextT > slot.endT) {
         const ix0 = xOf(slot.endT), ix1 = xOf(slot.nextT);
-        if (ix1 >= 0 && ix0 <= W) {
-          ctx.fillStyle = P.idleBand;
-          ctx.fillRect(Math.max(0, ix0), plotTop,
-            Math.min(W, ix1) - Math.max(0, ix0), plotH);
+        const x0 = Math.max(0, ix0), x1 = Math.min(W, ix1);
+        if (x1 > x0) {
+          const railH = Math.max(8, Math.round(9 * vs));
+          const railY = plotTop + 1;
+          ctx.fillStyle = P.idle;
+          ctx.fillRect(x0, railY, x1 - x0, railH);
+          ctx.fillRect(x0, railY - 1, 1, railH + 2);
+          ctx.fillRect(x1 - 1, railY - 1, 1, railH + 2);
+          if (x1 - x0 >= 70) {
+            const idleUs = ((slot.nextT - slot.endT) / cap.samplerate) * 1e6;
+            ctx.font = "9px Consolas,monospace";
+            ctx.fillStyle = "#1A2333";
+            ctx.textAlign = "center";
+            ctx.fillText("idle " + Math.round(idleUs) + " us",
+              (x0 + x1) / 2, railY + railH - 3);
+            ctx.textAlign = "left";
+            ctx.font = "12.65px Consolas,monospace";
+          }
         }
       }
       // One span per slot, computed in buildTransactions and shared with the
@@ -1402,10 +1416,21 @@ try {
         (slot.phase ? " · " + slot.phase : "") + " · bit " + slot.bit +
         " · low " + lowUs.toFixed(1) + "/slot " + slotUs.toFixed(1) + " us";
     } else {
-      const reset = txns.find((q) => q.tReset != null && q.tReset <= s && q.tReset + q.resetLowLen >= s);
-      const presence = txns.find((q) => q.presence && q.presT <= s && q.presT + q.presLen >= s);
-      if (reset) slotTxt = "1-Wire master reset";
-      else if (presence) slotTxt = "slave presence response · " + ((presence.presLen / cap.samplerate) * 1e6).toFixed(1) + " us";
+      let idle = null;
+      for (const k of [lo - 1, lo]) {
+        if (k < 0 || k >= slotIndex.length) continue;
+        const cand = slotIndex[k];
+        if (s >= cand.slot.endT && s < cand.slot.nextT) { idle = cand; break; }
+      }
+      if (idle) {
+        const idleUs = ((idle.slot.nextT - idle.slot.endT) / cap.samplerate) * 1e6;
+        slotTxt = "bus idle · " + idleUs.toFixed(1) + " us (host gap)";
+      } else {
+        const reset = txns.find((q) => q.tReset != null && q.tReset <= s && q.tReset + q.resetLowLen >= s);
+        const presence = txns.find((q) => q.presence && q.presT <= s && q.presT + q.presLen >= s);
+        if (reset) slotTxt = "1-Wire master reset";
+        else if (presence) slotTxt = "slave presence response · " + ((presence.presLen / cap.samplerate) * 1e6).toFixed(1) + " us";
+      }
     }
     const tip = $("tip");
     const absUs = (s / cap.samplerate) * 1e6;
