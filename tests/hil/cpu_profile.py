@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Measure the CPU cycles spent inside the non-blocking 1-Wire driver.
 
-Build the example with `-DAPP_PROFILE=1`, flash it, then read the UART for a
-configurable window. The example prints one `PROFILE` line per search and per
-measurement cycle; this script turns those lines into average/worst CPU cycles,
-cycles per poll, and the CPU share of the active and full cycle.
+Build the example with `-DAPP_PROFILE=1 -DOW_PROFILE=1`, flash it, then read
+the UART for a configurable window. The example prints `PROFILE` lines for the
+useful driver work and for the complete public poll call; this script turns
+them into average/worst cycles, cycles per event/call, and the CPU share of
+the active and full cycle.
 
 This is a bench tool, not a CI step. It needs the board and its UART.
 
@@ -30,7 +31,7 @@ sys.path.insert(0, HERE)
 import common  # noqa: E402
 
 PROFILE_RE = re.compile(
-    r"^PROFILE\s+(?P<kind>cal|s|m)\s+"
+    r"^PROFILE\s+(?P<kind>cal|sp|p|s|m)\s+"
     r"(?:o=(?P<overhead>\d+)|c=(?P<cycles>\d+)\s+p=(?P<events>\d+)\s+"
     r"w=(?P<worst>\d+)(?:\s+a=(?P<active>\d+)\s+t=(?P<cycle>\d+))?)"
 )
@@ -80,6 +81,23 @@ def load_percent(cycles, ms, sysclk):
     if ms <= 0:
         return 0.0
     return 100.0 * cycles / (ms * sysclk * 1000.0)
+
+
+def breakdown(work, poll, sysclk):
+    """Split the active phase into useful work, idle polling and other loop."""
+    if not work or not poll:
+        return None
+    active = work["active_ms_avg"]
+    work_pct = load_percent(work["cycles_avg"], active, sysclk)
+    poll_pct = load_percent(poll["cycles_avg"], active, sysclk)
+    return {
+        "active_ms": active,
+        "work_pct": work_pct,
+        "poll_pct": poll_pct,
+        "idle_poll_pct": max(0.0, poll_pct - work_pct),
+        "other_app_pct": max(0.0, 100.0 - poll_pct),
+        "total_busy_pct": 100.0,
+    }
 
 
 def summarize(samples, sysclk):
@@ -152,7 +170,9 @@ def main(argv=None):
     uart = common.open_uart(port, args.baud)
     cal = None
     search = []
+    search_poll = []
     measure = []
+    measure_poll = []
     end = time.monotonic() + args.seconds
     next_report = time.monotonic() + 30.0
     try:
@@ -167,11 +187,18 @@ def main(argv=None):
                         print("calibration overhead: %d cycles" % cal, flush=True)
                     elif rec["kind"] == "s":
                         search.append(rec)
-                        print("search: %d cycles, %d work events, worst %d"
+                        print("search work: %d cycles, %d events, worst %d"
                               % (rec["cycles"], rec["events"], rec["worst"]),
                               flush=True)
-                    else:
+                    elif rec["kind"] == "sp":
+                        search_poll.append(rec)
+                        print("search poll: %d cycles, %d calls, worst %d"
+                              % (rec["cycles"], rec["events"], rec["worst"]),
+                              flush=True)
+                    elif rec["kind"] == "m":
                         measure.append(rec)
+                    else:
+                        measure_poll.append(rec)
             now = time.monotonic()
             if now >= next_report:
                 print("  %d s, %d measurement line(s)" % (
@@ -180,14 +207,22 @@ def main(argv=None):
     finally:
         uart.close()
 
+    search_work = summarize(search, args.sysclk)
+    search_poll_sum = summarize(search_poll, args.sysclk)
+    measure_work = summarize(measure, args.sysclk)
+    measure_poll_sum = summarize(measure_poll, args.sysclk)
     summary = {
         "app": args.app,
         "mcu": args.mcu,
         "sysclk_mhz": args.sysclk,
         "seconds": args.seconds,
         "calibration_cycles": cal,
-        "search": summarize(search, args.sysclk),
-        "measure": summarize(measure, args.sysclk),
+        "search": search_work,
+        "search_poll": search_poll_sum,
+        "measure": measure_work,
+        "measure_poll": measure_poll_sum,
+        "search_breakdown": breakdown(search_work, search_poll_sum, args.sysclk),
+        "measure_breakdown": breakdown(measure_work, measure_poll_sum, args.sysclk),
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
     if args.json:

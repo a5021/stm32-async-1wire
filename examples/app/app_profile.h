@@ -2,10 +2,11 @@
  * @file app_profile.h
  * @brief Optional CPU-cycle profiler for the example applications.
  *
- * Build with `-DAPP_PROFILE=1` to wrap the non-blocking driver calls. The
- * profiler reads SysTick->VAL around each call, subtracts the measured read
- * overhead and prints one compact `PROFILE` line per search, measurement or
- * resolution change. It is diagnostic only and compiles to nothing otherwise.
+ * Build with `-DAPP_PROFILE=1` to wrap the non-blocking driver calls. Two
+ * counters are kept: one for the public poll call and one for the driver's
+ * real-work branch. The profiler reads SysTick->VAL, subtracts the measured
+ * read overhead and prints compact `PROFILE` lines. It is diagnostic only and
+ * compiles to nothing otherwise.
  */
 
 #ifndef APP_PROFILE_H
