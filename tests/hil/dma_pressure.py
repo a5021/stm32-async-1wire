@@ -462,8 +462,22 @@ def capture_cmd(sigrok, out, seconds, rate=RATE):
 
 
 def reset_run(prog):
-    subprocess.run([prog, "-c", "port=SWD", "-rst", "-run"],
-                   capture_output=True, text=True, errors="replace")
+    """Reset the target into the image, retrying a busy probe.
+
+    The programmer occasionally returns before the target has left the halt
+    state after a flash. A failed reset leaves the telemetry at zero and looks
+    like a stale image, so retry it here instead of reporting that as a bus
+    result.
+    """
+    for attempt in range(3):
+        proc = subprocess.run([prog, "-c", "port=SWD", "-rst", "-run"],
+                              capture_output=True, text=True, errors="replace")
+        out = (proc.stdout or "") + (proc.stderr or "")
+        if proc.returncode == 0 and "Error" not in out:
+            return True
+        if attempt < 2:
+            time.sleep(0.3)
+    return False
 
 
 def flash_halt(prog):
@@ -489,7 +503,8 @@ def capture(sigrok, prog, out, seconds, pre_reset=PRE_RESET_S):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True)
     time.sleep(pre_reset)
-    reset_run(prog)
+    if not reset_run(prog):
+        raise RuntimeError("target reset failed")
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
         raise RuntimeError("sigrok-cli failed (%d):\n%s\n%s"
@@ -588,7 +603,8 @@ class Runner:
         self.cache = {}
         self.raw = os.path.join(out_dir, "_current.bin")
 
-    def run(self, level, guard, clock, retry=False, retry_hiccup=True):
+    def run(self, level, guard, clock, retry=False, retry_hiccup=True,
+            identity_retries=2):
         key = (level, guard, clock)
         if key in self.cache:
             return self.cache[key]
@@ -601,24 +617,30 @@ class Runner:
         try:
             samples = capture(self.sigrok, self.prog, self.raw, seconds)
         except RuntimeError as exc:
-            # fx2lafw occasionally needs a second scan after the probe; that is
-            # a harness hiccup, not a bus result. Retry the cell once.
-            if not retry_hiccup or "No devices found" not in str(exc):
+            # fx2lafw occasionally needs a second scan after the probe; a reset
+            # can also land while the probe is still busy. Both are harness
+            # hiccups, not a bus result. Retry the cell once.
+            msg = str(exc)
+            if not retry_hiccup or ("No devices found" not in msg
+                                    and "target reset failed" not in msg):
                 raise
-            print("  retry level=%d guard=%d clock=%s (analyzer not found)"
-                  % (level, guard, clock if clock else "default"), flush=True)
+            print("  retry level=%d guard=%d clock=%s (%s)"
+                  % (level, guard, clock if clock else "default", msg), flush=True)
             res = self.run(level, guard, clock, retry=retry,
-                           retry_hiccup=False)
+                           retry_hiccup=False,
+                           identity_retries=identity_retries)
             res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_short"] = True
             return res
-        if retry and capture_short(samples, seconds):
+        if retry_hiccup and capture_short(samples, seconds):
             # The analyzer stopped early (USB hiccup). That is a harness
             # failure, not a bus result: re-run the cell instead of reporting
             # "no complete frame".
             print("  retry level=%d guard=%d clock=%s (short capture: %d samples)" % (
                 level, guard, clock if clock else "default", samples), flush=True)
-            res = self.run(level, guard, clock, retry=False)
+            res = self.run(level, guard, clock, retry=False,
+                           retry_hiccup=False,
+                           identity_retries=identity_retries)
             res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_short"] = True
             return res
@@ -643,6 +665,16 @@ class Runner:
         if not ident:
             res["clean"] = False
             res["first"] = "identity: " + ident_why
+            if identity_retries > 0:
+                print("  retry level=%d guard=%d clock=%s (invalid run: %s)"
+                      % (level, guard, clock if clock else "default",
+                         ident_why), flush=True)
+                res = self.run(level, guard, clock, retry=retry,
+                               retry_hiccup=retry_hiccup,
+                               identity_retries=identity_retries - 1)
+                res["attempts"] = res.get("attempts", 1) + 1
+                res["first_attempt_identity"] = False
+                return res
         elif tel is None:
             res["clean"] = False
         else:
@@ -653,7 +685,7 @@ class Runner:
                 res["first"] = "start timeout"
             elif load_error:
                 res["first"] = "load channel error"
-        if retry and not res["clean"]:
+        if retry and ident and not res["clean"]:
             # A flash/reset or capture-start glitch can spoil one run without
             # saying anything about the guard. Retry the cells whose premise is
             # "this must be clean" (the widest guard and the 5 us default)
@@ -661,8 +693,10 @@ class Runner:
             first_fail = res.get("first")
             print("  retry level=%d guard=%d clock=%s (first run not clean)" % (
                 level, guard, clock if clock else "default"), flush=True)
-            res = self.run(level, guard, clock, retry=False)
-            res["attempts"] = 2
+            res = self.run(level, guard, clock, retry=False,
+                           retry_hiccup=retry_hiccup,
+                           identity_retries=identity_retries)
+            res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_clean"] = False
             res["first_attempt"] = first_fail
             return res

@@ -139,12 +139,13 @@ class Rig:
         try:
             samples = dp.capture(self.sigrok, self.prog, self.raw, seconds)
         except RuntimeError as exc:
-            if not retry_hiccup or "No devices found" not in str(exc):
+            msg = str(exc)
+            if not retry_hiccup or ("No devices found" not in msg
+                                    and "target reset failed" not in msg):
                 raise
-            print("  retry %s level=%d guard=%d clock=%s inject=%d "
-                  "(analyzer not found)" % (mode, level, guard,
-                                            clock if clock else "default",
-                                            inject_us), flush=True)
+            print("  retry %s level=%d guard=%d clock=%s inject=%d (%s)"
+                  % (mode, level, guard, clock if clock else "default",
+                     inject_us, msg), flush=True)
             res = self.run(mode, level, guard, clock, inject_us, retry=retry,
                            retry_hiccup=False)
             res["attempts"] = res.get("attempts", 1) + 1
@@ -155,7 +156,8 @@ class Rig:
                   "(short capture: %d samples)" % (mode, level, guard,
                                                    clock if clock else "default",
                                                    inject_us, samples), flush=True)
-            res = self.run(mode, level, guard, clock, inject_us, retry=False)
+            res = self.run(mode, level, guard, clock, inject_us, retry=False,
+                           retry_hiccup=False)
             res["attempts"] = res.get("attempts", 1) + 1
             res["first_attempt_short"] = True
             return res
