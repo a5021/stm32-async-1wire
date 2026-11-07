@@ -191,6 +191,22 @@ def main():
     r = run(waveform(marker=True), marker_bit=1, min_start_us=1e9)
     check("marker: frames before the run are ignored", r["frames"] == 0)
 
+    tel = [0] * 22
+    tel[17] = dp.RUN_MAGIC
+    tel[18] = (5 << 24) | 64
+    ok, why = dp.identity(tel, 5, 64)
+    check("identity: a matching run is accepted", ok)
+    ok, why = dp.identity([0] * 22, 5, 64)
+    check("identity: zero telemetry is rejected", not ok and "stale" in why)
+    wrong = list(tel)
+    wrong[18] = (4 << 24) | 64
+    ok, why = dp.identity(wrong, 5, 64)
+    check("identity: a wrong level is rejected", not ok and "level" in why)
+    wrong = list(tel)
+    wrong[18] = (5 << 24) | 8
+    ok, why = dp.identity(wrong, 5, 64)
+    check("identity: a wrong clock is rejected", not ok and "clock" in why)
+
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
         return 1
