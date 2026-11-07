@@ -960,7 +960,7 @@ cppcheck:
 # the HIL parsers. `make test` is the functional suite and `make` the firmware
 # build; neither is repeated here.
 .PHONY: check
-check: format-check cppcheck test-version test-hil-parsing test-stress-report test-example-captures test-public-api
+check: format-check cppcheck test-version test-hil-parsing test-search-trace test-stress-report test-example-captures test-public-api
 
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
@@ -1027,6 +1027,13 @@ test-hil-parsing:
 .PHONY: test-stress-report
 test-stress-report:
 	@$(PYTHON) tests/hil/test_stress_report.py
+
+# --- Search ROM wire decoder (see tests/hil/search_trace.py) ---
+# Synthetic traces cover a full pass and every truncation point. No hardware
+# needed.
+.PHONY: test-search-trace
+test-search-trace:
+	@$(PYTHON) tests/hil/test_search_trace.py
 
 # --- Published example captures (see tests/hil/example_capture.py) ---
 # The archives are produced on the F030 bench; this gate checks the committed
@@ -1936,6 +1943,7 @@ help:
 	@echo "  test-ram        - Gate the firmware .bss budgets against exact ceilings (Arm toolchain)"
 	@echo "  test-hil        - HIL on a real DS18B20/DS2431 bench (F103/H503 auto-detected; ST-Link + UART); skips without hardware"
 	@echo "  test-hil-parsing - Check the bench harness, analyzer, wire decoder and HIL_EXT forwarding (no hardware needed)"
+	@echo "  test-search-trace - Check the Search ROM wire decoder on synthetic full and truncated traces (no hardware needed)"
 	@echo "  test-stress-report - Check the published stress report and its one-frame captures (no hardware needed)"
 	@echo "  test-example-captures - Check the committed example captures and their viewer links (no hardware needed)"
 	@echo "  test-elf-variant - Check each build links its own objects (Arm toolchain)"

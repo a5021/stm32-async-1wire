@@ -130,25 +130,30 @@ def decode(raw, rate_hz=RATE_HZ):
                  "id_pulse": first[1:], "cmp_pulse": second[1:],
                  "direction": None})
     s = 2
-    while s + 2 < len(slots):
-        # s is the direction write, s+1/s+2 the next id/cmp pair.
-        if (s - 2) % 3 != 0:
-            break
-        low, high = slots[s]
+    # After a pair the protocol expects a direction write, then the next
+    # id/cmp pair. The slot position, not the pulse width, decides the phase.
+    while s < len(slots):
+        low, _high = slots[s]
         bits[-1]["direction"] = 0 if low[2] > WRITE_ZERO_MIN else 1
-        first = read_bit(slots[s + 1])
-        second = read_bit(slots[s + 2])
+        s += 1
+        if s + 1 >= len(slots):
+            # No complete pair after this direction. A single remaining slot
+            # is the first half of the next pair; keep it as truncated
+            # evidence instead of treating it as another direction.
+            if s < len(slots):
+                first = read_bit(slots[s])
+                bit_no += 1
+                bits.append({"bit": bit_no, "id": first[0], "cmp": None,
+                             "id_pulse": first[1:], "cmp_pulse": None,
+                             "direction": None})
+            break
+        first = read_bit(slots[s])
+        second = read_bit(slots[s + 1])
         bit_no += 1
         bits.append({"bit": bit_no, "id": first[0], "cmp": second[0],
                      "id_pulse": first[1:], "cmp_pulse": second[1:],
                      "direction": None})
-        s += 3
-    # A completed 64-bit pass ends with the lone direction write for the last
-    # bit. An aborted pass stops right after a read pair, so no trailing slot.
-    if s < len(slots):
-        low, _high = slots[s]
-        bits[-1]["direction"] = 0 if low[2] > WRITE_ZERO_MIN else 1
-        s += 1
+        s += 2
 
     last = bits[-1] if bits else None
     truncated_after_pair = bool(last and last["direction"] is None)
