@@ -458,12 +458,14 @@ OWVis.parseViewerQuery = function (search) {
   try {
     p = new URLSearchParams(search || "");
   } catch (e) {
-    return { src: null, speed: null };
+    return { src: null, speed: null, chan: null };
   }
   const speed = p.get("speed");
+  const chan = p.get("chan");
   return {
     src: p.get("src") || null,
     speed: ["auto", "standard", "overdrive"].includes(speed) ? speed : null,
+    chan: /^[0-7]$/.test(chan || "") ? parseInt(chan, 10) : null,
   };
 };
 
