@@ -94,8 +94,9 @@ coverage-report/
 # Generated API documentation
 docs/api/
 
-# Bench evidence (UART logs, logic captures, matrices): kept out of the repo
-# by decision — numbers live in CHANGELOG prose, primary data does not.
+# Raw bench evidence (UART logs, logic captures, matrices): kept out of the repo
+# by decision — numbers live in CHANGELOG prose, primary data does not. The
+# published one-window archives live under docs/stress/ and docs/examples/.
 # Two local-only trees, neither referenced by the build: docs/bench/
 # (archived per-target matrices) and bench_logs/ (raw capture staging).
 docs/bench/
