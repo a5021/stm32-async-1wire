@@ -181,6 +181,19 @@
     eq("fallback pitch for a lone slot at 2 MHz (samples)",
       lone[0].bits[0].endT - lone[0].bits[0].t, OWVis.SLOT_PITCH_US * 2);
 
+    // Long host idle between slots: the shaded bit span stays capped, but the
+    // real successor keeps `nextT`, so the renderer can mark the leftover as
+    // bus idle instead of shading it or leaving an unexplained gap.
+    const idle = OWVis.buildTransactions([
+      { type: "reset", t: 0, presence: true, presT: 0, presLen: 0, lowLen: 0 },
+      { type: "bit", t: 1000, bit: 0, lowLen: 10 },
+      { type: "bit", t: 3000, bit: 1, lowLen: 10 },
+    ], 2000000);
+    const idleSlot = idle[0].bits[0];
+    eq("long gap keeps real nextT (samples)", idleSlot.nextT - idleSlot.t, 2000);
+    eq("long gap still caps endT at SLOT_MAX_US (samples)",
+      idleSlot.endT - idleSlot.t, OWVis.SLOT_MAX_US * 2);
+
     /* ---------- ROM enumeration ---------- */
     const romSet = new Map();
     interp.forEach((d) => {
