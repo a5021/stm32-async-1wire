@@ -81,6 +81,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
 <li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
 <li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
+<li>The priority knob clears every default-guard failure at the measured minimum class (STM32F446xx: 1; STM32H503xx: 3); the library still ships class 0.</li>
 <li>Search ROM on the primary bench returned the same 7 devices and checksum in all 36 cells.</li>
 <li>A delayed feed (16 us at the default guard) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
