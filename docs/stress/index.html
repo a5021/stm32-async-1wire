@@ -81,7 +81,6 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
 <li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
 <li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
-<li>Raising the feed/capture class to OW_DMA_PRIO=3 makes 5 of 5 default-failing cells clean; the library still ships class 0.</li>
 <li>Search ROM on the primary bench returned the same 7 devices and checksum in all 36 cells.</li>
 <li>A delayed feed (16 us at the default guard) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
@@ -483,18 +482,18 @@ guarantee against an application channel with a higher rank.</p>
 <section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
-This table takes every cell that fails at the default guard and re-runs it with
-the feed and capture raised to class 3, leaving the load where it was. The
-default column is the committed run; the right column is the knob build.</p>
+This table takes every cell that fails at the default guard and re-runs it at
+each measured class, leaving the load where it was. The default column is the
+committed run; the rest are knob builds.</p>
 <table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
-<th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
-<tbody><tr><td>STM32F446xx</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>write frame</td><td>16 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>16 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td></tr></tbody></table>
-<p>The same levels and clocks were also re-run at the other guards: 4 of 4 of those cells are clean, so the result is not a default-guard artefact. An equal-class load is still ordered by channel/stream index, so the knob
-is not a substitute for the <code>guard + 1</code> rule above. The library
+<th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=1</code></th><th><code>OW_DMA_PRIO=2</code></th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
+<tbody><tr><td>STM32F446xx</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>write frame</td><td>16 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>Search ROM</td><td>16 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr></tbody></table>
+<p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1. The same levels and clocks were also re-run at the other guards: 12 of 12 of those cells are clean, so the result is not a default-guard artefact. An equal-class load is still ordered by channel/stream index, so the
+knob is not a substitute for the <code>guard + 1</code> rule above. The library
 keeps class 0 by default: raising it preempts every lower-ranked channel for
 the length of a 1-Wire frame (up to milliseconds), which is the application's
 call.</p>
