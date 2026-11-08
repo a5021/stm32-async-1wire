@@ -417,22 +417,34 @@
  * path). */
 #define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
 
+/* Test knob for the stream priority experiment. The reset default is 0 (the
+ * library's shipped behaviour); a bench build can pass
+ * -DOW_PORT_DMA_PRIO=3 to put feed and capture in the highest PL class. The
+ * default value keeps every existing CR contract and image unchanged. */
+#ifndef OW_PORT_DMA_PRIO
+#define OW_PORT_DMA_PRIO 0u
+#endif
+/* The host F4 mock carries PL_1 but not the position macro; the real CMSIS
+ * header carries both. Keep the test knob buildable against either. */
+#ifndef DMA_SxCR_PL_Pos
+#define DMA_SxCR_PL_Pos 16u
+#endif
+#define OW_PORT_DMA_PL ((OW_PORT_DMA_PRIO & 0x3u) << DMA_SxCR_PL_Pos)
+
 /* @brief Capture-stream control bits: MINC = memory-increment, PSIZE_0 =
  *       16-bit peripheral read (CCR4).  Direct mode forces the memory width
  *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
- *       Priority stays at the reset default (like every other backend: ties
- *       break by stream number, feed wins).  Note the F4 DIR field is two
- *       bits wide: the generic single-bit DMA_SxCR_DIR macro would write the
- *       reserved 0b11. */
-#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
+ *       PL is the reset default unless OW_PORT_DMA_PRIO raises it for the
+ *       priority experiment.  Note the F4 DIR field is two bits wide: the
+ *       generic single-bit DMA_SxCR_DIR macro would write the reserved 0b11. */
+#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
- *       halfword register).  Priority stays at the reset default (see
- *       above).  The caller also sets MSIZE_0: direct mode forces the memory
- *       width to PSIZE, so the source must be a matching halfword
- *       (ow_pulse_t) buffer. */
-#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
+ *       halfword register).  PL follows OW_PORT_DMA_PRIO (default 0).  The
+ *       caller also sets MSIZE_0: direct mode forces the memory width to
+ *       PSIZE, so the source must be a matching halfword (ow_pulse_t) buffer. */
+#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (see the
  * defaults in src/ow_port.h): same three transfer classes in stream

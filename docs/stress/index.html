@@ -80,6 +80,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>STM32H503xx: every level is clean at the default guard.</li>
 <li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
 <li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
+<li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
 <li>Search ROM under the same loads returned the same 7 devices and checksum in all 24 cells.</li>
 <li>A delayed feed (16 us) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
@@ -122,7 +123,7 @@ runs at 4.0 MS/s. The harness flashes the firmware halted and resets it,
 so only the intended run is measured.</p>
 <table><tbody>
 <tr><th>MCU</th><td><code>STM32F030x6</code></td></tr>
-<tr><th>Clocks</th><td>48 MHz, 8 MHz</td></tr>
+<tr><th>Clocks</th><td>8 MHz, 16 MHz</td></tr>
 <tr><th>Pattern</th><td><code>00FFAA550FF03CC3</code> (LSB first, per byte)</td></tr>
 <tr><th>Frames per cell</th><td>100</td></tr>
 <tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
@@ -145,12 +146,12 @@ pulse.</p>
 <h2>Load ladder</h2>
 <table><thead><tr><th>Level</th><th>Load</th><th>What it does</th>
 <th>Evidence at the default guard</th></tr></thead>
-<tbody><tr><td>0</td><td>none</td><td>The driver&#x27;s own margin: no load beside the bus.</td><td>48 MHz: -; 8 MHz: -</td></tr>
-<tr><td>1</td><td>CPU SRAM hammer</td><td>The CPU walks the 1 KiB destination array in the onewire_bus_done() poll loop.</td><td>48 MHz: CPU passes 3300; 8 MHz: CPU passes 700</td></tr>
-<tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>48 MHz: DMA bursts 500; 8 MHz: DMA bursts 501</td></tr>
-<tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>48 MHz: DMA bursts 8200; 8 MHz: DMA bursts 1400</td></tr>
-<tr><td>4</td><td>ch1 burst stream</td><td>A finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains. Circular mode is not allowed in memory-to-memory (RM0091); channel 1 is the lowest channel number at equal priority.</td><td>48 MHz: ch1 bursts 8300; 8 MHz: ch1 bursts 1400</td></tr>
-<tr><td>5</td><td>ch1 burst stream + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>48 MHz: ch1 bursts 3500, CPU passes 3500; 8 MHz: ch1 bursts 700, CPU passes 700</td></tr></tbody></table>
+<tbody><tr><td>0</td><td>none</td><td>The driver&#x27;s own margin: no load beside the bus.</td><td>8 MHz: -; 16 MHz: ?</td></tr>
+<tr><td>1</td><td>CPU SRAM hammer</td><td>The CPU walks the 1 KiB destination array in the onewire_bus_done() poll loop.</td><td>8 MHz: CPU passes 700; 16 MHz: ?</td></tr>
+<tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>8 MHz: DMA bursts 501; 16 MHz: ?</td></tr>
+<tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>8 MHz: DMA bursts 1400; 16 MHz: ?</td></tr>
+<tr><td>4</td><td>ch1 burst stream</td><td>A finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains. Circular mode is not allowed in memory-to-memory (RM0091); channel 1 is the lowest channel number at equal priority.</td><td>8 MHz: ch1 bursts 1400; 16 MHz: ?</td></tr>
+<tr><td>5</td><td>ch1 burst stream + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>8 MHz: ch1 bursts 700, CPU passes 700; 16 MHz: ?</td></tr></tbody></table>
 </section>
 
 <section id="results">
@@ -183,10 +184,8 @@ probes.</p>
 ch1 burst stream does not reduce them here: the DMA interleaves between CPU
 accesses. The burst count in the table shows the load.</p>
 <div class="bars">
-<div class="bar"><span class="bar-label">48 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:94.3%"></span></span><span class="bar-value">3300</span></div>
-<div class="bar"><span class="bar-label">48 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">3500</span></div>
-<div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:20.0%"></span></span><span class="bar-value">700</span></div>
-<div class="bar"><span class="bar-label">8 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:20.0%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">700</span></div>
 </div>
 <p>Both loads ran, and the feed still met the 2 us floor.</p>
 </section>
@@ -297,9 +296,17 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l3_8mhz_g5.sr&amp;t0=566457.250&amp;speed=standard" title="l3_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>1 us</td><td>clean</td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/l4_8mhz_g5.sr&amp;t0=559111.000&amp;speed=standard" title="l4_8mhz_g5.sr">frame</a></td></tr>
 <tr><td>5</td><td>8 MHz</td><td>never clean</td><td><strong>not clean</strong></td><td class="links"><a href="../viewer/?src=./../stress/platforms/f446/captures/fail/l5_8mhz_g100.sr&amp;t0=562806.750&amp;t1=574430.750&amp;speed=standard" title="fail/l5_8mhz_g100.sr">failing frame</a></td></tr></tbody></table>
-<p class="meta">Search ROM matrix measured 2026-11-05 at commit <code>f2ff4fe7</code>.</p>
-<p class="note">Search ROM under load matched the baseline in all 12 cells.</p>
-<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th><th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th><th>Viewer</th></tr></thead><tbody><tr><td>0</td><td>180 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_180mhz_g1_i0.sr&amp;speed=standard" title="search/l0_180mhz_g1_i0.sr">frame</a></td></tr>
+<p class="meta">Search ROM matrix measured 2026-11-08 at commit <code>6a5d1efc</code>.</p>
+<p class="note">Search ROM under load returned no devices in 3 of 20 cells (l5/8 MHz/g5, l5/8 MHz/g1, l5/16 MHz/g1); the capture JSON keeps both attempts.</p>
+<table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th><th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th><th>Viewer</th></tr></thead><tbody><tr><td>0</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_8mhz_g1_i0.sr&amp;speed=standard" title="search/l0_8mhz_g1_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>1 us</td><td>0</td><td><code>811C9DC5</code></td><td>0</td><td>no</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_8mhz_g1_i0.sr&amp;speed=standard" title="search/l5_8mhz_g1_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard" title="search/l0_8mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>5 us</td><td>0</td><td><code>811C9DC5</code></td><td>0</td><td>no</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_8mhz_g5_i0.sr&amp;speed=standard" title="search/l5_8mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>16 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_16mhz_g1_i0.sr&amp;speed=standard" title="search/l0_16mhz_g1_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>16 MHz</td><td>1 us</td><td>0</td><td><code>811C9DC5</code></td><td>0</td><td>no</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_16mhz_g1_i0.sr&amp;speed=standard" title="search/l5_16mhz_g1_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>16 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_16mhz_g5_i0.sr&amp;speed=standard" title="search/l0_16mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>16 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_16mhz_g5_i0.sr&amp;speed=standard" title="search/l5_16mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>180 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l0_180mhz_g1_i0.sr&amp;speed=standard" title="search/l0_180mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>1</td><td>180 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l1_180mhz_g1_i0.sr&amp;speed=standard" title="search/l1_180mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>2</td><td>180 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l2_180mhz_g1_i0.sr&amp;speed=standard" title="search/l2_180mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>3</td><td>180 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l3_180mhz_g1_i0.sr&amp;speed=standard" title="search/l3_180mhz_g1_i0.sr">frame</a></td></tr>

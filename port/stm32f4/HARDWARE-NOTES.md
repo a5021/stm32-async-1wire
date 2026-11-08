@@ -435,6 +435,21 @@ DMA2 streams select their request source with their own `CHSEL` field
 (`DMA2_Stream2` → `TIM1_CH2`, `DMA2_Stream4` → `TIM1_CH4`); this is not a
 shared physical request line, and neither stream consumes the other's request.
 
+## Feed/capture DMA priority under stress
+
+The F446 stress matrix at 8/16 MHz level 5 fails with the historical load on
+DMA2 streams 0/1 at the reset-default priority (`PL=0`): the load outranks the
+feed on stream 2 and the capture on stream 4. Two variants are clean:
+
+- move the load to streams 5/6 (`--load-high`), or
+- raise feed/capture to `PL=3` while the load stays at `PL=0`
+  (`-DOW_PORT_DMA_PRIO=3`, 8/16 MHz level 5, guard 1/5/100).
+
+The library keeps `PL=0` by default; `OW_PORT_DMA_PRIO` is a build knob for the
+experiment. The integration rule is the portable part: a higher-ranked,
+uninterruptible load burst must not last longer than `guard + 1` us. See the
+stress report's "Load placement and DMA priority" section.
+
 ## Board connector hazards (STM32F4DISCOVERY MB997C)
 
 The F4DISCOVERY's USB OTG FS mini-AB connector shares pads with the driver's
