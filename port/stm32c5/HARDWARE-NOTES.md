@@ -1,8 +1,8 @@
 # WeAct STM32C5 48-pin Core Board - bring-up notes
 
 Status: initial backend. `2_device_search` is bench-proven on the WeAct board
-with seven parasite-powered DS18B20 at 144 MHz HSI; the remaining examples and
-the low-power path are still to be checked.
+with seven parasite-powered DS18B20 at 144 MHz and 48 MHz HSI; the remaining
+examples and the low-power path are still to be checked.
 
 ## Part and board
 
@@ -40,8 +40,8 @@ Open checks: bare-metal PSI programming, voltage scaling and flash latency at
 
 Bench result: HSI-144 works once `HSISON` is set and `HSISRDY` is waited for;
 the reset source is HSIDIV3 (48 MHz), and only HSIDIV3 is enabled after reset.
-The backend selects HSIS, programs 4 flash wait states and leaves APB1/2/3 at
-/1.
+The 144 MHz path selects HSIS and programs 4 flash wait states; the 48 MHz path
+leaves HSIDIV3 selected and the reset latency. APB1/2/3 stay at /1 in both.
 
 ## DMA
 
@@ -91,6 +91,8 @@ that LPDMA1 channels 2/3 have no unexpected restrictions.
 - 2026-11-08: `2_device_search` at 144 MHz HSI on the WeAct 48-pin board with
   seven parasite-powered DS18B20. Search found all seven ROMs; the temperatures
   read 26.1-26.7 C; USART1 on PA9 (AF7) printed at 115200 through a CP210x.
+- 2026-11-08: the same test at 48 MHz (HSIDIV3) finds all seven ROMs and reads
+  the same temperatures; `CFGR1.SWS = 0`, `PSC = 47`, `BRR = 0x1A1`.
 - `1_basic` is not a valid test on this bus: it uses Skip ROM, so all seven
   sensors answer at once and the scratchpad CRC fails. That is the expected
   multi-device collision, not a C5 timing fault.
