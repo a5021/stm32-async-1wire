@@ -136,13 +136,16 @@ branches), not idle sleep.
 
 The integration-relevant number is the cost of a poll that finds nothing:
 
-- H503: 41 cycles, about 164 ns per empty call;
-- F030: 33 cycles, about 4.1 µs per empty call.
+- H503: 41 cycles (164 ns) per measurement poll and 56 cycles (224 ns) per
+  search poll;
+- F030: 33 cycles (4.1 µs) per measurement poll and 30 cycles (3.75 µs) per
+  search poll.
 
-That is the library's price for one pass through the public interface. The
-callback is a separate, much smaller item for one measurement (0.0024% / 0.0549%
-of the active phase); on the F030 the Search ROM sink is more visible at 2.64%
-of the search phase because it formats seven ROMs once.
+Each public function has its own empty-call path, so the cost is fixed per API
+path and build. The callback is a separate, much smaller item for one
+measurement (0.0024% / 0.0549% of the active phase); on the F030 the Search ROM
+sink is more visible at 2.64% of the search phase because it formats seven ROMs
+once.
 
 The percentages are a snapshot of the instrumented loop, not a universal CPU
 load:
@@ -150,7 +153,7 @@ load:
 | Quantity | Workload-dependent? |
 |---|---|
 | Useful work per transaction | No, for a fixed operation mix and configuration |
-| Cost of one empty call | No, for this build |
+| Cost of one empty call | No, for a fixed API path and build |
 | Empty calls per transaction | Yes; it is the loop speed |
 | Callback per completion | No, for this output format |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
@@ -191,8 +194,8 @@ latency bound, which other code can also set.
 ## Blocking reference
 
 The numbers above describe a non-blocking build. For comparison, a bit-bang
-driver that busy-waits through the same transaction at standard speed would hold
-the CPU for:
+driver that busy-waits through the same transaction at standard speed, including
+a blocking conversion wait, would hold the CPU for:
 
 | Operation | CPU time |
 |---|---:|
@@ -238,8 +241,9 @@ percentages above.
   Compare cycles when comparing code cost, and microseconds when comparing wall
   time, but do not read cycles per poll call as a cross-platform efficiency
   ranking.
-- The percentages are workload-dependent; the absolute work per transaction is
-  the portable number.
+- The percentages are workload-dependent. Absolute work per transaction is more
+  useful for comparing runs with the same operation mix, but still depends on
+  the target and clock.
 
 ## Reproduce
 
