@@ -1,8 +1,9 @@
 # WeAct STM32C5 48-pin Core Board - bring-up notes
 
 Status: initial backend. `2_device_search` is bench-proven on the WeAct board
-with seven parasite-powered DS18B20 at 144 MHz and 48 MHz HSI and at raw 8 MHz
-HSE; the remaining examples and the low-power path are still to be checked.
+with seven parasite-powered DS18B20 at 144 MHz (HSE -> PSI), 48 MHz HSI
+(HSIDIV3) and raw 8 MHz HSE; the remaining examples and the low-power path are
+still to be checked.
 
 ## Part and board
 
@@ -30,19 +31,19 @@ HSE; the remaining examples and the low-power path are still to be checked.
 - The WeAct blink example configures **HSE 8 MHz -> PSI 144 MHz**, flash
   latency 4 WS, AHB/APB1/APB2/APB3 all divided by 1. The PSI (programmable
   speed oscillator) replaces the PLL used by the older families.
-- The datasheet also lists HSI 144 MHz and PSI 160/144/100 MHz as clock
-  sources. The HSI-144 path is not proven on this board yet.
+- The 144 MHz path in the library uses the same HSE -> PSI source. The
+  datasheet also lists HSI 144 MHz and PSI 160/144/100 MHz; HSI-144 is not used
+  here because the board has a crystal and PSI is the vendor-recommended path.
 - TIM1 sits on APB2. With APB2 divided by 1, `PSC = SYSCLK_MHZ - 1` gives the
   same 1 us tick as the other families: 143 at 144 MHz.
 
-Open checks: bare-metal PSI programming, voltage scaling and flash latency at
-144 MHz, and whether HSI-144 is a simpler bring-up clock.
+Open checks: PSI lock/failure handling and voltage scaling at 144 MHz.
 
-Bench result: HSI-144 works once `HSISON` is set and `HSISRDY` is waited for;
-the reset source is HSIDIV3 (48 MHz), and only HSIDIV3 is enabled after reset.
-The 144 MHz path selects HSIS and programs 4 flash wait states; the 48 MHz path
-leaves HSIDIV3 selected and the reset latency. Raw HSE 8 MHz is the board
-crystal straight to SYSCLK with 0 wait states. APB1/2/3 stay at /1 in all three.
+Bench result: 144 MHz is HSE -> PSI with `PSIREF = 8 MHz`, `PSIFREQ = 144 MHz`
+and 4 flash wait states; `CFGR1 = 0x1B` (SW/SWS = PSIS) and `CR2 = 0x10100000`.
+The 48 MHz path leaves HSIDIV3 selected and the reset latency. Raw HSE 8 MHz is
+the board crystal straight to SYSCLK with 0 wait states. APB1/2/3 stay at /1 in
+all three.
 
 ## DMA
 
@@ -89,9 +90,11 @@ that LPDMA1 channels 2/3 have no unexpected restrictions.
 
 ## Bench status
 
-- 2026-11-08: `2_device_search` at 144 MHz HSI on the WeAct 48-pin board with
-  seven parasite-powered DS18B20. Search found all seven ROMs; the temperatures
-  read 26.1-26.7 C; USART1 on PA9 (AF7) printed at 115200 through a CP210x.
+- 2026-11-08: `2_device_search` at 144 MHz from HSE -> PSI on the WeAct 48-pin
+  board with seven parasite-powered DS18B20. Search found all seven ROMs; the
+  temperatures read 26.1-26.7 C; USART1 on PA9 (AF7) printed at 115200 through
+  a CP210x. `CFGR1 = 0x1B` (SW/SWS = PSIS), `PSC = 143`, `BRR = 0x4E2`,
+  `CR2 = 0x10100000`.
 - 2026-11-08: the same test at 48 MHz (HSIDIV3) finds all seven ROMs and reads
   the same temperatures; `CFGR1.SWS = 0`, `PSC = 47`, `BRR = 0x1A1`.
 - 2026-11-08: raw 8 MHz HSE finds all seven ROMs and reads the same
@@ -102,7 +105,7 @@ that LPDMA1 channels 2/3 have no unexpected restrictions.
 
 ## Open questions
 
-1. PSI vs HSI clock tree at 144 MHz, voltage scaling and flash latency.
+1. PSI lock/failure handling and voltage scaling at 144 MHz.
 2. LPDMA request mapping and channel restrictions.
 3. TIM1 CH4 indirect capture via TI3 and `TISEL` on C5.
 4. PA10 AF1 and USART1 AF7 on the actual board.
