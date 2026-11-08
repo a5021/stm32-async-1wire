@@ -214,7 +214,7 @@ a blocking conversion wait, would hold the CPU for:
 | Operation | CPU time |
 |---|---:|
 | 2 reset pulses (480 µs low + 480 µs recovery) | 1.9 ms |
-| 232 slots × 61 µs (Match ROM ×2, Read Scratchpad) | 14.2 ms |
+| 232 slots × 61 µs (Match ROM + Convert T, Match ROM + Read Scratchpad) | 14.2 ms |
 | 12-bit conversion wait, blocking | 750 ms |
 | Total per measurement | ~766 ms |
 
