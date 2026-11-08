@@ -1067,6 +1067,158 @@
     } while (0)
 #endif /* OW_FAMILY_H5 */
 
+/* === STM32C5 ===
+ *  Vocabulary overrides over the shared TIM1+LPDMA core.
+ *
+ *  The 1-Wire bus runs on PA10 (TIM1_CH3 PWM output in open-drain alternate
+ *  function AF1); CH4 captures in indirect mode on the same pin (CC4S routes
+ *  IC4 to TI3) and drains CCR4 via LPDMA1_Channel3, while the CC2 slot-end
+ *  marker (LPDMA1_Channel2) reloads CCR3.
+ *
+ *  This section owns only the C5 facts (pin mux, LPDMA channel assignment, the
+ *  CTR1 templates below); ow_pulse_t and the clock defaults are public and
+ *  live in inc/ow_board.h. Everything else, including the merged write+read
+ *  pass, is the shared body in src/ow_port.h, included after this file once
+ *  the macros above are defined.
+ *
+ *  HARDWARE CONTRACT (see the "Required Timer Capabilities" section of README):
+ *  - LPDMA1 channels run in direct register mode (no linked list): each channel
+ *    is programmed through CTR1/CTR2/CBR1/CSAR/CDAR and started with CCR.EN.
+ *    Request routing is per-channel REQSEL in CTR2 (no DMAMUX on this family):
+ *    Channel2 <- TIM1_CC2 (slot-end CC2 event, REQSEL 25), Channel3 <-
+ *    TIM1_CC4 (input-capture CC4 event, REQSEL 27). Double-sourced from the
+ *    C5 reference manual request table and STM32CubeC5
+ *    stm32c5xx_ll_dma.h (LL_LPDMA1_REQUEST_TIM1_CC2 = 25,
+ *    LL_LPDMA1_REQUEST_TIM1_CC4 = 27).
+ *  - LPDMA converts widths in hardware, so feed entries stay 8-bit
+ *    (ow_pulse_t = uint8_t, memory byte -> CCR3 halfword) and capture
+ *    durations stay uint16_t.
+ *  - Feed is memory-to-peripheral and capture is peripheral-to-memory; LPDMA
+ *    derives the direction from the fixed address (CDAR vs CSAR), so CTR2
+ *    carries only REQSEL. Single burst per request, no trigger, no block
+ *    repeat.
+ *  - GPIO follows the F0/G0/H5 MODER/OTYPER/AFR style: PA10 is
+ *    alternate-function open-drain with AFR=1 (TIM1_CH3); the parasite
+ *    strong-pull-up toggles only the OTYPER bit.
+ *
+ *  Bench status: not yet proven on the WeAct STM32C552CET6; the request
+ *  numbers and the C5 TIM1 capture path are the first bring-up checks.
+ */
+#if defined(OW_FAMILY_C5)
+#include "stm32c5xx.h"
+
+#if OW_LOW_POWER
+#define OW_PORT_TIM1_UPD_IRQn TIM1_UPD_IRQn
+#endif
+
+/* C5 TIM1 kernel-clock proof: TIM1 is on APB2, and configure_system_clock()
+ * (app.c) leaves every prescaler at /1 on the 144MHz HSI clock, so
+ * TIM1 = PCLK2 = SYSCLK directly, with no x2 doubling. */
+
+/* 1-Wire bus pin: PA10 (TIM1_CH3 output + IC4 capture via TI3, AF1).
+ * PA11/PA12 are the USB-C D-/D+ pair; the optional analyzer marker is PA2. */
+#define OW_PORT_SET_PIN_MODE(push_pull)                                  \
+    do {                                                                 \
+        if (push_pull) {                                                 \
+            PA.OTYPER &= ~GPIO_OTYPER_OT10; /* OD -> PP (strong HIGH) */ \
+        } else {                                                         \
+            PA.OTYPER |= GPIO_OTYPER_OT10; /* PP -> OD (release) */      \
+        }                                                                \
+    } while (0)
+
+/* @brief LPDMA channel assignment: feed rides LPDMA1_Channel2 (TIM1_CC2),
+ *        capture rides LPDMA1_Channel3 (TIM1_CC4). */
+#define OW_PORT_DMA_FEED (*LPDMA1_CH2)
+#define OW_PORT_DMA_CAPTURE (*LPDMA1_CH3)
+
+/* EN-bit spelling for the shared ow_port_dma_disable(). */
+#define OW_PORT_DMA_EN_BIT (1u << DMA_CCR_EN_Pos)
+
+/* @brief CTR1 templates: SDW/DDW_LOG2 0 = byte, 1 = halfword.
+ *        Capture reads the halfword CCR4 into incrementing memory; feed reads
+ *        incrementing byte memory into the fixed halfword CCR3. */
+#define OW_PORT_DMA_CR_RX16 \
+    ((1u << DMA_CTR1_SDW_LOG2_Pos) | (1u << DMA_CTR1_DDW_LOG2_Pos) | (1u << DMA_CTR1_DINC_Pos))
+#define OW_PORT_DMA_CR_RX8 \
+    ((1u << DMA_CTR1_SDW_LOG2_Pos) | (1u << DMA_CTR1_DINC_Pos))
+#define OW_PORT_DMA_CR_TX \
+    ((1u << DMA_CTR1_SINC_Pos) | (1u << DMA_CTR1_DDW_LOG2_Pos))
+
+/* @brief LPDMA request selectors (C5 RM request table, double-sourced from
+ *        STM32CubeC5 stm32c5xx_ll_dma.h: TIM1_CC2 = 25, TIM1_CC4 = 27). */
+#define OW_PORT_LPDMA_REQ_TIM1_CC2 25u
+#define OW_PORT_LPDMA_REQ_TIM1_CH4 27u
+
+/* LPDMA-spelling overrides for the DISABLE/PROG vocabulary. DISABLE is
+ * disable + bounded EN wait (shared ow_port_dma_disable()) plus flag
+ * retirement: TCF (transfer done) and SUSPF (our own mid-transfer suspend on
+ * underrun re-arms). Error flags are deliberately not retired here so a
+ * misprogrammed channel stays visible instead of self-clearing. */
+#define OW_PORT_DMA_DISABLE_FEED()                     \
+    do {                                               \
+        ow_port_dma_disable(&OW_PORT_DMA_FEED.CCR);    \
+        LPDMA1_CH2->CFCR = (1u << DMA_CFCR_TCF_Pos) |  \
+                           (1u << DMA_CFCR_SUSPF_Pos); \
+    } while (0)
+#define OW_PORT_DMA_DISABLE_CAPTURE()                  \
+    do {                                               \
+        ow_port_dma_disable(&OW_PORT_DMA_CAPTURE.CCR); \
+        LPDMA1_CH3->CFCR = (1u << DMA_CFCR_TCF_Pos) |  \
+                           (1u << DMA_CFCR_SUSPF_Pos); \
+    } while (0)
+#define OW_PORT_DMA_PROG_CAPTURE(dst, count, cr)                             \
+    do {                                                                     \
+        OW_PORT_DMA_CAPTURE.CSAR = (uint32_t)&T1.CCR4;                       \
+        OW_PORT_DMA_CAPTURE.CDAR = (uint32_t)(dst);                          \
+        /* LPDMA CBR1.BNDT is a byte count; a halfword source consumes  \
+         * 2 bytes per element, so BNDT = count * 2. RX8 keeps the       \
+         * halfword CCR4 source and needs the same x2; the feed below is \
+         * byte-sourced and stays BNDT = count bytes. */    \
+        OW_PORT_DMA_CAPTURE.CBR1 =                                           \
+            ((uint32_t)(count) << (((cr) >> DMA_CTR1_SDW_LOG2_Pos) & 0x3u)); \
+        OW_PORT_DMA_CAPTURE.CTR2 =                                           \
+            (OW_PORT_LPDMA_REQ_TIM1_CH4 << DMA_CTR2_REQSEL_Pos);             \
+        OW_PORT_DMA_CAPTURE.CTR1 = (uint32_t)(cr);                           \
+        OW_PORT_DMA_CAPTURE.CCR = (1u << DMA_CCR_EN_Pos);                    \
+    } while (0)
+#define OW_PORT_DMA_PROG_FEED(src, count, cr)                                \
+    do {                                                                     \
+        OW_PORT_DMA_FEED.CSAR = (uint32_t)(src);                             \
+        OW_PORT_DMA_FEED.CDAR = (uint32_t)&T1.CCR3;                          \
+        OW_PORT_DMA_FEED.CBR1 =                                              \
+            ((uint32_t)(count) << (((cr) >> DMA_CTR1_SDW_LOG2_Pos) & 0x3u)); \
+        OW_PORT_DMA_FEED.CTR2 =                                              \
+            (OW_PORT_LPDMA_REQ_TIM1_CC2 << DMA_CTR2_REQSEL_Pos);             \
+        OW_PORT_DMA_FEED.CTR1 = (uint32_t)(cr);                              \
+        OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos);                       \
+    } while (0)
+
+/* LPDMA counts source bytes in CBR1.BNDT; the reset capture source is the
+ * halfword CCR4 (SDW_LOG2 = 1), so one element consumes two BNDT bytes. */
+#define OW_PORT_CAPTURE_REMAINING()                               \
+    ((uint16_t)((OW_PORT_DMA_CAPTURE.CBR1 & DMA_CBR1_BNDT_Msk) >> \
+                (DMA_CBR1_BNDT_Pos + 1u)))
+
+/* Core-required init hooks: bus clocks and the bus pin. */
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                                 \
+    do {                                                                            \
+        RC.AHB1ENR |= RCC_AHB1ENR_LPDMA1EN; /* LPDMA1 request routing + channels */ \
+        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                                          \
+        RC.APB2ENR |= RCC_APB2ENR_TIM1EN;                                           \
+        (void)RC.APB2ENR; /* settle the APB clock before the TIM1 access below */   \
+    } while (0)
+#define OW_PORT_CONFIG_BUS_PIN()                                                      \
+    do {                                                                              \
+        PA.MODER = (PA.MODER & ~GPIO_MODER_MODE10) | GPIO_MODER_MODE10_1;             \
+        PA.OTYPER |= GPIO_OTYPER_OT10;                                                \
+        PA.AFR[1] = (PA.AFR[1] & ~GPIO_AFRH_AFSEL10) | (1u << GPIO_AFRH_AFSEL10_Pos); \
+        PA.OSPEEDR = (PA.OSPEEDR & ~GPIO_OSPEEDR_OSPEED10) |                          \
+                     ((OW_BUS_DRIVE & 0x3u) << GPIO_OSPEEDR_OSPEED10_Pos);            \
+        /* CC4 captures indirect from TI3 (bus); TISEL reset = direct TI4 pad */      \
+        T1.TISEL = (T1.TISEL & ~TIM_TISEL_TI4SEL_Msk) | (0u << TIM_TISEL_TI4SEL_Pos); \
+    } while (0)
+#endif /* OW_FAMILY_C5 */
+
 /* === STM32H7 ===
  *  Stream spelling over the classic-DMA vocabulary, DMAMUX-routed.
  *

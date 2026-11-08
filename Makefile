@@ -78,7 +78,7 @@ CMSIS_DEVICE_DIR = CMSIS/device
 # compatibility, but when OW_MCU is set they must either be unset or agree
 # with it. Board-level defaults stay in the selected chips/<part>.mk for now.
 OW_MCU ?=
-OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32H503xx STM32H743xx
+OW_KNOWN_MCUS = STM32F030x6 STM32F103xB STM32F303xC STM32F407xx STM32F401xC STM32F446xx STM32G031xx STM32G474xx STM32L476xx STM32C552xx STM32H503xx STM32H743xx
 OW_MCU_TARGET_STM32F030x6 = f0
 OW_MCU_CHIP_STM32F030x6 = f030x6
 OW_MCU_TARGET_STM32F103xB = f1
@@ -97,6 +97,8 @@ OW_MCU_TARGET_STM32G474xx = g4
 OW_MCU_CHIP_STM32G474xx = g474cb
 OW_MCU_TARGET_STM32L476xx = l4
 OW_MCU_CHIP_STM32L476xx = l476rg
+OW_MCU_TARGET_STM32C552xx = c5
+OW_MCU_CHIP_STM32C552xx = c552ce
 OW_MCU_TARGET_STM32H503xx = h5
 OW_MCU_CHIP_STM32H503xx = h503cb
 OW_MCU_TARGET_STM32H743xx = h7
@@ -140,7 +142,7 @@ endif
 # worse than not building at all. An explicitly empty OW_TARGET is still an
 # error; only an unset OW_TARGET receives the F1 default. A typo such as
 # OW_TARGET=f401-84 therefore cannot silently compile a Blue Pill.
-OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 l4 h5 h7
+OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 l4 c5 h5 h7
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -162,6 +164,9 @@ MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),l4)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32l4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
+else ifeq ($(OW_TARGET),c5)
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32c5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+MCU = -mcpu=cortex-m33 -mthumb
 else ifeq ($(OW_TARGET),h5)
 SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
@@ -187,6 +192,8 @@ else ifeq ($(OW_TARGET),g4)
 OW_CHIP ?= g474cb
 else ifeq ($(OW_TARGET),l4)
 OW_CHIP ?= l476rg
+else ifeq ($(OW_TARGET),c5)
+OW_CHIP ?= c552ce
 else ifeq ($(OW_TARGET),h5)
 OW_CHIP ?= h503cb
 else ifeq ($(OW_TARGET),h7)
@@ -229,6 +236,14 @@ endif
 CHIP_HSE_MHZ := $(strip $(CHIP_HSE_MHZ))
 
 ASM = $(CHIP_STARTUP)
+# The C5 DFP ships its CMSIS startup as C, not assembly. Compile it through the
+# normal C rule and leave the assembler list empty; the file's basename still
+# comes from CHIP_STARTUP, so EXTERNAL_DEPS and the linker-script checks keep
+# working unchanged.
+ifneq ($(filter %.c,$(ASM)),)
+SRC += $(CHIP_STARTUP)
+ASM :=
+endif
 LDS = $(CHIP_LINKER)
 JFLASH = $(CHIP_JFLASH)
 JDEBUG = $(CHIP_JDEBUG)
@@ -438,6 +453,7 @@ G0_URL = $(ST_URL)cmsis_device_g0/$(CMSIS_DEVICE_REF_G0)
 G4_URL = $(ST_URL)cmsis_device_g4/$(CMSIS_DEVICE_REF_G4)
 L4_URL = $(ST_URL)cmsis_device_l4/$(CMSIS_DEVICE_REF_L4)
 H5_URL = $(ST_URL)cmsis_device_h5/$(CMSIS_DEVICE_REF_H5)
+C5_URL = $(ST_URL)stm32c5xx-dfp/$(CMSIS_DEVICE_REF_C5)
 H7_URL = $(ST_URL)cmsis_device_h7/$(CMSIS_DEVICE_REF_H7)
 SVD_URL_F0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F030.svd
 SVD_URL_F1 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32F103xx.svd
@@ -448,6 +464,7 @@ SVD_URL_F446 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSI
 SVD_URL_G0 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G031.svd
 SVD_URL_G4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32G474xx.svd
 SVD_URL_L4 = https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/$(CMSIS_SVD_REF)/data/STMicro/STM32L4x6.svd
+SVD_URL_C5 = $(C5_URL)/SVD/STM32C552.svd
 
 # Required external files (needed for build but not in repo)
 # The part-specific entries come from chips/<part>.mk, so download-deps fetches
@@ -502,6 +519,13 @@ CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm33.h \
 CMSIS_DEVICE_FAMILY_HDR = stm32h5xx.h
 CMSIS_SYSTEM_HDR = system_stm32h5xx.h
 CMSIS_SYSTEM_SRC = system_stm32h5xx.c
+else ifeq ($(OW_TARGET),c5)
+# Cortex-M33: core_cm33.h pulls in mpu_armv8.h unconditionally.
+CMSIS_CORE_HEADERS = $(CMSIS_CORE_DIR)/core_cm33.h \
+                     $(CMSIS_CORE_DIR)/mpu_armv8.h
+CMSIS_DEVICE_FAMILY_HDR = stm32c5xx.h
+CMSIS_SYSTEM_HDR = system_stm32c5xx.h
+CMSIS_SYSTEM_SRC = system_stm32c5xx.c
 else ifeq ($(OW_TARGET),h7)
 # Cortex-M7: core_cm7.h pulls in mpu_armv7.h unconditionally, and cachel1_armv7.h
 # for the L1 cache maintenance helpers.
@@ -649,6 +673,14 @@ CMSIS_DOWNLOADS_H5 = \
   system_stm32h5xx.h|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Include/system_stm32h5xx.h \
   system_stm32h5xx.c|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Source/Templates/system_stm32h5xx.c \
   startup_stm32h503xx.s|$(CMSIS_DEVICE_DIR)|$(H5_URL)/Source/Templates/gcc/startup_stm32h503xx.s
+# STM32C5 DFP headers and sources (Apache 2.0). The startup file is C, not
+# assembly, and lives directly under Source/. The SVD ships in the DFP.
+CMSIS_DOWNLOADS_C5 = \
+  stm32c5xx.h|$(CMSIS_DEVICE_DIR)|$(C5_URL)/Include/stm32c5xx.h \
+  stm32c552xx.h|$(CMSIS_DEVICE_DIR)|$(C5_URL)/Include/stm32c552xx.h \
+  system_stm32c5xx.h|$(CMSIS_DEVICE_DIR)|$(C5_URL)/Include/system_stm32c5xx.h \
+  system_stm32c5xx.c|$(CMSIS_DEVICE_DIR)|$(C5_URL)/Source/Templates/system_stm32c5xx.c \
+  startup_stm32c552xx.c|$(CMSIS_DEVICE_DIR)|$(C5_URL)/Source/startup_stm32c552xx.c
 # cmsis_device_h7 headers and sources (Apache 2.0). No SVD at the pinned
 # cmsis-svd-data revision, so the H7 part file leaves CHIP_SVD empty;
 # ST-Link flashing and debugging do not need it.
@@ -668,14 +700,15 @@ CMSIS_DOWNLOADS_SVD = \
   STM32F446.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_F446) \
   STM32G031.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G0) \
   STM32G474xx.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_G4) \
-  STM32L4x6.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_L4)
+  STM32L4x6.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_L4) \
+  STM32C552.svd|$(CMSIS_DEVICE_DIR)|$(SVD_URL_C5)
 
 CMSIS_DOWNLOADS = $(CMSIS_DOWNLOADS_CORE) $(CMSIS_DOWNLOADS_F0) \
                  $(CMSIS_DOWNLOADS_F1) $(CMSIS_DOWNLOADS_F3) \
                  $(CMSIS_DOWNLOADS_F4) $(CMSIS_DOWNLOADS_G0) \
                  $(CMSIS_DOWNLOADS_G4) $(CMSIS_DOWNLOADS_L4) \
-                 $(CMSIS_DOWNLOADS_H5) $(CMSIS_DOWNLOADS_H7) \
-                 $(CMSIS_DOWNLOADS_SVD)
+                 $(CMSIS_DOWNLOADS_C5) $(CMSIS_DOWNLOADS_H5) \
+                 $(CMSIS_DOWNLOADS_H7) $(CMSIS_DOWNLOADS_SVD)
 
 # Generate the rules. $$(call ...) rather than $(call ...), and $$@ rather
 # than $@: the body is expanded twice before the rule ever runs (once by

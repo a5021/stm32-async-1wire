@@ -107,12 +107,14 @@
 #define OW_FAMILY_G4
 #elif defined(STM32L476xx) || defined(STM32L4)
 #define OW_FAMILY_L4
+#elif defined(STM32C552xx) || defined(STM32C5)
+#define OW_FAMILY_C5
 #elif defined(STM32H503xx) || defined(STM32H5)
 #define OW_FAMILY_H5
 #elif defined(STM32H743xx) || defined(STM32H7)
 #define OW_FAMILY_H7
 #else
-#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H743xx) or its family macro (e.g. -DSTM32H7). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F446xx/STM32G031xx/STM32G474xx/STM32L476xx/STM32H503xx/STM32H743xx or -DSTM32F0/F1/F3/F4/G0/G4/L4/H5/H7 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
+#error "ow_board: no MCU selected. Pass your part's STMicroelectronics device macro (e.g. -DSTM32H743xx) or its family macro (e.g. -DSTM32H7). This is the ONLY define the library requires; OW_SYSCLK_MHZ is optional (the port core reads CMSIS SystemCoreClock when it is absent). -DSTM32F030x6/STM32F103xB/STM32F303xC/STM32F407xx/STM32F401xC/STM32F446xx/STM32G031xx/STM32G474xx/STM32L476xx/STM32C552xx/STM32H503xx/STM32H743xx or -DSTM32F0/F1/F3/F4/G0/G4/L4/C5/H5/H7 are accepted. The Make/CMake builds supply it from OW_MCU/chips/<part>.mk."
 #endif
 
 /**
@@ -176,6 +178,13 @@ typedef uint8_t ow_pulse_t;
 #endif
 #if !defined(OW_HSE_MHZ)
 #define OW_HSE_MHZ 8 /* WeAct STM32H503Cx Core Board: 8MHz crystal (Y2) */
+#endif
+#elif defined(OW_FAMILY_C5)
+#if !defined(OW_C5_MAX_SYSCLK_MHZ)
+#define OW_C5_MAX_SYSCLK_MHZ 144 /* C552 ceiling */
+#endif
+#if !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 8 /* WeAct STM32C5 48-pin Core Board: 8MHz crystal (Y2) */
 #endif
 #elif defined(OW_FAMILY_H7)
 #if !defined(OW_H7_MAX_SYSCLK_MHZ)

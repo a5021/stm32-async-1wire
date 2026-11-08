@@ -103,7 +103,7 @@ END {
             err(m ": system src " fam_sys[fam] " (" MK " " fam ") != " cm_sys[m] " (" CM ")")
     }
     for (m in cm_fam) {
-        if (m ~ /^STM32[FGH][0-9][0-9][0-9]/ && !(m in known))
+        if (m ~ /^STM32[CFGH][0-9][0-9][0-9]/ && !(m in known))
             err(m ": device macro in " CM " is not in Makefile OW_KNOWN_MCUS")
     }
     exit bad
