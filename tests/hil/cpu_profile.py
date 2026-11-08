@@ -31,9 +31,10 @@ sys.path.insert(0, HERE)
 import common  # noqa: E402
 
 PROFILE_RE = re.compile(
-    r"^PROFILE\s+(?P<kind>cal|sp|p|s|m)\s+"
+    r"^PROFILE\s+(?P<kind>cal|sp|si|p|s|m|i)\s+"
     r"(?:o=(?P<overhead>\d+)|c=(?P<cycles>\d+)\s+p=(?P<events>\d+)\s+"
-    r"w=(?P<worst>\d+)(?:\s+a=(?P<active>\d+)\s+t=(?P<cycle>\d+))?)"
+    r"w=(?P<worst>\d+)\s+x=(?P<overflows>\d+)"
+    r"(?:\s+a=(?P<active>\d+)\s+t=(?P<cycle>\d+))?)"
 )
 
 
@@ -65,6 +66,7 @@ def parse_line(text):
         "cycles": int(m.group("cycles")),
         "events": int(m.group("events")),
         "worst": int(m.group("worst")),
+        "overflows": int(m.group("overflows")),
         "active_ms": int(m.group("active")) if m.group("active") else 0,
         "cycle_ms": int(m.group("cycle")) if m.group("cycle") else 0,
     }
@@ -83,18 +85,21 @@ def load_percent(cycles, ms, sysclk):
     return 100.0 * cycles / (ms * sysclk * 1000.0)
 
 
-def breakdown(work, poll, sysclk):
-    """Split the active phase into useful work, idle polling and other loop."""
+def breakdown(work, poll, empty, sysclk):
+    """Split the active phase into useful work, empty polls and callback."""
     if not work or not poll:
         return None
     active = work["active_ms_avg"]
     work_pct = load_percent(work["cycles_avg"], active, sysclk)
     poll_pct = load_percent(poll["cycles_avg"], active, sysclk)
+    empty_pct = (load_percent(empty["cycles_avg"], active, sysclk)
+                 if empty else 0.0)
     return {
         "active_ms": active,
         "work_pct": work_pct,
         "poll_pct": poll_pct,
-        "idle_poll_pct": max(0.0, poll_pct - work_pct),
+        "empty_pct": empty_pct,
+        "callback_pct": max(0.0, poll_pct - work_pct - empty_pct),
         "other_app_pct": max(0.0, 100.0 - poll_pct),
         "total_busy_pct": 100.0,
     }
@@ -120,6 +125,7 @@ def summarize(samples, sysclk):
         "events_avg": sum(events) / len(samples),
         "worst_avg": sum(worst) / len(samples),
         "worst_max": max(worst),
+        "overflows": sum(s.get("overflows", 0) for s in samples),
         "active_ms_avg": total_active / len(samples),
         "cycle_ms_avg": total_full / len(samples),
         "cycles_per_event": total_cycles / max(1, sum(events)),
@@ -171,8 +177,10 @@ def main(argv=None):
     cal = None
     search = []
     search_poll = []
+    search_empty = []
     measure = []
     measure_poll = []
+    measure_empty = []
     end = time.monotonic() + args.seconds
     next_report = time.monotonic() + 30.0
     try:
@@ -195,8 +203,15 @@ def main(argv=None):
                         print("search poll: %d cycles, %d calls, worst %d"
                               % (rec["cycles"], rec["events"], rec["worst"]),
                               flush=True)
+                    elif rec["kind"] == "si":
+                        search_empty.append(rec)
+                        print("search empty: %d cycles, %d calls, worst %d"
+                              % (rec["cycles"], rec["events"], rec["worst"]),
+                              flush=True)
                     elif rec["kind"] == "m":
                         measure.append(rec)
+                    elif rec["kind"] == "i":
+                        measure_empty.append(rec)
                     else:
                         measure_poll.append(rec)
             now = time.monotonic()
@@ -209,8 +224,10 @@ def main(argv=None):
 
     search_work = summarize(search, args.sysclk)
     search_poll_sum = summarize(search_poll, args.sysclk)
+    search_empty_sum = summarize(search_empty, args.sysclk)
     measure_work = summarize(measure, args.sysclk)
     measure_poll_sum = summarize(measure_poll, args.sysclk)
+    measure_empty_sum = summarize(measure_empty, args.sysclk)
     summary = {
         "app": args.app,
         "mcu": args.mcu,
@@ -219,20 +236,46 @@ def main(argv=None):
         "calibration_cycles": cal,
         "search": search_work,
         "search_poll": search_poll_sum,
+        "search_empty": search_empty_sum,
         "measure": measure_work,
         "measure_poll": measure_poll_sum,
-        "search_breakdown": breakdown(search_work, search_poll_sum, args.sysclk),
-        "measure_breakdown": breakdown(measure_work, measure_poll_sum, args.sysclk),
+        "measure_empty": measure_empty_sum,
+        "search_breakdown": breakdown(search_work, search_poll_sum,
+                                      search_empty_sum, args.sysclk),
+        "measure_breakdown": breakdown(measure_work, measure_poll_sum,
+                                       measure_empty_sum, args.sysclk),
     }
+    if not measure:
+        print("cpu_profile: no measurement lines; was the build made with "
+              "-DAPP_PROFILE=1?", file=sys.stderr)
+        return 1
+    if not cal:
+        print("cpu_profile: calibration is zero; the free-running timer "
+              "did not advance", file=sys.stderr)
+        return 1
+    for name, item in (("search", search_poll_sum),
+                       ("measurement", measure_poll_sum)):
+        if item and item["overflows"]:
+            print("cpu_profile: %s timer overflows (%d); refusing the run"
+                  % (name, item["overflows"]), file=sys.stderr)
+            return 1
+        if item and item["events_avg"] <= 0:
+            print("cpu_profile: %s has no poll calls" % name, file=sys.stderr)
+            return 1
+    if (measure_empty_sum and measure_poll_sum and
+            measure_empty_sum["events_avg"] > measure_poll_sum["events_avg"]):
+        print("cpu_profile: empty calls exceed poll calls", file=sys.stderr)
+        return 1
+    if (search_empty_sum and search_poll_sum and
+            search_empty_sum["events_avg"] > search_poll_sum["events_avg"]):
+        print("cpu_profile: search empty calls exceed poll calls",
+              file=sys.stderr)
+        return 1
     print(json.dumps(summary, indent=2, sort_keys=True))
     if args.json:
         with open(args.json, "w", encoding="utf-8", newline="\n") as fh:
             json.dump(summary, fh, indent=2, sort_keys=True)
             fh.write("\n")
-    if not measure:
-        print("cpu_profile: no measurement lines; was the build made with "
-              "-DAPP_PROFILE=1?", file=sys.stderr)
-        return 1
     return 0
 
 
