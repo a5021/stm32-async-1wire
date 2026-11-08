@@ -94,6 +94,8 @@
 #include "stm32f0xx.h"
 #elif defined(OW_FAMILY_F4)
 #include "stm32f4xx.h"
+#elif defined(OW_FAMILY_C5)
+#include "stm32c5xx.h"
 #elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
 #endif
