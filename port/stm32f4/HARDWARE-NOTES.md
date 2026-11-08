@@ -442,8 +442,11 @@ DMA2 streams 0/1 at the reset-default priority (`PL=0`): the load outranks the
 feed on stream 2 and the capture on stream 4. Two variants are clean:
 
 - move the load to streams 5/6 (`--load-high`), or
-- raise feed/capture to `PL=3` while the load stays at `PL=0`
-  (`-DOW_DMA_PRIO=3`, 8/16 MHz level 5, guard 1/5/100).
+- raise feed/capture above the load's class: **`PL=1` is enough** (the load is
+  at `PL=0`), and `PL=2`/`PL=3` were measured clean too but add nothing.
+  Search ROM at `PL=1` matches the baseline in all 12 cells (levels 0/5,
+  8/16 MHz, guards 1/5/100), including the three cells that return 0 devices
+  at the default class; the write matrix is clean in both default-guard cells.
 
 The library keeps `PL=0` by default; `OW_DMA_PRIO` is the build knob that
 raises both channels (0..3, one name on every backend, `DMA_SxCR_PL` here). The

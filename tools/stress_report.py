@@ -513,36 +513,41 @@ def _knob_good(cell, mode):
         cell.get("clean") if mode == "write" else cell.get("matches"))
 
 
-def knob_section(platforms, platform_captures, knob):
+def knob_section(platforms, priority, platform_captures, knob):
     """Default-failing cells re-measured with OW_DMA_PRIO raised."""
     if not knob:
         return ""
     classes = _knob_classes(knob)
+    high = {name: data for name, role, data in (priority or [])
+            if role == "high"}
     rows = []
-    extra_total = extra_clean = 0
     minimal = []
+    extra_bits = []
     for name, data in (platforms or []):
         entry = knob.get(name) or {}
-        dg = data.get("default_guard_us", 5)
-        bench = data.get("bench") or name
-        write_fail = [c for c in data.get("cells") or []
+        if not entry:
+            continue
+        # The knob runs are made against a load placement: the F446 default
+        # (streams 0/1 at PL 0) or, on the H503, the raised load (PRIO 3).
+        # The default column has to come from the matching baseline run.
+        first = next((p.get("results") for p in entry.values()
+                      if p.get("results")), None)
+        raised = bool(first) and (first.get("gpdma_prio") is not None
+                                  or first.get("load_high"))
+        base = high.get(name) if raised and name in high else data
+        if base is None:
+            continue
+        dg = base.get("default_guard_us", 5)
+        bench = base.get("bench") or name
+        load_label = ("high (load PRIO %d)" % first["gpdma_prio"]
+                      if raised else "default")
+        write_fail = [c for c in base.get("cells") or []
                       if c["guard_us"] == dg and not c["clean"]]
         cap = (platform_captures or {}).get(name) or {}
         search_fail = [c for c in cap.get("capture_cells") or []
                        if not c.get("matches")]
-        # Every other guard that was re-run with the knob: the table only
-        # shows the default-guard failures, so this is what backs the
-        # "not a default-guard artefact" sentence.
-        for cls, payload in entry.items():
-            source = payload.get("results")
-            if not source:
-                continue
-            for (level, clock, guard), kc in cell_map(source).items():
-                if guard == dg:
-                    continue
-                extra_total += 1
-                extra_clean += 1 if kc.get("clean") else 0
         # Smallest measured class that clears every default-guard failure.
+        chosen = None
         for cls in classes:
             if not entry.get(cls):
                 continue
@@ -554,8 +559,22 @@ def knob_section(platforms, platform_captures, knob):
                                                   c["guard_us"]), "search")
                             for c in search_fail)
             if ok and (write_fail or search_fail):
+                chosen = cls
                 minimal.append((bench, cls))
                 break
+        if chosen is not None:
+            source = (entry.get(chosen) or {}).get("results")
+            if source:
+                total = clean = 0
+                for (_level, _clock, guard), kc in cell_map(source).items():
+                    if guard == dg:
+                        continue
+                    total += 1
+                    clean += 1 if kc.get("clean") else 0
+                if total:
+                    extra_bits.append("%s at class %d: %d of %d other-guard "
+                                      "cells clean" % (bench, chosen, clean,
+                                                       total))
         for c in write_fail:
             cells = "".join(
                 "<td>%s</td>" % _knob_verdict(
@@ -563,9 +582,9 @@ def knob_section(platforms, platform_captures, knob):
                                c["clock_mhz"], dg), "write")
                 for cls in classes)
             rows.append(
-                "<tr><td>%s</td><td>write frame</td><td>%s</td><td>%d</td>"
-                "<td>%s</td><td>%s</td>%s</tr>"
-                % (e(bench),
+                "<tr><td>%s</td><td>%s</td><td>write frame</td><td>%s</td>"
+                "<td>%d</td><td>%s</td><td>%s</td>%s</tr>"
+                % (e(bench), e(load_label),
                    "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
                    c["level"], fmt_guard(dg), _knob_failure(c, "write"), cells))
         for c in search_fail:
@@ -575,9 +594,9 @@ def knob_section(platforms, platform_captures, knob):
                                c["clock_mhz"], c["guard_us"]), "search")
                 for cls in classes)
             rows.append(
-                "<tr><td>%s</td><td>Search ROM</td><td>%s</td><td>%d</td>"
-                "<td>%s</td><td>%s</td>%s</tr>"
-                % (e(bench),
+                "<tr><td>%s</td><td>%s</td><td>Search ROM</td><td>%s</td>"
+                "<td>%d</td><td>%s</td><td>%s</td>%s</tr>"
+                % (e(bench), e(load_label),
                    "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
                    c["level"], fmt_guard(c["guard_us"]),
                    _knob_failure(c, "search"), cells))
@@ -591,23 +610,20 @@ def knob_section(platforms, platform_captures, knob):
                     "default-guard failure is %s." % min_bits)
     else:
         min_text = "No measured class clears every default-guard failure."
-    if extra_total:
-        extra_text = ("The same levels and clocks were also re-run at the "
-                      "other guards: %d of %d of those cells are clean, so the "
-                      "result is not a default-guard artefact. "
-                      % (extra_clean, extra_total))
-    else:
-        extra_text = ""
+    extra_text = (" For the minimal class, the other guards are clean too: %s."
+                  % "; ".join(extra_bits)) if extra_bits else ""
     return """<section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
 This table takes every cell that fails at the default guard and re-runs it at
-each measured class, leaving the load where it was. The default column is the
-committed run; the rest are knob builds.</p>
-<table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
-<th>Guard</th><th>Default</th>%s</tr></thead>
+each measured class, leaving the load where it was. The Default column is the
+committed run <em>with the same load placement</em>: the F446 default streams
+for the F446 rows, and the raised H503 load for the H503 rows, because that is
+the placement the knob was tested against.</p>
+<table><thead><tr><th>Bench</th><th>Load</th><th>Matrix</th><th>Clock</th>
+<th>Level</th><th>Guard</th><th>Default</th>%s</tr></thead>
 <tbody>%s</tbody></table>
-<p>%s %sAn equal-class load is still ordered by channel/stream index, so the
+<p>%s%s An equal-class load is still ordered by channel/stream index, so the
 knob is not a substitute for the <code>guard + 1</code> rule above. The library
 keeps class 0 by default: raising it preempts every lower-ranked channel for
 the length of a 1-Wire frame (up to milliseconds), which is the application's
@@ -1033,7 +1049,7 @@ def build_report(data, capture=None, platforms=None, priority=None,
                       for name, other in (platforms or [])]
                      + list(priority or []))
     priority_html = priority_section(data, priority_rows, bool(knob))
-    knob_html = knob_section(platforms, platform_captures, knob)
+    knob_html = knob_section(platforms, priority, platform_captures, knob)
     # One rendered block for every generated section: the two control tables
     # first (they belong with the primary results), then the extra platforms,
     # the load-placement comparison and the knob's measured effect.

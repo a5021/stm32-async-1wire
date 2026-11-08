@@ -913,6 +913,11 @@ constant and no ABI, so it is **not** part of `OW_CONFIG_TOKEN`.
 make EXT="-DOW_DMA_PRIO=3"
 ```
 
+The measured minimum is not the same on every part: with the load at `PL 0`
+the F446 is clean from class **1**, while the H503 load at `PRIO 3` needs class
+**3** (1 and 2 stay below it and starve). So raise the class above the load's,
+not blindly to 3.
+
 An equal-class load is still ordered by channel/stream index, so this is not a
 substitute for the portable rule: a higher-ranked, uninterruptible burst must
 not outlast `guard + 1` us. The bench measurements behind both statements are
