@@ -59,10 +59,10 @@ the per-call numbers.
 
 The measurement numbers are averaged over 52 cycles; the search numbers are
 from the single pass at startup. The measurement phase is the interval from
-`ds18b20_start_measure()` to the end of the `ds18b20_complete()` callback. The
-5 s application pause after the result is not part of it. The nominal full cycle
-is the measured active phase plus the configured 5 s pause; the start-to-start
-interval is not timed separately.
+`ds18b20_start_measure()` to the return from the `ds18b20_poll()` call that
+delivered the completion. The 5 s application pause after the result is not part
+of it. The nominal full cycle is the measured active phase plus the configured
+5 s pause; the start-to-start interval is not timed separately.
 
 ## One measurement
 

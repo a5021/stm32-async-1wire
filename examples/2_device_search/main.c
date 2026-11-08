@@ -106,7 +106,6 @@ void ds18b20_complete(int16_t temp) {
     /* The conversion has finished: start counting the pause to the next cycle. */
     pause_end_ms = app_millis() + MEASURE_PERIOD_MS;
 #if APP_PROFILE
-    prof_measure_active_ms = app_millis() - prof_cycle_start_ms;
     prof_measure_done = 1;
 #endif
 }
@@ -177,12 +176,20 @@ int main(void) {
             ds18b20_poll();
 #if APP_PROFILE
             uint32_t poll_delta = app_profile_take(poll_start);
+            uint8_t measure_complete = prof_measure_done;
+            if (measure_complete) {
+                /* End the active phase after the poll that delivered the
+                 * completion: the poll counter includes the return path and
+                 * any driver work after ds18b20_complete(), so the boundary
+                 * must match. */
+                prof_measure_done = 0;
+                prof_measure_active_ms = app_millis() - prof_cycle_start_ms;
+            }
             app_profile_add(&prof_measure_poll, poll_delta);
             if (prof_measure.events == work_before) {
                 app_profile_add(&prof_measure_empty, poll_delta);
             }
-            if (prof_measure_done) {
-                prof_measure_done = 0;
+            if (measure_complete) {
                 app_profile_print_timed(
                     "m", &prof_measure, prof_measure_active_ms,
                     prof_measure_active_ms + MEASURE_PERIOD_MS);
