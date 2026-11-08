@@ -83,21 +83,29 @@ it.
 | Public poll: worst call (max) | 5,149 (20.6 µs) | 3,337 (417.1 µs) |
 | Public poll: share of active phase | 17.81% | 27.93% |
 
+Cycles per public poll call are not a cross-platform efficiency metric. The
+H503 and F030 differ in core, clock and peripheral backend (GPDMA versus DMA),
+and they need a different number of polls for the same transaction, so 40.0
+versus 36.2 cycles per call does not mean that one board is more efficient.
+Microseconds per call measured at different clock rates are not normalized
+either.
+
 ## Where the active-phase CPU goes
 
 | Component | H503 | F030 |
 |---|---:|---:|
-| Useful driver work | 0.0043% | 0.108% |
-| Idle poll + callback | 15.11% | 23.24% |
-| Other application loop | 84.89% | 76.65% |
-| Total CPU busy | 100% | 100% |
+| Useful driver work | 0.0043% | 0.1079% |
+| Idle poll + callback | 15.1051% | 23.2403% |
+| Other application loop | 84.8906% | 76.6518% |
+| Total CPU busy | 100.0000% | 100.0000% |
 
-The example busy-polls, so the CPU is fully occupied during the active phase.
-The last row is the remainder of the main loop (`app_millis()`,
-`uart_poll_tx()`, branches), not idle sleep.
+The rows are exclusive: idle poll is the public poll minus the useful work, and
+the other-loop row is the remainder. The example busy-polls, so the CPU is fully
+occupied during the active phase; the last row is the remainder of the main loop
+(`app_millis()`, `uart_poll_tx()`, branches), not idle sleep.
 
 The public poll is a separate result from the useful work: 15.11% of the H503
-active phase and 23.35% on the F030, against 0.0043% and 0.108% of useful
+active phase and 23.35% on the F030, against 0.0043% and 0.1079% of useful
 driver work. This is why low driver work does not necessarily imply low
 application CPU utilization.
 
@@ -107,17 +115,19 @@ The percentages are a snapshot of this example, not a universal CPU load:
 
 | Quantity | Workload-dependent? |
 |---|---|
-| Useful work per transaction | No, for this operation mix |
+| Useful work per transaction | No (for a fixed operation mix) |
 | Polling + callback overhead | Yes; it fills the free time |
 | Share of the active phase | Yes; the denominator includes idle polling and the app loop |
 | Total CPU busy | Yes; 100% here because the example busy-polls |
 
 The useful-work time is the invariant per transaction: 34.3 µs per
-measurement on the H503 and 853.6 µs on the F030. If the application gives the
-driver more transactions, the useful-work share rises because the extra work
-replaces idle polling; the per-transaction cost stays the same. In the limit of
-a saturated bus with no other work, the CPU is busy with 1-Wire processing
-almost 100%; the small percentages above are not a ceiling.
+measurement on the H503 and 853.6 µs on the F030. It is fixed for a given
+operation and configuration — resolution, parasite power, bus length, number of
+devices in a search — not for an arbitrary set of operations. If the
+application gives the driver more transactions, the useful-work share rises
+because the extra work replaces idle polling; the per-transaction cost stays the
+same. In the limit of a saturated bus with no other work, the CPU is busy with
+1-Wire processing almost 100%; the small percentages above are not a ceiling.
 
 ## Latency
 
@@ -157,8 +167,10 @@ application latency bound, which other code can also set.
 - A "work event" is a state-machine segment, not a full instruction-level
   profile. The cycles are measured with `SysTick->VAL`, whose period is 1 ms;
   every event is far shorter than that.
-- The H503 and F030 use different cores and clocks. Compare cycles when
-  comparing code cost, and microseconds when comparing wall time.
+- The H503 and F030 use different cores, clock rates and peripheral backends.
+  Compare cycles when comparing code cost, and microseconds when comparing wall
+  time, but do not read cycles per poll call as a cross-platform efficiency
+  ranking.
 - The percentages are workload-dependent; the absolute work per transaction is
   the portable number.
 
