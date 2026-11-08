@@ -121,11 +121,16 @@ Search phase:
 | Other application loop | 82.3314% | 77.8882% |
 | Total CPU busy | 100.0000% | 100.0000% |
 
-The rows are exclusive: empty poll is the public poll minus useful work minus
-the callback, and the other-loop row is the remainder. The example busy-polls,
-so the CPU is fully occupied during the active phase; the last row is the
-remainder of the main loop (`app_millis()`, `uart_poll_tx()`, branches), not
-idle sleep.
+The rows are exclusive. Empty poll is timed directly: it is the set of public
+calls that leave the work-event count unchanged. The callback is what remains
+of the public poll after useful work and empty calls are subtracted, and the
+other-loop row is the remainder of the active phase. The last row is computed
+as the complement of the displayed values, so each column sums to exactly
+100.0000%; the unrounded numbers are in the linked JSON.
+
+The example busy-polls, so the CPU is fully occupied during the active phase;
+the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
+branches), not idle sleep.
 
 ## How to read the percentages
 
@@ -144,7 +149,7 @@ load:
 
 | Quantity | Workload-dependent? |
 |---|---|
-| Useful work per transaction | No (for a fixed operation mix) |
+| Useful work per transaction | No, for a fixed operation mix and configuration |
 | Cost of one empty call | No, for this build |
 | Empty calls per transaction | Yes; it is the loop speed |
 | Callback per completion | No, for this output format |
@@ -153,13 +158,16 @@ load:
 
 The profiler adds bookkeeping after each timed call, which slows the polling
 loop; the empty-call share above is therefore slightly lower than in the shipped
-build, while the per-call cost and the useful-work cost are not affected. The
-useful-work time is the invariant per transaction: 34.1 µs per measurement on
-the H503 and 861.0 µs on the F030, fixed for a given operation and configuration
-— resolution, parasite power, bus length, number of devices in a search — not
-for an arbitrary set of operations. In the limit of a saturated bus with no
-other work, the CPU is busy with 1-Wire processing almost 100%; the small
-percentages above are not a ceiling.
+build, while the per-call cost and the useful-work cost are not affected. For a
+fixed operation mix and configuration, useful-work time per transaction is
+approximately constant: 34.1 µs per measurement on the H503 and 861.0 µs on the
+F030. It changes with the operation itself, the resolution, parasite power, bus
+length and the number of devices in a search, so it is not a universal
+characteristic of the driver. With continuous polling and a sufficiently high
+transaction rate, useful 1-Wire processing can occupy a substantial fraction of
+CPU time. The percentage depends on the operation mix and on how much time is
+spent waiting for hardware operations, so the small percentages above are not a
+ceiling.
 
 ## Latency
 
