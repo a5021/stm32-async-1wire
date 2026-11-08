@@ -17,8 +17,10 @@ the bench.
 
 - **1-Wire bus:** PA10. Alternate functions in the C552 datasheet: TIM1_CH3 on
   AF1, USART1_RX on AF7, LPUART1_RX on AF3.
-- **Console:** USART1_TX on PA9 (AF7), USART1_RX on PA10 (AF7). The console RX
-  would share PA10 with the 1-Wire bus; TX alone is enough for the examples.
+- **Console:** USART1_TX on PA9 (AF7). RX is not needed for the examples.
+- **Logic-analyzer marker:** PA2, free on the board headers. PA11/PA12 are the
+  USB-C D-/D+ pair and must not be used as the marker. The marker is opt-in;
+  leave it off if the application uses PA2 for USART2 or TIM2.
 - PA10 is available on the board headers.
 
 ## Clock
