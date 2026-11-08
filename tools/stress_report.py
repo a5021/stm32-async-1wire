@@ -634,6 +634,16 @@ def build_report(data, capture=None, platforms=None, priority=None,
             findings.append(
                 "%s with %s load placement: every level is clean at the "
                 "default guard." % (bench, role))
+    for name, cap in (platform_captures or {}).items():
+        bad = [c for c in cap.get("capture_cells") or [] if not c.get("matches")]
+        if bad:
+            clocks = sorted({c.get("clock_mhz") for c in bad if c.get("clock_mhz")})
+            findings.append(
+                "%s Search ROM: %d of %d stressed cells fail%s."
+                % (cap.get("bench") or name, len(bad),
+                   len(cap.get("capture_cells") or []),
+                   " at " + ", ".join("%d MHz" % c for c in clocks)
+                   if clocks else ""))
 
     cap_cells = capture.get("capture_cells") or []
     cap_supported = bool(capture.get("capture_supported") and cap_cells)

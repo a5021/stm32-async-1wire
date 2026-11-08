@@ -784,9 +784,15 @@ def main(argv=None):
                     help="H5 only: CCR.PRIO for the load channels (0..3). The "
                          "default 0 is the equal-priority experiment; 3 puts "
                          "the load in the fixed high-priority class")
+    ap.add_argument("--feed-prio", type=int, default=None,
+                    help="F4 only: feed/capture DMA stream priority (0..3); "
+                         "default keeps the reset PL=0")
     args = ap.parse_args(argv)
     if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
         print("FAIL: --gpdma-prio must be 0..3")
+        return 1
+    if args.feed_prio is not None and not 0 <= args.feed_prio <= 3:
+        print("FAIL: --feed-prio must be 0..3")
         return 1
     # Identity of the tree that builds the images, sampled before the run
     # writes the captures and the JSON: output files must not make the source
@@ -825,6 +831,12 @@ def main(argv=None):
               % ", ".join(common.BENCH_PROFILES))
         return 1
     common.select_bench(detected)
+    if args.feed_prio is not None:
+        if detected != "STM32F446xx":
+            print("FAIL: --feed-prio is F4-only")
+            return 1
+        common.BUILD_EXT = (common.BUILD_EXT +
+                            " -DOW_PORT_DMA_PRIO=%d" % args.feed_prio).strip()
 
     prog = common.find_programmer()
     if not prog:
@@ -929,6 +941,7 @@ def main(argv=None):
             "tooling_commit": commit,
             "load_high": bool(LOAD_HIGH),
             "gpdma_prio": GPDMA_PRIO,
+            "feed_prio": args.feed_prio,
             "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
                        .replace(os.sep, "/") if args.sr_dir else ""),
             "pattern": pattern.hex().upper(),

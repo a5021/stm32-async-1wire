@@ -61,6 +61,12 @@ def bench_setup(argv):
     ap.add_argument("--keep-runs", action="store_true")
     ap.add_argument("--gpdma-prio", type=int, default=None,
                     help="H5 only: CCR.PRIO for the load channels (0..3)")
+    ap.add_argument("--clocks", default="",
+                    help="comma list; overrides the per-bench default")
+    ap.add_argument("--levels", default="",
+                    help="comma list; overrides all levels")
+    ap.add_argument("--skip-inject", action="store_true",
+                    help="skip the deliberate-delay matrix")
     args = ap.parse_args(argv)
     if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
         print("FAIL: --gpdma-prio must be 0..3")
@@ -341,12 +347,16 @@ def main(argv=None):
     if mcu == "STM32F030x6":
         clocks = [48, 8]
     elif mcu == "STM32F446xx":
-        clocks = [180]
+        clocks = [180, 16, 8]
     elif mcu == "STM32H503xx":
         clocks = [64, 250, 8]
     else:
         clocks = [None]
+    if args.clocks:
+        clocks = list(dp.parse_list(args.clocks, int))
     levels = list(dp.LEVELS) if stress_supported else [0]
+    if args.levels:
+        levels = list(dp.parse_list(args.levels, int))
     if not stress_supported:
         print("note: the stress generator is F0/F4-only; measuring level 0")
 
@@ -362,7 +372,7 @@ def main(argv=None):
             res["count"], res["rom_crc"] or 0, res["matches"]))
 
     print("deliberate delay: channel disabled for N us")
-    inject_cells = inject_matrix(rig, clocks)
+    inject_cells = [] if args.skip_inject else inject_matrix(rig, clocks)
     for res in inject_cells:
         good = res.get("clean") if res["mode"] == "write" else res.get("matches")
         print("  %s c%s inject=%d %s" % (
@@ -432,7 +442,8 @@ def main(argv=None):
     if supported and not all(c["matches"] for c in capture_cells):
         ok = False
         print("FAIL: a stressed Search ROM does not match the unloaded baseline")
-    if not any(v is not None for v in data["first_bad"].values()):
+    if not args.skip_inject and not any(v is not None
+                                       for v in data["first_bad"].values()):
         ok = False
         print("FAIL: no injected delay was detected - the harness is blind")
     print("PASS: capture drain and deliberate-delay control" if ok else "FAIL")
