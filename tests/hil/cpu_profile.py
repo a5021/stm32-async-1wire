@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""Measure the CPU cycles spent inside the non-blocking 1-Wire driver.
+
+Build the example with `-DAPP_PROFILE=1 -DOW_PROFILE=1`, flash it, then read
+the UART for a configurable window. The example prints `PROFILE` lines for the
+useful driver work and for the complete public poll call; this script turns
+them into average/worst cycles, cycles per event/call, and the CPU share of
+the active and full cycle.
+
+This is a bench tool, not a CI step. It needs the board and its UART.
+
+Usage:
+    python tests/hil/cpu_profile.py --app 2_device_search --mcu STM32H503xx \
+        --sysclk 250 --hse 8 --seconds 300 --port COM5
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+
+import common  # noqa: E402
+
+PROFILE_RE = re.compile(
+    r"^PROFILE\s+(?P<kind>cal|sp|si|p|s|m|i)\s+"
+    r"(?:o=(?P<overhead>\d+)|c=(?P<cycles>\d+)\s+p=(?P<events>\d+)\s+"
+    r"w=(?P<worst>\d+)\s+x=(?P<overflows>\d+)"
+    r"(?:\s+a=(?P<active>\d+)\s+t=(?P<cycle>\d+))?)"
+)
+
+
+def build(app, mcu, sysclk, hse, ext):
+    cmd = ["make", "APP=%s" % app, "OW_MCU=%s" % mcu,
+           "SYSCLK_MHZ=%d" % sysclk]
+    if hse:
+        cmd.append("HSE_MHZ=%d" % hse)
+    cmd.append("EXT=%s" % ext)
+    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError("make failed (%d):\n%s\n%s"
+                           % (proc.returncode, proc.stdout, proc.stderr))
+    hexpath = os.path.join(REPO, "build", "ds18b20_%s.hex" % app)
+    if not os.path.isfile(hexpath):
+        raise RuntimeError("build did not produce %s" % hexpath)
+    return hexpath
+
+
+def parse_line(text):
+    m = PROFILE_RE.match(text)
+    if not m:
+        return None
+    kind = m.group("kind")
+    if kind == "cal":
+        return {"kind": "cal", "overhead": int(m.group("overhead"))}
+    return {
+        "kind": kind,
+        "cycles": int(m.group("cycles")),
+        "events": int(m.group("events")),
+        "worst": int(m.group("worst")),
+        "overflows": int(m.group("overflows")),
+        "active_ms": int(m.group("active")) if m.group("active") else 0,
+        "cycle_ms": int(m.group("cycle")) if m.group("cycle") else 0,
+    }
+
+
+def p95(values):
+    if not values:
+        return 0
+    ordered = sorted(values)
+    return ordered[max(0, int(round(0.95 * len(ordered))) - 1)]
+
+
+def load_percent(cycles, ms, sysclk):
+    if ms <= 0:
+        return 0.0
+    return 100.0 * cycles / (ms * sysclk * 1000.0)
+
+
+def breakdown(work, poll, empty, sysclk):
+    """Split the active phase into useful work, empty polls and callback."""
+    if not work or not poll:
+        return None
+    active = work["active_ms_avg"]
+    work_pct = load_percent(work["cycles_avg"], active, sysclk)
+    poll_pct = load_percent(poll["cycles_avg"], active, sysclk)
+    empty_pct = (load_percent(empty["cycles_avg"], active, sysclk)
+                 if empty else 0.0)
+    return {
+        "active_ms": active,
+        "work_pct": work_pct,
+        "poll_pct": poll_pct,
+        "empty_pct": empty_pct,
+        "callback_pct": max(0.0, poll_pct - work_pct - empty_pct),
+        "other_app_pct": max(0.0, 100.0 - poll_pct),
+        "total_busy_pct": 100.0,
+    }
+
+
+def summarize(samples, sysclk):
+    if not samples:
+        return None
+    cycles = [s["cycles"] for s in samples]
+    events = [s["events"] for s in samples]
+    worst = [s["worst"] for s in samples]
+    active = [s["active_ms"] for s in samples]
+    full = [s["cycle_ms"] for s in samples]
+    total_cycles = sum(cycles)
+    total_active = sum(active)
+    total_full = sum(full)
+    return {
+        "count": len(samples),
+        "cycles_avg": total_cycles / len(samples),
+        "cycles_min": min(cycles),
+        "cycles_max": max(cycles),
+        "cycles_p95": p95(cycles),
+        "events_avg": sum(events) / len(samples),
+        "worst_avg": sum(worst) / len(samples),
+        "worst_max": max(worst),
+        "overflows": sum(s.get("overflows", 0) for s in samples),
+        "active_ms_avg": total_active / len(samples),
+        "cycle_ms_avg": total_full / len(samples),
+        "cycles_per_event": total_cycles / max(1, sum(events)),
+        "load_active_pct": load_percent(total_cycles, total_active, sysclk),
+        "load_full_pct": load_percent(total_cycles, total_full, sysclk),
+    }
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--app", default="2_device_search")
+    ap.add_argument("--mcu", default="STM32H503xx")
+    ap.add_argument("--sysclk", type=int, default=250)
+    ap.add_argument("--hse", type=int, default=8)
+    ap.add_argument("--seconds", type=int, default=300)
+    ap.add_argument("--port", default=os.environ.get("HIL_PORT", ""))
+    ap.add_argument("--baud", type=int, default=115200)
+    ap.add_argument("--json", default="")
+    ap.add_argument("--no-build", action="store_true")
+    ap.add_argument("--no-flash", action="store_true")
+    args = ap.parse_args(argv)
+
+    common.select_bench(args.mcu)
+    ext = common.build_ext(args.app)
+    if "APP_PROFILE" not in ext:
+        ext = (ext + " -DAPP_PROFILE=1").strip()
+    if "OW_PROFILE" not in ext:
+        ext = (ext + " -DOW_PROFILE=1").strip()
+
+    if not args.no_build:
+        hexpath = build(args.app, args.mcu, args.sysclk, args.hse, ext)
+        print("built %s" % os.path.relpath(hexpath, REPO), flush=True)
+        if not args.no_flash:
+            common.flash(hexpath)
+            print("flashed %s" % args.app, flush=True)
+
+    port = args.port
+    if not port:
+        port, tried = common.find_port()
+        if not port:
+            print("cpu_profile: no example UART found (tried %s); pass --port"
+                  % ", ".join(tried), file=sys.stderr)
+            return 1
+    print("reading %s at %d baud for %d s" % (port, args.baud, args.seconds),
+          flush=True)
+
+    uart = common.open_uart(port, args.baud)
+    cal = None
+    search = []
+    search_poll = []
+    search_empty = []
+    measure = []
+    measure_poll = []
+    measure_empty = []
+    end = time.monotonic() + args.seconds
+    next_report = time.monotonic() + 30.0
+    try:
+        while time.monotonic() < end:
+            line = uart.readline()
+            if line:
+                text = line.decode("utf-8", "replace").strip()
+                rec = parse_line(text)
+                if rec:
+                    if rec["kind"] == "cal":
+                        cal = rec["overhead"]
+                        print("calibration overhead: %d cycles" % cal, flush=True)
+                    elif rec["kind"] == "s":
+                        search.append(rec)
+                        print("search work: %d cycles, %d events, worst %d"
+                              % (rec["cycles"], rec["events"], rec["worst"]),
+                              flush=True)
+                    elif rec["kind"] == "sp":
+                        search_poll.append(rec)
+                        print("search poll: %d cycles, %d calls, worst %d"
+                              % (rec["cycles"], rec["events"], rec["worst"]),
+                              flush=True)
+                    elif rec["kind"] == "si":
+                        search_empty.append(rec)
+                        print("search empty: %d cycles, %d calls, worst %d"
+                              % (rec["cycles"], rec["events"], rec["worst"]),
+                              flush=True)
+                    elif rec["kind"] == "m":
+                        measure.append(rec)
+                    elif rec["kind"] == "i":
+                        measure_empty.append(rec)
+                    else:
+                        measure_poll.append(rec)
+            now = time.monotonic()
+            if now >= next_report:
+                print("  %d s, %d measurement line(s)" % (
+                    args.seconds - int(end - now), len(measure)), flush=True)
+                next_report = now + 30.0
+    finally:
+        uart.close()
+
+    search_work = summarize(search, args.sysclk)
+    search_poll_sum = summarize(search_poll, args.sysclk)
+    search_empty_sum = summarize(search_empty, args.sysclk)
+    measure_work = summarize(measure, args.sysclk)
+    measure_poll_sum = summarize(measure_poll, args.sysclk)
+    measure_empty_sum = summarize(measure_empty, args.sysclk)
+    summary = {
+        "app": args.app,
+        "mcu": args.mcu,
+        "sysclk_mhz": args.sysclk,
+        "seconds": args.seconds,
+        "calibration_cycles": cal,
+        "search": search_work,
+        "search_poll": search_poll_sum,
+        "search_empty": search_empty_sum,
+        "measure": measure_work,
+        "measure_poll": measure_poll_sum,
+        "measure_empty": measure_empty_sum,
+        "search_breakdown": breakdown(search_work, search_poll_sum,
+                                      search_empty_sum, args.sysclk),
+        "measure_breakdown": breakdown(measure_work, measure_poll_sum,
+                                       measure_empty_sum, args.sysclk),
+    }
+    if not measure:
+        print("cpu_profile: no measurement lines; was the build made with "
+              "-DAPP_PROFILE=1?", file=sys.stderr)
+        return 1
+    if not cal:
+        print("cpu_profile: calibration is zero; the free-running timer "
+              "did not advance", file=sys.stderr)
+        return 1
+    for name, item in (("search", search_poll_sum),
+                       ("measurement", measure_poll_sum)):
+        if item and item["overflows"]:
+            print("cpu_profile: %s timer overflows (%d); refusing the run"
+                  % (name, item["overflows"]), file=sys.stderr)
+            return 1
+        if item and item["events_avg"] <= 0:
+            print("cpu_profile: %s has no poll calls" % name, file=sys.stderr)
+            return 1
+    if (measure_empty_sum and measure_poll_sum and
+            measure_empty_sum["events_avg"] > measure_poll_sum["events_avg"]):
+        print("cpu_profile: empty calls exceed poll calls", file=sys.stderr)
+        return 1
+    if (search_empty_sum and search_poll_sum and
+            search_empty_sum["events_avg"] > search_poll_sum["events_avg"]):
+        print("cpu_profile: search empty calls exceed poll calls",
+              file=sys.stderr)
+        return 1
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    if args.json:
+        with open(args.json, "w", encoding="utf-8", newline="\n") as fh:
+            json.dump(summary, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
