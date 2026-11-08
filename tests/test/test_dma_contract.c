@@ -44,34 +44,51 @@ static uint16_t presence_src(uint32_t idx) {
  * Direct mode forces the memory width to PSIZE: F4 feeds 16-bit halfwords
  * from the ow_pulse_t buffer (MSIZE_0) and drops PSIZE for 8-bit captures,
  * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout.
- * H5 programs GPDMA: CCR carries EN only, the transfer class lives in
- * CTR1/CTR2 (pinned by test_dma_cr_value_macros below). */
+ * H5 programs GPDMA: CCR carries EN plus the OW_PORT_DMA_PRIO class, the
+ * transfer shape lives in CTR1/CTR2 (pinned by test_dma_cr_value_macros
+ * below). */
+/* The arbitration bits this build asks for (OW_PORT_DMA_PRIO, 0..3).  Every
+ * expectation below carries them, so the same suite run twice - default and
+ * `make test-dma-prio` (-DOW_PORT_DMA_PRIO=3) - proves the knob reaches the
+ * register word on each DMA IP rather than sitting in a header. */
+#if defined(STM32H5)
+#define TEST_PRIO_BITS OW_PORT_GPDMA_PRIO_BITS
+#elif defined(STM32F4) || defined(STM32H7)
+#define TEST_PRIO_BITS OW_PORT_DMA_PL
+#else
+#define TEST_PRIO_BITS OW_PORT_DMA_CCR_PL
+#endif
+
 #if defined(STM32H5)
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 0u
-#define FEED_8BIT_HI DMA_CCR_EN
-#define FEED_8BIT_LO (~DMA_CCR_EN)
-#define CAP_16BIT_HI DMA_CCR_EN
-#define CAP_16BIT_LO (~DMA_CCR_EN)
-#define CAP_8BIT_HI DMA_CCR_EN
-#define CAP_8BIT_LO (~DMA_CCR_EN)
+#define FEED_8BIT_HI (DMA_CCR_EN | TEST_PRIO_BITS)
+#define FEED_8BIT_LO (~(DMA_CCR_EN | TEST_PRIO_BITS))
+#define CAP_16BIT_HI (DMA_CCR_EN | TEST_PRIO_BITS)
+#define CAP_16BIT_LO (~(DMA_CCR_EN | TEST_PRIO_BITS))
+#define CAP_8BIT_HI (DMA_CCR_EN | TEST_PRIO_BITS)
+#define CAP_8BIT_LO (~(DMA_CCR_EN | TEST_PRIO_BITS))
 #elif defined(STM32F4) || defined(STM32H7)
 #define WIDTH_MSIZE16 DMA_CCR_MSIZE_0
 #define WIDTH_PSIZE8 0u
-#define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
+#define FEED_8BIT_HI \
+    (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16 | TEST_PRIO_BITS)
 #define FEED_8BIT_LO (DMA_CCR_MSIZE_1)
-#define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
+#define CAP_16BIT_HI \
+    (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | TEST_PRIO_BITS)
 #define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
-#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
+#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8 | TEST_PRIO_BITS)
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
 #else
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 DMA_CCR_PSIZE_0
-#define FEED_8BIT_HI (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16)
+#define FEED_8BIT_HI \
+    (DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | WIDTH_MSIZE16 | TEST_PRIO_BITS)
 #define FEED_8BIT_LO (DMA_CCR_MSIZE_1)
-#define CAP_16BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0)
+#define CAP_16BIT_HI \
+    (DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | TEST_PRIO_BITS)
 #define CAP_16BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_1)
-#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8)
+#define CAP_8BIT_HI (DMA_CCR_EN | DMA_CCR_MINC | WIDTH_PSIZE8 | TEST_PRIO_BITS)
 #define CAP_8BIT_LO (DMA_CCR_DIR | DMA_CCR_MSIZE_0 | DMA_CCR_MSIZE_1)
 #endif
 
@@ -648,32 +665,32 @@ void test_dma_cr_value_macros(void) {
 #elif defined(STM32F4)
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
-                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX16);
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC |
-                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX8);
     TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 & DMA_SxCR_PSIZE_0));
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
                    DMA_SxCR_MSIZE_0 |
-                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN),
+                   (6u << DMA_SxCR_CHSEL_Pos) | DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_TX);
 #elif defined(STM32H7)
     /* Same transfer classes as F4 (direct-mode streams), but no CHSEL: the
      * DMAMUX channels above own the routing. */
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0 |
-                   DMA_SxCR_EN),
+                   DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX16);
     TEST_ASSERT_EQUAL_UINT32(
-        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_EN),
+        (uint32_t)(DMA_SxCR_MINC | DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX8);
     TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)(OW_PORT_DMA_CR_RX8 & DMA_SxCR_PSIZE_0));
     TEST_ASSERT_EQUAL_UINT32(
         (uint32_t)(DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 |
-                   DMA_SxCR_MSIZE_0 | DMA_SxCR_EN),
+                   DMA_SxCR_MSIZE_0 | DMA_SxCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_TX);
     /* DMAMUX routing (no CHSEL on H7): feed <- TIM1_CH2, capture <-
      * TIM1_CH4. Double-sourced from the RM0433 DMAMUX1 table and CubeH7. */
@@ -681,13 +698,15 @@ void test_dma_cr_value_macros(void) {
     TEST_ASSERT_EQUAL_UINT32(14u, (uint32_t)OW_PORT_DMAMUX_REQ_TIM1_CH4);
 #else
     TEST_ASSERT_EQUAL_UINT32(
-        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN),
+        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0 | DMA_CCR_EN |
+                   TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX16);
     TEST_ASSERT_EQUAL_UINT32(
-        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN),
+        (uint32_t)(DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN | TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_RX8);
     TEST_ASSERT_EQUAL_UINT32(
-        (uint32_t)(DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN),
+        (uint32_t)(DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_EN |
+                   TEST_PRIO_BITS),
         (uint32_t)OW_PORT_DMA_CR_TX);
 #endif
 }

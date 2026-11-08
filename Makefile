@@ -1603,6 +1603,27 @@ OW_FAMILY_WRAPPERS = $(foreach f,$(OW_HOST_TEST_TARGETS),test-$(f))
 test-all-families: $(OW_FAMILY_WRAPPERS)
 	@echo "all $(words $(OW_HOST_TEST_TARGETS)) host families passed: $(OW_HOST_TEST_TARGETS)"
 
+# --- DMA arbitration priority knob (OW_PORT_DMA_PRIO) ---------------------
+# OW_PORT_DMA_PRIO is compile-time, so the honest check is the whole contract
+# suite rebuilt with a non-default class: the table's expected CR/CCR words
+# carry the knob's bits (TEST_PRIO_BITS in test_dma_contract.c), which proves
+# each backend actually programs them rather than defining a macro nobody
+# reads. One family per encoding: f0 = classic DMA1 channel (CCR bits 12..13),
+# f4/h7 = stream CR (bits 16..17, f4 adds CHSEL), h5 = GPDMA CCR (bits 22..23).
+# A separate TEST_OUT keeps these artefacts apart from the default build.
+OW_PRIO_FAMILIES = f0 f4 h5 h7
+
+.PHONY: test-dma-prio $(addprefix test-dma-prio-,$(OW_PRIO_FAMILIES))
+.NOTPARALLEL: test-dma-prio
+test-dma-prio: $(addprefix test-dma-prio-,$(OW_PRIO_FAMILIES))
+	@echo "dma-prio: OW_PORT_DMA_PRIO=3 programmed on $(OW_PRIO_FAMILIES)"
+
+$(addprefix test-dma-prio-,$(OW_PRIO_FAMILIES)): test-dma-prio-%:
+	@mkdir -p build
+	@$(MAKE) --no-print-directory OW_TARGET=$* TEST_OUT=build/test-prio \
+	    TEST_EXTRA_FLAG=-DOW_PORT_DMA_PRIO=3 test >build/test-dma-prio-$*.log 2>&1
+	@echo "dma-prio $*: class 3 reached the register word"
+
 # --- Family-macro clock-value compile check (see test_sysclk_fallback.c) ---
 # Compile-only, values mode: verifies that selecting a family through the raw
 # family macro (STM32F0/F1/G0, the PlatformIO/STM32CubeMX path) resolves
@@ -1966,6 +1987,7 @@ help:
 	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
+	@echo "  test-dma-prio   - contract suite with -DOW_PORT_DMA_PRIO=3 (f0/f4/h5/h7, one per encoding)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"

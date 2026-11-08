@@ -169,7 +169,9 @@ and captured at each clock with correct 22.8-23.1 °C readings and 0 errors in
 WeAct board). Stress experiment: at level 5 on 8/64/250 MHz a PRIO 3 load
 starves the default PRIO 0 feed/capture; raising feed/capture to PRIO 3 makes
 all three clocks clean at guard 1/5/100 (`cndtr_late=0`). The library default
-remains PRIO 0; `OW_PORT_GPDMA_PRIO` is the build knob for the experiment.
+remains PRIO 0; `OW_PORT_DMA_PRIO=3` is the build knob that raises both
+channels (the same knob selects `DMA_SxCR_PL` on F4/H7 and `DMA_CCR_PL` on the
+classic DMA1 backends).
 Build with `make OW_MCU=STM32H503xx`.
 
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)

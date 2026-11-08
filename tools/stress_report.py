@@ -460,9 +460,10 @@ guarantee against an application channel with a higher rank.</p>
 <p><strong>Bench result.</strong> Raising feed/capture to the load's class
 removed the starvation: F4 <code>PL=3</code> at 8/16 MHz and H5
 <code>PRIO 3</code> at 8/64/250 MHz were clean at guard 1 with
-<code>cndtr_late=0</code>. The library still ships the reset default;
-<code>OW_PORT_DMA_PRIO</code> and <code>OW_PORT_GPDMA_PRIO</code> are the
-build knobs for that experiment.</p>
+<code>cndtr_late=0</code>. The library still ships the reset default; the
+build knob <code>OW_PORT_DMA_PRIO=3</code> raises both channels on every
+backend (<code>DMA_CCR_PL</code>, <code>DMA_SxCR_PL</code> or
+<code>DMA_CCR_PRIO</code> depending on the DMA IP).</p>
 </section>
 """ % "\n".join(rows)
 

@@ -32,6 +32,38 @@
  * defaults live in inc/ow_board.h above; this header adds the CMSIS device
  * header and the per-family register/DMA facts below. */
 
+/* --- DMA arbitration priority (OW_PORT_DMA_PRIO, 0..3) ---
+ *
+ * Feed and capture share one arbitration class on every backend, so a single
+ * knob raises both: 0 is the reset default the library has always shipped, 3
+ * is the highest class.  A build that shares the DMA controller with an
+ * uninterruptible load (long memory-to-memory bursts, another peripheral's
+ * stream) can pass -DOW_PORT_DMA_PRIO=3 so the 1-Wire deadlines win the
+ * arbitration instead of being starved by a lower-ranked channel.
+ *
+ * The class sits in a different field per DMA IP, so each backend adds its own
+ * encoding to the CR/CCR word (defined in src/ow_port.h once the CMSIS header
+ * is in scope, then referenced by the F4/H7/H5/C5 sections below):
+ *   classic DMA1 channels  DMA_CCR_PL    bits 12..13  OW_PORT_DMA_CCR_PL
+ *   F4/H7 streams          DMA_SxCR_PL   bits 16..17  OW_PORT_DMA_PL
+ *   H5/C5 GPDMA/LPDMA      DMA_CCR_PRIO  bits 22..23  OW_PORT_GPDMA_PRIO_BITS
+ *
+ * What the knob does NOT buy: an equal-class load is still resolved by the
+ * channel/stream index, not by the level, so a burst at the same priority on a
+ * lower-numbered channel keeps winning.  The portable rule is unchanged - a
+ * higher-ranked, uninterruptible burst must not outlast the feed window
+ * (guard + 1 us) - and this knob is the escape hatch when it does.
+ *
+ * The knob is deliberately not part of OW_CONFIG_TOKEN: it changes no timing
+ * constant and no ABI, so an application and an archive built with different
+ * values still agree on everything the token covers. */
+#ifndef OW_PORT_DMA_PRIO
+#define OW_PORT_DMA_PRIO 0u
+#endif
+#if (OW_PORT_DMA_PRIO) > 3u
+#error "OW_PORT_DMA_PRIO must be 0..3 (DMA arbitration priority class)"
+#endif
+
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
  *  other supported families and lives in src/ow_port.h; what is left here is the
@@ -417,31 +449,17 @@
  * path). */
 #define OW_PORT_DMA_EN_BIT DMA_SxCR_EN
 
-/* Test knob for the stream priority experiment. The reset default is 0 (the
- * library's shipped behaviour); a bench build can pass
- * -DOW_PORT_DMA_PRIO=3 to put feed and capture in the highest PL class. The
- * default value keeps every existing CR contract and image unchanged. */
-#ifndef OW_PORT_DMA_PRIO
-#define OW_PORT_DMA_PRIO 0u
-#endif
-/* The host F4 mock carries PL_1 but not the position macro; the real CMSIS
- * header carries both. Keep the test knob buildable against either. */
-#ifndef DMA_SxCR_PL_Pos
-#define DMA_SxCR_PL_Pos 16u
-#endif
-#define OW_PORT_DMA_PL ((OW_PORT_DMA_PRIO & 0x3u) << DMA_SxCR_PL_Pos)
-
 /* @brief Capture-stream control bits: MINC = memory-increment, PSIZE_0 =
  *       16-bit peripheral read (CCR4).  Direct mode forces the memory width
  *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
- *       PL is the reset default unless OW_PORT_DMA_PRIO raises it for the
- *       priority experiment.  Note the F4 DIR field is two bits wide: the
- *       generic single-bit DMA_SxCR_DIR macro would write the reserved 0b11. */
+ *       PL carries OW_PORT_DMA_PRIO (default 0, the reset class).  Note the
+ *       F4 DIR field is two bits wide: the generic single-bit DMA_SxCR_DIR
+ *       macro would write the reserved 0b11. */
 #define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
- *       halfword register).  PL follows OW_PORT_DMA_PRIO (default 0).  The
+ *       halfword register).  PL carries OW_PORT_DMA_PRIO (default 0).  The
  *       caller also sets MSIZE_0: direct mode forces the memory width to
  *       PSIZE, so the source must be a matching halfword (ow_pulse_t) buffer. */
 #define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
@@ -1000,18 +1018,6 @@
 #define OW_PORT_GPDMA_REQ_TIM1_CC2 59u
 #define OW_PORT_GPDMA_REQ_TIM1_CH4 61u
 
-/* Test knob for the H5 priority experiment. The reset default is 0; a bench
- * build can pass -DOW_PORT_GPDMA_PRIO=3 to put feed and capture in the same
- * PRIO class as a PRIO 3 load. The host mock has no PRIO position macro. */
-#ifndef OW_PORT_GPDMA_PRIO
-#define OW_PORT_GPDMA_PRIO 0u
-#endif
-#ifndef DMA_CCR_PRIO_Pos
-#define DMA_CCR_PRIO_Pos 22u
-#endif
-#define OW_PORT_GPDMA_PRIO_BITS \
-    ((OW_PORT_GPDMA_PRIO & 0x3u) << DMA_CCR_PRIO_Pos)
-
 /* GPDMA-spelling overrides for the DISABLE/PROG vocabulary (defaults in
  * src/ow_port.h).  DISABLE is disable + bounded EN wait
  * (shared ow_port_dma_disable(), same contract as the classic path) plus
@@ -1205,7 +1211,8 @@
         OW_PORT_DMA_CAPTURE.CTR2 =                                           \
             (OW_PORT_LPDMA_REQ_TIM1_CH4 << DMA_CTR2_REQSEL_Pos);             \
         OW_PORT_DMA_CAPTURE.CTR1 = (uint32_t)(cr);                           \
-        OW_PORT_DMA_CAPTURE.CCR = (1u << DMA_CCR_EN_Pos);                    \
+        OW_PORT_DMA_CAPTURE.CCR = (1u << DMA_CCR_EN_Pos) |                   \
+                                  OW_PORT_GPDMA_PRIO_BITS;                   \
     } while (0)
 #define OW_PORT_DMA_PROG_FEED(src, count, cr)                                \
     do {                                                                     \
@@ -1216,7 +1223,8 @@
         OW_PORT_DMA_FEED.CTR2 =                                              \
             (OW_PORT_LPDMA_REQ_TIM1_CC2 << DMA_CTR2_REQSEL_Pos);             \
         OW_PORT_DMA_FEED.CTR1 = (uint32_t)(cr);                              \
-        OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos);                       \
+        OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos) |                      \
+                               OW_PORT_GPDMA_PRIO_BITS;                      \
     } while (0)
 
 /* LPDMA counts source bytes in CBR1.BNDT; the reset capture source is the
@@ -1326,12 +1334,13 @@
 /* @brief Stream control bits: MINC = memory-increment; PSIZE_0 = 16-bit
  *       peripheral halfword (CCR3/CCR4).  Direct mode forces the memory width
  *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
- *       Priority stays at the reset default (like every other backend: ties
- *       break by stream number, feed wins).  Note the DIR field is two bits
- *       wide (like F4): the generic single-bit DMA_SxCR_DIR macro would write
- *       the reserved 0b11, so the feed word uses DIR_0. */
-#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
-#define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0)
+ *       PL carries OW_PORT_DMA_PRIO (default 0, the reset class; ties still
+ *       break by stream number).  Note the DIR field is two bits wide (like
+ *       F4): the generic single-bit DMA_SxCR_DIR macro would write the
+ *       reserved 0b11, so the feed word uses DIR_0. */
+#define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
+#define OW_PORT_DMA_CR_FEED \
+    (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
 
 /* Port-unification overrides for the OW_PORT_DMA_CR_* vocabulary (defaults in
  * src/ow_port.h): same three transfer classes in stream spelling.  Each equals

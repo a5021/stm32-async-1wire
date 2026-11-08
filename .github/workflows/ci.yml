@@ -139,6 +139,27 @@ jobs:
           make test-f4 clean
           make test-f4 TEST_EXTRA_FLAG="-DOW_SYSCLK_MHZ=84 -DOW_HSE_MHZ=25"
 
+  dma-priority-knob:
+    # OW_PORT_DMA_PRIO is compile-time, so the default matrix never exercises
+    # a non-zero class. Rebuild the contract suite with class 3 on one family
+    # per DMA-priority encoding (f0 = classic DMA1 channel, f4/h7 = stream CR,
+    # h5 = GPDMA CCR) and let the table's expected CR/CCR words fail if the
+    # bits do not reach the register word.
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache CMSIS dependencies
+        id: cache-cmsis
+        uses: actions/cache@v5
+        with:
+          path: CMSIS/
+          key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
+      - name: Download CMSIS dependencies
+        if: steps.cache-cmsis.outputs.cache-hit != 'true'
+        run: make deps-all
+      - name: Contract suite at OW_PORT_DMA_PRIO=3
+        run: make test-dma-prio
+
   coverage:
     strategy:
       fail-fast: false
