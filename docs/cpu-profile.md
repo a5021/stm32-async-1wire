@@ -5,7 +5,7 @@ bus. This page separates three costs:
 
 - **useful work** — the driver branch that advances a search or measurement
   after a hardware operation completes;
-- **empty poll** — a public call that finds no completed operation and returns;
+- **empty poll** — a public call that performs no driver work and returns;
 - **public poll** — the whole `ds18b20_poll()` / `onewire_search_poll()` call,
   which is useful work plus empty calls plus the application callback and the
   per-call overhead of handling an event.
@@ -53,9 +53,10 @@ the per-call numbers.
 | Full cycle with 5 s pause | 5.79 s | 5.79 s |
 | Search phase | 274 ms | 300 ms |
 
-The measurement phase is the interval from `ds18b20_start_measure()` to
-`ds18b20_complete()`. The 5 s application pause after the result is not part of
-it.
+The measurement numbers are averaged over 52 cycles; the search numbers are
+from the single pass at startup. The measurement phase is the interval from
+`ds18b20_start_measure()` to `ds18b20_complete()`. The 5 s application pause
+after the result is not part of it.
 
 ## One measurement
 
@@ -227,11 +228,11 @@ the practical meaning of "non-blocking".
 ## Low-power builds
 
 These are busy-poll builds. With `OW_LOW_POWER=1` the driver sleeps in `__WFE()`
-during long hardware stages, so the application calls `poll()` roughly once per
-completion event (8 per measurement) instead of hundreds of thousands of times,
-and the core is asleep between them. That build is not profiled here; its energy
-is set by the number of wake-ups and the sleep current, not by the busy-poll
-percentages above.
+during long hardware stages, so the 750 ms conversion wait is spent asleep
+instead of in empty polls. The short stages are still polled at the
+application's loop rate. That build is not profiled here; its energy is set by
+the number of wake-ups and the sleep current, not by the busy-poll percentages
+above.
 
 ## What is not included
 
