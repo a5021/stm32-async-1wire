@@ -252,14 +252,19 @@ def capture_section(capture):
     for clock, b in sorted(baseline.items(), key=lambda kv: str(kv[0])):
         base_bits.append("%s: %s devices, <code>%08X</code>" % (
             clock if clock != "def" else "default", b.get("count"), b.get("rom_crc") or 0))
+    guards = sorted({c["guard_us"] for c in cells})
+    guard_bits = ", ".join(fmt_guard(g) for g in guards[:-1])
+    if len(guards) > 1:
+        guard_bits += " and " + fmt_guard(guards[-1])
+    else:
+        guard_bits = fmt_guard(guards[0])
     return """<section id="capture">
 <h2>Capture drain under load</h2>
 <p class="meta">Search ROM matrix measured %s at commit <code>%s</code>%s.</p>
 <p>The Search ROM pass reads every bit through the capture DMA (channel 4), so
 it tests the other deadline. One search runs per boot at each level and clock,
-at the default guard and the 1 us floor. The unloaded level-0 pass is the
-baseline (%s); a stressed pass must return the same DS18B20 count and FNV-1a
-checksum.</p>
+at every measured guard (%s). The unloaded level-0 pass is the baseline (%s); a
+stressed pass must return the same DS18B20 count and FNV-1a checksum.</p>
 %s
 <p class="note">All %d stressed cells match. The search filters family 0x28, so
 the firmware counts 7 sensors while the viewer shows 8 responders (7 DS18B20
@@ -270,7 +275,7 @@ time, not dropped samples.</p>
 </section>""" % (e(capture.get("generated") or "unknown"),
                          e(capture.get("commit") or "unknown"),
                          " (working tree)" if capture.get("dirty") else "",
-                         ", ".join(base_bits), rows, len(cells))
+                         guard_bits, ", ".join(base_bits), rows, len(cells))
 
 
 def platform_fail_stats(data):
@@ -514,6 +519,20 @@ def inject_section(capture):
     first = capture.get("first_bad") or {}
     feed_txt = _first_bad_text(first, "write")
     cap_txt = _first_bad_text(first, "search")
+    # The largest window that still decoded, per clock: the sweep is fine
+    # enough to state the boundary instead of an upper bound.
+    bounds = []
+    for clock in sorted({c["clock_mhz"] for c in cells
+                         if c["mode"] == "write"}, key=lambda c: c if c is not None else -1):
+        group = [c for c in cells
+                 if c["mode"] == "write" and c["clock_mhz"] == clock]
+        clean = [c["inject_us"] for c in group if c.get("clean")]
+        bad = [c["inject_us"] for c in group if not c.get("clean")]
+        if clean and bad:
+            bounds.append(
+                "%s: clean through %d us, first detected at %d us"
+                % ("%d MHz" % clock if clock is not None else "default clock",
+                   max(clean), min(bad)))
     return """<section id="inject">
 <h2>Negative control: a deliberately delayed transfer</h2>
 <p>This control checks that the harness notices a late transfer.
@@ -531,11 +550,11 @@ could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
 <p>The detection threshold is later than the guard window. A late CCR3 write is
-harmless until the counter has passed the new compare value, so 8 and 12 us
-still decode at guard 5 (a 6 us window). Read the measured threshold as an
-upper bound on the safe delay, not as the window itself; a finer sweep is
-needed to pin the boundary.</p>
-</section>""" % ("\n".join(rows), feed_txt, cap_txt)
+harmless until the counter has passed the new compare value, so the feed keeps
+decoding past the 6 us window; the 2 us step pins the boundary: %s. Read the
+measured threshold as the last harmless delay, not as the window itself.</p>
+</section>""" % ("\n".join(rows), feed_txt, cap_txt,
+                "; ".join(bounds) if bounds else "the sweep did not straddle it")
 
 
 def build_report(data, capture=None, platforms=None, priority=None,

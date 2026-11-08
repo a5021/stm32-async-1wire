@@ -38,16 +38,20 @@ import dma_pressure as dp
 
 CAPTURE_JSON = os.path.join(common.REPO, "docs", "stress", "capture.json")
 
-#: Search ROM under each load; both the default guard and the measured floor.
-CAPTURE_GUARDS = (5, 1)
+#: Search ROM under each load: the measured 1 us floor, the 5 us default and
+#: the widest guard the write matrix treats as the control. The 100 us row is
+#: what shows a clean search is not an artefact of the tight window.
+CAPTURE_GUARDS = (100, 5, 1)
 #: Injected channel-disable windows, in microseconds (see STRESS_INJECT_US).
-#: On the F030 the write values straddle the measured floor (8/12 us clean,
-#: 16/20 us the first bad cells at 48/8 MHz). On the F446 any nonzero window
-#: breaks the first frame because the F4 stream does not latch the missed CC2
-#: request, so the same sweep is still a valid control there; it just goes red
-#: earlier. The search window is reset-anchored and its floor is later.
+#: The write sweep steps by 2 us around the F030 boundary (8/12 us decode at
+#: guard 5, the first bad cell is 16 us at 48 MHz and 20 us at 8 MHz), so the
+#: report can state the measured threshold instead of an upper bound. On the
+#: F446 any nonzero window breaks the first frame because the F4 stream does
+#: not latch the missed CC2 request, so the same sweep is still a valid control
+#: there; it just goes red earlier. The search window is reset-anchored and its
+#: floor is later.
 SEARCH_INJECT = (0, 200, 400, 600, 1000)
-WRITE_INJECT = (0, 8, 12, 16, 20)
+WRITE_INJECT = (0, 8, 10, 12, 14, 16, 18, 20)
 
 
 def bench_setup(argv):
