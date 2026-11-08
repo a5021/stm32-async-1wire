@@ -140,8 +140,8 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 
 /* --- C5 console divisor ----------------------------------------------------
  *
- * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  The C5 bring-up clock is
- * HSI at 144MHz, so this is one line like G4/H5. */
+ * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  The C5 144MHz clock is
+ * HSE through the PSI, so this is one line like G4/H5. */
 #if defined(OW_FAMILY_C5)
 /** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
 #define OW_C5_PCLK2_MHZ ((OW_SYSCLK_MHZ))

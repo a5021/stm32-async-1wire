@@ -806,23 +806,29 @@ void configure_system_clock(void) {
 #error "Unsupported OW_SYSCLK_MHZ for L4: use 80 (HSI16+PLL) or 16 (raw HSI16)"
 #endif
 #elif defined(OW_FAMILY_C5)
-/* STM32C5 bring-up clock: HSI at 144MHz. The reset clock is HSIDIV3 (48MHz);
- * selecting HSIS gives the full 144MHz with no PLL/PSI start and no failure
- * path. APB1/2/3 stay /1, so TIM1 = PCLK2 = SYSCLK and PSC = 143. */
+/* STM32C5 clock tree: HSE -> PSI at 144MHz, the 48MHz HSIDIV3 reset point,
+ * or the 8MHz crystal straight to SYSCLK. All three leave the AHB/APB
+ * prescalers at their reset /1, so TIM1 = PCLK2 = SYSCLK directly, which is
+ * what keeps the ow_port 1us-tick invariant and OW_PORT_TIM_PRESCALER at
+ * SYSCLK_MHZ - 1. */
 #if (OW_SYSCLK_MHZ) > (OW_C5_MAX_SYSCLK_MHZ)
 #error "OW_SYSCLK_MHZ exceeds this C5 part's ceiling (OW_C5_MAX_SYSCLK_MHZ in ow_board.h). 144MHz is the C552 cap."
 #endif
 #if (OW_SYSCLK_MHZ) == 144
-    /* HSIS is off after reset (only HSIDIV3 runs), so start it and wait for
-     * its ready bit before selecting it as SYSCLK. */
-    RCC->CR1 |= RCC_CR1_HSISON;
-    while ((RCC->CR1 & RCC_CR1_HSISRDY) == 0u)
+    /* HSE -> PSI 144MHz, the vendor-recommended path. PSI source is the 8MHz
+     * crystal, PSI reference is 8MHz and the PSI output is 144MHz. */
+    RCC->CR1 |= RCC_CR1_HSEON;
+    while ((RCC->CR1 & RCC_CR1_HSERDY) == 0u)
+        ;
+    RCC->CR2 = (RCC->CR2 & ~(RCC_CR2_PSIREFSRC | RCC_CR2_PSIREF | RCC_CR2_PSIFREQ)) |
+               RCC_CR2_PSIREF_0 | RCC_CR2_PSIFREQ_0; // HSE, 8MHz, 144MHz
+    RCC->CR1 |= RCC_CR1_PSISON;
+    while ((RCC->CR1 & RCC_CR1_PSISRDY) == 0u)
         ;
     FLASH->ACR = (FLASH->ACR & ~FLASH_ACR_LATENCY) | FLASH_ACR_LATENCY_4;
-    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_0; // HSIS = 01
-    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
+    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW; // PSIS = 11
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS)
         ;
-    RCC->CR1 &= (uint32_t)~RCC_CR1_HSIDIV3ON;
 #elif (OW_SYSCLK_MHZ) == 48
     /* HSIDIV3 is the reset source (48MHz). Keep it selected; the reset flash
      * latency (3 WS) is safe at this clock. */
