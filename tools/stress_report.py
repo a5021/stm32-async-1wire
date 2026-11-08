@@ -610,13 +610,24 @@ def feed_delay_section(capture):
             bad = [c["inject_us"] for c in group if not c.get("clean")]
             detected = ("%d us" % min(bad)) if bad else (
                 "&ge; %d us" % max(clean) if clean else "?")
+            # Link the frame the boundary was measured on: the first window
+            # that failed, kept as the raw marker capture.
+            link = '<span class="muted">-</span>'
+            if bad:
+                first = min((c for c in group if not c.get("clean")),
+                            key=lambda c: c["inject_us"])
+                href = viewer_href(
+                    first, key="capture" if first.get("capture")
+                    else "capture_fail")
+                if href:
+                    link = '<a href="%s">failing frame</a>' % e(href)
             rows.append(
                 "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td>"
-                "<td>%d us</td></tr>" % (
+                "<td>%d us</td><td>%s</td></tr>" % (
                     "%d MHz" % clock if clock is not None else "default",
                     fmt_guard(guard),
                     ("%d us" % max(clean)) if clean else "none",
-                    detected, window_us(guard)))
+                    detected, window_us(guard), link))
             if clean and bad:
                 offsets.setdefault(clock, []).append(
                     (guard, min(bad) - (guard + 1)))
@@ -636,7 +647,7 @@ several guards shows how the tolerance moves: the injected window is held
 <em>after</em> the frame's first CC2 request, so the question is whether the
 last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 <table><thead><tr><th>Clock</th><th>Guard</th><th>Clean through</th>
-<th>First detected</th><th>Guard window</th></tr></thead>
+<th>First detected</th><th>Guard window</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p><strong>It does not.</strong> The offset over <code>guard + 1</code>
 (%s) shrinks as the guard grows, and at the widest guard it reaches zero: the
@@ -669,9 +680,9 @@ def inject_section(capture):
              if c["mode"] == "search" or c.get("guard_us", 5) == 5]
     for c in sorted(shown, key=lambda c: (c["mode"], c["clock_mhz"] or -1, c["inject_us"])):
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
-        # Clean cells keep a decoded frame; a failing injection has only the
-        # raw marker window, which is the frame worth looking at.
-        key = "capture" if c.get("capture") and good else "capture_fail"
+        # The capture harness keeps the raw marker window for a failing cell
+        # too, so the stored name is always the frame worth looking at.
+        key = "capture" if c.get("capture") else "capture_fail"
         href = viewer_href(c, key=key)
         label = "failing frame" if key == "capture_fail" else "frame"
         link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
@@ -779,8 +790,9 @@ def build_report(data, capture=None, platforms=None, priority=None,
         "Load activity: the stress counters in the table show every channel "
         "running.")
     findings.append(
-        "The default guard is a %d us window; the 1 us floor is a %d us "
-        "window. The two are different measurements, not a 3x safety factor."
+        "The default guard is a %d us window and the 1 us floor a %d us "
+        "window; the delay tolerance is a separate measurement (it grows with "
+        "the guard), so neither window is a safety factor."
         % (default_window, floor_window))
     for name, other, bad, all_bad in platform_stats:
         bench = other.get("bench") or name
@@ -1140,7 +1152,9 @@ transfer was serviced before completion, including the final release.</li>
 table), and the CPU hammer ran too. The feed still met the {interp_floor} us
 floor on the primary bench.</li>
 <li>The default guard is a {guard_window} us window; the 1 us floor is a
-{interp_floor2} us window. They are not a 3x safety factor. The library default
+{interp_floor2} us window. A late feed is tolerated well past either window
+(see "Feed delay tolerance vs the guard window"), so the window and the delay
+tolerance are different quantities, not a safety factor. The library default
 is sufficient on F0 and on the equal-priority H5 row; the F4 default-placement
 and H5 PRIO 3 rows show that a higher-ranked load can still starve the feed.</li>
 </ul>
