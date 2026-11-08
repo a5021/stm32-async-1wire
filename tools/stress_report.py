@@ -397,7 +397,7 @@ clean</em> means even the widest guard tested did not pass.
        "No one-frame captures were recorded for this bench.")
 
 
-def priority_section(primary, others):
+def priority_section(primary, others, has_knob=False):
     """Compare the same load placed above and below the feed in arbitration."""
     rows = []
     seen = set()
@@ -462,11 +462,15 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
-<p>These rows move the load, not the library. The direct test of the build knob
-is the next section: the same failing cells re-run with the feed and capture
-raised.</p>
+<p>%s</p>
 </section>
-""" % "\n".join(rows)
+""" % ("\n".join(rows),
+       "These rows move the load, not the library. The direct test of the build"
+       " knob is the next section: the same failing cells re-run with the feed"
+       " and capture raised."
+       if has_knob else
+       "These rows move the load, not the library. The build knob itself is"
+       " not re-measured on these benches yet.")
 
 
 def _knob_verdict(cell, mode):
@@ -855,15 +859,15 @@ def build_report(data, capture=None, platforms=None, priority=None,
             "Search ROM on the primary bench returned the same %s devices "
             "and checksum in all %d cells."
             % (base_count, len(cap_cells)))
-    first_bad = capture.get("first_bad") or {}
-    feed = [v for k, v in first_bad.items()
-            if k.startswith("write") and v is not None]
-    capd = [v for k, v in first_bad.items()
-            if k.startswith("search") and v is not None]
+    inj_cells = capture.get("inject_cells") or []
+    feed = [v for v in _first_bad_from_cells(
+        inj_cells, "write", default_guard).values() if v is not None]
+    capd = [v for v in _first_bad_from_cells(
+        inj_cells, "search").values() if v is not None]
     if feed and capd:
         findings.append(
-            "A delayed feed (%d us) and capture (%d us) both fail the "
-            "checks, so the harness catches a late transfer."
+            "A delayed feed (%d us at the default guard) and capture (%d us) "
+            "both fail the checks, so the harness catches a late transfer."
             % (min(feed), min(capd)))
 
     # Main matrix.
@@ -946,7 +950,7 @@ def build_report(data, capture=None, platforms=None, priority=None,
     priority_rows = ([(name, "default", other)
                       for name, other in (platforms or [])]
                      + list(priority or []))
-    priority_html = priority_section(data, priority_rows)
+    priority_html = priority_section(data, priority_rows, bool(knob))
     knob_html = knob_section(platforms, platform_captures, knob)
     # One rendered block for every generated section: the two control tables
     # first (they belong with the primary results), then the extra platforms,
