@@ -174,11 +174,12 @@ loop; the empty-call share above is therefore slightly lower than in the shipped
 build, while the per-call cost and the useful-work cost are not affected. For a
 fixed operation mix and configuration, useful-work time per transaction is
 approximately constant: 34.1 µs per measurement on the H503 and 861.0 µs on the
-F030. It changes with the operation itself, the resolution, parasite power, bus
-length and the number of devices in a search, so it is not a universal
-characteristic of the driver. With continuous polling and a sufficiently high
-transaction rate, useful 1-Wire processing can occupy a substantial fraction of
-CPU time. The percentage depends on the operation mix and on how much time is
+F030. It changes with the operation itself, the number of devices in a search,
+and configuration choices such as parasite power. Resolution changes the
+conversion wait and bus length changes the analog waveform, but neither changes
+the CPU cycles the driver spends, so they do not move this number. With
+continuous polling and a sufficiently high transaction rate, useful 1-Wire
+processing can occupy a substantial fraction of CPU time. The percentage depends on the operation mix and on how much time is
 spent waiting for hardware operations, so the small percentages above are not a
 ceiling.
 
@@ -217,9 +218,11 @@ a blocking conversion wait, would hold the CPU for:
 This is an analytical estimate from the published 1-Wire timing, not a
 measurement on this bench; decoding and CRC are omitted because they are small.
 The non-blocking driver spends 92.6 ms (H503) or 126.6 ms (F030) inside `poll()`
-during the active phase, and the 750 ms conversion wait costs no CPU at all.
-That contrast, not the small useful-work share, is the practical meaning of
-"non-blocking".
+during the active phase, most of it in empty polls while the conversion runs.
+The wait itself needs no driver work: the application is free to sleep or run
+other code, and with `OW_LOW_POWER=1` it sleeps. A blocking driver instead holds
+the CPU for the full 750 ms. That contrast, not the small useful-work share, is
+the practical meaning of "non-blocking".
 
 ## Low-power builds
 
@@ -232,8 +235,9 @@ percentages above.
 
 ## What is not included
 
-- The 750 ms conversion wait itself. The driver starts the wait and handles its
-  completion; the elapsed wait is not CPU time.
+- The 750 ms conversion wait as driver work. It is part of the active phase, but
+  the driver only starts it and handles its completion. In this busy-poll build
+  the CPU spends it in empty polls; with `OW_LOW_POWER=1` it sleeps instead.
 - The application loop outside the public poll calls. It is the "other
   application loop" residual in the breakdown, not separately instrumented.
 - Interrupts. These examples install no interrupt handlers: SysTick is polled
