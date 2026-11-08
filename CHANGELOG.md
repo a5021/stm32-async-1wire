@@ -12,14 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **CPU profile for the non-blocking driver.** `docs/cpu-profile.md` separates
-  the useful state-machine work from the public `poll()` call, so idle polling
-  and the application callback are visible instead of being mistaken for driver
-  processing. On the H503 at 250 MHz one measurement costs 8,586 cycles
-  (34.3 us) of useful work and a seven-device search 224,874 cycles (0.899 ms);
-  on the F030 at 8 MHz the same work costs 6,829 cycles (853.6 us) and 134,628
-  cycles (16.83 ms). The public poll is 15.11% / 23.35% of the active phase
-  respectively, while useful work is 0.0043% / 0.108%. The profiler hooks are
-  opt-in (`APP_PROFILE=1 OW_PROFILE=1`) and compile to nothing otherwise.
+  the useful state-machine work, the empty public calls and the application
+  callback. On the H503 at 250 MHz one measurement costs 8,529 cycles (34.1 us)
+  of useful work and a seven-device search 240,585 cycles (0.962 ms); an empty
+  poll costs 41 cycles (164 ns). On the F030 at 8 MHz the same work costs 6,888
+  cycles (861.0 us) and 137,334 cycles (17.17 ms); an empty poll costs 33 cycles
+  (4.1 us). The public poll is 11.73% / 16.01% of the active phase respectively,
+  while useful work is 0.0043% / 0.1088% and the callback 0.0024% / 0.0549%.
+  The profiler reads a free-running counter (`DWT->CYCCNT` or `TIM14`), is
+  opt-in (`APP_PROFILE=1 OW_PROFILE=1`) and compiles to nothing otherwise.
 - **The visualizer selftest runs in CI.** `tools/1wire_vis/selftest.html` is
   the only executable check of the decoder that ships to users, but it used to
   run only when somebody opened the page by hand. `tools/1wire_vis/run_selftest.py`
