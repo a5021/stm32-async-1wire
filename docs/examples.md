@@ -96,6 +96,13 @@ make OW_MCU=STM32L476xx APP=4_scan_mode
 # ... 16MHz on the raw internal HSI16:
 make OW_MCU=STM32L476xx SYSCLK_MHZ=16 APP=4_scan_mode
 
+# STM32C552CET6 target (WeAct 48-pin, 144MHz HSE->PSI default):
+make OW_MCU=STM32C552xx APP=4_scan_mode
+# ... 48MHz on the HSIDIV3 reset clock:
+make OW_MCU=STM32C552xx SYSCLK_MHZ=48 APP=4_scan_mode
+# ... raw 8MHz HSE:
+make OW_MCU=STM32C552xx SYSCLK_MHZ=8 HSE_MHZ=8 APP=4_scan_mode
+
 # STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
 make OW_MCU=STM32H503xx APP=4_scan_mode
 

@@ -154,6 +154,10 @@ jobs:
             "5_commands|STM32L476xx|16|ds18b20_5_commands_l4_16mhz|"
             "6_statistics|STM32L476xx|16|ds18b20_6_statistics_l4_16mhz|"
             "7_low_power|STM32L476xx|16|ds18b20_7_low_power_lp_l4_16mhz|lowpower"
+            # STM32C552xx (WeAct 48-pin) - 144MHz HSE->PSI default, 48MHz HSIDIV3, 8MHz raw HSE
+            "2_device_search|STM32C552xx|-|ds18b20_2_device_search_c5_144mhz|"
+            "2_device_search|STM32C552xx|48|ds18b20_2_device_search_c5_48mhz|"
+            "2_device_search|STM32C552xx|8|ds18b20_2_device_search_c5_8mhz|"
             # STM32H503xx (WeAct Core) - 64MHz raw-HSI default, 250MHz via HSE+PLL1, 8MHz raw HSE
             "1_basic|STM32H503xx|-|ds18b20_1_basic_h5_64mhz|"
             "2_device_search|STM32H503xx|-|ds18b20_2_device_search_h5_64mhz|"
@@ -234,13 +238,14 @@ jobs:
             "7_low_power|STM32F446xx|-|ds18b20_7_low_power_lp_f446xx_180mhz|lowpower"
             # 8_ds2431: one default-clock build per MCU. The DS2431 EEPROM
             # example ships no clock or EXT variants, so this is the complete
-            # set - ten rows, one per family member in the matrix above.
+            # set - eleven rows, one per family member in the matrix above.
             "8_ds2431|-|-|ds18b20_8_ds2431_72mhz|"
             "8_ds2431|STM32F030x6|-|ds18b20_8_ds2431_f0_48mhz|"
             "8_ds2431|STM32G031xx|-|ds18b20_8_ds2431_g0_64mhz|"
             "8_ds2431|STM32F303xC|-|ds18b20_8_ds2431_f3_72mhz|"
             "8_ds2431|STM32G474xx|-|ds18b20_8_ds2431_g4_170mhz|"
             "8_ds2431|STM32L476xx|-|ds18b20_8_ds2431_l4_80mhz|"
+            "8_ds2431|STM32C552xx|-|ds18b20_8_ds2431_c5_144mhz|"
             "8_ds2431|STM32H503xx|-|ds18b20_8_ds2431_h5_64mhz|"
             "8_ds2431|STM32F407xx|-|ds18b20_8_ds2431_f407xx_168mhz|"
             "8_ds2431|STM32F401xC|-|ds18b20_8_ds2431_f401xc_84mhz|"
@@ -254,6 +259,7 @@ jobs:
             "9_multi|STM32F303xC|-|ds18b20_9_multi_f3_72mhz|"
             "9_multi|STM32G474xx|-|ds18b20_9_multi_g4_170mhz|"
             "9_multi|STM32L476xx|-|ds18b20_9_multi_l4_80mhz|"
+            "9_multi|STM32C552xx|-|ds18b20_9_multi_c5_144mhz|"
             "9_multi|STM32H503xx|-|ds18b20_9_multi_h5_64mhz|"
             "9_multi|STM32F407xx|-|ds18b20_9_multi_f407xx_168mhz|"
             "9_multi|STM32F401xC|-|ds18b20_9_multi_f401xc_84mhz|"

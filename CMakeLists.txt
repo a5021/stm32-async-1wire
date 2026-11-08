@@ -283,6 +283,10 @@ endforeach()
 # Fold the part into the family-level values the rest of this file consumes.
 string(REGEX REPLACE "^-D" "" _ow_dev "${CHIP_DEV_DEF}")
 set(CMSIS_DEVICE_DEF "${_ow_dev}")
+if(OW_TARGET STREQUAL "c5")
+    # SystemCoreClockUpdate() needs the crystal value for the raw-HSE path.
+    list(APPEND CMSIS_DEVICE_DEF "HSE_VALUE=${CHIP_HSE_MHZ}000000")
+endif()
 get_filename_component(STARTUP_ASM "${CHIP_STARTUP}" NAME)
 # The part files spell repo paths relative to the repository root, which is what
 # the Makefile build wants (it runs from there). The linker resolves -T against

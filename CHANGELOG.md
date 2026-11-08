@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **STM32C5 family support.** The STM32C552CET6 joins the port with a TIM1 +
+  LPDMA1 backend (PA10/TIM1_CH3, CH4 indirect capture, LPDMA1 channels 2/3 with
+  `REQSEL` 25/27) and three clock paths: 144 MHz from the 8 MHz HSE through the
+  PSI, the 48 MHz HSIDIV3 reset clock, and raw 8 MHz HSE. The CMSIS C startup
+  and the DFP linker script are wired into both the Make and CMake builds.
+  Bench-validated on the WeAct 48-pin board with seven parasite-powered
+  DS18B20 plus one DS2431: apps 2-9 pass at all three clocks, including
+  `0_dma_pressure`, the DS2431 EEPROM write/read-back and the 9_multi peak/low
+  logger.
 - **CPU profile for the non-blocking driver.** `docs/cpu-profile.md` separates
   the useful state-machine work, the empty public calls and the callback plus
   per-call overhead. On the H503 at 250 MHz one measurement costs 8,529 cycles

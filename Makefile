@@ -143,6 +143,10 @@ endif
 # error; only an unset OW_TARGET receives the F1 default. A typo such as
 # OW_TARGET=f401-84 therefore cannot silently compile a Blue Pill.
 OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 l4 c5 h5 h7
+# Host-test families. C5 is build/bench-validated only until a host mock for
+# the LPDMA backend exists; keep it out of the host wrappers so test-all-families
+# does not ask for a mock that is not there.
+OW_HOST_TEST_TARGETS = f0 f1 f3 f4 g0 g4 l4 h5 h7
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -301,6 +305,12 @@ endif
 # so /2 on the 8MHz WeAct board) the same way.
 ifdef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(HSE_MHZ)
+endif
+
+# The C5 system file's SystemCoreClockUpdate() needs the crystal value for the
+# raw-HSE path. The part file owns the board default; HSE_MHZ= overrides it.
+ifeq ($(OW_TARGET),c5)
+DEF += -DHSE_VALUE=$(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))000000
 endif
 
 # Optional experimental active-drive write path:
@@ -1568,12 +1578,12 @@ test-clocks-$(1):
 endef
 
 OW_TEST_WRAPPERS = $(foreach v,$(OW_TEST_VARIANTS),\
-                     $(foreach f,$(OW_KNOWN_TARGETS),$(call ow_wrapper_name,$(v),$(f)))) \
-                   $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f))
+                     $(foreach f,$(OW_HOST_TEST_TARGETS),$(call ow_wrapper_name,$(v),$(f)))) \
+                   $(foreach f,$(OW_HOST_TEST_TARGETS),test-clocks-$(f))
 .PHONY: $(OW_TEST_WRAPPERS)
 $(foreach v,$(OW_TEST_VARIANTS),\
-   $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_VARIANT,$(v),$(f)))))
-$(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
+   $(foreach f,$(OW_HOST_TEST_TARGETS),$(eval $(call OWRULE_TEST_VARIANT,$(v),$(f)))))
+$(foreach f,$(OW_HOST_TEST_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 
 # --- Every family in one run ------------------------------------------------
 # Bare `make test` and the variant targets cover one OW_TARGET (f1 unless
@@ -1586,12 +1596,12 @@ $(foreach f,$(OW_KNOWN_TARGETS),$(eval $(call OWRULE_TEST_CLOCKS,$(f))))
 # Serialised on purpose: test: depends on clock-ref-check, which builds the
 # shared F4 per-part objects in build/test. Under -j two families would compile
 # the same object at the same time.
-OW_FAMILY_WRAPPERS = $(foreach f,$(OW_KNOWN_TARGETS),test-$(f))
+OW_FAMILY_WRAPPERS = $(foreach f,$(OW_HOST_TEST_TARGETS),test-$(f))
 
 .PHONY: test-all-families
 .NOTPARALLEL: test-all-families
 test-all-families: $(OW_FAMILY_WRAPPERS)
-	@echo "all $(words $(OW_KNOWN_TARGETS)) families passed: $(OW_KNOWN_TARGETS)"
+	@echo "all $(words $(OW_HOST_TEST_TARGETS)) host families passed: $(OW_HOST_TEST_TARGETS)"
 
 # --- Family-macro clock-value compile check (see test_sysclk_fallback.c) ---
 # Compile-only, values mode: verifies that selecting a family through the raw
@@ -1659,7 +1669,7 @@ clock-ref-check:
 	$(foreach c,$(F4_PART_CLOCK_CHECKS),$(MAKE) OW_TARGET=f4 OW_CHIP=$(c) $(TEST_OUT)/test_sysclk_fallback_$(c).o $(TEST_OUT)/test_sysclk_nodefault_$(c).o &&) true
 
 .PHONY: test-clocks test-chips
-test-clocks: test-chips test-mcu-dispatch test-mocks $(foreach f,$(OW_KNOWN_TARGETS),test-clocks-$(f)) clock-ref-check
+test-clocks: test-chips test-mcu-dispatch test-mocks $(foreach f,$(OW_HOST_TEST_TARGETS),test-clocks-$(f)) clock-ref-check
 # Every per-part F4 check, via the list above; kept as a target so the aggregate
 # and `make test` reach the same check by a name a reader can find.
 test-clocks-f4: clock-ref-check
@@ -1952,7 +1962,7 @@ help:
 	@echo "  lib             - Build only libstm32_async_1wire_<stamp>.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
-	@echo "  test-all-families - ... against every backend in OW_KNOWN_TARGETS, one run"
+	@echo "  test-all-families - ... against every host backend in OW_HOST_TEST_TARGETS, one run"
 	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
