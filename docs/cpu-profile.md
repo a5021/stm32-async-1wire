@@ -12,8 +12,7 @@ bus. This page separates three costs:
 
 The application callback is mostly UART formatting, not bus processing; it also
 advances the device selection. It is reported together with the per-call
-overhead, separately from the driver work, so the library cost is not mixed with
-the application cost.
+overhead, separately from useful driver work.
 
 ## What is measured
 
@@ -168,7 +167,7 @@ load:
 | Useful work per transaction | No, for a fixed operation mix and configuration |
 | Cost of one empty call | No, for a fixed API path and build |
 | Empty calls per transaction | Yes; it is the loop speed |
-| Callback + work-call overhead per event | No, for a fixed API path, output format and build |
+| Callback + work-call overhead per event-bearing poll | No, for a fixed API path, output format and build |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
 | Total CPU busy | Yes; 100% here because the example busy-polls |
 

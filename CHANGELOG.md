@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CPU profile for the non-blocking driver.** `docs/cpu-profile.md` separates
   the useful state-machine work, the empty public calls and the callback plus
-  per-event overhead. On the H503 at 250 MHz one measurement costs 8,529 cycles
+  per-call overhead. On the H503 at 250 MHz one measurement costs 8,529 cycles
   (34.1 us) of useful work and a seven-device search 240,585 cycles (0.962 ms);
   an empty poll costs 41 cycles (164 ns) per measurement poll and 56 cycles
   (224 ns) per search poll. On the F030 at 8 MHz the same work costs 6,888
