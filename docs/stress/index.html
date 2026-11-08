@@ -433,6 +433,12 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
+<p><strong>Bench result.</strong> Raising feed/capture to the load's class
+removed the starvation: F4 <code>PL=3</code> at 8/16 MHz and H5
+<code>PRIO 3</code> at 8/64/250 MHz were clean at guard 1 with
+<code>cndtr_late=0</code>. The library still ships the reset default;
+<code>OW_PORT_DMA_PRIO</code> and <code>OW_PORT_GPDMA_PRIO</code> are the
+build knobs for that experiment.</p>
 </section>
 
 

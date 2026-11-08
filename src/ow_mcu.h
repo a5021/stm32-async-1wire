@@ -1000,6 +1000,18 @@
 #define OW_PORT_GPDMA_REQ_TIM1_CC2 59u
 #define OW_PORT_GPDMA_REQ_TIM1_CH4 61u
 
+/* Test knob for the H5 priority experiment. The reset default is 0; a bench
+ * build can pass -DOW_PORT_GPDMA_PRIO=3 to put feed and capture in the same
+ * PRIO class as a PRIO 3 load. The host mock has no PRIO position macro. */
+#ifndef OW_PORT_GPDMA_PRIO
+#define OW_PORT_GPDMA_PRIO 0u
+#endif
+#ifndef DMA_CCR_PRIO_Pos
+#define DMA_CCR_PRIO_Pos 22u
+#endif
+#define OW_PORT_GPDMA_PRIO_BITS \
+    ((OW_PORT_GPDMA_PRIO & 0x3u) << DMA_CCR_PRIO_Pos)
+
 /* GPDMA-spelling overrides for the DISABLE/PROG vocabulary (defaults in
  * src/ow_port.h).  DISABLE is disable + bounded EN wait
  * (shared ow_port_dma_disable(), same contract as the classic path) plus
@@ -1034,7 +1046,8 @@
         OW_PORT_DMA_CAPTURE.CTR2 =                                           \
             (OW_PORT_GPDMA_REQ_TIM1_CH4 << DMA_CTR2_REQSEL_Pos);             \
         OW_PORT_DMA_CAPTURE.CTR1 = (uint32_t)(cr);                           \
-        OW_PORT_DMA_CAPTURE.CCR = (1u << DMA_CCR_EN_Pos);                    \
+        OW_PORT_DMA_CAPTURE.CCR = (1u << DMA_CCR_EN_Pos) |                   \
+                                  OW_PORT_GPDMA_PRIO_BITS;                   \
     } while (0)
 #define OW_PORT_DMA_PROG_FEED(src, count, cr)                                \
     do {                                                                     \
@@ -1046,7 +1059,8 @@
             (OW_PORT_GPDMA_REQ_TIM1_CC2 << DMA_CTR2_REQSEL_Pos) |            \
             (1u << DMA_CTR2_DREQ_Pos);                                       \
         OW_PORT_DMA_FEED.CTR1 = (uint32_t)(cr);                              \
-        OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos);                       \
+        OW_PORT_DMA_FEED.CCR = (1u << DMA_CCR_EN_Pos) |                      \
+                               OW_PORT_GPDMA_PRIO_BITS;                      \
     } while (0)
 
 /* GPDMA counts source bytes in CBR1.BNDT; the reset capture source is the
