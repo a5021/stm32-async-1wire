@@ -137,6 +137,23 @@ USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
 default build needs no UART flag), flashed via OpenOCD over the on-board
 ST-Link.
 
+### STM32C552CET6 (WeAct 48-pin Core Board)
+
+Validated on a WeAct STM32C5 48-pin Core Board: 7 × DS18B20 in parasite power
+plus one DS2431 on one 1-Wire bus on **PA10** (AF1; TIM1 CH3/CH4 pair, LPDMA1
+channels 2/3 — requests 25/27, no DMAMUX, 8-bit feed tables), console on
+USART1 TX / **PA9** (AF7) at 115200 8N1 via a CP210x USB-UART adapter, busy
+LED on **PE2** (active-low), flashed via ST-Link SWD and STM32CubeProgrammer
+2.23. The board carries an 8 MHz crystal (Y2).
+
+Clock paths: the default 144 MHz from **HSE -> PSI** (PSI reference 8 MHz,
+output 144 MHz, 4 flash wait states), the **48 MHz HSIDIV3** reset clock, and
+raw **8 MHz HSE**. All three were validated with apps 2–9; `0_dma_pressure`
+ran 100 frames at each clock with `cndtr_late=0` and no DMA errors, and
+`8_ds2431` completed its EEPROM write/read-back. The DS18B20 readings were
+26.1–26.7 °C. Build with `make OW_MCU=STM32C552xx` (144 MHz), add
+`SYSCLK_MHZ=48` for HSIDIV3, or `SYSCLK_MHZ=8 HSE_MHZ=8` for raw HSE.
+
 ### STM32H503CB (WeAct STM32H503Cx Core Board)
 
 Validated on a WeAct STM32H503Cx Core Board: 7 × DS18B20 in parasite

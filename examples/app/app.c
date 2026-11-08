@@ -227,7 +227,7 @@ void ow_stats_tx_enqueue(char c) {
  *       scale every 1-Wire timing by an unknown factor. app_init() reports the
  *       reason over the console and stops.
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
 /* Set by configure_system_clock() and read by app_init(). A return value would
  * have been the obvious channel, but changing the signature changed codegen in
  * families that can never fail, so the state is a flag and the signature is
@@ -261,7 +261,7 @@ static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 #elif defined(OW_FAMILY_H5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64)
 #elif defined(OW_FAMILY_C5)
-#define OW_CLOCK_NEEDS_WAIT 0 /* HSIS is already running; only the SWS switch is polled */
+#define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 48) /* 48MHz is the reset source; HSE/PSI paths wait */
 #elif defined(OW_FAMILY_H7)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64) /* raw HSI configures nothing, so nothing to wait on */
 #else
@@ -818,13 +818,17 @@ void configure_system_clock(void) {
     /* HSE -> PSI 144MHz, the vendor-recommended path. PSI source is the 8MHz
      * crystal, PSI reference is 8MHz and the PSI output is 144MHz. */
     RCC->CR1 |= RCC_CR1_HSEON;
-    while ((RCC->CR1 & RCC_CR1_HSERDY) == 0u)
-        ;
+    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_HSERDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
     RCC->CR2 = (RCC->CR2 & ~(RCC_CR2_PSIREFSRC | RCC_CR2_PSIREF | RCC_CR2_PSIFREQ)) |
                RCC_CR2_PSIREF_0 | RCC_CR2_PSIFREQ_0; // HSE, 8MHz, 144MHz
     RCC->CR1 |= RCC_CR1_PSISON;
-    while ((RCC->CR1 & RCC_CR1_PSISRDY) == 0u)
-        ;
+    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_PSISRDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
     FLASH->ACR = (FLASH->ACR & ~FLASH_ACR_LATENCY) | FLASH_ACR_LATENCY_4;
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW; // PSIS = 11
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS)
@@ -839,14 +843,16 @@ void configure_system_clock(void) {
     /* Raw HSE: the board crystal straight to SYSCLK, no PLL or PSI. At 8MHz
      * zero flash wait states are enough. */
     RCC->CR1 |= RCC_CR1_HSEON;
-    while ((RCC->CR1 & RCC_CR1_HSERDY) == 0u)
-        ;
+    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_HSERDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
     FLASH->ACR &= (uint32_t)~FLASH_ACR_LATENCY;
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_1)
         ;
 #else
-#error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSIS) or a value equal to HSE_MHZ (raw HSE)"
+#error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSE->PSI) or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
@@ -1493,7 +1499,7 @@ void app_time_init(void); /* defined below, with the polled millisecond clock */
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
 /**
  * @brief Report a clock that never started, then stop.
  * @note Called with the console already up so the reason can be printed, which is
@@ -1531,6 +1537,18 @@ static void app_stop_on_clock_failure(void) {
         "  running. On G4 the PLL input is HSE_MHZ/2: if that does not match\r\n"
         "  the crystal on this board the PLL cannot lock. Rebuild with the\r\n"
         "  real crystal, or run from the internal RC with SYSCLK_MHZ=16.\r\n"
+        "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
+        "  so the bus could not be timed correctly from here.\r\n";
+#elif defined(OW_FAMILY_C5)
+    /* The 144MHz clock needs HSE ready before PSI can use it as its reference;
+     * the raw 8MHz path needs HSE directly. A missing or wrong crystal leaves
+     * the clock at the 48MHz reset source. */
+    static const char msg[] =
+        "\r\nFATAL: the system clock did not start.\r\n"
+        "  HSE or PSI never reported ready, so the requested clock is not\r\n"
+        "  running. The C5 144MHz path uses HSE as the PSI reference; check\r\n"
+        "  the 8MHz crystal and HSE_MHZ. Rebuild with SYSCLK_MHZ=48 for the\r\n"
+        "  internal HSIDIV3 clock.\r\n"
         "  Stopping on purpose - the 1us tick is compiled for the requested clock,\r\n"
         "  so the bus could not be timed correctly from here.\r\n";
 #elif defined(OW_FAMILY_H5)
@@ -1613,6 +1631,9 @@ static void app_stop_on_clock_failure(void) {
      * message stays readable whatever the reset clock is. */
 #if defined(OW_FAMILY_H5)
     app_set_console_baud(32u);
+#elif defined(OW_FAMILY_C5)
+    /* The C5 tree is left on the 48MHz HSIDIV3 reset source when a wait fails. */
+    app_set_console_baud(48u);
 #elif defined(OW_FAMILY_L4)
     /* The L4 clock tree is left at the reset MSI 4MHz when a wait fails: no
      * SW switch has happened, so the console divisor must follow MSI, not the
@@ -1655,7 +1676,7 @@ void app_init(void) {
     configure_system_clock();
     hardware_init();
     app_time_init();
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
     if (!ow_clock_ok)
         app_stop_on_clock_failure();
 #endif

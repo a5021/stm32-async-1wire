@@ -1200,12 +1200,16 @@
                 (DMA_CBR1_BNDT_Pos + 1u)))
 
 /* Core-required init hooks: bus clocks and the bus pin. */
-#define OW_PORT_ENABLE_BUS_CLOCKS()                                                 \
-    do {                                                                            \
-        RC.AHB1ENR |= RCC_AHB1ENR_LPDMA1EN; /* LPDMA1 request routing + channels */ \
-        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                                          \
-        RC.APB2ENR |= RCC_APB2ENR_TIM1EN;                                           \
-        (void)RC.APB2ENR; /* settle the APB clock before the TIM1 access below */   \
+#define OW_PORT_ENABLE_BUS_CLOCKS()                                                  \
+    do {                                                                             \
+        RC.AHB1ENR |= RCC_AHB1ENR_LPDMA1EN; /* LPDMA1 request routing + channels */  \
+        RC.AHB2ENR |= RCC_AHB2ENR_GPIOAEN;                                           \
+        RC.APB2ENR |= RCC_APB2ENR_TIM1EN;                                            \
+        /* Read back each gate so the peripheral sees its clock before the first   \
+         * register access; at 8MHz the write alone is not enough on this bus. */ \
+        (void)RC.AHB1ENR;                                                            \
+        (void)RC.AHB2ENR;                                                            \
+        (void)RC.APB2ENR;                                                            \
     } while (0)
 #define OW_PORT_CONFIG_BUS_PIN()                                                      \
     do {                                                                              \

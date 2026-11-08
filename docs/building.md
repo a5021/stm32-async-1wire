@@ -104,7 +104,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
-| `make test-all-families` | Run the plain host suite once per backend in `OW_KNOWN_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix |
+| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix; C5 is build/bench-only until its host mock exists |
 | `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
@@ -242,7 +242,8 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     the transfer width and direction, the address-increment bit, the timer
     repetition count, the peripheral request each channel must carry, and the
     accounting after the run (every scheduled transfer fired, both channels
-    drained). The same table runs on all nine families; the per-family
+    drained). The same table runs on all nine host-test families; C5 is
+    build/bench-validated only until its host mock exists. The per-family
     encoding of the same guarantee is pinned separately
     (`test_dma_cr_value_macros`)
 -   the temporal contract of every operation (`test_dma_contract`): the CCR3
@@ -768,6 +769,7 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `STM32G031xx` (Cortex-M0+) with `OW_MCU=STM32G031xx`;
     `STM32G474xx` (Cortex-M4) with `OW_MCU=STM32G474xx`;
     `STM32L476xx` (Cortex-M4) with `OW_MCU=STM32L476xx`;
+    `STM32C552xx` (Cortex-M33) with `OW_MCU=STM32C552xx`;
     `STM32H503xx` (Cortex-M33) with `OW_MCU=STM32H503xx`;
     `STM32H743xx` (Cortex-M7) with `OW_MCU=STM32H743xx`.
 
@@ -788,6 +790,8 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `port/stm32g4/STM32G474CB_FLASH.ld`),
     `make OW_MCU=STM32L476xx` for the STM32L4 backend (80 MHz default clock,
     `port/stm32l4/STM32L476RGTX_FLASH.ld`),
+    `make OW_MCU=STM32C552xx` for the STM32C5 backend (144 MHz HSE->PSI default,
+    `port/stm32c5/STM32C552CE_FLASH.ld`),
     `make OW_MCU=STM32H503xx` for the STM32H5 backend (64 MHz default clock,
     `port/stm32h5/STM32H503CB_FLASH.ld`) and
     `make OW_MCU=STM32H743xx` for the STM32H7 backend (240 MHz default clock,

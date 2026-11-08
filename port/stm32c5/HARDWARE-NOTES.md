@@ -41,9 +41,10 @@ Open checks: PSI lock/failure handling and voltage scaling at 144 MHz.
 
 Bench result: 144 MHz is HSE -> PSI with `PSIREF = 8 MHz`, `PSIFREQ = 144 MHz`
 and 4 flash wait states; `CFGR1 = 0x1B` (SW/SWS = PSIS) and `CR2 = 0x10100000`.
-The 48 MHz path leaves HSIDIV3 selected and the reset latency. Raw HSE 8 MHz is
-the board crystal straight to SYSCLK with 0 wait states. APB1/2/3 stay at /1 in
-all three.
+The HSE and PSI ready waits are bounded; a missing crystal stops the boot with
+a console message instead of hanging. The 48 MHz path leaves HSIDIV3 selected
+and the reset latency. Raw HSE 8 MHz is the board crystal straight to SYSCLK
+with 0 wait states. APB1/2/3 stay at /1 in all three.
 
 ## DMA
 
@@ -102,6 +103,31 @@ that LPDMA1 channels 2/3 have no unexpected restrictions.
 - `1_basic` is not a valid test on this bus: it uses Skip ROM, so all seven
   sensors answer at once and the scratchpad CRC fails. That is the expected
   multi-device collision, not a C5 timing fault.
+- `0_dma_pressure` level 0 ran 100 frames at all three clocks with
+  `cndtr_late=0`, `cndtr_max=0` and no DMA/load errors. The C5 path uses the
+  unsupported-load level 0 (the load generator is F0/F4/H5 only).
+
+## Example matrix
+
+2026-11-08, WeAct 48-pin board, seven parasite-powered DS18B20 plus one DS2431,
+all built with `OW_PARASITE_POWER=1` (`7_low_power` also with
+`OW_LOW_POWER=1`):
+
+| App | 8 MHz HSE | 48 MHz HSIDIV3 | 144 MHz HSE -> PSI |
+|---|---|---|---|
+| 2_device_search | pass | pass | pass |
+| 3_round_robin | pass | pass | pass |
+| 4_scan_mode | pass | pass | pass |
+| 5_commands | pass | pass | pass |
+| 6_statistics | pass | pass | pass |
+| 7_low_power | pass | pass | pass |
+| 8_ds2431 | pass | pass | pass |
+| 9_multi | pass | pass | pass |
+
+`5_commands` prints a CRC failure for its Read ROM step; that is expected with
+seven devices on the bus, because Read ROM is only valid with one device. The
+DS2431 write/read-back and the 9_multi peak/low cycles complete on all three
+clocks.
 
 ## Open questions
 

@@ -732,6 +732,15 @@ jobs:
         run: make clean && make OW_MCU=STM32H743xx SYSCLK_MHZ=480 TIM1_MHZ=240
       - name: Build release (H7 backend, 64MHz raw HSI)
         run: make clean && make OW_MCU=STM32H743xx SYSCLK_MHZ=64 TIM1_MHZ=64
+      # The C552's three clocks are separate app.c branches: 144MHz HSE->PSI,
+      # 48MHz HSIDIV3 (the reset source) and raw 8MHz HSE. Each gets its own
+      # `make clean` so the run cannot pass on the previous clock's objects.
+      - name: Build release (C5 backend, 144MHz HSE->PSI default)
+        run: make clean && make OW_MCU=STM32C552xx
+      - name: Build release (C5 backend, 48MHz HSIDIV3)
+        run: make clean && make OW_MCU=STM32C552xx SYSCLK_MHZ=48
+      - name: Build release (C5 backend, 8MHz raw HSE)
+        run: make clean && make OW_MCU=STM32C552xx SYSCLK_MHZ=8 HSE_MHZ=8
       # The console pin and UART are firmware-only code: hardware_init() is
       # inside #if !defined(DS18B20_TEST_HARNESS), so no host build compiles it
       # on any family and a break here reaches a tag unnoticed. These three
@@ -767,7 +776,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, h7]
         include:
           - backend: f0
             mcu: STM32F030x6
@@ -783,6 +792,8 @@ jobs:
             mcu: STM32G474xx
           - backend: l4
             mcu: STM32L476xx
+          - backend: c5
+            mcu: STM32C552xx
           - backend: h5
             mcu: STM32H503xx
           - backend: h7
