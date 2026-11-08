@@ -5,14 +5,15 @@ bus. This page separates three costs:
 
 - **useful work** — the driver branch that advances a search or measurement
   after a hardware operation completes;
-- **empty poll** — a public call that finds no completed operation and returns;
+- **empty poll** — a public call that performs no driver work and returns;
 - **public poll** — the whole `ds18b20_poll()` / `onewire_search_poll()` call,
   which is useful work plus empty calls plus the application callback and the
   per-call overhead of handling an event.
 
-The application callback is UART formatting, not bus processing. It is reported
-together with the per-call overhead, separately from the driver work, so the
-library cost is not mixed with the application cost.
+The application callback is mostly UART formatting, not bus processing; it also
+advances the device selection. It is reported together with the per-call
+overhead, separately from the driver work, so the library cost is not mixed with
+the application cost.
 
 ## What is measured
 
@@ -47,15 +48,16 @@ the per-call numbers.
 | Clock | 250 MHz (8 MHz HSE + PLL) | 8 MHz (HSI) |
 | Core | Cortex-M33 | Cortex-M0 |
 | Devices | 7 × DS18B20, parasite-powered bus | 7 × DS18B20, parasite-powered bus |
-| Build | `-Os -flto`, `OW_PARASITE_POWER=1` | `-Os -flto`, `OW_PARASITE_POWER=1` |
+| Build | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` |
 | Run | 300 s, 52 measurement cycles | 300 s, 52 measurement cycles |
 | Measurement phase | 790 ms (750 ms conversion wait included) | 791 ms |
 | Full cycle with 5 s pause | 5.79 s | 5.79 s |
 | Search phase | 274 ms | 300 ms |
 
-The measurement phase is the interval from `ds18b20_start_measure()` to
-`ds18b20_complete()`. The 5 s application pause after the result is not part of
-it.
+The measurement numbers are averaged over 52 cycles; the search numbers are
+from the single pass at startup. The measurement phase is the interval from
+`ds18b20_start_measure()` to the end of the `ds18b20_complete()` callback. The
+5 s application pause after the result is not part of it.
 
 ## One measurement
 
@@ -134,7 +136,8 @@ application callback and search sink, which the driver's work window skips, plus
 the entry, state checks, dispatch and exit of every call that carried a work
 event. The other-loop row is the remainder of the active phase, computed as the
 complement of the displayed values so each column sums to exactly 100.0000%; the
-unrounded numbers are in the linked JSON.
+unrounded numbers are in the linked JSON. Components are rounded independently,
+so a displayed component can differ from the public-poll row by 0.0001%.
 
 The example busy-polls, so the CPU is fully occupied during the active phase;
 the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
@@ -151,11 +154,11 @@ The integration-relevant number is the cost of a poll that finds nothing:
 
 Each public function has its own empty-call path, so the cost is fixed per API
 path and build. The callback row is small for one measurement (0.0024% / 0.0549%
-of the active phase): seven event-bearing calls and one `ds18b20_complete()`
-invocation, which splits one work event in two. In the search it
-reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state checks,
-dispatch and exit, with 543 work events because the sink splits seven of them,
-and those seven calls also run the ROM sink.
+of the active phase): seven event-bearing calls, one of which runs
+`ds18b20_complete()` and is therefore split into two work events. In the search
+it reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state
+checks, dispatch and exit, with 543 work events because the sink splits seven of
+them, and those seven calls also run the ROM sink.
 
 The percentages are a snapshot of the instrumented loop, not a universal CPU
 load:
@@ -174,13 +177,14 @@ loop; the empty-call share above is therefore slightly lower than in the shipped
 build, while the per-call cost and the useful-work cost are not affected. For a
 fixed operation mix and configuration, useful-work time per transaction is
 approximately constant: 34.1 µs per measurement on the H503 and 861.0 µs on the
-F030. It changes with the operation itself, the resolution, parasite power, bus
-length and the number of devices in a search, so it is not a universal
-characteristic of the driver. With continuous polling and a sufficiently high
-transaction rate, useful 1-Wire processing can occupy a substantial fraction of
-CPU time. The percentage depends on the operation mix and on how much time is
-spent waiting for hardware operations, so the small percentages above are not a
-ceiling.
+F030. It changes with the operation itself, the number of devices in a search,
+and configuration choices such as parasite power. Resolution changes the
+conversion wait and bus length changes the analog waveform, but neither changes
+the CPU cycles the driver spends, so they do not move this number. With
+continuous polling and a sufficiently high transaction rate, useful 1-Wire
+processing can occupy a substantial fraction of CPU time. The percentage
+depends on the operation mix and on how much time is spent waiting for hardware
+operations, so the small percentages above are not a ceiling.
 
 ## Latency
 
@@ -217,23 +221,26 @@ a blocking conversion wait, would hold the CPU for:
 This is an analytical estimate from the published 1-Wire timing, not a
 measurement on this bench; decoding and CRC are omitted because they are small.
 The non-blocking driver spends 92.6 ms (H503) or 126.6 ms (F030) inside `poll()`
-during the active phase, and the 750 ms conversion wait costs no CPU at all.
-That contrast, not the small useful-work share, is the practical meaning of
-"non-blocking".
+during the active phase, most of it in empty polls while the conversion runs.
+The wait itself needs no driver work: the application is free to sleep or run
+other code, and with `OW_LOW_POWER=1` it sleeps. A blocking driver instead holds
+the CPU for the full 750 ms. That contrast, not the small useful-work share, is
+the practical meaning of "non-blocking".
 
 ## Low-power builds
 
 These are busy-poll builds. With `OW_LOW_POWER=1` the driver sleeps in `__WFE()`
-during long hardware stages, so the application calls `poll()` roughly once per
-completion event (8 per measurement) instead of hundreds of thousands of times,
-and the core is asleep between them. That build is not profiled here; its energy
-is set by the number of wake-ups and the sleep current, not by the busy-poll
-percentages above.
+during long hardware stages, so the 750 ms conversion wait is spent asleep
+instead of in empty polls. The short stages are still polled at the
+application's loop rate. That build is not profiled here; its energy is set by
+the number of wake-ups and the sleep current, not by the busy-poll percentages
+above.
 
 ## What is not included
 
-- The 750 ms conversion wait itself. The driver starts the wait and handles its
-  completion; the elapsed wait is not CPU time.
+- The 750 ms conversion wait as driver work. It is part of the active phase, but
+  the driver only starts it and handles its completion. In this busy-poll build
+  the CPU spends it in empty polls; with `OW_LOW_POWER=1` it sleeps instead.
 - The application loop outside the public poll calls. It is the "other
   application loop" residual in the breakdown, not separately instrumented.
 - Interrupts. These examples install no interrupt handlers: SysTick is polled
