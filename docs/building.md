@@ -17,6 +17,7 @@
   - [STM32CubeIDE](#stm32cubeide)
   - [Configuration Notes](#configuration-notes)
   - [Compile-time Tunables (`inc/ow_config.h`)](#compile-time-tunables-incow_configh)
+  - [DMA priority (`OW_PORT_DMA_PRIO`)](#dma-priority-ow_port_dma_prio)
 - [VSCode Integration](#vscode-integration)
   - [Building (VSCode)](#building-1)
   - [Debugging](#debugging)
@@ -132,6 +133,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-lowpower-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
+| `make test-dma-prio` | Rebuild the contract suite with `-DOW_PORT_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
@@ -894,6 +896,28 @@ Feature flags can also be set via a Makefile knob (no EXT needed):
 ```bash
 make OW_DRIVE_ACTIVE=1        # → -DOW_DRIVE_ACTIVE=1
 ```
+
+### DMA priority (`OW_PORT_DMA_PRIO`)
+
+`OW_PORT_DMA_PRIO` (0..3, default 0) is the one build constant that lives in
+the port layer rather than in `inc/ow_config.h`, because its encoding depends
+on the DMA IP: `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
+`DMA_SxCR_PL` on the F4/H7 streams and `DMA_CCR_PRIO` on the H5/C5
+GPDMA/LPDMA channels. 0 is the reset class every release has shipped; raise it
+when the application runs its own DMA above the driver's, so the 1-Wire feed
+and capture are not starved by a lower-ranked burst. It changes no timing
+constant and no ABI, so it is **not** part of `OW_CONFIG_TOKEN`.
+
+```bash
+make EXT="-DOW_PORT_DMA_PRIO=3"
+```
+
+An equal-class load is still ordered by channel/stream index, so this is not a
+substitute for the portable rule: a higher-ranked, uninterruptible burst must
+not outlast `guard + 1` us. The bench measurements behind both statements are
+in the [stress report](stress/index.html) ("Load placement and DMA priority");
+`make test-dma-prio` rebuilds the contract suite with class 3 and fails if the
+bits do not reach the register word.
 
 ## VSCode Integration
 

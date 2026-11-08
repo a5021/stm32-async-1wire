@@ -445,10 +445,11 @@ feed on stream 2 and the capture on stream 4. Two variants are clean:
 - raise feed/capture to `PL=3` while the load stays at `PL=0`
   (`-DOW_PORT_DMA_PRIO=3`, 8/16 MHz level 5, guard 1/5/100).
 
-The library keeps `PL=0` by default; `OW_PORT_DMA_PRIO` is a build knob for the
-experiment. The integration rule is the portable part: a higher-ranked,
-uninterruptible load burst must not last longer than `guard + 1` us. See the
-stress report's "Load placement and DMA priority" section.
+The library keeps `PL=0` by default; `OW_PORT_DMA_PRIO` is the build knob that
+raises both channels (0..3, one name on every backend, `DMA_SxCR_PL` here). The
+integration rule is the portable part: a higher-ranked, uninterruptible load
+burst must not last longer than `guard + 1` us. See the stress report's "Load
+placement and DMA priority" section.
 
 ## Board connector hazards (STM32F4DISCOVERY MB997C)
 

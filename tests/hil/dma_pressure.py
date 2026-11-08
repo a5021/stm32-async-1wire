@@ -785,8 +785,8 @@ def main(argv=None):
                          "default 0 is the equal-priority experiment; 3 puts "
                          "the load in the fixed high-priority class")
     ap.add_argument("--feed-prio", type=int, default=None,
-                    help="F4 only: feed/capture DMA stream priority (0..3); "
-                         "default keeps the reset PL=0")
+                    help="feed/capture DMA priority class (0..3) via "
+                         "-DOW_PORT_DMA_PRIO; default keeps the reset class 0")
     args = ap.parse_args(argv)
     if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
         print("FAIL: --gpdma-prio must be 0..3")
@@ -832,13 +832,10 @@ def main(argv=None):
         return 1
     common.select_bench(detected)
     if args.feed_prio is not None:
-        if detected not in ("STM32F446xx", "STM32H503xx"):
-            print("FAIL: --feed-prio is F4/H5-only")
-            return 1
-        define = ("OW_PORT_DMA_PRIO" if detected == "STM32F446xx"
-                  else "OW_PORT_GPDMA_PRIO")
+        # One build knob on every backend (src/ow_mcu.h); the encoding differs
+        # per DMA IP, so the harness never names a family-specific macro.
         common.BUILD_EXT = (common.BUILD_EXT +
-                            " -D%s=%d" % (define, args.feed_prio)).strip()
+                            " -DOW_PORT_DMA_PRIO=%d" % args.feed_prio).strip()
 
     prog = common.find_programmer()
     if not prog:

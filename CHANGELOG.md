@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`OW_PORT_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
+  The value (0..3, default 0 = the reset class every release has shipped)
+  selects the arbitration class for both 1-Wire channels on every backend:
+  `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
+  `DMA_SxCR_PL` on the F4/H7 streams, and `DMA_CCR_PRIO` on the H5/C5
+  GPDMA/LPDMA channels. It is the escape hatch for an application that shares
+  the DMA controller with an uninterruptible load: on the benches, a
+  level-5 load starved the default class on F446 (8/16 MHz) and H503
+  (8/64/250 MHz), and `-DOW_PORT_DMA_PRIO=3` made every cell clean at guard
+  1/5/100 with `cndtr_late = 0`. An equal-class load is still resolved by the
+  channel/stream index, so the portable rule stands: a higher-ranked burst
+  must not outlast `guard + 1` us. The knob changes no timing constant and no
+  ABI, so it is deliberately not part of `OW_CONFIG_TOKEN`. `make
+  test-dma-prio` rebuilds the contract suite for one family per encoding with
+  the class set to 3 and fails if the bits do not reach the register word.
 - **STM32C5 family support.** The STM32C552CET6 joins the port with a TIM1 +
   LPDMA1 backend (PA10/TIM1_CH3, CH4 indirect capture, LPDMA1 channels 2/3 with
   `REQSEL` 25/27) and three clock paths: 144 MHz from the 8 MHz HSE through the
