@@ -16,6 +16,8 @@
 #include "stm32g4xx.h"
 #elif defined(OW_FAMILY_L4)
 #include "stm32l4xx.h"
+#elif defined(OW_FAMILY_C5)
+#include "stm32c5xx.h"
 #elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
 #elif defined(OW_FAMILY_H7)
@@ -46,8 +48,8 @@ void uart_poll_tx(void) {
         // Write byte to UART data register for transmission
         USART1->TDR = b;
     }
-#elif defined(OW_FAMILY_G0) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
-    // G0/G4/H5/H7 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
+#elif defined(OW_FAMILY_G0) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+    // G0/G4/C5/H5/H7 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
         uart_tx_tail = (uart_tx_tail + 1u) & UART_TX_IDX_MASK;
@@ -258,6 +260,8 @@ static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 #define OW_CLOCK_NEEDS_WAIT 1 /* both 80MHz and 16MHz start HSI16 and switch to it */
 #elif defined(OW_FAMILY_H5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64)
+#elif defined(OW_FAMILY_C5)
+#define OW_CLOCK_NEEDS_WAIT 0 /* HSIS is already running; only the SWS switch is polled */
 #elif defined(OW_FAMILY_H7)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64) /* raw HSI configures nothing, so nothing to wait on */
 #else
@@ -801,6 +805,27 @@ void configure_system_clock(void) {
 #else
 #error "Unsupported OW_SYSCLK_MHZ for L4: use 80 (HSI16+PLL) or 16 (raw HSI16)"
 #endif
+#elif defined(OW_FAMILY_C5)
+/* STM32C5 bring-up clock: HSI at 144MHz. The reset clock is HSIDIV3 (48MHz);
+ * selecting HSIS gives the full 144MHz with no PLL/PSI start and no failure
+ * path. APB1/2/3 stay /1, so TIM1 = PCLK2 = SYSCLK and PSC = 143. */
+#if (OW_SYSCLK_MHZ) > (OW_C5_MAX_SYSCLK_MHZ)
+#error "OW_SYSCLK_MHZ exceeds this C5 part's ceiling (OW_C5_MAX_SYSCLK_MHZ in ow_board.h). 144MHz is the C552 cap."
+#endif
+#if (OW_SYSCLK_MHZ) == 144
+    /* HSIS is off after reset (only HSIDIV3 runs), so start it and wait for
+     * its ready bit before selecting it as SYSCLK. */
+    RCC->CR1 |= RCC_CR1_HSISON;
+    while ((RCC->CR1 & RCC_CR1_HSISRDY) == 0u)
+        ;
+    FLASH->ACR = (FLASH->ACR & ~FLASH_ACR_LATENCY) | FLASH_ACR_LATENCY_4;
+    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_0; // HSIS = 01
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
+        ;
+    RCC->CR1 &= (uint32_t)~RCC_CR1_HSIDIV3ON;
+#else
+#error "Unsupported OW_SYSCLK_MHZ for C5: use 144 (HSI direct)"
+#endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
  * the part ceiling.  All three leave the AHB/APB prescalers at their reset /1,
@@ -1145,7 +1170,7 @@ void configure_system_clock(void) {
  *       silkscreen, active high (per the WeAct schematic) - opts in with
  *       -DOW_F4_LED_PB2.
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
 #if defined(OW_UART_USART3)
     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */
@@ -1352,6 +1377,23 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     app_set_console_baud(OW_L4_PCLK2_MHZ);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
+#elif defined(OW_FAMILY_C5)
+    /* Console on PA9 (AF7 = USART1_TX), busy LED on PE2 (push-pull output).
+     * The WeAct board lights the LED on pin LOW, like the H503 board. */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOEEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+    // PA9: alternate function push-pull, AF7 = USART1_TX (pin 9 is in AFR[1]).
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;
+    GPIOA->OTYPER &= ~GPIO_OTYPER_OT9;
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
+
+    // PE2: plain push-pull output for the busy LED.
+    GPIOE->MODER = (GPIOE->MODER & ~GPIO_MODER_MODE2) | GPIO_MODER_MODE2_0;
+
+    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+    app_set_console_baud(OW_C5_PCLK2_MHZ);
+    USART1->CR1 = USART_CR1_TE | USART_CR1_UE;
 #elif defined(OW_FAMILY_H5)
     /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (push-pull output).
      *
@@ -1736,6 +1778,13 @@ void ds18b20_busy(unsigned action) {
         GPIOA->BSRR = GPIO_BSRR_BS5;
     } else {
         GPIOA->BSRR = GPIO_BSRR_BR5;
+    }
+#elif defined(OW_FAMILY_C5)
+    /* PE2, active-low: the WeAct C5 board lights the LED on pin LOW. */
+    if (action) {
+        GPIOE->BSRR = GPIO_BSRR_BR2;
+    } else {
+        GPIOE->BSRR = GPIO_BSRR_BS2;
     }
 #elif defined(OW_FAMILY_H5)
     /* PC13, active-low: the WeAct H503 board lights the LED on pin LOW

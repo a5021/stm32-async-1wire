@@ -138,6 +138,17 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 #define OW_H5_CONSOLE_BRR USART_BRR_CALC(OW_H5_PCLK2_MHZ * 1000000u, 115200)
 #endif /* OW_FAMILY_H5 */
 
+/* --- C5 console divisor ----------------------------------------------------
+ *
+ * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  The C5 bring-up clock is
+ * HSI at 144MHz, so this is one line like G4/H5. */
+#if defined(OW_FAMILY_C5)
+/** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
+#define OW_C5_PCLK2_MHZ ((OW_SYSCLK_MHZ))
+/** @brief Console BRR on USART1/APB2 at 115200 baud */
+#define OW_C5_CONSOLE_BRR USART_BRR_CALC(OW_C5_PCLK2_MHZ * 1000000u, 115200)
+#endif /* OW_FAMILY_C5 */
+
 /* --- H7 console divisor ----------------------------------------------------
  *
  * USART1 is on APB2. In both H7 PLL modes PCLK2 is 120MHz: at 240/240,
