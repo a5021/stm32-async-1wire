@@ -32,8 +32,9 @@ A free-running hardware counter replaces `SysTick->VAL`: `DWT->CYCCNT` on the
 Cortex-M33 H503 and `TIM14` on the Cortex-M0 F030. Both are read as an unsigned
 difference. On the F030, TIM14 runs from the 8 MHz APB1 clock with `PSC = 0`, so
 it ticks every 125 ns and its 16-bit counter wraps every 8.19 ms, far above the
-0.902 ms worst interval measured here. A sample in the upper half of the range
-is counted as an overflow and rejected.
+0.902 ms worst interval measured here. A sample with a measured delta in the
+upper half of the range is treated as invalid (possible missed wrap) and
+rejected.
 
 A calibration loop measures the hook itself; the reported cycles already have
 that overhead subtracted (1 cycle/event on the H503, 4 on the F030). The
@@ -168,7 +169,7 @@ load:
 | Useful work per transaction | No, for a fixed operation mix and configuration |
 | Cost of one empty call | No, for a fixed API path and build |
 | Empty calls per transaction | Yes; it is the loop speed |
-| Callback + work-call overhead per event-bearing poll | No, for a fixed API path, callback frequency, output format and build |
+| Callback + work-call overhead per event-bearing poll | No, for a fixed API path, event sequence, callback frequency, output format and build |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
 | Total CPU busy | Yes; 100% here because the example busy-polls |
 
