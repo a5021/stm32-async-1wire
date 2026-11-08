@@ -81,7 +81,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
 <li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
 <li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
-<li>Search ROM under the same loads returned the same 7 devices and checksum in all 24 cells.</li>
+<li>Search ROM under the same loads returned the same 7 devices and checksum in all 36 cells.</li>
 <li>A delayed feed (16 us) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
 <p>This test checks whether memory load can delay the CCR3 feed DMA past its
@@ -192,12 +192,11 @@ accesses. The burst count in the table shows the load.</p>
 
 <section id="capture">
 <h2>Capture drain under load</h2>
-<p class="meta">Search ROM matrix measured 2026-11-05 at commit <code>1c6aaa87</code>.</p>
+<p class="meta">Search ROM matrix measured 2026-11-08 at commit <code>e5f3cea5</code>.</p>
 <p>The Search ROM pass reads every bit through the capture DMA (channel 4), so
 it tests the other deadline. One search runs per boot at each level and clock,
-at the default guard and the 1 us floor. The unloaded level-0 pass is the
-baseline (48: 7 devices, <code>88DB0C9D</code>, 8: 7 devices, <code>88DB0C9D</code>); a stressed pass must return the same DS18B20 count and FNV-1a
-checksum.</p>
+at every measured guard (1 us, 5 us and 100 us). The unloaded level-0 pass is the baseline (48: 7 devices, <code>88DB0C9D</code>, 8: 7 devices, <code>88DB0C9D</code>); a
+stressed pass must return the same DS18B20 count and FNV-1a checksum.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>Guard</th><th>DS18B20s</th><th>ROM checksum</th><th>ROM callbacks</th><th>Matches baseline</th><th>Viewer</th></tr></thead><tbody><tr><td>0</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g1_i0.sr&amp;speed=standard" title="search/l0_8mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>1</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l1_8mhz_g1_i0.sr&amp;speed=standard" title="search/l1_8mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>2</td><td>8 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l2_8mhz_g1_i0.sr&amp;speed=standard" title="search/l2_8mhz_g1_i0.sr">frame</a></td></tr>
@@ -210,6 +209,12 @@ checksum.</p>
 <tr><td>3</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l3_8mhz_g5_i0.sr&amp;speed=standard" title="search/l3_8mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l4_8mhz_g5_i0.sr&amp;speed=standard" title="search/l4_8mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>5</td><td>8 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l5_8mhz_g5_i0.sr&amp;speed=standard" title="search/l5_8mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g100_i0.sr&amp;speed=standard" title="search/l0_8mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>1</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l1_8mhz_g100_i0.sr&amp;speed=standard" title="search/l1_8mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>2</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l2_8mhz_g100_i0.sr&amp;speed=standard" title="search/l2_8mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>3</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l3_8mhz_g100_i0.sr&amp;speed=standard" title="search/l3_8mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>4</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l4_8mhz_g100_i0.sr&amp;speed=standard" title="search/l4_8mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>8 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l5_8mhz_g100_i0.sr&amp;speed=standard" title="search/l5_8mhz_g100_i0.sr">frame</a></td></tr>
 <tr><td>0</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g1_i0.sr&amp;speed=standard" title="search/l0_48mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>1</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l1_48mhz_g1_i0.sr&amp;speed=standard" title="search/l1_48mhz_g1_i0.sr">frame</a></td></tr>
 <tr><td>2</td><td>48 MHz</td><td>1 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l2_48mhz_g1_i0.sr&amp;speed=standard" title="search/l2_48mhz_g1_i0.sr">frame</a></td></tr>
@@ -221,8 +226,14 @@ checksum.</p>
 <tr><td>2</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l2_48mhz_g5_i0.sr&amp;speed=standard" title="search/l2_48mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>3</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l3_48mhz_g5_i0.sr&amp;speed=standard" title="search/l3_48mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l4_48mhz_g5_i0.sr&amp;speed=standard" title="search/l4_48mhz_g5_i0.sr">frame</a></td></tr>
-<tr><td>5</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l5_48mhz_g5_i0.sr&amp;speed=standard" title="search/l5_48mhz_g5_i0.sr">frame</a></td></tr></tbody></table>
-<p class="note">All 24 stressed cells match. The search filters family 0x28, so
+<tr><td>5</td><td>48 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l5_48mhz_g5_i0.sr&amp;speed=standard" title="search/l5_48mhz_g5_i0.sr">frame</a></td></tr>
+<tr><td>0</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g100_i0.sr&amp;speed=standard" title="search/l0_48mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>1</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l1_48mhz_g100_i0.sr&amp;speed=standard" title="search/l1_48mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>2</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l2_48mhz_g100_i0.sr&amp;speed=standard" title="search/l2_48mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>3</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l3_48mhz_g100_i0.sr&amp;speed=standard" title="search/l3_48mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>4</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l4_48mhz_g100_i0.sr&amp;speed=standard" title="search/l4_48mhz_g100_i0.sr">frame</a></td></tr>
+<tr><td>5</td><td>48 MHz</td><td>100 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/captures/search/l5_48mhz_g100_i0.sr&amp;speed=standard" title="search/l5_48mhz_g100_i0.sr">frame</a></td></tr></tbody></table>
+<p class="note">All 36 stressed cells match. The search filters family 0x28, so
 the firmware counts 7 sensors while the viewer shows 8 responders (7 DS18B20
 plus 1 DS2431). <code>SEARCH_MAX</code> caps the count at 8, so this is not a
 full bus census. At high load the poll loop can stretch the gaps between bits;
@@ -249,26 +260,31 @@ must make the cell fail.</p>
 <tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>16 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr></tbody></table>
-<p>The first delayed feed is detected at <strong>16 us (48 MHz) and 20 us (8 MHz)</strong>; the first
+<p>The first delayed feed is detected at <strong>16 us (48 MHz) and 18 us (8 MHz)</strong>; the first
 delayed capture at <strong>200 us (both clocks)</strong>. The write window starts at the frame's
-first CC2 request (65 us), so these values bound how long the first feed
+first CC2 request (65 us), so these values pin how long the first feed
 transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
 <p>The detection threshold is later than the guard window. A late CCR3 write is
-harmless until the counter has passed the new compare value, so 8 and 12 us
-still decode at guard 5 (a 6 us window). Read the measured threshold as an
-upper bound on the safe delay, not as the window itself; a finer sweep is
-needed to pin the boundary.</p>
+harmless until the counter has passed the new compare value, so the feed keeps
+decoding past the 6 us window; the 2 us step pins the boundary: 8 MHz: clean through 16 us, first detected at 18 us; 48 MHz: clean through 14 us, first detected at 16 us. Read the
+measured threshold as the last harmless delay, not as the window itself.</p>
 </section>
 
 <section id="platform-f446">
