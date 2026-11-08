@@ -207,7 +207,13 @@ def main():
               (clock if clock is not None else "default"), bool(detected))
     check("the feed delay was measured at more than one guard",
           len(guards) > 1, "guards: %s" % guards)
+    check("the feed-delay-vs-guard table is rendered",
+          'id="feed-delay"' in actual)
     for c in inj_cells:
+        if c["mode"] == "write" and c.get("guard_us", 5) != 5:
+            # The guard sweep is summarised in its own table, which links the
+            # frame the boundary was measured on rather than every cell.
+            continue
         name = c.get("capture")
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
         # A failing injection links its kept failure window, not `capture`.

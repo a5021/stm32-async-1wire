@@ -75,14 +75,14 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>On the primary bench, every level and clock is clean at the 1 us floor (a 2 us window).</li>
 <li>cndtr_late is 0, no DMA error was latched, and no channel-stop timeout occurred in any primary-bench cell.</li>
 <li>Load activity: at 48 MHz channel 1 restarted 8300 times; at 8 MHz channel 1 restarted 1400 times (level 4; level 5 adds the CPU hammer).</li>
-<li>The default guard is a 6 us window; the 1 us floor is a 2 us window. The two are different measurements, not a 3x safety factor.</li>
+<li>The default guard is a 6 us window and the 1 us floor a 2 us window; the delay tolerance is a separate measurement (it grows with the guard), so neither window is a safety factor.</li>
 <li>STM32F446xx: 2 default-guard level/clock cells fail (7 cells across the guard sweep).</li>
 <li>STM32H503xx: every level is clean at the default guard.</li>
 <li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
 <li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
 <li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
-<li>Search ROM under the same loads returned the same 7 devices and checksum in all 36 cells.</li>
-<li>A delayed feed (16 us) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
+<li>Search ROM on the primary bench returned the same 7 devices and checksum in all 36 cells.</li>
+<li>A delayed feed (16 us at the default guard) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
 <p>This test checks whether memory load can delay the CCR3 feed DMA past its
 slot deadline. The primary bench stays clean; the additional benches show where
@@ -192,7 +192,7 @@ accesses. The burst count in the table shows the load.</p>
 
 <section id="capture">
 <h2>Capture drain under load</h2>
-<p class="meta">Search ROM matrix measured 2026-11-08 at commit <code>e5f3cea5</code>.</p>
+<p class="meta">Search ROM matrix measured 2026-11-08 at commit <code>86988313</code>.</p>
 <p>The Search ROM pass reads every bit through the capture DMA (channel 4), so
 it tests the other deadline. One search runs per boot at each level and clock,
 at every measured guard (1 us, 5 us and 100 us). The unloaded level-0 pass is the baseline (48: 7 devices, <code>88DB0C9D</code>, 8: 7 devices, <code>88DB0C9D</code>); a
@@ -249,31 +249,31 @@ must make the cell fail.</p>
 <table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
 <th>Result</th><th>Viewer</th></tr></thead>
 <tbody><tr><td>capture (Search ROM)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>capture (Search ROM)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>8 MHz</td><td>16 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
 <tr><td>feed (write frame)</td><td>48 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><span class="muted">-</span></td></tr></tbody></table>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
 <p>The first delayed feed is detected at <strong>16 us (48 MHz) and 18 us (8 MHz)</strong>; the first
 delayed capture at <strong>200 us (both clocks)</strong>. The write window starts at the frame's
 first CC2 request (65 us), so these values pin how long the first feed
@@ -281,10 +281,37 @@ transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
-<p>The detection threshold is later than the guard window. A late CCR3 write is
-harmless until the counter has passed the new compare value, so the feed keeps
-decoding past the 6 us window; the 2 us step pins the boundary: 8 MHz: clean through 16 us, first detected at 18 us; 48 MHz: clean through 14 us, first detected at 16 us. Read the
-measured threshold as the last harmless delay, not as the window itself.</p>
+</section>
+<section id="feed-delay">
+<h2>Feed delay tolerance vs the guard window</h2>
+<p>The negative control above runs at the default guard. The same sweep at
+several guards shows how the tolerance moves: the injected window is held
+<em>after</em> the frame's first CC2 request, so the question is whether the
+last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
+<table><thead><tr><th>Clock</th><th>Guard</th><th>Clean through</th>
+<th>First detected</th><th>Guard window</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>8 MHz</td><td>1 us</td><td>14 us</td><td>16 us</td><td>2 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g1_i16.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>8 MHz</td><td>5 us</td><td>16 us</td><td>18 us</td><td>6 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i18.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>8 MHz</td><td>10 us</td><td>18 us</td><td>20 us</td><td>11 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g10_i20.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>8 MHz</td><td>20 us</td><td>20 us</td><td>22 us</td><td>21 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g20_i22.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>48 MHz</td><td>1 us</td><td>12 us</td><td>14 us</td><td>2 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g1_i14.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>48 MHz</td><td>5 us</td><td>14 us</td><td>16 us</td><td>6 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i16.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>48 MHz</td><td>10 us</td><td>14 us</td><td>16 us</td><td>11 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g10_i16.sr&amp;speed=standard">failing frame</a></td></tr>
+<tr><td>48 MHz</td><td>20 us</td><td>16 us</td><td>18 us</td><td>21 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g20_i18.sr&amp;speed=standard">failing frame</a></td></tr></tbody></table>
+<p><strong>It does not.</strong> The offset over <code>guard + 1</code>
+(measured: 8 MHz: +14/+12/+9/+1 us; 48 MHz: +12/+10/+5/-3 us) shrinks as the guard grows, and at the widest guard it reaches zero: the
+slack is not a property of the guard alone but of where the counter is when the
+late write lands relative to the next compare. A single constant
+<code>c</code> would be a fit to noise, so this report states the measured
+boundary per guard instead of a formula.</p>
+<p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
+costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
+tolerance to the sweep's resolution, not to the microsecond. At the default
+guard the feed survives well past the 6 us window, which is why the guard
+window and the delay tolerance must not be compared as if they were the same
+quantity. The number to design against is still the load-placement rule: a
+higher-ranked burst must not outlast <code>guard + 1</code> us, because that is
+when the driver's own deadline is missed.</p>
 </section>
 
 <section id="platform-f446">
@@ -449,13 +476,7 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
-<p><strong>Bench result.</strong> Raising feed/capture to the load's class
-removed the starvation: F4 <code>PL=3</code> at 8/16 MHz and H5
-<code>PRIO 3</code> at 8/64/250 MHz were clean at guard 1 with
-<code>cndtr_late=0</code>. The library still ships the reset default; the
-build knob <code>OW_PORT_DMA_PRIO=3</code> raises both channels on every
-backend (<code>DMA_CCR_PL</code>, <code>DMA_SxCR_PL</code> or
-<code>DMA_CCR_PRIO</code> depending on the DMA IP).</p>
+<p>These rows move the load, not the library. The build knob itself is not re-measured on these benches yet.</p>
 </section>
 
 
@@ -470,7 +491,9 @@ transfer was serviced before completion, including the final release.</li>
 table), and the CPU hammer ran too. The feed still met the 2 us
 floor on the primary bench.</li>
 <li>The default guard is a 6 us window; the 1 us floor is a
-2 us window. They are not a 3x safety factor. The library default
+2 us window. A late feed is tolerated well past either window
+(see "Feed delay tolerance vs the guard window"), so the window and the delay
+tolerance are different quantities, not a safety factor. The library default
 is sufficient on F0 and on the equal-priority H5 row; the F4 default-placement
 and H5 PRIO 3 rows show that a higher-ranked load can still starve the feed.</li>
 </ul>
@@ -519,24 +542,28 @@ because every cell is rebuilt and flashed.</p>
 <section id="artifacts">
 <h2>Artifacts</h2>
 <ul>
-<li><a href="results.json">results.json</a> - every tested cell, counters and
-SWD telemetry.</li>
+<li><a href="results.json">results.json</a> - every tested write-matrix cell,
+counters and SWD telemetry.</li>
+<li><a href="capture.json">capture.json</a> - the Search ROM cells, the
+deliberately delayed transfer cells and the feed-delay-vs-guard sweep.</li>
 <li><a href="matrix.txt">matrix.txt</a> - the exact console output of the
-run.</li>
+write matrix run only.</li>
 <li><code>captures/</code> - one representative frame per cell, in sigrok
 <code>.sr</code> form; the Viewer column above links each one.</li>
-<li><code>platforms/</code> - the same three files per additional bench
-(<code>results.json</code>, <code>capture.json</code>, and where the load
-placement was tested <code>results-high.json</code> with its
-<code>captures-high/</code>), for example <code>platforms/f446/</code>.</li>
+<li><code>platforms/</code> - per additional bench: <code>results.json</code>,
+<code>capture.json</code>, where the load placement was tested
+<code>results-high.json</code> with its <code>captures-high/</code>, and where
+the priority knob was tested <code>results-prio3.json</code> /
+<code>capture-prio3.json</code> (for example <code>platforms/f446/</code>).</li>
 <li><a href="https://github.com/a5021/stm32-async-1wire/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
 and <a href="https://github.com/a5021/stm32-async-1wire/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
 - the rig and the harness.</li>
 </ul>
 </section>
 </main>
-<footer>Generated from <code>results.json</code> by
-<code>tools/stress_report.py</code>. This page is deterministic:
-<code>make check</code> regenerates it and compares the bytes.</footer>
+<footer>Generated from <code>results.json</code>, <code>capture.json</code> and
+<code>platforms/*</code> by <code>tools/stress_report.py</code>. This page is
+deterministic: <code>make check</code> regenerates it and compares the
+bytes.</footer>
 </body>
 </html>
