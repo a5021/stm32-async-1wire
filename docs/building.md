@@ -17,7 +17,7 @@
   - [STM32CubeIDE](#stm32cubeide)
   - [Configuration Notes](#configuration-notes)
   - [Compile-time Tunables (`inc/ow_config.h`)](#compile-time-tunables-incow_configh)
-  - [DMA priority (`OW_DMA_PRIO`)](#dma-priority-ow_port_dma_prio)
+  - [DMA priority (`OW_DMA_PRIO`)](#dma-priority-ow_dma_prio)
 - [VSCode Integration](#vscode-integration)
   - [Building (VSCode)](#building-1)
   - [Debugging](#debugging)
