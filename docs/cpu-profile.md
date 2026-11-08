@@ -10,9 +10,10 @@ bus. This page separates three costs:
   which is useful work plus empty calls plus the application callback and the
   per-call overhead of handling an event.
 
-The application callback is UART formatting, not bus processing. It is reported
-together with the per-call overhead, separately from the driver work, so the
-library cost is not mixed with the application cost.
+The application callback is mostly UART formatting, not bus processing; it also
+advances the device selection. It is reported together with the per-call
+overhead, separately from the driver work, so the library cost is not mixed with
+the application cost.
 
 ## What is measured
 
@@ -47,7 +48,7 @@ the per-call numbers.
 | Clock | 250 MHz (8 MHz HSE + PLL) | 8 MHz (HSI) |
 | Core | Cortex-M33 | Cortex-M0 |
 | Devices | 7 × DS18B20, parasite-powered bus | 7 × DS18B20, parasite-powered bus |
-| Build | `-Os -flto`, `OW_PARASITE_POWER=1` | `-Os -flto`, `OW_PARASITE_POWER=1` |
+| Build | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` |
 | Run | 300 s, 52 measurement cycles | 300 s, 52 measurement cycles |
 | Measurement phase | 790 ms (750 ms conversion wait included) | 791 ms |
 | Full cycle with 5 s pause | 5.79 s | 5.79 s |
@@ -55,8 +56,8 @@ the per-call numbers.
 
 The measurement numbers are averaged over 52 cycles; the search numbers are
 from the single pass at startup. The measurement phase is the interval from
-`ds18b20_start_measure()` to `ds18b20_complete()`. The 5 s application pause
-after the result is not part of it.
+`ds18b20_start_measure()` to the end of the `ds18b20_complete()` callback. The
+5 s application pause after the result is not part of it.
 
 ## One measurement
 
@@ -135,7 +136,8 @@ application callback and search sink, which the driver's work window skips, plus
 the entry, state checks, dispatch and exit of every call that carried a work
 event. The other-loop row is the remainder of the active phase, computed as the
 complement of the displayed values so each column sums to exactly 100.0000%; the
-unrounded numbers are in the linked JSON.
+unrounded numbers are in the linked JSON. Components are rounded independently,
+so a displayed component can differ from the public-poll row by 0.0001%.
 
 The example busy-polls, so the CPU is fully occupied during the active phase;
 the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
@@ -152,11 +154,11 @@ The integration-relevant number is the cost of a poll that finds nothing:
 
 Each public function has its own empty-call path, so the cost is fixed per API
 path and build. The callback row is small for one measurement (0.0024% / 0.0549%
-of the active phase): seven event-bearing calls and one `ds18b20_complete()`
-invocation, which splits one work event in two. In the search it
-reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state checks,
-dispatch and exit, with 543 work events because the sink splits seven of them,
-and those seven calls also run the ROM sink.
+of the active phase): seven event-bearing calls, one of which runs
+`ds18b20_complete()` and is therefore split into two work events. In the search
+it reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state
+checks, dispatch and exit, with 543 work events because the sink splits seven of
+them, and those seven calls also run the ROM sink.
 
 The percentages are a snapshot of the instrumented loop, not a universal CPU
 load:
@@ -180,9 +182,9 @@ and configuration choices such as parasite power. Resolution changes the
 conversion wait and bus length changes the analog waveform, but neither changes
 the CPU cycles the driver spends, so they do not move this number. With
 continuous polling and a sufficiently high transaction rate, useful 1-Wire
-processing can occupy a substantial fraction of CPU time. The percentage depends on the operation mix and on how much time is
-spent waiting for hardware operations, so the small percentages above are not a
-ceiling.
+processing can occupy a substantial fraction of CPU time. The percentage
+depends on the operation mix and on how much time is spent waiting for hardware
+operations, so the small percentages above are not a ceiling.
 
 ## Latency
 
