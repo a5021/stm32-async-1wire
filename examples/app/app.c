@@ -823,8 +823,14 @@ void configure_system_clock(void) {
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
         ;
     RCC->CR1 &= (uint32_t)~RCC_CR1_HSIDIV3ON;
+#elif (OW_SYSCLK_MHZ) == 48
+    /* HSIDIV3 is the reset source (48MHz). Keep it selected; the reset flash
+     * latency (3 WS) is safe at this clock. */
+    RCC->CFGR1 &= (uint32_t)~RCC_CFGR1_SW;
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != 0u)
+        ;
 #else
-#error "Unsupported OW_SYSCLK_MHZ for C5: use 144 (HSI direct)"
+#error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3) or 144 (HSIS)"
 #endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
