@@ -12,8 +12,10 @@
 #
 # 144MHz, HSI direct. HSI runs at 144MHz on this family and the reset HSIDIV
 # divides it to 48MHz; selecting HSIS gives the full 144MHz without starting
-# a PLL or PSI. APB1/2/3 stay /1, so TIM1 = PCLK2 = SYSCLK and the shared
-# PSC = SYSCLK_MHZ - 1 rule still gives the 1us tick.
+# a PLL or PSI. The 48MHz HSIDIV3 reset point and the raw 8MHz HSE crystal
+# path are also implemented and bench-validated. APB1/2/3 stay /1, so
+# TIM1 = PCLK2 = SYSCLK and the shared PSC = SYSCLK_MHZ - 1 rule still gives
+# the 1us tick.
 #
 # 512KB flash / 128KB SRAM in one contiguous block.
 #
