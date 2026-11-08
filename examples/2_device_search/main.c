@@ -179,9 +179,8 @@ int main(void) {
             uint8_t measure_complete = prof_measure_done;
             if (measure_complete) {
                 /* End the active phase after the poll that delivered the
-                 * completion: the poll counter includes the return path and
-                 * any driver work after ds18b20_complete(), so the boundary
-                 * must match. */
+                 * completion. The active-time measurement includes the poll
+                 * return path. */
                 prof_measure_done = 0;
                 prof_measure_active_ms = app_millis() - prof_cycle_start_ms;
             }
