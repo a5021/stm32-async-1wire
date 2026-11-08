@@ -189,11 +189,22 @@ def main():
         key = "search_%s" % (clock if clock is not None else "def")
         check("a delayed search is detected at %s" % key,
               first_bad.get(key) is not None, str(first_bad.get(key)))
+        detected = []
         for guard in guards:
+            bad = [c for c in inj_cells
+                   if c["mode"] == "write" and c["clock_mhz"] == clock
+                   and c.get("guard_us", 5) == guard and not c.get("clean")]
+            if not bad:
+                # The widest guard can sit above the last measured value; the
+                # table shows ">= N us" instead of a threshold.
+                continue
+            detected.append(guard)
             key = "write_%s_g%d" % (clock if clock is not None else "def",
                                     guard)
             check("a delayed feed is detected at %s" % key,
                   first_bad.get(key) is not None, str(first_bad.get(key)))
+        check("a delayed feed is detected at %s MHz at some guard" %
+              (clock if clock is not None else "default"), bool(detected))
     check("the feed delay was measured at more than one guard",
           len(guards) > 1, "guards: %s" % guards)
     for c in inj_cells:

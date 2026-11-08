@@ -45,8 +45,11 @@ CAPTURE_GUARDS = (100, 5, 1)
 #: Injected channel-disable windows, in microseconds (see STRESS_INJECT_US).
 #: On the F030 the write values straddle the measured boundary, and the sweep
 #: repeats at three guards so the report can fit the delay tolerance instead of
-#: calling it an upper bound. The tolerance is guard + 1 + c, so each guard only
-#: needs the 2 us steps around its own boundary; that keeps a full run short.
+#: calling it an upper bound. Each guard only needs the 2 us steps around its
+#: own boundary, which keeps a full run short. The measured offset over
+#: guard + 1 is not constant (see the report), so this is a measurement grid,
+#: not a model: the guards span the range the write matrix treats as the floor,
+#: the default and the control ceiling.
 #: On the F446 any nonzero window breaks the first frame because the F4 stream
 #: does not latch the missed CC2 request, so the same sweep is still a valid
 #: control there; it just goes red earlier. The search window is reset-anchored
@@ -55,7 +58,8 @@ SEARCH_INJECT = (0, 200, 400, 600, 1000)
 WRITE_INJECT_BY_GUARD = {
     1: (8, 10, 12, 14, 16),
     5: (0, 8, 10, 12, 14, 16, 18, 20),
-    10: (16, 18, 20, 22, 24, 26),
+    10: (4, 6, 8, 10, 12, 14, 16, 18, 20),
+    20: (4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26),
 }
 INJECT_GUARDS = tuple(sorted(WRITE_INJECT_BY_GUARD))
 WRITE_INJECT = tuple(sorted({v for vs in WRITE_INJECT_BY_GUARD.values()

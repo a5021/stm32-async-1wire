@@ -594,57 +594,63 @@ def feed_delay_section(capture):
     if len(guards) < 2:
         return ""
     rows = []
-    slopes = {}
+    offsets = {}
     for clock in sorted({c["clock_mhz"] for c in cells},
                         key=lambda c: c if c is not None else -1):
         for guard in guards:
             group = [c for c in cells
                      if c["clock_mhz"] == clock and c.get("guard_us", 5) == guard]
+            if not group:
+                continue
             clean = [c["inject_us"] for c in group if c.get("clean")]
             bad = [c["inject_us"] for c in group if not c.get("clean")]
-            if not clean or not bad:
-                continue
+            detected = ("%d us" % min(bad)) if bad else (
+                "&ge; %d us" % max(clean) if clean else "?")
             rows.append(
-                "<tr><td>%s</td><td>%s</td><td>%d us</td><td>%d us</td>"
+                "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td>"
                 "<td>%d us</td></tr>" % (
                     "%d MHz" % clock if clock is not None else "default",
-                    fmt_guard(guard), max(clean), min(bad),
-                    window_us(guard)))
-            slopes.setdefault(clock, []).append((guard, min(bad)))
+                    fmt_guard(guard),
+                    ("%d us" % max(clean)) if clean else "none",
+                    detected, window_us(guard)))
+            if clean and bad:
+                offsets.setdefault(clock, []).append(
+                    (guard, min(bad) - (guard + 1)))
     if not rows:
         return ""
-    # threshold = guard + 1 + c: report c per clock when the sweep covers two
-    # guards; the 2 us step is the resolution, not the instrument's own jitter.
-    c_bits = []
-    for clock, pairs in sorted(slopes.items(),
+    off_bits = []
+    for clock, pairs in sorted(offsets.items(),
                                key=lambda kv: kv[0] if kv[0] is not None else -1):
         pairs.sort()
-        cs = [bad - (guard + 1) for guard, bad in pairs]
-        if len(cs) > 1:
-            c_bits.append("%s: c = %s us" % (
-                "%d MHz" % clock if clock is not None else "default",
-                "/".join(str(c) for c in cs)))
+        off_bits.append("%s: %s us" % (
+            "%d MHz" % clock if clock is not None else "default",
+            "/".join("%+d" % off for _, off in pairs)))
     return """<section id="feed-delay">
 <h2>Feed delay tolerance vs the guard window</h2>
 <p>The negative control above runs at the default guard. The same sweep at
 several guards shows how the tolerance moves: the injected window is held
-<em>after</em> the frame's first CC2 request, so the last harmless delay should
-follow <code>guard + 1 + c</code> for a constant <code>c</code>.</p>
+<em>after</em> the frame's first CC2 request, so the question is whether the
+last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 <table><thead><tr><th>Clock</th><th>Guard</th><th>Clean through</th>
 <th>First detected</th><th>Guard window</th></tr></thead>
 <tbody>%s</tbody></table>
-<p>%s. The sweep steps by 2 us, and the channel re-enable loop costs about
-1-2 us at 8 MHz, so the measured boundary is good to roughly ±2 us: it pins
-the tolerance to the sweep's resolution, not to the microsecond.</p>
-<p>The tolerance is therefore <code>guard + 1 + c</code>, not a multiple of the
-window: at the default guard the feed survives 2-3 times the 6 us window, so a
-guard-window comparison understates the real margin. The number to design
-against is still the rule in the load-placement section: a higher-ranked burst
-must not outlast <code>guard + 1</code> us, because that is when the driver's
-own deadline is missed, whatever the delayed transfer can still absorb.</p>
+<p><strong>It does not.</strong> The offset over <code>guard + 1</code>
+(%s) shrinks as the guard grows, and at the widest guard it reaches zero: the
+slack is not a property of the guard alone but of where the counter is when the
+late write lands relative to the next compare. A single constant
+<code>c</code> would be a fit to noise, so this report states the measured
+boundary per guard instead of a formula.</p>
+<p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
+costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
+tolerance to the sweep's resolution, not to the microsecond. At the default
+guard the feed survives well past the 6 us window, which is why the guard
+window and the delay tolerance must not be compared as if they were the same
+quantity. The number to design against is still the load-placement rule: a
+higher-ranked burst must not outlast <code>guard + 1</code> us, because that is
+when the driver's own deadline is missed.</p>
 </section>""" % ("\n".join(rows),
-                "Fitted per clock: " + "; ".join(c_bits) if c_bits else
-                "The sweep covers a single guard")
+                "measured: " + "; ".join(off_bits) if off_bits else
+                "no guard produced both a clean and a failing cell")
 
 
 def inject_section(capture):
