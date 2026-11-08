@@ -7,10 +7,12 @@ bus. This page separates three costs:
   after a hardware operation completes;
 - **empty poll** — a public call that finds no completed operation and returns;
 - **public poll** — the whole `ds18b20_poll()` / `onewire_search_poll()` call,
-  which is useful work plus empty calls plus the application callback.
+  which is useful work plus empty calls plus the application callback and the
+  per-call overhead of handling an event.
 
 The application callback is UART formatting, not bus processing. It is reported
-separately so the library cost is not mixed with the application cost.
+together with the per-call overhead, separately from the driver work, so the
+library cost is not mixed with the application cost.
 
 ## What is measured
 
@@ -21,6 +23,10 @@ one DS18B20 per cycle with Match ROM. Three counters are used:
   `ds18b20_poll()` and `onewire_search_poll()`;
 - the poll counter wraps the complete public call;
 - the empty counter times the calls that leave the work-event count unchanged.
+
+The work window is closed around `ds18b20_complete()` and the search sink, so
+application code that runs inside a completion is part of the poll residual, not
+of useful work; one public call can therefore produce more than one work event.
 
 A free-running hardware counter replaces `SysTick->VAL`: `DWT->CYCCNT` on the
 Cortex-M33 H503 and `TIM14` on the Cortex-M0 F030. Both are read as an unsigned
@@ -67,7 +73,7 @@ it.
 | Empty poll: total time | 92.60 ms | 125.32 ms |
 | Empty poll: worst call | 41 (0.16 µs) | 37 (4.62 µs) |
 | Empty poll: share of active phase | 11.7208% | 15.8422% |
-| Callback: share of active phase | 0.0024% | 0.0549% |
+| Callback + work-call overhead: share of active phase | 0.0024% | 0.0549% |
 | Public poll: cycles | 23,162,493 | 1,012,884 |
 | Public poll: time | 92.65 ms | 126.61 ms |
 | Public poll: calls | 564,621 | 30,386 |
@@ -91,7 +97,7 @@ it.
 | Empty poll: total time | 47.12 ms | 41.26 ms |
 | Empty poll: worst call | 68 (0.27 µs) | 34 (4.25 µs) |
 | Empty poll: share of active phase | 17.1959% | 13.7518% |
-| Callback: share of active phase | 0.1215% | 2.6378% |
+| Callback + work-call overhead: share of active phase | 0.1215% | 2.6378% |
 | Public poll: cycles | 12,102,984 | 530,684 |
 | Public poll: time | 48.41 ms | 66.34 ms |
 | Public poll: calls | 210,773 | 11,522 |
@@ -107,7 +113,7 @@ Measurement phase:
 |---|---:|---:|
 | Useful driver work | 0.0043% | 0.1088% |
 | Empty poll (library) | 11.7208% | 15.8422% |
-| Callback (application) | 0.0024% | 0.0549% |
+| Callback + work-call overhead | 0.0024% | 0.0549% |
 | Other application loop | 88.2725% | 83.9941% |
 | Total CPU busy | 100.0000% | 100.0000% |
 
@@ -117,16 +123,18 @@ Search phase:
 |---|---:|---:|
 | Useful driver work | 0.3512% | 5.7222% |
 | Empty poll (library) | 17.1959% | 13.7518% |
-| Callback (application) | 0.1215% | 2.6378% |
+| Callback + work-call overhead | 0.1215% | 2.6378% |
 | Other application loop | 82.3314% | 77.8882% |
 | Total CPU busy | 100.0000% | 100.0000% |
 
-The rows are exclusive. Empty poll is timed directly: it is the set of public
-calls that leave the work-event count unchanged. The callback is what remains
-of the public poll after useful work and empty calls are subtracted, and the
-other-loop row is the remainder of the active phase. The last row is computed
-as the complement of the displayed values, so each column sums to exactly
-100.0000%; the unrounded numbers are in the linked JSON.
+The rows are exclusive. Useful work and empty polls are measured directly; the
+empty counter is the set of public calls that leave the work-event count
+unchanged. The callback row is the public poll minus both: it holds the
+application callback and search sink, which the driver's work window skips, plus
+the entry, state checks, dispatch and exit of every call that carried a work
+event. The other-loop row is the remainder of the active phase, computed as the
+complement of the displayed values so each column sums to exactly 100.0000%; the
+unrounded numbers are in the linked JSON.
 
 The example busy-polls, so the CPU is fully occupied during the active phase;
 the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
@@ -142,10 +150,12 @@ The integration-relevant number is the cost of a poll that finds nothing:
   search poll.
 
 Each public function has its own empty-call path, so the cost is fixed per API
-path and build. The callback is a separate, much smaller item for one
-measurement (0.0024% / 0.0549% of the active phase); on the F030 the Search ROM
-sink is more visible at 2.64% of the search phase because it formats seven ROMs
-once.
+path and build. The callback row is small for one measurement (0.0024% / 0.0549%
+of the active phase): seven event-bearing calls and one `ds18b20_complete()`
+invocation, which splits one work event in two. In the search it
+reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state checks,
+dispatch and exit, with 543 work events because the sink splits seven of them,
+and those seven calls also run the ROM sink.
 
 The percentages are a snapshot of the instrumented loop, not a universal CPU
 load:
@@ -155,7 +165,7 @@ load:
 | Useful work per transaction | No, for a fixed operation mix and configuration |
 | Cost of one empty call | No, for a fixed API path and build |
 | Empty calls per transaction | Yes; it is the loop speed |
-| Callback per completion | No, for this output format |
+| Callback + work-call overhead per event | No, for a fixed API path, output format and build |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
 | Total CPU busy | Yes; 100% here because the example busy-polls |
 
