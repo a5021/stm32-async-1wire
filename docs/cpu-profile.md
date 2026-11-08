@@ -6,9 +6,9 @@ bus. This page separates three costs:
 - **useful work** — the driver branch that advances a search or measurement
   after a hardware operation completes;
 - **empty poll** — a public call that performs no driver work and returns;
-- **public poll** — the whole `ds18b20_poll()` / `onewire_search_poll()` call,
-  which is useful work plus empty calls plus the application callback and the
-  per-call overhead of handling an event.
+- **public poll** — a call to `ds18b20_poll()` / `onewire_search_poll()`; the
+  public-poll total over a measured phase is the sum of useful work, empty
+  polls, the application callback and the per-call overhead.
 
 The application callback is mostly UART formatting, not bus processing; it also
 advances the device selection. It is reported together with the per-call
@@ -153,9 +153,10 @@ The integration-relevant number is the cost of a poll that finds nothing:
 - F030: 33 cycles (4.1 µs) per measurement poll and 30 cycles (3.75 µs) per
   search poll.
 
-Each public function has its own empty-call path, so the cost is fixed per API
-path and build. The callback row is small for one measurement (0.0024% / 0.0549%
-of the active phase): seven event-bearing calls, one of which runs
+Each public function has its own empty-call paths, and different internal states
+can return through different branches, so the cost is fixed for a given API
+path, state and build. The callback row is small for one measurement (0.0024% /
+0.0549% of the active phase): seven event-bearing calls, one of which runs
 `ds18b20_complete()` and is therefore split into two work events. In the search
 it reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state
 checks, dispatch and exit, with 543 work events because the sink splits seven of
@@ -167,7 +168,7 @@ load:
 | Quantity | Workload-dependent? |
 |---|---|
 | Useful work per transaction | No, for a fixed operation mix and configuration |
-| Cost of one empty call | No, for a fixed API path and build |
+| Cost of one empty call | No, for a fixed API path, state and build |
 | Empty calls per transaction | Yes; it is the loop speed |
 | Callback + work-call overhead per event-bearing poll | No, for a fixed API path, event sequence, callback frequency, output format and build |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
@@ -175,7 +176,8 @@ load:
 
 The profiler adds bookkeeping after each timed call, which slows the polling
 loop; the empty-call share above is therefore slightly lower than in the shipped
-build, while the per-call cost and the useful-work cost are not affected. For a
+build. The bookkeeping itself is outside the timed call and does not contribute
+to the reported per-call cost; the timing hooks are calibrated separately. For a
 fixed operation mix and configuration, useful-work time per transaction is
 approximately constant: 34.1 µs per measurement on the H503 and 861.0 µs on the
 F030. It changes with the operation itself, the number of devices in a search,
