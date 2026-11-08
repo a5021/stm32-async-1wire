@@ -409,7 +409,7 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
     (TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2, CC4S_1) | ow_port_ic4f_mask_from_hz(SystemCoreClock))
 #endif /* OW_TIM1_MHZ */
 
-/* DMA arbitration class (OW_PORT_DMA_PRIO, see src/ow_mcu.h): the knob is one
+/* DMA arbitration class (OW_DMA_PRIO, see src/ow_mcu.h): the knob is one
  * value, the field differs per DMA IP.  The CMSIS device headers name the
  * position for every part; the host mocks carry the register layout but not
  * these macros, so each falls back to the architectural constant.  Positioned
@@ -425,11 +425,11 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #define DMA_CCR_PRIO_Pos 22u
 #endif
 /* Classic DMA1 channels (F0/F1/F3/G0/G4/L4), used by the CR defaults below. */
-#define OW_PORT_DMA_CCR_PL ((OW_PORT_DMA_PRIO) << DMA_CCR_PL_Pos)
+#define OW_PORT_DMA_CCR_PL ((OW_DMA_PRIO) << DMA_CCR_PL_Pos)
 /* F4/H7 streams (PL in the stream CR word). */
-#define OW_PORT_DMA_PL ((OW_PORT_DMA_PRIO) << DMA_SxCR_PL_Pos)
+#define OW_PORT_DMA_PL ((OW_DMA_PRIO) << DMA_SxCR_PL_Pos)
 /* H5/C5 GPDMA/LPDMA (PRIO in the channel CCR word). */
-#define OW_PORT_GPDMA_PRIO_BITS ((OW_PORT_DMA_PRIO) << DMA_CCR_PRIO_Pos)
+#define OW_PORT_GPDMA_PRIO_BITS ((OW_DMA_PRIO) << DMA_CCR_PRIO_Pos)
 
 /* DMA control-value accessors (port-unification vocabulary): the exact
  * CR/CCR word each DMA-programming site writes, split by transfer class.

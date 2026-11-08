@@ -156,6 +156,38 @@
 #endif
 
 /* -------------------------------------------------------------------
+ *  DMA arbitration priority
+ * ------------------------------------------------------------------- */
+
+/**
+ * @brief Arbitration class of the 1-Wire feed and capture DMA channels.
+ *
+ * 0 = the reset class (the shipped default), 3 = the highest class. The
+ * encoding is per DMA IP and private to the engine (`DMA_CCR_PL` on the
+ * classic DMA1 channels, `DMA_SxCR_PL` on the F4/H7 streams, `DMA_CCR_PRIO`
+ * on the H5/C5 GPDMA/LPDMA channels), so a build only ever passes a level.
+ *
+ * Raise it when the application runs its own DMA above the driver's: on the
+ * benches a level-5 load starved the default class on F446 (8/16 MHz) and
+ * H503 (8/64/250 MHz), and level 3 turned those cells clean. An equal-class
+ * load is still ordered by channel/stream index, so this is not a substitute
+ * for the portable rule: a higher-ranked burst must not outlast the feed
+ * window (`guard + 1` us).
+ *
+ * The knob changes no timing constant and no ABI, so it is deliberately not
+ * mixed into `OW_CONFIG_TOKEN`: an application and an archive built with
+ * different levels still agree on everything the token covers.
+ *
+ * Enable with -DOW_DMA_PRIO=N (0..3).
+ */
+#ifndef OW_DMA_PRIO
+#define OW_DMA_PRIO 0
+#endif
+#if (OW_DMA_PRIO) > 3
+#error "OW_DMA_PRIO must be 0..3 (DMA arbitration priority class)"
+#endif
+
+/* -------------------------------------------------------------------
  *  Feature flags (value-style: 0 = off, 1 = on)
  * ------------------------------------------------------------------- */
 

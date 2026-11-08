@@ -140,7 +140,7 @@ jobs:
           make test-f4 TEST_EXTRA_FLAG="-DOW_SYSCLK_MHZ=84 -DOW_HSE_MHZ=25"
 
   dma-priority-knob:
-    # OW_PORT_DMA_PRIO is compile-time, so the default matrix never exercises
+    # OW_DMA_PRIO is compile-time, so the default matrix never exercises
     # a non-zero class. Rebuild the contract suite with class 3 on one family
     # per DMA-priority encoding (f0 = classic DMA1 channel, f4/h7 = stream CR,
     # h5 = GPDMA CCR) and let the table's expected CR/CCR words fail if the
@@ -157,7 +157,7 @@ jobs:
       - name: Download CMSIS dependencies
         if: steps.cache-cmsis.outputs.cache-hit != 'true'
         run: make deps-all
-      - name: Contract suite at OW_PORT_DMA_PRIO=3
+      - name: Contract suite at OW_DMA_PRIO=3
         run: make test-dma-prio
 
   coverage:

@@ -462,15 +462,83 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
-<p><strong>Bench result.</strong> Raising feed/capture to the load's class
-removed the starvation: F4 <code>PL=3</code> at 8/16 MHz and H5
-<code>PRIO 3</code> at 8/64/250 MHz were clean at guard 1 with
-<code>cndtr_late=0</code>. The library still ships the reset default; the
-build knob <code>OW_PORT_DMA_PRIO=3</code> raises both channels on every
-backend (<code>DMA_CCR_PL</code>, <code>DMA_SxCR_PL</code> or
-<code>DMA_CCR_PRIO</code> depending on the DMA IP).</p>
+<p>These rows move the load, not the library. The direct test of the build knob
+is the next section: the same failing cells re-run with the feed and capture
+raised.</p>
 </section>
 """ % "\n".join(rows)
+
+
+def _knob_verdict(cell, mode):
+    if cell is None:
+        return '<span class="muted">not measured</span>'
+    ok = cell.get("clean") if mode == "write" else cell.get("matches")
+    return "clean" if ok else "<strong>fail</strong>"
+
+
+def _knob_failure(cell, mode):
+    if mode == "write":
+        return "<strong>fail</strong>"
+    count = cell.get("count")
+    return "<strong>fail</strong> (%s devices)" % ("0" if not count else count)
+
+
+def knob_section(platforms, platform_captures, knob):
+    """Default-failing cells re-measured with OW_DMA_PRIO raised."""
+    if not knob:
+        return ""
+    rows = []
+    for name, data in (platforms or []):
+        entry = knob.get(name) or {}
+        kres = entry.get("results")
+        dg = data.get("default_guard_us", 5)
+        if kres:
+            kcells = cell_map(kres)
+            for c in data.get("cells") or []:
+                if c["guard_us"] != dg or c["clean"]:
+                    continue
+                kc = kcells.get((c["level"], c["clock_mhz"], dg))
+                rows.append("<tr><td>%s</td><td>write frame</td><td>%s</td>"
+                            "<td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                            % (e(data.get("bench") or name),
+                               "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+                               c["level"], fmt_guard(dg),
+                               _knob_failure(c, "write"),
+                               _knob_verdict(kc, "write")))
+        cap = (platform_captures or {}).get(name)
+        kcap = entry.get("capture")
+        if cap and kcap:
+            kcells = {(c["level"], c["clock_mhz"], c["guard_us"]): c
+                      for c in kcap.get("capture_cells") or []}
+            for c in cap.get("capture_cells") or []:
+                if c.get("matches"):
+                    continue
+                kc = kcells.get((c["level"], c["clock_mhz"], c["guard_us"]))
+                rows.append("<tr><td>%s</td><td>Search ROM</td><td>%s</td>"
+                            "<td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                            % (e(cap.get("bench") or name),
+                               "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+                               c["level"], fmt_guard(c["guard_us"]),
+                               _knob_failure(c, "search"),
+                               _knob_verdict(kc, "search")))
+    if not rows:
+        return ""
+    return """<section id="knob">
+<h2>DMA priority knob: measured effect</h2>
+<p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
+This table takes every cell that fails at the default guard and re-runs it with
+the feed and capture raised to class 3, leaving the load where it was. The
+default column is the committed run; the right column is the knob build.</p>
+<table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
+<th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
+<tbody>%s</tbody></table>
+<p>The same levels and clocks were also re-run at guards 1 and 100 us; those
+cells are clean too, so the result is not a default-guard artefact. An
+equal-class load is still ordered by channel/stream index, so the knob is not a
+substitute for the <code>guard + 1</code> rule above. The library keeps class 0
+by default: raising it preempts every lower-ranked channel for the length of a
+1-Wire frame (up to milliseconds), which is the application's call.</p>
+</section>""" % "\n".join(rows)
 
 
 def _first_bad_text(first, prefix):
@@ -498,13 +566,98 @@ def _first_bad_text(first, prefix):
     return " and ".join(parts)
 
 
+def _first_bad_from_cells(cells, mode, guard=None):
+    """{mode_clock: first failing inject_us} read from the cells themselves.
+
+    The JSON also carries a `first_bad` map, but older captures predate the
+    guard dimension; deriving it here keeps the report readable for both.
+    """
+    out = {}
+    for c in cells:
+        if c["mode"] != mode:
+            continue
+        if guard is not None and c.get("guard_us", 5) != guard:
+            continue
+        key = "%s_%s" % (mode, c["clock_mhz"] if c["clock_mhz"] is not None
+                         else "def")
+        good = c.get("clean") if mode == "write" else c.get("matches")
+        if not good and (key not in out or c["inject_us"] < out[key]):
+            out[key] = c["inject_us"]
+    return out
+
+
+def feed_delay_section(capture):
+    """Feed delay tolerance vs the guard window, or ""."""
+    cells = [c for c in (capture.get("inject_cells") or [])
+             if c["mode"] == "write"]
+    guards = sorted({c.get("guard_us", 5) for c in cells})
+    if len(guards) < 2:
+        return ""
+    rows = []
+    slopes = {}
+    for clock in sorted({c["clock_mhz"] for c in cells},
+                        key=lambda c: c if c is not None else -1):
+        for guard in guards:
+            group = [c for c in cells
+                     if c["clock_mhz"] == clock and c.get("guard_us", 5) == guard]
+            clean = [c["inject_us"] for c in group if c.get("clean")]
+            bad = [c["inject_us"] for c in group if not c.get("clean")]
+            if not clean or not bad:
+                continue
+            rows.append(
+                "<tr><td>%s</td><td>%s</td><td>%d us</td><td>%d us</td>"
+                "<td>%d us</td></tr>" % (
+                    "%d MHz" % clock if clock is not None else "default",
+                    fmt_guard(guard), max(clean), min(bad),
+                    window_us(guard)))
+            slopes.setdefault(clock, []).append((guard, min(bad)))
+    if not rows:
+        return ""
+    # threshold = guard + 1 + c: report c per clock when the sweep covers two
+    # guards; the 2 us step is the resolution, not the instrument's own jitter.
+    c_bits = []
+    for clock, pairs in sorted(slopes.items(),
+                               key=lambda kv: kv[0] if kv[0] is not None else -1):
+        pairs.sort()
+        cs = [bad - (guard + 1) for guard, bad in pairs]
+        if len(cs) > 1:
+            c_bits.append("%s: c = %s us" % (
+                "%d MHz" % clock if clock is not None else "default",
+                "/".join(str(c) for c in cs)))
+    return """<section id="feed-delay">
+<h2>Feed delay tolerance vs the guard window</h2>
+<p>The negative control above runs at the default guard. The same sweep at
+several guards shows how the tolerance moves: the injected window is held
+<em>after</em> the frame's first CC2 request, so the last harmless delay should
+follow <code>guard + 1 + c</code> for a constant <code>c</code>.</p>
+<table><thead><tr><th>Clock</th><th>Guard</th><th>Clean through</th>
+<th>First detected</th><th>Guard window</th></tr></thead>
+<tbody>%s</tbody></table>
+<p>%s. The sweep steps by 2 us, and the channel re-enable loop costs about
+1-2 us at 8 MHz, so the measured boundary is good to roughly ±2 us: it pins
+the tolerance to the sweep's resolution, not to the microsecond.</p>
+<p>The tolerance is therefore <code>guard + 1 + c</code>, not a multiple of the
+window: at the default guard the feed survives 2-3 times the 6 us window, so a
+guard-window comparison understates the real margin. The number to design
+against is still the rule in the load-placement section: a higher-ranked burst
+must not outlast <code>guard + 1</code> us, because that is when the driver's
+own deadline is missed, whatever the delayed transfer can still absorb.</p>
+</section>""" % ("\n".join(rows),
+                "Fitted per clock: " + "; ".join(c_bits) if c_bits else
+                "The sweep covers a single guard")
+
+
 def inject_section(capture):
     """The deliberately delayed transfer table, or ""."""
     cells = capture.get("inject_cells") or []
     if not cells:
         return ""
     rows = []
-    for c in sorted(cells, key=lambda c: (c["mode"], c["clock_mhz"] or -1, c["inject_us"])):
+    # The control table is the default-guard sweep; the guard dependence has
+    # its own table (feed_delay_section) so this one stays readable.
+    shown = [c for c in cells
+             if c["mode"] == "search" or c.get("guard_us", 5) == 5]
+    for c in sorted(shown, key=lambda c: (c["mode"], c["clock_mhz"] or -1, c["inject_us"])):
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
         # Clean cells keep a decoded frame; a failing injection has only the
         # raw marker window, which is the frame worth looking at.
@@ -516,23 +669,8 @@ def inject_section(capture):
             e(mode_label(c["mode"])),
             "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
             c["inject_us"], "clean" if good else "<strong>detected</strong>", link))
-    first = capture.get("first_bad") or {}
-    feed_txt = _first_bad_text(first, "write")
-    cap_txt = _first_bad_text(first, "search")
-    # The largest window that still decoded, per clock: the sweep is fine
-    # enough to state the boundary instead of an upper bound.
-    bounds = []
-    for clock in sorted({c["clock_mhz"] for c in cells
-                         if c["mode"] == "write"}, key=lambda c: c if c is not None else -1):
-        group = [c for c in cells
-                 if c["mode"] == "write" and c["clock_mhz"] == clock]
-        clean = [c["inject_us"] for c in group if c.get("clean")]
-        bad = [c["inject_us"] for c in group if not c.get("clean")]
-        if clean and bad:
-            bounds.append(
-                "%s: clean through %d us, first detected at %d us"
-                % ("%d MHz" % clock if clock is not None else "default clock",
-                   max(clean), min(bad)))
+    feed_txt = _first_bad_text(_first_bad_from_cells(cells, "write", 5), "write")
+    cap_txt = _first_bad_text(_first_bad_from_cells(cells, "search"), "search")
     return """<section id="inject">
 <h2>Negative control: a deliberately delayed transfer</h2>
 <p>This control checks that the harness notices a late transfer.
@@ -549,16 +687,11 @@ transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
-<p>The detection threshold is later than the guard window. A late CCR3 write is
-harmless until the counter has passed the new compare value, so the feed keeps
-decoding past the 6 us window; the 2 us step pins the boundary: %s. Read the
-measured threshold as the last harmless delay, not as the window itself.</p>
-</section>""" % ("\n".join(rows), feed_txt, cap_txt,
-                "; ".join(bounds) if bounds else "the sweep did not straddle it")
+</section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
 def build_report(data, capture=None, platforms=None, priority=None,
-                 platform_captures=None):
+                 platform_captures=None, knob=None):
     capture = capture or {}
     cells = cell_map(data)
     floors = data.get("guard_min") or []
@@ -671,13 +804,49 @@ def build_report(data, capture=None, platforms=None, priority=None,
                    " at " + ", ".join("%d MHz" % c for c in clocks)
                    if clocks else ""))
 
+    # The knob's direct effect: default-failing cells that have a re-run with
+    # OW_DMA_PRIO=3. Reported only when both sides were measured.
+    knob_total = knob_clean = 0
+    for name, other in (platforms or []):
+        entry = (knob or {}).get(name) or {}
+        kres = entry.get("results")
+        if kres:
+            kcells = cell_map(kres)
+            dg = other.get("default_guard_us", 5)
+            for c in other.get("cells") or []:
+                if c["guard_us"] != dg or c["clean"]:
+                    continue
+                kc = kcells.get((c["level"], c["clock_mhz"], dg))
+                if kc is None:
+                    continue
+                knob_total += 1
+                knob_clean += 1 if kc.get("clean") else 0
+        cap = (platform_captures or {}).get(name)
+        kcap = entry.get("capture")
+        if cap and kcap:
+            kcells = {(x["level"], x["clock_mhz"], x["guard_us"]): x
+                      for x in kcap.get("capture_cells") or []}
+            for c in cap.get("capture_cells") or []:
+                if c.get("matches"):
+                    continue
+                kc = kcells.get((c["level"], c["clock_mhz"], c["guard_us"]))
+                if kc is None:
+                    continue
+                knob_total += 1
+                knob_clean += 1 if kc.get("matches") else 0
+    if knob_total:
+        findings.append(
+            "Raising the feed/capture class to OW_DMA_PRIO=3 makes %d of %d "
+            "default-failing cells clean; the library still ships class 0."
+            % (knob_clean, knob_total))
+
     cap_cells = capture.get("capture_cells") or []
     cap_supported = bool(capture.get("capture_supported") and cap_cells)
     if cap_supported and all(c.get("matches") for c in cap_cells):
         baseline = capture.get("capture_baseline") or {}
         base_count = next(iter(baseline.values()), {}).get("count")
         findings.append(
-            "Search ROM under the same loads returned the same %s devices "
+            "Search ROM on the primary bench returned the same %s devices "
             "and checksum in all %d cells."
             % (base_count, len(cap_cells)))
     first_bad = capture.get("first_bad") or {}
@@ -764,6 +933,7 @@ def build_report(data, capture=None, platforms=None, priority=None,
 
     cap_html = capture_section(capture)
     inj_html = inject_section(capture)
+    delay_html = feed_delay_section(capture)
     extra_html = "\n".join(
         platform_section(name, other, (platform_captures or {}).get(name))
         for name, other in (platforms or []))
@@ -771,11 +941,13 @@ def build_report(data, capture=None, platforms=None, priority=None,
                       for name, other in (platforms or [])]
                      + list(priority or []))
     priority_html = priority_section(data, priority_rows)
+    knob_html = knob_section(platforms, platform_captures, knob)
     # One rendered block for every generated section: the two control tables
-    # first (they belong with the primary results), then the extra platforms
-    # and the load-placement comparison.
-    extra_html = "\n".join(x for x in (cap_html, inj_html, extra_html,
-                                       priority_html) if x)
+    # first (they belong with the primary results), then the extra platforms,
+    # the load-placement comparison and the knob's measured effect.
+    extra_html = "\n".join(x for x in (cap_html, inj_html, delay_html,
+                                       extra_html, priority_html, knob_html)
+                           if x)
 
     commit = data.get("commit") or "unknown"
     tree_note = " (working tree)" if data.get("dirty") else ""
@@ -1007,25 +1179,29 @@ because every cell is rebuilt and flashed.</p>
 <section id="artifacts">
 <h2>Artifacts</h2>
 <ul>
-<li><a href="results.json">results.json</a> - every tested cell, counters and
-SWD telemetry.</li>
+<li><a href="results.json">results.json</a> - every tested write-matrix cell,
+counters and SWD telemetry.</li>
+<li><a href="capture.json">capture.json</a> - the Search ROM cells, the
+deliberately delayed transfer cells and the feed-delay-vs-guard sweep.</li>
 <li><a href="matrix.txt">matrix.txt</a> - the exact console output of the
-run.</li>
+write matrix run only.</li>
 <li><code>captures/</code> - one representative frame per cell, in sigrok
 <code>.sr</code> form; the Viewer column above links each one.</li>
-<li><code>platforms/</code> - the same three files per additional bench
-(<code>results.json</code>, <code>capture.json</code>, and where the load
-placement was tested <code>results-high.json</code> with its
-<code>captures-high/</code>), for example <code>platforms/f446/</code>.</li>
+<li><code>platforms/</code> - per additional bench: <code>results.json</code>,
+<code>capture.json</code>, where the load placement was tested
+<code>results-high.json</code> with its <code>captures-high/</code>, and where
+the priority knob was tested <code>results-prio3.json</code> /
+<code>capture-prio3.json</code> (for example <code>platforms/f446/</code>).</li>
 <li><a href="{repo_url2}/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
 and <a href="{footer_note}/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
 - the rig and the harness.</li>
 </ul>
 </section>
 </main>
-<footer>Generated from <code>results.json</code> by
-<code>tools/stress_report.py</code>. This page is deterministic:
-<code>make check</code> regenerates it and compares the bytes.</footer>
+<footer>Generated from <code>results.json</code>, <code>capture.json</code> and
+<code>platforms/*</code> by <code>tools/stress_report.py</code>. This page is
+deterministic: <code>make check</code> regenerates it and compares the
+bytes.</footer>
 </body>
 </html>
 """)
@@ -1136,6 +1312,7 @@ def main(argv=None):
     platforms = []
     priority = []
     platform_captures = {}
+    knob = {}
     if args.platforms_dir and os.path.isdir(args.platforms_dir):
         for name in sorted(os.listdir(args.platforms_dir)):
             base = os.path.join(args.platforms_dir, name)
@@ -1152,6 +1329,19 @@ def main(argv=None):
             if os.path.isfile(high):
                 with open(high, encoding="utf-8") as fh:
                     priority.append((name, "high", json.load(fh)))
+            # The same bench re-run with OW_DMA_PRIO=3: the direct test of the
+            # build knob, as opposed to moving the load.
+            entry = {}
+            kres = os.path.join(base, "results-prio3.json")
+            if os.path.isfile(kres):
+                with open(kres, encoding="utf-8") as fh:
+                    entry["results"] = json.load(fh)
+            kcap = os.path.join(base, "capture-prio3.json")
+            if os.path.isfile(kcap):
+                with open(kcap, encoding="utf-8") as fh:
+                    entry["capture"] = json.load(fh)
+            if entry:
+                knob[name] = entry
     if args.data_high and os.path.isfile(args.data_high):
         with open(args.data_high, encoding="utf-8") as fh:
             priority.insert(0, ("primary", "high", json.load(fh)))
@@ -1161,7 +1351,8 @@ def main(argv=None):
             with open(path, encoding="utf-8") as fh:
                 priority.append((name, "high", json.load(fh)))
 
-    text = build_report(data, capture, platforms, priority, platform_captures)
+    text = build_report(data, capture, platforms, priority, platform_captures,
+                        knob)
     out_dir = os.path.dirname(os.path.abspath(args.out))
     os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:

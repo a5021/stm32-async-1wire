@@ -44,12 +44,12 @@ static uint16_t presence_src(uint32_t idx) {
  * Direct mode forces the memory width to PSIZE: F4 feeds 16-bit halfwords
  * from the ow_pulse_t buffer (MSIZE_0) and drops PSIZE for 8-bit captures,
  * F1 feeds/reads 8-bit cells (MSIZE_0 low) and keeps PSIZE_0 throughout.
- * H5 programs GPDMA: CCR carries EN plus the OW_PORT_DMA_PRIO class, the
+ * H5 programs GPDMA: CCR carries EN plus the OW_DMA_PRIO class, the
  * transfer shape lives in CTR1/CTR2 (pinned by test_dma_cr_value_macros
  * below). */
-/* The arbitration bits this build asks for (OW_PORT_DMA_PRIO, 0..3).  Every
+/* The arbitration bits this build asks for (OW_DMA_PRIO, 0..3).  Every
  * expectation below carries them, so the same suite run twice - default and
- * `make test-dma-prio` (-DOW_PORT_DMA_PRIO=3) - proves the knob reaches the
+ * `make test-dma-prio` (-DOW_DMA_PRIO=3) - proves the knob reaches the
  * register word on each DMA IP rather than sitting in a header. */
 #if defined(STM32H5)
 #define TEST_PRIO_BITS OW_PORT_GPDMA_PRIO_BITS
