@@ -6,9 +6,11 @@ bus. This page separates three costs:
 - **useful work** — the driver branch that advances a search or measurement
   after a hardware operation completes;
 - **empty poll** — a public call that performs no driver work and returns;
-- **public poll** — a call to `ds18b20_poll()` / `onewire_search_poll()`; the
-  public-poll total over a measured phase is the sum of useful work, empty
-  polls, the application callback and the per-call overhead.
+- **public poll total** — cumulative time inside all public polls during the
+  measured phase; it includes useful work, empty polls, the application callback
+  and the per-call overhead.
+
+A public poll is one `ds18b20_poll()` / `onewire_search_poll()` call.
 
 The application callback is mostly UART formatting, not bus processing; it also
 advances the device selection. It is reported together with the per-call
@@ -77,13 +79,13 @@ from the single pass at startup. The measurement phase is the interval from
 | Empty poll: worst call | 41 (0.16 µs) | 37 (4.62 µs) |
 | Empty poll: share of active phase | 11.7208% | 15.8422% |
 | Callback + work-call overhead: share of active phase | 0.0024% | 0.0549% |
-| Public poll: cycles | 23,162,493 | 1,012,884 |
-| Public poll: time | 92.65 ms | 126.61 ms |
+| Public poll total: cycles | 23,162,493 | 1,012,884 |
+| Public poll total: time | 92.65 ms | 126.61 ms |
 | Public poll: calls | 564,621 | 30,386 |
 | Public poll: cycles/call | 41.0 | 33.3 |
 | Public poll: worst call (max) | 10,213 (40.85 µs) | 7,217 (902.1 µs) |
-| Public poll: share of active phase | 11.7276% | 16.0060% |
-| Public poll: share of full cycle | 1.6002% | 2.1863% |
+| Public poll total: share of active phase | 11.7276% | 16.0060% |
+| Public poll total: share of full cycle | 1.6002% | 2.1863% |
 
 ## Search ROM
 
@@ -101,12 +103,12 @@ from the single pass at startup. The measurement phase is the interval from
 | Empty poll: worst call | 68 (0.27 µs) | 34 (4.25 µs) |
 | Empty poll: share of active phase | 17.1959% | 13.7518% |
 | Callback + work-call overhead: share of active phase | 0.1215% | 2.6378% |
-| Public poll: cycles | 12,102,984 | 530,684 |
-| Public poll: time | 48.41 ms | 66.34 ms |
+| Public poll total: cycles | 12,102,984 | 530,684 |
+| Public poll total: time | 48.41 ms | 66.34 ms |
 | Public poll: calls | 210,773 | 11,522 |
 | Public poll: cycles/call | 57.4 | 46.1 |
 | Public poll: worst call (max) | 5,242 (20.97 µs) | 3,356 (419.5 µs) |
-| Public poll: share of active phase | 17.6686% | 22.1118% |
+| Public poll total: share of active phase | 17.6686% | 22.1118% |
 
 ## Where the active-phase CPU goes
 
@@ -132,13 +134,13 @@ Search phase:
 
 The rows are exclusive. Useful work and empty polls are measured directly; the
 empty counter is the set of public calls that leave the work-event count
-unchanged. The callback row is the public poll minus both: it holds the
+unchanged. The callback row is the public poll total minus both: it holds the
 application callback and search sink, which the driver's work window skips, plus
 the entry, state checks, dispatch and exit of every call that carried a work
 event. The other-loop row is the remainder of the active phase, computed as the
 complement of the displayed values so each column sums to exactly 100.0000%; the
 unrounded numbers are in the linked JSON. Components are rounded independently,
-so a displayed component can differ from the public-poll row by 0.0001%.
+so a displayed component can differ from the public poll total row by 0.0001%.
 
 The example busy-polls, so the CPU is fully occupied during the active phase;
 the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
@@ -153,9 +155,9 @@ The integration-relevant number is the cost of a poll that finds nothing:
 - F030: 33 cycles (4.1 µs) per measurement poll and 30 cycles (3.75 µs) per
   search poll.
 
-Each public function has its own empty-call paths, and different internal states
-can return through different branches, so the cost is fixed for a given API
-path, state and build. The callback row is small for one measurement (0.0024% /
+Each public function has different empty-call paths for different internal
+states, so the reported empty-call cost is an average for this API path, build
+and state distribution. The callback row is small for one measurement (0.0024% /
 0.0549% of the active phase): seven event-bearing calls, one of which runs
 `ds18b20_complete()` and is therefore split into two work events. In the search
 it reaches 0.1215% / 2.6378%: 536 event-bearing calls pay the entry, state
@@ -168,7 +170,7 @@ load:
 | Quantity | Workload-dependent? |
 |---|---|
 | Useful work per transaction | No, for a fixed operation mix and configuration |
-| Cost of one empty call | No, for a fixed API path, state and build |
+| Average empty-call cost | No, for a fixed API path, state distribution and build |
 | Empty calls per transaction | Yes; it is the loop speed |
 | Callback + work-call overhead per event-bearing poll | No, for a fixed API path, event sequence, callback frequency, output format and build |
 | Share of the active phase | Yes; the denominator includes empty polling and the app loop |
