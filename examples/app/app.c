@@ -829,8 +829,18 @@ void configure_system_clock(void) {
     RCC->CFGR1 &= (uint32_t)~RCC_CFGR1_SW;
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != 0u)
         ;
+#elif (OW_SYSCLK_MHZ) == (OW_HSE_MHZ)
+    /* Raw HSE: the board crystal straight to SYSCLK, no PLL or PSI. At 8MHz
+     * zero flash wait states are enough. */
+    RCC->CR1 |= RCC_CR1_HSEON;
+    while ((RCC->CR1 & RCC_CR1_HSERDY) == 0u)
+        ;
+    FLASH->ACR &= (uint32_t)~FLASH_ACR_LATENCY;
+    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_1)
+        ;
 #else
-#error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3) or 144 (HSIS)"
+#error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSIS) or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
