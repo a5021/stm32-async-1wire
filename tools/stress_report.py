@@ -487,74 +487,132 @@ def _knob_failure(cell, mode):
     return "<strong>fail</strong> (%s devices)" % ("0" if not count else count)
 
 
+def _knob_classes(knob):
+    classes = set()
+    for entry in (knob or {}).values():
+        classes.update(entry)
+    return sorted(classes)
+
+
+def _knob_cell(entry, cls, mode, level, clock, guard):
+    """The cell of one class for the given operation, or None."""
+    payload = (entry or {}).get(cls) or {}
+    source = payload.get("results" if mode == "write" else "capture")
+    if not source:
+        return None
+    key = "cells" if mode == "write" else "capture_cells"
+    for c in source.get(key) or []:
+        if (c["level"] == level and c["clock_mhz"] == clock
+                and c["guard_us"] == guard):
+            return c
+    return None
+
+
+def _knob_good(cell, mode):
+    return bool(cell) and bool(
+        cell.get("clean") if mode == "write" else cell.get("matches"))
+
+
 def knob_section(platforms, platform_captures, knob):
     """Default-failing cells re-measured with OW_DMA_PRIO raised."""
     if not knob:
         return ""
+    classes = _knob_classes(knob)
     rows = []
     extra_total = extra_clean = 0
+    minimal = []
     for name, data in (platforms or []):
         entry = knob.get(name) or {}
-        kres = entry.get("results")
         dg = data.get("default_guard_us", 5)
-        if kres:
-            kcells = cell_map(kres)
-            # Every other guard that was re-run with the knob: the table only
-            # shows the default-guard failures, so this is what backs the
-            # "not a default-guard artefact" sentence.
-            for (level, clock, guard), kc in kcells.items():
+        bench = data.get("bench") or name
+        write_fail = [c for c in data.get("cells") or []
+                      if c["guard_us"] == dg and not c["clean"]]
+        cap = (platform_captures or {}).get(name) or {}
+        search_fail = [c for c in cap.get("capture_cells") or []
+                       if not c.get("matches")]
+        # Every other guard that was re-run with the knob: the table only
+        # shows the default-guard failures, so this is what backs the
+        # "not a default-guard artefact" sentence.
+        for cls, payload in entry.items():
+            source = payload.get("results")
+            if not source:
+                continue
+            for (level, clock, guard), kc in cell_map(source).items():
                 if guard == dg:
                     continue
                 extra_total += 1
                 extra_clean += 1 if kc.get("clean") else 0
-            for c in data.get("cells") or []:
-                if c["guard_us"] != dg or c["clean"]:
-                    continue
-                kc = kcells.get((c["level"], c["clock_mhz"], dg))
-                rows.append("<tr><td>%s</td><td>write frame</td><td>%s</td>"
-                            "<td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                            % (e(data.get("bench") or name),
-                               "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
-                               c["level"], fmt_guard(dg),
-                               _knob_failure(c, "write"),
-                               _knob_verdict(kc, "write")))
-        cap = (platform_captures or {}).get(name)
-        kcap = entry.get("capture")
-        if cap and kcap:
-            kcells = {(c["level"], c["clock_mhz"], c["guard_us"]): c
-                      for c in kcap.get("capture_cells") or []}
-            for c in cap.get("capture_cells") or []:
-                if c.get("matches"):
-                    continue
-                kc = kcells.get((c["level"], c["clock_mhz"], c["guard_us"]))
-                rows.append("<tr><td>%s</td><td>Search ROM</td><td>%s</td>"
-                            "<td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                            % (e(cap.get("bench") or name),
-                               "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
-                               c["level"], fmt_guard(c["guard_us"]),
-                               _knob_failure(c, "search"),
-                               _knob_verdict(kc, "search")))
+        # Smallest measured class that clears every default-guard failure.
+        for cls in classes:
+            if not entry.get(cls):
+                continue
+            ok = all(_knob_good(_knob_cell(entry, cls, "write", c["level"],
+                                           c["clock_mhz"], dg), "write")
+                     for c in write_fail)
+            ok = ok and all(_knob_good(_knob_cell(entry, cls, "search",
+                                                  c["level"], c["clock_mhz"],
+                                                  c["guard_us"]), "search")
+                            for c in search_fail)
+            if ok and (write_fail or search_fail):
+                minimal.append((bench, cls))
+                break
+        for c in write_fail:
+            cells = "".join(
+                "<td>%s</td>" % _knob_verdict(
+                    _knob_cell(entry, cls, "write", c["level"],
+                               c["clock_mhz"], dg), "write")
+                for cls in classes)
+            rows.append(
+                "<tr><td>%s</td><td>write frame</td><td>%s</td><td>%d</td>"
+                "<td>%s</td><td>%s</td>%s</tr>"
+                % (e(bench),
+                   "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+                   c["level"], fmt_guard(dg), _knob_failure(c, "write"), cells))
+        for c in search_fail:
+            cells = "".join(
+                "<td>%s</td>" % _knob_verdict(
+                    _knob_cell(entry, cls, "search", c["level"],
+                               c["clock_mhz"], c["guard_us"]), "search")
+                for cls in classes)
+            rows.append(
+                "<tr><td>%s</td><td>Search ROM</td><td>%s</td><td>%d</td>"
+                "<td>%s</td><td>%s</td>%s</tr>"
+                % (e(bench),
+                   "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
+                   c["level"], fmt_guard(c["guard_us"]),
+                   _knob_failure(c, "search"), cells))
     if not rows:
         return ""
+    head = "".join("<th><code>OW_DMA_PRIO=%d</code></th>" % cls
+                   for cls in classes)
+    if minimal:
+        min_bits = "; ".join("%s: %d" % (bench, cls) for bench, cls in minimal)
+        min_text = ("The smallest measured class that clears every "
+                    "default-guard failure is %s." % min_bits)
+    else:
+        min_text = "No measured class clears every default-guard failure."
+    if extra_total:
+        extra_text = ("The same levels and clocks were also re-run at the "
+                      "other guards: %d of %d of those cells are clean, so the "
+                      "result is not a default-guard artefact. "
+                      % (extra_clean, extra_total))
+    else:
+        extra_text = ""
     return """<section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
-This table takes every cell that fails at the default guard and re-runs it with
-the feed and capture raised to class 3, leaving the load where it was. The
-default column is the committed run; the right column is the knob build.</p>
+This table takes every cell that fails at the default guard and re-runs it at
+each measured class, leaving the load where it was. The default column is the
+committed run; the rest are knob builds.</p>
 <table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
-<th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
+<th>Guard</th><th>Default</th>%s</tr></thead>
 <tbody>%s</tbody></table>
-<p>%s An equal-class load is still ordered by channel/stream index, so the knob
-is not a substitute for the <code>guard + 1</code> rule above. The library
+<p>%s %sAn equal-class load is still ordered by channel/stream index, so the
+knob is not a substitute for the <code>guard + 1</code> rule above. The library
 keeps class 0 by default: raising it preempts every lower-ranked channel for
 the length of a 1-Wire frame (up to milliseconds), which is the application's
 call.</p>
-</section>""" % ("\n".join(rows), (
-        "The same levels and clocks were also re-run at the other guards: "
-        "%d of %d of those cells are clean, so the result is not a "
-        "default-guard artefact." % (extra_clean, extra_total))
-        if extra_total else "")
+</section>""" % (head, "\n".join(rows), min_text, extra_text)
 
 
 def _first_bad_text(first, prefix):
@@ -1365,17 +1423,22 @@ def main(argv=None):
             if os.path.isfile(high):
                 with open(high, encoding="utf-8") as fh:
                     priority.append((name, "high", json.load(fh)))
-            # The same bench re-run with OW_DMA_PRIO=3: the direct test of the
-            # build knob, as opposed to moving the load.
+            # The same bench re-run with OW_DMA_PRIO raised: the direct test of
+            # the build knob, as opposed to moving the load. One pair of files
+            # per class, so the report can show the staircase.
             entry = {}
-            kres = os.path.join(base, "results-prio3.json")
-            if os.path.isfile(kres):
-                with open(kres, encoding="utf-8") as fh:
-                    entry["results"] = json.load(fh)
-            kcap = os.path.join(base, "capture-prio3.json")
-            if os.path.isfile(kcap):
-                with open(kcap, encoding="utf-8") as fh:
-                    entry["capture"] = json.load(fh)
+            for cls in (1, 2, 3):
+                payload = {}
+                kres = os.path.join(base, "results-prio%d.json" % cls)
+                if os.path.isfile(kres):
+                    with open(kres, encoding="utf-8") as fh:
+                        payload["results"] = json.load(fh)
+                kcap = os.path.join(base, "capture-prio%d.json" % cls)
+                if os.path.isfile(kcap):
+                    with open(kcap, encoding="utf-8") as fh:
+                        payload["capture"] = json.load(fh)
+                if payload:
+                    entry[cls] = payload
             if entry:
                 knob[name] = entry
     if args.data_high and os.path.isfile(args.data_high):
