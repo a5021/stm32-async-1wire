@@ -544,7 +544,7 @@ must make the cell fail.</p>
 <tbody>%s</tbody></table>
 <p>The first delayed feed is detected at <strong>%s</strong>; the first
 delayed capture at <strong>%s</strong>. The write window starts at the frame's
-first CC2 request (65 us), so these values bound how long the first feed
+first CC2 request (65 us), so these values pin how long the first feed
 transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
