@@ -54,13 +54,15 @@ the per-call numbers.
 | Build | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` | `-Os -flto`, `OW_PARASITE_POWER=1`, `APP_PROFILE=1 OW_PROFILE=1` |
 | Run | 300 s, 52 measurement cycles | 300 s, 52 measurement cycles |
 | Measurement phase | 790 ms (750 ms conversion wait included) | 791 ms |
-| Full cycle with 5 s pause | 5.79 s | 5.79 s |
+| Nominal full cycle (active phase + 5 s pause) | 5.79 s | 5.79 s |
 | Search phase | 274 ms | 300 ms |
 
 The measurement numbers are averaged over 52 cycles; the search numbers are
 from the single pass at startup. The measurement phase is the interval from
 `ds18b20_start_measure()` to the end of the `ds18b20_complete()` callback. The
-5 s application pause after the result is not part of it.
+5 s application pause after the result is not part of it. The nominal full cycle
+is the measured active phase plus the configured 5 s pause; the start-to-start
+interval is not timed separately.
 
 ## One measurement
 
@@ -72,7 +74,7 @@ from the single pass at startup. The measurement phase is the interval from
 | Useful work: cycles/event | 1,066 (4.26 µs) | 861 (107.6 µs) |
 | Useful work: worst event | 3,109 (12.44 µs) | 2,857 (357.1 µs) |
 | Useful work: share of active phase | 0.0043% | 0.1088% |
-| Useful work: share of full cycle | 0.00059% | 0.0149% |
+| Useful work: share of nominal full cycle | 0.00059% | 0.0149% |
 | Empty poll: calls | 564,614 | 30,379 |
 | Empty poll: cycles/call | 41.0 | 33.0 |
 | Empty poll: total time | 92.60 ms | 125.32 ms |
@@ -85,7 +87,7 @@ from the single pass at startup. The measurement phase is the interval from
 | Public poll: cycles/call | 41.0 | 33.3 |
 | Public poll: worst call (max) | 10,213 (40.85 µs) | 7,217 (902.1 µs) |
 | Public poll total: share of active phase | 11.7276% | 16.0060% |
-| Public poll total: share of full cycle | 1.6002% | 2.1863% |
+| Public poll total: share of nominal full cycle | 1.6002% | 2.1863% |
 
 ## Search ROM
 
@@ -143,8 +145,9 @@ unrounded numbers are in the linked JSON. Components are rounded independently,
 so a displayed component can differ from the public poll total row by 0.0001%.
 
 The example busy-polls, so the CPU is fully occupied during the active phase;
-the other-loop row is the main loop (`app_millis()`, `uart_poll_tx()`,
-branches), not idle sleep.
+the other-loop row is the remainder of the instrumented main loop
+(`app_millis()`, profiler bookkeeping, `uart_poll_tx()`, branches), not idle
+sleep, so it is not the application load of the shipped build.
 
 ## How to read the percentages
 
@@ -246,8 +249,9 @@ above.
 - The 750 ms conversion wait as driver work. It is part of the active phase, but
   the driver only starts it and handles its completion. In this busy-poll build
   the CPU spends it in empty polls; with `OW_LOW_POWER=1` it sleeps instead.
-- The application loop outside the public poll calls. It is the "other
-  application loop" residual in the breakdown, not separately instrumented.
+- The main loop outside the public poll calls, including the profiler's own
+  bookkeeping. It is the "other application loop" residual in the breakdown, not
+  separately instrumented.
 - Interrupts. These examples install no interrupt handlers: SysTick is polled
   and the driver's UIE is only a WFE wake-up event, never an ISR.
 
