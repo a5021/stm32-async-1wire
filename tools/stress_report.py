@@ -513,13 +513,64 @@ def _knob_good(cell, mode):
         cell.get("clean") if mode == "write" else cell.get("matches"))
 
 
+def _knob_baseline(name, data, priority, knob):
+    """The committed run a knob build must be compared against.
+
+    The knob runs are made against a load placement: the F446 default (streams
+    0/1 at PL 0) or, on the H503, the raised load (PRIO 3). The default column
+    has to come from the matching baseline run.
+    """
+    entry = (knob or {}).get(name) or {}
+    first = next((p.get("results") for p in entry.values()
+                  if p.get("results")), None)
+    raised = bool(first) and (first.get("gpdma_prio") is not None
+                              or first.get("load_high"))
+    high = {n: d for n, role, d in (priority or []) if role == "high"}
+    if raised and name in high:
+        return high[name], raised, first
+    return data, raised, first
+
+
+def _knob_minimal(platforms, priority, platform_captures, knob):
+    """{bench name: smallest measured class that clears every failure}."""
+    mins = {}
+    for name, data in (platforms or []):
+        entry = (knob or {}).get(name) or {}
+        if not entry:
+            continue
+        base, _raised, _first = _knob_baseline(name, data, priority, knob)
+        if base is None:
+            continue
+        dg = base.get("default_guard_us", 5)
+        write_fail = [c for c in base.get("cells") or []
+                      if c["guard_us"] == dg and not c["clean"]]
+        cap = (platform_captures or {}).get(name) or {}
+        search_fail = [c for c in cap.get("capture_cells") or []
+                       if not c.get("matches")]
+        if not write_fail and not search_fail:
+            continue
+        for cls in _knob_classes(knob):
+            if not entry.get(cls):
+                continue
+            ok = all(_knob_good(_knob_cell(entry, cls, "write", c["level"],
+                                           c["clock_mhz"], dg), "write")
+                     for c in write_fail)
+            ok = ok and all(_knob_good(_knob_cell(entry, cls, "search",
+                                                  c["level"], c["clock_mhz"],
+                                                  c["guard_us"]), "search")
+                            for c in search_fail)
+            if ok:
+                mins[name] = cls
+                break
+    return mins
+
+
 def knob_section(platforms, priority, platform_captures, knob):
     """Default-failing cells re-measured with OW_DMA_PRIO raised."""
     if not knob:
         return ""
     classes = _knob_classes(knob)
-    high = {name: data for name, role, data in (priority or [])
-            if role == "high"}
+    mins = _knob_minimal(platforms, priority, platform_captures, knob)
     rows = []
     minimal = []
     extra_bits = []
@@ -527,14 +578,7 @@ def knob_section(platforms, priority, platform_captures, knob):
         entry = knob.get(name) or {}
         if not entry:
             continue
-        # The knob runs are made against a load placement: the F446 default
-        # (streams 0/1 at PL 0) or, on the H503, the raised load (PRIO 3).
-        # The default column has to come from the matching baseline run.
-        first = next((p.get("results") for p in entry.values()
-                      if p.get("results")), None)
-        raised = bool(first) and (first.get("gpdma_prio") is not None
-                                  or first.get("load_high"))
-        base = high.get(name) if raised and name in high else data
+        base, raised, first = _knob_baseline(name, data, priority, knob)
         if base is None:
             continue
         dg = base.get("default_guard_us", 5)
@@ -546,22 +590,9 @@ def knob_section(platforms, priority, platform_captures, knob):
         cap = (platform_captures or {}).get(name) or {}
         search_fail = [c for c in cap.get("capture_cells") or []
                        if not c.get("matches")]
-        # Smallest measured class that clears every default-guard failure.
-        chosen = None
-        for cls in classes:
-            if not entry.get(cls):
-                continue
-            ok = all(_knob_good(_knob_cell(entry, cls, "write", c["level"],
-                                           c["clock_mhz"], dg), "write")
-                     for c in write_fail)
-            ok = ok and all(_knob_good(_knob_cell(entry, cls, "search",
-                                                  c["level"], c["clock_mhz"],
-                                                  c["guard_us"]), "search")
-                            for c in search_fail)
-            if ok and (write_fail or search_fail):
-                chosen = cls
-                minimal.append((bench, cls))
-                break
+        chosen = mins.get(name)
+        if chosen is not None:
+            minimal.append((bench, chosen))
         if chosen is not None:
             source = (entry.get(chosen) or {}).get("results")
             if source:
@@ -912,41 +943,19 @@ def build_report(data, capture=None, platforms=None, priority=None,
                    " at " + ", ".join("%d MHz" % c for c in clocks)
                    if clocks else ""))
 
-    # The knob's direct effect: default-failing cells that have a re-run with
-    # OW_DMA_PRIO=3. Reported only when both sides were measured.
-    knob_total = knob_clean = 0
-    for name, other in (platforms or []):
-        entry = (knob or {}).get(name) or {}
-        kres = entry.get("results")
-        if kres:
-            kcells = cell_map(kres)
-            dg = other.get("default_guard_us", 5)
-            for c in other.get("cells") or []:
-                if c["guard_us"] != dg or c["clean"]:
-                    continue
-                kc = kcells.get((c["level"], c["clock_mhz"], dg))
-                if kc is None:
-                    continue
-                knob_total += 1
-                knob_clean += 1 if kc.get("clean") else 0
-        cap = (platform_captures or {}).get(name)
-        kcap = entry.get("capture")
-        if cap and kcap:
-            kcells = {(x["level"], x["clock_mhz"], x["guard_us"]): x
-                      for x in kcap.get("capture_cells") or []}
-            for c in cap.get("capture_cells") or []:
-                if c.get("matches"):
-                    continue
-                kc = kcells.get((c["level"], c["clock_mhz"], c["guard_us"]))
-                if kc is None:
-                    continue
-                knob_total += 1
-                knob_clean += 1 if kc.get("matches") else 0
-    if knob_total:
+    # The knob's direct effect: the smallest measured class that clears every
+    # default-guard failure, per bench.
+    mins = _knob_minimal(platforms, priority, platform_captures, knob)
+    if mins:
+        bits = []
+        for name, other in (platforms or []):
+            cls = mins.get(name)
+            if cls is not None:
+                bits.append("%s: %d" % (other.get("bench") or name, cls))
         findings.append(
-            "Raising the feed/capture class to OW_DMA_PRIO=3 makes %d of %d "
-            "default-failing cells clean; the library still ships class 0."
-            % (knob_clean, knob_total))
+            "The priority knob clears every default-guard failure at the "
+            "measured minimum class (%s); the library still ships class 0."
+            % "; ".join(bits))
 
     cap_cells = capture.get("capture_cells") or []
     cap_supported = bool(capture.get("capture_supported") and cap_cells)
