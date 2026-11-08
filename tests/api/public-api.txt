@@ -72,6 +72,7 @@
 #define OW_CONFIG_TIM1_MHZ (OW_TIM1_MHZ)
 #define OW_CONFIG_TIM1_MHZ 0u
 #define OW_CONFIG_TOKEN ((uint32_t)(OW_PARASITE_POWER & 1u) | ((uint32_t)(OW_LOW_POWER & 1u) << 1) | ((uint32_t)(OW_DRIVE_ACTIVE & 1u) << 2) | ((uint32_t)(OW_STATS_ENABLE & 1u) << 3) | ((uint32_t)(OW_BUS_DRIVE & 3u) << 4) | ((uint32_t)(DS18B20_MAX_DEVICES & 0xFFu) << 6) | ((uint32_t)(OW_CONFIG_SYSCLK_MHZ & 0x1FFu) << 14) | ((uint32_t)(OW_CONFIG_TIM1_MHZ & 0x1FFu) << 23))
+#define OW_DMA_PRIO 0
 #define OW_DRIVE_ACTIVE 0
 #define OW_F4_MAX_SYSCLK_MHZ 168
 #define OW_F4_MAX_SYSCLK_MHZ 180

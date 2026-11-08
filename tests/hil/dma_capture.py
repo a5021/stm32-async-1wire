@@ -43,15 +43,23 @@ CAPTURE_JSON = os.path.join(common.REPO, "docs", "stress", "capture.json")
 #: what shows a clean search is not an artefact of the tight window.
 CAPTURE_GUARDS = (100, 5, 1)
 #: Injected channel-disable windows, in microseconds (see STRESS_INJECT_US).
-#: The write sweep steps by 2 us around the F030 boundary (8/12 us decode at
-#: guard 5, the first bad cell is 16 us at 48 MHz and 20 us at 8 MHz), so the
-#: report can state the measured threshold instead of an upper bound. On the
-#: F446 any nonzero window breaks the first frame because the F4 stream does
-#: not latch the missed CC2 request, so the same sweep is still a valid control
-#: there; it just goes red earlier. The search window is reset-anchored and its
-#: floor is later.
+#: On the F030 the write values straddle the measured boundary, and the sweep
+#: repeats at three guards so the report can fit the delay tolerance instead of
+#: calling it an upper bound. The tolerance is guard + 1 + c, so each guard only
+#: needs the 2 us steps around its own boundary; that keeps a full run short.
+#: On the F446 any nonzero window breaks the first frame because the F4 stream
+#: does not latch the missed CC2 request, so the same sweep is still a valid
+#: control there; it just goes red earlier. The search window is reset-anchored
+#: and its floor is later, so it stays a single guard.
 SEARCH_INJECT = (0, 200, 400, 600, 1000)
-WRITE_INJECT = (0, 8, 10, 12, 14, 16, 18, 20)
+WRITE_INJECT_BY_GUARD = {
+    1: (8, 10, 12, 14, 16),
+    5: (0, 8, 10, 12, 14, 16, 18, 20),
+    10: (16, 18, 20, 22, 24, 26),
+}
+INJECT_GUARDS = tuple(sorted(WRITE_INJECT_BY_GUARD))
+WRITE_INJECT = tuple(sorted({v for vs in WRITE_INJECT_BY_GUARD.values()
+                             for v in vs}))
 
 
 def bench_setup(argv):
@@ -65,6 +73,9 @@ def bench_setup(argv):
     ap.add_argument("--keep-runs", action="store_true")
     ap.add_argument("--gpdma-prio", type=int, default=None,
                     help="H5 only: CCR.PRIO for the load channels (0..3)")
+    ap.add_argument("--feed-prio", type=int, default=None,
+                    help="feed/capture DMA priority class (0..3) via "
+                         "-DOW_DMA_PRIO; default keeps the reset class 0")
     ap.add_argument("--clocks", default="",
                     help="comma list; overrides the per-bench default")
     ap.add_argument("--levels", default="",
@@ -74,6 +85,9 @@ def bench_setup(argv):
     args = ap.parse_args(argv)
     if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
         print("FAIL: --gpdma-prio must be 0..3")
+        return None, args
+    if args.feed_prio is not None and not 0 <= args.feed_prio <= 3:
+        print("FAIL: --feed-prio must be 0..3")
         return None, args
     dp.GPDMA_PRIO = args.gpdma_prio
 
@@ -98,6 +112,9 @@ def bench_setup(argv):
               % ", ".join(common.BENCH_PROFILES))
         return None, args
     common.select_bench(detected)
+    if args.feed_prio is not None:
+        common.BUILD_EXT = (common.BUILD_EXT +
+                            " -DOW_DMA_PRIO=%d" % args.feed_prio).strip()
     prog = common.find_programmer()
     if not prog:
         print("SKIP: STM32CubeProgrammer CLI not found")
@@ -323,15 +340,18 @@ def inject_matrix(rig, clocks):
                 and res["count"] == search_base["count"]
                 and res["rom_crc"] == search_base["rom_crc"])
             cells.append(res)
-        for value in WRITE_INJECT:
-            res = rig.run("write", 0, 5, clock, inject_us=value)
-            cells.append(res)
+        for guard in INJECT_GUARDS:
+            for value in WRITE_INJECT_BY_GUARD[guard]:
+                res = rig.run("write", 0, guard, clock, inject_us=value)
+                cells.append(res)
     return cells
 
 
-def first_bad(cells, mode, clock):
+def first_bad(cells, mode, clock, guard=None):
     for res in cells:
         if res["mode"] != mode or res["clock_mhz"] != clock:
+            continue
+        if guard is not None and res.get("guard_us") != guard:
             continue
         good = res.get("clean") if mode == "write" else res.get("matches")
         if not good:
@@ -415,7 +435,7 @@ def main(argv=None):
             for res in capture_cells
         ],
         "inject_cells": [
-            {k: res[k] for k in ("mode", "inject_us", "clock_mhz")}
+            {k: res[k] for k in ("mode", "inject_us", "clock_mhz", "guard_us")}
             | {("clean" if res["mode"] == "write" else "matches"):
                res.get("clean" if res["mode"] == "write" else "matches")}
             | {"capture": res.get("capture"),
@@ -428,12 +448,23 @@ def main(argv=None):
                "first_attempt_identity": res.get("first_attempt_identity")}
             for res in inject_cells
         ],
-        "inject_values": {"search": list(SEARCH_INJECT), "write": list(WRITE_INJECT)},
-        "first_bad": {
-            "%s_%s" % (mode, clock if clock is not None else "def"):
-            first_bad(inject_cells, mode, clock)
-            for mode in ("search", "write") for clock in clocks
+        "inject_values": {
+            "search": list(SEARCH_INJECT),
+            "write": list(WRITE_INJECT),
+            "write_by_guard": {str(g): list(v)
+                               for g, v in WRITE_INJECT_BY_GUARD.items()},
         },
+        "first_bad": dict(
+            # The search window is reset-anchored: one guard, one threshold.
+            [("%s_%s" % ("search", clock if clock is not None else "def"),
+              first_bad(inject_cells, "search", clock))
+             for clock in clocks]
+            # The feed window scales with the guard, so the threshold is
+            # measured per (clock, guard).
+            + [("write_%s_g%d" % (clock if clock is not None else "def", guard),
+                first_bad(inject_cells, "write", clock, guard))
+               for clock in clocks for guard in INJECT_GUARDS]
+        ),
     }
     out = os.path.abspath(args.json)
     os.makedirs(os.path.dirname(out), exist_ok=True)

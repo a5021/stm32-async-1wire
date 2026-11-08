@@ -32,37 +32,22 @@
  * defaults live in inc/ow_board.h above; this header adds the CMSIS device
  * header and the per-family register/DMA facts below. */
 
-/* --- DMA arbitration priority (OW_PORT_DMA_PRIO, 0..3) ---
+/* --- DMA arbitration priority (OW_DMA_PRIO, 0..3; see inc/ow_config.h) ---
  *
- * Feed and capture share one arbitration class on every backend, so a single
- * knob raises both: 0 is the reset default the library has always shipped, 3
- * is the highest class.  A build that shares the DMA controller with an
- * uninterruptible load (long memory-to-memory bursts, another peripheral's
- * stream) can pass -DOW_PORT_DMA_PRIO=3 so the 1-Wire deadlines win the
- * arbitration instead of being starved by a lower-ranked channel.
- *
- * The class sits in a different field per DMA IP, so each backend adds its own
- * encoding to the CR/CCR word (defined in src/ow_port.h once the CMSIS header
- * is in scope, then referenced by the F4/H7/H5/C5 sections below):
+ * Feed and capture share one arbitration class on every backend, so the single
+ * public knob OW_DMA_PRIO raises both.  The class sits in a different field
+ * per DMA IP, so each backend adds its own encoding to the CR/CCR word
+ * (defined in src/ow_port.h once the CMSIS header is in scope, then referenced
+ * by the F4/H7/H5/C5 sections below):
  *   classic DMA1 channels  DMA_CCR_PL    bits 12..13  OW_PORT_DMA_CCR_PL
  *   F4/H7 streams          DMA_SxCR_PL   bits 16..17  OW_PORT_DMA_PL
  *   H5/C5 GPDMA/LPDMA      DMA_CCR_PRIO  bits 22..23  OW_PORT_GPDMA_PRIO_BITS
  *
- * What the knob does NOT buy: an equal-class load is still resolved by the
- * channel/stream index, not by the level, so a burst at the same priority on a
- * lower-numbered channel keeps winning.  The portable rule is unchanged - a
- * higher-ranked, uninterruptible burst must not outlast the feed window
- * (guard + 1 us) - and this knob is the escape hatch when it does.
- *
- * The knob is deliberately not part of OW_CONFIG_TOKEN: it changes no timing
- * constant and no ABI, so an application and an archive built with different
- * values still agree on everything the token covers. */
-#ifndef OW_PORT_DMA_PRIO
-#define OW_PORT_DMA_PRIO 0u
-#endif
-#if (OW_PORT_DMA_PRIO) > 3u
-#error "OW_PORT_DMA_PRIO must be 0..3 (DMA arbitration priority class)"
-#endif
+ * The OW_PORT_* names above are engine vocabulary (private, per
+ * docs/migration.md); the user-facing value is OW_DMA_PRIO only.  An
+ * equal-class load is still resolved by the channel/stream index, so the knob
+ * does not replace the guard + 1 us rule - it is the escape hatch when a
+ * higher-ranked burst outlasts the feed window. */
 
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
@@ -452,14 +437,14 @@
 /* @brief Capture-stream control bits: MINC = memory-increment, PSIZE_0 =
  *       16-bit peripheral read (CCR4).  Direct mode forces the memory width
  *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
- *       PL carries OW_PORT_DMA_PRIO (default 0, the reset class).  Note the
+ *       PL carries OW_DMA_PRIO (default 0, the reset class).  Note the
  *       F4 DIR field is two bits wide: the generic single-bit DMA_SxCR_DIR
  *       macro would write the reserved 0b11. */
 #define OW_PORT_DMA_CR_CAPTURE (DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
 
 /* @brief Feed-stream control bits: DIR_0 = memory-to-peripheral, MINC =
  *       memory-increment, PSIZE_0 = 16-bit peripheral write (CCR3 is a
- *       halfword register).  PL carries OW_PORT_DMA_PRIO (default 0).  The
+ *       halfword register).  PL carries OW_DMA_PRIO (default 0).  The
  *       caller also sets MSIZE_0: direct mode forces the memory width to
  *       PSIZE, so the source must be a matching halfword (ow_pulse_t) buffer. */
 #define OW_PORT_DMA_CR_FEED (DMA_SxCR_DIR_0 | DMA_SxCR_MINC | DMA_SxCR_PSIZE_0 | OW_PORT_DMA_PL)
@@ -1334,7 +1319,7 @@
 /* @brief Stream control bits: MINC = memory-increment; PSIZE_0 = 16-bit
  *       peripheral halfword (CCR3/CCR4).  Direct mode forces the memory width
  *       to PSIZE, so the caller also sets MSIZE_0 (matching halfwords).
- *       PL carries OW_PORT_DMA_PRIO (default 0, the reset class; ties still
+ *       PL carries OW_DMA_PRIO (default 0, the reset class; ties still
  *       break by stream number).  Note the DIR field is two bits wide (like
  *       F4): the generic single-bit DMA_SxCR_DIR macro would write the
  *       reserved 0b11, so the feed word uses DIR_0. */

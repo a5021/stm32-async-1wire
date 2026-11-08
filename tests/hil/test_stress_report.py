@@ -38,12 +38,13 @@ PLATFORMS = os.path.join(REPO, "docs", "stress", "platforms")
 
 
 def load_platforms():
-    """The extra benches, their optional high-placement runs, and captures."""
+    """The extra benches, high-placement runs, captures and knob re-runs."""
     platforms = []
     priority = []
     captures = {}
+    knob = {}
     if not os.path.isdir(PLATFORMS):
-        return platforms, priority, captures
+        return platforms, priority, captures, knob
     for name in sorted(os.listdir(PLATFORMS)):
         base = os.path.join(PLATFORMS, name)
         path = os.path.join(base, "results.json")
@@ -59,7 +60,18 @@ def load_platforms():
         if os.path.isfile(high):
             with open(high, encoding="utf-8") as fh:
                 priority.append((name, "high", json.load(fh)))
-    return platforms, priority, captures
+        entry = {}
+        kres = os.path.join(base, "results-prio3.json")
+        if os.path.isfile(kres):
+            with open(kres, encoding="utf-8") as fh:
+                entry["results"] = json.load(fh)
+        kcap = os.path.join(base, "capture-prio3.json")
+        if os.path.isfile(kcap):
+            with open(kcap, encoding="utf-8") as fh:
+                entry["capture"] = json.load(fh)
+        if entry:
+            knob[name] = entry
+    return platforms, priority, captures, knob
 
 failures = []
 
@@ -88,9 +100,9 @@ def main():
 
     with open(HTML, encoding="utf-8") as fh:
         actual = fh.read()
-    platforms, priority, platform_captures = load_platforms()
+    platforms, priority, platform_captures, knob = load_platforms()
     expected = stress_report.build_report(data, capture, platforms, priority,
-                                          platform_captures)
+                                          platform_captures, knob)
     check("index.html is regenerated from results.json + capture.json",
           actual == expected,
           "run python tools/stress_report.py" if actual != expected else "")
@@ -169,12 +181,21 @@ def main():
     inj_cells = capture.get("inject_cells") or []
     first_bad = capture.get("first_bad") or {}
     check("the negative control ran", bool(inj_cells))
-    for mode in ("write", "search"):
-        for clock in sorted({c["clock_mhz"] for c in inj_cells},
-                            key=lambda c: c if c is not None else -1):
-            key = "%s_%s" % (mode, clock if clock is not None else "def")
-            check("a delayed %s is detected at %s" % (mode, key),
+    clocks = sorted({c["clock_mhz"] for c in inj_cells},
+                    key=lambda c: c if c is not None else -1)
+    guards = sorted({c.get("guard_us", 5) for c in inj_cells
+                     if c["mode"] == "write"})
+    for clock in clocks:
+        key = "search_%s" % (clock if clock is not None else "def")
+        check("a delayed search is detected at %s" % key,
+              first_bad.get(key) is not None, str(first_bad.get(key)))
+        for guard in guards:
+            key = "write_%s_g%d" % (clock if clock is not None else "def",
+                                    guard)
+            check("a delayed feed is detected at %s" % key,
                   first_bad.get(key) is not None, str(first_bad.get(key)))
+    check("the feed delay was measured at more than one guard",
+          len(guards) > 1, "guards: %s" % guards)
     for c in inj_cells:
         name = c.get("capture")
         good = c.get("clean") if c["mode"] == "write" else c.get("matches")
@@ -184,7 +205,16 @@ def main():
             check("inject capture %s is linked" % target,
                   ("./../stress/captures/" + target) in actual)
 
-    platforms, priority, platform_captures = load_platforms()
+    platforms, priority, platform_captures, knob = load_platforms()
+    if knob:
+        check("the priority-knob table is rendered", 'id="knob"' in actual)
+        for name, entry in knob.items():
+            for kind, payload in entry.items():
+                cells = (payload.get("cells") or payload.get("capture_cells")
+                         or [])
+                check("knob %s %s has cells" % (name, kind), bool(cells))
+                check("knob %s %s records an image hash" % (name, kind),
+                      all(c.get("image_sha256") for c in cells))
     linked = set()
     for name, pdata in platforms:
         # One representative failing frame per level; a level that already has a

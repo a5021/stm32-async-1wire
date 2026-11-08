@@ -786,7 +786,7 @@ def main(argv=None):
                          "the load in the fixed high-priority class")
     ap.add_argument("--feed-prio", type=int, default=None,
                     help="feed/capture DMA priority class (0..3) via "
-                         "-DOW_PORT_DMA_PRIO; default keeps the reset class 0")
+                         "-DOW_DMA_PRIO; default keeps the reset class 0")
     args = ap.parse_args(argv)
     if args.gpdma_prio is not None and not 0 <= args.gpdma_prio <= 3:
         print("FAIL: --gpdma-prio must be 0..3")
@@ -835,7 +835,7 @@ def main(argv=None):
         # One build knob on every backend (src/ow_mcu.h); the encoding differs
         # per DMA IP, so the harness never names a family-specific macro.
         common.BUILD_EXT = (common.BUILD_EXT +
-                            " -DOW_PORT_DMA_PRIO=%d" % args.feed_prio).strip()
+                            " -DOW_DMA_PRIO=%d" % args.feed_prio).strip()
 
     prog = common.find_programmer()
     if not prog:

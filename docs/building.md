@@ -17,7 +17,7 @@
   - [STM32CubeIDE](#stm32cubeide)
   - [Configuration Notes](#configuration-notes)
   - [Compile-time Tunables (`inc/ow_config.h`)](#compile-time-tunables-incow_configh)
-  - [DMA priority (`OW_PORT_DMA_PRIO`)](#dma-priority-ow_port_dma_prio)
+  - [DMA priority (`OW_DMA_PRIO`)](#dma-priority-ow_port_dma_prio)
 - [VSCode Integration](#vscode-integration)
   - [Building (VSCode)](#building-1)
   - [Debugging](#debugging)
@@ -133,7 +133,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-lowpower-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
-| `make test-dma-prio` | Rebuild the contract suite with `-DOW_PORT_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
+| `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
@@ -852,6 +852,7 @@ omit or set to 0 to disable.  Old presence-only style
 | `OW_DRIVE_ACTIVE` | 0 | 1 = enable push-pull write path |
 | `OW_STATS_ENABLE` | 0 | 1 = compile in per-sensor pulse statistics |
 | `OW_BUS_DRIVE` | 3 (`OW_BUS_DRIVE_MAX`) | Drive strength of the bus pin: 0 = `WEAK`, 1 = `MEDIUM`, 2 = `STRONG`, 3 = `MAX`. `MAX` is the default because the parasite strong pull-up sources the whole fleet from this pad; F1 has no `OSPEEDR` register, so `MAX` clamps to `STRONG` there. |
+| `OW_DMA_PRIO` | 0 | Arbitration class (0..3) of the feed and capture DMA channels; 0 is the reset class. The encoding is per DMA IP and private to the engine. Not part of `OW_CONFIG_TOKEN` — it changes no timing constant and no ABI. See [DMA priority](#dma-priority-ow_dma_prio). |
 | `DS18B20_MAX_DEVICES` | 8 | Max devices in the device table (8 B each) — single-sensor builds can set 1 and save 56 B of `.bss` |
 
 **Consistency token.** `OW_CONFIG_TOKEN` mixes the flags and clock frequencies
@@ -897,11 +898,11 @@ Feature flags can also be set via a Makefile knob (no EXT needed):
 make OW_DRIVE_ACTIVE=1        # → -DOW_DRIVE_ACTIVE=1
 ```
 
-### DMA priority (`OW_PORT_DMA_PRIO`)
+### DMA priority (`OW_DMA_PRIO`)
 
-`OW_PORT_DMA_PRIO` (0..3, default 0) is the one build constant that lives in
-the port layer rather than in `inc/ow_config.h`, because its encoding depends
-on the DMA IP: `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
+`OW_DMA_PRIO` (0..3, default 0) is declared in `inc/ow_config.h` like every
+other tunable; only its *encoding* is private, because it depends on the DMA
+IP: `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
 `DMA_SxCR_PL` on the F4/H7 streams and `DMA_CCR_PRIO` on the H5/C5
 GPDMA/LPDMA channels. 0 is the reset class every release has shipped; raise it
 when the application runs its own DMA above the driver's, so the 1-Wire feed
@@ -909,7 +910,7 @@ and capture are not starved by a lower-ranked burst. It changes no timing
 constant and no ABI, so it is **not** part of `OW_CONFIG_TOKEN`.
 
 ```bash
-make EXT="-DOW_PORT_DMA_PRIO=3"
+make EXT="-DOW_DMA_PRIO=3"
 ```
 
 An equal-class load is still ordered by channel/stream index, so this is not a

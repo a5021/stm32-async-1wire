@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`OW_PORT_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
+- **`OW_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
   The value (0..3, default 0 = the reset class every release has shipped)
   selects the arbitration class for both 1-Wire channels on every backend:
   `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPDMA/LPDMA channels. It is the escape hatch for an application that shares
   the DMA controller with an uninterruptible load: on the benches, a
   level-5 load starved the default class on F446 (8/16 MHz) and H503
-  (8/64/250 MHz), and `-DOW_PORT_DMA_PRIO=3` made every cell clean at guard
+  (8/64/250 MHz), and `-DOW_DMA_PRIO=3` made every cell clean at guard
   1/5/100 with `cndtr_late = 0`. An equal-class load is still resolved by the
   channel/stream index, so the portable rule stands: a higher-ranked burst
   must not outlast `guard + 1` us. The knob changes no timing constant and no
