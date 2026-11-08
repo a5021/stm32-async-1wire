@@ -19,13 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPDMA/LPDMA channels. It is the escape hatch for an application that shares
   the DMA controller with an uninterruptible load: on the benches, a
   level-5 load starved the default class on F446 (8/16 MHz) and H503
-  (8/64/250 MHz), and `-DOW_DMA_PRIO=3` made every cell clean at guard
-  1/5/100 with `cndtr_late = 0`. An equal-class load is still resolved by the
-  channel/stream index, so the portable rule stands: a higher-ranked burst
-  must not outlast `guard + 1` us. The knob changes no timing constant and no
-  ABI, so it is deliberately not part of `OW_CONFIG_TOKEN`. `make
-  test-dma-prio` rebuilds the contract suite for one family per encoding with
-  the class set to 3 and fails if the bits do not reach the register word.
+  (8/64/250 MHz). The measured staircase is not the same on both: the F446
+  load sits at `PL 0`, so class **1** already clears every failing write and
+  Search ROM cell (classes 2/3 add nothing); the H503 load sits at `PRIO 3`,
+  so classes 1/2 still starve and class **3** is the smallest that works,
+  clean in all 36 cells at guard 1/5/100 with `cndtr_late = 0`. An equal-class
+  load is still resolved by the channel/stream index, so the portable rule
+  stands: a higher-ranked burst must not outlast `guard + 1` us. The knob
+  changes no timing constant and no ABI, so it is deliberately not part of
+  `OW_CONFIG_TOKEN`. `make test-dma-prio` rebuilds the contract suite for one
+  family per encoding with the class set to 3 and fails if the bits do not
+  reach the register word.
 - **STM32C5 family support.** The STM32C552CET6 joins the port with a TIM1 +
   LPDMA1 backend (PA10/TIM1_CH3, CH4 indirect capture, LPDMA1 channels 2/3 with
   `REQSEL` 25/27) and three clock paths: 144 MHz from the 8 MHz HSE through the

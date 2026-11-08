@@ -483,16 +483,23 @@ guarantee against an application channel with a higher rank.</p>
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
 This table takes every cell that fails at the default guard and re-runs it at
-each measured class, leaving the load where it was. The default column is the
-committed run; the rest are knob builds.</p>
-<table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
-<th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=1</code></th><th><code>OW_DMA_PRIO=2</code></th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
-<tbody><tr><td>STM32F446xx</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>write frame</td><td>16 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
-<tr><td>STM32F446xx</td><td>Search ROM</td><td>16 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr></tbody></table>
-<p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1. The same levels and clocks were also re-run at the other guards: 12 of 12 of those cells are clean, so the result is not a default-guard artefact. An equal-class load is still ordered by channel/stream index, so the
+each measured class, leaving the load where it was. The Default column is the
+committed run <em>with the same load placement</em>: the F446 default streams
+for the F446 rows, and the raised H503 load for the H503 rows, because that is
+the placement the knob was tested against.</p>
+<table><thead><tr><th>Bench</th><th>Load</th><th>Matrix</th><th>Clock</th>
+<th>Level</th><th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=1</code></th><th><code>OW_DMA_PRIO=2</code></th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
+<tbody><tr><td>STM32F446xx</td><td>default</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>default</td><td>write frame</td><td>16 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>default</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>default</td><td>Search ROM</td><td>8 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32F446xx</td><td>default</td><td>Search ROM</td><td>16 MHz</td><td>5</td><td>1 us</td><td><strong>fail</strong> (0 devices)</td><td>clean</td><td>clean</td><td>clean</td></tr>
+<tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>2</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
+<tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>3</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
+<tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>4</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
+<tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
+<tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>64 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr></tbody></table>
+<p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1; STM32H503xx: 3. For the minimal class, the other guards are clean too: STM32F446xx at class 1: 4 of 4 other-guard cells clean; STM32H503xx at class 3: 24 of 24 other-guard cells clean. An equal-class load is still ordered by channel/stream index, so the
 knob is not a substitute for the <code>guard + 1</code> rule above. The library
 keeps class 0 by default: raising it preempts every lower-ranked channel for
 the length of a 1-Wire frame (up to milliseconds), which is the application's
