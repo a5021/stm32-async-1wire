@@ -166,7 +166,11 @@ states). The board carries an 8 MHz crystal (Y2); `HSE_MHZ=8` in
 `chips/h503cb.mk` derives the PLL dividers. All seven DS18B20 examples were flashed
 and captured at each clock with correct 22.8-23.1 °C readings and 0 errors in
 `6_statistics`. The busy LED on **PC13** is **active-low** (blue LED on the
-WeAct board). Build with `make OW_MCU=STM32H503xx`.
+WeAct board). Stress experiment: at level 5 on 8/64/250 MHz a PRIO 3 load
+starves the default PRIO 0 feed/capture; raising feed/capture to PRIO 3 makes
+all three clocks clean at guard 1/5/100 (`cndtr_late=0`). The library default
+remains PRIO 0; `OW_PORT_GPDMA_PRIO` is the build knob for the experiment.
+Build with `make OW_MCU=STM32H503xx`.
 
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 
