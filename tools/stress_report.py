@@ -492,12 +492,21 @@ def knob_section(platforms, platform_captures, knob):
     if not knob:
         return ""
     rows = []
+    extra_total = extra_clean = 0
     for name, data in (platforms or []):
         entry = knob.get(name) or {}
         kres = entry.get("results")
         dg = data.get("default_guard_us", 5)
         if kres:
             kcells = cell_map(kres)
+            # Every other guard that was re-run with the knob: the table only
+            # shows the default-guard failures, so this is what backs the
+            # "not a default-guard artefact" sentence.
+            for (level, clock, guard), kc in kcells.items():
+                if guard == dg:
+                    continue
+                extra_total += 1
+                extra_clean += 1 if kc.get("clean") else 0
             for c in data.get("cells") or []:
                 if c["guard_us"] != dg or c["clean"]:
                     continue
@@ -536,13 +545,16 @@ default column is the committed run; the right column is the knob build.</p>
 <table><thead><tr><th>Bench</th><th>Matrix</th><th>Clock</th><th>Level</th>
 <th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
 <tbody>%s</tbody></table>
-<p>The same levels and clocks were also re-run at guards 1 and 100 us; those
-cells are clean too, so the result is not a default-guard artefact. An
-equal-class load is still ordered by channel/stream index, so the knob is not a
-substitute for the <code>guard + 1</code> rule above. The library keeps class 0
-by default: raising it preempts every lower-ranked channel for the length of a
-1-Wire frame (up to milliseconds), which is the application's call.</p>
-</section>""" % "\n".join(rows)
+<p>%s An equal-class load is still ordered by channel/stream index, so the knob
+is not a substitute for the <code>guard + 1</code> rule above. The library
+keeps class 0 by default: raising it preempts every lower-ranked channel for
+the length of a 1-Wire frame (up to milliseconds), which is the application's
+call.</p>
+</section>""" % ("\n".join(rows), (
+        "The same levels and clocks were also re-run at the other guards: "
+        "%d of %d of those cells are clean, so the result is not a "
+        "default-guard artefact." % (extra_clean, extra_total))
+        if extra_total else "")
 
 
 def _first_bad_text(first, prefix):
