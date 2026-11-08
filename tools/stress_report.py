@@ -273,6 +273,20 @@ time, not dropped samples.</p>
                          ", ".join(base_bits), rows, len(cells))
 
 
+def platform_fail_stats(data):
+    """Return (default-guard failures, all failing cells) for one bench."""
+    cells = cell_map(data)
+    floors = data.get("guard_min") or []
+    default_guard = data.get("default_guard_us", 5)
+    default_bad = []
+    for row in floors:
+        cell = cells.get((row["level"], row["clock_mhz"], default_guard))
+        if row["guard_us"] is None or not (cell and cell["clean"]):
+            default_bad.append(row)
+    all_bad = [c for c in data.get("cells") or [] if not c.get("clean")]
+    return default_bad, all_bad
+
+
 def platform_section(name, data, capture=None):
     """A second bench measured with the same rig, summarised."""
     fam = family_of(data.get("mcu") or data.get("bench"))
@@ -429,6 +443,20 @@ cell has <code>start_timeout = 0</code> and <code>load_error = 0</code>, so the
 higher priority starved the feed; the equal-priority H503 row is clean. A part
 that is clean in both rows has spare bandwidth; a part that is clean only with
 the load below the feed is sensitive to arbitration order.</p>
+<p><strong>Why F0 is immune and F4/H5 are not.</strong> F0's DMA1 arbitrates one
+transfer at a time, so a load channel cannot hold the bus across a whole feed
+window. An F4 DMA stream can hold a burst/FIFO, and equal priority is broken by
+the lower stream number; the historical load on streams 0/1 therefore wins
+against the feed on stream 2. H5 GPDMA uses <code>CCR.PRIO</code> classes
+instead of channel-number ties, so a PRIO 3 load can starve the default-priority
+feed outright. G0, G4, F1, F3 and H7 are not measured here; predict them from
+their arbitration granularity and priority rules rather than from the F0
+result.</p>
+<p><strong>Integration rule.</strong> A higher-ranked, uninterruptible load
+burst must not last longer than the feed window (<code>guard + 1</code> us).
+If it can, lower its priority, split it into shorter bursts, or raise the feed
+and capture priority above it. The library's reset-default priority is not a
+guarantee against an application channel with a higher rank.</p>
 </section>
 """ % "\n".join(rows)
 
@@ -495,6 +523,11 @@ transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
+<p>The detection threshold is later than the guard window. A late CCR3 write is
+harmless until the counter has passed the new compare value, so 8 and 12 us
+still decode at guard 5 (a 6 us window). Read the measured threshold as an
+upper bound on the safe delay, not as the window itself; a finer sweep is
+needed to pin the boundary.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
@@ -540,8 +573,16 @@ def build_report(data, capture=None, platforms=None, priority=None,
             if t[16] not in (0, None):
                 all_stop_ok = False
 
-    ok = (all_floor_clean and all_default_clean and all_cndtr_zero
-          and all_no_error)
+    primary_ok = (all_floor_clean and all_default_clean and all_cndtr_zero
+                  and all_no_error)
+    platform_stats = [(name, other) + platform_fail_stats(other)
+                      for name, other in (platforms or [])]
+    priority_stats = [(label, role, other) + platform_fail_stats(other)
+                      for label, role, other in (priority or [])]
+    platform_bad = sum(len(bad) for _, _, bad, _ in platform_stats)
+    priority_bad = sum(len(bad) for _, _, _, bad, _ in priority_stats)
+    all_clean = primary_ok and not platform_bad and not priority_bad
+    ok = all_clean
 
     load_bits = []
     for clock in clocks:
@@ -550,43 +591,69 @@ def build_report(data, capture=None, platforms=None, priority=None,
             load_bits.append("at %d MHz channel 1 restarted %d times"
                              % (clock, t4[5]))
 
-    findings = [
-        "Every level and clock is clean at the %s floor (a %d us window)."
-        % (fmt_guard(floor_guard), floor_window),
+    findings = []
+    if primary_ok:
+        findings.append(
+            "On the primary bench, every level and clock is clean at the "
+            "%s floor (a %d us window)."
+            % (fmt_guard(floor_guard), floor_window))
+    else:
+        findings.append(
+            "The primary bench contains a failure; see its table below.")
+    findings.append(
         "cndtr_late is 0, no DMA error was latched, and no channel-stop "
-        "timeout occurred in any cell.",
+        "timeout occurred in any primary-bench cell.")
+    findings.append(
         "Load activity: " + "; ".join(load_bits) +
         " (level 4; level 5 adds the CPU hammer)."
         if load_bits else
         "Load activity: the stress counters in the table show every channel "
-        "running.",
-        "The %d us guard is a %d us window, %.1fx the measured %d us floor. "
-        "The library and DMA priority stay unchanged."
-        % (default_guard, default_window, ratio, floor_window),
-    ]
-    if not (all_floor_clean and all_default_clean and all_cndtr_zero
-            and all_no_error and all_stop_ok):
-        findings = ["The published run contains a failure; see the table below."]
-    else:
-        cap_cells = capture.get("capture_cells") or []
-        cap_supported = bool(capture.get("capture_supported") and cap_cells)
-        if cap_supported and all(c.get("matches") for c in cap_cells):
-            baseline = capture.get("capture_baseline") or {}
-            base_count = next(iter(baseline.values()), {}).get("count")
+        "running.")
+    findings.append(
+        "The default guard is a %d us window; the 1 us floor is a %d us "
+        "window. The two are different measurements, not a 3x safety factor."
+        % (default_window, floor_window))
+    for name, other, bad, all_bad in platform_stats:
+        bench = other.get("bench") or name
+        if bad:
             findings.append(
-                "Search ROM under the same loads returned the same %s devices "
-                "and checksum in all %d cells."
-                % (base_count, len(cap_cells)))
-        first_bad = capture.get("first_bad") or {}
-        feed = [v for k, v in first_bad.items()
-                if k.startswith("write") and v is not None]
-        capd = [v for k, v in first_bad.items()
-                if k.startswith("search") and v is not None]
-        if feed and capd:
+                "%s: %d default-guard level/clock cells fail (%d cells across "
+                "the guard sweep)." % (bench, len(bad), len(all_bad)))
+        else:
             findings.append(
-                "A delayed feed (%d us) and capture (%d us) both fail the "
-                "checks, so the harness catches a late transfer."
-                % (min(feed), min(capd)))
+                "%s: every level is clean at the default guard." % bench)
+    for label, role, other, bad, all_bad in priority_stats:
+        bench = other.get("bench") or label
+        if bad:
+            findings.append(
+                "%s with %s load placement: %d default-guard cells fail "
+                "(%d across the guard sweep); the failing cells show "
+                "start_timeout=0 and load_error=0."
+                % (bench, role, len(bad), len(all_bad)))
+        else:
+            findings.append(
+                "%s with %s load placement: every level is clean at the "
+                "default guard." % (bench, role))
+
+    cap_cells = capture.get("capture_cells") or []
+    cap_supported = bool(capture.get("capture_supported") and cap_cells)
+    if cap_supported and all(c.get("matches") for c in cap_cells):
+        baseline = capture.get("capture_baseline") or {}
+        base_count = next(iter(baseline.values()), {}).get("count")
+        findings.append(
+            "Search ROM under the same loads returned the same %s devices "
+            "and checksum in all %d cells."
+            % (base_count, len(cap_cells)))
+    first_bad = capture.get("first_bad") or {}
+    feed = [v for k, v in first_bad.items()
+            if k.startswith("write") and v is not None]
+    capd = [v for k, v in first_bad.items()
+            if k.startswith("search") and v is not None]
+    if feed and capd:
+        findings.append(
+            "A delayed feed (%d us) and capture (%d us) both fail the "
+            "checks, so the harness catches a late transfer."
+            % (min(feed), min(capd)))
 
     # Main matrix.
     matrix_rows = []
@@ -767,8 +834,9 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 {findings}
 </ul>
 <p>This test checks whether memory load can delay the CCR3 feed DMA past its
-slot deadline. On this bench it cannot: the transfer always landed before the
-update, even when the load halved the CPU's SRAM throughput.</p>
+slot deadline. The primary bench stays clean; the additional benches show where
+a higher-ranked load can starve the feed. The integration rule below makes that
+constraint explicit.</p>
 </section>
 
 <section id="mechanism">
@@ -846,33 +914,37 @@ accesses. The burst count in the table shows the load.</p>
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
-<li>No wire-visible slip at the {interp_floor} us floor on either clock, under any load.</li>
-<li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
-before completion, including the final release.</li>
+<li>On the primary bench, no wire-visible slip at the {interp_floor} us floor
+under any load. The additional benches are summarised in their own sections.</li>
+<li><code>cndtr_late = 0</code> everywhere on the primary bench: every feed
+transfer was serviced before completion, including the final release.</li>
 <li>Load activity: channel 1 restarted thousands of times per run (see the
 table), and the CPU hammer ran too. The feed still met the {interp_floor} us
-floor.</li>
-<li>The {guard_window} us guard is a {interp_floor2} us window, and {interp_floor2} us is
-the smallest guard that stayed clean. The wire stayed correct there, so this
-part does not need a larger default and the library keeps its DMA priority.</li>
+floor on the primary bench.</li>
+<li>The default guard is a {guard_window} us window; the 1 us floor is a
+{interp_floor2} us window. They are not a 3x safety factor. The library default
+is sufficient on F0 and on the equal-priority H5 row; the F4 default-placement
+and H5 PRIO 3 rows show that a higher-ranked load can still starve the feed.</li>
 </ul>
 </section>
 
 <section id="caveats">
 <h2>Caveats</h2>
 <ul>
-<li><strong>Equal priority only.</strong> Every load channel uses the default
-DMA priority. An application channel with <code>PL &gt; 0</code> is a different
-case and is not covered. The equal-priority tie-break is covered: the load sits
-on low channel/stream numbers, so it outranks the feed; the priority section
-shows the same load on high numbers.</li>
-<li><strong>One rig, several benches.</strong> Each part used the same firmware
-and loader. On parts with fewer channels the high-placement load uses the next
-free number (the F030F4 has no channel 6, so it uses 4). Wiring and marker pins
-differ per board.</li>
-<li><strong>One part, one bench, write-only.</strong> The pattern is not a
-1-Wire transaction and the devices are never addressed, so this measures master
-timing, not a protocol exchange.</li>
+<li><strong>Default priority plus one high-placement row.</strong> The default
+load channels use their reset priority. The priority section adds one explicit
+higher-ranked load per family; an arbitrary application priority is still a
+different case. On F4 the equal-priority tie-break is covered by moving the
+load to higher stream numbers; on H5 the load is raised to <code>CCR.PRIO 3</code>
+against the feed's default.</li>
+<li><strong>One rig, several benches, write-only.</strong> F0, F4 and H5 used the
+same firmware and loader. On parts with fewer channels the high-placement load
+uses the next free number (the F030F4 has no channel 6, so it uses 4). Wiring
+and marker pins differ per board. The pattern is not a 1-Wire transaction and
+the devices are never addressed, so this measures master timing, not a protocol
+exchange.</li>
+<li><strong>Search coverage.</strong> The F4 Search matrix is at 180 MHz only;
+the write failures at 8 and 16 MHz are not yet covered by a Search capture.</li>
 <li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
 The report says "a 2 us window was enough", not "the latency is exactly
 1 us".</li>
@@ -936,9 +1008,13 @@ and <a href="{footer_note}/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pr
         "words": words,
         "verdict_class": ("" if ok else " bad"),
         "verdict_text": (
-                    "The wire stayed correct under every tested load."
+                    "The wire stayed correct on every tested bench."
                     if ok
-                    else "The published run contains a failure."
+                    else "The wire stayed correct on F0; the additional "
+                         "benches expose starvation when the load outranks "
+                         "the feed."
+                    if primary_ok
+                    else "The primary bench contains a failure."
                 ),
         "findings": "\n".join("<li>%s</li>" % e(f) for f in findings),
         "timeline": timeline_svg(),

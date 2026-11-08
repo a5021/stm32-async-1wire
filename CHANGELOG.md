@@ -167,6 +167,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The stress report now describes the multi-bench data it publishes.** The
+  summary and interpretation were still written for the F0-only page: they
+  claimed the wire stayed correct under every load while the F4 and H5 sections
+  showed failures, called the 5 us guard a 2 us window, kept the retired
+  "halved the CPU's SRAM throughput" claim, and said "one part, one bench" next
+  to three benches. The generator now derives the verdict and findings from the
+  primary and additional benches, reports the F4 default-placement and H5
+  PRIO 3 failures on the summary, separates the default-guard window from the
+  1 us floor, and adds the arbitration-granularity explanation and the
+  integration rule that a higher-ranked uninterruptible burst must not exceed
+  `guard + 1` us.
 - **H5 load restart raced a finishing burst.** `stress_gpdma_idle()` in
   `0_dma_pressure` read `CCR.EN` and then wrote `CCR.SUSP`. If the load burst
   finished in between, hardware cleared `EN`, the channel went idle, and the

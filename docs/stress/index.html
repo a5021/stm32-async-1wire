@@ -68,20 +68,25 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 
 <section id="summary">
 <h2>Summary</h2>
-<div class="verdict">
-<strong>The wire stayed correct under every tested load.</strong>
+<div class="verdict bad">
+<strong>The wire stayed correct on F0; the additional benches expose starvation when the load outranks the feed.</strong>
 </div>
 <ul class="findings">
-<li>Every level and clock is clean at the 1 us floor (a 2 us window).</li>
-<li>cndtr_late is 0, no DMA error was latched, and no channel-stop timeout occurred in any cell.</li>
+<li>On the primary bench, every level and clock is clean at the 1 us floor (a 2 us window).</li>
+<li>cndtr_late is 0, no DMA error was latched, and no channel-stop timeout occurred in any primary-bench cell.</li>
 <li>Load activity: at 48 MHz channel 1 restarted 8300 times; at 8 MHz channel 1 restarted 1400 times (level 4; level 5 adds the CPU hammer).</li>
-<li>The 5 us guard is a 6 us window, 3.0x the measured 2 us floor. The library and DMA priority stay unchanged.</li>
+<li>The default guard is a 6 us window; the 1 us floor is a 2 us window. The two are different measurements, not a 3x safety factor.</li>
+<li>STM32F446xx: 2 default-guard level/clock cells fail (7 cells across the guard sweep).</li>
+<li>STM32H503xx: every level is clean at the default guard.</li>
+<li>STM32F446xx with high load placement: every level is clean at the default guard.</li>
+<li>STM32H503xx with high load placement: 5 default-guard cells fail (22 across the guard sweep); the failing cells show start_timeout=0 and load_error=0.</li>
 <li>Search ROM under the same loads returned the same 7 devices and checksum in all 24 cells.</li>
 <li>A delayed feed (16 us) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
 </ul>
 <p>This test checks whether memory load can delay the CCR3 feed DMA past its
-slot deadline. On this bench it cannot: the transfer always landed before the
-update, even when the load halved the CPU's SRAM throughput.</p>
+slot deadline. The primary bench stays clean; the additional benches show where
+a higher-ranked load can starve the feed. The integration rule below makes that
+constraint explicit.</p>
 </section>
 
 <section id="mechanism">
@@ -260,6 +265,11 @@ transfer may be held <em>after</em> that request. A window from the frame start
 could not show anything below 65 us: the feed had not asked yet. The search's
 first capture is later, so its threshold is higher. The viewer links on the
 detected rows show the corrupted frame or search.</p>
+<p>The detection threshold is later than the guard window. A late CCR3 write is
+harmless until the counter has passed the new compare value, so 8 and 12 us
+still decode at guard 5 (a 6 us window). Read the measured threshold as an
+upper bound on the safe delay, not as the window itself; a finer sweep is
+needed to pin the boundary.</p>
 </section>
 
 <section id="platform-f446">
@@ -402,39 +412,57 @@ cell has <code>start_timeout = 0</code> and <code>load_error = 0</code>, so the
 higher priority starved the feed; the equal-priority H503 row is clean. A part
 that is clean in both rows has spare bandwidth; a part that is clean only with
 the load below the feed is sensitive to arbitration order.</p>
+<p><strong>Why F0 is immune and F4/H5 are not.</strong> F0's DMA1 arbitrates one
+transfer at a time, so a load channel cannot hold the bus across a whole feed
+window. An F4 DMA stream can hold a burst/FIFO, and equal priority is broken by
+the lower stream number; the historical load on streams 0/1 therefore wins
+against the feed on stream 2. H5 GPDMA uses <code>CCR.PRIO</code> classes
+instead of channel-number ties, so a PRIO 3 load can starve the default-priority
+feed outright. G0, G4, F1, F3 and H7 are not measured here; predict them from
+their arbitration granularity and priority rules rather than from the F0
+result.</p>
+<p><strong>Integration rule.</strong> A higher-ranked, uninterruptible load
+burst must not last longer than the feed window (<code>guard + 1</code> us).
+If it can, lower its priority, split it into shorter bursts, or raise the feed
+and capture priority above it. The library's reset-default priority is not a
+guarantee against an application channel with a higher rank.</p>
 </section>
 
 
 <section id="interpretation">
 <h2>Interpretation</h2>
 <ul>
-<li>No wire-visible slip at the 2 us floor on either clock, under any load.</li>
-<li><code>cndtr_late = 0</code> everywhere: every feed transfer was serviced
-before completion, including the final release.</li>
+<li>On the primary bench, no wire-visible slip at the 2 us floor
+under any load. The additional benches are summarised in their own sections.</li>
+<li><code>cndtr_late = 0</code> everywhere on the primary bench: every feed
+transfer was serviced before completion, including the final release.</li>
 <li>Load activity: channel 1 restarted thousands of times per run (see the
 table), and the CPU hammer ran too. The feed still met the 2 us
-floor.</li>
-<li>The 6 us guard is a 2 us window, and 2 us is
-the smallest guard that stayed clean. The wire stayed correct there, so this
-part does not need a larger default and the library keeps its DMA priority.</li>
+floor on the primary bench.</li>
+<li>The default guard is a 6 us window; the 1 us floor is a
+2 us window. They are not a 3x safety factor. The library default
+is sufficient on F0 and on the equal-priority H5 row; the F4 default-placement
+and H5 PRIO 3 rows show that a higher-ranked load can still starve the feed.</li>
 </ul>
 </section>
 
 <section id="caveats">
 <h2>Caveats</h2>
 <ul>
-<li><strong>Equal priority only.</strong> Every load channel uses the default
-DMA priority. An application channel with <code>PL &gt; 0</code> is a different
-case and is not covered. The equal-priority tie-break is covered: the load sits
-on low channel/stream numbers, so it outranks the feed; the priority section
-shows the same load on high numbers.</li>
-<li><strong>One rig, several benches.</strong> Each part used the same firmware
-and loader. On parts with fewer channels the high-placement load uses the next
-free number (the F030F4 has no channel 6, so it uses 4). Wiring and marker pins
-differ per board.</li>
-<li><strong>One part, one bench, write-only.</strong> The pattern is not a
-1-Wire transaction and the devices are never addressed, so this measures master
-timing, not a protocol exchange.</li>
+<li><strong>Default priority plus one high-placement row.</strong> The default
+load channels use their reset priority. The priority section adds one explicit
+higher-ranked load per family; an arbitrary application priority is still a
+different case. On F4 the equal-priority tie-break is covered by moving the
+load to higher stream numbers; on H5 the load is raised to <code>CCR.PRIO 3</code>
+against the feed's default.</li>
+<li><strong>One rig, several benches, write-only.</strong> F0, F4 and H5 used the
+same firmware and loader. On parts with fewer channels the high-placement load
+uses the next free number (the F030F4 has no channel 6, so it uses 4). Wiring
+and marker pins differ per board. The pattern is not a 1-Wire transaction and
+the devices are never addressed, so this measures master timing, not a protocol
+exchange.</li>
+<li><strong>Search coverage.</strong> The F4 Search matrix is at 180 MHz only;
+the write failures at 8 and 16 MHz are not yet covered by a Search capture.</li>
 <li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
 The report says "a 2 us window was enough", not "the latency is exactly
 1 us".</li>
