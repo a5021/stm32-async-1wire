@@ -117,6 +117,8 @@ Macros</h2></td></tr>
 <tr class="memitem:a13fba53645cd8e4b8f63368f08a36360" id="r_a13fba53645cd8e4b8f63368f08a36360"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a13fba53645cd8e4b8f63368f08a36360">OW_BUS_DRIVE_STRONG</a>&#160;&#160;&#160;2</td></tr>
 <tr class="memitem:a0bbd77139ad1bdce5e59047e4f0e305e" id="r_a0bbd77139ad1bdce5e59047e4f0e305e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0bbd77139ad1bdce5e59047e4f0e305e">OW_BUS_DRIVE_MAX</a>&#160;&#160;&#160;3</td></tr>
 <tr class="memitem:a589b0391b16deab952f1f3e3ba03d91b" id="r_a589b0391b16deab952f1f3e3ba03d91b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a>&#160;&#160;&#160;<a class="el" href="#a0bbd77139ad1bdce5e59047e4f0e305e">OW_BUS_DRIVE_MAX</a></td></tr>
+<tr class="memitem:ae7110498821eb7aff2560696c642c810" id="r_ae7110498821eb7aff2560696c642c810"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae7110498821eb7aff2560696c642c810">OW_DMA_PRIO</a>&#160;&#160;&#160;0</td></tr>
+<tr class="memdesc:ae7110498821eb7aff2560696c642c810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Arbitration class of the 1-Wire feed and capture DMA channels.  <br /></td></tr>
 <tr class="memitem:a3289a910c64682ab8868ef0dd64de8c0" id="r_a3289a910c64682ab8868ef0dd64de8c0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a>&#160;&#160;&#160;0</td></tr>
 <tr class="memdesc:a3289a910c64682ab8868ef0dd64de8c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opt-in low-power WFE sleep path.  <br /></td></tr>
 <tr class="memitem:a65c4f063ff3b00e9625c2febd7d6fe20" id="r_a65c4f063ff3b00e9625c2febd7d6fe20"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a>&#160;&#160;&#160;0</td></tr>
@@ -346,14 +348,34 @@ Macros</h2></td></tr>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a> &amp; 3u) &lt;&lt; 4) | ((uint32_t)(<a class="code hl_define" href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a> &amp; 0xFFu) &lt;&lt; 6) | \</div>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a> &amp; 0x1FFu) &lt;&lt; 14) |                                     \</div>
 <div class="line">     ((uint32_t)(<a class="code hl_define" href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a> &amp; 0x1FFu) &lt;&lt; 23))</div>
-<div class="ttc" id="aow__config_8h_html_a074e6e8f57a756da90d8dd4b8533f46b"><div class="ttname"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_SYSCLK_MHZ</div><div class="ttdoc">Compile-time configuration token of the library build.</div><div class="ttdef"><b>Definition</b> ow_config.h:234</div></div>
+<div class="ttc" id="aow__config_8h_html_a074e6e8f57a756da90d8dd4b8533f46b"><div class="ttname"><a href="#a074e6e8f57a756da90d8dd4b8533f46b">OW_CONFIG_SYSCLK_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_SYSCLK_MHZ</div><div class="ttdoc">Compile-time configuration token of the library build.</div><div class="ttdef"><b>Definition</b> ow_config.h:266</div></div>
 <div class="ttc" id="aow__config_8h_html_a2aad532fa0eb3d852d91fc8178bf4e59"><div class="ttname"><a href="#a2aad532fa0eb3d852d91fc8178bf4e59">OW_PARASITE_POWER</a></div><div class="ttdeci">#define OW_PARASITE_POWER</div><div class="ttdoc">Compile-time flag: bus is wired for parasite power.</div><div class="ttdef"><b>Definition</b> ow_config.h:63</div></div>
-<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:179</div></div>
+<div class="ttc" id="aow__config_8h_html_a3289a910c64682ab8868ef0dd64de8c0"><div class="ttname"><a href="#a3289a910c64682ab8868ef0dd64de8c0">OW_LOW_POWER</a></div><div class="ttdeci">#define OW_LOW_POWER</div><div class="ttdoc">Opt-in low-power WFE sleep path.</div><div class="ttdef"><b>Definition</b> ow_config.h:211</div></div>
 <div class="ttc" id="aow__config_8h_html_a589b0391b16deab952f1f3e3ba03d91b"><div class="ttname"><a href="#a589b0391b16deab952f1f3e3ba03d91b">OW_BUS_DRIVE</a></div><div class="ttdeci">#define OW_BUS_DRIVE</div><div class="ttdef"><b>Definition</b> ow_config.h:155</div></div>
-<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:190</div></div>
-<div class="ttc" id="aow__config_8h_html_a88ba1fd533e4ab1531cc910a370ffbea"><div class="ttname"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_TIM1_MHZ</div><div class="ttdef"><b>Definition</b> ow_config.h:239</div></div>
-<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:219</div></div>
+<div class="ttc" id="aow__config_8h_html_a65c4f063ff3b00e9625c2febd7d6fe20"><div class="ttname"><a href="#a65c4f063ff3b00e9625c2febd7d6fe20">OW_DRIVE_ACTIVE</a></div><div class="ttdeci">#define OW_DRIVE_ACTIVE</div><div class="ttdoc">Opt-in active-drive (push-pull) write path.</div><div class="ttdef"><b>Definition</b> ow_config.h:222</div></div>
+<div class="ttc" id="aow__config_8h_html_a88ba1fd533e4ab1531cc910a370ffbea"><div class="ttname"><a href="#a88ba1fd533e4ab1531cc910a370ffbea">OW_CONFIG_TIM1_MHZ</a></div><div class="ttdeci">#define OW_CONFIG_TIM1_MHZ</div><div class="ttdef"><b>Definition</b> ow_config.h:271</div></div>
+<div class="ttc" id="aow__config_8h_html_abe0f6a81aa740fdee2eb2568b94b0f3b"><div class="ttname"><a href="#abe0f6a81aa740fdee2eb2568b94b0f3b">DS18B20_MAX_DEVICES</a></div><div class="ttdeci">#define DS18B20_MAX_DEVICES</div><div class="ttdoc">Optional per-sensor pulse-width statistics module.</div><div class="ttdef"><b>Definition</b> ow_config.h:251</div></div>
 </div><!-- fragment -->
+</div>
+</div>
+<a id="ae7110498821eb7aff2560696c642c810" name="ae7110498821eb7aff2560696c642c810"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae7110498821eb7aff2560696c642c810">&#9670;&#160;</a></span>OW_DMA_PRIO</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define OW_DMA_PRIO&#160;&#160;&#160;0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Arbitration class of the 1-Wire feed and capture DMA channels. </p>
+<p>0 = the reset class (the shipped default), 3 = the highest class. The encoding is per DMA IP and private to the engine (<span class="tt">DMA_CCR_PL</span> on the classic DMA1 channels, <span class="tt">DMA_SxCR_PL</span> on the F4/H7 streams, <span class="tt">DMA_CCR_PRIO</span> on the H5/C5 GPDMA/LPDMA channels), so a build only ever passes a level.</p>
+<p>Raise it when the application runs its own DMA above the driver's: on the benches a level-5 load starved the default class on F446 (8/16 MHz) and H503 (8/64/250 MHz), and level 3 turned those cells clean. An equal-class load is still ordered by channel/stream index, so this is not a substitute for the portable rule: a higher-ranked burst must not outlast the feed window (<span class="tt">guard + 1</span> us).</p>
+<p>The knob changes no timing constant and no ABI, so it is deliberately not mixed into <span class="tt"><a class="el" href="#a7fbd3fb7322979c9fe3a03fd4d39e1c5">OW_CONFIG_TOKEN</a></span>: an application and an archive built with different levels still agree on everything the token covers.</p>
+<p>Enable with -DOW_DMA_PRIO=N (0..3). </p>
+
 </div>
 </div>
 <a id="a65c4f063ff3b00e9625c2febd7d6fe20" name="a65c4f063ff3b00e9625c2febd7d6fe20"></a>
