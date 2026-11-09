@@ -641,10 +641,10 @@ Called when a measurement cycle completes — provides temperature data in tenth
 ### DS2431 EEPROM Driver
 
 The DS2431 1 kbit EEPROM has its own non-blocking driver (`inc/ds2431.h` +
-`src/ds2431.c`) on the shared 1-Wire layer. Both `ds2431_init()` and
-`ds18b20_init()` may run in one image before any bus operation; after that the
-two drivers take turns owning the bus, one operation at a time, and are never
-polled concurrently (see `examples/9_multi`). Address DS2431s with
+`src/ds2431.c`) on the shared 1-Wire layer. `ds2431_init()`, `ds18b20_init()`
+and `ds2413_init()` may all run in one image before any bus operation; after
+that the three drivers take turns owning the bus, one operation at a time, and
+are never polled concurrently (see `examples/9_multi`). Address DS2431s with
 `ds2431_select()`.
 
 ```c
@@ -732,10 +732,10 @@ PIOA/PIOB every 500 ms while it waits between measurement cycles.
 ### Multi-Device Application (`9_multi`)
 
 `examples/9_multi` is the end-to-end application: a peak/low temperature logger
-with seven DS18B20 sensors and one DS2431 EEPROM on the same wire. It is also the
-reference for using both drivers in one image. They cannot be polled at the same
-time, so the application owns one explicit bus-owner state machine and hands the
-bus over in a fixed order:
+with seven DS18B20 sensors, one DS2431 EEPROM and a DS2413 switch (when present)
+on the same wire. It is also the reference for using three drivers in one image.
+They cannot be polled at the same time, so the application owns one explicit
+bus-owner state machine and hands the bus over in a fixed order:
 
 1. DS18B20 search, which fills the driver's scan-mode device table;
 2. a second full-family search to locate the DS2431 (the search engine runs one
@@ -746,7 +746,9 @@ bus over in a fixed order:
    reported through `ds18b20_complete()`. If a scan round fails, the application
    switches to the sequential Match ROM path;
 5. a new round maximum or minimum is queued as Write Scratchpad → Read
-   Scratchpad (echo + data verify) → Copy Scratchpad → Read Memory.
+   Scratchpad (echo + data verify) → Copy Scratchpad → Read Memory;
+6. while waiting between rounds, the DS2413 PIOA/PIOB latches alternate every
+   500 ms and are read back.
 
 Records are 8-byte, self-validating blocks (magic, version, flags, update
 counter, whole degrees, tenths, sensor index, CRC-8) at EEPROM addresses 16..47,
@@ -754,8 +756,8 @@ and the sensor's ROM block is written before the record that refers to it — a
 power loss cannot leave a record pointing at a ROM that is not there. The
 records only move in one direction (the peak grows, the low falls), so after
 warm-up writes are rare. Build with `make APP=9_multi`; `PEAK_RESET=1` ignores
-the stored records at boot and forces the write path, which is how the published
-logic-analyzer capture was recorded.
+the stored records at boot and forces the write path, while `CLEAR_RECORDS=1`
+erases the four record/ROM blocks before a fresh capture and then stops.
 
 ## Performance
 
@@ -802,15 +804,15 @@ Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 
 | Example | `.text` | Total `.bss` |
 | --- | ---: | ---: |
-| `0_dma_pressure` | 2424 B | 1480 B |
-| `6_statistics` | 6264 B | 1784 B |
+| `0_dma_pressure` | 2456 B | 1484 B |
+| `6_statistics` | 6336 B | 1788 B |
 | `8_ds2431` | 6156 B | 768 B |
-| `9_multi` | 11752 B | 1296 B |
+| `9_multi` | 12764 B | 1456 B |
 
-`6_statistics` owns the largest `.bss` (1024 B UART ring + ~300 B stats state);
-`9_multi` owns the largest `.text` (DS18B20 + DS2431 in one image, about 72% of
-the 16 KB flash). The DS2431 driver is dropped by `--gc-sections` from images
-that never call it.
+`6_statistics` owns the largest `.bss` (1024 B UART ring + ~304 B stats state);
+`9_multi` owns the largest `.text` (DS18B20 + DS2431 + DS2413 in one image,
+about 78% of the 16 KB flash). The DS2431 and DS2413 drivers are dropped by
+`--gc-sections` from images that never call them.
 
 ## Configuration
 

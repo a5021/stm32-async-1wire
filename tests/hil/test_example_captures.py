@@ -3,7 +3,8 @@
 
 Run: python tests/hil/test_example_captures.py   (make test-example-captures)
 
-The archives are produced by `tests/hil/example_capture.py` on the F030 bench.
+The archives are produced by `tests/hil/example_capture.py`; most on the F030
+bench, the 9_multi archive on the F446 bench with the DS2413 PIO pins on D2/D3.
 This gate keeps the published files and the viewer links honest: every listed
 app has a readable sigrok archive with the expected samplerate and at least one
 reset (or, for the diagnostic pattern, real edges), and `docs/examples.md`
@@ -120,6 +121,13 @@ def main():
                       "No capture:" in docs and "1_basic" in docs)
             continue
 
+        bench = entry.get("bench", manifest["bench"])
+        check("%s bench is a known profile" % app,
+              bench in ec.common.BENCH_PROFILES, bench)
+        if app == "9_multi":
+            check("9_multi capture is from the F446 DS2413 bench",
+                  bench == "STM32F446xx", bench)
+
         name = entry.get("file")
         check("%s has a capture file" % app, bool(name))
         if not name:
@@ -137,6 +145,16 @@ def main():
             meta = z.read("metadata").decode("utf-8", "replace")
             check("%s declares 4 MHz" % app, "samplerate=4 MHz" in meta)
             raw = np.frombuffer(z.read("logic-1-1"), dtype=np.uint8)
+
+        if app == "9_multi":
+            d2_falls, _ = edge_counts(raw, manifest["capture_rate_hz"], 2)
+            d3_falls, _ = edge_counts(raw, manifest["capture_rate_hz"], 3)
+            check("9_multi PIOA (D2) toggles", d2_falls >= 4,
+                  "%d edges" % d2_falls)
+            check("9_multi PIOB (D3) toggles", d3_falls >= 4,
+                  "%d edges" % d3_falls)
+            check("9_multi PIOA and PIOB are distinct channels",
+                  not np.array_equal((raw >> 2) & 1, (raw >> 3) & 1))
 
         falls, resets = edge_counts(raw, manifest["capture_rate_hz"],
                                     manifest["channel"])

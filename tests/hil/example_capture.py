@@ -2,9 +2,12 @@
 """Capture one logic-analyzer window per example and publish it for the viewer.
 
 Run on the STM32F030 bench with the fx2lafw analyzer on D1 (PA2) and the
-parasite-powered bus. The script builds and flashes each example, captures a
-generous window, trims it to the first reset plus the app's window, and writes
-a sigrok `.sr` archive the viewer can open with `?chan=1`.
+parasite-powered bus. `--mcu` selects another bench for a partial refresh; the
+manifest keeps its global bench and records a per-app `bench` when it differs
+(the 9_multi capture is taken on the F446 DS2413 bench). The script builds and
+flashes each example, captures a generous window, trims it to the first reset
+plus the app's window, and writes a sigrok `.sr` archive the viewer can open
+with `?chan=1`.
 
 The output is committed, so this script is a bench tool, not a CI step. The
 host-side gate that checks the committed archives and links is
@@ -106,7 +109,7 @@ APPS = [
         "app": "9_multi",
         "seconds": 10.0,
         "window_us": 8_500_000,
-        "description": "DS18B20 scan plus a DS2431 record update.",
+        "description": "DS18B20 scan, DS2431 record update, and DS2413 PIOA/PIOB blink (D2=PIOA, D3=PIOB).",
     },
 ]
 
@@ -193,7 +196,11 @@ def merge_manifest(existing, updates, meta):
     out = dict(existing or {})
     out.update(meta)
     apps = dict(out.get("apps") or {})
-    apps.update(updates)
+    for name, entry in updates.items():
+        entry = dict(entry)
+        if entry.get("bench") == out.get("bench"):
+            entry.pop("bench", None)
+        apps[name] = entry
     out["apps"] = apps
     return out
 
@@ -256,6 +263,7 @@ def capture_one(entry, args):
         "seconds": capture_seconds,
         "window_us": int(round(end - start)),
         "description": entry["description"],
+        "bench": args.mcu,
     }
 
 
@@ -308,6 +316,8 @@ def main(argv=None):
             print("example_capture: cannot read %s: %s" % (args.json, exc),
                   file=sys.stderr)
             return 1
+        if existing.get("bench"):
+            manifest_meta["bench"] = existing["bench"]
     manifest = merge_manifest(existing, {}, manifest_meta)
     if not args.only:
         manifest["apps"] = {}

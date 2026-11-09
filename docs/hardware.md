@@ -13,8 +13,9 @@ per-port bring-up and timing notes live next to the linker scripts:
 ### STM32F103C8T6 (Blue Pill)
 
 Reference setup: STM32F103C8T6 (Blue Pill), a DS18B20 temperature bus and a
-DS2431 EEPROM sharing one 1-Wire line (PA10, external VDD; the two drivers are
-exercised by separate firmware images — see the DS2431 section), flashed via
+DS2431 EEPROM sharing one 1-Wire line (PA10, external VDD; the DS18B20 and
+DS2431 drivers are exercised by separate firmware images — see the DS2431
+section), flashed via
 ST-Link, USART1 TX at 115200 8N1 via a CP2102 USB-UART adapter. The DS2431
 path is exercised by `make APP=8_ds2431` — a Read Memory / Write Scratchpad /
 Read Scratchpad / Copy Scratchpad / Read Memory cycle on every DS2431 the
@@ -152,7 +153,9 @@ at 8/16/180 MHz at both class 0 and class 1. One DS2413 dual-channel switch
 (`3A 9F 47 03 00 00 00 3A`) also shares the bus; `9_multi` alternates PIOA and
 PIOB every 500 ms and reads them back. The device is parasite powered and needs
 a 1 ms strong pull-up prime before each operation, otherwise its replies are
-intermittent. The library default stays `PL=0`. Details:
+intermittent. PIOA/PIOB are open-drain and unconnected on this bench; D2/D3
+monitor them (D2 = PIOA, D3 = PIOB) for the published capture. The library
+default stays `PL=0`. Details:
 [STM32F4 hardware notes](../port/stm32f4/HARDWARE-NOTES.md).
 
 ### STM32C552CET6 (WeAct 48-pin Core Board)

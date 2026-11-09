@@ -135,6 +135,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ds2413` | Run the DS2413 switch driver suite alone (13 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|ds2413\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
@@ -186,6 +187,7 @@ make test-h5     # same suite against the STM32H5 backend mock
 make test-h7     # same suite against the STM32H7 backend mock
 make test-all-families  # every backend above in one run
 make test-ds2431 # DS2431 EEPROM suite (34 tests; also runs inside every make test)
+make test-ds2413 # DS2413 switch suite (13 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
@@ -215,7 +217,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    (which also runs the 250 MHz and 8 MHz host variants
    `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` as extras, same
    count). Every wrapper runs the DS2431 suite alongside it (34 tests, see
-   `make test-ds2431`).
+   `make test-ds2431`) and the DS2413 suite (13 tests, see `make test-ds2413`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -272,12 +274,17 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     the t_PROG hold-off and the device's 0xAA completion pattern (a refused copy
     reports failure), presence-abort and out-of-range paths, plus a full
     end-to-end write cycle
+-   DS2413 switch transactions (`test_ds2413` in the separate
+    `make test-ds2413` suite): PIO Access Read over Skip/Match ROM, reply
+    complement/0xFF validation, PIO Access Write state+complement bytes, 0xAA
+    acknowledge, state masking, presence abort, busy guard and select-while-busy
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 34-test DS2431 suite, every family), `make test-lowpower` (full
-suite + low-power WFE path: 339 tests against F0/F1, 340 against F3/F4/L4/H7,
-341 against G0, 342 against G4, 343 against H5, plus the same 34 DS2431 tests)
-and `make test-ndebug` (335 / 336 / 337 / 338 / 339 + the same 34, asserts off).
+tests + the 34-test DS2431 and 13-test DS2413 suites, every family),
+`make test-lowpower` (full suite + low-power WFE path: 339 tests against
+F0/F1, 340 against F3/F4/L4/H7, 341 against G0, 342 against G4, 343 against H5,
+plus the same 34 DS2431 and 13 DS2413 tests) and `make test-ndebug` (335 / 336 /
+337 / 338 / 339 + the same 34 + 13, asserts off).
 
 ### Does the suite actually notice a broken DMA contract?
 
@@ -571,7 +578,7 @@ the next:
 
 | Evidence | Check | Proves | Cannot prove |
 |----------|-------|--------|--------------|
-| Host model | `make test`, `make test-ds2431` against the F0/F1 mock | state machines, command order, CRC math, error paths | timing, electrical behaviour, what a real slave does |
+| Host model | `make test`, `make test-ds2431`, `make test-ds2413` against the F0/F1 mock | state machines, command order, CRC math, error paths | timing, electrical behaviour, what a real slave does |
 | Signal geometry | `la_capture.py` | pulse widths, slot period, long waits - the schedule the bus sees | which bytes those pulses carry |
 | Wire content | `la_decode.py` | bits, ROM/search, commands and payloads with the device's CRC; with `--log`, that Copy changed the row and the device's read-back returned the new bytes | retention after power-off, or margin over temperature and voltage (the part's datasheet, not this run) |
 | Real device | `run.py` log + read-back | the driver against an actual part, including the EEPROM read | negative electrical scenarios the bench cannot inject |

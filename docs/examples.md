@@ -53,7 +53,7 @@ make APP=5_commands                           # build 5_commands -> build/ds18b2
 make APP=6_statistics                         # build 6_statistics -> build/ds18b20_6_statistics.elf (OW_STATS_ENABLE auto-added)
 make APP=7_low_power EXT="-DOW_LOW_POWER=1"   # build 7_low_power -> build/ds18b20_7_low_power.elf (WFE low-power)
 make APP=8_ds2431                             # build 8_ds2431 -> build/ds18b20_8_ds2431.elf (DS2431 EEPROM)
-make APP=9_multi                              # build 9_multi -> build/ds18b20_9_multi.elf (DS18B20 + DS2431)
+make APP=9_multi                              # build 9_multi -> build/ds18b20_9_multi.elf (DS18B20 + DS2431 + DS2413)
 make debug APP=3_round_robin                  # debug build of 3_round_robin (for J-Link/ST-Link)
 
 # STM32F030 target (same examples, bus on PA10):
@@ -218,7 +218,8 @@ Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?
 #### `9_multi`
 
 A peak/low temperature logger with seven DS18B20 sensors, one DS2431 EEPROM and
-one DS2413 dual-channel switch on the same bus. One bus-owner state machine uses
+one DS2413 dual-channel switch on the same bus (the DS2413 blink runs when the
+device is present). One bus-owner state machine uses
 the drivers in sequence, because they share TIM1/DMA and none may be polled
 while another owns the timer: DS18B20 search, a second full-family search to
 find the DS2431 and DS2413, boot-read of four EEPROM blocks, then measurement
@@ -232,9 +233,16 @@ verify) → Copy Scratchpad → Read Memory. The sensor's ROM block is written
 before the record that refers to it, so a power cut cannot leave a record
 pointing at a missing ROM. Records are self-validating 8-byte blocks (magic,
 version, flags, counter, temperature, sensor index, CRC-8); `PEAK_RESET=1`
-ignores stored records at boot. Every stage is a `poll()` loop paced by
+ignores stored records at boot. `CLEAR_RECORDS=1` erases the four record/ROM
+blocks (0xFF) before the normal boot and then stops, so the next normal image
+starts from a clean EEPROM. Every stage is a `poll()` loop paced by
 `app_millis()`; there are no delays, waits or interrupts.
-Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=0&speed=standard).
+Capture: [1-Wire bus](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=0&speed=standard),
+[PIOA (D2)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=2&speed=standard),
+[PIOB (D3)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=3&speed=standard).
+The capture was taken on the F446 bench with an external USB-TTL on PA9 and the
+DS2413 PIO pins on D2/D3; the F030 bench has no DS2413, so the blink is absent
+there.
 
 ### Common notes
 

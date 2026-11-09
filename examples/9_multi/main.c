@@ -103,8 +103,19 @@ static const char* const slot_name[SLOT_COUNT] = {"peak", "low"};
 #define PEAK_RESET 0
 #endif
 
+/* One-shot build knob: erase the four DS2431 record/ROM blocks before the
+ * normal boot. Use it once, then flash the normal image for a clean capture. */
+#ifndef CLEAR_RECORDS
+#define CLEAR_RECORDS 0
+#endif
+
 typedef enum {
+#if CLEAR_RECORDS
+    ST_CLEAR = 0,
+    ST_SEARCH_DS18,
+#else
     ST_SEARCH_DS18 = 0,
+#endif
     ST_SEARCH_ALL,
     ST_BOOT_READ,
     ST_MEASURE_START,
@@ -139,7 +150,9 @@ static state_t state = ST_SEARCH_DS18;
 
 /* Bus devices */
 static uint8_t ds18_n;
+#if !CLEAR_RECORDS
 static uint8_t ds18_sink_n;
+#endif
 static uint8_t ds2431_rom[8];
 static uint8_t have_ds2431;
 static uint8_t ds2431_n;
@@ -264,6 +277,7 @@ static void slot_report(uint8_t slot) {
 /* Device searches                                                            */
 /* -------------------------------------------------------------------------- */
 
+#if !CLEAR_RECORDS
 static uint8_t ds18_sink(const uint8_t* rom) {
     uart_write_str("  [");
     uart_write_int(ds18_sink_n);
@@ -273,6 +287,7 @@ static uint8_t ds18_sink(const uint8_t* rom) {
     ds18_sink_n++;
     return 0u;
 }
+#endif
 
 static uint8_t all_sink(const uint8_t* rom) {
     switch (rom[0]) {
@@ -357,6 +372,66 @@ static void boot_load_rom(uint8_t slot) {
         slots[slot].rom_valid = 1u;
     }
 }
+
+#if CLEAR_RECORDS
+static uint8_t clear_block;
+static uint8_t clear_phase;
+static uint8_t clear_buf[REC_BYTES];
+
+static uint8_t clear_poll(void) {
+    if (clear_block >= BOOT_READS) {
+        uart_write_str("EEPROM record blocks cleared\r\n");
+        return 1u;
+    }
+    switch (clear_phase) {
+    case 0:
+        memset(clear_buf, 0xFF, REC_BYTES);
+        if (ds2431_write_scratchpad(boot_addr[clear_block], clear_buf,
+                                    REC_BYTES)) {
+            deadline_ms = app_millis() + EEPROM_TIMEOUT_MS;
+            clear_phase = 1u;
+        }
+        break;
+    case 1:
+        if (ds2431_write_scratchpad_poll()) {
+            if (!ds2431_last_command_ok()) {
+                uart_write_str("clear: write failed\r\n");
+                return 1u;
+            }
+            ds2431_read_scratchpad(clear_buf);
+            deadline_ms = app_millis() + EEPROM_TIMEOUT_MS;
+            clear_phase = 2u;
+        }
+        break;
+    case 2:
+        if (ds2431_read_scratchpad_poll()) {
+            if (!ds2431_last_command_ok()) {
+                uart_write_str("clear: verify failed\r\n");
+                return 1u;
+            }
+            ds2431_copy_scratchpad();
+            deadline_ms = app_millis() + EEPROM_TIMEOUT_MS;
+            clear_phase = 3u;
+        }
+        break;
+    case 3:
+        if (ds2431_copy_scratchpad_poll()) {
+            if (!ds2431_last_command_ok()) {
+                uart_write_str("clear: copy failed\r\n");
+                return 1u;
+            }
+            clear_block++;
+            clear_phase = 0u;
+        }
+        break;
+    }
+    if (expired()) {
+        uart_write_str("clear: timeout\r\n");
+        return 1u;
+    }
+    return 0u;
+}
+#endif
 
 static void boot_done(void) {
 #if PEAK_RESET
@@ -681,12 +756,24 @@ int main(void) {
     uart_write_str("Parasite power: strong pull-up enabled\r\n");
 #endif
 
+#if CLEAR_RECORDS
+    state = ST_CLEAR;
+#else
     uart_write_str("Search DS18B20 devices...\r\n");
     ds18b20_search_start(ds18_sink, DS18B20_MAX_DEVICES);
     deadline_ms = app_millis() + SEARCH_TIMEOUT_MS;
+#endif
 
     for (;;) {
         switch (state) {
+#if CLEAR_RECORDS
+        case ST_CLEAR:
+            if (clear_poll()) {
+                uart_write_str("EEPROM cleared; flash the normal image.\r\n");
+                state = ST_STOP;
+            }
+            break;
+#endif
         case ST_SEARCH_DS18:
             if (ds18b20_search_poll()) {
                 ds18_n = ds18b20_device_count();

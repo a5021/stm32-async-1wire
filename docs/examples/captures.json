@@ -52,7 +52,8 @@
       "window_us": 5500000
     },
     "9_multi": {
-      "description": "DS18B20 scan plus a DS2431 record update.",
+      "bench": "STM32F446xx",
+      "description": "DS18B20 scan, DS2431 record update, and DS2413 PIOA/PIOB blink (D2=PIOA, D3=PIOB).",
       "file": "captures/9_multi.sr",
       "seconds": 10.0,
       "window_us": 8500000

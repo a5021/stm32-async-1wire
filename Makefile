@@ -2006,6 +2006,7 @@ help:
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
 	@echo "  test-dma-prio   - contract suite with -DOW_DMA_PRIO=3 (f0/f4/h5/h7, one per encoding)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
+	@echo "  test-ds2413     - run the DS2413 switch driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
 	@echo "  test-mcu-dispatch - Check the Makefile and CMake MCU tables agree (no toolchain needed)"
 	@echo "  test-header-hygiene - Check the public headers do not leak the port register vocabulary (host gcc)"

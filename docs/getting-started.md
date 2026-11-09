@@ -9,8 +9,10 @@
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F446RE,
   STM32G031x6, STM32G474CB, STM32L476RG, STM32H503CB, STM32H743VI; see the per-family sections in `src/ow_mcu.h`).
-- Sensor: DS18B20 temperature sensor and/or DS2431 EEPROM; one firmware image
-  drives one of the two drivers (see [DS2431 EEPROM Driver](api-reference.md#ds2431-eeprom-driver))
+- Sensor: DS18B20 temperature sensor, DS2431 EEPROM and/or DS2413 dual-channel
+  switch; one firmware image drives one driver at a time (see
+  [DS2431 EEPROM Driver](api-reference.md#ds2431-eeprom-driver) and
+  [DS2413 Driver](api-reference.md#ds2413-dual-channel-switch-driver))
 - Toolchain: GCC ARM (arm-none-eabi)
 - Clock Configuration: defaults and fallbacks are listed below; `SYSCLK_MHZ=N`
   overrides the part default.
@@ -89,12 +91,12 @@ facts before wiring or porting:
 #include "ds18b20.h"
 ```
 
-> Working with a 1-Wire slave that has no driver in this repo (DS2413, ...)?
+> Working with a 1-Wire slave that has no driver in this repo (DS2408, ...)?
 > Include `"onewire.h"` instead and build directly on the shared bus primitives
 > (`onewire_reset()`, `onewire_write_then_read()`, the Search ROM engine) —
-> no DS18B20 code is pulled in. The DS2431 is the exception: it ships with the
-> repo as its own driver — include `"ds2431.h"`
-> (see `examples/8_ds2431`).
+> no DS18B20 code is pulled in. DS2431 and DS2413 are the exceptions: they ship
+> with the repo as their own drivers — include `"ds2431.h"` / `"ds2413.h"`
+> (see `examples/8_ds2431` and `examples/9_multi`).
 
 ### 2. Initialize the Driver
 

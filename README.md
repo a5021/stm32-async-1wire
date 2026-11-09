@@ -5,14 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # stm32-async-1wire
 
-Non-blocking 1-Wire master for STM32, with a DS18B20 temperature driver and a
-DS2431 EEPROM driver built on top. A generic bus layer (`src/onewire.c`) owns
+Non-blocking 1-Wire master for STM32, with DS18B20 temperature, DS2431 EEPROM
+and DS2413 dual-channel switch drivers built on top. A generic bus layer
+(`src/onewire.c`) owns
 the 1-Wire timing — a hybrid of a hardware timer (TIM1) and DMA automates every
 slot, so the CPU never performs timing-critical busy-waits inside a transaction
 and never enters an interrupt; operations advance by polling hardware
 completion flags. The first driver on that layer is `src/ds18b20.c`, the DS2431
-EEPROM driver rides it as `src/ds2431.c`, and other 1-Wire slaves (DS2413, ...)
-can ride it as-is.
+EEPROM driver rides it as `src/ds2431.c`, the DS2413 switch driver as
+`src/ds2413.c`, and other 1-Wire slaves (DS2408, ...) can ride it as-is.
 
 The core (`src/onewire.c` + `src/ds18b20.c`) is MCU-independent. Its public
 surface is the headers under `inc/`: `onewire.h` (the bus API), `ow_board.h`
@@ -81,14 +82,15 @@ be driven directly from the shared bus layer.
 Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer. Only one
 of them owns the bus at a time: an operation started on one driver must finish
 (its `*_poll()` reports done) before the other starts one, and neither may be
-polled while the other is running. Both `ds18b20_init()` and `ds2431_init()` may
-still run before any bus operation in the same firmware image — each calls
-`onewire_init()`, which re-applies the same idle timer/DMA/pin configuration —
-and `examples/9_multi` does exactly that and then hands the bus back and forth
-between the two drivers through one explicit owner state machine. The DS2431
-example filters the shared bus search by family code (`DS2431_FAMILY_CODE`,
-0x2D), while the DS18B20 driver's own search filters on 0x28. Slaves without a
-driver here (DS2413, ...) can be driven by including `"onewire.h"` and building
+polled while the other is running. All three `*_init()` functions
+(`ds18b20_init()`, `ds2431_init()`, `ds2413_init()`) may still run before any
+bus operation in the same firmware image — each calls `onewire_init()`, which
+re-applies the same idle timer/DMA/pin configuration — and `examples/9_multi`
+does exactly that and then hands the bus back and forth between the drivers
+through one explicit owner state machine. The DS2431 example filters the shared
+bus search by family code (`DS2431_FAMILY_CODE`, 0x2D), the DS2413 search by
+0x3A, while the DS18B20 driver's own search filters on 0x28. Slaves without a
+driver here (DS2408, ...) can be driven by including `"onewire.h"` and building
 on the bus primitives.
 
 ## Features
@@ -96,8 +98,8 @@ on the bus primitives.
 - Pure Bare-Metal: direct register manipulation, no HAL or LL libraries.
 - Universal 1-Wire Layer: `inc/onewire.h` + `src/onewire.c` — a reusable,
   non-blocking 1-Wire master (bus primitives + Maxim Search ROM) scheduled on
-  TIM1/DMA; the DS18B20 and DS2431 drivers are built on it, and other 1-Wire
-  slaves (DS2413, ...) can reuse it as-is — see
+  TIM1/DMA; the DS18B20, DS2431 and DS2413 drivers are built on it, and other
+  1-Wire slaves (DS2408, ...) can reuse it as-is — see
   [1-Wire Layer (shared)](docs/api-reference.md#1-wire-layer-shared).
   - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
     header-only backends for STM32F0, STM32F1, STM32F3, STM32F4, STM32G0,
@@ -113,10 +115,17 @@ on the bus primitives.
   and TIM1/DMA backend, with external and parasite power (strong pull-up
   hold-off for Copy Scratchpad) — see
   [DS2431 EEPROM Driver](docs/api-reference.md#ds2431-eeprom-driver) and `examples/8_ds2431`.
+- DS2413 Dual-Channel Switch Driver: `inc/ds2413.h` + `src/ds2413.c` — PIO
+  Access Read (0xF5) and Write (0x5A) as non-blocking polled operations, with
+  Match/Skip ROM, reply/ack validation, a 1 ms parasite prime and three
+  retries. `examples/9_multi` blinks PIOA/PIOB while it waits between
+  measurement rounds — see
+  [DS2413 Driver](docs/api-reference.md#ds2413-dual-channel-switch-driver).
 - Multi-Device Application (`9_multi`): a peak/low temperature logger that runs
-  DS18B20 sensors and a DS2431 EEPROM on one bus, handing ownership back and
-  forth between the two drivers; results are stored as self-validating CRC
-  records, with the ROM block written before the record that refers to it. See
+  DS18B20 sensors, a DS2431 EEPROM and a DS2413 switch on one bus, handing
+  ownership back and forth between the drivers; results are stored as
+  self-validating CRC records, with the ROM block written before the record
+  that refers to it. See
   [Multi-Device Application](docs/api-reference.md#multi-device-application-9_multi).
 - DMA Feed Pressure Rig (`0_dma_pressure`): a diagnostic example, not a demo.
   It transmits a known 64-slot pattern under a build-time selectable

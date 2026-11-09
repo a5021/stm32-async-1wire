@@ -11,7 +11,7 @@
 - [STM32F4 console is silent on PA9](#stm32f4-console-is-silent-on-pa9)
 - [Build fails with "no MCU selected", or selects the wrong backend](#build-fails-with-no-mcu-selected-or-selects-the-wrong-backend)
 - [Link fails with undefined references after enabling LTO](#link-fails-with-undefined-references-after-enabling-lto)
-- [An operation never completes, or the two drivers interfere](#an-operation-never-completes-or-the-two-drivers-interfere)
+- [An operation never completes, or the drivers interfere](#an-operation-never-completes-or-the-drivers-interfere)
 - [Parasite-powered sensors read 85.0 °C or 127.9 °C, or conversions fail](#parasite-powered-sensors-read-850-c-or-1279-c-or-conversions-fail)
 - [`ds18b20_poll()` blocks for hundreds of milliseconds](#ds18b20_poll-blocks-for-hundreds-of-milliseconds)
 - [The wrong pin is used, or a peripheral conflict appears](#the-wrong-pin-is-used-or-a-peripheral-conflict-appears)
@@ -98,7 +98,7 @@
   this automatically; `cmake/ow_add_library.cmake` selects it when available),
   or build the library without `-flto`.
 
-### An operation never completes, or the two drivers interfere
+### An operation never completes, or the drivers interfere
 
 - **Cause:** starting an operation while another owns TIM1/DMA, polling both
   drivers at once, or calling a second `*_init()` during activity. A second init

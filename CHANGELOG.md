@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commanded state and read-back for the SWD HIL check. New host suite
   `make test-ds2413`, `tests/hil/ds2413.py`, API-reference section and RAM
   budget update (9_multi: 12764 text / 1456 bss).
+- **`9_multi` can erase its DS2431 record blocks.** `CLEAR_RECORDS=1` writes
+  0xFF to addresses 16..47, verifies the scratchpad/copy cycle and stops, so a
+  fresh normal image starts from a clean EEPROM. The published `9_multi`
+  logic-analyzer capture is now taken on the F446 bench with the DS2413 PIOA
+  and PIOB pins on D2/D3; `docs/examples/captures.json` records a per-app
+  `bench` so the rest of the archives stay on the F030 bench.
 
 - **`OW_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
   The value (0..3, default 0 = the reset class every release has shipped)
