@@ -108,6 +108,17 @@
     return Uint8Array.from(out);
   }
 
+  function glitchWave() {
+    const out = [];
+    const hi = (n) => { for (let k = 0; k < n; k++) out.push(1); };
+    const low = (n) => { for (let k = 0; k < n; k++) out.push(0); };
+    hi(200);
+    low(480); hi(4); low(60); hi(500); // reset + presence + recovery
+    low(1); hi(50);                    // analyzer glitch before the next reset
+    low(480); hi(4); low(60); hi(100);
+    return Uint8Array.from(out);
+  }
+
   const FIXED_DEFLATE = "80jNycnXUTDUDc8sSlUEAA==";
   const DYNAMIC_DEFLATE = "7czLCYAwFETRVl4J5uNvq9mKkNjAM4m4Ugli/UaxC2c1FwaOcaLpZEHGSa3EO0KRi5z8SnYcaODzq37frphOmshGDuR8eq4jZyGk0mVVNy3PPsQlM1ChQoUKFSpUqFChQoX6d/UG";
   const STORED_DEFLATE = "AR8A4P9zdG9yZWQgYmxvY2sgcGF5bG9hZCAwMTIzNDU2Nzg5";
@@ -319,6 +330,10 @@
     check("standard profile does not invent resets in an OD capture",
       !OWVis.decodeSlots(OD_WAVE, 1e6, 0, "standard").some((e) => e.type === "reset"),
       "no resets at standard thresholds");
+    const glitchResets = OWVis.decodeSlots(glitchWave(), 1e6, 0, "standard")
+      .filter((e) => e.type === "reset");
+    eq("standard: sub-slot glitch does not swallow the next reset",
+      glitchResets.length, 2);
 
     const od2 = new Uint8Array(OD_WAVE.length * 2);
     for (let i = 0; i < OD_WAVE.length; i++) {

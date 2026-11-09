@@ -370,6 +370,7 @@ function decodeSlotsProfile(samples, samplerate, channel, overdrive) {
   const ev = [];
   let i = 0;
   const RESET_LOW = Math.max(2, Math.round((overdrive ? 24 : 300) * us));
+  const MIN_LOW = Math.max(1, Math.round((overdrive ? 1 : 2) * us));
   const SAMPLE_AT = Math.max(1, Math.round((overdrive ? 3 : 20) * us));
   const ADVANCE = Math.max(2, Math.round((overdrive ? 5 : 55) * us));
   const PRES_WIN = Math.round((overdrive ? 40 : 200) * us);
@@ -403,6 +404,10 @@ function decodeSlotsProfile(samples, samplerate, channel, overdrive) {
         // At overdrive speed the first slot can start ~15 us after release,
         // so resume right after the presence pulse instead of skipping 400 us.
         i = overdrive ? (pres ? presT + presLen : j) : j + SKIP_AFTER_RESET;
+      } else if (low < MIN_LOW) {
+        // A sub-slot glitch (analyzer noise) must not consume the 55 us slot
+        // advance: that can jump over a following reset and merge two passes.
+        i = i + 1;
       } else {
         const t = i + 1 + SAMPLE_AT;
         ev.push({ t: i + 1, type: "bit", bit: t < n ? lvl(t) : 1, lowLen: low });

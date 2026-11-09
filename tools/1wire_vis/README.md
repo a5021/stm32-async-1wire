@@ -108,7 +108,7 @@ shape as `tools/la_decode.py` output).
 
 ### Self-test
 
-`selftest.html` is a browser page with 102 golden checks (no Node needed). Open
+`selftest.html` is a browser page with 103 golden checks (no Node needed). Open
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
 check plus a summary. `python tools/1wire_vis/run_selftest.py` (or
 `make test-viewer`) runs the same page in headless Chromium and exits non-zero
