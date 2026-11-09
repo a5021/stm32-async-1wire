@@ -451,21 +451,25 @@ OWVis.resolveSrc = function (raw, base) {
  * `src` names the capture; `speed` pins the bus profile. Auto-detection is
  * right for real 1-Wire traffic, but a diagnostic pattern can have long '0'
  * pulses that look like overdrive resets, so the stress report pins
- * `standard`. Unknown or empty values are ignored rather than rejected.
+ * `standard`. `raw=1` opens the pulse viewer: the channel is drawn as a
+ * digital waveform and no 1-Wire decode/CRC runs. Unknown or empty values are
+ * ignored rather than rejected.
  */
 OWVis.parseViewerQuery = function (search) {
   let p;
   try {
     p = new URLSearchParams(search || "");
   } catch (e) {
-    return { src: null, speed: null, chan: null };
+    return { src: null, speed: null, chan: null, raw: false };
   }
   const speed = p.get("speed");
   const chan = p.get("chan");
+  const raw = p.get("raw");
   return {
     src: p.get("src") || null,
     speed: ["auto", "standard", "overdrive"].includes(speed) ? speed : null,
     chan: /^[0-7]$/.test(chan || "") ? parseInt(chan, 10) : null,
+    raw: raw === "1" || raw === "true" || raw === "on",
   };
 };
 
