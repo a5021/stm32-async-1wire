@@ -612,7 +612,7 @@ No files are copied: the library is added as a subproject and manages its own CM
 include(FetchContent)
 FetchContent_Declare(stm32_async_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v3.0.1
+    GIT_TAG        v3.1.0
 )
 FetchContent_MakeAvailable(stm32_async_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)

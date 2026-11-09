@@ -1,13 +1,15 @@
 # Changelog
 
 All notable changes to stm32-async-1wire — a non-blocking 1-Wire layer for
-STM32 and the DS18B20 and DS2431 drivers built on top of it — are documented in
-this file.
+STM32 and the DS18B20, DS2431 and DS2413 drivers built on top of it — are
+documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.1.0] - 2026-11-09
 
 ### Added
 
@@ -157,6 +159,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Pulse viewer for non-1-Wire channels (`?raw=1`).** The browser viewer can
+  now open a capture as a raw digital waveform with no 1-Wire decoder: the page
+  title/heading become *Pulse viewer*, the file/channel/speed/theme controls,
+  samples menu, search/protocol/transcript cards and footer are hidden, and
+  PIO/marker channels are drawn without slots, resets or CRC checks. The
+  `9_multi` PIOA/PIOB links use `chan=2/3&raw=1`; the 1-Wire bus link is
+  unchanged. `selftest.html` covers the raw query.
+- **The F446 HIL bench console is PA9.** The `STM32F446xx` profile now builds
+  with `-DOW_UART_USART1_PA9`, matching the external USB-TTL on that bench; the
+  board's PB6 VCP remains the default for other F446 builds.
 - **The HIL trusts a capture only when the run identity and marker agree.**
   `0_dma_pressure` writes a run magic, the effective level/clock and the
   injection-state bits into telemetry. `STRESS_MARKER=1` brackets every frame
@@ -226,6 +238,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Raw viewer: Overview range selection works without transactions.** The
+  `mouseup` handler returned early when the decoded transaction list was empty,
+  so dragging a range in `?raw=1` did nothing. Drag now sets the detail window
+  regardless; a click centres on the time without a nearest-transaction lookup.
+- **Sub-slot glitches no longer swallow a search reset.** A 0.5 us low pulse
+  before a reset was treated as a bit and advanced the decoder past the reset,
+  merging two Search ROM passes and showing bogus ROMs with CRC errors. Lows
+  shorter than 2 us (standard) or 1 us (overdrive) are now ignored as noise;
+  the bundled `9_multi` capture decodes with no bad ROMs.
 - **The stress report now describes the multi-bench data it publishes.** The
   summary and interpretation were still written for the F0-only page: they
   claimed the wire stayed correct under every load while the F4 and H5 sections
@@ -2792,4 +2813,5 @@ without a section here, and its changes had drifted into the section below.
 [2.4.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...v2.4.0
 [3.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...v3.0.0
 [3.0.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.0.1
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...HEAD
+[3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...v3.1.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...HEAD

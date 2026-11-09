@@ -251,7 +251,7 @@ jobs:
             "8_ds2431|STM32F401xC|-|ds18b20_8_ds2431_f401xc_84mhz|"
             "8_ds2431|STM32F446xx|-|ds18b20_8_ds2431_f446xx_180mhz|"
             "8_ds2431|STM32H743xx|-|ds18b20_8_ds2431_h7_240mhz|"
-            # 9_multi: the DS18B20 + DS2431 application example. One
+            # 9_multi: the DS18B20 + DS2431 + DS2413 application example. One
             # default-clock build per MCU, same rule as 8_ds2431 above.
             "9_multi|-|-|ds18b20_9_multi_72mhz|"
             "9_multi|STM32F030x6|-|ds18b20_9_multi_f0_48mhz|"
@@ -307,14 +307,35 @@ jobs:
           body: |
             # stm32-async-1wire
 
-            Non-blocking 1-Wire master for STM32 with DS18B20 temperature and
-            DS2431 EEPROM drivers built on top - bare-metal, register-level.
+            Non-blocking 1-Wire master for STM32 with DS18B20 temperature,
+            DS2431 EEPROM and DS2413 dual-channel switch drivers built on top -
+            bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA - no interrupts,
             no software delays, minimal CPU usage. One MCU-independent core and
-            nine header-only backends (F0/F1/F3/F4/G0/G4/L4/H5/H7) selected at build time with
+            ten header-only backends (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
             `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
+
+            ## What's new in 3.1.0
+
+            3.1.0 adds the DS2413 switch driver, the raw pulse viewer, the
+            STM32C5 backend and the `OW_DMA_PRIO` knob.
+
+            - **DS2413 dual-channel switch driver.** PIO Access Read/Write as
+              non-blocking operations on the shared 1-Wire layer, with
+              Match/Skip ROM, reply/ack validation, a 1 ms parasite prime and
+              three retries. `9_multi` blinks PIOA/PIOB while it waits between
+              measurement rounds.
+            - **Raw pulse viewer.** `?raw=1` shows a non-1-Wire channel as a
+              plain digital waveform, without the protocol tree, CRC checks or
+              1-Wire controls; the 9_multi PIO links use it.
+            - **STM32C5 family support.** The STM32C552CET6 joins the port with
+              a TIM1 + LPDMA1 backend and 144/48/8 MHz clock paths.
+            - **`OW_DMA_PRIO`.** One build knob for the feed/capture DMA
+              arbitration class on every backend, with the F4/H5 staircase
+              measured in `docs/stress/`.
+            - **One archive.** All variants ship inside `firmware-3.1.0.zip`.
 
             ## What's new in 3.0.1
 
@@ -483,7 +504,7 @@ jobs:
 
             ## Download
 
-            Everything ships in one archive, `firmware-3.0.1.zip`: `.bin` / `.hex` /
+            Everything ships in one archive, `firmware-3.1.0.zip`: `.bin` / `.hex` /
             `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
             checks. The table below names the artifact stems in that archive:
 
@@ -500,6 +521,9 @@ jobs:
             | STM32G474CB (WeAct) | 16MHz HSI16 | `ds18b20_1_basic_g4_16mhz`, ...`2_device_search_g4_16mhz`, `3_round_robin_g4_16mhz`, `4_scan_mode_g4_16mhz`, `ds18b20_5_commands_g4_16mhz`, `ds18b20_6_statistics_g4_16mhz`, `ds18b20_7_low_power_lp_g4_16mhz` |
             | STM32L476RG (NUCLEO) | 80MHz (HSI16+PLL, default; no HSE) | `ds18b20_1_basic_l4_80mhz`, ...`2_device_search_l4_80mhz`, `3_round_robin_l4_80mhz`, `4_scan_mode_l4_80mhz`, `ds18b20_5_commands_l4_80mhz`, `ds18b20_6_statistics_l4_80mhz`, `ds18b20_7_low_power_lp_l4_80mhz`, `ds18b20_8_ds2431_l4_80mhz`, `ds18b20_9_multi_l4_80mhz` |
             | STM32L476RG (NUCLEO) | 16MHz raw HSI16 | `ds18b20_1_basic_l4_16mhz`, ...`2_device_search_l4_16mhz`, `3_round_robin_l4_16mhz`, `4_scan_mode_l4_16mhz`, `ds18b20_5_commands_l4_16mhz`, `ds18b20_6_statistics_l4_16mhz`, `ds18b20_7_low_power_lp_l4_16mhz` |
+            | STM32C552CET6 (WeAct 48-pin) | 144MHz (HSE->PSI) | `ds18b20_2_device_search_c5_144mhz`, `ds18b20_8_ds2431_c5_144mhz`, `ds18b20_9_multi_c5_144mhz` |
+            | STM32C552CET6 (WeAct 48-pin) | 48MHz HSIDIV3 | `ds18b20_2_device_search_c5_48mhz` |
+            | STM32C552CET6 (WeAct 48-pin) | 8MHz raw HSE | `ds18b20_2_device_search_c5_8mhz` |
             | STM32H503CB (WeAct) | 64MHz raw HSI (default) | `ds18b20_1_basic_h5_64mhz`, ...`2_device_search_h5_64mhz`, ...`3_round_robin_h5_64mhz`, ...`4_scan_mode_h5_64mhz`, `ds18b20_5_commands_h5_64mhz`, `ds18b20_6_statistics_h5_64mhz`, `ds18b20_7_low_power_lp_h5_64mhz`, `ds18b20_8_ds2431_h5_64mhz`, `ds18b20_9_multi_h5_64mhz` |
             | STM32H503CB (WeAct) | 250MHz (HSE+PLL1) | `ds18b20_1_basic_h5_250mhz`, ...`2_device_search_h5_250mhz`, ...`3_round_robin_h5_250mhz`, ...`4_scan_mode_h5_250mhz`, `ds18b20_5_commands_h5_250mhz`, `ds18b20_6_statistics_h5_250mhz`, `ds18b20_7_low_power_lp_h5_250mhz` |
             | STM32H503CB (WeAct) | 8MHz raw HSE | `ds18b20_1_basic_h5_8mhz`, ...`2_device_search_h5_8mhz`, ...`3_round_robin_h5_8mhz`, ...`4_scan_mode_h5_8mhz`, `ds18b20_5_commands_h5_8mhz`, `ds18b20_6_statistics_h5_8mhz`, `ds18b20_7_low_power_lp_h5_8mhz` |
@@ -521,7 +545,7 @@ jobs:
             signal-statistics dump over UART (`-DOW_STATS_ENABLE=1`); `7_low_power` -
             low-power example (`-DOW_LOW_POWER=1`) that sleeps in `__WFE()`;
             `8_ds2431` - DS2431 EEPROM: Read/Write/Read/Copy Scratchpad cycle;
-            `9_multi` - seven DS18B20s + one DS2431 peak/low logger on one bus.
+            `9_multi` - seven DS18B20s + one DS2431 + one DS2413 peak/low logger on one bus.
 
             ## Highlights
 

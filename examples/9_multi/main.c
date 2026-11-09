@@ -376,7 +376,7 @@ static void boot_load_rom(uint8_t slot) {
 #if CLEAR_RECORDS
 static uint8_t clear_block;
 static uint8_t clear_phase;
-static uint8_t clear_buf[REC_BYTES];
+static uint8_t clear_buf[DS2431_SCRATCH_FRAME];
 
 static uint8_t clear_poll(void) {
     if (clear_block >= BOOT_READS) {
@@ -758,6 +758,7 @@ int main(void) {
 
 #if CLEAR_RECORDS
     state = ST_CLEAR;
+    deadline_ms = app_millis() + EEPROM_TIMEOUT_MS;
 #else
     uart_write_str("Search DS18B20 devices...\r\n");
     ds18b20_search_start(ds18_sink, DS18B20_MAX_DEVICES);

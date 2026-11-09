@@ -10,7 +10,8 @@ version:
 
 1. Fork and create a feature branch (`git checkout -b fix/my-change`).
 2. Make your changes and keep the host tests green: `make test` (includes the
-   DS2431 suite) for the default F1 backend, or `make test-all-families` for
+   DS2431 and DS2413 suites) for the default F1 backend, or
+   `make test-all-families` for
    every backend; `make test-<family>` runs one (`f0`, `f1`, `f3`, `f4`, `g0`,
    `g4`, `l4`, `h5`, `h7`).
 3. Format touched sources with the repo's `.clang-format`
