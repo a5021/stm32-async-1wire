@@ -255,6 +255,7 @@
   "capture_supported": true,
   "commit": "0d0ddc57",
   "dirty": false,
+  "feed_prio": 3,
   "first_bad": {
     "search_16": 200,
     "search_8": 200,
