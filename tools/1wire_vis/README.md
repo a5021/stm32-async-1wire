@@ -30,6 +30,14 @@ are rejected, so a shared link can only name data the page is allowed to fetch.
 but the stress pattern's 60 µs '0' pulses look like overdrive resets, so the
 report pins `standard`.
 
+`raw=1` opens the pulse viewer: the selected channel is drawn as a digital
+waveform and no 1-Wire decoder runs, so PIO/marker channels show no protocol
+tree or CRC marks. The page hides the 1-Wire controls, search/protocol/
+transcript panels and footer, and changes its title to **Pulse viewer**. For
+example, the 9_multi PIO pins are
+`index.html?src=../examples/captures/9_multi.sr&chan=2&raw=1` (PIOA) and
+`chan=3&raw=1` (PIOB).
+
 **Bus speed** is next to the channel selector. `Auto` looks at the longest
 reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
 `Standard` / `Overdrive` is available when a capture is ambiguous or when
@@ -100,7 +108,7 @@ shape as `tools/la_decode.py` output).
 
 ### Self-test
 
-`selftest.html` is a browser page with 95 golden checks (no Node needed). Open
+`selftest.html` is a browser page with 102 golden checks (no Node needed). Open
 it directly from `file://`; it runs automatically and prints PASS/FAIL per
 check plus a summary. `python tools/1wire_vis/run_selftest.py` (or
 `make test-viewer`) runs the same page in headless Chromium and exits non-zero

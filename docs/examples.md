@@ -238,8 +238,8 @@ blocks (0xFF) before the normal boot and then stops, so the next normal image
 starts from a clean EEPROM. Every stage is a `poll()` loop paced by
 `app_millis()`; there are no delays, waits or interrupts.
 Capture: [1-Wire bus](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=0&speed=standard),
-[PIOA (D2)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=2&speed=standard),
-[PIOB (D3)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=3&speed=standard).
+[PIOA (D2, raw pulse view)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=2&raw=1),
+[PIOB (D3, raw pulse view)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=3&raw=1).
 The capture was taken on the F446 bench with an external USB-TTL on PA9 and the
 DS2413 PIO pins on D2/D3; the F030 bench has no DS2413, so the blink is absent
 there.

@@ -105,14 +105,14 @@ try {
 <body>
 <header>
   <div class="header-row">
-    <h1>1-Wire Bus Visualizer</h1>
+    <h1 id="title">1-Wire Bus Visualizer</h1>
     <button id="theme" title="Toggle light/dark theme" aria-pressed="false">Dark theme</button>
   </div>
-  <p>Open a sigrok <span class="mono">.sr</span> capture (fx2lafw, DQ on D0–D7) — the browser decodes Search ROM / Match ROM / Convert T / EEPROM traffic. No upload, everything runs locally.</p>
+  <p id="subtitle">Open a sigrok <span class="mono">.sr</span> capture (fx2lafw, DQ on D0–D7) — the browser decodes Search ROM / Match ROM / Convert T / EEPROM traffic. No upload, everything runs locally.</p>
 </header>
 <main>
   <div class="card">
-    <div class="row">
+    <div class="row" id="controls">
       <label>Capture (.sr): <input type="file" id="file" accept=".sr"></label>
       <label>Channel:
         <select id="chan">
@@ -142,7 +142,7 @@ try {
   </div>
 
   <div class="card">
-    <div class="legend"><b>Overview</b> — activity envelope, ticks = resets.
+    <div class="legend" id="ovLegend"><b>Overview</b> — activity envelope, ticks = resets.
       <span class="sw" style="background:#DC2626"></span>no presence
       <span class="sw" style="background:#15803D"></span>presence
       <span class="sw" style="background:#BFD3F8"></span>Detail window</div>
@@ -150,14 +150,14 @@ try {
   </div>
 
   <div class="card" style="position:relative">
-    <div class="legend"><b>Detail</b> — time ruler is relative to capture start (µs below 1 s); click sets a custom zero, click again clears; hover shows absolute capture time and decoded slot role.
+    <div class="legend" id="detailLegend"><b>Detail</b> — time ruler is relative to capture start (µs below 1 s); click sets a custom zero, click again clears; hover shows absolute capture time and decoded slot role.
       <span id="slotLegend"><span class="sw" style="background:#2E7DE1"></span>bit 0
       <span class="sw" style="background:#E19A2E"></span>bit 1</span>
       <span class="sw" style="background:#DC2626"></span>reset
       <span class="sw" style="background:#15803D"></span>presence answer</div>
     <canvas id="detail" width="1120" height="179"></canvas>
     <div id="tip"></div>
-    <div class="row" style="margin-top:8px">
+    <div class="row" id="viewControls" style="margin-top:8px">
       <label>Zoom: <input type="range" id="zoom" min="0" max="12" value="8" step="1"></label>
       <label>Slot colors:
         <select id="colorMode"><option value="level">By bit value</option><option value="role">By bus role</option></select>
@@ -169,29 +169,29 @@ try {
       <span class="legend" id="txinfo">Wheel = zoom at cursor, drag = pan · ←/→ = prev/next reset · F = fit transaction · 0 = fit capture</span>
     </div>
     <div class="row"><span class="legend" id="cursorinfo">Alt+click = A, Shift+click = B, Esc = clear</span></div>
-    <div class="legend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · click: set 0 µs (click again clears) · Alt+click A / Shift+click B: edge-snapped timing cursors · Alt/Shift+click their lines again: remove · Esc: clear both</div>
+    <div class="legend" id="keysLegend">←/→: previous/next reset · F: fit transaction · 0: fit capture · +/-: zoom · click: set 0 µs (click again clears) · Alt+click A / Shift+click B: edge-snapped timing cursors · Alt/Shift+click their lines again: remove · Esc: clear both</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="searchCard">
     <b>Search ROM results</b> <span class="legend">(click a ROM to jump to that search pass)</span>
     <div id="searchResults" class="search-results"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="protocolCard">
     <b>Protocol tree</b> <span class="legend">(expand groups, select a transaction)</span>
     <table id="tbl"><thead><tr>
       <th>#</th><th>Presence</th><th>Bytes</th><th>Decoded</th>
     </tr></thead><tbody></tbody></table>
   </div>
 
-  <div class="card">
+  <div class="card" id="transcriptCard">
     <div class="row"><b>Transcript</b>
       <span class="legend">same shape as <span class="mono">tools/la_decode.py</span> output</span>
     </div>
     <pre id="trans">(empty)</pre>
   </div>
 </main>
-<footer>a5021/stm32-async-1wire · 1-Wire visualizer prototype · slot decoder ported from the bit-exact-validated Python reference (probe.sr vs sigrok onewire_link)</footer>
+<footer id="footer">a5021/stm32-async-1wire · 1-Wire visualizer prototype · slot decoder ported from the bit-exact-validated Python reference (probe.sr vs sigrok onewire_link)</footer>
 
 <script src="owvis.js"></script>
 <script src="bundled_sr.js"></script>
@@ -205,6 +205,7 @@ try {
     s.className = err ? "err" : "";
   };
   let cap = null;      // {samplerate, samples, channel}
+  let rawMode = false; // ?raw=1: pulse view, no 1-Wire decode
   let txns = [];
   let interp = [];
   let groups = [];
@@ -412,7 +413,96 @@ try {
   // every vertical coordinate with the canvas (179 px = +38%), while the
   // fonts are scaled by 1.265 independently.
   const DETAIL_BASE_H = 130;
+  /** Raw pulse view: the selected channel as a digital waveform, no 1-Wire
+   * slots, bytes, resets or CRC. Used by ?raw=1 for PIO/marker channels. */
+  function drawRawDetail() {
+    const c = $("detail"), ctx = c.getContext("2d");
+    const W = c.width, H = c.height;
+    const vs = H / DETAIL_BASE_H;
+    const plotTop = 24 * vs, plotBot = 98 * vs, plotH = plotBot - plotTop;
+    const yHigh = 38 * vs, yLow = 92 * vs;
+    const P = pal();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = P.canvas;
+    ctx.fillRect(0, 0, W, H);
+    if (!cap) return;
+    clampView();
+    const usPerSample = 1e6 / cap.samplerate;
+    const spp = view.spp;
+    const spanUs = W * spp * usPerSample;
+    const targetUs = 70 * usPerSample * spp;
+    const exp = Math.pow(10, Math.floor(Math.log10(Math.max(targetUs, 1e-9))));
+    const nice = [1, 2, 5, 10].map((x) => x * exp).find((x) => x >= targetUs) || 10 * exp;
+    const gridStep = Math.max(1, Math.round(nice / usPerSample));
+    const zeroAt = zeroRef();
+    const firstGrid = zeroAt + Math.ceil((view.off - zeroAt) / gridStep) * gridStep;
+    ctx.font = "12.65px Consolas,monospace";
+    ctx.lineWidth = 1;
+    ctx.textAlign = "left";
+    ctx.beginPath();
+    for (let s = firstGrid; s < view.off + W * spp; s += gridStep) {
+      const x = Math.floor((s - view.off) / spp) + 0.5;
+      ctx.strokeStyle = P.grid;
+      ctx.moveTo(x, plotTop);
+      ctx.lineTo(x, plotBot);
+      const us = ((s - zeroAt) / cap.samplerate) * 1e6;
+      ctx.fillStyle = P.ruler;
+      ctx.fillText(formatRelative(us, spanUs < 1e6, zeroSample != null),
+                   x + 3, 20 * vs);
+    }
+    ctx.stroke();
+    ctx.fillStyle = P.dim;
+    ctx.textAlign = "right";
+    ctx.fillText(spp.toFixed(1) + " samples/px", W - 8, H - 7);
+    ctx.textAlign = "left";
+    const dataEndX = clamp((cap.samples.length - view.off) / spp, 0, W);
+    if (dataEndX < W - 0.5) {
+      ctx.fillStyle = P.endShade;
+      ctx.fillRect(dataEndX, plotTop, W - dataEndX, plotH);
+      ctx.fillStyle = P.dim;
+      ctx.fillText("end of capture", Math.min(W - 112, dataEndX + 6),
+                   plotTop + 16 * vs);
+    }
+    ctx.strokeStyle = P.signal;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const sampleStart = Math.max(0, Math.min(cap.samples.length - 1,
+                                              Math.floor(view.off)));
+    const sampleEnd = Math.max(sampleStart + 1,
+                               Math.min(cap.samples.length,
+                                        Math.ceil(view.off + W * spp)));
+    let level = (cap.samples[sampleStart] >> cap.channel) & 1;
+    const yLevel = (v) => v ? yHigh : yLow;
+    ctx.moveTo(0, yLevel(level));
+    const edgeStart = lowerBound(cap.edgeSamples, sampleStart + 1);
+    for (let k = edgeStart; k < cap.edgeSamples.length; k++) {
+      const edge = cap.edgeSamples[k];
+      if (edge >= sampleEnd) break;
+      const x = (edge - view.off) / spp;
+      ctx.lineTo(x, yLevel(level));
+      level ^= 1;
+      ctx.lineTo(x, yLevel(level));
+    }
+    ctx.lineTo(dataEndX, yLevel(level));
+    ctx.stroke();
+    if (zeroSample != null) {
+      const zx = (zeroSample - view.off) / spp;
+      if (zx >= 0 && zx <= W) {
+        ctx.strokeStyle = P.zero;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(zx + 0.5, plotTop);
+        ctx.lineTo(zx + 0.5, plotBot);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    drawCursors(ctx, W, H);
+  }
+
   function drawDetail() {
+    if (rawMode) { drawRawDetail(); return; }
     const c = $("detail"), ctx = c.getContext("2d");
     const W = c.width, H = c.height;
     const vs = H / DETAIL_BASE_H;
@@ -1022,7 +1112,45 @@ try {
     drawDetail();
   }
 
+  function enterRawMode() {
+    rawMode = true;
+    document.body.classList.add("raw");
+    document.title = "Pulse viewer";
+    $("title").textContent = "Pulse viewer";
+    $("subtitle").textContent =
+      "Digital capture viewer — raw waveform, no protocol decode.";
+    ["controls", "theme", "viewControls", "searchCard", "protocolCard",
+     "transcriptCard", "footer", "slotLegend", "txinfo"].forEach((id) => {
+      const el = $(id);
+      if (el) el.style.display = "none";
+    });
+    $("ovLegend").innerHTML =
+      "<b>Overview</b> — activity envelope · detail window";
+    $("detailLegend").innerHTML =
+      "<b>Pulse</b> — wheel zoom, drag pan, +/- zoom, 0 fit, click sets 0 µs";
+    $("keysLegend").textContent =
+      "Wheel = zoom · drag = pan · +/- = zoom · 0 = fit · click = set 0 µs · Esc = clear cursors";
+  }
+
+  function runRaw() {
+    zeroSample = null;
+    cap.edgeSamples = buildEdgeIndex(cap.samples, cap.channel);
+    txns = [];
+    interp = [];
+    groups = [];
+    slotIndex = [];
+    maxSlotSpan = 0;
+    byteIndex = [];
+    sel = -1;
+    drawOverview();
+    drawDetail();
+    const dur = (cap.samples.length / cap.samplerate).toFixed(2);
+    status("D" + cap.channel + " · " + (cap.samplerate / 1e6).toFixed(1) +
+           " MHz · " + dur + " s · raw pulse view");
+  }
+
   function runDecode() {
+    if (rawMode) { runRaw(); return; }
     try {
       zeroSample = null;
       cap.edgeSamples = buildEdgeIndex(cap.samples, cap.channel);
@@ -1572,6 +1700,8 @@ try {
   // &speed=standard|overdrive pins the bus profile; auto-detection is wrong
   // for a diagnostic pattern whose long '0' pulses resemble overdrive resets.
   const linked = OWVis.parseViewerQuery(location.search);
+  rawMode = linked.raw;
+  if (rawMode) enterRawMode();
   if (linked.src && linked.chan !== null) {
     $("chan").value = String(linked.chan);
   }

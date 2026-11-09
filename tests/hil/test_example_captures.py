@@ -178,6 +178,11 @@ def main():
         link = ("viewer/?src=./../examples/captures/%s.sr&chan=0&speed=standard"
                 % app)
         check("%s is linked from docs/examples.md" % app, link in docs)
+        if app == "9_multi":
+            check("9_multi PIOA link uses the raw pulse viewer",
+                  "chan=2&raw=1" in docs)
+            check("9_multi PIOB link uses the raw pulse viewer",
+                  "chan=3&raw=1" in docs)
 
     if failures:
         print("FAIL: %d check(s) failed" % len(failures))
