@@ -367,7 +367,9 @@ def platform_section(name, data, capture=None):
         cap_html += "\n" + search_table_html(capture, name) + "\n" + (
             '<p class="note">Every row links the capture on this bench. The '
             'gaps between slots are real host idle time, not dropped samples, '
-            'and each Search ROM bit is still decoded.</p>')
+            'so the slot intervals are captured correctly. Whether the ROM '
+            'search found devices is the Matches column, not the capture '
+            'quality: a zero-device row still has valid intervals.</p>')
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
@@ -646,11 +648,12 @@ def knob_section(platforms, priority, platform_captures, knob):
     return """<section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
-This table takes every cell that fails at the default guard and re-runs it at
-each measured class, leaving the load where it was. The Default column is the
-committed run <em>with the same load placement</em>: the F446 default streams
-for the F446 rows, and the raised H503 load for the H503 rows, because that is
-the placement the knob was tested against.</p>
+This table takes the write cells that fail at the default guard plus the Search
+ROM cells that fail at the guards the Search matrix covers (1 and 5 us), and
+re-runs them at each measured class, leaving the load where it was. The
+Default column is the committed run <em>with the same load placement</em>: the
+F446 default streams for the F446 rows, and the raised H503 load for the H503
+rows, because that is the placement the knob was tested against.</p>
 <table><thead><tr><th>Bench</th><th>Load</th><th>Matrix</th><th>Clock</th>
 <th>Level</th><th>Guard</th><th>Default</th>%s</tr></thead>
 <tbody>%s</tbody></table>
@@ -658,14 +661,15 @@ the placement the knob was tested against.</p>
 channel/stream index, so the knob is not a substitute for the
 <code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
 clean: <code>CCR.PRIO</code> does not break ties by channel number. The library
-keeps class 0 by default: raising it preempts every lower-ranked channel for
-the length of a 1-Wire frame (up to milliseconds), which is the application's
-call.</p>
+keeps class 0 by default: raising it gives the library's pending feed and
+capture requests precedence over lower-priority DMA requests during a 1-Wire
+frame, potentially delaying those channels. That trade-off is the
+application's call.</p>
 </section>""" % (head, "\n".join(rows), min_text, extra_text)
 
 
 def _first_bad_text(first, prefix):
-    """Per-clock first-bad values, e.g. "16 us (48 MHz) and 20 us (8 MHz)"."""
+    """Per-clock first-bad values, e.g. "16 us (48 MHz) and 18 us (8 MHz)"."""
     pairs = []
     for key in sorted(first, key=lambda k: (k.split("_", 1)[1] != "def",
                                             k.split("_", 1)[1])):
@@ -974,13 +978,18 @@ def build_report(data, capture=None, platforms=None, priority=None,
     capd = [v for v in _first_bad_from_cells(
         inj_cells, "search").values() if v is not None]
     if feed and capd:
+        feed_txt = _first_bad_text(
+            _first_bad_from_cells(inj_cells, "write", default_guard), "write")
+        cap_txt = _first_bad_text(
+            _first_bad_from_cells(inj_cells, "search"), "search")
         findings.append(
-            "A delayed feed (%d us at the default guard) and capture (%d us) "
-            "both fail the checks, so the harness catches a late transfer."
-            % (min(feed), min(capd)))
+            "A delayed feed fails the checks at %s; a delayed capture fails "
+            "at %s. The harness catches a late transfer on both clocks."
+            % (feed_txt, cap_txt))
 
     # Main matrix.
     matrix_rows = []
+    frame_gaps = []
     for row in floors:
         level, clock = row["level"], row["clock_mhz"]
         guard_min = row["guard_us"]
@@ -1009,20 +1018,40 @@ def build_report(data, capture=None, platforms=None, priority=None,
                 label = "failing frame (%s)" % fmt_guard(poor[0]["guard_us"])
                 links.insert(0, link_to_viewer(poor[0], label,
                                                key="capture_fail"))
+        decoded = (default_cell or {}).get("frames", 0)
+        firmware = t[0] if default_cell else None
+        if default_cell and firmware is not None and firmware != decoded:
+            frame_gaps.append(
+                "%d MHz level %d at %s: %d decoded, %d run by the firmware"
+                % (clock, level, fmt_guard(default_guard), decoded, firmware))
+        frames_text = ("%d / %d" % (decoded, firmware)
+                       if firmware is not None and firmware != decoded
+                       else "%d" % decoded)
         matrix_rows.append(
-            "<tr><td>%d</td><td>%s</td><td>%s%s</td><td>%d</td><td>%s</td>"
+            "<tr><td>%d</td><td>%s</td><td>%s%s</td><td>%s</td><td>%s</td>"
             "<td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"links\">%s</td></tr>" % (
                 level,
                 "%d MHz" % clock if clock else "default",
                 fmt_guard(guard_min),
                 "" if guard_min is None else " (%d us)" % window_us(guard_min),
-                (default_cell or {}).get("frames", 0),
+                frames_text,
                 violation_text(default_cell),
                 t[1] if t[1] is not None else "?",
                 t[3] if t[3] is not None else "?",
                 t[16] if t[16] is not None else "?",
                 e(load_evidence(default_cell, level)),
                 " ".join(links) or '<span class="muted">-</span>'))
+
+    if frame_gaps:
+        frame_gap_note = (
+            "<p class=\"note\">Frame-count gap: %s. Where two numbers appear, "
+            "the second is the firmware's SWD frame counter. The analyzer "
+            "decoded fewer frames than the firmware ran; every decoded frame "
+            "passed and the DMA counters are zero, so this is a capture/decode "
+            "loss, not a feed fault.</p>"
+            % e("; ".join(frame_gaps)))
+    else:
+        frame_gap_note = ""
 
     # CPU contention: level 1 vs level 5 at each clock.
     cpu_rows = []
@@ -1148,9 +1177,9 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}}
 <main>
 <h1>Stress test report</h1>
 <p class="lead">DMA feed margin under memory-subsystem load - {mcu}</p>
-<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note} on <code>{bench}</code>
-(<code>{rig_mcu}</code>). Build <code>{example}</code>, pattern <code>{pattern}</code>,
-{slots} slots per frame, {bursts} frames per cell, {words} halfwords per DMA burst.{image_note}</p>
+<p class="meta">Measured {generated} at commit <code>{commit}</code>{tree_note} on <code>{bench}</code>.
+Build <code>{example}</code>, pattern <code>{pattern}</code>,
+{slots} slots per frame, {bursts} firmware frames per cell, {words} halfwords per DMA burst.{image_note}</p>
 
 <section id="summary">
 <h2>Summary</h2>
@@ -1190,7 +1219,7 @@ so only the intended run is measured.</p>
 <tr><th>MCU</th><td><code>{rig_row_mcu}</code></td></tr>
 <tr><th>Clocks</th><td>{clocks}</td></tr>
 <tr><th>Pattern</th><td><code>{rig_pattern}</code> (LSB first, per byte)</td></tr>
-<tr><th>Frames per cell</th><td>{frames_per_cell}</td></tr>
+<tr><th>Firmware frames per cell</th><td>{frames_per_cell}</td></tr>
 <tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
 (finite bursts), all at the default priority</td></tr>
 <tr><th>On-chip check</th><td><code>cndtr_late</code> (<code>DMA1_Channel3-&gt;CNDTR</code>
@@ -1217,10 +1246,11 @@ pulse.</p>
 <section id="results">
 <h2>Results</h2>
 <p>Smallest clean guard per level and clock. The parenthetical is the real
-transfer window (<code>guard + 1</code> us). A clean cell has 100 complete
-frames with no width, period, length or decode violation.</p>
+transfer window (<code>guard + 1</code> us). A clean cell has no width, period,
+length or decode violation in the frames the analyzer decoded; the firmware
+frame counter is shown separately because the analyzer can miss a frame.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
-<th>Frames @ {frames_header} us</th><th>Violations @ {violations_header} us</th><th>CNDTR late</th>
+<th>Frames @ {frames_header} us (decoded / firmware)</th><th>Violations @ {violations_header} us</th><th>CNDTR late</th>
 <th>DMA error</th><th>Stop timeout</th><th>Load evidence</th><th>Viewer</th></tr></thead>
 <tbody>{matrix_rows}</tbody></table>
 <p class="note">The viewer opens one representative frame (64 slots, 1 ms
@@ -1228,6 +1258,7 @@ lead-in and tail). The pattern is not a 1-Wire command, so the protocol tree
 stays empty; the Detail view shows the measured low and slot widths. The JSON
 holds every tested cell, including the {control} us control and the bisection
 probes.</p>
+{frame_gap_note}
 <h3>CPU-side work</h3>
 <p>CPU passes completed while the bus was running, at the default guard. The
 ch1 burst stream does not reduce them here: the DMA interleaves between CPU
@@ -1348,7 +1379,6 @@ bytes.</footer>
         "tree_note": e(tree_note),
         "image_note": image_note,
         "bench": e(bench),
-        "rig_mcu": e(mcu),
         "example": e(data.get("example") or "?"),
         "pattern": e(pattern),
         "slots": slots,
@@ -1377,6 +1407,7 @@ bytes.</footer>
         "frames_header": default_guard,
         "violations_header": default_guard,
         "matrix_rows": "\n".join(matrix_rows),
+        "frame_gap_note": frame_gap_note,
         "control": control,
         "chart": chart,
         "floor_window": floor_window,

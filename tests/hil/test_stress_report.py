@@ -116,6 +116,19 @@ def main():
     default = data["default_guard_us"]
     rate_hz = data["capture_rate_hz"]
 
+    # The analyzer can decode one frame fewer than the firmware ran. That must
+    # not be hidden: the table prints decoded / firmware and the note says why.
+    gaps = [c for c in data["cells"]
+            if c["guard_us"] == default and c.get("telemetry")
+            and c["telemetry"][0] is not None
+            and c["telemetry"][0] != c.get("frames")]
+    for c in gaps:
+        check("frame gap %d/%d is rendered" % (c["frames"], c["telemetry"][0]),
+              ("%d / %d" % (c["frames"], c["telemetry"][0])) in actual)
+    if gaps:
+        check("a frame-count gap is explained", "Frame-count gap" in actual)
+    check("clean is defined on decoded frames", "100 complete" not in actual)
+
     for c in data["cells"]:
         name = c.get("capture")
         if not name:
