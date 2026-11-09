@@ -282,7 +282,8 @@ stream 0 and stream 1 with `DIR=0b10` (memory-to-memory). On H5 they are GPDMA1
 channel 0 and channel 1 in direct mode with a software request; `CBR1.BNDT` is a
 source-byte count and fits at most 32767 halfwords. GPDMA does not break ties by
 channel number: arbitration uses `CCR.PRIO` (PRIO 3 is a fixed class; PRIO 0/1/2
-share a weighted round-robin). `-DSTRESS_GPDMA_PRIO=N` selects the load class:
+share a weighted round-robin; AN5593, "GPDMA channel priority").
+`-DSTRESS_GPDMA_PRIO=N` selects the load class:
 0 is equal priority, 3 is the priority case. That is the test load, not the
 driver: the library's feed/capture class is `OW_DMA_PRIO` (see
 [DMA priority](building.md#dma-priority-ow_dma_prio)). Other families compile

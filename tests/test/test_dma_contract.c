@@ -59,6 +59,14 @@ static uint16_t presence_src(uint32_t idx) {
 #define TEST_PRIO_BITS OW_PORT_DMA_CCR_PL
 #endif
 
+/* Class 0 is the reset value: a default build must not set any arbitration
+ * bit, which is why the pre-knob stress runs and a class-0 build configure
+ * the DMA identically. */
+#if OW_DMA_PRIO == 0
+_Static_assert(TEST_PRIO_BITS == 0u,
+               "OW_DMA_PRIO=0 must leave the reset priority field");
+#endif
+
 #if defined(STM32H5)
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 0u

@@ -369,7 +369,11 @@ def platform_section(name, data, capture=None):
             'gaps between slots are real host idle time, not dropped samples, '
             'so the slot intervals are captured correctly. Whether the ROM '
             'search found devices is the Matches column, not the capture '
-            'quality: a zero-device row still has valid intervals.</p>')
+            'quality: a zero-device row still has valid intervals. A failed '
+            'capture returns 0 devices with checksum <code>811C9DC5</code>, '
+            'which is also what an empty bus returns, so check the DMA '
+            'counters and the capture window before reading a zero as absent '
+            'sensors.</p>')
     if fails:
         verdict = ("<strong>%d level/clock cells do not pass</strong>; they are "
                    "listed as <em>not clean</em> below." % len(fails))
@@ -464,6 +468,15 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
+<p>That rule is deliberately conservative. The delayed-feed sweep above shows
+the feed tolerated 14-16 us at 48 MHz and 16-18 us at 8 MHz at the default
+guard, so a burst slightly longer than <code>guard + 1</code> is not
+automatically fatal; the extra slack depends on the DMA IP, the clock and the
+bus position, so it is not a design budget. Measure the burst duration under
+the worst SRAM contention, not at its nominal length: on the F446 the load on
+streams 0/1 is clean at levels 3 and 4 and fails only at level 5, where the
+CPU hammer is added. A lower stream number is necessary but not sufficient to
+explain a failure.</p>
 <p>%s</p>
 </section>
 """ % ("\n".join(rows),
@@ -660,11 +673,17 @@ rows, because that is the placement the knob was tested against.</p>
 <p>%s%s On classic DMA and F4 streams an equal-class load is still ordered by
 channel/stream index, so the knob is not a substitute for the
 <code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
-clean: <code>CCR.PRIO</code> does not break ties by channel number. The library
-keeps class 0 by default: raising it gives the library's pending feed and
-capture requests precedence over lower-priority DMA requests during a 1-Wire
-frame, potentially delaying those channels. That trade-off is the
-application's call.</p>
+clean: <code>CCR.PRIO</code> does not break ties by channel number. On the
+H5 GPDMA only class 3 is a fixed higher class; classes 0-2 share a weighted
+round-robin (AN5593, <em>GPDMA channel priority</em>), which is why classes 1
+and 2 do not outrank a PRIO 3 load. The library keeps class 0 by default:
+raising it gives the library's pending feed and capture requests precedence
+over lower-priority DMA requests during a 1-Wire frame, potentially delaying
+those channels. The library asks for one halfword per slot (about every 70 us),
+so a victim channel loses one arbitration round per slot, not a frame-long
+stall. This report does not measure that victim-side cost, so the default
+stays 0 until it is measured; where class 1 clears every failure on F4, the
+cost of raising it is the open question, not the benefit.</p>
 </section>""" % (head, "\n".join(rows), min_text, extra_text)
 
 
@@ -773,19 +792,32 @@ last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 <th>First detected</th><th>Guard window</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p><strong>It does not.</strong> The offset over <code>guard + 1</code>
-(%s) shrinks as the guard grows, and at the widest guard it reaches zero: the
-slack is not a property of the guard alone but of where the counter is when the
-late write lands relative to the next compare. A single constant
-<code>c</code> would be a fit to noise, so this report states the measured
-boundary per guard instead of a formula.</p>
+(%s) shrinks as the guard grows. At the widest guard the boundary is +1 us at
+8 MHz and -3 us at 48 MHz: the tolerance is not a linear function of the
+window, and at 48 MHz the first detected delay lands slightly <em>below</em>
+<code>guard + 1</code>. Two effects set the boundary: the hold is started
+after the frame's first CC2 request and the busy loop plus channel re-enable
+adds about 1-2 us to the nominal value, and the transfer only has to beat the
+next compare, so its position relative to the counter matters. A single
+constant <code>c</code> would be a fit to noise, so this report states the
+measured boundary per guard instead of a formula.</p>
+<p>The guard is therefore <em>not</em> a delay budget: it sets the timer's
+nominal window, and the measured tolerance only grows from 12 to 16 us at
+48 MHz and from 14 to 20 us at 8 MHz while the window grows from 2 to 21 us.
+A delay that fits inside <code>guard + 1</code> is always safe because the
+request still arrives before the update, but a correct design cannot spend the
+rest of the window.</p>
 <p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
 costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
 tolerance to the sweep's resolution, not to the microsecond. At the default
 guard the feed survives well past the 6 us window, which is why the guard
 window and the delay tolerance must not be compared as if they were the same
 quantity. The number to design against is still the load-placement rule: a
-higher-ranked burst must not outlast <code>guard + 1</code> us, because that is
-when the driver's own deadline is missed.</p>
+higher-ranked burst must not outlast <code>guard + 1</code> us. That rule is
+conservative by construction - it keeps the request inside the timer's window
+regardless of how much extra slack a particular DMA IP tolerates - and the
+measured survival above shows the margin it leaves, not an exact failure
+point.</p>
 </section>""" % ("\n".join(rows),
                 "measured: " + "; ".join(off_bits) if off_bits else
                 "no guard produced both a clean and a failing cell")
@@ -847,11 +879,11 @@ def build_report(data, capture=None, platforms=None, priority=None,
     floor_window = window_us(floor_guard)
     default_window = window_us(default_guard)
     ratio = (default_window / floor_window) if floor_window else 0.0
-    clocks = []
-    for row in floors:
-        clock = row["clock_mhz"]
-        if clock is not None and clock not in clocks:
-            clocks.append(clock)
+    # Take the clock list from the cells themselves: the guard_min rows can be
+    # shorter than the matrix, and a rig table must not inherit another bench's
+    # clocks.
+    clocks = sorted({c["clock_mhz"] for c in data.get("cells") or []
+                     if c.get("clock_mhz") is not None})
     rate_mhz = (data.get("capture_rate_hz") or 0) / 1e6
 
     all_floor_clean = True
@@ -941,13 +973,14 @@ def build_report(data, capture=None, platforms=None, priority=None,
     for name, cap in (platform_captures or {}).items():
         bad = [c for c in cap.get("capture_cells") or [] if not c.get("matches")]
         if bad:
-            clocks = sorted({c.get("clock_mhz") for c in bad if c.get("clock_mhz")})
+            bad_clocks = sorted({c.get("clock_mhz") for c in bad
+                                 if c.get("clock_mhz")})
             findings.append(
                 "%s Search ROM: %d of %d stressed cells fail%s."
                 % (cap.get("bench") or name, len(bad),
                    len(cap.get("capture_cells") or []),
-                   " at " + ", ".join("%d MHz" % c for c in clocks)
-                   if clocks else ""))
+                   " at " + ", ".join("%d MHz" % c for c in bad_clocks)
+                   if bad_clocks else ""))
 
     # The knob's direct effect: the smallest measured class that clears every
     # default-guard failure, per bench.
@@ -1311,34 +1344,43 @@ Search capture.</li>
 <li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
 The report says "a 2 us window was enough", not "the latency is exactly
 1 us".</li>
+<li><strong>Provenance.</strong> Each section carries the commit it was measured
+at, and the benches were run at different commits as the harness and the
+priority knob evolved. <code>OW_DMA_PRIO</code> was added after the earliest
+runs, but with the default class 0 the priority field is the reset value, so
+those runs use the same DMA configuration as a knob build; the knob changes no
+timing constant and no ABI.</li>
 </ul>
 </section>
 
 <section id="reproduce">
 <h2>Reproduce</h2>
-<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 %BACKSLASH%
+<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 {cont}
      EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=5 -DONEWIRE_GUARD_BAND=1"
 
-python tests/hil/dma_pressure.py %BACKSLASH%
-     --json docs/stress/results.json %BACKSLASH%
+python tests/hil/dma_pressure.py {cont}
+     --json docs/stress/results.json {cont}
      --sr-dir docs/stress/captures
 
 # the priority staircase: the load placement is fixed and the feed/capture
 # class is the variable. One file pair per class and bench.
-python tests/hil/dma_pressure.py %BACKSLASH%
-     --json docs/stress/platforms/h503/results-prio1.json %BACKSLASH%
-     --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 %BACKSLASH%
+python tests/hil/dma_pressure.py {cont}
+     --json docs/stress/platforms/h503/results-prio1.json {cont}
+     --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 {cont}
      --gpdma-prio 3 --feed-prio 1
-python tests/hil/dma_capture.py %BACKSLASH%
-     --json docs/stress/platforms/f446/capture-prio1.json %BACKSLASH%
+python tests/hil/dma_capture.py {cont}
+     --json docs/stress/platforms/f446/capture-prio1.json {cont}
      --levels 0,5 --clocks 8,16 --feed-prio 1
 
-python tools/stress_report.py %BACKSLASH%
-     --data docs/stress/results.json %BACKSLASH%
+python tools/stress_report.py {cont}
+     --data docs/stress/results.json {cont}
+     --capture docs/stress/capture.json {cont}
      --out docs/stress/index.html</pre>
 <p class="note">The matrix needs an fx2lafw logic analyzer and an ST-Link; it
 prints SKIP when either is missing. A full 12-cell run takes a few minutes
-because every cell is rebuilt and flashed.</p>
+because every cell is rebuilt and flashed. The <code>{cont}</code> above is the
+POSIX shell line continuation; in <code>cmd.exe</code> use <code>^</code> or
+keep each command on one line.</p>
 </section>
 
 <section id="artifacts">
@@ -1397,6 +1439,7 @@ bytes.</footer>
         "findings": "\n".join("<li>%s</li>" % e(f) for f in findings),
         "timeline": timeline_svg(),
         "failure_rows": failure_rows,
+        "cont": "\\",
         "rig_bench": e(bench),
         "rate_mhz": e(rate_mhz),
         "rig_row_mcu": e(mcu),

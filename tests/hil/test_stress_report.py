@@ -129,6 +129,23 @@ def main():
         check("a frame-count gap is explained", "Frame-count gap" in actual)
     check("clean is defined on decoded frames", "100 complete" not in actual)
 
+    # The rig table must describe this data set, not the last platform parsed.
+    rig = re.search(r"<th>Clocks</th><td>([^<]*)</td>", actual)
+    want = ", ".join("%d MHz" % c for c in
+                     sorted({c["clock_mhz"] for c in data["cells"]
+                             if c.get("clock_mhz") is not None}))
+    check("rig clocks match results.json",
+          bool(rig) and rig.group(1) == want,
+          rig.group(1) if rig else "missing")
+    # A missing telemetry word used to leak as a bare "?" in the tables.
+    stripped = re.sub(r'"[^"]*\?[^"]*"', "", actual)
+    stripped = re.sub(r"<[^>]*>", "", stripped)
+    check("no missing-value placeholders", "?" not in stripped)
+    check("reproduce block has a real line continuation",
+          "%BACKSLASH%" not in actual and " \\\n" in actual)
+    check("the delay sweep does not claim zero slack",
+          "reaches zero" not in actual)
+
     for c in data["cells"]:
         name = c.get("capture")
         if not name:

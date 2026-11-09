@@ -142,7 +142,10 @@ the default feed/capture at 8/16 MHz, level 5. Raising feed/capture to `PL=1`
 (`-DOW_DMA_PRIO=1`) is enough: both default-guard write cells and all 12
 Search ROM cells are clean (levels 0/5, guards 1/5/100), including the three
 cells that return 0 devices at the default class; `PL=2`/`PL=3` add nothing.
-The library default stays `PL=0`. Details:
+A failed capture returns 0 devices with checksum `811C9DC5`, which is also what
+an empty bus returns, so those cells are identified by their DMA counters and
+capture window, not by the zero count alone. The library default stays `PL=0`.
+Details:
 [STM32F4 hardware notes](../port/stm32f4/HARDWARE-NOTES.md).
 
 ### STM32C552CET6 (WeAct 48-pin Core Board)
@@ -178,7 +181,10 @@ WeAct board). Stress experiment: with the load raised to `CCR.PRIO 3`, the
 default PRIO 0 feed/capture starves at 8/64/250 MHz. The measured staircase:
 feed/capture PRIO 1 and 2 are still below the load, and the five default-guard
 failures remain; PRIO 3 (the load's own class) is clean in all 36 cells
-(levels 2-5, 8/64/250 MHz, guards 1/5/100, `cndtr_late=0`, floor guard 1). The
+(levels 2-5, 8/64/250 MHz, guards 1/5/100, `cndtr_late=0`, floor guard 1). On
+this GPDMA only PRIO 3 is a fixed higher class, while PRIO 0/1/2 share a
+weighted round-robin (AN5593, "GPDMA channel priority"), so 1 and 2 cannot
+outrank the load by construction. The
 class 1/2 runs cover 33 of the 36 cells: the 8 MHz level 3-5 cells already
 fail at guard 100, so the sweep stops before guard 1. Equal class does not lose
 to the lower channel numbers here, so 3 is the smallest class that works. The

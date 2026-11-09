@@ -74,7 +74,7 @@ Build <code>0_dma_pressure</code>, pattern <code>00FFAA550FF03CC3</code>,
 <ul class="findings">
 <li>On the primary bench, every level and clock is clean at the 1 us floor (a 2 us window).</li>
 <li>cndtr_late is 0, no DMA error was latched, and no channel-stop timeout occurred in any primary-bench cell.</li>
-<li>Load activity: at 48 MHz channel 1 restarted 8300 times; at 8 MHz channel 1 restarted 1400 times (level 4; level 5 adds the CPU hammer).</li>
+<li>Load activity: at 8 MHz channel 1 restarted 1400 times; at 48 MHz channel 1 restarted 8300 times (level 4; level 5 adds the CPU hammer).</li>
 <li>The default guard is a 6 us window and the 1 us floor a 2 us window; the delay tolerance is a separate measurement (it grows with the guard), so neither window is a safety factor.</li>
 <li>STM32F446xx: 2 default-guard level/clock cells fail (7 cells across the guard sweep).</li>
 <li>STM32H503xx: every level is clean at the default guard.</li>
@@ -124,7 +124,7 @@ runs at 4.0 MS/s. The harness flashes the firmware halted and resets it,
 so only the intended run is measured.</p>
 <table><tbody>
 <tr><th>MCU</th><td><code>STM32F030x6</code></td></tr>
-<tr><th>Clocks</th><td>8 MHz, 16 MHz</td></tr>
+<tr><th>Clocks</th><td>8 MHz, 48 MHz</td></tr>
 <tr><th>Pattern</th><td><code>00FFAA550FF03CC3</code> (LSB first, per byte)</td></tr>
 <tr><th>Firmware frames per cell</th><td>100</td></tr>
 <tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
@@ -147,12 +147,12 @@ pulse.</p>
 <h2>Load ladder</h2>
 <table><thead><tr><th>Level</th><th>Load</th><th>What it does</th>
 <th>Evidence at the default guard</th></tr></thead>
-<tbody><tr><td>0</td><td>none</td><td>The driver&#x27;s own margin: no load beside the bus.</td><td>8 MHz: -; 16 MHz: ?</td></tr>
-<tr><td>1</td><td>CPU SRAM hammer</td><td>The CPU walks the 1 KiB destination array in the onewire_bus_done() poll loop.</td><td>8 MHz: CPU passes 700; 16 MHz: ?</td></tr>
-<tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>8 MHz: DMA bursts 501; 16 MHz: ?</td></tr>
-<tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>8 MHz: DMA bursts 1400; 16 MHz: ?</td></tr>
-<tr><td>4</td><td>ch1 burst stream</td><td>A finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains. Circular mode is not allowed in memory-to-memory (RM0091); channel 1 is the lowest channel number at equal priority.</td><td>8 MHz: ch1 bursts 1400; 16 MHz: ?</td></tr>
-<tr><td>5</td><td>ch1 burst stream + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>8 MHz: ch1 bursts 700, CPU passes 700; 16 MHz: ?</td></tr></tbody></table>
+<tbody><tr><td>0</td><td>none</td><td>The driver&#x27;s own margin: no load beside the bus.</td><td>8 MHz: -; 48 MHz: -</td></tr>
+<tr><td>1</td><td>CPU SRAM hammer</td><td>The CPU walks the 1 KiB destination array in the onewire_bus_done() poll loop.</td><td>8 MHz: CPU passes 700; 48 MHz: CPU passes 3300</td></tr>
+<tr><td>2</td><td>finite DMA burst, ~1 ms</td><td>A 512-halfword mem-to-memory burst on DMA1 channel 2, started about once per millisecond.</td><td>8 MHz: DMA bursts 501; 48 MHz: DMA bursts 500</td></tr>
+<tr><td>3</td><td>finite DMA burst, back to back</td><td>The same channel-2 burst restarted as soon as it drains, so the channel competes for nearly every slot.</td><td>8 MHz: DMA bursts 1400; 48 MHz: DMA bursts 8200</td></tr>
+<tr><td>4</td><td>ch1 burst stream</td><td>A finite mem-to-memory burst on DMA1 channel 1, restarted as soon as it drains. Circular mode is not allowed in memory-to-memory (RM0091); channel 1 is the lowest channel number at equal priority.</td><td>8 MHz: ch1 bursts 1400; 48 MHz: ch1 bursts 8300</td></tr>
+<tr><td>5</td><td>ch1 burst stream + CPU</td><td>Level 4 plus the CPU SRAM hammer.</td><td>8 MHz: ch1 bursts 700, CPU passes 700; 48 MHz: ch1 bursts 3500, CPU passes 3500</td></tr></tbody></table>
 </section>
 
 <section id="results">
@@ -187,8 +187,10 @@ probes.</p>
 ch1 burst stream does not reduce them here: the DMA interleaves between CPU
 accesses. The burst count in the table shows the load.</p>
 <div class="bars">
-<div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">700</span></div>
-<div class="bar"><span class="bar-label">8 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:20.0%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">8 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:20.0%"></span></span><span class="bar-value">700</span></div>
+<div class="bar"><span class="bar-label">48 MHz - level 1 (CPU only)</span><span class="track"><span class="fill" style="width:94.3%"></span></span><span class="bar-value">3300</span></div>
+<div class="bar"><span class="bar-label">48 MHz - level 5 (ch1 + CPU)</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="bar-value">3500</span></div>
 </div>
 <p>Both loads ran, and the feed still met the 2 us floor.</p>
 </section>
@@ -302,19 +304,32 @@ last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 <tr><td>48 MHz</td><td>10 us</td><td>14 us</td><td>16 us</td><td>11 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g10_i16.sr&amp;speed=standard">failing frame</a></td></tr>
 <tr><td>48 MHz</td><td>20 us</td><td>16 us</td><td>18 us</td><td>21 us</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g20_i18.sr&amp;speed=standard">failing frame</a></td></tr></tbody></table>
 <p><strong>It does not.</strong> The offset over <code>guard + 1</code>
-(measured: 8 MHz: +14/+12/+9/+1 us; 48 MHz: +12/+10/+5/-3 us) shrinks as the guard grows, and at the widest guard it reaches zero: the
-slack is not a property of the guard alone but of where the counter is when the
-late write lands relative to the next compare. A single constant
-<code>c</code> would be a fit to noise, so this report states the measured
-boundary per guard instead of a formula.</p>
+(measured: 8 MHz: +14/+12/+9/+1 us; 48 MHz: +12/+10/+5/-3 us) shrinks as the guard grows. At the widest guard the boundary is +1 us at
+8 MHz and -3 us at 48 MHz: the tolerance is not a linear function of the
+window, and at 48 MHz the first detected delay lands slightly <em>below</em>
+<code>guard + 1</code>. Two effects set the boundary: the hold is started
+after the frame's first CC2 request and the busy loop plus channel re-enable
+adds about 1-2 us to the nominal value, and the transfer only has to beat the
+next compare, so its position relative to the counter matters. A single
+constant <code>c</code> would be a fit to noise, so this report states the
+measured boundary per guard instead of a formula.</p>
+<p>The guard is therefore <em>not</em> a delay budget: it sets the timer's
+nominal window, and the measured tolerance only grows from 12 to 16 us at
+48 MHz and from 14 to 20 us at 8 MHz while the window grows from 2 to 21 us.
+A delay that fits inside <code>guard + 1</code> is always safe because the
+request still arrives before the update, but a correct design cannot spend the
+rest of the window.</p>
 <p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
 costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
 tolerance to the sweep's resolution, not to the microsecond. At the default
 guard the feed survives well past the 6 us window, which is why the guard
 window and the delay tolerance must not be compared as if they were the same
 quantity. The number to design against is still the load-placement rule: a
-higher-ranked burst must not outlast <code>guard + 1</code> us, because that is
-when the driver's own deadline is missed.</p>
+higher-ranked burst must not outlast <code>guard + 1</code> us. That rule is
+conservative by construction - it keeps the request inside the timer's window
+regardless of how much extra slack a particular DMA IP tolerates - and the
+measured survival above shows the margin it leaves, not an exact failure
+point.</p>
 </section>
 
 <section id="platform-f446">
@@ -364,7 +379,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l3_180mhz_g5_i0.sr&amp;speed=standard" title="search/l3_180mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l4_180mhz_g5_i0.sr&amp;speed=standard" title="search/l4_180mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>5</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_180mhz_g5_i0.sr&amp;speed=standard" title="search/l5_180mhz_g5_i0.sr">frame</a></td></tr></tbody></table>
-<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals.</p>
+<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals. A failed capture returns 0 devices with checksum <code>811C9DC5</code>, which is also what an empty bus returns, so check the DMA counters and the capture window before reading a zero as absent sensors.</p>
 <p class="note">The floor is the smallest clean guard measured. <em>not
 clean</em> means even the widest guard tested did not pass.
 The capture links open one representative frame per cell.</p>
@@ -434,7 +449,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l3_250mhz_g5_i0.sr&amp;speed=standard" title="search/l3_250mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l4_250mhz_g5_i0.sr&amp;speed=standard" title="search/l4_250mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>5</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l5_250mhz_g5_i0.sr&amp;speed=standard" title="search/l5_250mhz_g5_i0.sr">frame</a></td></tr></tbody></table>
-<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals.</p>
+<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals. A failed capture returns 0 devices with checksum <code>811C9DC5</code>, which is also what an empty bus returns, so check the DMA counters and the capture window before reading a zero as absent sensors.</p>
 <p class="note">The floor is the smallest clean guard measured. <em>not
 clean</em> means even the widest guard tested did not pass.
 The capture links open one representative frame per cell.</p>
@@ -479,6 +494,15 @@ burst must not last longer than the feed window (<code>guard + 1</code> us).
 If it can, lower its priority, split it into shorter bursts, or raise the feed
 and capture priority above it. The library's reset-default priority is not a
 guarantee against an application channel with a higher rank.</p>
+<p>That rule is deliberately conservative. The delayed-feed sweep above shows
+the feed tolerated 14-16 us at 48 MHz and 16-18 us at 8 MHz at the default
+guard, so a burst slightly longer than <code>guard + 1</code> is not
+automatically fatal; the extra slack depends on the DMA IP, the clock and the
+bus position, so it is not a design budget. Measure the burst duration under
+the worst SRAM contention, not at its nominal length: on the F446 the load on
+streams 0/1 is clean at levels 3 and 4 and fails only at level 5, where the
+CPU hammer is added. A lower stream number is necessary but not sufficient to
+explain a failure.</p>
 <p>These rows move the load, not the library. The direct test of the build knob is the next section: the same failing cells re-run with the feed and capture raised.</p>
 </section>
 
@@ -506,11 +530,17 @@ rows, because that is the placement the knob was tested against.</p>
 <p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1; STM32H503xx: 3. For the minimal class, the other guards are clean too: STM32F446xx at class 1: 4 of 4 other-guard cells clean; STM32H503xx at class 3: 24 of 24 other-guard cells clean. On classic DMA and F4 streams an equal-class load is still ordered by
 channel/stream index, so the knob is not a substitute for the
 <code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
-clean: <code>CCR.PRIO</code> does not break ties by channel number. The library
-keeps class 0 by default: raising it gives the library's pending feed and
-capture requests precedence over lower-priority DMA requests during a 1-Wire
-frame, potentially delaying those channels. That trade-off is the
-application's call.</p>
+clean: <code>CCR.PRIO</code> does not break ties by channel number. On the
+H5 GPDMA only class 3 is a fixed higher class; classes 0-2 share a weighted
+round-robin (AN5593, <em>GPDMA channel priority</em>), which is why classes 1
+and 2 do not outrank a PRIO 3 load. The library keeps class 0 by default:
+raising it gives the library's pending feed and capture requests precedence
+over lower-priority DMA requests during a 1-Wire frame, potentially delaying
+those channels. The library asks for one halfword per slot (about every 70 us),
+so a victim channel loses one arbitration round per slot, not a frame-long
+stall. This report does not measure that victim-side cost, so the default
+stays 0 until it is measured; where class 1 clears every failure on F4, the
+cost of raising it is the open question, not the benefit.</p>
 </section>
 
 <section id="interpretation">
@@ -555,34 +585,43 @@ Search capture.</li>
 <li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
 The report says "a 2 us window was enough", not "the latency is exactly
 1 us".</li>
+<li><strong>Provenance.</strong> Each section carries the commit it was measured
+at, and the benches were run at different commits as the harness and the
+priority knob evolved. <code>OW_DMA_PRIO</code> was added after the earliest
+runs, but with the default class 0 the priority field is the reset value, so
+those runs use the same DMA configuration as a knob build; the knob changes no
+timing constant and no ABI.</li>
 </ul>
 </section>
 
 <section id="reproduce">
 <h2>Reproduce</h2>
-<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 %BACKSLASH%
+<pre>make APP=0_dma_pressure OW_MCU=STM32F030x6 \
      EXT="-DOW_PARASITE_POWER=0 -DSTRESS_LEVEL=5 -DONEWIRE_GUARD_BAND=1"
 
-python tests/hil/dma_pressure.py %BACKSLASH%
-     --json docs/stress/results.json %BACKSLASH%
+python tests/hil/dma_pressure.py \
+     --json docs/stress/results.json \
      --sr-dir docs/stress/captures
 
 # the priority staircase: the load placement is fixed and the feed/capture
 # class is the variable. One file pair per class and bench.
-python tests/hil/dma_pressure.py %BACKSLASH%
-     --json docs/stress/platforms/h503/results-prio1.json %BACKSLASH%
-     --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 %BACKSLASH%
+python tests/hil/dma_pressure.py \
+     --json docs/stress/platforms/h503/results-prio1.json \
+     --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 \
      --gpdma-prio 3 --feed-prio 1
-python tests/hil/dma_capture.py %BACKSLASH%
-     --json docs/stress/platforms/f446/capture-prio1.json %BACKSLASH%
+python tests/hil/dma_capture.py \
+     --json docs/stress/platforms/f446/capture-prio1.json \
      --levels 0,5 --clocks 8,16 --feed-prio 1
 
-python tools/stress_report.py %BACKSLASH%
-     --data docs/stress/results.json %BACKSLASH%
+python tools/stress_report.py \
+     --data docs/stress/results.json \
+     --capture docs/stress/capture.json \
      --out docs/stress/index.html</pre>
 <p class="note">The matrix needs an fx2lafw logic analyzer and an ST-Link; it
 prints SKIP when either is missing. A full 12-cell run takes a few minutes
-because every cell is rebuilt and flashed.</p>
+because every cell is rebuilt and flashed. The <code>\</code> above is the
+POSIX shell line continuation; in <code>cmd.exe</code> use <code>^</code> or
+keep each command on one line.</p>
 </section>
 
 <section id="artifacts">

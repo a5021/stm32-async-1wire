@@ -174,8 +174,10 @@
  * class below the load's own class starves. On classic DMA and F4 streams an
  * equal-class load is still ordered by channel/stream index, so this is not
  * a substitute for the portable rule there: a higher-ranked burst must not
- * outlast the feed window (`guard + 1` us). On the H5 GPDMA equal class was
- * clean: `CCR.PRIO` does not break ties by channel number.
+ * outlast the feed window (`guard + 1` us). On the H5 GPDMA only class 3 is
+ * a fixed higher class; class 0/1/2 share a weighted round-robin (AN5593,
+ * "GPDMA channel priority"), and equal class is clean: `CCR.PRIO` does not
+ * break ties by channel number.
  *
  * The knob changes no timing constant and no ABI, so it is deliberately not
  * mixed into `OW_CONFIG_TOKEN`: an application and an archive built with
