@@ -183,7 +183,7 @@ feed/capture PRIO 1 and 2 are still below the load, and the five default-guard
 failures remain; PRIO 3 (the load's own class) is clean in all 36 cells
 (levels 2-5, 8/64/250 MHz, guards 1/5/100, `cndtr_late=0`, floor guard 1). On
 this GPDMA only PRIO 3 is a fixed higher class, while PRIO 0/1/2 share a
-weighted round-robin (AN5593, "GPDMA channel priority"), so 1 and 2 cannot
+weighted round-robin (RM0492, GPDMA channel arbitration), so 1 and 2 cannot
 outrank the load by construction. The
 class 1/2 runs cover 33 of the 36 cells: the 8 MHz level 3-5 cells already
 fail at guard 100, so the sweep stops before guard 1. Equal class does not lose

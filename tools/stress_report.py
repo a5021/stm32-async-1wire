@@ -41,8 +41,9 @@ LEVEL_INFO = {
 }
 
 FAILURE_CLASSES = [
-    ("A transfer past the update", "the slot repeats its previous bit; the "
-     "decoded pattern changes and a frame can lose the final release."),
+    ("A transfer past the update", "the slot keeps its previous value, so a run "
+     "of equal bits hides it; the first visible damage is at the release - an "
+     "extra low pulse and the final release never comes."),
     ("A transfer inside the next low pulse", "the pulse stretches or a second "
      "edge appears; the slot no longer matches a '1' or a '0' width."),
     ("A transfer never serviced", "CNDTR stays non-zero at completion and the "
@@ -672,18 +673,20 @@ rows, because that is the placement the knob was tested against.</p>
 <tbody>%s</tbody></table>
 <p>%s%s On classic DMA and F4 streams an equal-class load is still ordered by
 channel/stream index, so the knob is not a substitute for the
-<code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
-clean: <code>CCR.PRIO</code> does not break ties by channel number. On the
-H5 GPDMA only class 3 is a fixed higher class; classes 0-2 share a weighted
-round-robin (AN5593, <em>GPDMA channel priority</em>), which is why classes 1
-and 2 do not outrank a PRIO 3 load. The library keeps class 0 by default:
+<code>guard + 1</code> rule there. On the H5 GPDMA only class 3 is a fixed higher
+class; classes 0-2 share a weighted round-robin (RM0492, GPDMA channel
+arbitration), which is why classes 1 and 2 do not outrank a PRIO 3 load. The
+measured equal class was clean: <code>CCR.PRIO</code> does not break ties by
+channel number. The library keeps class 0 by default:
 raising it gives the library's pending feed and capture requests precedence
 over lower-priority DMA requests during a 1-Wire frame, potentially delaying
 those channels. The library asks for one halfword per slot (about every 70 us),
 so a victim channel loses one arbitration round per slot, not a frame-long
-stall. This report does not measure that victim-side cost, so the default
-stays 0 until it is measured; where class 1 clears every failure on F4, the
-cost of raising it is the open question, not the benefit.</p>
+stall. This report does not measure that victim-side cost; re-running level 4
+on the F446 with <code>OW_DMA_PRIO=1</code> and comparing the ch1 burst counter
+against class 0 would give the number, and the default should stay 0 until it
+exists. Where class 1 clears every failure on F4, the cost of raising it is the
+open question, not the benefit.</p>
 </section>""" % (head, "\n".join(rows), min_text, extra_text)
 
 
@@ -797,19 +800,23 @@ last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 window, and at 48 MHz the first detected delay lands slightly <em>below</em>
 <code>guard + 1</code>. Two effects set the boundary: the hold is started
 after the frame's first CC2 request and the busy loop plus channel re-enable
-adds about 1-2 us to the nominal value, and the transfer only has to beat the
-next compare, so its position relative to the counter matters. A single
-constant <code>c</code> would be a fit to noise, so this report states the
-measured boundary per guard instead of a formula.</p>
+adds an overhead that is not separately measured, and the transfer only has to
+beat the next compare, so its position relative to the counter matters. A
+single constant <code>c</code> would be a fit to noise, so this report states
+the measured boundary per guard instead of a formula.</p>
 <p>The guard is therefore <em>not</em> a delay budget: it sets the timer's
 nominal window, and the measured tolerance only grows from 12 to 16 us at
 48 MHz and from 14 to 20 us at 8 MHz while the window grows from 2 to 21 us.
-A delay that fits inside <code>guard + 1</code> is always safe because the
-request still arrives before the update, but a correct design cannot spend the
-rest of the window.</p>
+A delay that fits inside <code>guard + 1</code> keeps the nominal deadline, but
+it is not a guarantee: at 48 MHz and guard 20 the first failure is at 18 us,
+inside the 21 us window. The injection holds the channel for the requested N
+us plus the busy-loop and re-enable time; that overhead is not separately
+measured here (the marker pins can pin it at 250 ns resolution on a future
+run), so the measured boundary is the number to use and the window is not a
+safety factor.</p>
 <p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
-costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
-tolerance to the sweep's resolution, not to the microsecond. At the default
+adds an unmeasured overhead, so the boundary is good to roughly ±2 us: it pins
+the tolerance to the sweep's resolution, not to the microsecond. At the default
 guard the feed survives well past the 6 us window, which is why the guard
 window and the delay tolerance must not be compared as if they were the same
 quantity. The number to design against is still the load-placement rule: a
@@ -841,10 +848,12 @@ def inject_section(capture):
         href = viewer_href(c, key=key)
         label = "failing frame" if key == "capture_fail" else "frame"
         link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
-        rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td><td>%s</td></tr>" % (
+        rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td>"
+                    "<td>%s</td><td>%s</td></tr>" % (
             e(mode_label(c["mode"])),
             "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
-            c["inject_us"], "clean" if good else "<strong>detected</strong>", link))
+            c["inject_us"], "clean" if good else "<strong>detected</strong>",
+            e(c.get("failure_form") or "-"), link))
     feed_txt = _first_bad_text(_first_bad_from_cells(cells, "write", 5), "write")
     cap_txt = _first_bad_text(_first_bad_from_cells(cells, "search"), "search")
     return """<section id="inject">
@@ -854,7 +863,7 @@ def inject_section(capture):
 capture channel (search mode) for N microseconds, then re-enables it. The delay
 must make the cell fail.</p>
 <table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
-<th>Result</th><th>Viewer</th></tr></thead>
+<th>Result</th><th>First failure</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p>The first delayed feed is detected at <strong>%s</strong>; the first
 delayed capture at <strong>%s</strong>. The write window starts at the frame's
@@ -1231,14 +1240,24 @@ constraint explicit.</p>
 <section id="mechanism">
 <h2>What can go wrong</h2>
 <p>Each write slot is one TIM1 period. At CC2, DMA1 channel 3 is asked for the
-next CCR3 value. The update event starts the next slot. The transfer must land
-between those events: <code>guard + 1</code> microseconds (the counter runs
+next CCR3 value. The update event starts the next slot, so the zero-margin
+deadline is <code>guard + 1</code> microseconds after CC2 (the counter runs
 from 0 to ARR inclusive).</p>
 {timeline}
 <table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
 <tbody>{failure_rows}</tbody></table>
 <p>On DMA-fed paths OC3PE is off. A late CCR3 write takes effect immediately,
 so a failure can appear inside the current slot, not only at the next one.</p>
+<p>The delayed-feed sweep shows that this deadline is not where the frame
+actually breaks. The first fed slots are '0' bits, whose compare sits near the
+end of the slot, so a write that lands after the update can still reach the
+compare in time and the DMA catches up. The first detected failure is the
+<em>release</em>: the kept failing frames have 65 low pulses instead of 64 and
+the last pulse never rises - an extra edge with the final release missing, not
+a repeated bit. The measured boundary is therefore much later than
+<code>guard + 1</code> and depends on the pattern and the clock; the delay
+sweep below measures it, and the zero-margin rule stays as the conservative
+design limit.</p>
 </section>
 
 <section id="rig">
@@ -1347,9 +1366,13 @@ The report says "a 2 us window was enough", not "the latency is exactly
 <li><strong>Provenance.</strong> Each section carries the commit it was measured
 at, and the benches were run at different commits as the harness and the
 priority knob evolved. <code>OW_DMA_PRIO</code> was added after the earliest
-runs, but with the default class 0 the priority field is the reset value, so
-those runs use the same DMA configuration as a knob build; the knob changes no
-timing constant and no ABI.</li>
+runs, but with the default class 0 the priority field is the reset value: the
+<code>0_dma_pressure</code> <code>.bin</code> built at
+<code>2a98b2f2</code> (before the knob) and at the current tree with
+<code>OW_DMA_PRIO=0</code> are byte-identical (SHA-256
+<code>0DA3C3D5CC7A9A8A64DED1D925BF2E66C234477974BA076A23843A02F7CA2A6A</code>,
+2464 bytes, STM32F030x6), so those runs use the same DMA configuration as a
+knob build. The knob changes no timing constant and no ABI.</li>
 </ul>
 </section>
 

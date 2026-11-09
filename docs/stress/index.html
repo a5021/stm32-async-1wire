@@ -94,8 +94,8 @@ constraint explicit.</p>
 <section id="mechanism">
 <h2>What can go wrong</h2>
 <p>Each write slot is one TIM1 period. At CC2, DMA1 channel 3 is asked for the
-next CCR3 value. The update event starts the next slot. The transfer must land
-between those events: <code>guard + 1</code> microseconds (the counter runs
+next CCR3 value. The update event starts the next slot, so the zero-margin
+deadline is <code>guard + 1</code> microseconds after CC2 (the counter runs
 from 0 to ARR inclusive).</p>
 <svg class="timeline" viewBox="0 0 700 120" role="img"
      aria-label="One slot: the feed request at 65 microseconds must land before the update at 71 microseconds">
@@ -108,11 +108,21 @@ from 0 to ARR inclusive).</p>
   <text x="46.0" y="112" class="svg-label">guard window: 6 us at guard 5, 2 us at guard 1</text>
 </svg>
 <table><thead><tr><th>Late transfer</th><th>What the wire shows</th></tr></thead>
-<tbody><tr><td>A transfer past the update</td><td>the slot repeats its previous bit; the decoded pattern changes and a frame can lose the final release.</td></tr>
+<tbody><tr><td>A transfer past the update</td><td>the slot keeps its previous value, so a run of equal bits hides it; the first visible damage is at the release - an extra low pulse and the final release never comes.</td></tr>
 <tr><td>A transfer inside the next low pulse</td><td>the pulse stretches or a second edge appears; the slot no longer matches a &#x27;1&#x27; or a &#x27;0&#x27; width.</td></tr>
 <tr><td>A transfer never serviced</td><td>CNDTR stays non-zero at completion and the line can be parked low - complete starvation.</td></tr></tbody></table>
 <p>On DMA-fed paths OC3PE is off. A late CCR3 write takes effect immediately,
 so a failure can appear inside the current slot, not only at the next one.</p>
+<p>The delayed-feed sweep shows that this deadline is not where the frame
+actually breaks. The first fed slots are '0' bits, whose compare sits near the
+end of the slot, so a write that lands after the update can still reach the
+compare in time and the DMA catches up. The first detected failure is the
+<em>release</em>: the kept failing frames have 65 low pulses instead of 64 and
+the last pulse never rises - an extra edge with the final release missing, not
+a repeated bit. The measured boundary is therefore much later than
+<code>guard + 1</code> and depends on the pattern and the clock; the delay
+sweep below measures it, and the zero-margin rule stays as the conservative
+design limit.</p>
 </section>
 
 <section id="rig">
@@ -252,33 +262,33 @@ time, not dropped samples.</p>
 capture channel (search mode) for N microseconds, then re-enables it. The delay
 must make the cell fail.</p>
 <table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
-<th>Result</th><th>Viewer</th></tr></thead>
-<tbody><tr><td>capture (Search ROM)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>400 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>16 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>8 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>10 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>12 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>14 us</td><td>clean</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>18 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
-<tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
+<th>Result</th><th>First failure</th><th>Viewer</th></tr></thead>
+<tbody><tr><td>capture (Search ROM)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>200 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>400 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>600 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>8 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_8mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>200 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i200.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>400 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i400.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>600 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i600.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>capture (Search ROM)</td><td>48 MHz</td><td>1000 us</td><td><strong>detected</strong></td><td>0 devices (checksum 811C9DC5)</td><td><a href="../viewer/?src=./../stress/captures/search/l0_48mhz_g5_i1000.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>0 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>8 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>10 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>12 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>14 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>16 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>18 us</td><td><strong>detected</strong></td><td>extra low pulse; final release missing</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>8 MHz</td><td>20 us</td><td><strong>detected</strong></td><td>extra low pulse; final release missing</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_8mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>0 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i0.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>8 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i8.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>10 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i10.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>12 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i12.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>14 us</td><td>clean</td><td>-</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i14.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>16 us</td><td><strong>detected</strong></td><td>extra low pulse; final release missing</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i16.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>18 us</td><td><strong>detected</strong></td><td>extra low pulse; final release missing</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i18.sr&amp;speed=standard">frame</a></td></tr>
+<tr><td>feed (write frame)</td><td>48 MHz</td><td>20 us</td><td><strong>detected</strong></td><td>extra low pulse; final release missing</td><td><a href="../viewer/?src=./../stress/captures/inject/write_l0_48mhz_g5_i20.sr&amp;speed=standard">frame</a></td></tr></tbody></table>
 <p>The first delayed feed is detected at <strong>16 us (48 MHz) and 18 us (8 MHz)</strong>; the first
 delayed capture at <strong>200 us (both clocks)</strong>. The write window starts at the frame's
 first CC2 request (65 us), so these values pin how long the first feed
@@ -309,19 +319,23 @@ last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
 window, and at 48 MHz the first detected delay lands slightly <em>below</em>
 <code>guard + 1</code>. Two effects set the boundary: the hold is started
 after the frame's first CC2 request and the busy loop plus channel re-enable
-adds about 1-2 us to the nominal value, and the transfer only has to beat the
-next compare, so its position relative to the counter matters. A single
-constant <code>c</code> would be a fit to noise, so this report states the
-measured boundary per guard instead of a formula.</p>
+adds an overhead that is not separately measured, and the transfer only has to
+beat the next compare, so its position relative to the counter matters. A
+single constant <code>c</code> would be a fit to noise, so this report states
+the measured boundary per guard instead of a formula.</p>
 <p>The guard is therefore <em>not</em> a delay budget: it sets the timer's
 nominal window, and the measured tolerance only grows from 12 to 16 us at
 48 MHz and from 14 to 20 us at 8 MHz while the window grows from 2 to 21 us.
-A delay that fits inside <code>guard + 1</code> is always safe because the
-request still arrives before the update, but a correct design cannot spend the
-rest of the window.</p>
+A delay that fits inside <code>guard + 1</code> keeps the nominal deadline, but
+it is not a guarantee: at 48 MHz and guard 20 the first failure is at 18 us,
+inside the 21 us window. The injection holds the channel for the requested N
+us plus the busy-loop and re-enable time; that overhead is not separately
+measured here (the marker pins can pin it at 250 ns resolution on a future
+run), so the measured boundary is the number to use and the window is not a
+safety factor.</p>
 <p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
-costs about 1-2 us, so the boundary is good to roughly ±2 us: it pins the
-tolerance to the sweep's resolution, not to the microsecond. At the default
+adds an unmeasured overhead, so the boundary is good to roughly ±2 us: it pins
+the tolerance to the sweep's resolution, not to the microsecond. At the default
 guard the feed survives well past the 6 us window, which is why the guard
 window and the delay tolerance must not be compared as if they were the same
 quantity. The number to design against is still the load-placement rule: a
@@ -529,18 +543,20 @@ rows, because that is the placement the knob was tested against.</p>
 <tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>64 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr></tbody></table>
 <p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1; STM32H503xx: 3. For the minimal class, the other guards are clean too: STM32F446xx at class 1: 4 of 4 other-guard cells clean; STM32H503xx at class 3: 24 of 24 other-guard cells clean. On classic DMA and F4 streams an equal-class load is still ordered by
 channel/stream index, so the knob is not a substitute for the
-<code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
-clean: <code>CCR.PRIO</code> does not break ties by channel number. On the
-H5 GPDMA only class 3 is a fixed higher class; classes 0-2 share a weighted
-round-robin (AN5593, <em>GPDMA channel priority</em>), which is why classes 1
-and 2 do not outrank a PRIO 3 load. The library keeps class 0 by default:
+<code>guard + 1</code> rule there. On the H5 GPDMA only class 3 is a fixed higher
+class; classes 0-2 share a weighted round-robin (RM0492, GPDMA channel
+arbitration), which is why classes 1 and 2 do not outrank a PRIO 3 load. The
+measured equal class was clean: <code>CCR.PRIO</code> does not break ties by
+channel number. The library keeps class 0 by default:
 raising it gives the library's pending feed and capture requests precedence
 over lower-priority DMA requests during a 1-Wire frame, potentially delaying
 those channels. The library asks for one halfword per slot (about every 70 us),
 so a victim channel loses one arbitration round per slot, not a frame-long
-stall. This report does not measure that victim-side cost, so the default
-stays 0 until it is measured; where class 1 clears every failure on F4, the
-cost of raising it is the open question, not the benefit.</p>
+stall. This report does not measure that victim-side cost; re-running level 4
+on the F446 with <code>OW_DMA_PRIO=1</code> and comparing the ch1 burst counter
+against class 0 would give the number, and the default should stay 0 until it
+exists. Where class 1 clears every failure on F4, the cost of raising it is the
+open question, not the benefit.</p>
 </section>
 
 <section id="interpretation">
@@ -588,9 +604,13 @@ The report says "a 2 us window was enough", not "the latency is exactly
 <li><strong>Provenance.</strong> Each section carries the commit it was measured
 at, and the benches were run at different commits as the harness and the
 priority knob evolved. <code>OW_DMA_PRIO</code> was added after the earliest
-runs, but with the default class 0 the priority field is the reset value, so
-those runs use the same DMA configuration as a knob build; the knob changes no
-timing constant and no ABI.</li>
+runs, but with the default class 0 the priority field is the reset value: the
+<code>0_dma_pressure</code> <code>.bin</code> built at
+<code>2a98b2f2</code> (before the knob) and at the current tree with
+<code>OW_DMA_PRIO=0</code> are byte-identical (SHA-256
+<code>0DA3C3D5CC7A9A8A64DED1D925BF2E66C234477974BA076A23843A02F7CA2A6A</code>,
+2464 bytes, STM32F030x6), so those runs use the same DMA configuration as a
+knob build. The knob changes no timing constant and no ABI.</li>
 </ul>
 </section>
 

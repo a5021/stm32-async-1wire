@@ -145,6 +145,18 @@ def main():
           "%BACKSLASH%" not in actual and " \\\n" in actual)
     check("the delay sweep does not claim zero slack",
           "reaches zero" not in actual)
+    check("the window is not sold as a guarantee", "always safe" not in actual)
+    check("the GPDMA tie-break cites the reference manual",
+          "AN5593" not in actual)
+    check("the delayed-transfer table names the failure form",
+          "First failure" in actual)
+    for c in capture.get("inject_cells") or []:
+        bad = ((not c.get("matches")) if c.get("mode") == "search"
+               else (not c.get("clean")))
+        if bad and c.get("failure_form"):
+            check("failure form for %s/%s/%s us is rendered"
+                  % (c.get("mode"), c.get("clock_mhz"), c["inject_us"]),
+                  c["failure_form"] in actual)
 
     for c in data["cells"]:
         name = c.get("capture")

@@ -778,7 +778,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -793,7 +794,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -808,7 +810,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -823,7 +826,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -883,7 +887,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -898,7 +903,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -988,7 +994,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1003,7 +1010,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1018,7 +1026,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1123,7 +1132,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1138,7 +1148,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1153,7 +1164,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1273,7 +1285,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1288,7 +1301,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1303,7 +1317,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1318,7 +1333,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1333,7 +1349,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1363,7 +1380,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -1378,7 +1396,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -1393,7 +1412,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -1408,7 +1428,8 @@
       "matches": false,
       "mode": "search",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "0 devices (checksum 811C9DC5)"
     },
     {
       "attempts": 1,
@@ -1483,7 +1504,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1588,7 +1610,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1603,7 +1626,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1738,7 +1762,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1888,7 +1913,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1903,7 +1929,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     },
     {
       "attempts": 1,
@@ -1918,7 +1945,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "failure_form": "extra low pulse; final release missing"
     }
   ],
   "inject_values": {

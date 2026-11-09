@@ -142,6 +142,21 @@ def first_reset_us(raw, rate_hz):
     return None
 
 
+def _failure_form(a):
+    """One-line form of the first violation `analyse()` found."""
+    if a.get("stuck_low"):
+        return "line held low"
+    if a.get("bad_len"):
+        return "extra low pulse; final release missing"
+    if a.get("bad_width"):
+        return "stretched pulse"
+    if a.get("bad_bits"):
+        return "wrong bit"
+    if a.get("bad_period"):
+        return "slot period shift"
+    return "other"
+
+
 class Rig:
     def __init__(self, mcu, prog, sigrok, json_path, keep_all, sr_dir):
         self.mcu = mcu
@@ -261,6 +276,7 @@ class Rig:
                 "stop_timeout": tel[16],
                 "frames": a["frames"],
                 "first": a["first"],
+                "failure_form": None if clean else _failure_form(a),
                 "capture": None,
             })
             if self.sr_dir and a["first_frame_us"] is not None:
@@ -343,6 +359,8 @@ def inject_matrix(rig, clocks):
                 res["completed"] and res["count"] > 0
                 and res["count"] == search_base["count"]
                 and res["rom_crc"] == search_base["rom_crc"])
+            res["failure_form"] = (None if res["matches"]
+                                   else "0 devices (checksum 811C9DC5)")
             cells.append(res)
         for guard in INJECT_GUARDS:
             for value in WRITE_INJECT_BY_GUARD[guard]:
@@ -444,6 +462,7 @@ def main(argv=None):
             | {("clean" if res["mode"] == "write" else "matches"):
                res.get("clean" if res["mode"] == "write" else "matches")}
             | {"capture": res.get("capture"),
+               "failure_form": res.get("failure_form"),
                "stop_timeout": res.get("stop_timeout"),
                "start_timeout": res.get("start_timeout"),
                "load_error": res.get("load_error"),

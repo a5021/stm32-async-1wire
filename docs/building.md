@@ -928,7 +928,7 @@ the F446 is clean from class **1**, while the H503 load at `PRIO 3` needs class
 **3** (1 and 2 stay below it, so the default-guard failures remain). So raise
 the class above the load's, not blindly to 3. On the H5/C5 GPDMA the classes
 are not evenly spaced either: only `PRIO 3` is a fixed higher class, while
-`PRIO 0/1/2` share a weighted round-robin (AN5593, "GPDMA channel priority"),
+`PRIO 0/1/2` share a weighted round-robin (RM0492, GPDMA channel arbitration),
 so a class-1 or class-2 feed cannot outrank a `PRIO 3` load by definition.
 
 On classic DMA and F4 streams an equal-class load is still ordered by
