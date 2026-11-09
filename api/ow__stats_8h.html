@@ -121,6 +121,8 @@ Functions</h2></td></tr>
 <tr class="memdesc:a4dfee971695fea898dfcec129a2346b6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Snapshot raw pulse durations before decode_scratchpad().  <br /></td></tr>
 <tr class="memitem:a662878c0ed5c834383ece90bf4dd5d01" id="r_a662878c0ed5c834383ece90bf4dd5d01"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a662878c0ed5c834383ece90bf4dd5d01">ow_stats_count_error</a> (int16_t error, const uint8_t *rom)</td></tr>
 <tr class="memdesc:a662878c0ed5c834383ece90bf4dd5d01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Record an error event.  <br /></td></tr>
+<tr class="memitem:a402b6f4e8e14dda9d9f5e75cf55f0727" id="r_a402b6f4e8e14dda9d9f5e75cf55f0727"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a402b6f4e8e14dda9d9f5e75cf55f0727">ow_stats_capture_overrun</a> (void)</td></tr>
+<tr class="memdesc:a402b6f4e8e14dda9d9f5e75cf55f0727"><td class="mdescLeft">&#160;</td><td class="mdescRight">Record a capture overrun (TIMx_SR.CC4OF).  <br /></td></tr>
 <tr class="memitem:a80dad30beb47862038c8a5e8a33f0625" id="r_a80dad30beb47862038c8a5e8a33f0625"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a80dad30beb47862038c8a5e8a33f0625">ow_stats_dump_start</a> (void)</td></tr>
 <tr class="memdesc:a80dad30beb47862038c8a5e8a33f0625"><td class="mdescLeft">&#160;</td><td class="mdescRight">Begin a non-blocking stats dump via UART.  <br /></td></tr>
 <tr class="memitem:af4ba0b9a859190954918984c21af4b9d" id="r_af4ba0b9a859190954918984c21af4b9d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af4ba0b9a859190954918984c21af4b9d">ow_stats_dump_poll</a> (void)</td></tr>
@@ -147,7 +149,7 @@ Functions</h2></td></tr>
 <div class="textblock"><p>1-Wire signal statistics — optional compile-in module. </p>
 <p>Collects per-sensor pulse-width statistics, a global pulse histogram, and error counters. Enabled by setting OW_STATS_ENABLE to 1 at build time (e.g. -DOW_STATS_ENABLE=1). When the macro is 0, every inline body compiles away to nothing so there is zero overhead in production builds.</p>
 <p>The dump is non-blocking: <a class="el" href="#a80dad30beb47862038c8a5e8a33f0625" title="Begin a non-blocking stats dump via UART.">ow_stats_dump_start()</a> initiates it, <a class="el" href="#af4ba0b9a859190954918984c21af4b9d" title="Advance the non-blocking stats dump by one line.">ow_stats_dump_poll()</a> advances the dump by one line per main-loop call.</p>
-<dl class="section note"><dt>Note</dt><dd>RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16 histogram buckets, indices 0–12, are populated). </dd>
+<dl class="section note"><dt>Note</dt><dd>RAM cost: ~304 bytes (8 sensors × 28 B + 16-entry uint32_t histogram [64 B] + cycle/error/overrun counters + 8 B of dump state; 13 of the 16 histogram buckets, indices 0–12, are populated). </dd>
 <dd>
 Emitted by the DS18B20 driver (ds18b20.c): pulse widths, ROM addresses and DS18B20_TEMP_ERROR_* codes are driver-owned concepts, so the driver — not the onewire layer — feeds this module. </dd></dl>
 </div><a name="doc-define-members" id="doc-define-members"></a><h2 id="header-doc-define-members" class="groupheader">Macro Definition Documentation</h2>
@@ -182,6 +184,26 @@ Emitted by the DS18B20 driver (ds18b20.c): pulse widths, ROM addresses and DS18B
 </div>
 </div>
 <a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
+<a id="a402b6f4e8e14dda9d9f5e75cf55f0727" name="a402b6f4e8e14dda9d9f5e75cf55f0727"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a402b6f4e8e14dda9d9f5e75cf55f0727">&#9670;&#160;</a></span>ow_stats_capture_overrun()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void ow_stats_capture_overrun </td>
+          <td>(</td>
+          <td class="paramtype">void</td>          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Record a capture overrun (TIMx_SR.CC4OF). </p>
+<p>Called by the port when a capture event arrived before the DMA read the previous one. A failed Search ROM that returns 0 devices with the FNV-1a offset basis (<span class="tt">811C9DC5</span>) looks like an empty bus; this counter separates the two on a board where the DMA counters are not readable. </p>
+
+</div>
+</div>
 <a id="a4dfee971695fea898dfcec129a2346b6" name="a4dfee971695fea898dfcec129a2346b6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4dfee971695fea898dfcec129a2346b6">&#9670;&#160;</a></span>ow_stats_capture_pulse()</h2>
 

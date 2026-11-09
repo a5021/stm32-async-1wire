@@ -1,5 +1,6 @@
 var structow__stats__t =
 [
+    [ "capture_overruns", "structow__stats__t.html#ac392e39c06eae8aad4e29c4f5d0dee34", null ],
     [ "histogram", "structow__stats__t.html#a7e006cd3249cc844b67c6990ffd2492e", null ],
     [ "sensor_count", "structow__stats__t.html#ab0a649c638571987e524704b696c8563", null ],
     [ "sensors", "structow__stats__t.html#a233a7bd587a3f8804fd44bb63e798000", null ],

@@ -4,6 +4,7 @@ var ow__stats_8h =
     [ "ow_stats_t", "structow__stats__t.html", "structow__stats__t" ],
     [ "OW_STATS_HIST_BUCKETS", "ow__stats_8h.html#a2ec44bc8d74f6c239c8379d6f1f7aed3", null ],
     [ "OW_STATS_MAX_SENSORS", "ow__stats_8h.html#a7f85acaa52cb8357d0feeb50a51e6f02", null ],
+    [ "ow_stats_capture_overrun", "ow__stats_8h.html#a402b6f4e8e14dda9d9f5e75cf55f0727", null ],
     [ "ow_stats_capture_pulse", "ow__stats_8h.html#a4dfee971695fea898dfcec129a2346b6", null ],
     [ "ow_stats_count_error", "ow__stats_8h.html#a662878c0ed5c834383ece90bf4dd5d01", null ],
     [ "ow_stats_dump_poll", "ow__stats_8h.html#af4ba0b9a859190954918984c21af4b9d", null ],
