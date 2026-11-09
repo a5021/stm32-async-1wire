@@ -842,7 +842,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 36.25
     },
     {
       "attempts": 1,
@@ -857,7 +858,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 45.25
     },
     {
       "attempts": 1,
@@ -872,7 +874,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 54.25
     },
     {
       "attempts": 1,
@@ -888,7 +891,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 63.25
     },
     {
       "attempts": 1,
@@ -904,7 +908,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 72.25
     },
     {
       "attempts": 1,
@@ -919,7 +924,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 0.0
     },
     {
       "attempts": 1,
@@ -934,7 +940,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 36.25
     },
     {
       "attempts": 1,
@@ -949,7 +956,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 45.25
     },
     {
       "attempts": 1,
@@ -964,7 +972,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 54.25
     },
     {
       "attempts": 1,
@@ -979,7 +988,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 63.25
     },
     {
       "attempts": 1,
@@ -995,7 +1005,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 72.25
     },
     {
       "attempts": 1,
@@ -1011,7 +1022,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 81.5
     },
     {
       "attempts": 1,
@@ -1027,7 +1039,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 90.5
     },
     {
       "attempts": 1,
@@ -1042,7 +1055,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 18.25
     },
     {
       "attempts": 1,
@@ -1057,7 +1071,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 27.25
     },
     {
       "attempts": 1,
@@ -1072,7 +1087,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 36.25
     },
     {
       "attempts": 1,
@@ -1087,7 +1103,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 45.25
     },
     {
       "attempts": 1,
@@ -1102,7 +1119,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 54.25
     },
     {
       "attempts": 1,
@@ -1117,7 +1135,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 63.25
     },
     {
       "attempts": 1,
@@ -1133,7 +1152,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 72.25
     },
     {
       "attempts": 1,
@@ -1149,7 +1169,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 81.5
     },
     {
       "attempts": 1,
@@ -1165,7 +1186,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 90.5
     },
     {
       "attempts": 1,
@@ -1180,7 +1202,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 18.25
     },
     {
       "attempts": 1,
@@ -1195,7 +1218,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 27.25
     },
     {
       "attempts": 1,
@@ -1210,7 +1234,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 36.25
     },
     {
       "attempts": 1,
@@ -1225,7 +1250,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 45.25
     },
     {
       "attempts": 1,
@@ -1240,7 +1266,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 54.25
     },
     {
       "attempts": 1,
@@ -1255,7 +1282,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 63.25
     },
     {
       "attempts": 1,
@@ -1270,7 +1298,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 72.25
     },
     {
       "attempts": 1,
@@ -1286,7 +1315,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 81.5
     },
     {
       "attempts": 1,
@@ -1302,7 +1332,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 90.5
     },
     {
       "attempts": 1,
@@ -1318,7 +1349,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 105.0
     },
     {
       "attempts": 1,
@@ -1334,7 +1366,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 120.5
     },
     {
       "attempts": 1,
@@ -1350,7 +1383,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 130.38
     },
     {
       "attempts": 1,
@@ -1444,7 +1478,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 34.0
     },
     {
       "attempts": 1,
@@ -1459,7 +1494,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 42.0
     },
     {
       "attempts": 1,
@@ -1474,7 +1510,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 50.0
     },
     {
       "attempts": 1,
@@ -1489,7 +1526,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 58.0
     },
     {
       "attempts": 1,
@@ -1505,7 +1543,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 66.0
     },
     {
       "attempts": 1,
@@ -1520,7 +1559,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 0.0
     },
     {
       "attempts": 1,
@@ -1535,7 +1575,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 34.0
     },
     {
       "attempts": 1,
@@ -1550,7 +1591,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 42.0
     },
     {
       "attempts": 1,
@@ -1565,7 +1607,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 50.0
     },
     {
       "attempts": 1,
@@ -1580,7 +1623,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 58.0
     },
     {
       "attempts": 1,
@@ -1595,7 +1639,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 66.0
     },
     {
       "attempts": 1,
@@ -1611,7 +1656,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 74.0
     },
     {
       "attempts": 1,
@@ -1627,7 +1673,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 82.0
     },
     {
       "attempts": 1,
@@ -1642,7 +1689,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 18.0
     },
     {
       "attempts": 1,
@@ -1657,7 +1705,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 26.0
     },
     {
       "attempts": 1,
@@ -1672,7 +1721,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 34.0
     },
     {
       "attempts": 1,
@@ -1687,7 +1737,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 42.0
     },
     {
       "attempts": 1,
@@ -1702,7 +1753,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 50.0
     },
     {
       "attempts": 1,
@@ -1717,7 +1769,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 58.0
     },
     {
       "attempts": 1,
@@ -1732,7 +1785,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 66.0
     },
     {
       "attempts": 1,
@@ -1747,7 +1801,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 74.0
     },
     {
       "attempts": 1,
@@ -1763,7 +1818,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 82.0
     },
     {
       "attempts": 1,
@@ -1778,7 +1834,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 18.0
     },
     {
       "attempts": 1,
@@ -1793,7 +1850,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 26.0
     },
     {
       "attempts": 1,
@@ -1808,7 +1866,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 34.0
     },
     {
       "attempts": 1,
@@ -1823,7 +1882,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 42.0
     },
     {
       "attempts": 1,
@@ -1838,7 +1898,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 50.0
     },
     {
       "attempts": 1,
@@ -1853,7 +1914,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 58.0
     },
     {
       "attempts": 1,
@@ -1868,7 +1930,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 66.0
     },
     {
       "attempts": 1,
@@ -1883,7 +1946,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 74.0
     },
     {
       "attempts": 1,
@@ -1898,7 +1962,8 @@
       "load_error": 0,
       "mode": "write",
       "start_timeout": 0,
-      "stop_timeout": 0
+      "stop_timeout": 0,
+      "actual_us": 82.0
     },
     {
       "attempts": 1,
@@ -1914,7 +1979,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 90.0
     },
     {
       "attempts": 1,
@@ -1930,7 +1996,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 98.12
     },
     {
       "attempts": 1,
@@ -1946,7 +2013,8 @@
       "mode": "write",
       "start_timeout": 0,
       "stop_timeout": 0,
-      "failure_form": "extra low pulse; final release missing"
+      "failure_form": "extra low pulse; final release missing",
+      "actual_us": 106.0
     }
   ],
   "inject_values": {
