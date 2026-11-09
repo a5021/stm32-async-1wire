@@ -931,6 +931,13 @@ are not evenly spaced either: only `PRIO 3` is a fixed higher class, while
 `PRIO 0/1/2` share a weighted round-robin (RM0492, GPDMA channel arbitration),
 so a class-1 or class-2 feed cannot outrank a `PRIO 3` load by definition.
 
+The cost to the load is measured on the F446: with the level-4 load in place,
+its ch1 burst counter is 1800/3500/39101 at 8/16/180 MHz at both class 0 and
+class 1, so the raised feed class cost the victim no throughput at the
+counter's resolution. That is one placement and one load shape, not a general
+guarantee; measure the victim's own deadline before raising the class in a
+latency-critical system.
+
 On classic DMA and F4 streams an equal-class load is still ordered by
 channel/stream index, so this is not a substitute for the portable rule there:
 a higher-ranked, uninterruptible burst must not outlast `guard + 1` us. On the

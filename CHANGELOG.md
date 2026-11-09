@@ -171,6 +171,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notch measures 72/74 us), and `docs/stress/` reruns the negative control
   with a 2 us step up to 20 us. The main stress matrix, its captures and its
   guard floors are unchanged.
+- **The injected hold is measured, not assumed.** `STRESS_INJECT_MARKER=1`
+  drops the frame marker for the hold, and `dma_capture.py` stores the notch
+  width as `actual_us`; the busy loop runs 4-5x the nominal value. The first
+  failure is a 72 us hold at 48 MHz and 74 us at 8 MHz, near the first fed
+  '0' slot's ~60 us compare, which is why `guard + 1` is a conservative rule
+  and not the measured boundary. The report shows nominal and measured holds
+  separately. On the F446, raising the feed to class 1 leaves the level-4
+  load's ch1 burst counter unchanged (1800/3500/39101 at 8/16/180 MHz), so the
+  victim cost is below that counter's resolution in this test.
 
 - **HIL start/end artifacts no longer look like feed failures.** The analyser
   drops a lone leading startup glitch on the F446 and H503 when

@@ -144,7 +144,9 @@ Search ROM cells are clean (levels 0/5, guards 1/5/100), including the three
 cells that return 0 devices at the default class; `PL=2`/`PL=3` add nothing.
 A failed capture returns 0 devices with checksum `811C9DC5`, which is also what
 an empty bus returns, so those cells are identified by their DMA counters and
-capture window, not by the zero count alone. The library default stays `PL=0`.
+capture window, not by the zero count alone. Raising the feed to `PL=1` costs
+the level-4 load nothing measurable: its ch1 burst counter is 1800/3500/39101
+at 8/16/180 MHz at both class 0 and class 1. The library default stays `PL=0`.
 Details:
 [STM32F4 hardware notes](../port/stm32f4/HARDWARE-NOTES.md).
 

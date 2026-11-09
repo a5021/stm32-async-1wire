@@ -43,8 +43,9 @@ def load_platforms():
     priority = []
     captures = {}
     knob = {}
+    victim = {}
     if not os.path.isdir(PLATFORMS):
-        return platforms, priority, captures, knob
+        return platforms, priority, captures, knob, victim
     for name in sorted(os.listdir(PLATFORMS)):
         base = os.path.join(PLATFORMS, name)
         path = os.path.join(base, "results.json")
@@ -75,7 +76,15 @@ def load_platforms():
                 entry[cls] = payload
         if entry:
             knob[name] = entry
-    return platforms, priority, captures, knob
+        v0 = os.path.join(base, "victim-prio0.json")
+        v1 = os.path.join(base, "victim-prio1.json")
+        if os.path.isfile(v0) and os.path.isfile(v1):
+            with open(v0, encoding="utf-8") as fh:
+                left = json.load(fh)
+            with open(v1, encoding="utf-8") as fh:
+                right = json.load(fh)
+            victim[name] = {0: left, 1: right}
+    return platforms, priority, captures, knob, victim
 
 failures = []
 
@@ -104,9 +113,9 @@ def main():
 
     with open(HTML, encoding="utf-8") as fh:
         actual = fh.read()
-    platforms, priority, platform_captures, knob = load_platforms()
+    platforms, priority, platform_captures, knob, victim = load_platforms()
     expected = stress_report.build_report(data, capture, platforms, priority,
-                                          platform_captures, knob)
+                                          platform_captures, knob, victim)
     check("index.html is regenerated from results.json + capture.json",
           actual == expected,
           "run python tools/stress_report.py" if actual != expected else "")
@@ -277,7 +286,7 @@ def main():
             check("inject capture %s is linked" % target,
                   ("./../stress/captures/" + target) in actual)
 
-    platforms, priority, platform_captures, knob = load_platforms()
+    platforms, priority, platform_captures, knob, victim = load_platforms()
     if knob:
         check("the priority-knob table is rendered", 'id="knob"' in actual)
         for name, classes in knob.items():
@@ -293,6 +302,12 @@ def main():
                     check("knob %s prio%d %s records feed_prio"
                           % (name, cls, kind),
                           source.get("feed_prio") == cls)
+    if victim:
+        check("the victim-cost measurement is rendered",
+              "Victim cost measured" in actual)
+        for name, pair in victim.items():
+            check("victim cost %s has both classes" % name,
+                  pair.get(0) is not None and pair.get(1) is not None)
     linked = set()
     for name, pdata in platforms:
         # One representative failing frame per level; a level that already has a

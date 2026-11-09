@@ -581,7 +581,7 @@ def _knob_minimal(platforms, priority, platform_captures, knob):
     return mins
 
 
-def knob_section(platforms, priority, platform_captures, knob):
+def knob_section(platforms, priority, platform_captures, knob, victim=None):
     """Default-failing cells re-measured with OW_DMA_PRIO raised."""
     if not knob:
         return ""
@@ -659,6 +659,35 @@ def knob_section(platforms, priority, platform_captures, knob):
         min_text = "No measured class clears every default-guard failure."
     extra_text = (" For the minimal class, the other guards are clean too: %s."
                   % "; ".join(extra_bits)) if extra_bits else ""
+    victim_bits = []
+    for name, pair in (victim or {}).items():
+        base_run, raised_run = pair.get(0), pair.get(1)
+        if not base_run or not raised_run:
+            continue
+
+        def counts(run):
+            return {c["clock_mhz"]: (c.get("telemetry") or [None] * 6)[5]
+                    for c in run.get("cells") or []}
+
+        base_c, raised_c = counts(base_run), counts(raised_run)
+        clocks = sorted(set(base_c) & set(raised_c))
+        if not clocks:
+            continue
+        detail = ", ".join("%d MHz %s vs %s"
+                           % (c, base_c[c], raised_c[c]) for c in clocks)
+        same = all(base_c[c] == raised_c[c] for c in clocks)
+        victim_bits.append(
+            "%s level 4 ch1 burst counter (class 0 vs class 1): %s%s"
+            % (base_run.get("bench") or name, detail,
+               " - no measurable loss at this resolution" if same else ""))
+    if victim_bits:
+        victim_text = ("Victim cost measured: %s." % "; ".join(victim_bits))
+    else:
+        victim_text = (
+            "This report does not measure the victim-side cost; re-running "
+            "level 4 on the F446 with <code>OW_DMA_PRIO=1</code> and comparing "
+            "the ch1 burst counter against class 0 would give the number, and "
+            "the default should stay 0 until it exists.")
     return """<section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
@@ -682,12 +711,9 @@ raising it gives the library's pending feed and capture requests precedence
 over lower-priority DMA requests during a 1-Wire frame, potentially delaying
 those channels. The library asks for one halfword per slot (about every 70 us),
 so a victim channel loses one arbitration round per slot, not a frame-long
-stall. This report does not measure that victim-side cost; re-running level 4
-on the F446 with <code>OW_DMA_PRIO=1</code> and comparing the ch1 burst counter
-against class 0 would give the number, and the default should stay 0 until it
-exists. Where class 1 clears every failure on F4, the cost of raising it is the
-open question, not the benefit.</p>
-</section>""" % (head, "\n".join(rows), min_text, extra_text)
+stall. %s Where class 1 clears every failure on F4, the cost of raising it is
+the open question, not the benefit.</p>
+</section>""" % (head, "\n".join(rows), min_text, extra_text, victim_text)
 
 
 def _first_bad_text(first, prefix):
@@ -881,7 +907,7 @@ search.</p>
 
 
 def build_report(data, capture=None, platforms=None, priority=None,
-                 platform_captures=None, knob=None):
+                 platform_captures=None, knob=None, victim=None):
     capture = capture or {}
     cells = cell_map(data)
     floors = data.get("guard_min") or []
@@ -1136,7 +1162,8 @@ def build_report(data, capture=None, platforms=None, priority=None,
                       for name, other in (platforms or [])]
                      + list(priority or []))
     priority_html = priority_section(data, priority_rows, bool(knob))
-    knob_html = knob_section(platforms, priority, platform_captures, knob)
+    knob_html = knob_section(platforms, priority, platform_captures, knob,
+                             victim)
     # One rendered block for every generated section: the two control tables
     # first (they belong with the primary results), then the extra platforms,
     # the load-placement comparison and the knob's measured effect.
@@ -1552,6 +1579,7 @@ def main(argv=None):
     priority = []
     platform_captures = {}
     knob = {}
+    victim = {}
     if args.platforms_dir and os.path.isdir(args.platforms_dir):
         for name in sorted(os.listdir(args.platforms_dir)):
             base = os.path.join(args.platforms_dir, name)
@@ -1586,6 +1614,14 @@ def main(argv=None):
                     entry[cls] = payload
             if entry:
                 knob[name] = entry
+            v0 = os.path.join(base, "victim-prio0.json")
+            v1 = os.path.join(base, "victim-prio1.json")
+            if os.path.isfile(v0) and os.path.isfile(v1):
+                with open(v0, encoding="utf-8") as fh:
+                    left = json.load(fh)
+                with open(v1, encoding="utf-8") as fh:
+                    right = json.load(fh)
+                victim[name] = {0: left, 1: right}
     if args.data_high and os.path.isfile(args.data_high):
         with open(args.data_high, encoding="utf-8") as fh:
             priority.insert(0, ("primary", "high", json.load(fh)))
@@ -1596,7 +1632,7 @@ def main(argv=None):
                 priority.append((name, "high", json.load(fh)))
 
     text = build_report(data, capture, platforms, priority, platform_captures,
-                        knob)
+                        knob, victim)
     out_dir = os.path.dirname(os.path.abspath(args.out))
     os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
