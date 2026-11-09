@@ -93,62 +93,68 @@ $(function(){initNavTree('ds2413_8h.html','',''); });
 </div><!--header-->
 <div class="contents">
 
-<p>DS2413 dual-channel addressable switch - placeholder.  
+<p>Non-blocking DS2413 dual-channel addressable switch driver.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &lt;stdint.h&gt;</code><br />
+<div class="textblock"><code>#include &quot;<a class="el" href="ow__config_8h_source.html">ow_config.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="ow__version_8h_source.html">ow_version.h</a>&quot;</code><br />
+<code>#include &lt;stdint.h&gt;</code><br />
 </div>
 <p><a href="ds2413_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-define-members" class="groupheader"><a id="define-members" name="define-members"></a>
 Macros</h2></td></tr>
-<tr class="memitem:a0a2e26756689f9a928641a1e81d7c16e" id="r_a0a2e26756689f9a928641a1e81d7c16e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0a2e26756689f9a928641a1e81d7c16e">DS2413_FAMILY_CODE</a>&#160;&#160;&#160;0x3Au</td></tr>
-<tr class="memdesc:a0a2e26756689f9a928641a1e81d7c16e"><td class="mdescLeft">&#160;</td><td class="mdescRight">DS2413 1-Wire family code (LSB of the 64-bit ROM address).  <br /></td></tr>
-<tr class="memitem:adfcf80a45443c912a983b7166478a972" id="r_adfcf80a45443c912a983b7166478a972"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#adfcf80a45443c912a983b7166478a972">DS2413_ROM_BYTES</a>&#160;&#160;&#160;8u</td></tr>
-<tr class="memdesc:adfcf80a45443c912a983b7166478a972"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bytes in a device ROM address.  <br /></td></tr>
+<tr class="memitem:ga0a2e26756689f9a928641a1e81d7c16e" id="r_ga0a2e26756689f9a928641a1e81d7c16e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga0a2e26756689f9a928641a1e81d7c16e">DS2413_FAMILY_CODE</a>&#160;&#160;&#160;0x3Au</td></tr>
+<tr class="memdesc:ga0a2e26756689f9a928641a1e81d7c16e"><td class="mdescLeft">&#160;</td><td class="mdescRight">DS2413 1-Wire family code (LSB of the 64-bit ROM address).  <br /></td></tr>
+<tr class="memitem:gadfcf80a45443c912a983b7166478a972" id="r_gadfcf80a45443c912a983b7166478a972"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#gadfcf80a45443c912a983b7166478a972">DS2413_ROM_BYTES</a>&#160;&#160;&#160;8u</td></tr>
+<tr class="memdesc:gadfcf80a45443c912a983b7166478a972"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bytes in a device ROM address.  <br /></td></tr>
+<tr class="memitem:gab2be7545edb1efdea16505b904dab266" id="r_gab2be7545edb1efdea16505b904dab266"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#gab2be7545edb1efdea16505b904dab266">DS2413_BITS_PER_BYTE</a>&#160;&#160;&#160;8u</td></tr>
+<tr class="memdesc:gab2be7545edb1efdea16505b904dab266"><td class="mdescLeft">&#160;</td><td class="mdescRight">Standard 8 bits per byte.  <br /></td></tr>
+<tr class="memitem:gabb8047d53eb5f31fad199144c51313d7" id="r_gabb8047d53eb5f31fad199144c51313d7"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#gabb8047d53eb5f31fad199144c51313d7">DS2413_PIOA</a>&#160;&#160;&#160;0x01u</td></tr>
+<tr class="memdesc:gabb8047d53eb5f31fad199144c51313d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">PIOA channel bit in a state byte.  <br /></td></tr>
+<tr class="memitem:ga62df6e167a55816698fd880d86c81fed" id="r_ga62df6e167a55816698fd880d86c81fed"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga62df6e167a55816698fd880d86c81fed">DS2413_PIOB</a>&#160;&#160;&#160;0x02u</td></tr>
+<tr class="memdesc:ga62df6e167a55816698fd880d86c81fed"><td class="mdescLeft">&#160;</td><td class="mdescRight">PIOB channel bit in a state byte.  <br /></td></tr>
+<tr class="memitem:ga59d4b7e7de24085a5ca1fdb0c4e6dcf2" id="r_ga59d4b7e7de24085a5ca1fdb0c4e6dcf2"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga59d4b7e7de24085a5ca1fdb0c4e6dcf2">DS2413_PIO_MASK</a>&#160;&#160;&#160;0x03u</td></tr>
+<tr class="memdesc:ga59d4b7e7de24085a5ca1fdb0c4e6dcf2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Both PIO channels.  <br /></td></tr>
+<tr class="memitem:ga90bf302598e71277753f752c2738052a" id="r_ga90bf302598e71277753f752c2738052a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga90bf302598e71277753f752c2738052a">DS2413_CMD_READ</a>&#160;&#160;&#160;0xF5u</td></tr>
+<tr class="memdesc:ga90bf302598e71277753f752c2738052a"><td class="mdescLeft">&#160;</td><td class="mdescRight">PIO Access Read command.  <br /></td></tr>
+<tr class="memitem:ga30270ca1c0d0c90430e3373a56971d97" id="r_ga30270ca1c0d0c90430e3373a56971d97"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga30270ca1c0d0c90430e3373a56971d97">DS2413_CMD_WRITE</a>&#160;&#160;&#160;0x5Au</td></tr>
+<tr class="memdesc:ga30270ca1c0d0c90430e3373a56971d97"><td class="mdescLeft">&#160;</td><td class="mdescRight">PIO Access Write command.  <br /></td></tr>
+<tr class="memitem:gac7a3852ec9dc5ca5e8eff82618dc0aeb" id="r_gac7a3852ec9dc5ca5e8eff82618dc0aeb"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#gac7a3852ec9dc5ca5e8eff82618dc0aeb">DS2413_ACK</a>&#160;&#160;&#160;0xAAu</td></tr>
+<tr class="memdesc:gac7a3852ec9dc5ca5e8eff82618dc0aeb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Acknowledge byte returned by a successful PIO Access Write.  <br /></td></tr>
+<tr class="memitem:ga2ccefc71631873e61d550f4f1bfb3360" id="r_ga2ccefc71631873e61d550f4f1bfb3360"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Constants.html#ga2ccefc71631873e61d550f4f1bfb3360">DS2413_NO_RESPONSE</a>&#160;&#160;&#160;0xFFu</td></tr>
+<tr class="memdesc:ga2ccefc71631873e61d550f4f1bfb3360"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reply byte when the device did not answer.  <br /></td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-func-members" class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:ga4a7796aec1d747289a7e6ab5fc2e4fc7" id="r_ga4a7796aec1d747289a7e6ab5fc2e4fc7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#ga4a7796aec1d747289a7e6ab5fc2e4fc7">ds2413_init</a> (void)</td></tr>
+<tr class="memdesc:ga4a7796aec1d747289a7e6ab5fc2e4fc7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize the DS2413 driver hardware.  <br /></td></tr>
+<tr class="memitem:gab83ced087afb86325cb0353dcdf750b8" id="r_gab83ced087afb86325cb0353dcdf750b8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#gab83ced087afb86325cb0353dcdf750b8">ds2413_select</a> (const uint8_t *rom)</td></tr>
+<tr class="memdesc:gab83ced087afb86325cb0353dcdf750b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Select the DS2413 to address.  <br /></td></tr>
+<tr class="memitem:gad79733e8cd7bcc14d046d5e3eb24498d" id="r_gad79733e8cd7bcc14d046d5e3eb24498d"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#gad79733e8cd7bcc14d046d5e3eb24498d">ds2413_read_pio</a> (uint8_t *out)</td></tr>
+<tr class="memdesc:gad79733e8cd7bcc14d046d5e3eb24498d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read the PIO pin states (non-blocking).  <br /></td></tr>
+<tr class="memitem:ga30548440e73e6ba7b5b4c5e123dff56a" id="r_ga30548440e73e6ba7b5b4c5e123dff56a"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#ga30548440e73e6ba7b5b4c5e123dff56a">ds2413_read_pio_poll</a> (void)</td></tr>
+<tr class="memdesc:ga30548440e73e6ba7b5b4c5e123dff56a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the non-blocking PIO read.  <br /></td></tr>
+<tr class="memitem:gacbe2c9a165d85a649019db8fd02e0e98" id="r_gacbe2c9a165d85a649019db8fd02e0e98"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#gacbe2c9a165d85a649019db8fd02e0e98">ds2413_write_pio</a> (uint8_t states)</td></tr>
+<tr class="memdesc:gacbe2c9a165d85a649019db8fd02e0e98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write the PIO output latches (non-blocking).  <br /></td></tr>
+<tr class="memitem:ga26ba494b9eab2473cf9d0b1d33a3f0d9" id="r_ga26ba494b9eab2473cf9d0b1d33a3f0d9"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#ga26ba494b9eab2473cf9d0b1d33a3f0d9">ds2413_write_pio_poll</a> (void)</td></tr>
+<tr class="memdesc:ga26ba494b9eab2473cf9d0b1d33a3f0d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advance the non-blocking PIO write.  <br /></td></tr>
+<tr class="memitem:ga18a7214c3c3cd1ef62dd030099cd0811" id="r_ga18a7214c3c3cd1ef62dd030099cd0811"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#ga18a7214c3c3cd1ef62dd030099cd0811">ds2413_last_command_ok</a> (void)</td></tr>
+<tr class="memdesc:ga18a7214c3c3cd1ef62dd030099cd0811"><td class="mdescLeft">&#160;</td><td class="mdescRight">Result of the last completed operation.  <br /></td></tr>
+<tr class="memitem:gaa366d300ff9dcbc24fddb033dae4887c" id="r_gaa366d300ff9dcbc24fddb033dae4887c"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#gaa366d300ff9dcbc24fddb033dae4887c">ds2413_last_pio</a> (void)</td></tr>
+<tr class="memdesc:gaa366d300ff9dcbc24fddb033dae4887c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Last valid PIO state read by <a class="el" href="group__DS2413__Exported__Functions.html#gad79733e8cd7bcc14d046d5e3eb24498d" title="Read the PIO pin states (non-blocking).">ds2413_read_pio()</a>.  <br /></td></tr>
+<tr class="memitem:gae3aaa3809021e2d86d2e1745d2c476c5" id="r_gae3aaa3809021e2d86d2e1745d2c476c5"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__DS2413__Exported__Functions.html#gae3aaa3809021e2d86d2e1745d2c476c5">ds2413_last_reply</a> (void)</td></tr>
+<tr class="memdesc:gae3aaa3809021e2d86d2e1745d2c476c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw reply byte of the last read or write operation.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>DS2413 dual-channel addressable switch - placeholder. </p>
-<p>Reserved for a future non-blocking driver. Only the bus identity is defined here so that examples can already recognise the device during a search and report it, without pretending a driver exists (there is no implementation in src/ds2413.c yet, and no ds2413_init()/poll() API).</p>
-<p>DS2413 facts the future driver will need:</p><ul>
-<li>family code 0x3A, 64-bit ROM, parasite powered;</li>
-<li>PIO Access Read (0xF5) returns one status byte (PIOB/PIOA complemented);</li>
-<li>PIO Access Write (0x5A) takes one byte plus its inverted complement;</li>
-<li>PIO Output Latch Read (0xF5) / Write (0x5A) use the same opcodes at the latch level; both reply with the Acknowledge byte pattern before the data byte is clocked in. See the DS2413 datasheet for the exact slot-level handshake. </li>
+<div class="textblock"><p>Non-blocking DS2413 dual-channel addressable switch driver. </p>
+<p>The DS2413 has two open-drain PIO pins (PIOA, PIOB). A write sets both output latches; a read returns the actual pin levels (the latch when the pin is not driven externally). The device is parasite powered: the driver primes it with a 1 ms strong pull-up before each operation, then releases the bus for the reset/command/reply sequence. A failed reply is retried up to three times.</p>
+<p>The driver follows the same non-blocking start/poll discipline as the DS18B20 and DS2431 drivers and shares the TIM1/DMA/GPIO bus with them: one operation at a time, no concurrent polling of two drivers.</p>
+<p>Wire protocol (DS2413 datasheet, also used by the Linux w1_ds2413 driver):</p><ul>
+<li>PIO Access Read [F5h]: one reply byte; the low nibble carries PIOA in bit 1 and PIOB in bit 3, bits 4-7 are its complement. 0xFF means the device did not answer; a byte whose low nibble is not the complement of its high nibble is rejected. The driver normalizes the reply to the write layout (bit 0 = PIOA, bit 1 = PIOB).</li>
+<li>PIO Access Write [5Ah]: the master sends the state byte (bits 0/1 are PIOA/PIOB, bits 2-7 must be 1) followed by its complement, then reads one acknowledge byte. 0xAA means the write was accepted.</li>
 </ul>
-</div><a name="doc-define-members" id="doc-define-members"></a><h2 id="header-doc-define-members" class="groupheader">Macro Definition Documentation</h2>
-<a id="a0a2e26756689f9a928641a1e81d7c16e" name="a0a2e26756689f9a928641a1e81d7c16e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0a2e26756689f9a928641a1e81d7c16e">&#9670;&#160;</a></span>DS2413_FAMILY_CODE</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define DS2413_FAMILY_CODE&#160;&#160;&#160;0x3Au</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>DS2413 1-Wire family code (LSB of the 64-bit ROM address). </p>
-
-</div>
-</div>
-<a id="adfcf80a45443c912a983b7166478a972" name="adfcf80a45443c912a983b7166478a972"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#adfcf80a45443c912a983b7166478a972">&#9670;&#160;</a></span>DS2413_ROM_BYTES</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">#define DS2413_ROM_BYTES&#160;&#160;&#160;8u</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Number of bytes in a device ROM address. </p>
-
-</div>
-</div>
-</div><!-- contents -->
+<p>Addressing: <span class="tt"><a class="el" href="group__DS2413__Exported__Functions.html#gab83ced087afb86325cb0353dcdf750b8" title="Select the DS2413 to address.">ds2413_select()</a></span> chooses Match ROM (0x55 + 8-byte ROM) for one device or Skip ROM (0xCC) for a broadcast. Broadcast write is useful to set several switches at once. Broadcast read is allowed but only meaningful with a single DS2413 on the bus: several devices answering at once produce a wired-AND of their replies, which the driver cannot attribute. </p>
+</div></div><!-- contents -->
 </div><!-- doc-content -->
 <div id="page-nav" class="page-nav-panel">
 <div id="page-nav-resize-handle"></div>

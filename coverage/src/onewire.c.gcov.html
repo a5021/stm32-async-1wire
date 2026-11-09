@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-09 16:29:13</td>
+            <td class="headerValue">2026-11-09 17:33:26</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
@@ -237,10 +237,10 @@
 <span id="L166"><span class="lineNum">     166</span>                 :             :  * @{</span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :  */</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        2539 : void onewire_init(void) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        2656 : void onewire_init(void) {</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :             :     // No search running after init: lets the slave driver own the timer until</span>
 <span id="L171"><span class="lineNum">     171</span>                 :             :     // the application starts a search.</span>
-<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">        2539 :     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">        2656 :     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.</span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :     ow_port_init();</span>
 <span id="L175"><span class="lineNum">     175</span>                 :             : #if OW_LOW_POWER</span>
@@ -251,10 +251,10 @@
 <span id="L180"><span class="lineNum">     180</span>                 :             :     // called - the project has no ISR vector for TIM1 at all.</span>
 <span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        1005 :     SCB-&gt;SCR |= SCB_SCR_SEVONPEND_Msk;</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :             : #endif</span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">        2539 : }</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">        2656 : }</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :             : </span>
-<span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 76790 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2679 times"> + </span>]:<span class="tlaGNC">       79469 : uint8_t onewire_bus_done(void) {</span></span>
-<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">       79469 :     return ow_port_bus_done();</span></span>
+<span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 77312 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2778 times"> + </span>]:<span class="tlaGNC">       80090 : uint8_t onewire_bus_done(void) {</span></span>
+<span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">       80090 :     return ow_port_bus_done();</span></span>
 <span id="L187"><span class="lineNum">     187</span>                 :             : }</span>
 <span id="L188"><span class="lineNum">     188</span>                 :             : </span>
 <span id="L189"><span class="lineNum">     189</span>                 :<span class="tlaGNC">          50 : uint32_t onewire_config_token(void) { return OW_CONFIG_TOKEN; }</span></span>
@@ -269,45 +269,45 @@
 <span id="L198"><span class="lineNum">     198</span>                 :             : #endif</span>
 <span id="L199"><span class="lineNum">     199</span>                 :             : }</span>
 <span id="L200"><span class="lineNum">     200</span>                 :             : </span>
-<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5431 : void onewire_reset(volatile uint16_t* reset_pulses) {</span></span>
+<span id="L201"><span class="lineNum">     201</span>                 :<span class="tlaGNC">        5602 : void onewire_reset(volatile uint16_t* reset_pulses) {</span></span>
 <span id="L202"><span class="lineNum">     202</span>                 :             :     ow_port_reset(reset_pulses);</span>
-<span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">        5431 : }</span></span>
+<span id="L203"><span class="lineNum">     203</span>                 :<span class="tlaGNC">        5602 : }</span></span>
 <span id="L204"><span class="lineNum">     204</span>                 :             : </span>
-<span id="L205"><span class="lineNum">     205</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4745 times"> + </span>]:<span class="tlaGNC">        9490 : uint8_t onewire_reset_captured(void) { return ow_port_reset_captured(); }</span></span>
+<span id="L205"><span class="lineNum">     205</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 4916 times"> + </span>]:<span class="tlaGNC">        9832 : uint8_t onewire_reset_captured(void) { return ow_port_reset_captured(); }</span></span>
 <span id="L206"><span class="lineNum">     206</span>                 :             : </span>
-<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">        5020 : uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured) {</span></span>
+<span id="L207"><span class="lineNum">     207</span>                 :<span class="tlaGNC">        5191 : uint8_t onewire_present(const volatile uint16_t* pulses, uint8_t captured) {</span></span>
 <span id="L208"><span class="lineNum">     208</span>                 :             :     // A device is only proven by the presence edge itself: a reset that captured</span>
 <span id="L209"><span class="lineNum">     209</span>                 :             :     // just the master-release edge leaves pulses[1] at whatever the shared</span>
 <span id="L210"><span class="lineNum">     210</span>                 :             :     // buffer held before, and that value may sit inside the presence window.</span>
-<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="Branch 0 was taken 125 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4895 times"> + </span>]:<span class="tlaGNC">        5020 :     if (captured != OW_PORT_CAPTURE_BUF_SIZE) {</span></span>
+<span id="L211"><span class="lineNum">     211</span>         [<span class="tlaGBC" title="Branch 0 was taken 125 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5066 times"> + </span>]:<span class="tlaGNC">        5191 :     if (captured != OW_PORT_CAPTURE_BUF_SIZE) {</span></span>
 <span id="L212"><span class="lineNum">     212</span>                 :<span class="tlaGNC">         125 :         return 0;</span></span>
 <span id="L213"><span class="lineNum">     213</span>                 :             :     }</span>
-<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">        4895 :     uint16_t reset = pulses[0];</span></span>
-<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">        4895 :     uint16_t presence = pulses[1];</span></span>
+<span id="L214"><span class="lineNum">     214</span>                 :<span class="tlaGNC">        5066 :     uint16_t reset = pulses[0];</span></span>
+<span id="L215"><span class="lineNum">     215</span>                 :<span class="tlaGNC">        5066 :     uint16_t presence = pulses[1];</span></span>
 <span id="L216"><span class="lineNum">     216</span>                 :             :     // Validate that reset pulse duration is within specification</span>
 <span id="L217"><span class="lineNum">     217</span>                 :             :     // and presence pulse timing indicates a responding device</span>
-<span id="L218"><span class="lineNum">     218</span>   [<span class="tlaGBC" title="Branch 0 was taken 4341 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4316 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 25 times"> + </span>]:<span class="tlaGNC">        4391 :     return (reset &gt;= RESET_PULSE_MIN) &amp;&amp; (reset &lt;= RESET_PULSE_MAX) &amp;&amp;</span></span>
-<span id="L219"><span class="lineNum">     219</span>   [<span class="tlaGBC" title="Branch 0 was taken 4391 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 504 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4291 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 25 times"> + </span>]:<span class="tlaGNC">        9286 :            (presence &gt;= PRESENCE_PULSE_MIN) &amp;&amp; (presence &lt;= PRESENCE_PULSE_MAX);</span></span>
+<span id="L218"><span class="lineNum">     218</span>   [<span class="tlaGBC" title="Branch 0 was taken 4431 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4406 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 25 times"> + </span>]:<span class="tlaGNC">        4481 :     return (reset &gt;= RESET_PULSE_MIN) &amp;&amp; (reset &lt;= RESET_PULSE_MAX) &amp;&amp;</span></span>
+<span id="L219"><span class="lineNum">     219</span>   [<span class="tlaGBC" title="Branch 0 was taken 4481 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 585 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 4381 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 25 times"> + </span>]:<span class="tlaGNC">        9547 :            (presence &gt;= PRESENCE_PULSE_MIN) &amp;&amp; (presence &lt;= PRESENCE_PULSE_MAX);</span></span>
 <span id="L220"><span class="lineNum">     220</span>                 :             : }</span>
 <span id="L221"><span class="lineNum">     221</span>                 :             : </span>
-<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="Branch 0 was taken 1208 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        1208 : void ow_start_wait(uint32_t us) { ow_port_start_wait(us); }</span></span>
+<span id="L222"><span class="lineNum">     222</span>         [<span class="tlaGBC" title="Branch 0 was taken 1379 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        1379 : void ow_start_wait(uint32_t us) { ow_port_start_wait(us); }</span></span>
 <span id="L223"><span class="lineNum">     223</span>                 :             : </span>
 <span id="L224"><span class="lineNum">     224</span>                 :<span class="tlaGNC">         600 : void ow_timer_kick(void) { ow_port_kick(); }</span></span>
 <span id="L225"><span class="lineNum">     225</span>                 :             : </span>
-<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">       11442 : uint8_t ow_op_done(void) {</span></span>
-<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">       11442 :     uint8_t done = onewire_bus_done();</span></span>
+<span id="L226"><span class="lineNum">     226</span>                 :<span class="tlaGNC">       12063 : uint8_t ow_op_done(void) {</span></span>
+<span id="L227"><span class="lineNum">     227</span>                 :<span class="tlaGNC">       12063 :     uint8_t done = onewire_bus_done();</span></span>
 <span id="L228"><span class="lineNum">     228</span>                 :             : #if OW_LOW_POWER</span>
 <span id="L229"><span class="lineNum">     229</span>   [<span class="tlaGBC" title="Branch 0 was taken 801 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3717 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 9 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 792 times"> + </span>]:<span class="tlaGNC">        4518 :     if (!done &amp;&amp; onewire_long_wait_pending()) {</span></span>
 <span id="L230"><span class="lineNum">     230</span>                 :<span class="tlaGNC">           9 :         onewire_sleep_until_done();</span></span>
 <span id="L231"><span class="lineNum">     231</span>                 :<span class="tlaGNC">           9 :         done = onewire_bus_done(); /* consume the event that woke us */</span></span>
 <span id="L232"><span class="lineNum">     232</span>                 :             :     }</span>
 <span id="L233"><span class="lineNum">     233</span>                 :             : #endif</span>
-<span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">       11442 :     return done;</span></span>
+<span id="L234"><span class="lineNum">     234</span>                 :<span class="tlaGNC">       12063 :     return done;</span></span>
 <span id="L235"><span class="lineNum">     235</span>                 :             : }</span>
 <span id="L236"><span class="lineNum">     236</span>                 :             : </span>
-<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">        3786 : void onewire_strong_pullup(uint8_t on) {</span></span>
-<span id="L238"><span class="lineNum">     238</span>         [<span class="tlaGBC" title="Branch 0 was taken 640 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3146 times"> + </span>]:<span class="tlaGNC">        3786 :     ow_port_strong_pullup(on);</span></span>
-<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">        3786 : }</span></span>
+<span id="L237"><span class="lineNum">     237</span>                 :<span class="tlaGNC">        4128 : void onewire_strong_pullup(uint8_t on) {</span></span>
+<span id="L238"><span class="lineNum">     238</span>         [<span class="tlaGBC" title="Branch 0 was taken 811 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3317 times"> + </span>]:<span class="tlaGNC">        4128 :     ow_port_strong_pullup(on);</span></span>
+<span id="L239"><span class="lineNum">     239</span>                 :<span class="tlaGNC">        4128 : }</span></span>
 <span id="L240"><span class="lineNum">     240</span>                 :             : </span>
 <span id="L241"><span class="lineNum">     241</span>                 :             : #if OW_LOW_POWER</span>
 <span id="L242"><span class="lineNum">     242</span>         [<span class="tlaGBC" title="Branch 0 was taken 27 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 792 times"> + </span>]:<span class="tlaGNC">         819 : uint8_t onewire_long_wait_pending(void) {</span></span>
@@ -319,12 +319,12 @@
 <span id="L248"><span class="lineNum">     248</span>                 :<span class="tlaGNC">           9 : }</span></span>
 <span id="L249"><span class="lineNum">     249</span>                 :             : #endif</span>
 <span id="L250"><span class="lineNum">     250</span>                 :             : </span>
-<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">        5820 : uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {</span></span>
-<span id="L252"><span class="lineNum">     252</span>   [<span class="tlaGBC" title="Branch 0 was taken 5820 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 5820 times"> + </span>]:<span class="tlaGNC">        5820 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
+<span id="L251"><span class="lineNum">     251</span>                 :<span class="tlaGNC">        5910 : uint8_t onewire_write_slots(const ow_pulse_t* pulses, uint16_t slots) {</span></span>
+<span id="L252"><span class="lineNum">     252</span>   [<span class="tlaGBC" title="Branch 0 was taken 5910 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 5910 times"> + </span>]:<span class="tlaGNC">        5910 :     if (slots == 0u || slots &gt; ONEWIRE_MAX_SLOTS) {</span></span>
 <span id="L253"><span class="lineNum">     253</span>                 :<span class="tlaUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_write_slots: slots out of range (1..ONEWIRE_MAX_SLOTS)&quot;);</span></span>
 <span id="L254"><span class="lineNum">     254</span>                 :             :         return 0;</span>
 <span id="L255"><span class="lineNum">     255</span>                 :             :     }</span>
-<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="Branch 0 was taken 5820 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">       11640 :     return ow_port_write_slots(pulses, slots);</span></span>
+<span id="L256"><span class="lineNum">     256</span>         [<span class="tlaGBC" title="Branch 0 was taken 5910 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">       11820 :     return ow_port_write_slots(pulses, slots);</span></span>
 <span id="L257"><span class="lineNum">     257</span>                 :             : }</span>
 <span id="L258"><span class="lineNum">     258</span>                 :             : </span>
 <span id="L259"><span class="lineNum">     259</span>                 :<span class="tlaGNC">        1134 : uint8_t onewire_write_bit(uint8_t bit) {</span></span>
@@ -345,29 +345,29 @@
 <span id="L274"><span class="lineNum">     274</span>         [<span class="tlaGBC" title="Branch 0 was taken 13834 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49325 times"> + </span>]:<span class="tlaGNC">       63159 :     ow_port_write_then_read(bit, search_pulse3, search_read_pulse);</span></span>
 <span id="L275"><span class="lineNum">     275</span>                 :<span class="tlaGNC">       63159 : }</span></span>
 <span id="L276"><span class="lineNum">     276</span>                 :             : </span>
-<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        1689 : uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {</span></span>
-<span id="L278"><span class="lineNum">     278</span>   [<span class="tlaGBC" title="Branch 0 was taken 1689 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1689 times"> + </span>]:<span class="tlaGNC">        1689 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
+<span id="L277"><span class="lineNum">     277</span>                 :<span class="tlaGNC">        1779 : uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {</span></span>
+<span id="L278"><span class="lineNum">     278</span>   [<span class="tlaGBC" title="Branch 0 was taken 1779 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span><span class="tlaUNC" title="Branch 2 was not taken"> - </span><span class="tlaGBC" title="Branch 3 was taken 1779 times"> + </span>]:<span class="tlaGNC">        1779 :     if (bytes == 0u || bytes &gt; ONEWIRE_MAX_READ_BYTES) {</span></span>
 <span id="L279"><span class="lineNum">     279</span>                 :<span class="tlaUNC">           0 :         ONEWIRE_PARAM_CHECK(0 &amp;&amp; &quot;onewire_read_data: bytes out of range (1..ONEWIRE_MAX_READ_BYTES)&quot;);</span></span>
 <span id="L280"><span class="lineNum">     280</span>                 :             :         return 0;</span>
 <span id="L281"><span class="lineNum">     281</span>                 :             :     }</span>
-<span id="L282"><span class="lineNum">     282</span>         [<span class="tlaGBC" title="Branch 0 was taken 1689 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3378 :     return ow_port_read_data(dst, bytes);</span></span>
+<span id="L282"><span class="lineNum">     282</span>         [<span class="tlaGBC" title="Branch 0 was taken 1779 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3558 :     return ow_port_read_data(dst, bytes);</span></span>
 <span id="L283"><span class="lineNum">     283</span>                 :             : }</span>
 <span id="L284"><span class="lineNum">     284</span>                 :             : </span>
-<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">        1914 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
-<span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="Branch 0 was taken 14932 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1914 times"> + </span>]:<span class="tlaGNC">       16846 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
-<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">       14932 :         uint8_t value = 0;</span></span>
-<span id="L288"><span class="lineNum">     288</span>         [<span class="tlaGBC" title="Branch 0 was taken 119456 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 14932 times"> + </span>]:<span class="tlaGNC">      134388 :         for (uint8_t bit = 0; bit &lt; ONEWIRE_BITS_PER_BYTE; bit++) {</span></span>
-<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">      119456 :             value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) &lt;&lt; bit);</span></span>
+<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">        2004 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
+<span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="Branch 0 was taken 15022 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2004 times"> + </span>]:<span class="tlaGNC">       17026 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
+<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">       15022 :         uint8_t value = 0;</span></span>
+<span id="L288"><span class="lineNum">     288</span>         [<span class="tlaGBC" title="Branch 0 was taken 120176 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15022 times"> + </span>]:<span class="tlaGNC">      135198 :         for (uint8_t bit = 0; bit &lt; ONEWIRE_BITS_PER_BYTE; bit++) {</span></span>
+<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">      120176 :             value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) &lt;&lt; bit);</span></span>
 <span id="L290"><span class="lineNum">     290</span>                 :             :         }</span>
-<span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">       14932 :         dst[byte] = value;</span></span>
+<span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">       15022 :         dst[byte] = value;</span></span>
 <span id="L292"><span class="lineNum">     292</span>                 :             :     }</span>
-<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">        1914 : }</span></span>
+<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">        2004 : }</span></span>
 <span id="L294"><span class="lineNum">     294</span>                 :             : </span>
-<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">       27448 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
-<span id="L296"><span class="lineNum">     296</span>         [<span class="tlaGBC" title="Branch 0 was taken 219584 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27448 times"> + </span>]:<span class="tlaGNC">      247032 :     for (uint8_t i = 0; i &lt; ONEWIRE_BITS_PER_BYTE; i++) {</span></span>
-<span id="L297"><span class="lineNum">     297</span>         [<span class="tlaGBC" title="Branch 0 was taken 87494 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 132090 times"> + </span>]:<span class="tlaGNC">      219584 :         out[i] = (byte &amp; (1u &lt;&lt; i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
+<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">       27916 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
+<span id="L296"><span class="lineNum">     296</span>         [<span class="tlaGBC" title="Branch 0 was taken 223328 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27916 times"> + </span>]:<span class="tlaGNC">      251244 :     for (uint8_t i = 0; i &lt; ONEWIRE_BITS_PER_BYTE; i++) {</span></span>
+<span id="L297"><span class="lineNum">     297</span>         [<span class="tlaGBC" title="Branch 0 was taken 89150 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 134178 times"> + </span>]:<span class="tlaGNC">      223328 :         out[i] = (byte &amp; (1u &lt;&lt; i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
 <span id="L298"><span class="lineNum">     298</span>                 :             :     }</span>
-<span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">       27448 : }</span></span>
+<span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">       27916 : }</span></span>
 <span id="L300"><span class="lineNum">     300</span>                 :             : </span>
 <span id="L301"><span class="lineNum">     301</span>                 :<span class="tlaGNC">        5450 : uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {</span></span>
 <span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">        5450 :     uint8_t crc = 0;</span></span>
@@ -615,7 +615,7 @@
 <span id="L543"><span class="lineNum">     543</span>                 :             : </span>
 <span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">         900 : uint8_t onewire_search_count(void) { return search_ctx.found; }</span></span>
 <span id="L545"><span class="lineNum">     545</span>                 :             : </span>
-<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">       10553 : uint8_t onewire_search_active(void) { return (uint8_t)((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u); }</span></span>
+<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">       10679 : uint8_t onewire_search_active(void) { return (uint8_t)((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u); }</span></span>
 <span id="L547"><span class="lineNum">     547</span>                 :             : </span>
 <span id="L548"><span class="lineNum">     548</span>                 :             : /** @} */</span>
         </pre>
