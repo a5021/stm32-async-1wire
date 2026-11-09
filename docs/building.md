@@ -386,13 +386,23 @@ python tests/hil/dma_pressure.py --json docs/stress/platforms/f446/results-high.
                                  --clocks 180,16,8 --load-high
 python tests/hil/dma_capture.py --json docs/stress/platforms/f446/capture.json \
                                 --sr-dir docs/stress/platforms/f446/captures
+
+# the priority staircase: keep the load placement and vary the feed/capture
+# class. Publish one pair per class and bench; the H503 has the write runs,
+# the F446 also has Search ROM captures.
+python tests/hil/dma_pressure.py --json docs/stress/platforms/h503/results-prio1.json \
+                                 --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 \
+                                 --gpdma-prio 3 --feed-prio 1
+python tests/hil/dma_capture.py --json docs/stress/platforms/f446/capture-prio1.json \
+                                --levels 0,5 --clocks 8,16 --feed-prio 1
 python tools/stress_report.py --data docs/stress/results.json --out docs/stress/index.html
 ```
 
 The JSON records the commit, the capture directory, the marker setting, a
-start-timeout and a load-channel-error field per cell, the load placement
-(`load_high`, `gpdma_prio`) and a SHA-256 of the flashed image per cell (level
-and guard are compiled in, so the image differs per cell). `dirty` is sampled
+start-timeout and a load-channel-error field per cell, the load placement and
+the feed/capture class (`load_high`, `gpdma_prio`, `feed_prio`) and a SHA-256
+of the flashed image per cell (level and guard are compiled in, so the image
+differs per cell). `dirty` is sampled
 before the run writes anything and ignores `docs/stress`: a run's own output
 does not make the source tree look modified.
 
@@ -915,12 +925,14 @@ make EXT="-DOW_DMA_PRIO=3"
 
 The measured minimum is not the same on every part: with the load at `PL 0`
 the F446 is clean from class **1**, while the H503 load at `PRIO 3` needs class
-**3** (1 and 2 stay below it and starve). So raise the class above the load's,
-not blindly to 3.
+**3** (1 and 2 stay below it, so the default-guard failures remain). So raise
+the class above the load's, not blindly to 3.
 
-An equal-class load is still ordered by channel/stream index, so this is not a
-substitute for the portable rule: a higher-ranked, uninterruptible burst must
-not outlast `guard + 1` us. The bench measurements behind both statements are
+On classic DMA and F4 streams an equal-class load is still ordered by
+channel/stream index, so this is not a substitute for the portable rule there:
+a higher-ranked, uninterruptible burst must not outlast `guard + 1` us. On the
+H5 GPDMA the measured equal class was clean: `CCR.PRIO` does not break ties by
+channel number. The bench measurements behind these statements are
 in the [stress report](stress/index.html) ("Load placement and DMA priority");
 `make test-dma-prio` rebuilds the contract suite with class 3 and fails if the
 bits do not reach the register word.

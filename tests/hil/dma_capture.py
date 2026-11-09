@@ -416,6 +416,7 @@ def main(argv=None):
         "marker": bool(common.MARKER),
         "tooling_commit": head or None,
         "gpdma_prio": dp.GPDMA_PRIO,
+        "feed_prio": args.feed_prio,
         "sr_dir": (os.path.relpath(os.path.abspath(args.sr_dir), common.REPO)
                    .replace(os.sep, "/") if args.sr_dir else ""),
         "capture_supported": supported,

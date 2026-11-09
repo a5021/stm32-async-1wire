@@ -22,10 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (8/64/250 MHz). The measured staircase is not the same on both: the F446
   load sits at `PL 0`, so class **1** already clears every failing write and
   Search ROM cell (classes 2/3 add nothing); the H503 load sits at `PRIO 3`,
-  so classes 1/2 still starve and class **3** is the smallest that works,
-  clean in all 36 cells at guard 1/5/100 with `cndtr_late = 0`. An equal-class
-  load is still resolved by the channel/stream index, so the portable rule
-  stands: a higher-ranked burst must not outlast `guard + 1` us. The knob
+  so classes 1/2 stay below it and the five default-guard failures remain;
+  class **3** is the smallest that works, clean in all 36 cells at guard
+  1/5/100 with `cndtr_late = 0` (the class 1/2 runs cover 33 of the 36 cells:
+  the 8 MHz level 3-5 cells already fail at guard 100, so the sweep stops
+  there). On classic DMA and F4 streams an equal-class load is still resolved
+  by the channel/stream index, so the portable rule stands there: a
+  higher-ranked burst must not outlast `guard + 1` us. On the H5 GPDMA equal
+  class was clean: `CCR.PRIO` does not break ties by channel number. The knob
   changes no timing constant and no ABI, so it is deliberately not part of
   `OW_CONFIG_TOKEN`. `make test-dma-prio` rebuilds the contract suite for one
   family per encoding with the class set to 3 and fails if the bits do not

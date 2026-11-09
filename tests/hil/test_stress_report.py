@@ -239,6 +239,9 @@ def main():
                     check("knob %s prio%d %s records an image hash"
                           % (name, cls, kind),
                           all(c.get("image_sha256") for c in cells))
+                    check("knob %s prio%d %s records feed_prio"
+                          % (name, cls, kind),
+                          source.get("feed_prio") == cls)
     linked = set()
     for name, pdata in platforms:
         # One representative failing frame per level; a level that already has a

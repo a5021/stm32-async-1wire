@@ -169,10 +169,13 @@
  *
  * Raise it when the application runs its own DMA above the driver's: on the
  * benches a level-5 load starved the default class on F446 (8/16 MHz) and
- * H503 (8/64/250 MHz), and level 3 turned those cells clean. An equal-class
- * load is still ordered by channel/stream index, so this is not a substitute
- * for the portable rule: a higher-ranked burst must not outlast the feed
- * window (`guard + 1` us).
+ * H503 (8/64/250 MHz). The measured minimum is per part: class 1 is enough
+ * on the F446 (load at `PL 0`), class 3 on the H503 (load at `PRIO 3`); a
+ * class below the load's own class starves. On classic DMA and F4 streams an
+ * equal-class load is still ordered by channel/stream index, so this is not
+ * a substitute for the portable rule there: a higher-ranked burst must not
+ * outlast the feed window (`guard + 1` us). On the H5 GPDMA equal class was
+ * clean: `CCR.PRIO` does not break ties by channel number.
  *
  * The knob changes no timing constant and no ABI, so it is deliberately not
  * mixed into `OW_CONFIG_TOKEN`: an application and an archive built with

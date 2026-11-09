@@ -137,6 +137,14 @@ USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
 default build needs no UART flag), flashed via OpenOCD over the on-board
 ST-Link.
 
+Stress experiment: the historical load on DMA2 streams 0/1 at `PL 0` starves
+the default feed/capture at 8/16 MHz, level 5. Raising feed/capture to `PL=1`
+(`-DOW_DMA_PRIO=1`) is enough: both default-guard write cells and all 12
+Search ROM cells are clean (levels 0/5, guards 1/5/100), including the three
+cells that return 0 devices at the default class; `PL=2`/`PL=3` add nothing.
+The library default stays `PL=0`. Details:
+[STM32F4 hardware notes](../port/stm32f4/HARDWARE-NOTES.md).
+
 ### STM32C552CET6 (WeAct 48-pin Core Board)
 
 Validated on a WeAct STM32C5 48-pin Core Board: 7 × DS18B20 in parasite power
@@ -168,9 +176,11 @@ and captured at each clock with correct 22.8-23.1 °C readings and 0 errors in
 `6_statistics`. The busy LED on **PC13** is **active-low** (blue LED on the
 WeAct board). Stress experiment: with the load raised to `CCR.PRIO 3`, the
 default PRIO 0 feed/capture starves at 8/64/250 MHz. The measured staircase:
-feed/capture PRIO 1 and 2 are still below the load and keep failing, while
-PRIO 3 (the load's own class) is clean in all 36 cells (levels 2-5, 8/64/250
-MHz, guards 1/5/100, `cndtr_late=0`, floor guard 1). Equal class does not lose
+feed/capture PRIO 1 and 2 are still below the load, and the five default-guard
+failures remain; PRIO 3 (the load's own class) is clean in all 36 cells
+(levels 2-5, 8/64/250 MHz, guards 1/5/100, `cndtr_late=0`, floor guard 1). The
+class 1/2 runs cover 33 of the 36 cells: the 8 MHz level 3-5 cells already
+fail at guard 100, so the sweep stops before guard 1. Equal class does not lose
 to the lower channel numbers here, so 3 is the smallest class that works. The
 library default remains PRIO 0; `OW_DMA_PRIO=3` is the build knob that raises
 both channels (the same knob selects `DMA_SxCR_PL` on F4/H7 and `DMA_CCR_PL` on

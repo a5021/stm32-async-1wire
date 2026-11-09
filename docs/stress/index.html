@@ -500,8 +500,10 @@ the placement the knob was tested against.</p>
 <tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>4</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
 <tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr>
 <tr><td>STM32H503xx</td><td>high (load PRIO 3)</td><td>write frame</td><td>64 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td><strong>fail</strong></td><td><strong>fail</strong></td><td>clean</td></tr></tbody></table>
-<p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1; STM32H503xx: 3. For the minimal class, the other guards are clean too: STM32F446xx at class 1: 4 of 4 other-guard cells clean; STM32H503xx at class 3: 24 of 24 other-guard cells clean. An equal-class load is still ordered by channel/stream index, so the
-knob is not a substitute for the <code>guard + 1</code> rule above. The library
+<p>The smallest measured class that clears every default-guard failure is STM32F446xx: 1; STM32H503xx: 3. For the minimal class, the other guards are clean too: STM32F446xx at class 1: 4 of 4 other-guard cells clean; STM32H503xx at class 3: 24 of 24 other-guard cells clean. On classic DMA and F4 streams an equal-class load is still ordered by
+channel/stream index, so the knob is not a substitute for the
+<code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
+clean: <code>CCR.PRIO</code> does not break ties by channel number. The library
 keeps class 0 by default: raising it preempts every lower-ranked channel for
 the length of a 1-Wire frame (up to milliseconds), which is the application's
 call.</p>
@@ -541,8 +543,11 @@ uses the next free number (the F030F4 has no channel 6, so it uses 4). Wiring
 and marker pins differ per board. The pattern is not a 1-Wire transaction and
 the devices are never addressed, so this measures master timing, not a protocol
 exchange.</li>
-<li><strong>Search coverage.</strong> The F4 Search matrix is at 180 MHz only;
-the write failures at 8 and 16 MHz are not yet covered by a Search capture.</li>
+<li><strong>Search coverage.</strong> Search ROM is measured on F0, F4 and H5.
+The F4 matrix covers 180 MHz for levels 0-5 and 8/16 MHz for levels 0/5
+(guards 1/5); the priority-knob runs add guard 100 for those two clocks. The
+H5 matrix is 36 cells at 8/64/250 MHz, guards 1/5. The other backends have no
+Search capture.</li>
 <li><strong>Timer floor.</strong> The 1 us timer cannot resolve a guard below 1.
 The report says "a 2 us window was enough", not "the latency is exactly
 1 us".</li>
@@ -557,6 +562,16 @@ The report says "a 2 us window was enough", not "the latency is exactly
 python tests/hil/dma_pressure.py %BACKSLASH%
      --json docs/stress/results.json %BACKSLASH%
      --sr-dir docs/stress/captures
+
+# the priority staircase: the load placement is fixed and the feed/capture
+# class is the variable. One file pair per class and bench.
+python tests/hil/dma_pressure.py %BACKSLASH%
+     --json docs/stress/platforms/h503/results-prio1.json %BACKSLASH%
+     --levels 2,3,4,5 --clocks 8,64,250 --guards 1,5,100 %BACKSLASH%
+     --gpdma-prio 3 --feed-prio 1
+python tests/hil/dma_capture.py %BACKSLASH%
+     --json docs/stress/platforms/f446/capture-prio1.json %BACKSLASH%
+     --levels 0,5 --clocks 8,16 --feed-prio 1
 
 python tools/stress_report.py %BACKSLASH%
      --data docs/stress/results.json %BACKSLASH%
@@ -579,9 +594,11 @@ write matrix run only.</li>
 <code>.sr</code> form; the Viewer column above links each one.</li>
 <li><code>platforms/</code> - per additional bench: <code>results.json</code>,
 <code>capture.json</code>, where the load placement was tested
-<code>results-high.json</code> with its <code>captures-high/</code>, and where
-the priority knob was tested <code>results-prio3.json</code> /
-<code>capture-prio3.json</code> (for example <code>platforms/f446/</code>).</li>
+<code>results-high.json</code> with its <code>captures-high/</code>, and the
+priority staircase <code>results-prio1/2/3.json</code> plus
+<code>capture-prio1/2/3.json</code> where Search ROM was measured (for example
+<code>platforms/f446/</code>; <code>platforms/h503/</code> has the three write
+runs, no Search captures).</li>
 <li><a href="https://github.com/a5021/stm32-async-1wire/blob/main/examples/0_dma_pressure/main.c">examples/0_dma_pressure/main.c</a>
 and <a href="https://github.com/a5021/stm32-async-1wire/blob/main/tests/hil/dma_pressure.py">tests/hil/dma_pressure.py</a>
 - the rig and the harness.</li>

@@ -283,9 +283,11 @@ channel 0 and channel 1 in direct mode with a software request; `CBR1.BNDT` is a
 source-byte count and fits at most 32767 halfwords. GPDMA does not break ties by
 channel number: arbitration uses `CCR.PRIO` (PRIO 3 is a fixed class; PRIO 0/1/2
 share a weighted round-robin). `-DSTRESS_GPDMA_PRIO=N` selects the load class:
-0 is equal priority, 3 is the priority case. Other families compile the example
-and run level 0 with `stress=unsupported` in the banner, so the all-family
-build matrix stays green.
+0 is equal priority, 3 is the priority case. That is the test load, not the
+driver: the library's feed/capture class is `OW_DMA_PRIO` (see
+[DMA priority](building.md#dma-priority-ow_dma_prio)). Other families compile
+the example and run level 0 with `stress=unsupported` in the banner, so the
+all-family build matrix stays green.
 
 On the F446 at its 180 MHz default every level is clean at guard 1 (a 2 µs
 window), the same as the F030. At 16 and 8 MHz levels 0-4 are also clean at
