@@ -147,6 +147,14 @@
 #define STRESS_INJECT_US 0
 #endif
 
+/* Test-only: put a low notch on the frame marker (LA D1) for the injected
+ * hold, from the first CC2 request to the channel restore. The notch width is
+ * the real hold the sweep applies, so the host can subtract the nominal
+ * STRESS_INJECT_US and report the loop/re-enable overhead. */
+#ifndef STRESS_INJECT_MARKER
+#define STRESS_INJECT_MARKER 0
+#endif
+
 /* Optional logic-analyzer marker (LA D1). The pin is a build knob because the
  * bench wiring differs: F446/H503 use PA11, the F030 TSSOP20 board has PA11
  * bonded to SWD and uses PA2 instead. The HIL selects it per bench profile. */
@@ -195,6 +203,12 @@
 #endif
 #if (STRESS_INJECT_US < 0) || (STRESS_INJECT_US > 5000)
 #error "STRESS_INJECT_US must be 0..5000 (test-only channel-disable injection)"
+#endif
+#if (STRESS_INJECT_MARKER != 0) && (STRESS_INJECT_MARKER != 1)
+#error "STRESS_INJECT_MARKER must be 0 or 1"
+#endif
+#if STRESS_INJECT_MARKER && !STRESS_MARKER
+#error "STRESS_INJECT_MARKER requires STRESS_MARKER=1"
 #endif
 #if (STRESS_MARKER != 0) && (STRESS_MARKER != 1)
 #error "STRESS_MARKER must be 0 or 1"
@@ -834,8 +848,15 @@ static void stress_inject(uint32_t us) {
     TIM1->SR = ~TIM_SR_CC2IF; /* drop a stale slot-end flag before the wait */
     while ((TIM1->SR & TIM_SR_CC2IF) == 0u) {
     }
+#if STRESS_INJECT_MARKER
+    /* The request has just appeared: mark the hold that starts here. */
+    stress_marker_low();
+#endif
     stress_delay_us(us);
     *ctrl = save;
+#if STRESS_INJECT_MARKER
+    stress_marker_high();
+#endif
     if (stress_inject_on_ok(ctrl, save)) {
         stress_inject_flags |= 4u;
     }

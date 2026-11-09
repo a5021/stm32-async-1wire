@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+import statistics
 import time
 
 import numpy as np
@@ -157,6 +158,31 @@ def _failure_form(a):
     return "other"
 
 
+def notch_us(raw):
+    """Width of the D1 low notch inside a frame, or None.
+
+    `STRESS_INJECT_MARKER=1` drops the frame marker for the injected hold, so
+    the notch is the real hold the sweep applied. The inter-frame marker lows
+    are milliseconds long and the frame highs are tens of microseconds, so a
+    low run shorter than 500 us is the notch.
+    """
+    m = (raw >> 1) & 1
+    ch = np.flatnonzero(m[1:] != m[:-1]) + 1
+    starts = ch[m[ch] == 0]
+    ends = ch[m[ch] == 1]
+    widths = []
+    j = 0
+    for s in starts:
+        while j < len(ends) and ends[j] <= s:
+            j += 1
+        if j >= len(ends):
+            break
+        w = (ends[j] - s) / dp.RATE_HZ * 1e6
+        if 0.25 < w < 500.0:
+            widths.append(w)
+    return statistics.median(widths) if widths else None
+
+
 class Rig:
     def __init__(self, mcu, prog, sigrok, json_path, keep_all, sr_dir):
         self.mcu = mcu
@@ -169,7 +195,7 @@ class Rig:
                                 "dma_pressure", "_capture.bin")
 
     def run(self, mode, level, guard, clock, inject_us=0, retry=True,
-            retry_hiccup=True):
+            retry_hiccup=True, measure_hold=False):
         print("  %s level=%d guard=%d clock=%s inject=%d" % (
             mode, level, guard, clock if clock else "default", inject_us),
             flush=True)
@@ -178,6 +204,8 @@ class Rig:
             extra += " -DSTRESS_CAPTURE=1"
         if inject_us:
             extra += " -DSTRESS_INJECT_US=%d" % inject_us
+        if measure_hold:
+            extra += " -DSTRESS_INJECT_MARKER=1"
         dp.build(level, guard, clock, extra=extra)
         self.image_sha256 = common.sha256(dp.HEX)
         dp.flash_halt(self.prog)
@@ -264,6 +292,9 @@ class Rig:
         else:
             raw = np.fromfile(self.raw, dtype=np.uint8)
             slot_us = dp.ONE_US + dp.ZERO_US + guard + 1
+            actual = notch_us(raw) if measure_hold else None
+            if actual is None and measure_hold and inject_us == 0:
+                actual = 0.0
             a = dp.analyse(raw, dp.RATE_HZ,
                            min_start_us=(dp.PRE_RESET_S + dp.SETTLE_MARGIN_S) * 1e6,
                            slot_us=slot_us, ignore_leading_short=True,
@@ -277,6 +308,7 @@ class Rig:
                 "frames": a["frames"],
                 "first": a["first"],
                 "failure_form": None if clean else _failure_form(a),
+                "actual_us": round(actual, 2) if actual is not None else None,
                 "capture": None,
             })
             if self.sr_dir and a["first_frame_us"] is not None:
@@ -364,7 +396,8 @@ def inject_matrix(rig, clocks):
             cells.append(res)
         for guard in INJECT_GUARDS:
             for value in WRITE_INJECT_BY_GUARD[guard]:
-                res = rig.run("write", 0, guard, clock, inject_us=value)
+                res = rig.run("write", 0, guard, clock, inject_us=value,
+                              measure_hold=True)
                 cells.append(res)
     return cells
 
@@ -463,6 +496,7 @@ def main(argv=None):
                res.get("clean" if res["mode"] == "write" else "matches")}
             | {"capture": res.get("capture"),
                "failure_form": res.get("failure_form"),
+               "actual_us": res.get("actual_us"),
                "stop_timeout": res.get("stop_timeout"),
                "start_timeout": res.get("start_timeout"),
                "load_error": res.get("load_error"),

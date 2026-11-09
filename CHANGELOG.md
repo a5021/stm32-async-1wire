@@ -104,8 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matrix runs through the same marker segmentation and run-identity checks as
   the F446 and H503, and the re-run reproduces the published result: every
   level clean at the 5 us default, floor guard 1, `cndtr_late = 0`,
-  capture-drain 7 devices and `88DB0C9D`, injection first-bad 16 us (48 MHz) /
-  18 us (8 MHz).
+  capture-drain 7 devices and `88DB0C9D`, injection first-bad at a nominal
+  16 us (48 MHz) / 18 us (8 MHz), measured 72/74 us on the D1 notch.
 - **A truncated capture is retried, not reported as a bus failure.**
   `dma_pressure.py` and `dma_capture.py` read the analyzer's sample count, and a
   run that stopped early (USB hiccup, reset during re-enumeration) is repeated
@@ -167,9 +167,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disables the channel before the first CC2 slot-end event and holds it for N
   microseconds *after* that request; search mode stays reset-anchored because
   its capture channel is the one under test. On the F030 bench the first bad
-  write cell moves to 16 us at 48 MHz and 18 us at 8 MHz, and `docs/stress/`
-  reruns the negative control with a 2 us step up to 20 us. The main stress
-  matrix, its captures and its guard floors are unchanged.
+  write cell moves to a nominal 16 us at 48 MHz and 18 us at 8 MHz (the D1
+  notch measures 72/74 us), and `docs/stress/` reruns the negative control
+  with a 2 us step up to 20 us. The main stress matrix, its captures and its
+  guard floors are unchanged.
 
 - **HIL start/end artifacts no longer look like feed failures.** The analyser
   drops a lone leading startup glitch on the F446 and H503 when

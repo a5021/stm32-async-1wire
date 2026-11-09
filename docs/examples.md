@@ -402,9 +402,10 @@ stressed cells (6 levels × 2 clocks × 3 guards) returned the same 7 DS18B20 RO
 and checksum, and the viewer shows all 8 responders on the bench (seven DS18B20
 plus one DS2431). `STRESS_INJECT_US=N` is the negative control: it disables the
 feed (write mode) or capture (search mode) channel for N microseconds, then
-restores it. The write harness detects the first delayed feed at 16 µs at
-48 MHz and 18 µs at 8 MHz. The search harness detects the first delayed capture
-at 200 µs.
+restores it. The write harness detects the first delayed feed at a nominal
+16 µs at 48 MHz and 18 µs at 8 MHz; the D1 notch measures the real hold, and
+the busy loop runs 4-5x the nominal value, so the boundary is 72 µs and 74 µs
+on the wire. The search harness detects the first delayed capture at 200 µs.
 
 Two geometry details matter here. Guard 0 is not an operating point:
 CC2 then coincides with the update event, and the release write produces a

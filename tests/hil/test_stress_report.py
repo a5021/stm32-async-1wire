@@ -150,6 +150,15 @@ def main():
           "AN5593" not in actual)
     check("the delayed-transfer table names the failure form",
           "First failure" in actual)
+    check("the delayed-transfer table separates nominal and measured holds",
+          "Nominal hold" in actual and "Measured hold" in actual)
+    measured = [c for c in (capture.get("inject_cells") or [])
+                if c["mode"] == "write" and c.get("actual_us") is not None
+                and c.get("guard_us", 5) == 5]
+    for c in measured:
+        check("measured hold for %d MHz/%d us is rendered"
+              % (c["clock_mhz"], c["inject_us"]),
+              ("%d us" % round(c["actual_us"])) in actual)
     for c in capture.get("inject_cells") or []:
         bad = ((not c.get("matches")) if c.get("mode") == "search"
                else (not c.get("clean")))

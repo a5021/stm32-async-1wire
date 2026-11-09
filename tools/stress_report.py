@@ -730,9 +730,18 @@ def _first_bad_from_cells(cells, mode, guard=None):
         key = "%s_%s" % (mode, c["clock_mhz"] if c["clock_mhz"] is not None
                          else "def")
         good = c.get("clean") if mode == "write" else c.get("matches")
-        if not good and (key not in out or c["inject_us"] < out[key]):
-            out[key] = c["inject_us"]
+        value = (c.get("actual_us") if mode == "write"
+                 and c.get("actual_us") is not None else c["inject_us"])
+        value = int(round(value))
+        if not good and (key not in out or value < out[key]):
+            out[key] = value
     return out
+
+
+def _hold(c):
+    """Measured hold for a write cell, else its nominal value."""
+    v = c.get("actual_us")
+    return v if v is not None else c["inject_us"]
 
 
 def feed_delay_section(capture):
@@ -751,8 +760,8 @@ def feed_delay_section(capture):
                      if c["clock_mhz"] == clock and c.get("guard_us", 5) == guard]
             if not group:
                 continue
-            clean = [c["inject_us"] for c in group if c.get("clean")]
-            bad = [c["inject_us"] for c in group if not c.get("clean")]
+            clean = [_hold(c) for c in group if c.get("clean")]
+            bad = [_hold(c) for c in group if not c.get("clean")]
             detected = ("%d us" % min(bad)) if bad else (
                 "&ge; %d us" % max(clean) if clean else "?")
             # Link the frame the boundary was measured on: the first window
@@ -760,7 +769,7 @@ def feed_delay_section(capture):
             link = '<span class="muted">-</span>'
             if bad:
                 first = min((c for c in group if not c.get("clean")),
-                            key=lambda c: c["inject_us"])
+                            key=_hold)
                 href = viewer_href(
                     first, key="capture" if first.get("capture")
                     else "capture_fail")
@@ -775,7 +784,7 @@ def feed_delay_section(capture):
                     detected, window_us(guard), link))
             if clean and bad:
                 offsets.setdefault(clock, []).append(
-                    (guard, min(bad) - (guard + 1)))
+                    (guard, min(bad) - window_us(guard)))
     if not rows:
         return ""
     off_bits = []
@@ -788,43 +797,30 @@ def feed_delay_section(capture):
     return """<section id="feed-delay">
 <h2>Feed delay tolerance vs the guard window</h2>
 <p>The negative control above runs at the default guard. The same sweep at
-several guards shows how the tolerance moves: the injected window is held
-<em>after</em> the frame's first CC2 request, so the question is whether the
-last harmless delay tracks <code>guard + 1</code> plus a constant.</p>
+several guards shows how the tolerance moves. The values are the measured
+hold on the D1 notch (the build knob is nominal and runs 4-5x short), so the
+question is whether the last harmless hold tracks <code>guard + 1</code> plus
+a constant.</p>
 <table><thead><tr><th>Clock</th><th>Guard</th><th>Clean through</th>
 <th>First detected</th><th>Guard window</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
 <p><strong>It does not.</strong> The offset over <code>guard + 1</code>
-(%s) shrinks as the guard grows. At the widest guard the boundary is +1 us at
-8 MHz and -3 us at 48 MHz: the tolerance is not a linear function of the
-window, and at 48 MHz the first detected delay lands slightly <em>below</em>
-<code>guard + 1</code>. Two effects set the boundary: the hold is started
-after the frame's first CC2 request and the busy loop plus channel re-enable
-adds an overhead that is not separately measured, and the transfer only has to
-beat the next compare, so its position relative to the counter matters. A
-single constant <code>c</code> would be a fit to noise, so this report states
-the measured boundary per guard instead of a formula.</p>
-<p>The guard is therefore <em>not</em> a delay budget: it sets the timer's
-nominal window, and the measured tolerance only grows from 12 to 16 us at
-48 MHz and from 14 to 20 us at 8 MHz while the window grows from 2 to 21 us.
-A delay that fits inside <code>guard + 1</code> keeps the nominal deadline, but
-it is not a guarantee: at 48 MHz and guard 20 the first failure is at 18 us,
-inside the 21 us window. The injection holds the channel for the requested N
-us plus the busy-loop and re-enable time; that overhead is not separately
-measured here (the marker pins can pin it at 250 ns resolution on a future
-run), so the measured boundary is the number to use and the window is not a
-safety factor.</p>
-<p>The sweep steps by 2 us, and the busy-loop hold plus the channel re-enable
-adds an unmeasured overhead, so the boundary is good to roughly ±2 us: it pins
-the tolerance to the sweep's resolution, not to the microsecond. At the default
-guard the feed survives well past the 6 us window, which is why the guard
-window and the delay tolerance must not be compared as if they were the same
-quantity. The number to design against is still the load-placement rule: a
-higher-ranked burst must not outlast <code>guard + 1</code> us. That rule is
-conservative by construction - it keeps the request inside the timer's window
-regardless of how much extra slack a particular DMA IP tolerates - and the
-measured survival above shows the margin it leaves, not an exact failure
-point.</p>
+(%s) is roughly constant at 60-70 us: the boundary sits near the first fed
+slot's low-pulse compare (about 60 us for a '0'), not near the guard window.
+The first fed slots are '0' bits, so a late write still lands before their
+compare; the guard only sets the timer's nominal window. The offset varies by
+about 10 us across guards and clocks, so a single formula would still be a fit
+to noise; the measured boundary is the design number.</p>
+<p>The sweep steps by 2 us of nominal hold (about 8-10 us of measured hold),
+so the boundary is good to roughly ±5 us: it pins the tolerance to the sweep's
+resolution, not to the microsecond. At the default guard the feed survives
+well past the 6 us window, which is why the guard window and the delay
+tolerance must not be compared as if they were the same quantity. The number to
+design against is still the load-placement rule: a higher-ranked burst must not
+outlast <code>guard + 1</code> us. That rule is conservative by construction -
+it keeps the request inside the timer's window regardless of how much extra
+slack a particular DMA IP tolerates - and the measured survival above shows the
+margin it leaves, not an exact failure point.</p>
 </section>""" % ("\n".join(rows),
                 "measured: " + "; ".join(off_bits) if off_bits else
                 "no guard produced both a clean and a failing cell")
@@ -848,30 +844,39 @@ def inject_section(capture):
         href = viewer_href(c, key=key)
         label = "failing frame" if key == "capture_fail" else "frame"
         link = ('<a href="%s">%s</a>' % (e(href), label)) if href else '<span class="muted">-</span>'
+        actual = c.get("actual_us")
         rows.append("<tr><td>%s</td><td>%s</td><td>%d us</td><td>%s</td>"
-                    "<td>%s</td><td>%s</td></tr>" % (
+                    "<td>%s</td><td>%s</td><td>%s</td></tr>" % (
             e(mode_label(c["mode"])),
             "%d MHz" % c["clock_mhz"] if c["clock_mhz"] else "default",
-            c["inject_us"], "clean" if good else "<strong>detected</strong>",
+            c["inject_us"],
+            ("%d us" % round(actual)) if actual is not None else "-",
+            "clean" if good else "<strong>detected</strong>",
             e(c.get("failure_form") or "-"), link))
     feed_txt = _first_bad_text(_first_bad_from_cells(cells, "write", 5), "write")
     cap_txt = _first_bad_text(_first_bad_from_cells(cells, "search"), "search")
     return """<section id="inject">
 <h2>Negative control: a deliberately delayed transfer</h2>
 <p>This control checks that the harness notices a late transfer.
-<code>STRESS_INJECT_US</code> disables the feed channel (write mode) or the
-capture channel (search mode) for N microseconds, then re-enables it. The delay
-must make the cell fail.</p>
-<table><thead><tr><th>Path</th><th>Clock</th><th>Channel off</th>
-<th>Result</th><th>First failure</th><th>Viewer</th></tr></thead>
+<code>STRESS_INJECT_US</code> sets a <em>nominal</em> hold: it disables the
+feed channel (write mode) or the capture channel (search mode), then re-enables
+it. The write path also drops the D1 marker for the real hold, which the
+analyzer measures: the busy loop runs 4-5x longer than the nominal value at
+both clocks, so the measured column, not the nominal one, is the physical
+delay. The delay must make the cell fail.</p>
+<table><thead><tr><th>Path</th><th>Clock</th><th>Nominal hold</th>
+<th>Measured hold</th><th>Result</th><th>First failure</th><th>Viewer</th></tr></thead>
 <tbody>%s</tbody></table>
-<p>The first delayed feed is detected at <strong>%s</strong>; the first
-delayed capture at <strong>%s</strong>. The write window starts at the frame's
-first CC2 request (65 us), so these values pin how long the first feed
-transfer may be held <em>after</em> that request. A window from the frame start
-could not show anything below 65 us: the feed had not asked yet. The search's
-first capture is later, so its threshold is higher. The viewer links on the
-detected rows show the corrupted frame or search.</p>
+<p>The first delayed feed is detected at <strong>%s</strong> (measured); the
+first delayed capture at <strong>%s</strong>. The hold starts at the frame's
+first CC2 request, 65 us into the frame, so these values pin how long the first
+feed transfer may be held <em>after</em> that request. A window from the frame
+start could not show anything below 65 us: the feed had not asked yet. The
+measured hold comes from a separate marker build
+(<code>STRESS_INJECT_MARKER=1</code>); the marker write is test-only and does
+not change the feed path. The search's first capture is later, so its threshold
+is higher. The viewer links on the detected rows show the corrupted frame or
+search.</p>
 </section>""" % ("\n".join(rows), feed_txt, cap_txt)
 
 
@@ -1249,15 +1254,16 @@ from 0 to ARR inclusive).</p>
 <p>On DMA-fed paths OC3PE is off. A late CCR3 write takes effect immediately,
 so a failure can appear inside the current slot, not only at the next one.</p>
 <p>The delayed-feed sweep shows that this deadline is not where the frame
-actually breaks. The first fed slots are '0' bits, whose compare sits near the
-end of the slot, so a write that lands after the update can still reach the
-compare in time and the DMA catches up. The first detected failure is the
-<em>release</em>: the kept failing frames have 65 low pulses instead of 64 and
-the last pulse never rises - an extra edge with the final release missing, not
-a repeated bit. The measured boundary is therefore much later than
-<code>guard + 1</code> and depends on the pattern and the clock; the delay
-sweep below measures it, and the zero-margin rule stays as the conservative
-design limit.</p>
+actually breaks. The first fed slots are '0' bits, whose compare sits about
+60 us into the slot, so a write that lands after the update can still reach the
+compare in time and the DMA catches up. The measured hold at the first failure
+is 72 us at 48 MHz and 74 us at 8 MHz - near that '0' compare, not near
+<code>guard + 1</code>. The first detected failure is the <em>release</em>: the
+kept failing frames have 65 low pulses instead of 64 and the last pulse never
+rises - an extra edge with the final release missing, not a repeated bit. The
+measured boundary is therefore much later than <code>guard + 1</code> and
+depends on the pattern and the clock; the delay sweep below measures it, and
+the zero-margin rule stays as the conservative design limit.</p>
 </section>
 
 <section id="rig">
