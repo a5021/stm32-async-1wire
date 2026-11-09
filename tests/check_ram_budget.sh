@@ -23,7 +23,7 @@
 #   0_dma_pressure 2456    1484   (diagnostic; 1024 B of it is the stress array)
 #   6_statistics   6336    1788
 #   8_ds2431       6156    768
-#   9_multi        11756   1296
+#   9_multi        12764   1456
 #
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
@@ -226,7 +226,7 @@ check STM32H503xx 329 652 432
 check_app STM32F030x6 0_dma_pressure 2456 1484
 check_app STM32F030x6 6_statistics 6336 1788
 check_app STM32F030x6 8_ds2431 6156 768
-check_app STM32F030x6 9_multi 11752 1296
+check_app STM32F030x6 9_multi 12764 1456
 
 if [ "$fail" -ne 0 ]; then
     exit 1

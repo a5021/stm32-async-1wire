@@ -151,34 +151,34 @@ ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
 ifeq ($(OW_TARGET),f0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0 -mthumb
 else ifeq ($(OW_TARGET),g0)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g0xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m0plus -mthumb
 else ifeq ($(OW_TARGET),f4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),f3)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f3xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),g4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32g4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),l4)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32l4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32l4xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m4 -mthumb
 else ifeq ($(OW_TARGET),c5)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32c5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32c5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
 else ifeq ($(OW_TARGET),h5)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h5xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m33 -mthumb
 else ifeq ($(OW_TARGET),h7)
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32h7xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32h7xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m7 -mthumb
 else
-SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
+SRC = $(CMSIS_DEVICE_DIR)/system_stm32f1xx.c examples/$(APP)/main.c src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c examples/app/app.c src/ow_stats.c examples/app/syscall.c
 MCU = -mcpu=cortex-m3 -mthumb
 endif
 
@@ -956,7 +956,7 @@ CPPCHECK_FLAGS = --enable=warning,style,performance,portability --error-exitcode
                  --suppress=unsignedLessThanZero
 CPPCHECK_INCLUDES = -I. -Iinc -Isrc -Iexamples/app \
                     -I$(CMSIS_CORE_DIR) -I$(CMSIS_DEVICE_DIR)
-CPPCHECK_SOURCES = src/ds18b20.c src/ds2431.c src/onewire.c src/ow_stats.c \
+CPPCHECK_SOURCES = src/ds18b20.c src/ds2431.c src/ds2413.c src/onewire.c src/ow_stats.c \
                    examples/app/app.c $(wildcard examples/*/main.c)
 CPPCHECK_DEVICES = stm32f103xb.h stm32f030x6.h stm32g031xx.h stm32f303xc.h \
                    stm32f407xx.h stm32f446xx.h stm32g474xx.h stm32l476xx.h \
@@ -1020,7 +1020,7 @@ test-ram:
 # the harness was written on), builds the chosen example for it, flashes it
 # with the STM32CubeProgrammer CLI and reads the UART. Skips (exit 0) when no
 # probe or target is attached, so it is safe to run anywhere.
-# HIL_SCRIPT=smoke|scan|stats|lowpower|ds2431|dma_pressure (default smoke), EXPECTED_DEVICES
+# HIL_SCRIPT=smoke|scan|stats|lowpower|ds2431|ds2413|dma_pressure (default smoke), EXPECTED_DEVICES
 # (optional floor on the device count), HIL_PORT (else the harness scans the
 # COM ports), HIL_BAUD, HIL_TIMEOUT (fixed window instead of the default
 # per-device budget), HIL_EXT (override the bench's EXT; unset uses the bench
@@ -1265,7 +1265,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 #       -DSTM32H503xx my_app.c build/libstm32_async_1wire_h5_h503cb_64mhz_hse8.a \
 #       -lc -lm -lnosys -Wl,--gc-sections -o my_app.elf
 #
-LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ow_stats.c
+LIB_SRC = src/onewire.c src/ds18b20.c src/ds2431.c src/ds2431_txn.c src/ds2413.c src/ow_stats.c
 LIB_OBJ_STAMP = $(OW_TARGET)_$(OW_CHIP)_$(OW_EFF_SYSCLK)mhz$(OW_TIM1_TAG)$(if $(OW_EFF_HSE),_hse$(OW_EFF_HSE),)$(if $(OW_EFF_EXT),_$(OW_EXT_TAG))$(OPT_TAG)
 LIB_OBJ = $(addprefix $(BUILD_DIR)/lib_$(LIB_OBJ_STAMP)_,$(notdir $(LIB_SRC:.c=.o)))
 LIB_ARCHIVE = $(BUILD_DIR)/libstm32_async_1wire_$(LIB_OBJ_STAMP).a
@@ -1521,6 +1521,23 @@ $(TEST_DS2431_ACTIVE_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/o
 $(TEST_DS2431_NG_EXE): $(TEST_DS2431_SRC) src/ds2431.c $(DS2431_PARTS) src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_NG_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2431_SRC) -o $@
 
+# --- DS2413 dual-channel switch driver host tests ---------------------------
+# One TU: src/ds2413.c is compiled through tests/mock/ds2413_test_access.c
+# together with src/onewire.c, and hw_model.c simulates the timer/DMA.
+TEST_DS2413_SRC = \
+    $(TEST_DIR)/test_main_ds2413.c \
+    $(TEST_DIR)/test_ds2413.c \
+    $(TEST_MOCK)/hw_model.c \
+    $(TEST_MOCK)/ds2413_test_access.c
+TEST_DS2413_EXE = $(TEST_OUT)/ds2413_test$(TEST_FAM_SUFFIX).exe
+
+.PHONY: test-ds2413
+test-ds2413: $(TEST_DS2413_EXE)
+	$(TEST_DS2413_EXE)
+
+$(TEST_DS2413_EXE): $(TEST_DS2413_SRC) src/ds2413.c src/onewire.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_DS2413_SRC) -o $@
+
 # Low-power variant: the same suite re-built with -DOW_LOW_POWER=1.
 # MOCK_WFE_HOOK routes the host __WFE() through mock_wfe_set_hook, which lets
 # one test deliver the TIM1 update event asynchronously and exercise the
@@ -1543,7 +1560,7 @@ TEST_AUTO_EXE = $(TEST_OUT)/test_sysclk_auto$(or $(TEST_FAM_SUFFIX),_f1).exe
 # Per-part F4 fallback compile check: always built as part of `make test`,
 # independent of the active OW_TARGET (see F4_PART_CLOCK_CHECKS below).
 
-test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_NODEFAULT_OBJ) $(TEST_AUTO_EXE) clock-ref-check test-ds2431
+test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_NODEFAULT_OBJ) $(TEST_AUTO_EXE) clock-ref-check test-ds2431 test-ds2413
 	$(TEST_EXE)
 	$(TEST_AUTO_EXE)
 	$(foreach x,$(TEST_EXTRA_EXES),$(x);)

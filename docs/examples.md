@@ -31,7 +31,7 @@ The repository has ten example applications. Pick one with `APP`.
 | `6_statistics` | `examples/6_statistics/main.c` | Sequential measurement plus the optional `ow_stats` report. |
 | `7_low_power` | `examples/7_low_power/main.c` | The standard loop with the opt-in `OW_LOW_POWER=1` WFE path. |
 | `8_ds2431` | `examples/8_ds2431/main.c` | Full DS2431 EEPROM write/read-back cycle. |
-| `9_multi` | `examples/9_multi/main.c` | Peak/low logger: seven DS18B20 plus one DS2431 on one bus. |
+| `9_multi` | `examples/9_multi/main.c` | Peak/low logger: DS18B20, DS2431 and DS2413 PIO blink on one bus. |
 
 ### Captures
 
@@ -217,11 +217,14 @@ Capture: [open in the viewer](https://a5021.github.io/stm32-async-1wire/viewer/?
 
 #### `9_multi`
 
-A peak/low temperature logger with seven DS18B20 sensors and one DS2431 EEPROM
-on the same bus. One bus-owner state machine uses the two drivers in sequence,
-because they share TIM1/DMA and neither may be polled while the other owns the
-timer: DS18B20 search, a second full-family search to find the DS2431, boot-read
-of four EEPROM blocks, then measurement rounds. Rounds use scan mode (one
+A peak/low temperature logger with seven DS18B20 sensors, one DS2431 EEPROM and
+one DS2413 dual-channel switch on the same bus. One bus-owner state machine uses
+the drivers in sequence, because they share TIM1/DMA and none may be polled
+while another owns the timer: DS18B20 search, a second full-family search to
+find the DS2431 and DS2413, boot-read of four EEPROM blocks, then measurement
+rounds. While waiting between rounds the example alternates the DS2413 PIOA and
+PIOB latches every 500 ms and reads them back; PIOA/PIOB states, blink count and
+errors are exposed as globals for the SWD HIL check. Rounds use scan mode (one
 broadcast `Convert T`) and fall back to the sequential Match ROM path if a scan
 fails. The round maximum and minimum are compared with the stored peak and low.
 A new record is written as Write Scratchpad → Read Scratchpad (echo + data

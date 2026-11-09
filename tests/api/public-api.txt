@@ -27,7 +27,15 @@
 #define DS18B20_TEMP_ERROR_GENERIC INT16_MIN
 #define DS18B20_TEMP_ERROR_NO_SENSOR (INT16_MIN + 1)
 #define DS18B20_WRITE_SCRATCHPAD 0x4E
+#define DS2413_ACK 0xAAu
+#define DS2413_BITS_PER_BYTE 8u
+#define DS2413_CMD_READ 0xF5u
+#define DS2413_CMD_WRITE 0x5Au
 #define DS2413_FAMILY_CODE 0x3Au
+#define DS2413_NO_RESPONSE 0xFFu
+#define DS2413_PIOA 0x01u
+#define DS2413_PIOB 0x02u
+#define DS2413_PIO_MASK 0x03u
 #define DS2413_ROM_BYTES 8u
 #define DS2431_BITS_PER_BYTE 8
 #define DS2431_COPY_SCRATCHPAD 0x55
@@ -129,6 +137,13 @@ uint8_t ds18b20_search_count(void);
 uint8_t ds18b20_search_poll(void);
 uint8_t ds18b20_set_alarm_thresholds_poll(void);
 uint8_t ds18b20_set_resolution_poll(void);
+uint8_t ds2413_last_command_ok(void);
+uint8_t ds2413_last_pio(void);
+uint8_t ds2413_last_reply(void);
+uint8_t ds2413_read_pio(uint8_t*out);
+uint8_t ds2413_read_pio_poll(void);
+uint8_t ds2413_write_pio(uint8_t states);
+uint8_t ds2413_write_pio_poll(void);
 uint8_t ds2431_copy_scratchpad_poll(void);
 uint8_t ds2431_last_command_ok(void);
 uint8_t ds2431_parasite_mode(void);
@@ -166,6 +181,8 @@ void ds18b20_set_alarm_thresholds(uint8_t th,uint8_t tl);
 void ds18b20_set_parasite(uint8_t parasite);
 void ds18b20_set_resolution(uint8_t bits);
 void ds18b20_start_measure(void);
+void ds2413_init(void);
+void ds2413_select(const uint8_t*rom);
 void ds2431_copy_scratchpad(void);
 void ds2431_init(void);
 void ds2431_read_memory(uint8_t*dst,uint16_t addr,uint8_t len);

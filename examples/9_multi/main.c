@@ -113,6 +113,8 @@ typedef enum {
     ST_WRITE_VERIFY,
     ST_WRITE_COPY,
     ST_WRITE_READBACK,
+    ST_DS2413_WRITE,
+    ST_DS2413_READ,
     ST_WAIT,
     ST_STOP
 } state_t;
@@ -142,7 +144,23 @@ static uint8_t ds2431_rom[8];
 static uint8_t have_ds2431;
 static uint8_t ds2431_n;
 static uint8_t ds2413_n;
+static uint8_t ds2413_rom[8];
+static uint8_t have_ds2413;
 static uint8_t other_n;
+
+/* DS2413 blink: alternate PIOA/PIOB while the recorder waits between cycles.
+ * The HIL reads these over SWD because the F446 console is not always wired. */
+#define BLINK_PERIOD_MS 500u
+static uint8_t blink_phase;
+static uint8_t blink_cmd;
+static uint32_t next_blink_ms;
+static uint8_t ds2413_pio;
+volatile uint32_t ds2413_blinks;
+volatile uint32_t ds2413_errors;
+volatile uint8_t ds2413_last_state;
+volatile uint8_t ds2413_raw;
+volatile uint8_t ds2413_cmd;
+volatile uint32_t ds2413_tel;
 
 /* Measurement round */
 static uint8_t seq_mode;
@@ -276,9 +294,13 @@ static uint8_t all_sink(const uint8_t* rom) {
 
     case DS2413_FAMILY_CODE:
         ds2413_n++;
+        for (uint8_t i = 0; i < 8u; i++) {
+            ds2413_rom[i] = rom[i];
+        }
+        have_ds2413 = 1u;
         uart_write_str("  DS2413 ");
         print_rom(rom);
-        uart_write_str(" (driver not implemented)\r\n");
+        uart_write_str(" (PIO blink)\r\n");
         break;
 
     default:
@@ -352,6 +374,7 @@ static void boot_done(void) {
 #endif
 
     if (ds18_n != 0u) {
+        next_blink_ms = app_millis() + BLINK_PERIOD_MS;
         go_wait();
     } else {
         uart_write_str("No DS18B20, nothing to measure.\r\n");
@@ -651,6 +674,7 @@ int main(void) {
      * only re-applies the same idle configuration. */
     ds18b20_init();
     ds2431_init();
+    ds2413_init();
 #if OW_PARASITE_POWER
     ds18b20_set_parasite(1);
     ds2431_set_parasite(1);
@@ -680,6 +704,9 @@ int main(void) {
 
         case ST_SEARCH_ALL:
             if (onewire_search_poll()) {
+                if (have_ds2413) {
+                    ds2413_select(ds2413_rom);
+                }
                 uart_write_str("DS2431 devices: ");
                 uart_write_int(ds2431_n);
                 uart_write_str(", DS2413: ");
@@ -849,7 +876,59 @@ int main(void) {
             }
             break;
 
+        case ST_DS2413_WRITE:
+            if (ds2413_write_pio_poll()) {
+                if (!ds2413_last_command_ok()) {
+                    ds2413_errors++;
+                    next_blink_ms = app_millis() + BLINK_PERIOD_MS;
+                    state = ST_WAIT;
+                    break;
+                }
+                if (!ds2413_read_pio(&ds2413_pio)) {
+                    ds2413_errors++;
+                    next_blink_ms = app_millis() + BLINK_PERIOD_MS;
+                    state = ST_WAIT;
+                    break;
+                }
+                state = ST_DS2413_READ;
+            }
+            break;
+
+        case ST_DS2413_READ:
+            if (ds2413_read_pio_poll()) {
+                ds2413_raw = ds2413_last_reply();
+                if (ds2413_last_command_ok()) {
+                    ds2413_cmd = blink_cmd;
+                    ds2413_last_state = ds2413_pio;
+                    ds2413_blinks++;
+                    ds2413_tel = ((ds2413_blinks & 0xFFFFu) << 16) |
+                                 ((ds2413_cmd & 0xFFu) << 8) |
+                                 (ds2413_last_state & 0xFFu);
+                    blink_phase ^= 1u;
+                    uart_write_str("  DS2413 PIOA=");
+                    uart_write_int((ds2413_pio & DS2413_PIOA) ? 1 : 0);
+                    uart_write_str(" PIOB=");
+                    uart_write_int((ds2413_pio & DS2413_PIOB) ? 1 : 0);
+                    uart_write_str("\r\n");
+                } else {
+                    ds2413_errors++;
+                }
+                next_blink_ms = app_millis() + BLINK_PERIOD_MS;
+                state = ST_WAIT;
+            }
+            break;
+
         case ST_WAIT:
+            if (have_ds2413 && time_reached(next_blink_ms)) {
+                ds2413_select(ds2413_rom);
+                const uint8_t pio = blink_phase ? DS2413_PIOB : DS2413_PIOA;
+                blink_cmd = pio;
+                if (ds2413_write_pio(pio)) {
+                    state = ST_DS2413_WRITE;
+                    break;
+                }
+                next_blink_ms = app_millis() + BLINK_PERIOD_MS;
+            }
             if (ds18_n != 0u && time_reached(next_ms)) {
                 state = ST_MEASURE_START;
             }

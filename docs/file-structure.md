@@ -8,7 +8,7 @@
 ├── inc/                    # Public headers: the whole consumer surface
 │   ├── ds18b20.h           # Driver interface (high-level API) and constants
 │   ├── ds2431.h            # DS2431 EEPROM driver interface (commands + async API)
-│   ├── ds2413.h            # DS2413 placeholder: family code + ROM size only (no driver yet)
+│   ├── ds2413.h            # DS2413 dual-channel switch driver interface
 │   ├── onewire.h           # Shared 1-Wire layer (bus primitives + Search ROM)
 │   ├── ow_board.h          # Board facts: family select, ow_pulse_t, clock defaults
 │   ├── ow_config.h         # Compile-time tunables (pulse widths, feature flags, limits)
@@ -93,7 +93,7 @@
 │   │                       # entry points shared by the core and engine TUs.
 │   ├── ds2431_txn.c        # Engine TU: reset -> write -> read/wait on the
 │   │                       # caller-owned context (no globals).
-│   └── ds2413.c            # Placeholder TU: empty by design, not part of the build
+│   └── ds2413.c            # Driver: DS2413 PIO Access Read/Write, one TU
 ├── examples/               # Example applications
 │   ├── app/                # Shared application layer (UART, clock, init)
 │   │   ├── app.c           # app_init(), UART TX ring buffer, busy LED
@@ -109,7 +109,7 @@
 │   ├── 6_statistics/main.c # Device search + stats dump every N cycles
 │   ├── 7_low_power/main.c  # Device search + WFE low-power sleep on long stages
 │   ├── 8_ds2431/main.c     # DS2431: one EEPROM write cycle, then a repeating search
-│   └── 9_multi/main.c      # Peak/low logger: DS18B20 sensors + DS2431 on one bus
+│   └── 9_multi/main.c      # Peak/low logger: DS18B20 + DS2431 + DS2413 blink
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)

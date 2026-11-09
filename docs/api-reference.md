@@ -19,6 +19,7 @@
   - [Weak Callbacks](#weak-callbacks)
   - [Error Codes](#error-codes)
   - [DS2431 EEPROM Driver](#ds2431-eeprom-driver)
+  - [DS2413 Dual-Channel Switch Driver](#ds2413-dual-channel-switch-driver)
   - [Multi-Device Application (`9_multi`)](#multi-device-application-9_multi)
 - [Performance](#performance)
   - [Footprint](#footprint)
@@ -182,9 +183,9 @@ for its own `ds18b20_search_*` / `ds18b20_alarm_search_*` wrappers.
 use to idle the core during a long hardware stage; an application normally uses
 the driver start/poll pairs and never calls them directly.
 
-The DS2413 is a placeholder: `inc/ds2413.h` defines only the family code and ROM
-size, and `src/ds2413.c` is an intentionally empty translation unit that is not
-part of the build. There is no DS2413 driver yet.
+The DS2413 dual-channel switch has its own non-blocking driver
+(`inc/ds2413.h` + `src/ds2413.c`), documented in
+[DS2413 Dual-Channel Switch Driver](#ds2413-dual-channel-switch-driver).
 
 ### CRC Utility
 
@@ -687,6 +688,46 @@ not fill the whole block, makes the device flag the scratchpad invalid and
 refuse the later copy, so both the read-back and the Copy report failure. The
 full cycle — Read Memory → Write Scratchpad → Read Scratchpad → Copy Scratchpad
 → Read Memory — is in `examples/8_ds2431`.
+
+### DS2413 Dual-Channel Switch Driver
+
+The DS2413 has two open-drain PIO pins. Its non-blocking driver
+(`inc/ds2413.h` + `src/ds2413.c`) shares the 1-Wire layer and the one-operation
+at-a-time bus rule with the DS18B20 and DS2431 drivers.
+
+```c
+void    ds2413_init(void);
+void    ds2413_select(const uint8_t* rom);
+uint8_t ds2413_read_pio(uint8_t* out);
+uint8_t ds2413_read_pio_poll(void);
+uint8_t ds2413_write_pio(uint8_t states);
+uint8_t ds2413_write_pio_poll(void);
+uint8_t ds2413_last_command_ok(void);
+uint8_t ds2413_last_pio(void);
+uint8_t ds2413_last_reply(void);
+```
+
+- `ds2413_select()` — Match ROM to one device, or `NULL` for Skip ROM. Broadcast
+  write is useful to set several switches at once; broadcast read is only
+  meaningful with one DS2413 on the bus, because several devices answering at
+  once produce a wired-AND the driver cannot attribute.
+- `ds2413_read_pio(&state)` — PIO Access Read (0xF5). The reply is validated
+  (0xFF = no answer, low nibble must be the complement of the high nibble) and
+  normalized to the write layout: bit 0 = `DS2413_PIOA`, bit 1 = `DS2413_PIOB`.
+  The result is the actual pin level, which is the latch when the pin is not
+  driven externally.
+- `ds2413_write_pio(states)` — PIO Access Write (0x5A). Both output latches are
+  written together; read the current state first to change one channel. The
+  driver sends the state byte with bits 2-7 set to 1 and its complement, then
+  requires the 0xAA acknowledge.
+- `ds2413_last_command_ok()` — 1 for a valid read reply or a 0xAA write
+  acknowledge; `ds2413_last_reply()` exposes the raw byte for diagnostics.
+
+Every operation primes the parasite-powered device with a 1 ms strong pull-up,
+then runs reset → presence → command → reply. A failed reply is retried up to
+three times (the same count as the Linux `w1_ds2413` driver); the whole sequence
+stays non-blocking. `examples/9_multi` searches for the DS2413 and alternates
+PIOA/PIOB every 500 ms while it waits between measurement cycles.
 
 ### Multi-Device Application (`9_multi`)
 

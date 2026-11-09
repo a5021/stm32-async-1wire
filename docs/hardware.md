@@ -146,8 +146,11 @@ A failed capture returns 0 devices with checksum `811C9DC5`, which is also what
 an empty bus returns, so those cells are identified by their DMA counters and
 capture window, not by the zero count alone. Raising the feed to `PL=1` costs
 the level-4 load nothing measurable: its ch1 burst counter is 1800/3500/39101
-at 8/16/180 MHz at both class 0 and class 1. The library default stays `PL=0`.
-Details:
+at 8/16/180 MHz at both class 0 and class 1. One DS2413 dual-channel switch
+(`3A 9F 47 03 00 00 00 3A`) also shares the bus; `9_multi` alternates PIOA and
+PIOB every 500 ms and reads them back. The device is parasite powered and needs
+a 1 ms strong pull-up prime before each operation, otherwise its replies are
+intermittent. The library default stays `PL=0`. Details:
 [STM32F4 hardware notes](../port/stm32f4/HARDWARE-NOTES.md).
 
 ### STM32C552CET6 (WeAct 48-pin Core Board)

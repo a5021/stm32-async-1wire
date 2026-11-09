@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DS2413 dual-channel switch driver.** `inc/ds2413.h` + `src/ds2413.c`
+  implement non-blocking PIO Access Read (0xF5) and PIO Access Write (0x5A) on
+  the shared 1-Wire layer: Match/Skip ROM, read-reply validation (complement,
+  0xFF), 0xAA write acknowledge, normalized PIOA/PIOB bits, a 1 ms parasite
+  prime and three retries per operation. The reply byte carries PIOA in bit 1
+  and PIOB in bit 3; the driver normalizes it to the write layout. Broadcast
+  write is supported; broadcast read is documented as single-device only.
+  `examples/9_multi` searches for the device, alternates PIOA/PIOB every
+  500 ms while waiting between measurement cycles and exposes the blink count,
+  commanded state and read-back for the SWD HIL check. New host suite
+  `make test-ds2413`, `tests/hil/ds2413.py`, API-reference section and RAM
+  budget update (9_multi: 12764 text / 1456 bss).
+
 - **`OW_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
   The value (0..3, default 0 = the reset class every release has shipped)
   selects the arbitration class for both 1-Wire channels on every backend:
