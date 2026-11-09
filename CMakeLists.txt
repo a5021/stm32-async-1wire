@@ -508,6 +508,7 @@ ow_add_core_library(stm32_async_1wire
     src/ds18b20.c
     src/ds2431.c
     src/ds2431_txn.c
+    src/ds2413.c
     src/ow_stats.c
 )
 
@@ -526,6 +527,7 @@ install(FILES
     inc/onewire.h
     inc/ds18b20.h
     inc/ds2431.h
+    inc/ds2413.h
     inc/ow_board.h
     inc/ow_stats.h
     inc/ow_config.h

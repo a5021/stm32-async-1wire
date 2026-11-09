@@ -103,6 +103,7 @@ function(ow_add_library tgt)
         "${OW_SOURCE_DIR}/src/ds18b20.c"
         "${OW_SOURCE_DIR}/src/ds2431.c"
         "${OW_SOURCE_DIR}/src/ds2431_txn.c"
+        "${OW_SOURCE_DIR}/src/ds2413.c"
         "${OW_SOURCE_DIR}/src/ow_stats.c"
     )
     foreach(_ow_s IN LISTS _ow_srcs)
