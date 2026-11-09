@@ -62,9 +62,9 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <main>
 <h1>Stress test report</h1>
 <p class="lead">DMA feed margin under memory-subsystem load - STM32F030x6</p>
-<p class="meta">Measured 2026-11-05 at commit <code>1c6aaa87</code> on <code>STM32F030x6</code>
-(<code>STM32F030x6</code>). Build <code>0_dma_pressure</code>, pattern <code>00FFAA550FF03CC3</code>,
-64 slots per frame, 100 frames per cell, 512 halfwords per DMA burst. Each cell carries the SHA-256 of its image in <code>results.json</code></p>
+<p class="meta">Measured 2026-11-05 at commit <code>1c6aaa87</code> on <code>STM32F030x6</code>.
+Build <code>0_dma_pressure</code>, pattern <code>00FFAA550FF03CC3</code>,
+64 slots per frame, 100 firmware frames per cell, 512 halfwords per DMA burst. Each cell carries the SHA-256 of its image in <code>results.json</code></p>
 
 <section id="summary">
 <h2>Summary</h2>
@@ -83,7 +83,7 @@ padding:1rem 1.25rem 2rem;max-width:74rem;margin:0 auto}
 <li>STM32F446xx Search ROM: 3 of 20 stressed cells fail at 8 MHz, 16 MHz.</li>
 <li>The priority knob clears every default-guard failure at the measured minimum class (STM32F446xx: 1; STM32H503xx: 3); the library still ships class 0.</li>
 <li>Search ROM on the primary bench returned the same 7 devices and checksum in all 36 cells.</li>
-<li>A delayed feed (16 us at the default guard) and capture (200 us) both fail the checks, so the harness catches a late transfer.</li>
+<li>A delayed feed fails the checks at 16 us (48 MHz) and 18 us (8 MHz); a delayed capture fails at 200 us (both clocks). The harness catches a late transfer on both clocks.</li>
 </ul>
 <p>This test checks whether memory load can delay the CCR3 feed DMA past its
 slot deadline. The primary bench stays clean; the additional benches show where
@@ -126,7 +126,7 @@ so only the intended run is measured.</p>
 <tr><th>MCU</th><td><code>STM32F030x6</code></td></tr>
 <tr><th>Clocks</th><td>8 MHz, 16 MHz</td></tr>
 <tr><th>Pattern</th><td><code>00FFAA550FF03CC3</code> (LSB first, per byte)</td></tr>
-<tr><th>Frames per cell</th><td>100</td></tr>
+<tr><th>Firmware frames per cell</th><td>100</td></tr>
 <tr><th>Load channels</th><td>DMA1 channel 1 (restarted finite bursts) and channel 2
 (finite bursts), all at the default priority</td></tr>
 <tr><th>On-chip check</th><td><code>cndtr_late</code> (<code>DMA1_Channel3-&gt;CNDTR</code>
@@ -158,16 +158,17 @@ pulse.</p>
 <section id="results">
 <h2>Results</h2>
 <p>Smallest clean guard per level and clock. The parenthetical is the real
-transfer window (<code>guard + 1</code> us). A clean cell has 100 complete
-frames with no width, period, length or decode violation.</p>
+transfer window (<code>guard + 1</code> us). A clean cell has no width, period,
+length or decode violation in the frames the analyzer decoded; the firmware
+frame counter is shown separately because the analyzer can miss a frame.</p>
 <table><thead><tr><th>Level</th><th>Clock</th><th>guard_min</th>
-<th>Frames @ 5 us</th><th>Violations @ 5 us</th><th>CNDTR late</th>
+<th>Frames @ 5 us (decoded / firmware)</th><th>Violations @ 5 us</th><th>CNDTR late</th>
 <th>DMA error</th><th>Stop timeout</th><th>Load evidence</th><th>Viewer</th></tr></thead>
 <tbody><tr><td>0</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td class="links"><a href="../viewer/?src=./../stress/captures/l0_48mhz_g100.sr&amp;t0=565267.250&amp;speed=standard" title="l0_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l0_48mhz_g5.sr&amp;t0=556201.250&amp;speed=standard" title="l0_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l0_48mhz_g1.sr&amp;t0=553457.500&amp;speed=standard" title="l0_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>1</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>CPU passes 3300</td><td class="links"><a href="../viewer/?src=./../stress/captures/l1_48mhz_g100.sr&amp;t0=559272.500&amp;speed=standard" title="l1_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l1_48mhz_g5.sr&amp;t0=563955.750&amp;speed=standard" title="l1_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l1_48mhz_g1.sr&amp;t0=550426.250&amp;speed=standard" title="l1_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>2</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 500</td><td class="links"><a href="../viewer/?src=./../stress/captures/l2_48mhz_g100.sr&amp;t0=581406.750&amp;speed=standard" title="l2_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l2_48mhz_g5.sr&amp;t0=583319.250&amp;speed=standard" title="l2_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l2_48mhz_g1.sr&amp;t0=556458.000&amp;speed=standard" title="l2_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>3</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>DMA bursts 8200</td><td class="links"><a href="../viewer/?src=./../stress/captures/l3_48mhz_g100.sr&amp;t0=559735.500&amp;speed=standard" title="l3_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l3_48mhz_g5.sr&amp;t0=559745.250&amp;speed=standard" title="l3_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l3_48mhz_g1.sr&amp;t0=551589.750&amp;speed=standard" title="l3_48mhz_g1.sr">1 us</a></td></tr>
-<tr><td>4</td><td>48 MHz</td><td>1 us (2 us)</td><td>99</td><td>0</td><td>0</td><td>0</td><td>0</td><td>ch1 bursts 8300</td><td class="links"><a href="../viewer/?src=./../stress/captures/l4_48mhz_g100.sr&amp;t0=558658.250&amp;speed=standard" title="l4_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l4_48mhz_g5.sr&amp;t0=552426.750&amp;speed=standard" title="l4_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l4_48mhz_g1.sr&amp;t0=562422.000&amp;speed=standard" title="l4_48mhz_g1.sr">1 us</a></td></tr>
+<tr><td>4</td><td>48 MHz</td><td>1 us (2 us)</td><td>99 / 100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>ch1 bursts 8300</td><td class="links"><a href="../viewer/?src=./../stress/captures/l4_48mhz_g100.sr&amp;t0=558658.250&amp;speed=standard" title="l4_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l4_48mhz_g5.sr&amp;t0=552426.750&amp;speed=standard" title="l4_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l4_48mhz_g1.sr&amp;t0=562422.000&amp;speed=standard" title="l4_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>5</td><td>48 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>ch1 bursts 3500, CPU passes 3500</td><td class="links"><a href="../viewer/?src=./../stress/captures/l5_48mhz_g100.sr&amp;t0=564202.500&amp;speed=standard" title="l5_48mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l5_48mhz_g5.sr&amp;t0=564715.500&amp;speed=standard" title="l5_48mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l5_48mhz_g1.sr&amp;t0=559558.750&amp;speed=standard" title="l5_48mhz_g1.sr">1 us</a></td></tr>
 <tr><td>0</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>-</td><td class="links"><a href="../viewer/?src=./../stress/captures/l0_8mhz_g100.sr&amp;t0=552602.500&amp;speed=standard" title="l0_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l0_8mhz_g5.sr&amp;t0=555342.250&amp;speed=standard" title="l0_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l0_8mhz_g1.sr&amp;t0=562207.250&amp;speed=standard" title="l0_8mhz_g1.sr">1 us</a></td></tr>
 <tr><td>1</td><td>8 MHz</td><td>1 us (2 us)</td><td>100</td><td>0</td><td>0</td><td>0</td><td>0</td><td>CPU passes 700</td><td class="links"><a href="../viewer/?src=./../stress/captures/l1_8mhz_g100.sr&amp;t0=559983.250&amp;speed=standard" title="l1_8mhz_g100.sr">100 us</a> <a href="../viewer/?src=./../stress/captures/l1_8mhz_g5.sr&amp;t0=562842.000&amp;speed=standard" title="l1_8mhz_g5.sr">5 us</a> <a href="../viewer/?src=./../stress/captures/l1_8mhz_g1.sr&amp;t0=564333.000&amp;speed=standard" title="l1_8mhz_g1.sr">1 us</a></td></tr>
@@ -180,6 +181,7 @@ lead-in and tail). The pattern is not a 1-Wire command, so the protocol tree
 stays empty; the Detail view shows the measured low and slot widths. The JSON
 holds every tested cell, including the 100 us control and the bisection
 probes.</p>
+<p class="note">Frame-count gap: 48 MHz level 4 at 5 us: 99 decoded, 100 run by the firmware. Where two numbers appear, the second is the firmware's SWD frame counter. The analyzer decoded fewer frames than the firmware ran; every decoded frame passed and the DMA counters are zero, so this is a capture/decode loss, not a feed fault.</p>
 <h3>CPU-side work</h3>
 <p>CPU passes completed while the bus was running, at the default guard. The
 ch1 burst stream does not reduce them here: the DMA interleaves between CPU
@@ -362,7 +364,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l3_180mhz_g5_i0.sr&amp;speed=standard" title="search/l3_180mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l4_180mhz_g5_i0.sr&amp;speed=standard" title="search/l4_180mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>5</td><td>180 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/f446/captures/search/l5_180mhz_g5_i0.sr&amp;speed=standard" title="search/l5_180mhz_g5_i0.sr">frame</a></td></tr></tbody></table>
-<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, and each Search ROM bit is still decoded.</p>
+<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals.</p>
 <p class="note">The floor is the smallest clean guard measured. <em>not
 clean</em> means even the widest guard tested did not pass.
 The capture links open one representative frame per cell.</p>
@@ -432,7 +434,7 @@ Same rig, same loader, marker-bracketed frames and run-identity checks. Each cel
 <tr><td>3</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l3_250mhz_g5_i0.sr&amp;speed=standard" title="search/l3_250mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>4</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l4_250mhz_g5_i0.sr&amp;speed=standard" title="search/l4_250mhz_g5_i0.sr">frame</a></td></tr>
 <tr><td>5</td><td>250 MHz</td><td>5 us</td><td>7</td><td><code>88DB0C9D</code></td><td>7</td><td>yes</td><td><a href="../viewer/?src=./../stress/platforms/h503/captures/search/l5_250mhz_g5_i0.sr&amp;speed=standard" title="search/l5_250mhz_g5_i0.sr">frame</a></td></tr></tbody></table>
-<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, and each Search ROM bit is still decoded.</p>
+<p class="note">Every row links the capture on this bench. The gaps between slots are real host idle time, not dropped samples, so the slot intervals are captured correctly. Whether the ROM search found devices is the Matches column, not the capture quality: a zero-device row still has valid intervals.</p>
 <p class="note">The floor is the smallest clean guard measured. <em>not
 clean</em> means even the widest guard tested did not pass.
 The capture links open one representative frame per cell.</p>
@@ -483,11 +485,12 @@ guarantee against an application channel with a higher rank.</p>
 <section id="knob">
 <h2>DMA priority knob: measured effect</h2>
 <p><code>OW_DMA_PRIO</code> is the only lever that changes the library itself.
-This table takes every cell that fails at the default guard and re-runs it at
-each measured class, leaving the load where it was. The Default column is the
-committed run <em>with the same load placement</em>: the F446 default streams
-for the F446 rows, and the raised H503 load for the H503 rows, because that is
-the placement the knob was tested against.</p>
+This table takes the write cells that fail at the default guard plus the Search
+ROM cells that fail at the guards the Search matrix covers (1 and 5 us), and
+re-runs them at each measured class, leaving the load where it was. The
+Default column is the committed run <em>with the same load placement</em>: the
+F446 default streams for the F446 rows, and the raised H503 load for the H503
+rows, because that is the placement the knob was tested against.</p>
 <table><thead><tr><th>Bench</th><th>Load</th><th>Matrix</th><th>Clock</th>
 <th>Level</th><th>Guard</th><th>Default</th><th><code>OW_DMA_PRIO=1</code></th><th><code>OW_DMA_PRIO=2</code></th><th><code>OW_DMA_PRIO=3</code></th></tr></thead>
 <tbody><tr><td>STM32F446xx</td><td>default</td><td>write frame</td><td>8 MHz</td><td>5</td><td>5 us</td><td><strong>fail</strong></td><td>clean</td><td>clean</td><td>clean</td></tr>
@@ -504,9 +507,10 @@ the placement the knob was tested against.</p>
 channel/stream index, so the knob is not a substitute for the
 <code>guard + 1</code> rule there. On the H5 GPDMA the measured equal class was
 clean: <code>CCR.PRIO</code> does not break ties by channel number. The library
-keeps class 0 by default: raising it preempts every lower-ranked channel for
-the length of a 1-Wire frame (up to milliseconds), which is the application's
-call.</p>
+keeps class 0 by default: raising it gives the library's pending feed and
+capture requests precedence over lower-priority DMA requests during a 1-Wire
+frame, potentially delaying those channels. That trade-off is the
+application's call.</p>
 </section>
 
 <section id="interpretation">
