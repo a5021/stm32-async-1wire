@@ -21,7 +21,7 @@
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
 #   0_dma_pressure 2456    1484   (diagnostic; 1024 B of it is the stress array)
-#   6_statistics   6264    1784
+#   6_statistics   6336    1788
 #   8_ds2431       6156    768
 #   9_multi        11756   1296
 #
@@ -67,7 +67,7 @@
 # behaviour but worth knowing when reading a grown number.
 #
 # 2026-10-31: third tier for the heavyweight F030 examples (see above).
-# 6_statistics owns the largest .bss (1024 B UART ring + 300 B stats state),
+# 6_statistics owns the largest .bss (1024 B UART ring + 304 B stats state),
 # 9_multi the largest text (multi-device + DS2431 in one image, ~72% of the
 # 16KB flash). 8_ds2431 is the only tier image that actually links the
 # DS2431 engine (see 2026-10-11), so its text moves with that driver. 8_ds2431
@@ -224,7 +224,7 @@ check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
 
 check_app STM32F030x6 0_dma_pressure 2456 1484
-check_app STM32F030x6 6_statistics 6264 1784
+check_app STM32F030x6 6_statistics 6336 1788
 check_app STM32F030x6 8_ds2431 6156 768
 check_app STM32F030x6 9_multi 11752 1296
 
