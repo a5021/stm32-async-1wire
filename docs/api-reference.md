@@ -451,6 +451,7 @@ void ow_stats_init(void);
 void ow_stats_capture_pulse(const volatile uint8_t *pulse, uint8_t n,
                             const uint8_t *rom);
 void ow_stats_count_error(int16_t error, const uint8_t *rom);
+void ow_stats_capture_overrun(void);
 void ow_stats_dump_start(void);
 uint8_t ow_stats_dump_poll(void);
 void ow_stats_reset(void);
@@ -471,6 +472,11 @@ uint32_t ow_stats_tick(void);
   (reported as `NO_SENSOR`).  A device that fails the presence check after a
   reset is reported through `ds18b20_complete()` but is **not** counted here.
   Called automatically from the DECODE state of `ds18b20.c`.
+- `ow_stats_capture_overrun()` — record a `TIMx_SR.CC4OF` event: a capture
+  arrived before the DMA read the previous one. The port calls it when the
+  operation completes, so a starved capture is distinguishable from an empty
+  bus even when the DMA counters are not readable. The dump's total line ends
+  with `<n>o`.
 - `ow_stats_dump_start()` — begin a non-blocking UART dump.  Call from the
   main loop after the desired number of cycles (tracked via `ow_stats_tick()`).
 - `ow_stats_dump_poll()` — advance the dump by one line (header, sensor line,
@@ -491,9 +497,9 @@ are no-ops, so without them the dump stays silent; the shared example layer
 `examples/app/app.c` (linked into every example) implements them on top of the
 UART TX ring buffer.
 
-RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
-cycle/error counters + 8 B dump state; 13 of the 16 histogram buckets, indices
-0–12, are populated).
+RAM cost: ~304 bytes (8 sensors × 28 B + 16-entry `uint32_t` histogram [64 B] +
+cycle/error/overrun counters + 8 B dump state; 13 of the 16 histogram buckets,
+indices 0–12, are populated).
 
 Example — dump every `STATS_DUMP_SWEEPS` sweeps (default 10). A sweep is
 one pass over every sensor, so the period is a count of passes rather than

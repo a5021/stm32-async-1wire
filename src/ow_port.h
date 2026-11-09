@@ -23,6 +23,7 @@
 #ifndef OW_PORT_H
 #define OW_PORT_H
 
+#include "ow_stats.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -642,6 +643,12 @@ __STATIC_FORCEINLINE uint8_t ow_port_bus_done(void) {
          * the long-stage condition read by ow_port_long_wait_pending(). */
         NVIC_ClearPendingIRQ(OW_PORT_TIM1_UPD_IRQn);
 #endif
+        /* A capture that arrived before the DMA read the previous one sets
+         * CC4OF. Count it before the blanket SR clear below discards it; a
+         * starved capture otherwise looks exactly like an empty bus. */
+        if (T1.SR & TIM_SR(CC4OF)) {
+            ow_stats_capture_overrun();
+        }
         T1.SR = 0;
         return 1u;
     }

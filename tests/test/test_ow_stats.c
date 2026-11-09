@@ -3,10 +3,10 @@
 #include "unity.h"
 
 /* Pin the expected layout: natural alignment puts each sensor record at
- * 28 B (8 + 2 + 2 pad + 4 × 4) and the whole context at 300 B.  These sizes
+ * 28 B (8 + 2 + 2 pad + 4 × 4) and the whole context at 304 B.  These sizes
  * are quoted in the ow_stats.h / API-reference RAM-cost notes. */
 _Static_assert(sizeof(ow_stats_sensor_t) == 28u, "ow_stats_sensor_t layout drift");
-_Static_assert(sizeof(ow_stats_t) == 300u, "ow_stats_t layout drift");
+_Static_assert(sizeof(ow_stats_t) == 304u, "ow_stats_t layout drift");
 
 /* ---- init ---- */
 void test_ow_stats_init_zeroes_all(void) {
@@ -250,6 +250,13 @@ void test_ow_stats_dump_poll_completes(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ow_stats_test_get_dump_phase());
 }
 
+void test_ow_stats_capture_overrun_increments(void) {
+    ow_stats_init();
+    ow_stats_capture_overrun();
+    ow_stats_capture_overrun();
+    TEST_ASSERT_EQUAL_UINT32(2, ow_stats_test_get_capture_overruns());
+}
+
 void run_test_ow_stats(void) {
     TEST_RUN(test_ow_stats_init_zeroes_all);
     TEST_RUN(test_ow_stats_tick_increments);
@@ -268,4 +275,5 @@ void run_test_ow_stats(void) {
     TEST_RUN(test_ow_stats_reset_preserves_rom);
     TEST_RUN(test_ow_stats_dump_start_sets_phase);
     TEST_RUN(test_ow_stats_dump_poll_completes);
+    TEST_RUN(test_ow_stats_capture_overrun_increments);
 }

@@ -5,6 +5,12 @@
 
 #include <string.h>
 
+#if OW_STATS_ENABLE
+/* Weak fallback for a build that links the engine without ow_stats.c (the
+ * ds2431-only test): the port always calls the overrun hook. */
+__attribute__((weak)) void ow_stats_capture_overrun(void) {}
+#endif
+
 /* Reject-path contract: out-of-range sizes fail soft (return 0) in every
  * build. Under the test harness the violation additionally traps via
  * assert, so a test feeding a bad size fails loudly instead of silently

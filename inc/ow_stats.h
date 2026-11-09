@@ -11,9 +11,9 @@
  * The dump is non-blocking: ow_stats_dump_start() initiates it,
  * ow_stats_dump_poll() advances the dump by one line per main-loop call.
  *
- * @note RAM cost: ~300 bytes (8 sensors × 28 B + 16-entry uint32_t histogram
- *       [64 B] + cycle/error counters + 8 B of dump state; 13 of the 16
- *       histogram buckets, indices 0–12, are populated).
+ * @note RAM cost: ~304 bytes (8 sensors × 28 B + 16-entry uint32_t histogram
+ *       [64 B] + cycle/error/overrun counters + 8 B of dump state; 13 of the
+ *       16 histogram buckets, indices 0–12, are populated).
  * @note Emitted by the DS18B20 driver (ds18b20.c): pulse widths, ROM
  *       addresses and DS18B20_TEMP_ERROR_* codes are driver-owned concepts,
  *       so the driver — not the onewire layer — feeds this module.
@@ -60,6 +60,7 @@ typedef struct {
     uint32_t histogram[OW_STATS_HIST_BUCKETS]; /**< Pulse-width distribution */
     uint32_t total_cycles; /**< Full measurement cycles completed */
     uint32_t total_errors; /**< Sum of all error counters */
+    uint32_t capture_overruns; /**< TIMx_SR.CC4OF events: a capture arrived before the DMA read the previous one */
 } ow_stats_t;
 
 /**
@@ -87,6 +88,16 @@ void ow_stats_capture_pulse(const volatile uint8_t* pulse, uint8_t n,
  * @param[in] rom   8-byte ROM of the current sensor, or NULL for Skip ROM.
  */
 void ow_stats_count_error(int16_t error, const uint8_t* rom);
+
+/**
+ * @brief Record a capture overrun (TIMx_SR.CC4OF).
+ *
+ * Called by the port when a capture event arrived before the DMA read the
+ * previous one. A failed Search ROM that returns 0 devices with the
+ * FNV-1a offset basis (`811C9DC5`) looks like an empty bus; this counter
+ * separates the two on a board where the DMA counters are not readable.
+ */
+void ow_stats_capture_overrun(void);
 
 /**
  * @brief Begin a non-blocking stats dump via UART.
@@ -152,6 +163,7 @@ static inline void ow_stats_count_error(int16_t error, const uint8_t* rom) {
     (void)error;
     (void)rom;
 }
+static inline void ow_stats_capture_overrun(void) {}
 static inline void ow_stats_dump_start(void) {}
 static inline uint8_t ow_stats_dump_poll(void) { return 1; }
 static inline void ow_stats_reset(void) {}

@@ -180,6 +180,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   separately. On the F446, raising the feed to class 1 leaves the level-4
   load's ch1 burst counter unchanged (1800/3500/39101 at 8/16/180 MHz), so the
   victim cost is below that counter's resolution in this test.
+- **Capture overruns are counted in `ow_stats`.** The port checks
+  `TIMx_SR.CC4OF` before it clears `SR` on completion and calls
+  `ow_stats_capture_overrun()`, so a capture that arrived before the DMA read
+  the previous one increments `ow_stats_t.capture_overruns`. The dump's total
+  line gains `<n>o`. This separates a starved capture (0 devices,
+  `811C9DC5`) from an empty bus on a board where the DMA counters are not
+  readable. RAM cost rises from 300 to 304 bytes.
 
 - **HIL start/end artifacts no longer look like feed failures.** The analyser
   drops a lone leading startup glitch on the F446 and H503 when

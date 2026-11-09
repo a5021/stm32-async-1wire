@@ -24,5 +24,6 @@ uint32_t ow_stats_test_get_histogram(uint8_t bucket) {
 uint8_t ow_stats_test_get_sensor_count(void) { return st.sensor_count; }
 uint32_t ow_stats_test_get_total_cycles(void) { return st.total_cycles; }
 uint32_t ow_stats_test_get_total_errors(void) { return st.total_errors; }
+uint32_t ow_stats_test_get_capture_overruns(void) { return st.capture_overruns; }
 uint8_t ow_stats_test_get_dump_phase(void) { return dump_phase; }
 uint8_t ow_stats_test_get_dump_sensor(void) { return dump_sensor; }

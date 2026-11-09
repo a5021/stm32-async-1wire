@@ -23,6 +23,7 @@
 #include "hw_model.h"
 #include "mock_target.h"
 #include "onewire.h"
+#include "ow_stats_test_access.h"
 #include "unity.h"
 
 #define ONE ONEWIRE_ONE_PULSE
@@ -265,10 +266,19 @@ void test_tim_pair_capture_ticks_per_slot(void) {
  *  Runner
  * ============================================================ */
 
+void test_tim_bus_done_counts_cc4_overcapture(void) {
+    ow_stats_init();
+    mock_tim1.SR = TIM_SR_UIF | TIM_SR_CC4OF;
+    TEST_ASSERT_TRUE(onewire_bus_done());
+    TEST_ASSERT_EQUAL_UINT32(1, ow_stats_test_get_capture_overruns());
+    TEST_ASSERT_EQUAL_UINT32(0, mock_tim1.SR);
+}
+
 void run_test_tim_model(void) {
     TEST_RUN(test_tim_reload_happens_only_after_cc2);
     TEST_RUN(test_tim_trailing_zero_not_during_last_slot);
     TEST_RUN(test_tim_preload_shadow_stable_through_slot);
     TEST_RUN(test_tim_capture_at_pulse_edge_position);
     TEST_RUN(test_tim_pair_capture_ticks_per_slot);
+    TEST_RUN(test_tim_bus_done_counts_cc4_overcapture);
 }

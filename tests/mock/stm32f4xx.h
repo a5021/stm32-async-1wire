@@ -230,6 +230,7 @@ extern PWR_TypeDef mock_pwr;
 #define TIM_BDTR_MOE 0x00008000u
 #define TIM_EGR_UG 0x00000001u
 #define TIM_SR_UIF 0x00000001u
+#define TIM_SR_CC4OF 0x00001000u
 #define TIM_CR1_CEN 0x00000001u
 #define TIM_CR1_URS 0x00000004u
 #define TIM_CR1_OPM 0x00000008u

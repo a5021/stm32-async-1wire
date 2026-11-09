@@ -118,6 +118,10 @@ void ow_stats_count_error(int16_t error, const uint8_t* rom) {
     st.total_errors++;
 }
 
+void ow_stats_capture_overrun(void) {
+    st.capture_overruns++;
+}
+
 void ow_stats_dump_start(void) {
     dump_phase = 1;
     dump_sensor = 0;
@@ -183,7 +187,9 @@ uint8_t ow_stats_dump_poll(void) {
         ow_stats_print_int(st.total_cycles);
         ow_stats_puts("c ");
         ow_stats_print_int(st.total_errors);
-        ow_stats_puts("e\r\n");
+        ow_stats_puts("e ");
+        ow_stats_print_int(st.capture_overruns);
+        ow_stats_puts("o\r\n");
         dump_phase = 0;
         break;
     }
