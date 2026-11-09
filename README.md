@@ -71,18 +71,19 @@ build are in [Getting started](docs/getting-started.md).
 
 ## Supported Devices
 
-Two 1-Wire slaves ship with their own non-blocking driver; any other slave can
+Three 1-Wire slaves ship with their own non-blocking driver; any other slave can
 be driven directly from the shared bus layer.
 
 | Device | Type | Family code | Driver | Example |
 |--------|------|-------------|--------|---------|
 | **DS18B20** | Digital temperature sensor, 9-12-bit, ±0.5 °C, parasite or external power | `0x28` | `inc/ds18b20.h` + `src/ds18b20.c` | `1_basic` … `7_low_power`, `9_multi` |
 | **DS2431** | 1 kbit (128-byte) EEPROM, 4 × 32-byte pages via an 8-byte scratchpad | `0x2D` | `inc/ds2431.h` + `src/ds2431.c` | `8_ds2431`, `9_multi` |
+| **DS2413** | Dual-channel addressable switch, two open-drain PIO pins | `0x3A` | `inc/ds2413.h` + `src/ds2413.c` | `9_multi` |
 
-Both drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer. Only one
-of them owns the bus at a time: an operation started on one driver must finish
-(its `*_poll()` reports done) before the other starts one, and neither may be
-polled while the other is running. All three `*_init()` functions
+All three drivers are non-blocking and ride the same TIM1+DMA 1-Wire layer. Only
+one of them owns the bus at a time: an operation started on one driver must
+finish (its `*_poll()` reports done) before another starts one, and none may be
+polled while another is running. All three `*_init()` functions
 (`ds18b20_init()`, `ds2431_init()`, `ds2413_init()`) may still run before any
 bus operation in the same firmware image — each calls `onewire_init()`, which
 re-applies the same idle timer/DMA/pin configuration — and `examples/9_multi`
