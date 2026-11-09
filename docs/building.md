@@ -414,7 +414,9 @@ fails rather than flashing the wrong part. The H503 and F446 profiles wire
 PA11 to D1 and the F030 wires PA2: the DMA-pressure harness builds with
 `STRESS_MARKER=1`, brackets
 each frame with that marker and checks the run identity and injection bits
-before it trusts a capture. On the F446, `dma_pressure.py --load-high` moves the
+before it trusts a capture. The F446 profile also builds with
+`-DOW_UART_USART1_PA9` because its console is an external USB-TTL on PA9, not
+the board's PB6 VCP. On the F446, `dma_pressure.py --load-high` moves the
 pressure load from DMA2 stream 0/1 to stream 5/6; without it the lower-numbered
 load streams are the equal-priority worst case and outrank the feed. On the H5,
 channel number is not an arbitration rank: `--gpdma-prio N` sets `CCR.PRIO` on

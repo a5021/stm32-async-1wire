@@ -50,9 +50,11 @@ BENCH_PROFILES = {
     "STM32F446xx": {
         # WeAct F446RET6: 180MHz over-drive default, 8MHz HSE crystal, and the
         # same 2.2kOhm pull-up fed from a dedicated supply as the F407 bench.
+        # The bench console is an external USB-TTL on PA9, so the F4 default
+        # PB6 console pin is overridden here.
         "hints": ("STM32F446", "STM32F4x6"),
         "device_id": "0x421",
-        "ext": "-DOW_PARASITE_POWER=1",
+        "ext": "-DOW_PARASITE_POWER=1 -DOW_UART_USART1_PA9",
         "marker": True,  # PA11 -> LA D1, bracketed frames
     },
     "STM32F103xB": {

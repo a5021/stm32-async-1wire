@@ -135,7 +135,9 @@ Validated on a **WeAct STM32F446RET6** (ST-Link V2J45S7, STM32F446 Rev A,
 (TIM1 CH3/CH4 pair, same DMA2 streams 2/4 topology as the F407), console on
 USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
 default build needs no UART flag), flashed via OpenOCD over the on-board
-ST-Link.
+ST-Link. The HIL profile for this bench wires an external USB-TTL to **PA9**
+instead, so it builds with `-DOW_UART_USART1_PA9`; the on-board CP210x on PB6
+stays unused there.
 
 Stress experiment: the historical load on DMA2 streams 0/1 at `PL 0` starves
 the default feed/capture at 8/16 MHz, level 5. Raising feed/capture to `PL=1`
