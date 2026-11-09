@@ -1652,7 +1652,7 @@ try {
     if (ovDrag === null) return;
     const was = ovDrag;
     ovDrag = null;
-    if (!cap || !txns.length) { drawOverview(); return; }
+    if (!cap) { drawOverview(); return; }
     const r = $("ov").getBoundingClientRect();
     const x1 = e.clientX - r.left;
     if (Math.abs(x1 - was.x0) < 4) {
@@ -1667,7 +1667,7 @@ try {
       const dw = detailWidth();
       view.off = Math.floor(s - (dw / 2) * view.spp);
       clampView();
-      selectForInfo(best);
+      if (txns.length) selectForInfo(best);
       syncZoom();
       drawOverview();
       drawDetail();
@@ -1682,14 +1682,16 @@ try {
     clampView();
     syncZoom();
     // Keep the info-line selection inside the new window.
-    const center = Math.round((s0 + s1) / 2);
-    let best = 0, bd = Infinity;
-    txns.forEach((t, i) => {
-      const tt = t.tReset != null ? t.tReset : (t.bits.length ? t.bits[0].t : 0);
-      const d = Math.abs(tt - center);
-      if (d < bd) { bd = d; best = i; }
-    });
-    selectForInfo(best);
+    if (txns.length) {
+      const center = Math.round((s0 + s1) / 2);
+      let best = 0, bd = Infinity;
+      txns.forEach((t, i) => {
+        const tt = t.tReset != null ? t.tReset : (t.bits.length ? t.bits[0].t : 0);
+        const d = Math.abs(tt - center);
+        if (d < bd) { bd = d; best = i; }
+      });
+      selectForInfo(best);
+    }
     drawOverview();
     drawDetail();
   });
