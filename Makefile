@@ -1402,8 +1402,11 @@ TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 else
 # A known firmware family without a host mock must not inherit the F1 flag:
 # c5 would compile the F1 header at 144 MHz and die on its #error, which looks
-# like a broken source tree instead of a missing test backend.
-$(error OW_TARGET='$(OW_TARGET)' has no host test backend; host-modeled families: $(OW_HOST_TEST_TARGETS). C5 is firmware build/bench-validated only.)
+# like a broken source tree instead of a missing test backend. TEST_FLAG is
+# recursive, so this error fires only when a host-test rule actually expands
+# it; firmware builds of the same family never touch TEST_FLAG.
+TEST_PORT_FLAG = $(error OW_TARGET='$(OW_TARGET)' has no host test backend; host-modeled families: $(OW_HOST_TEST_TARGETS). C5 is firmware build/bench-validated only.)
+TEST_EXE = $(TEST_OUT)/ds18b20_test_$(OW_TARGET).exe
 endif
 # Hook for defines only the host suite should see, the counterpart of EXT
 # for the firmware build. It is how the port setup contract tables were
