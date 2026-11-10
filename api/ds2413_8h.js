@@ -12,6 +12,7 @@ var ds2413_8h =
     [ "DS2413_ROM_BYTES", "group__DS2413__Exported__Constants.html#gadfcf80a45443c912a983b7166478a972", null ],
     [ "ds2413_init", "group__DS2413__Exported__Functions.html#ga4a7796aec1d747289a7e6ab5fc2e4fc7", null ],
     [ "ds2413_last_command_ok", "group__DS2413__Exported__Functions.html#ga18a7214c3c3cd1ef62dd030099cd0811", null ],
+    [ "ds2413_last_latches", "group__DS2413__Exported__Functions.html#ga4d7406111e1dcfb9ca6353d82eff57fe", null ],
     [ "ds2413_last_pio", "group__DS2413__Exported__Functions.html#gaa366d300ff9dcbc24fddb033dae4887c", null ],
     [ "ds2413_last_reply", "group__DS2413__Exported__Functions.html#gae3aaa3809021e2d86d2e1745d2c476c5", null ],
     [ "ds2413_read_pio", "group__DS2413__Exported__Functions.html#gad79733e8cd7bcc14d046d5e3eb24498d", null ],
