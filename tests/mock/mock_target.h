@@ -2,7 +2,8 @@
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (STM32F0 / STM32F1 / STM32F3 / STM32F4 /
- * STM32G0 / STM32G4 / STM32H5 / STM32H7, passed as -D by the host build). */
+ * STM32G0 / STM32G4 / STM32L4 / STM32C5 / STM32H5 / STM32H7, passed as -D by
+ * the host build). */
 #if defined(STM32F0)
 #include "stm32f0xx.h"
 #elif defined(STM32F3)
@@ -15,6 +16,8 @@
 #include "stm32g4xx.h"
 #elif defined(STM32L4)
 #include "stm32l4xx.h"
+#elif defined(STM32C5)
+#include "stm32c5xx.h"
 #elif defined(STM32H5)
 #include "stm32h5xx.h"
 #elif defined(STM32H7)
@@ -41,10 +44,11 @@
 /* --- DMA model abstraction -------------------------------------------------
  * The hw_model works on one feed and one capture channel per family. F0/F1/G0/
  * G4 use DMA1 channels with the CCR/CNDTR/CPAR/CMAR register names and 8-bit
- * memory cells; F4/H7 use DMA streams with CR/NDTR/PAR/M0AR. The stream mocks
- * union the legacy field spellings valid, so the model can name a field
- * uniformly; only the ENABLE/MSIZE bit spellings and the memory-cell width
- * genuinely differ and are abstracted here. */
+ * memory cells; F4/H7 use DMA streams with CR/NDTR/PAR/M0AR. H5 GPDMA and C5
+ * LPDMA use CTR1/CTR2/CBR1/CSAR/CDAR; the stream mocks union the legacy field
+ * spellings valid, so the model can name a field uniformly; only the
+ * ENABLE/MSIZE bit spellings and the memory-cell width genuinely differ and
+ * are abstracted here. */
 #define MOCK_DMA_FEED mock_feed_ch /* feed channel storage */
 #define MOCK_DMA_CAP mock_dma1_ch4 /* capture channel storage */
 #if defined(STM32F4) || defined(STM32H7)
@@ -57,16 +61,17 @@
 #define MOCK_DMA_CAP_MSIZE_0 DMA_CCR_MSIZE_0
 #endif
 
-/* --- capture-count semantics: classic CNDTR vs GPDMA BNDT ---
- * Classic DMA1/F4 count *transfers* in CNDTR/NDTR. H5 GPDMA counts *source
- * bytes* in CBR1.BNDT: each halfword capture transfer (the CCR4 source is a
- * halfword, SDW_LOG2 = 1) consumes 2 BNDT bytes, so an N-transfer capture
- * programs the register with 2*N.  Tests therefore assert the register value
- * for N transfers through MOCK_CAP_CNDTR(), and the model converts between
- * bytes and transfers with MOCK_CAP_TRANSFERS() / MOCK_CAP_BYTES_PER_XFR.
- * The feed source is an 8-bit cell (1 byte per transfer) on every family, so
- * feed BNDT/CNDTR unchanged. */
-#if defined(STM32H5)
+/* --- capture-count semantics: classic CNDTR vs GPDMA/LPDMA BNDT ---
+ * Classic DMA1/F4 count *transfers* in CNDTR/NDTR. H5 GPDMA and C5 LPDMA
+ * count *source bytes* in CBR1.BNDT: each halfword capture transfer (the
+ * CCR4 source is a halfword, SDW_LOG2 = 1) consumes 2 BNDT bytes, so an
+ * N-transfer capture programs the register with 2*N.  Tests therefore
+ * assert the register value for N transfers through MOCK_CAP_CNDTR(), and
+ * the model converts between bytes and transfers with
+ * MOCK_CAP_TRANSFERS() / MOCK_CAP_BYTES_PER_XFR. The feed source is an
+ * 8-bit cell (1 byte per transfer) on every family, so feed BNDT/CNDTR
+ * unchanged. */
+#if defined(STM32H5) || defined(STM32C5)
 #define MOCK_CAP_BYTES_PER_XFR 2u
 #define MOCK_CAP_CNDTR(n) ((n) * 2u)
 #define MOCK_CAP_TRANSFERS(cndtr) ((cndtr) / 2u)
@@ -99,7 +104,7 @@
 #define MOCK_PIN_IS_PP() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) == 0u))
 #define MOCK_PIN_AT_MAX_SPEED() (((mock_gpioa.CRH & GPIO_CRH_MODE10) == GPIO_CRH_MODE10_1))
 #else
-#if defined(STM32G0) || defined(STM32H5)
+#if defined(STM32G0) || defined(STM32H5) || defined(STM32C5)
 #define MOCK_PIN_MODER GPIO_MODER_MODE10
 #define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
 #define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0

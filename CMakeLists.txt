@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(stm32_async_1wire VERSION 3.1.1 LANGUAGES C ASM)
+project(stm32_async_1wire VERSION 3.1.2 LANGUAGES C ASM)
 
 # ---------------------------------------------------------------------------
 # Options

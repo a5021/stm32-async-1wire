@@ -12,9 +12,9 @@
  *    PlatformIO / CubeMX path must reach the port core's SystemCoreClock
  *    auto-path instead of a silent fallback.
  *  Selecting a family through the raw family macro (STM32F0/F1/F3/F4/G0/
- *  G4/H5/H7 - for F4/G4/H5/H7 also the concrete device spellings) must still
- *  resolve the OW_FAMILY_* token in both modes. Built per OW_TARGET
- *  by the test-clocks Makefile target.
+ *  G4/L4/C5/H5/H7 - for F4/G4/C5/H5/H7 also the concrete device spellings)
+ *  must still resolve the OW_FAMILY_* token in both modes. Built per
+ *  OW_TARGET by the test-clocks Makefile target.
  * ============================================================ */
 
 #include "ow_port.h"
@@ -100,6 +100,10 @@
 #if OW_SYSCLK_MHZ != 80
 #error "L4 family-macro selection must default to an 80 MHz system clock"
 #endif
+#elif defined(STM32C5)
+#if OW_SYSCLK_MHZ != 144
+#error "C5 family-macro selection must default to a 144 MHz system clock"
+#endif
 #elif defined(STM32H5)
 #if OW_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
@@ -134,6 +138,12 @@
  * the L476 Range-1 cap is 80MHz, which is also the default. */
 #if (OW_SYSCLK_MHZ) > (OW_L4_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_L4_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#elif defined(STM32C5)
+/* Same pair for C5 (OW_C5_MAX_SYSCLK_MHZ, owned by the ow_board.h C5
+ * section): the C552 tops out at 144MHz, which is also the default. */
+#if (OW_SYSCLK_MHZ) > (OW_C5_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_C5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H5)
 /* Same pair for H5 (OW_H5_MAX_SYSCLK_MHZ, owned by the ow_board.h H5 section): the
@@ -207,6 +217,18 @@
 #endif
 /* 16MHz is raw HSI16 (no PLL), like the F4 16MHz path: nothing to check. */
 #endif /* STM32G4 */
+#if defined(STM32C5)
+/* The 144MHz path feeds the 8MHz crystal into the PSI and selects the 8MHz
+ * reference (PSIREF = 001), so a board with a different crystal cannot reach
+ * the default. The 48MHz and raw-HSE paths are unaffected, but the part file
+ * clock is the PSI one. */
+#if !defined(OW_HSE_MHZ)
+#error "OW_HSE_MHZ must be defined for the C5 backend (the ow_board.h C5 section defaults it to 8)"
+#endif
+#if (OW_HSE_MHZ) != 8
+#error "C5: the PSI reference is the 8MHz crystal (PSIREF = 8MHz), so the board oscillator must be 8MHz"
+#endif
+#endif /* STM32C5 */
 #if defined(STM32H7)
 /* The H7 PLL aims its input at exactly 5MHz (M = HSE/5 = 5 for the 25MHz
  * WeAct crystal, DIVM field = divider, mid-window of the 4..8MHz RGE range)
@@ -244,7 +266,7 @@
 #ifdef OW_SYSCLK_MHZ
 #error "test_sysclk_fallback: OW_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
 #endif
-#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_L4) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
+#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_L4) && !defined(OW_FAMILY_C5) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 #endif /* OW_SYSCLK_VALUES_CHECK */

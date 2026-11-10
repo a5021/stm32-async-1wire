@@ -20,6 +20,9 @@ TIM1_TypeDef mock_tim1;
 DMA1_Channel_TypeDef mock_dma1_ch4;
 DMA1_Channel_TypeDef mock_feed_ch;
 GPIO_TypeDef mock_gpioa;
+#if defined(STM32C5)
+GPIO_TypeDef mock_gpioe; /* C5 backend only: busy LED on PE2 (app.c) */
+#endif
 RCC_TypeDef mock_rcc;
 USART_TypeDef mock_usart1;
 #if OW_LOW_POWER
@@ -86,8 +89,10 @@ FLASH_TypeDef mock_flash; /* L4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* L4 backend only: Range 1 for 80MHz */
 DMA_Request_TypeDef mock_dma1_cselr; /* L4 backend only: DMA1_CSELR routing */
 #endif
+#if defined(STM32H5) || defined(STM32C5)
+FLASH_TypeDef mock_flash; /* H5/C5 backend only: clock-latency register */
+#endif
 #if defined(STM32H5)
-FLASH_TypeDef mock_flash; /* H5 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
 #endif
 static uint16_t tim_shadow_out;
@@ -192,9 +197,9 @@ void hw_register_buf(const void* ptr) {
 
 /* The memory address the feed DMA reads from, and the one the capture DMA
  * writes to, as the silicon sees it: the direction-relative registers on
- * GPDMA (H5), the classic CMAR everywhere else. */
+ * GPDMA (H5) / LPDMA (C5), the classic CMAR everywhere else. */
 static uint32_t hw_feed_addr(void) {
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     return (uint32_t)MOCK_DMA_FEED.CSAR;
 #else
     return (uint32_t)MOCK_DMA_FEED.CMAR;
@@ -202,7 +207,7 @@ static uint32_t hw_feed_addr(void) {
 }
 
 static uint32_t hw_cap_addr(void) {
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     return (uint32_t)MOCK_DMA_CAP.CDAR;
 #else
     return (uint32_t)MOCK_DMA_CAP.CMAR;
@@ -218,12 +223,12 @@ const void* hw_capture_destination(void) {
 }
 
 /* The peripheral request the channel carries, as the silicon sees it: the
- * DMAMUX channel's request id on G0/G4, the GPDMA transfer register's REQSEL
- * on H5, and nothing at all on the families whose request map is fixed in
- * silicon (there the port programs nothing, and there is nothing to read
- * back). */
+ * DMAMUX channel's request id on G0/G4, the GPDMA/LPDMA transfer register's
+ * REQSEL on H5/C5, and nothing at all on the families whose request map is
+ * fixed in silicon (there the port programs nothing, and there is nothing to
+ * read back). */
 uint32_t hw_feed_request(void) {
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     return (mock_feed_ch.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
 #elif defined(STM32L4)
     return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C3S) >> DMA_CSELR_C3S_Pos);
@@ -235,7 +240,7 @@ uint32_t hw_feed_request(void) {
 }
 
 uint32_t hw_capture_request(void) {
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     return (mock_dma1_ch4.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
 #elif defined(STM32L4)
     return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C4S) >> DMA_CSELR_C4S_Pos);
@@ -251,6 +256,9 @@ void hw_reset_all(void) {
     mock_dma1_ch4 = (DMA1_Channel_TypeDef){0};
     mock_feed_ch = (DMA1_Channel_TypeDef){0};
     mock_gpioa = (GPIO_TypeDef){0};
+#if defined(STM32C5)
+    mock_gpioe = (GPIO_TypeDef){0};
+#endif
     mock_rcc = (RCC_TypeDef){0};
     mock_usart1 = (USART_TypeDef){0};
 #if OW_LOW_POWER
@@ -259,7 +267,7 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32H7)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
@@ -289,6 +297,13 @@ void hw_reset_all(void) {
      * forgets one of those waits then blocks on the first poll instead of
      * passing by accident. */
     mock_pwr = (PWR_TypeDef){0};
+#endif
+#if defined(STM32C5)
+    mock_flash = (FLASH_TypeDef){0};
+    /* HSERDY/PSISRDY start clear: the mock does not model the oscillator
+     * start or the PSI lock, so the clock tests preset exactly the flags the
+     * path they exercise waits on. A build that forgets one of those waits
+     * then blocks on the first poll instead of passing by accident. */
 #endif
 #if defined(STM32F4)
     mock_dma2 = (DMA_TypeDef){0};
@@ -411,9 +426,9 @@ static void dma13_transfer(void) {
                  (unsigned long)hw_cap_addr());
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
-#if defined(STM32H5)
-    /* GPDMA carries the memory width in CTR1.DDW_LOG2 (halfword = 16-bit
-     * cells); the classic backends carry it in CCR.MSIZE_0. */
+#if defined(STM32H5) || defined(STM32C5)
+    /* GPDMA/LPDMA carries the memory width in CTR1.DDW_LOG2 (halfword =
+     * 16-bit cells); the classic backends carry it in CCR.MSIZE_0. */
     if (d->CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
 #else
     if (d->CCR & MOCK_DMA_CAP_MSIZE_0) {
@@ -424,7 +439,7 @@ static void dma13_transfer(void) {
         *(volatile uint8_t*)d13_cur = (uint8_t)val;
         d13_cur += 1;
     }
-    d->CNDTR -= MOCK_CAP_BYTES_PER_XFR; /* classic: 1/transfer; H5: BNDT bytes (2 for halfword source) */
+    d->CNDTR -= MOCK_CAP_BYTES_PER_XFR; /* classic: 1/transfer; H5/C5: BNDT bytes (2 for halfword source) */
     if (d->CNDTR == 0) {
         d->CCR &= ~MOCK_DMA_CAP_EN;
     }
@@ -619,8 +634,8 @@ static uint32_t hw_tim_next_capture_tick(void) {
 static void hw_tim_do_capture(void) {
     uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
     mock_tim1.CCR4 = val;
-#if defined(STM32H5)
-    /* GPDMA width in CTR1.DDW_LOG2 (halfword = 16-bit cells). */
+#if defined(STM32H5) || defined(STM32C5)
+    /* GPDMA/LPDMA width in CTR1.DDW_LOG2 (halfword = 16-bit cells). */
     if (mock_dma1_ch4.CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
 #else
     if (MOCK_DMA_CAP.CCR & MOCK_DMA_CAP_MSIZE_0) {

@@ -199,21 +199,21 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Configure system clock (exposed for the F4/G4/L4/H5/H7 host harness)
+ * @brief Configure system clock (exposed for the F4/G4/L4/C5/H5/H7 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
- *       Under DS18B20_TEST_HARNESS the F4/G4/L4 suite drives the real clock path
- *       against the RCC/FLASH mocks (test_timing), so it needs external
+ *       Under DS18B20_TEST_HARNESS the F4/G4/L4/C5 suite drives the real clock
+ *       path against the RCC/FLASH mocks (test_timing), so it needs external
  *       linkage. Other families keep the function out of the harness.
  */
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
 /**
- * @brief Whether the requested clock actually started (F4/G4/L4/H5/H7 harness surface)
- * @note F4/G4/L4/H5/H7 report a clock that never came up through this rather than through a
+ * @brief Whether the requested clock actually started (F4/G4/L4/C5/H5/H7 harness surface)
+ * @note F4/G4/L4/C5/H5/H7 report a clock that never came up through this rather than through a
  *       return value: changing configure_system_clock()'s signature changed
  *       codegen in the families that cannot fail, for no benefit. 1 = running,
  *       0 = a bounded oscillator, regulator/supply, or clock-switch wait failed.

@@ -18,6 +18,14 @@
 #define PRES_MIN 555u
 #define PRES_MAX 840u
 
+/* Capture request id in CTR2.REQSEL: C5 LPDMA selects TIM1_CC4 = 27; the H5
+ * GPDMA backend selects TIM1_CH4 = 61. */
+#if defined(STM32C5)
+#define TEST_CAP_REQ 27u
+#else
+#define TEST_CAP_REQ 61u
+#endif
+
 static unsigned check_presence_with_pulses(uint16_t pulse0, uint16_t pulse1,
                                            uint8_t captured) {
     uint16_t pulses[2] = {pulse0, pulse1};
@@ -96,10 +104,10 @@ void test_presence_underrun_ignores_stale_presence(void) {
 void test_capture_16bit_config(void) {
     uint16_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 16);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);
@@ -114,10 +122,10 @@ void test_capture_16bit_config(void) {
 void test_capture_8bit_config(void) {
     uint8_t dst[2];
     ds18b20_test_arm_capture((volatile void*)dst, 2, 8);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX8, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     uint32_t ccr = mock_dma1_ch4.CCR;
     TEST_ASSERT_TRUE((ccr & DMA_CCR_EN) != 0);

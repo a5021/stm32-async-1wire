@@ -1118,8 +1118,10 @@
  *    alternate-function open-drain with AFR=1 (TIM1_CH3); the parasite
  *    strong-pull-up toggles only the OTYPER bit.
  *
- *  Bench status: not yet proven on the WeAct STM32C552CET6; the request
- *  numbers and the C5 TIM1 capture path are the first bring-up checks.
+ *  Bench status: validated on the WeAct STM32C552CET6 (7x DS18B20 in
+ *  parasite power plus one DS2431) at 144, 48 and 8 MHz, so the request
+ *  numbers and the C5 TIM1 capture path above are confirmed. The backend is
+ *  also host-modeled in tests/mock/stm32c5xx.h.
  */
 #if defined(OW_FAMILY_C5)
 #include "stm32c5xx.h"

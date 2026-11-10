@@ -143,10 +143,10 @@ endif
 # error; only an unset OW_TARGET receives the F1 default. A typo such as
 # OW_TARGET=f401-84 therefore cannot silently compile a Blue Pill.
 OW_KNOWN_TARGETS = f0 f1 f3 f4 g0 g4 l4 c5 h5 h7
-# Host-test families. C5 is build/bench-validated only until a host mock for
-# the LPDMA backend exists; keep it out of the host wrappers so test-all-families
-# does not ask for a mock that is not there.
-OW_HOST_TEST_TARGETS = f0 f1 f3 f4 g0 g4 l4 h5 h7
+# Host-test families: every backend has a register mock and runs the full
+# suite. test-all-families walks this list, so a new backend is added here
+# once its mock exists.
+OW_HOST_TEST_TARGETS = f0 f1 f3 f4 g0 g4 l4 c5 h5 h7
 ifeq ($(filter $(OW_TARGET),$(OW_KNOWN_TARGETS)),)
 $(error OW_TARGET='$(OW_TARGET)' is not a known family. Use one of: $(OW_KNOWN_TARGETS))
 endif
@@ -789,7 +789,7 @@ clean-deps:
 # tests/check_mock_headers.sh means adding one here too. Flat target:part pairs
 # because a foreach nested inside another cannot resolve MOCK_CHECK_PARTS_$(t)
 # - the inner reference expands before t is bound and comes out empty.
-MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb l4:l476rg h5:h503cb h7:h743vi
+MOCK_CHECK_PARTS = f0:f030x6 f1:f103xb f3:f303xc f4:f407xx f4:f446xx g0:g031xx g4:g474cb l4:l476rg c5:c552ce h5:h503cb h7:h743vi
 test-mocks:
 	$(foreach tp,$(MOCK_CHECK_PARTS),$(MAKE) OW_TARGET=$(word 1,$(subst :, ,$(tp))) OW_CHIP=$(word 2,$(subst :, ,$(tp))) download-deps &&) true
 	@sh tests/check_mock_headers.sh
@@ -1390,6 +1390,9 @@ TEST_EXE = $(TEST_OUT)/ds18b20_test_g4.exe
 else ifeq ($(OW_TARGET),l4)
 TEST_PORT_FLAG = -DSTM32L4
 TEST_EXE = $(TEST_OUT)/ds18b20_test_l4.exe
+else ifeq ($(OW_TARGET),c5)
+TEST_PORT_FLAG = -DSTM32C5
+TEST_EXE = $(TEST_OUT)/ds18b20_test_c5.exe
 else ifeq ($(OW_TARGET),h5)
 TEST_PORT_FLAG = -DSTM32H5
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
@@ -1401,11 +1404,11 @@ TEST_PORT_FLAG = -DSTM32F1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
 else
 # A known firmware family without a host mock must not inherit the F1 flag:
-# c5 would compile the F1 header at 144 MHz and die on its #error, which looks
-# like a broken source tree instead of a missing test backend. TEST_FLAG is
-# recursive, so this error fires only when a host-test rule actually expands
-# it; firmware builds of the same family never touch TEST_FLAG.
-TEST_PORT_FLAG = $(error OW_TARGET='$(OW_TARGET)' has no host test backend; host-modeled families: $(OW_HOST_TEST_TARGETS). C5 is firmware build/bench-validated only.)
+# it would compile the F1 header at the requested clock and die on its #error,
+# which looks like a broken source tree instead of a missing test backend.
+# TEST_FLAG is recursive, so this error fires only when a host-test rule
+# actually expands it; firmware builds of the same family never touch TEST_FLAG.
+TEST_PORT_FLAG = $(error OW_TARGET='$(OW_TARGET)' has no host test backend; host-modeled families: $(OW_HOST_TEST_TARGETS).)
 TEST_EXE = $(TEST_OUT)/ds18b20_test_$(OW_TARGET).exe
 endif
 # Hook for defines only the host suite should see, the counterpart of EXT
@@ -1476,6 +1479,18 @@ TEST_H5_8_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
 TEST_H5_8_EXE = $(TEST_OUT)/ds18b20_test_h5_8mhz.exe
 TEST_EXTRA_EXES = $(TEST_H5_250_EXE) $(TEST_H5_8_EXE)
 endif
+# C5 carries two extra clocks, both genuinely different code paths from the
+# 144MHz HSE->PSI default: 48MHz is the HSIDIV3 reset source (no waits, no
+# flash change, no mux switch) and 8MHz is the raw-HSE branch (an HSERDY wait,
+# the CFGR1 switch, 0 wait states, no PSI). One suite, three clocks, so the
+# per-clock asserts in test_timing.c are compiled and run at all.
+ifneq ($(filter c5,$(OW_TARGET)),)
+TEST_C5_48_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=48
+TEST_C5_48_EXE = $(TEST_OUT)/ds18b20_test_c5_48mhz.exe
+TEST_C5_8_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
+TEST_C5_8_EXE = $(TEST_OUT)/ds18b20_test_c5_8mhz.exe
+TEST_EXTRA_EXES = $(TEST_C5_48_EXE) $(TEST_C5_8_EXE)
+endif
 # H7 host suite covers the 240/240 default, 64/64 raw-HSI fallback, and the
 # split 480/240 mode (core/SYSCLK/TIM1 MHz). The split clock exercises a
 # distinct PLL P divider and HPRE path while preserving the driver timer ceiling.
@@ -1494,7 +1509,7 @@ endif
 # two left the active-drive and ndebug names with an unbalanced paren, which
 # only the ndebug job noticed - and it failed on CI while all five host-test
 # jobs went red on an artefact name rather than on a test.
-TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter l4,$(OW_TARGET)),_l4,$(if $(filter h5,$(OW_TARGET)),_h5,$(if $(filter h7,$(OW_TARGET)),_h7,))))))))
+TEST_FAM_SUFFIX = $(if $(filter f0,$(OW_TARGET)),_f0,$(if $(filter f3,$(OW_TARGET)),_f3,$(if $(filter f4,$(OW_TARGET)),_f4,$(if $(filter g0,$(OW_TARGET)),_g0,$(if $(filter g4,$(OW_TARGET)),_g4,$(if $(filter l4,$(OW_TARGET)),_l4,$(if $(filter c5,$(OW_TARGET)),_c5,$(if $(filter h5,$(OW_TARGET)),_h5,$(if $(filter h7,$(OW_TARGET)),_h7,)))))))))
 
 # --- DS2431 EEPROM driver (second 1-Wire device driver) host tests ----------
 # The DS2431 driver is compiled through tests/mock/ds2431_test_access.c (which
@@ -1558,7 +1573,7 @@ $(TEST_DS2413_EXE): $(TEST_DS2413_SRC) src/ds2413.c src/onewire.c $(TEST_HDRS) M
 TEST_LP_FLAG = $(TEST_FLAG) -DOW_LOW_POWER=1 -DMOCK_WFE_HOOK
 TEST_LP_EXE = $(TEST_OUT)/ds18b20_test_lowpower$(TEST_FAM_SUFFIX).exe
 
-TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter l4,$(1)),STM32L476xx,$(if $(filter h5,$(1)),STM32H5,$(if $(filter h7,$(1)),STM32H743xx,STM32F1))))))))
+TEST_CLOCK_FLAG = $(if $(filter f0,$(1)),STM32F0,$(if $(filter f3,$(1)),STM32F3,$(if $(filter f4,$(1)),STM32F4,$(if $(filter g0,$(1)),STM32G0,$(if $(filter g4,$(1)),STM32G4,$(if $(filter l4,$(1)),STM32L476xx,$(if $(filter c5,$(1)),STM32C5,$(if $(filter h5,$(1)),STM32H5,$(if $(filter h7,$(1)),STM32H743xx,STM32F1)))))))))
 # This one defaults to _f1 rather than to nothing, so the family-macro compile
 # check keeps a distinct object for the default family; $(or) supplies that only
 # when the shared suffix is empty.
@@ -1789,6 +1804,16 @@ $(TEST_H5_250_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c exa
 
 $(TEST_H5_8_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_H5_8_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+# The C5 suite at its reset clock and its raw crystal clock. Same sources and
+# same test_main, only the clock differs, so the suite's own expectations have
+# to hold at 48MHz and 8MHz too - the bit-slot constants are us figures and the
+# TIM model is prescaler-driven, which is what should be clock-independent.
+$(TEST_C5_48_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_C5_48_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+
+$(TEST_C5_8_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_C5_8_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_H7_64_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_H7_64_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@

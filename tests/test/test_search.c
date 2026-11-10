@@ -21,6 +21,16 @@
 #define ONE ONEWIRE_ONE_PULSE
 #define ZERO ONEWIRE_ZERO_PULSE
 
+/* Peripheral request ids in CTR2.REQSEL: C5 LPDMA selects TIM1_CC2 = 25 and
+ * TIM1_CC4 = 27; the H5 GPDMA backend selects TIM1_CH2 = 59 and TIM1_CH4 = 61. */
+#if defined(STM32C5)
+#define TEST_FEED_REQ 25u
+#define TEST_CAP_REQ 27u
+#else
+#define TEST_FEED_REQ 59u
+#define TEST_CAP_REQ 61u
+#endif
+
 static uint8_t g_rom[8];
 static uint8_t g_rom_b[8];
 static uint8_t g_found_roms[16][8];
@@ -339,14 +349,18 @@ void test_write_then_read_configures_registers(void) {
 
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(3), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(3, mock_feed_ch.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+#if defined(STM32C5)
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos), mock_feed_ch.CTR2);
+#else
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
                              mock_feed_ch.CTR2);
+#endif
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);

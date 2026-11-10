@@ -196,10 +196,11 @@ void ow_stats_tx_enqueue(char c) {
 /* Hardware bring-up (system clock, USART1 TX, LED GPIO) with full register
  *-level access.  Excluded from the host test build, which only exercises the
  * non-blocking UART ring buffer above — except configure_system_clock(),
- * which the F4 harness compiles (and test_timing drives) against the RCC
- * and FLASH mocks. hardware_init/app_init/ds18b20_busy stay target-only. */
+ * which the F4/G4/L4/C5/H5/H7 harness compiles (and test_timing drives)
+ * against the RCC and FLASH mocks. hardware_init/app_init/ds18b20_busy stay
+ * target-only. */
 
-#if !defined(DS18B20_TEST_HARNESS) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if !defined(DS18B20_TEST_HARNESS) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
 /**
  * @brief Configure system clock
  * @note The source is derived from OW_SYSCLK_MHZ (see onewire.h).
@@ -212,6 +213,8 @@ void ow_stats_tx_enqueue(char c) {
  *       G4: 170MHz via HSE+PLL (M=2, N=85, R=2), or raw HSI16 at 16MHz.
  *       L4: 80MHz via HSI16+PLL (M=1, N=10, R=2, Range 1, 4 WS), or raw
  *       HSI16 at 16MHz. No HSE path: the NUCLEO-L476RG crystal is unpopulated.
+ *       C5: 144MHz via HSE + PSI, the 48MHz HSIDIV3 reset source, or raw HSE
+ *       at the crystal's own frequency.
  *       H5: 64MHz raw HSI (bring-up clock), raw HSE at the crystal's own
  *       frequency, or 250MHz (the H503 ceiling) via HSE + PLL1.
  *       H7: 240MHz via HSE+PLL (M = HSE/5, N = 96, P = 2) - the TIM1 ==
@@ -308,8 +311,8 @@ static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t valu
 #endif
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
-/* The F3/F4/G4/H5 host harness needs to know whether the clock started, since that
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+/* The F3/F4/G4/L4/C5/H5 host harness needs to know whether the clock started, since that
  * is now a flag rather than a return value. It lives here, not beside the console
  * helpers: those sit in the !DS18B20_TEST_HARNESS block, so under the harness
  * this would be compiled away while app.h still declares it. */
@@ -1173,7 +1176,7 @@ void configure_system_clock(void) {
 #endif
 #endif
 }
-#endif /* !DS18B20_TEST_HARNESS || OW_FAMILY_F4 || OW_FAMILY_G4 || OW_FAMILY_L4 || OW_FAMILY_H5 || OW_FAMILY_H7 */
+#endif /* !DS18B20_TEST_HARNESS || OW_FAMILY_F4 || OW_FAMILY_G4 || OW_FAMILY_L4 || OW_FAMILY_C5 || OW_FAMILY_H5 || OW_FAMILY_H7 */
 
 #if !defined(DS18B20_TEST_HARNESS)
 /**

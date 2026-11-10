@@ -12,8 +12,11 @@
  *  CTR2.REQSEL, programmed by the PROG macros before each operation:
  *    - H5:  TIM1_CH2 (marker feed -> CCR3) = request 59 on channel 2
  *    - H5:  TIM1_CH4 (capture drain <- CCR4) = request 61 on channel 3
- *  (double-sourced from the H5 RM GPDMA mapping table and CubeH5
- *  stm32h5xx_ll_dma.h).
+ *  C5 likewise has no DMAMUX, but only LPDMA1/LPDMA2:
+ *    - C5:  TIM1_CC2 (marker feed -> CCR3) = request 25 on channel 2
+ *    - C5:  TIM1_CC4 (capture drain <- CCR4) = request 27 on channel 3
+ *  (double-sourced from the C5 RM request table and CubeC5
+ *  stm32c5xx_ll_dma.h).
  *  Other backends have a fixed request map, so this suite
  *  compiles empty there.
  * ============================================================ */
@@ -24,14 +27,19 @@
 #include "onewire.h"
 #include "unity.h"
 
-#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5)
 
 #if defined(STM32G4)
 #define DMAMUX_EXPECT_FEED 43u
 #define DMAMUX_EXPECT_CAP 45u
-#elif defined(STM32H5)
+#elif defined(STM32H5) || defined(STM32C5)
+#if defined(STM32C5)
+#define GPDMA_EXPECT_FEED_REQ 25u /* TIM1_CC2, in CTR2.REQSEL */
+#define GPDMA_EXPECT_CAP_REQ 27u /* TIM1_CC4, in CTR2.REQSEL */
+#else
 #define GPDMA_EXPECT_FEED_REQ 59u /* TIM1_CH2, in CTR2.REQSEL */
 #define GPDMA_EXPECT_CAP_REQ 61u /* TIM1_CH4, in CTR2.REQSEL */
+#endif
 #else
 #define DMAMUX_EXPECT_FEED 21u
 #define DMAMUX_EXPECT_CAP 23u
@@ -49,7 +57,7 @@ void test_dmamux_capture_request_routed_on_reset(void) {
     hw_set_capture_source(rx_src);
 
     onewire_reset(capture); /* schedules the CC4 capture drain */
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((GPDMA_EXPECT_CAP_REQ << DMA_CTR2_REQSEL_Pos),
                              mock_dma1_ch4.CTR2);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
@@ -75,10 +83,15 @@ void test_dmamux_feed_request_routed_on_write(void) {
     onewire_encode_byte(pulses, 0xCC);
     pulses[ONEWIRE_BITS_PER_BYTE] = 0; /* trailing hardware bus release */
     onewire_write_slots(pulses, ONEWIRE_BITS_PER_BYTE);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32C5)
+    TEST_ASSERT_EQUAL_UINT32((GPDMA_EXPECT_FEED_REQ << DMA_CTR2_REQSEL_Pos),
+                             mock_feed_ch.CTR2);
+#else
     TEST_ASSERT_EQUAL_UINT32((GPDMA_EXPECT_FEED_REQ << DMA_CTR2_REQSEL_Pos) |
                                  (1u << DMA_CTR2_DREQ_Pos),
                              mock_feed_ch.CTR2);
+#endif
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
 #else
     TEST_ASSERT_EQUAL_UINT32(DMAMUX_EXPECT_FEED, mock_dmamux_ch2.CCR);
@@ -93,10 +106,10 @@ void test_dmamux_feed_request_routed_on_write(void) {
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_feed_ch.CCR);
 }
 
-#endif /* STM32G0 || STM32G4 || STM32H5 */
+#endif /* STM32G0 || STM32G4 || STM32H5 || STM32C5 */
 
 void run_test_dmamux(void) {
-#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5)
     TEST_RUN(test_dmamux_capture_request_routed_on_reset);
     TEST_RUN(test_dmamux_feed_request_routed_on_write);
 #endif

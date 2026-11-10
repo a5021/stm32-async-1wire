@@ -105,7 +105,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
-| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix; ten families, nine host-modeled — C5 is build/bench-only until its host mock exists |
+| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/c5/h5/h7), the local equivalent of the CI family matrix; ten families, all host-modeled |
 | `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
@@ -124,6 +124,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-g0` | Build and run host tests against the STM32G0 backend mock |
 | `make test-g4` | Build and run host tests against the STM32G4 backend mock |
 | `make test-l4` | Build and run host tests against the STM32L4 backend mock |
+| `make test-c5` | Build and run host tests against the STM32C5 LPDMA backend mock (144/48/8 MHz) |
 | `make test-h5` | Build and run host tests against the STM32H5 backend mock |
 | `make test-h7` | Build and run host tests against the STM32H7 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
@@ -246,9 +247,9 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     the transfer width and direction, the address-increment bit, the timer
     repetition count, the peripheral request each channel must carry, and the
     accounting after the run (every scheduled transfer fired, both channels
-    drained). The same table runs on all nine host-modeled families (ten
-    buildable; C5 is build/bench-validated only until its host mock exists). The
-    per-family encoding of the same guarantee is pinned separately
+    drained). The same table runs on all ten host-modeled families (every
+    buildable backend). The per-family encoding of the same guarantee is pinned
+    separately
     (`test_dma_cr_value_macros`)
 -   the temporal contract of every operation (`test_dma_contract`): the CCR3
     reload follows the slot-end compare and never precedes it, the pulse in
@@ -613,7 +614,7 @@ No files are copied: the library is added as a subproject and manages its own CM
 include(FetchContent)
 FetchContent_Declare(stm32_async_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v3.1.1
+    GIT_TAG        v3.1.2
 )
 FetchContent_MakeAvailable(stm32_async_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)

@@ -59,6 +59,17 @@
 #define RX_BYTES_9 9u /* DS18B20_SCRATCHPAD_LEN (private to src/ds18b20.c) */
 #define RX_BITS_72 72u /* RX_BYTES_9 * 8 */
 
+/* Peripheral request ids, asserted as literals so a wrong macro cannot pass:
+ * H5 GPDMA selects TIM1_CH2=59 (feed) and TIM1_CH4=61 (capture) in CTR2;
+ * C5 LPDMA selects TIM1_CC2=25 and TIM1_CC4=27. */
+#if defined(STM32C5)
+#define TEST_FEED_REQ 25u
+#define TEST_CAP_REQ 27u
+#else
+#define TEST_FEED_REQ 59u
+#define TEST_CAP_REQ 61u
+#endif
+
 /* ------------------------- guard-zone helpers ------------------------- */
 
 static void fill_guards(uint8_t* before, uint8_t* after, uint8_t v) {
@@ -158,7 +169,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
     /* first buffer: CMAR must address exactly its slot-1 element */
     onewire_write_slots(a.pulses, ONEWIRE_BITS_PER_BYTE);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&a.pulses[1], mock_feed_ch.CSAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
 #else
@@ -167,13 +178,18 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 #endif
     TEST_ASSERT_EQUAL_UINT32(ONEWIRE_BITS_PER_BYTE, mock_feed_ch.CNDTR);
     /* memory -> peripheral, increment on; the memory element is family sized
-     * (F4 feeds 16-bit halfwords in direct mode, F1 8-bit cells; H5 carries
+     * (F4 feeds 16-bit halfwords in direct mode, F1 8-bit cells; H5/C5 carry
      * direction/width/increment in CTR1/CTR2 with CCR holding EN only) */
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+#if defined(STM32C5)
+    /* LPDMA has no DREQ bit: the direction comes from CSAR/CDAR. */
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos), mock_feed_ch.CTR2);
+#else
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
                              mock_feed_ch.CTR2);
+#endif
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 #if defined(STM32F4) || defined(STM32H7)
@@ -201,7 +217,7 @@ void test_dma_tx_reads_exact_buffer_in_order(void) {
 
     /* second buffer: identical geometry but the data must follow B */
     onewire_write_slots(b.pulses, ONEWIRE_BITS_PER_BYTE);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CSAR);
 #else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&b.pulses[1], mock_feed_ch.CMAR);
@@ -306,7 +322,7 @@ void test_dma_rx_read_pair_16bit_destination(void) {
     hw_set_capture_source(two_val16_src);
 
     onewire_read_pair(g.capture); /* capture 2 slots, 16-bit MSIZE */
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&g.capture[0], mock_dma1_ch4.CDAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
 #else
@@ -314,10 +330,10 @@ void test_dma_rx_read_pair_16bit_destination(void) {
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
 #endif
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(2u), mock_dma1_ch4.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
@@ -349,10 +365,10 @@ void test_dma_rx_byte_read_8bit_minc(void) {
     onewire_read_data(g.buf, 1); /* 1 byte = 8 slots, 8-bit MSIZE */
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(8u), mock_dma1_ch4.CNDTR);
     TEST_ASSERT_EQUAL_UINT32(7u, mock_tim1.RCR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX8, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC, mock_dma1_ch4.CCR);
 #if defined(STM32F4) || defined(STM32H7)
@@ -473,8 +489,14 @@ void test_dma_tx_direction_memory_to_peripheral(void) {
     onewire_write_slots(g.pulses, ONEWIRE_BITS_PER_BYTE);
     memcpy(snapshot, g.pulses, sizeof(snapshot));
 
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32C5)
+    /* LPDMA has no DREQ bit: direction comes from CSAR/CDAR, and CTR2 carries
+     * only the request selector. */
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos), mock_feed_ch.CTR2);
+#else
     TEST_ASSERT_BITS_HIGH((1u << DMA_CTR2_DREQ_Pos), mock_feed_ch.CTR2); /* memory -> peripheral */
+#endif
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_DIR, mock_feed_ch.CCR); /* memory -> peripheral */
 #endif
@@ -501,8 +523,12 @@ void test_dma_rx_direction_peripheral_to_memory(void) {
     hw_set_capture_source(two_val16_src);
 
     onewire_read_pair(g.capture);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32C5)
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+#else
     TEST_ASSERT_BITS_LOW((1u << DMA_CTR2_DREQ_Pos), mock_dma1_ch4.CTR2); /* peripheral -> memory */
+#endif
 #else
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
 #endif
@@ -530,15 +556,15 @@ void test_dma_reset_capture_geometry(void) {
     /* ONE slot but TWO captures: the reset bus-turnaround is 2 pulse captures in 1 slot */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(OW_PORT_CAPTURE_BUF_SIZE), mock_dma1_ch4.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CDAR);
 #else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&capture[0], mock_dma1_ch4.CMAR);
 #endif
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
@@ -565,28 +591,33 @@ void test_dma_write_then_read_merged_geometry(void) {
     TEST_ASSERT_EQUAL_UINT32(2u, mock_tim1.RCR);
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(3u), mock_dma1_ch4.CNDTR); /* 3 x 16-bit captures */
     TEST_ASSERT_EQUAL_UINT32(3u, mock_feed_ch.CNDTR); /* 3 x 8-bit feed reloads */
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
 #else
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CPAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CPAR);
 #endif
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((61u << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
+    TEST_ASSERT_EQUAL_UINT32((TEST_CAP_REQ << DMA_CTR2_REQSEL_Pos), mock_dma1_ch4.CTR2);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+#if defined(STM32C5)
+    /* LPDMA has no DREQ bit: the direction comes from CSAR/CDAR. */
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos), mock_feed_ch.CTR2);
+#else
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
                              mock_feed_ch.CTR2);
+#endif
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_PSIZE_0 | DMA_CCR_MSIZE_0,
                           mock_dma1_ch4.CCR);
     TEST_ASSERT_BITS_LOW(DMA_CCR_DIR, mock_dma1_ch4.CCR); /* peripheral -> memory */
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 #endif
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR4, mock_dma1_ch4.CSAR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)(uintptr_t)&mock_tim1.CCR3, mock_feed_ch.CDAR);
 #else
@@ -625,7 +656,7 @@ void test_dma_single_bit_write_uses_no_dma(void) {
     TEST_ASSERT_BITS_LOW(MOCK_TIM_FEED_DE, mock_tim1.DIER);
     /* the capture channel must be equally untouched: no capture DMA armed */
     TEST_ASSERT_EQUAL_UINT32(0u, mock_dma1_ch4.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN, mock_dma1_ch4.CCR);
 #else
     TEST_ASSERT_BITS_LOW(DMA_CCR_EN | DMA_CCR_MINC | DMA_CCR_MSIZE_0, mock_dma1_ch4.CCR);
@@ -647,7 +678,7 @@ void test_dma_cndtr_one_transfer(void) {
 
     ds18b20_test_arm_capture(g.capture, 1, 16); /* minimal transfer count */
     TEST_ASSERT_EQUAL_UINT32(MOCK_CAP_CNDTR(1u), mock_dma1_ch4.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_RX16, mock_dma1_ch4.CTR1);
 #else
@@ -692,11 +723,16 @@ void test_dma_match_rom_resolution_writes_104_slots(void) {
     TEST_ASSERT_TRUE(mock_tim1.CR1 & TIM_CR1_CEN);
     TEST_ASSERT_EQUAL_UINT32(103u, mock_tim1.RCR); /* 104 slots */
     TEST_ASSERT_EQUAL_UINT32(104u, mock_feed_ch.CNDTR);
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32C5)
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_feed_ch.CCR);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)OW_PORT_DMA_CR_TX, mock_feed_ch.CTR1);
-    TEST_ASSERT_EQUAL_UINT32((59u << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
+#if defined(STM32C5)
+    /* LPDMA has no DREQ bit: the direction comes from CSAR/CDAR. */
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos), mock_feed_ch.CTR2);
+#else
+    TEST_ASSERT_EQUAL_UINT32((TEST_FEED_REQ << DMA_CTR2_REQSEL_Pos) | (1u << DMA_CTR2_DREQ_Pos),
                              mock_feed_ch.CTR2);
+#endif
 #else
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN | DMA_CCR_DIR | DMA_CCR_MINC, mock_feed_ch.CCR);
 #endif

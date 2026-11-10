@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-11-10
+
+### Added
+
+- **STM32C5 host test coverage.** The LPDMA backend now runs in the host
+  suite: a `stm32c5xx.h` register mock models LPDMA `REQSEL` routing (TIM1_CC2
+  = 25, TIM1_CC4 = 27), `CBR1.BNDT` source-byte counts and the C5 clock tree
+  (HSE -> PSI, HSIDIV3 and raw HSE). `c5` joins `OW_HOST_TEST_TARGETS`, so
+  `make test OW_TARGET=c5` runs the suite at 144, 48 and 8 MHz and
+  `make test-all-families` covers ten families. `make test-mocks` checks the
+  new mock against `stm32c552xx.h`.
+
+### Changed
+
+- **The C5 port is documented as bench-validated.** `src/ow_mcu.h` no longer
+  says the backend is unproven; the C5 hardware notes already record validation
+  at 144/48/8 MHz.
+
 ## [3.1.1] - 2026-11-10
 
 ### Fixed
@@ -2828,4 +2846,5 @@ without a section here, and its changes had drifted into the section below.
 [3.0.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.0.1
 [3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...v3.1.0
 [3.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...v3.1.1
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...HEAD
+[3.1.2]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...v3.1.2
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.2...HEAD

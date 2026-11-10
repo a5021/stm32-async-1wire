@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32H7)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -443,6 +443,45 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN, mock_flash.ACR);
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.PLLCFGR);
 #endif
+#elif defined(STM32C5)
+#if (OW_SYSCLK_MHZ) == 144
+    /* HSE -> PSI at 144MHz: HSERDY and PSISRDY are presets because the mock
+     * does not model the oscillator start or the PSI lock; SWS is preset to
+     * PSIS (11) because the mock does not mirror SW -> SWS. */
+    mock_rcc.CR1 = RCC_CR1_HSERDY | RCC_CR1_PSISRDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* PSI reference = 8MHz crystal (PSIREF = 001), output = 144MHz
+     * (PSIFREQ = 01), source HSE (PSIREFSRC = 00). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CR2_PSIREF_0 | RCC_CR2_PSIFREQ_0,
+                             mock_rcc.CR2 &
+                                 (RCC_CR2_PSIREFSRC | RCC_CR2_PSIREF | RCC_CR2_PSIFREQ));
+    TEST_ASSERT_EQUAL_UINT32(RCC_CR1_PSISON, mock_rcc.CR1 & RCC_CR1_PSISON);
+    /* 4 wait states at 144MHz (C5 encoding: LATENCY_4 = 5). */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_LATENCY_4, mock_flash.ACR);
+    /* SYSCLK switched to PSIS (SW = 11). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+#elif (OW_SYSCLK_MHZ) == 48
+    /* HSIDIV3 is the reset source: no waits, no flash change, no mux move. */
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
+#elif (OW_SYSCLK_MHZ) == (OW_HSE_MHZ)
+    /* Raw HSE: HSERDY waited on, 0 wait states, SW = HSE (10). */
+    mock_rcc.CR1 = RCC_CR1_HSERDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS_1;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_flash.ACR);
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW_1, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+#else
+#error "test_timing: C5 console supports 144 (HSE->PSI), 48 (HSIDIV3) or HSE_MHZ (raw HSE)"
+#endif
+    /* APB prescalers stay at reset /1 on every C5 path: the clock code never
+     * writes CFGR2, so TIM1 = PCLK2 = SYSCLK directly. */
+    TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2);
 #elif defined(STM32H5)
 #if (OW_SYSCLK_MHZ) == 64
     /* HSI-64 bring-up: flash latency + HSI divider only, no waits (HSI is
@@ -899,6 +938,31 @@ void test_h5_console_baud_divisor(void) {
 }
 #endif /* STM32H5 */
 
+#if defined(STM32C5)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  Same gap the G4/H5 divisor checks close: the BRR write lives in
+ *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
+ *  build has ever compiled it on any family. The C5 backend leaves APB2 at
+ *  /1, so PCLK2 = SYSCLK; asserting the app.h value pins that. At 144MHz the
+ *  divisor is 1250, at 48MHz 417 and at 8MHz 69 - a reset-clock mistake at
+ *  144MHz (using the 48MHz HSIDIV3 source) would give 417 instead.
+ *-------------------------------------------------------------*/
+void test_c5_console_baud_divisor(void) {
+    uint32_t brr_expected;
+
+    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_C5_PCLK2_MHZ);
+
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_C5_CONSOLE_BRR);
+    /* Sanity on the arithmetic itself: the divisor must land in the USARTDIV
+     * range the 12-bit mantissa can hold at every C5 clock. */
+    TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 4096u);
+}
+#endif /* STM32C5 */
+
 #if defined(STM32H7)
 /*-------------------------------------------------------------
  *  The console UART divisor must follow the APB prescalers.
@@ -957,6 +1021,9 @@ void run_test_timing(void) {
 #endif
 #if defined(STM32H5)
     TEST_RUN(test_h5_console_baud_divisor);
+#endif
+#if defined(STM32C5)
+    TEST_RUN(test_c5_console_baud_divisor);
 #endif
 #if defined(STM32H7)
     TEST_RUN(test_h7_console_baud_divisor);
