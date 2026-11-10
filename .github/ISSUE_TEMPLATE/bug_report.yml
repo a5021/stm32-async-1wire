@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug or unexpected behavior in the library (1-Wire layer, DS18B20, DS2431, examples or build)
+description: Report a bug or unexpected behavior in the library (1-Wire layer, DS18B20, DS2431, DS2413, examples or build)
 labels: ["bug"]
 body:
   - type: markdown
@@ -19,7 +19,7 @@ body:
     id: board
     attributes:
       label: Hardware
-      description: Board and device(s) used (e.g. Blue Pill STM32F103C8T6, DS18B20, DS2431)
+      description: Board and device(s) used (e.g. Blue Pill STM32F103C8T6, DS18B20, DS2431, DS2413)
     validations:
       required: true
   - type: textarea

@@ -4,7 +4,7 @@
  *  Covers the non-blocking PIO operations on top of the shared
  *  1-Wire layer:
  *   - PIO Access Read (0xF5): Skip/Match ROM command build, reply
- *     validation (complement, 0xFF), last_pio
+ *     validation (complement, 0xFF), pin vs latch normalization
  *   - PIO Access Write (0x5A): state + complement bytes, 0xAA ack,
  *     rejection, state masking
  *   - presence abort, busy guard, poll without an operation
@@ -125,6 +125,7 @@ void test_ds2413_init_state(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds2413_read_pio_poll());
     TEST_ASSERT_EQUAL_UINT8(0, ds2413_last_command_ok());
     TEST_ASSERT_EQUAL_UINT8(0, ds2413_last_pio());
+    TEST_ASSERT_EQUAL_UINT8(0, ds2413_last_latches());
 }
 
 /*-------------------------------------------------------------
@@ -134,7 +135,7 @@ void test_ds2413_init_state(void) {
 void test_read_pio_skip_rom(void) {
     static const uint8_t k_cmd[] = {0xCC, 0xF5};
     uint8_t out = 0xFF;
-    set_read_byte(0xD2); /* low nibble 2, high nibble ~2 */
+    set_read_byte(0xE1); /* pin PIOA high; both latch bits 0 (driving low) */
     hw_set_capture_source(de_capture_present);
 
     TEST_ASSERT_TRUE(ds2413_read_pio(&out));
@@ -144,6 +145,7 @@ void test_read_pio_skip_rom(void) {
 
     TEST_ASSERT_EQUAL_UINT8(DS2413_PIOA, out);
     TEST_ASSERT_EQUAL_UINT8(DS2413_PIOA, ds2413_last_pio());
+    TEST_ASSERT_EQUAL_UINT8(0, ds2413_last_latches());
     TEST_ASSERT_TRUE(ds2413_last_command_ok());
 }
 
@@ -154,7 +156,7 @@ void test_read_pio_match_rom(void) {
     memcpy(&cmd[1], k_rom, DS2413_ROM_BYTES);
     cmd[1 + DS2413_ROM_BYTES] = 0xF5;
 
-    set_read_byte(0x78); /* PIOB in bit 3, high nibble ~8 */
+    set_read_byte(0x96); /* PIOA latch high, PIOB pin high */
     hw_set_capture_source(de_capture_present);
     ds2413_select(k_rom);
 
@@ -164,6 +166,22 @@ void test_read_pio_match_rom(void) {
     drive(ds2413_read_pio_poll);
 
     TEST_ASSERT_EQUAL_UINT8(DS2413_PIOB, out);
+    TEST_ASSERT_EQUAL_UINT8(DS2413_PIOB, ds2413_last_pio());
+    TEST_ASSERT_EQUAL_UINT8(DS2413_PIOA, ds2413_last_latches());
+    TEST_ASSERT_TRUE(ds2413_last_command_ok());
+}
+
+void test_read_pio_pin_and_latch_differ(void) {
+    uint8_t out = 0xFF;
+    set_read_byte(0x69); /* PIOA pin high, PIOB latch high; opposite halves */
+    hw_set_capture_source(de_capture_present);
+
+    TEST_ASSERT_TRUE(ds2413_read_pio(&out));
+    drive(ds2413_read_pio_poll);
+
+    TEST_ASSERT_EQUAL_UINT8(DS2413_PIOA, out);
+    TEST_ASSERT_EQUAL_UINT8(DS2413_PIOA, ds2413_last_pio());
+    TEST_ASSERT_EQUAL_UINT8(DS2413_PIOB, ds2413_last_latches());
     TEST_ASSERT_TRUE(ds2413_last_command_ok());
 }
 
@@ -272,7 +290,7 @@ void test_read_pio_presence_abort(void) {
 
 void test_busy_guard_rejects_second_start(void) {
     uint8_t out = 0;
-    set_read_byte(0xD2);
+    set_read_byte(0xE1);
     hw_set_capture_source(de_capture_present);
 
     TEST_ASSERT_TRUE(ds2413_read_pio(&out));
@@ -285,7 +303,7 @@ void test_busy_guard_rejects_second_start(void) {
 void test_select_ignored_while_busy(void) {
     uint8_t out = 0;
     static const uint8_t other[DS2413_ROM_BYTES] = {0x3A, 1, 2, 3, 4, 5, 6, 7};
-    set_read_byte(0xD2);
+    set_read_byte(0xE1);
     hw_set_capture_source(de_capture_present);
 
     ds2413_select(k_rom);
@@ -303,6 +321,7 @@ void run_test_ds2413(void) {
     TEST_RUN(test_ds2413_init_state);
     TEST_RUN(test_read_pio_skip_rom);
     TEST_RUN(test_read_pio_match_rom);
+    TEST_RUN(test_read_pio_pin_and_latch_differ);
     TEST_RUN(test_read_pio_no_response);
     TEST_RUN(test_read_pio_bad_complement);
     TEST_RUN(test_read_pio_requires_destination);

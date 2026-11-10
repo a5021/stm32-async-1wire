@@ -174,9 +174,10 @@ On a parasite-powered bus the release margin must be wider: define
 band default, or pass `-DONEWIRE_GUARD_BAND=...` explicitly. The Makefile
 presets in [Configuration → Timing](#timing-1) select whole value sets.
 
-Any other 1-Wire slave driver can use the same layer. The DS18B20 driver calls
-`onewire_init()` from `ds18b20_init()` and keeps the layer's Search ROM engine
-for its own `ds18b20_search_*` / `ds18b20_alarm_search_*` wrappers.
+Any other 1-Wire slave driver can use the same layer. Each bundled driver calls
+`onewire_init()` from its own `*_init()`; the DS18B20 driver also keeps the
+layer's Search ROM engine for its `ds18b20_search_*` /
+`ds18b20_alarm_search_*` wrappers.
 
 `onewire_long_wait_pending()` and `onewire_sleep_until_done()` exist only in
 `OW_LOW_POWER=1` builds. They are the bus-layer vocabulary the bundled drivers
@@ -681,9 +682,11 @@ Write Scratchpad (0x0F) fills the 8-byte page-aligned block, Read Scratchpad
 (0xAA) reads it back plus the TA/ES echo and verifies the data against the
 payload that was written, and Copy Scratchpad (0x55) programs the EEPROM page,
 its poll honouring the t_PROG hold-off and then checking the device's completion
-pattern. Read Scratchpad returns `(E[2:0] - T[2:0] + 1)` data bytes (the driver
-clocks the maximum reply, verifies the CRC over what was sent and zeroes the
-unused tail), and rejects a set PF flag — a short Write Scratchpad, one that does
+pattern. `ds2431_read_scratchpad()` requires a buffer of
+`DS2431_SCRATCH_FRAME` bytes (11: TA1/TA2/ES plus eight data bytes); it returns
+`(E[2:0] - T[2:0] + 1)` data bytes after the header (the driver clocks the
+maximum reply, verifies the CRC over what was sent and zeroes the unused tail),
+and rejects a set PF flag — a short Write Scratchpad, one that does
 not fill the whole block, makes the device flag the scratchpad invalid and
 refuse the later copy, so both the read-back and the Copy report failure. The
 full cycle — Read Memory → Write Scratchpad → Read Scratchpad → Copy Scratchpad
@@ -693,7 +696,8 @@ full cycle — Read Memory → Write Scratchpad → Read Scratchpad → Copy Scr
 
 The DS2413 has two open-drain PIO pins. Its non-blocking driver
 (`inc/ds2413.h` + `src/ds2413.c`) shares the 1-Wire layer and the one-operation
-at-a-time bus rule with the DS18B20 and DS2431 drivers.
+at-a-time bus rule with the DS18B20 and DS2431 drivers. All three inits may run
+before the first bus operation.
 
 ```c
 void    ds2413_init(void);
@@ -704,6 +708,7 @@ uint8_t ds2413_write_pio(uint8_t states);
 uint8_t ds2413_write_pio_poll(void);
 uint8_t ds2413_last_command_ok(void);
 uint8_t ds2413_last_pio(void);
+uint8_t ds2413_last_latches(void);
 uint8_t ds2413_last_reply(void);
 ```
 
@@ -713,11 +718,14 @@ uint8_t ds2413_last_reply(void);
   once produce a wired-AND the driver cannot attribute.
 - `ds2413_read_pio(&state)` — PIO Access Read (0xF5). The reply is validated
   (0xFF = no answer, low nibble must be the complement of the high nibble) and
-  normalized to the write layout: bit 0 = `DS2413_PIOA`, bit 1 = `DS2413_PIOB`.
-  The result is the actual pin level, which is the latch when the pin is not
-  driven externally.
+  split into the two halves of the low nibble: bit 0 = PIOA pin, bit 1 = PIOA
+  latch, bit 2 = PIOB pin, bit 3 = PIOB latch. `ds2413_last_pio()` and `state`
+  carry the **actual pins** normalized to bits 0/1 (`DS2413_PIOA`,
+  `DS2413_PIOB`); `ds2413_last_latches()` carries the output latches in the same
+  layout. An externally driven pin therefore reads differently from its latch.
 - `ds2413_write_pio(states)` — PIO Access Write (0x5A). Both output latches are
-  written together; read the current state first to change one channel. The
+  written together; take the current latch byte from `ds2413_last_latches()` to
+  change one channel, because a pin read cannot recover an overridden latch. The
   driver sends the state byte with bits 2-7 set to 1 and its complement, then
   requires the 0xAA acknowledge.
 - `ds2413_last_command_ok()` — 1 for a valid read reply or a 0xAA write
@@ -807,7 +815,7 @@ Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 | `0_dma_pressure` | 2456 B | 1484 B |
 | `6_statistics` | 6336 B | 1788 B |
 | `8_ds2431` | 6156 B | 768 B |
-| `9_multi` | 12764 B | 1456 B |
+| `9_multi` | 12792 B | 1456 B |
 
 `6_statistics` owns the largest `.bss` (1024 B UART ring + ~304 B stats state);
 `9_multi` owns the largest `.text` (DS18B20 + DS2431 + DS2413 in one image,

@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-11-10
+
+### Fixed
+
+- **The DS2413 read now reports pins, with latches exposed separately.** The
+  PIO Access Read reply low nibble is bit 0 = PIOA pin, bit 1 = PIOA latch,
+  bit 2 = PIOB pin, bit 3 = PIOB latch (bits 4-7 are the complement). The driver
+  used to take bits 1/3, so a pin held low externally read back as 1 whenever
+  its latch was released. `ds2413_read_pio()` / `ds2413_last_pio()` now return
+  the actual pins in bits 0/1, and the new `ds2413_last_latches()` returns the
+  commanded latches in the same layout. The host suite drives pin-set /
+  latch-clear and mixed replies, so the distinction cannot regress unnoticed.
+- **`make test OW_TARGET=c5` fails honestly.** The host-test flag chain ended in
+  a silent `-DSTM32F1` fallback, so C5 was compiled as F1 at 144 MHz and died in
+  the F1 family `#error`. Unknown targets are already rejected; the remaining
+  branch now errors for any known family without a host mock. Ten families,
+  nine host-modeled: C5 stays firmware build/bench-only.
+- **Version detection works with `mawk`.** The Makefile used the gawk-only
+  three-argument `match()`, so on systems where `awk` is `mawk` every `make`
+  invocation printed an awk syntax error and "using GCC ..., Binutils ..." was
+  empty. The versions are now extracted with `sed` and make string functions.
+
+### Changed
+
+- **Documentation pass: the DS2413 is part of the supported surface.** The
+  README supported-devices table, API and bus-ownership wording, SECURITY
+  policy, Contributing checklist and issue templates now name the DS2413
+  alongside the DS18B20 and DS2431. The README fix landed after the 3.1.0 tag;
+  this release ships it in the tagged tree.
+- **STM32C5 is documented across the guides.** The getting-started part and
+  clock tables, the architecture DMA table and core paragraph, the file
+  structure, and the CMSIS/SVD family lists now include the C552CET6 and its
+  LPDMA1 channels 2/3 (`REQSEL` 25/27).
+- **The F446 bench description is complete.** It lists the DS2431, the PA9 HIL
+  console and the D2/D3 PIOA/PIOB monitor pins, and adds a DS2413 wiring table.
+  The F030 section distinguishes the viewer's embedded eight-device sample from
+  the published F446 capture.
+- **Capture provenance is per app.** `docs/examples/captures.json` records the
+  commit and date of the `9_multi` capture, and `example_capture.py` writes
+  those fields for every future partial refresh instead of inheriting the
+  manifest-wide values.
+- **The viewer sample is labelled explicitly.** The embedded sample is the F030
+  eight-device boot excerpt; the published `9_multi` capture is the F446 run
+  with the DS2413 PIO channels.
+- **Measurement-heavy journal entries are trimmed.** The `OW_DMA_PRIO`
+  staircase, the CPU profile and the F446/H503 load-generator results now keep
+  the conclusion and link to `docs/stress/` or `docs/cpu-profile.md`; the raw
+  numbers stay in the reports.
+
 ## [3.1.0] - 2026-11-09
 
 ### Added
@@ -17,9 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implement non-blocking PIO Access Read (0xF5) and PIO Access Write (0x5A) on
   the shared 1-Wire layer: Match/Skip ROM, read-reply validation (complement,
   0xFF), 0xAA write acknowledge, normalized PIOA/PIOB bits, a 1 ms parasite
-  prime and three retries per operation. The reply byte carries PIOA in bit 1
-  and PIOB in bit 3; the driver normalizes it to the write layout. Broadcast
-  write is supported; broadcast read is documented as single-device only.
+  prime and three retries per operation. The initial reply mapping took PIOA
+  from bit 1 and PIOB from bit 3 (corrected in 3.1.1); broadcast write is
+  supported, while broadcast read is documented as single-device only.
   `examples/9_multi` searches for the device, alternates PIOA/PIOB every
   500 ms while waiting between measurement cycles and exposes the blink count,
   commanded state and read-back for the SWD HIL check. New host suite
@@ -31,30 +80,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logic-analyzer capture is now taken on the F446 bench with the DS2413 PIOA
   and PIOB pins on D2/D3; `docs/examples/captures.json` records a per-app
   `bench` so the rest of the archives stay on the F030 bench.
-
 - **`OW_DMA_PRIO`: one build knob for the feed/capture DMA priority.**
   The value (0..3, default 0 = the reset class every release has shipped)
   selects the arbitration class for both 1-Wire channels on every backend:
   `DMA_CCR_PL` on the classic DMA1 channels (F0/F1/F3/G0/G4/L4),
   `DMA_SxCR_PL` on the F4/H7 streams, and `DMA_CCR_PRIO` on the H5/C5
   GPDMA/LPDMA channels. It is the escape hatch for an application that shares
-  the DMA controller with an uninterruptible load: on the benches, a
-  level-5 load starved the default class on F446 (8/16 MHz) and H503
-  (8/64/250 MHz). The measured staircase is not the same on both: the F446
-  load sits at `PL 0`, so class **1** already clears every failing write and
-  Search ROM cell (classes 2/3 add nothing); the H503 load sits at `PRIO 3`,
-  so classes 1/2 stay below it and the five default-guard failures remain;
-  class **3** is the smallest that works, clean in all 36 cells at guard
-  1/5/100 with `cndtr_late = 0` (the class 1/2 runs cover 33 of the 36 cells:
-  the 8 MHz level 3-5 cells already fail at guard 100, so the sweep stops
-  there). On classic DMA and F4 streams an equal-class load is still resolved
-  by the channel/stream index, so the portable rule stands there: a
-  higher-ranked burst must not outlast `guard + 1` us. On the H5 GPDMA equal
-  class was clean: `CCR.PRIO` does not break ties by channel number. The knob
-  changes no timing constant and no ABI, so it is deliberately not part of
-  `OW_CONFIG_TOKEN`. `make test-dma-prio` rebuilds the contract suite for one
-  family per encoding with the class set to 3 and fails if the bits do not
-  reach the register word.
+  the DMA controller with an uninterruptible load: on the benches class 1
+  cleared the F446 load and class 3 the H503 load. The knob changes no timing
+  constant and no ABI, so it is deliberately not part of `OW_CONFIG_TOKEN`.
+  `make test-dma-prio` rebuilds the contract suite for one family per encoding
+  with the class set to 3 and fails if the bits do not reach the register word.
+  The measured staircase and the full stress matrix are in
+  [docs/stress/](docs/stress/).
 - **STM32C5 family support.** The STM32C552CET6 joins the port with a TIM1 +
   LPDMA1 backend (PA10/TIM1_CH3, CH4 indirect capture, LPDMA1 channels 2/3 with
   `REQSEL` 25/27) and three clock paths: 144 MHz from the 8 MHz HSE through the
@@ -66,16 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logger.
 - **CPU profile for the non-blocking driver.** `docs/cpu-profile.md` separates
   the useful state-machine work, the empty public calls and the callback plus
-  per-call overhead. On the H503 at 250 MHz one measurement costs 8,529 cycles
-  (34.1 us) of useful work and a seven-device search 240,585 cycles (0.962 ms);
-  an empty poll costs 41 cycles (164 ns) per measurement poll and 56 cycles
-  (224 ns) per search poll. On the F030 at 8 MHz the same work costs 6,888
-  cycles (861.0 us) and 137,334 cycles (17.17 ms); an empty poll costs 33 cycles
-  (4.1 us) per measurement poll and 30 cycles (3.75 us) per search poll. The
-  public poll is 11.73% / 16.01% of the active phase respectively, while useful
-  work is 0.0043% / 0.1088% and the callback plus overhead 0.0024% / 0.0549%.
-  The profiler reads a free-running counter (`DWT->CYCCNT` or `TIM14`), is
-  opt-in (`APP_PROFILE=1 OW_PROFILE=1`) and compiles to nothing otherwise.
+  per-call overhead. The profiler reads a free-running counter
+  (`DWT->CYCCNT` or `TIM14`), is opt-in (`APP_PROFILE=1 OW_PROFILE=1`) and
+  compiles to nothing otherwise. The per-clock cycle counts and useful-work
+  percentages are in [docs/cpu-profile.md](docs/cpu-profile.md).
 - **The visualizer selftest runs in CI.** `tools/1wire_vis/selftest.html` is
   the only executable check of the decoder that ships to users, but it used to
   run only when somebody opened the page by hand. `tools/1wire_vis/run_selftest.py`
@@ -85,39 +117,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installs the cached browser and runs it on every pull request, so a decoder
   change cannot ship without the bundled-capture, CRC, slot and overdrive
   golden vectors passing.
-- **F446 load generator for `0_dma_pressure`.** Levels 2-5 now run on the F4
-  backend through DMA2 stream 0 (levels 2/3) and stream 1 (levels 4/5) in
-  memory-to-memory mode (`DIR=0b10`; the F4 stream has no MEM2MEM bit), at the
-  default low priority so the lower stream number outranks the feed on stream 2
-  exactly as the F0 channels do. The example, the HIL profile
-  (`STM32F446xx`, device id `0x421`, parasite bus) and the stress matrix detect
-  the F446 bench. On the WeAct F446RET6 at 180 MHz every level is clean at
-  guard 1 and `cndtr_late = 0`, matching the F030; the capture-drain matrix
-  returns the same 7 ROMs at every level and the injection control goes red.
-  At 16/8 MHz levels 0-4 are clean at guard 1. Level 5 with the default load
-  on stream 0/1 fails, but that is the stream-priority experiment: the
-  lower-numbered load streams outrank the feed on stream 2 at equal priority.
-  Moving the same 512-word burst + CPU hammer to stream 5/6 (`--load-high` or
-  `STRESS_LOAD_HIGH=1`) makes the whole 0-5 matrix clean at guard 1 at 8 and
-  16 MHz as well. Level 5 is a fixed 512-word burst plus the hammer, not a load
-  normalized to the slot: a manual isolation sweep on 2026-11-04 (test-only
-  `STRESS_WORDS` / `STRESS_CPU_WORDS` knobs, not part of the published JSON,
-  guard not recorded) showed the outcome flips with burst length and hammer
-  size, so there is no single word-count threshold. Level 5 is a
-  stress-to-failure point, not a driver limit. Keep heavy continuous DMA off
-  stream 0/1, or raise the feed priority.
+- **F446 load generator for `0_dma_pressure`.** Levels 2-5 run on the F4
+  backend through DMA2 streams 0/1 in memory-to-memory mode at the default low
+  priority. On the WeAct F446RET6 the 180 MHz matrix is clean at guard 1 with
+  `cndtr_late = 0`; at 16/8 MHz levels 0-4 are clean. Level 5 is a
+  stress-to-failure point, not a driver limit: keep heavy continuous DMA off
+  stream 0/1, or raise the feed priority, and use `--load-high` /
+  `STRESS_LOAD_HIGH=1` to move the burst to streams 5/6. The full matrix and
+  the burst-length sweep are in [docs/stress/](docs/stress/).
 - **H503 load generator for `0_dma_pressure`.** Levels 2-5 run on the H5
-  backend through GPDMA1 channel 0 (levels 2/3) and channel 1 (levels 4/5) in
-  direct mode with a software request. `CBR1.BNDT` is a source-byte count. The
-  HIL detects the `STM32H503xx` bench automatically. On the WeAct H503CB at 64,
-  250 and 8 MHz every level is clean at the 5 us default with `cndtr_late = 0`;
-  the floor is guard 1 in every cell. Raising the load to `CCR.PRIO 3` starves
-  the feed: at 8 MHz level 2 fails at the default and levels 3-5 never pass; at
-  64 MHz level 5 fails, so the default equal-priority placement is the safe one.
-  The capture matrix returns the same 7 devices and checksum at every level, and
-  the injection control fails as expected. Clearing `EN` does not drop a pending
-  GPDMA request, so the H5 negative control sets `CCR.SUSP` for the window and
-  clears it afterwards; F0/F4 keep the enable-bit disable.
+  backend through GPDMA1 channels 0/1 in direct mode with a software request.
+  On the WeAct H503CB at 64, 250 and 8 MHz every level is clean at the default
+  guard; raising the load to `CCR.PRIO 3` starves the feed, so the default
+  equal-priority placement is the safe one. The full matrix and the negative
+  control are in [docs/stress/](docs/stress/).
 - **The F030 bench is marker-bracketed too.** `STRESS_MARKER_PIN` (default 11)
   selects the marker GPIO, so the F030 TSSOP20 bench uses PA2, where PA11 is not
   bonded out. Collisions with the bus (PA10), the console (PA9), the LED (PA4)
@@ -2814,4 +2827,5 @@ without a section here, and its changes had drifted into the section below.
 [3.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...v3.0.0
 [3.0.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.0.1
 [3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...v3.1.0
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...HEAD
+[3.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...v3.1.1
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...HEAD

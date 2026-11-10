@@ -426,13 +426,17 @@ LIB = -lc -lm -lnosys
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDS) $(LIB) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
 # ---------- compiler / linker version detection ----------
-GCC_INFO    := $(shell $(CC) -dumpfullversion 2>/dev/null | awk -F. '{print $$0, ($$1*10000+$$2*100+$$3>=120000)}')
-GCC_VERSION := $(word 1,$(GCC_INFO))
-GCC_GE_12   := $(word 2,$(GCC_INFO))
+# GCC and GNU ld version detection. Keep this POSIX: Debian/Ubuntu ship mawk,
+# and gawk's three-argument match() is a syntax error there, which used to leave
+# these empty on every make invocation.
+GCC_VERSION := $(firstword $(shell $(CC) -dumpfullversion 2>/dev/null))
+GCC_MAJOR   := $(word 1,$(subst ., ,$(GCC_VERSION)))
+GCC_GE_12   := $(shell [ -n "$(GCC_MAJOR)" ] && [ "$(GCC_MAJOR)" -ge 12 ] && echo 1)
 
-LD_INFO     := $(shell $(LD) --version 2>/dev/null | awk '/^GNU ld/ {match($$NF,/([0-9]+)\.([0-9]+)/,v); print v[0], (v[1]*100+v[2]>=239); exit}')
-LD_VERSION  := $(word 1,$(LD_INFO))
-LD_GE_2_39  := $(word 2,$(LD_INFO))
+LD_VERSION  := $(firstword $(shell $(LD) --version 2>/dev/null | sed -n 's/.*[[:space:]]\([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/p'))
+LD_MAJOR    := $(word 1,$(subst ., ,$(LD_VERSION)))
+LD_MINOR    := $(word 2,$(subst ., ,$(LD_VERSION)))
+LD_GE_2_39  := $(shell [ -n "$(LD_MAJOR)" ] && [ -n "$(LD_MINOR)" ] && { [ "$(LD_MAJOR)" -gt 2 ] || { [ "$(LD_MAJOR)" -eq 2 ] && [ "$(LD_MINOR)" -ge 39 ]; }; } && echo 1)
 
 $(info using GCC $(GCC_VERSION), Binutils $(LD_VERSION))
 
@@ -1392,9 +1396,14 @@ TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
 else ifeq ($(OW_TARGET),h7)
 TEST_PORT_FLAG = -DSTM32H7
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h7.exe
-else
+else ifeq ($(OW_TARGET),f1)
 TEST_PORT_FLAG = -DSTM32F1
 TEST_EXE = $(TEST_OUT)/ds18b20_test.exe
+else
+# A known firmware family without a host mock must not inherit the F1 flag:
+# c5 would compile the F1 header at 144 MHz and die on its #error, which looks
+# like a broken source tree instead of a missing test backend.
+$(error OW_TARGET='$(OW_TARGET)' has no host test backend; host-modeled families: $(OW_HOST_TEST_TARGETS). C5 is firmware build/bench-validated only.)
 endif
 # Hook for defines only the host suite should see, the counterpart of EXT
 # for the firmware build. It is how the port setup contract tables were

@@ -138,6 +138,7 @@ uint8_t ds18b20_search_poll(void);
 uint8_t ds18b20_set_alarm_thresholds_poll(void);
 uint8_t ds18b20_set_resolution_poll(void);
 uint8_t ds2413_last_command_ok(void);
+uint8_t ds2413_last_latches(void);
 uint8_t ds2413_last_pio(void);
 uint8_t ds2413_last_reply(void);
 uint8_t ds2413_read_pio(uint8_t*out);

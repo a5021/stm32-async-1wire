@@ -3,22 +3,24 @@
  * @brief Non-blocking DS2413 dual-channel addressable switch driver
  *
  * The DS2413 has two open-drain PIO pins (PIOA, PIOB). A write sets both
- * output latches; a read returns the actual pin levels (the latch when the pin
- * is not driven externally). The device is parasite powered: the driver primes
- * it with a 1 ms strong pull-up before each operation, then releases the bus
- * for the reset/command/reply sequence. A failed reply is retried up to three
- * times.
+ * output latches; a read returns the actual pin levels and the latches
+ * separately (the pin equals its latch when the pin is not driven externally).
+ * The device is parasite powered: the driver primes it with a 1 ms strong
+ * pull-up before each operation, then releases the bus for the
+ * reset/command/reply sequence. A failed reply is retried up to three times.
  *
  * The driver follows the same non-blocking start/poll discipline as the
  * DS18B20 and DS2431 drivers and shares the TIM1/DMA/GPIO bus with them: one
  * operation at a time, no concurrent polling of two drivers.
  *
  * Wire protocol (DS2413 datasheet, also used by the Linux w1_ds2413 driver):
- * - PIO Access Read [F5h]: one reply byte; the low nibble carries PIOA in bit
- *   1 and PIOB in bit 3, bits 4-7 are its complement. 0xFF means the device
- *   did not answer; a byte whose low nibble is not the complement of its high
- *   nibble is rejected. The driver normalizes the reply to the write layout
- *   (bit 0 = PIOA, bit 1 = PIOB).
+ * - PIO Access Read [F5h]: one reply byte; in the low nibble bit 0 is the PIOA
+ *   pin, bit 1 the PIOA latch, bit 2 the PIOB pin and bit 3 the PIOB latch;
+ *   bits 4-7 are its complement. 0xFF means the device did not answer; a byte
+ *   whose low nibble is not the complement of its high nibble is rejected. The
+ *   driver normalizes both halves to the write layout (bit 0 = PIOA, bit 1 =
+ *   PIOB): pins in `ds2413_last_pio()` / the read destination, latches in
+ *   `ds2413_last_latches()`.
  * - PIO Access Write [5Ah]: the master sends the state byte (bits 0/1 are
  *   PIOA/PIOB, bits 2-7 must be 1) followed by its complement, then reads one
  *   acknowledge byte. 0xAA means the write was accepted.
@@ -89,8 +91,8 @@ extern "C" {
  *      any 1-Wire bus operation.
  * @note Calls onewire_init(), which takes exclusive ownership of the shared
  *       TIM1/DMA/GPIO resources. The DS18B20 and DS2431 drivers share that
- *       bus; all inits may run before any operation, but only one driver may
- *       own the timer at a time.
+ *       bus; all three inits may run before any operation, but only one driver
+ *       may own the timer at a time.
  * @warning A second call is a bootstrap operation, not a reinitialization hook.
  */
 void ds2413_init(void);
@@ -106,10 +108,12 @@ void ds2413_init(void);
 void ds2413_select(const uint8_t* rom);
 
 /**
- * @brief Read the PIO pin states (non-blocking)
- * @param[out] out Destination byte; on success it receives the PIOA/PIOB
- *                 levels in bits 0/1 (DS2413_PIOA, DS2413_PIOB), the same
- *                 layout ds2413_write_pio() takes
+ * @brief Read the PIO pin levels (non-blocking)
+ * @param[out] out Destination byte; on success it receives the actual PIOA/PIOB
+ *                 pin levels in bits 0/1 (DS2413_PIOA, DS2413_PIOB), the same
+ *                 layout ds2413_write_pio() takes. A pin held externally does
+ *                 not match its latch; use ds2413_last_latches() for the
+ *                 commanded state.
  * @return 1 if the read was scheduled, 0 if the request was rejected (NULL
  *         destination, an operation in flight, or a device search running)
  * @note The result is valid only when ds2413_read_pio_poll() returns 1 and
@@ -129,10 +133,11 @@ uint8_t ds2413_read_pio_poll(void);
  *                   DS2413_PIOB); other bits are ignored
  * @return 1 if the write was scheduled, 0 if the request was rejected (an
  *         operation in flight or a device search running)
- * @note Both latches are written together. To change one channel, read the
- *       current state first and pass the modified byte; the device has no
- *       read-modify-write command. A broadcast write addresses every DS2413
- *       on the bus.
+ * @note Both latches are written together. To change one channel, take the
+ *       current latch byte from ds2413_last_latches(), modify it and pass it;
+ *       the device has no read-modify-write command, and the pin read cannot
+ *       recover a released latch that an external load overrides. A broadcast
+ *       write addresses every DS2413 on the bus.
  */
 uint8_t ds2413_write_pio(uint8_t states);
 
@@ -151,10 +156,19 @@ uint8_t ds2413_write_pio_poll(void);
 uint8_t ds2413_last_command_ok(void);
 
 /**
- * @brief Last valid PIO state read by ds2413_read_pio()
- * @return Bits 0/1 with the PIOA/PIOB levels; 0 before the first valid read
+ * @brief Last valid PIO pin levels read by ds2413_read_pio()
+ * @return Bits 0/1 with the actual PIOA/PIOB pin levels; 0 before the first
+ *         valid read
  */
 uint8_t ds2413_last_pio(void);
+
+/**
+ * @brief Last valid PIO latch states read by ds2413_read_pio()
+ * @return Bits 0/1 with the PIOA/PIOB output latches; 0 before the first valid
+ *         read. This is the commanded state, even when an external load holds
+ *         a pin at the opposite level.
+ */
+uint8_t ds2413_last_latches(void);
 
 /**
  * @brief Raw reply byte of the last read or write operation

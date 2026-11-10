@@ -42,6 +42,7 @@ typedef struct {
     uint8_t command;
     uint8_t data; /**< PIO state byte (already masked with 0xFC) */
     uint8_t last_pio;
+    uint8_t last_latch;
     uint8_t attempts;
     uint8_t selected_rom[DS2413_ROM_BYTES];
 } ds2413_ctx_t;
@@ -130,6 +131,7 @@ void ds2413_init(void) {
     ctx.command = 0;
     ctx.data = 0;
     ctx.last_pio = 0;
+    ctx.last_latch = 0;
 }
 
 void ds2413_select(const uint8_t* rom) {
@@ -168,6 +170,10 @@ uint8_t ds2413_last_command_ok(void) {
 
 uint8_t ds2413_last_pio(void) {
     return ctx.last_pio;
+}
+
+uint8_t ds2413_last_latches(void) {
+    return ctx.last_latch;
 }
 
 uint8_t ds2413_last_reply(void) {
@@ -218,12 +224,17 @@ static uint8_t ds2413_poll(void) {
                               DS2413_READ_BYTES);
         if (ctx.command == DS2413_CMD_READ) {
             if (ds2413_reply_valid(ctx.raw[0])) {
-                /* The read byte carries PIOA in bit 1 and PIOB in bit 3 of
-                 * its low nibble; normalize to the write layout (bit 0 =
-                 * PIOA, bit 1 = PIOB) so callers can compare read and write
-                 * states directly. */
-                ctx.last_pio = (uint8_t)(((ctx.raw[0] & 0x02u) ? DS2413_PIOA : 0u) |
-                                         ((ctx.raw[0] & 0x08u) ? DS2413_PIOB : 0u));
+                /* Read reply low nibble: bit 0 = PIOA pin, bit 1 = PIOA
+                 * latch, bit 2 = PIOB pin, bit 3 = PIOB latch. Normalize each
+                 * half to the write layout (bit 0 = PIOA, bit 1 = PIOB) so
+                 * callers can compare against ds2413_write_pio() directly. */
+                const uint8_t reply = ctx.raw[0];
+                ctx.last_pio =
+                    (uint8_t)(((reply & 0x01u) ? DS2413_PIOA : 0u) |
+                              ((reply & 0x04u) ? DS2413_PIOB : 0u));
+                ctx.last_latch =
+                    (uint8_t)(((reply & 0x02u) ? DS2413_PIOA : 0u) |
+                              ((reply & 0x08u) ? DS2413_PIOB : 0u));
                 if (ctx.out != 0) {
                     *ctx.out = ctx.last_pio;
                 }

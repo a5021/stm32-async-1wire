@@ -7,8 +7,9 @@
 The subsections below describe the boards the driver runs on (wiring, clocks,
 console). Measurement logs are deliberately not kept in the repo. Deeper
 per-port bring-up and timing notes live next to the linker scripts:
-[STM32F1](../port/stm32f1/HARDWARE-NOTES.md) and
-[STM32F4](../port/stm32f4/HARDWARE-NOTES.md).
+[STM32F1](../port/stm32f1/HARDWARE-NOTES.md),
+[STM32F4](../port/stm32f4/HARDWARE-NOTES.md) and
+[STM32C5](../port/stm32c5/HARDWARE-NOTES.md).
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -33,8 +34,10 @@ package), USART1 TX on PA9, busy LED on PA4, flashed via ST-Link SWD. The bus
 carries 8 × DS18B20. The `9_multi` bench rig uses the same board with seven
 DS18B20s plus one DS2431 (parasite power); its boot capture — two Search ROM
 passes, the DS2431 read, a broadcast `Convert T` with seven scratchpad reads,
-and four EEPROM write chains — is the bundled sample in the
-[1-Wire viewer](https://a5021.github.io/stm32-async-1wire/viewer/).
+and four EEPROM write chains — is the viewer's embedded *Samples → Bundled
+9_Multi capture* excerpt and has no DS2413. The later
+[9_multi capture](examples/captures/9_multi.sr) linked from the examples guide
+is the F446 run with the DS2413 PIOA/PIOB channels.
 
 ### STM32F303VC (F3-DISCOVERY / MB1035B)
 
@@ -132,7 +135,8 @@ carries no signal on the default PA9 USART1 pad.
 ### STM32F446RE (WeAct F446RET6)
 
 Validated on a **WeAct STM32F446RET6** (ST-Link V2J45S7, STM32F446 Rev A,
-512 KB flash): 7 × DS18B20 in parasite power mode on one 1-Wire bus on **PA10**
+512 KB flash): 7 × DS18B20 plus one DS2431 EEPROM
+(`2D F8 47 60 26 00 00 69`) in parasite power mode on one 1-Wire bus on **PA10**
 (TIM1 CH3/CH4 pair, same DMA2 streams 2/4 topology as the F407), console on
 USART1 TX / **PB6** (the board's CP210x VCP answers there at 115200 8N1 — the
 default build needs no UART flag), flashed via OpenOCD over the on-board
@@ -151,7 +155,7 @@ capture window, not by the zero count alone. Raising the feed to `PL=1` costs
 the level-4 load nothing measurable: its ch1 burst counter is 1800/3500/39101
 at 8/16/180 MHz at both class 0 and class 1. One DS2413 dual-channel switch
 (`3A 9F 47 03 00 00 00 3A`) also shares the bus; `9_multi` alternates PIOA and
-PIOB every 500 ms and reads them back. The device is parasite powered and needs
+PIOB every 500 ms and reads them back. The DS2413 is parasite powered and needs
 a 1 ms strong pull-up prime before each operation, otherwise its replies are
 intermittent. PIOA/PIOB are open-drain and unconnected on this bench; D2/D3
 monitor them (D2 = PIOA, D3 = PIOB) for the published capture. The library
@@ -174,6 +178,7 @@ ran 100 frames at each clock with `cndtr_late=0` and no DMA errors, and
 `8_ds2431` completed its EEPROM write/read-back. The DS18B20 readings were
 26.1–26.7 °C. Build with `make OW_MCU=STM32C552xx` (144 MHz), add
 `SYSCLK_MHZ=48` for HSIDIV3, or `SYSCLK_MHZ=8 HSE_MHZ=8` for raw HSE.
+Bring-up and DMA notes: [port/stm32c5/HARDWARE-NOTES.md](../port/stm32c5/HARDWARE-NOTES.md).
 
 ### STM32H503CB (WeAct STM32H503Cx Core Board)
 
@@ -259,14 +264,14 @@ Same bus as the DS18B20 (one 1-Wire line, shared pull-up):
 | 3.3 V          | Power       | VDD        |
 | GND           | Ground      | GND        |
 
-Both slaves can sit on the same line electrically, and one firmware image can
-drive both: finish and retire an operation on one driver before the other starts
-one, and never poll both at once. Both inits may run before any bus operation
-(each `onewire_init()` re-applies the same idle configuration); `9_multi` does
-this and then hands the bus over through one explicit owner state machine. The
-DS2431 example runs the shared bus search with `DS2431_FAMILY_CODE` (0x2D), so
-DS18B20s on the line are ignored; the DS18B20 driver's own search filters on
-0x28.
+All three slaves can sit on the same line electrically, and one firmware image
+can drive them: finish and retire an operation on one driver before another
+starts one, and never poll two at once. All three inits may run before any bus
+operation (each `onewire_init()` re-applies the same idle configuration);
+`9_multi` does this and then hands the bus over through one explicit owner state
+machine. The DS2431 example runs the shared bus search with
+`DS2431_FAMILY_CODE` (0x2D), so DS18B20s on the line are ignored; the DS18B20
+driver's own search filters on 0x28, and the DS2413 driver uses 0x3A.
 
 #### Debug UART (optional)
 
@@ -401,8 +406,28 @@ F446 entry in Hardware Verified). Bench wiring on this board:
 |------|---------------------|------------------------------------|
 | PA10 | 1-Wire Data         | TIM1_CH3, open-drain AF1 (same topology as the F407) |
 | PB6  | USART1 TX (115200)  | AF7; the on-board CP210x VCP answers here on the default build |
+| PA9  | USART1 TX (HIL bench) | AF7; external USB-TTL on the HIL bench, selected with `-DOW_UART_USART1_PA9` |
 | PB2  | Busy LED (optional) | Active high; silkscreen "B2". Select with `-DOW_F4_LED_PB2` (`make OW_MCU=STM32F446xx EXT=-DOW_F4_LED_PB2`) |
+| D2   | DS2413 PIOA monitor | Logic-analyzer channel 2; PIOA is open-drain |
+| D3   | DS2413 PIOB monitor | Logic-analyzer channel 3; PIOB is open-drain |
 | PA13/PA14 | SWDIO/SWCLK    | On-board ST-Link SWD programming            |
+
+#### DS2413 Dual-Channel Switch (F446 bench)
+
+The switch sits on the same 1-Wire bus as the DS18B20s and the DS2431.
+PIOA/PIOB are open-drain outputs; the bench leaves them unconnected and
+monitors them on D2/D3.
+
+| Pin | Function | DS2413 Pin |
+|-----|----------|------------|
+| PA10 | 1-Wire Data | DQ (Data) |
+| 3.3 V | Power | VDD |
+| GND | Ground | GND |
+| D2 | PIOA monitor | PIOA |
+| D3 | PIOB monitor | PIOB |
+
+The device is parasite powered; the driver primes it with a 1 ms strong
+pull-up before every PIO operation.
 
 Important: the board's user button is on **PC13** (pull-up to VCC, not an LED),
 and the bus pull-up for a parasite-powered fleet is 2.2 kΩ fed from a dedicated

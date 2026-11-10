@@ -12,10 +12,10 @@ Only the latest release is actively supported with security fixes.
 ## Reporting a Vulnerability
 
 This project is a bare-metal 1-Wire library for STM32 (the 1-Wire layer plus
-the DS18B20 and DS2431 drivers) and does not process untrusted input in a
+the DS18B20, DS2431 and DS2413 drivers) and does not process untrusted input in a
 typical networked sense. However, if you find a security issue — for example
 in the 1-Wire protocol handling, buffer handling in `src/onewire.c`,
-`src/ds18b20*.c` or `src/ds2431*.c`, in `examples/`, or in the build tooling —
+`src/ds18b20*.c`, `src/ds2431*.c` or `src/ds2413*.c`, in `examples/`, or in the build tooling —
 please do **not** open a public issue.
 
 Instead, report it privately by opening an issue on GitHub and marking

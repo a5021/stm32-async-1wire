@@ -315,7 +315,31 @@ jobs:
             ten header-only backends (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
-            `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
+            `make OW_MCU=STM32C552xx` / `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
+
+            ## What's new in 3.1.1
+
+            3.1.1 corrects the DS2413 read semantics and makes the build tools
+            honest, on top of the documentation pass.
+
+            - **DS2413 pins and latches are now distinct.** A PIO Access Read
+              reports bit 0 = PIOA pin, bit 1 = PIOA latch, bit 2 = PIOB pin,
+              bit 3 = PIOB latch. The driver used to take bits 1/3; it now
+              returns the actual pins from `ds2413_read_pio()` /
+              `ds2413_last_pio()` and the commanded latches from the new
+              `ds2413_last_latches()`.
+            - **Unknown and unmodeled test targets fail clearly.**
+              `make test OW_TARGET=c5` no longer falls through to an F1 build;
+              C5 is firmware build/bench-only until a host mock exists (ten
+              families, nine host-modeled).
+            - **Version detection works with `mawk`.** The gawk-only
+              three-argument `match()` is gone, so `using GCC ..., Binutils ...`
+              is populated on Debian/Ubuntu hosts.
+            - **Documentation pass.** The DS2413 is in the supported-device
+              table and ownership wording, STM32C5 is covered across the guides,
+              the F446 bench description includes the DS2431/PA9/D2/D3 wiring,
+              and capture provenance is recorded per app.
+            - **One archive.** All variants ship inside `firmware-3.1.1.zip`.
 
             ## What's new in 3.1.0
 
@@ -504,7 +528,7 @@ jobs:
 
             ## Download
 
-            Everything ships in one archive, `firmware-3.1.0.zip`: `.bin` / `.hex` /
+            Everything ships in one archive, `firmware-3.1.1.zip`: `.bin` / `.hex` /
             `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
             checks. The table below names the artifact stems in that archive:
 

@@ -39,6 +39,10 @@
 │   ├── stm32l4/            # STM32L4: TIM1 + DMA1 + DMA1_CSELR + PA10
 │   │   ├── STM32L476RGTX_FLASH.ld  # Linker script, STM32L476RG (1MB flash / 96KB SRAM1)
 │   │   └── project-l476rg.jdebug   # SEGGER Ozone project (STM32L476RG, SWD)
+│   ├── stm32c5/            # STM32C5: TIM1 + LPDMA1 + PA10
+│   │   ├── STM32C552CE_FLASH.ld   # Linker script, STM32C552CE (512KB flash / 128KB SRAM)
+│   │   ├── project-c552ce.jdebug  # SEGGER Ozone project (STM32C552CE, SWD)
+│   │   └── HARDWARE-NOTES.md      # C5-specific DMA/timing notes
 │   ├── stm32f4/            # STM32F4: TIM1 + DMA2 + PA10
 │   │   ├── STM32F407VGT6_FLASH.ld  # Linker script, STM32F407VGT6 (1MB flash / 128KB RAM)
 │   │   ├── STM32F401CC_FLASH.ld    # Linker script, STM32F401CC (256KB flash / 64KB RAM)
@@ -153,7 +157,7 @@
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 headers/startup (F0/F1/F3/F4/G0/G4/L4/H5/H7); SVDs where available (none for H503/H743)
+│   └── device/             # STM32 headers/startup (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7); SVDs where available (none for H503/H743)
 ├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)

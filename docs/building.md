@@ -64,7 +64,7 @@
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/L4/H5/H7) are not stored in the
+ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -105,7 +105,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
-| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix; C5 is build/bench-only until its host mock exists |
+| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/h5/h7), the local equivalent of the CI family matrix; ten families, nine host-modeled — C5 is build/bench-only until its host mock exists |
 | `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
@@ -135,7 +135,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
-| `make test-ds2413` | Run the DS2413 switch driver suite alone (13 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ds2413` | Run the DS2413 switch driver suite alone (14 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|ds2413\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
@@ -187,7 +187,7 @@ make test-h5     # same suite against the STM32H5 backend mock
 make test-h7     # same suite against the STM32H7 backend mock
 make test-all-families  # every backend above in one run
 make test-ds2431 # DS2431 EEPROM suite (34 tests; also runs inside every make test)
-make test-ds2413 # DS2413 switch suite (13 tests; also runs inside every make test)
+make test-ds2413 # DS2413 switch suite (14 tests; also runs inside every make test)
 ```
 
 Both `src/onewire.c` and `src/ds18b20.c` are compiled as a single translation
@@ -217,7 +217,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    (which also runs the 250 MHz and 8 MHz host variants
    `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` as extras, same
    count). Every wrapper runs the DS2431 suite alongside it (34 tests, see
-   `make test-ds2431`) and the DS2413 suite (13 tests, see `make test-ds2413`).
+   `make test-ds2431`) and the DS2413 suite (14 tests, see `make test-ds2413`).
     The suite covers:
 
 -   State machine transitions (idle → start → measure → read → decode)
@@ -246,9 +246,9 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     the transfer width and direction, the address-increment bit, the timer
     repetition count, the peripheral request each channel must carry, and the
     accounting after the run (every scheduled transfer fired, both channels
-    drained). The same table runs on all nine host-test families; C5 is
-    build/bench-validated only until its host mock exists. The per-family
-    encoding of the same guarantee is pinned separately
+    drained). The same table runs on all nine host-modeled families (ten
+    buildable; C5 is build/bench-validated only until its host mock exists). The
+    per-family encoding of the same guarantee is pinned separately
     (`test_dma_cr_value_macros`)
 -   the temporal contract of every operation (`test_dma_contract`): the CCR3
     reload follows the slot-end compare and never precedes it, the pulse in
@@ -276,15 +276,16 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     end-to-end write cycle
 -   DS2413 switch transactions (`test_ds2413` in the separate
     `make test-ds2413` suite): PIO Access Read over Skip/Match ROM, reply
-    complement/0xFF validation, PIO Access Write state+complement bytes, 0xAA
-    acknowledge, state masking, presence abort, busy guard and select-while-busy
+    complement/0xFF validation, pin-versus-latch normalization, PIO Access Write
+    state+complement bytes, 0xAA acknowledge, state masking, presence abort,
+    busy guard and select-while-busy
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 34-test DS2431 and 13-test DS2413 suites, every family),
+tests + the 34-test DS2431 and 14-test DS2413 suites, every family),
 `make test-lowpower` (full suite + low-power WFE path: 339 tests against
 F0/F1, 340 against F3/F4/L4/H7, 341 against G0, 342 against G4, 343 against H5,
-plus the same 34 DS2431 and 13 DS2413 tests) and `make test-ndebug` (335 / 336 /
-337 / 338 / 339 + the same 34 + 13, asserts off).
+plus the same 34 DS2431 and 14 DS2413 tests) and `make test-ndebug` (335 / 336 /
+337 / 338 / 339 + the same 34 + 14, asserts off).
 
 ### Does the suite actually notice a broken DMA contract?
 
@@ -612,7 +613,7 @@ No files are copied: the library is added as a subproject and manages its own CM
 include(FetchContent)
 FetchContent_Declare(stm32_async_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v3.1.0
+    GIT_TAG        v3.1.1
 )
 FetchContent_MakeAvailable(stm32_async_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)
@@ -995,7 +996,7 @@ tasks are available via **Ctrl+Shift+P** → "Tasks: Run Task":
 
 The SVD file for the selected family is downloaded by `make download-deps`
 and loaded automatically for peripheral register views in the debug
-sidebar where an SVD is available (F0/F1/F3/F4/G0/G4/L4; there is no upstream
+sidebar where an SVD is available (F0/F1/F3/F4/G0/G4/L4/C5; there is no upstream
 SVD for H503 or H743 yet). Standalone SEGGER Ozone users can open `port/<mcu>/project.jdebug`
 from any backend directory; the project resolves its SVD and ELF paths
 relative to its own location. The F3 directory holds

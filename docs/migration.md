@@ -52,7 +52,7 @@ headers); `-Iinc` still suffices.
 These were the driver's calls into the engine, not bus primitives, and are now
 private as `ow_glue_start_timer()` and `ow_glue_kick()` in `src/ow_glue.h`.
 Application code must not schedule a timed wait or kick the state machine; the
-DS18B20/DS2431 drivers own that sequence.
+bundled slave drivers (DS18B20, DS2431, DS2413) own that sequence.
 
 ### `onewire_present()` needs the captured edge count
 
@@ -70,11 +70,12 @@ complete and before the next capture is armed. A reset that captured only the
 master-release edge reports `captured == 1` and cannot produce a device. The
 bundled drivers and the search engine already follow this contract.
 
-### Both driver inits may run before the first bus operation
+### All driver inits may run before the first bus operation
 
 The 2.x headers said a second `onewire_init()` and mixing DS18B20 with DS2431 in
-one image were unsupported. That was stricter than the code: `ds18b20_init()`
-and `ds2431_init()` may both run before any bus operation, and each
-`onewire_init()` re-applies the same idle configuration. A second init is still
-**not** a reset and must not be called during activity; only bus *ownership* is
-exclusive, one operation at a time. `examples/9_multi` relies on this.
+one image were unsupported. That was stricter than the code: `ds18b20_init()`,
+`ds2431_init()` and (since 3.1.0) `ds2413_init()` may all run before any bus
+operation, and each `onewire_init()` re-applies the same idle configuration. A
+second init is still **not** a reset and must not be called during activity;
+only bus *ownership* is exclusive, one operation at a time. `examples/9_multi`
+relies on this.

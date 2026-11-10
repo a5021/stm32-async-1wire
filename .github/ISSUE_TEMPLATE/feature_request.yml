@@ -35,6 +35,7 @@ body:
         - 1-Wire layer (inc/onewire.h, src/onewire.c)
         - DS18B20 driver (inc/ds18b20.h, src/ds18b20*.c)
         - DS2431 driver (inc/ds2431.h, src/ds2431*.c)
+        - DS2413 driver (inc/ds2413.h, src/ds2413.c)
         - Demo application (examples/)
         - Build system / tooling
         - Documentation

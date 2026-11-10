@@ -43,12 +43,16 @@ reset low pulse: standard (≥300 µs) or overdrive (~48–80 µs); explicit
 `Standard` / `Overdrive` is available when a capture is ambiguous or when
 mixing both speeds (a single profile cannot decode both at once).
 
-## Bundled 9_Multi capture
+## Bundled 9_Multi capture (F030 boot excerpt)
 
 `captures/9_multi_f030_boot.sr` (8 MHz, 32.8 M samples, 4.1 s, 65 KiB) —
 STM32F030 + `9_multi`, parasite power, 7× DS18B20 + 1× DS2431. This is the
-first boot excerpt after reflashing with `PEAK_RESET=1`, which forces both the
-EEPROM read and the write chains. It holds:
+embedded sample behind *Samples → Bundled 9_Multi capture*; it predates the
+DS2413 and therefore has no PIO channels. The published
+`../examples/captures/9_multi.sr` is the later F446 run that adds the DS2413
+(on channels 2/3 with `raw=1`). The F030 excerpt is the first boot after
+reflashing with `PEAK_RESET=1`, which forces both the EEPROM read and the write
+chains. It holds:
 
 - T1–T8 and T9–T16: two Search ROM scans, 8 passes each; both enumerate all
   8 devices;

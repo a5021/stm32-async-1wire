@@ -4,7 +4,9 @@
 Run on the STM32F030 bench with the fx2lafw analyzer on D1 (PA2) and the
 parasite-powered bus. `--mcu` selects another bench for a partial refresh; the
 manifest keeps its global bench and records a per-app `bench` when it differs
-(the 9_multi capture is taken on the F446 DS2413 bench). The script builds and
+(the 9_multi capture is taken on the F446 DS2413 bench). Every app entry also
+records its own `commit` and `generated` date, so a partial refresh cannot
+inherit the provenance of an older full run. The script builds and
 flashes each example, captures a generous window, trims it to the first reset
 plus the app's window, and writes a sigrok `.sr` archive the viewer can open
 with `?chan=1`.
@@ -264,6 +266,10 @@ def capture_one(entry, args):
         "window_us": int(round(end - start)),
         "description": entry["description"],
         "bench": args.mcu,
+        # Provenance per capture: a partial refresh must not inherit the
+        # manifest-wide commit/date of an unrelated earlier full run.
+        "commit": git_head(),
+        "generated": time.strftime("%Y-%m-%d"),
     }
 
 

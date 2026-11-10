@@ -61,7 +61,7 @@ build are in [Getting started](docs/getting-started.md).
 | [Examples](docs/examples.md) | The ten examples, including the DMA-pressure diagnostic rig |
 | [CPU profile](docs/cpu-profile.md) | Measured driver work for one measurement and one Search ROM pass |
 | [Hardware](docs/hardware.md) | Verified boards, wiring, electrical notes |
-| [Bench notes: F1](port/stm32f1/HARDWARE-NOTES.md) / [F4](port/stm32f4/HARDWARE-NOTES.md) | Per-port bring-up, DMA and timing measurements |
+| [Bench notes: F1](port/stm32f1/HARDWARE-NOTES.md) / [F4](port/stm32f4/HARDWARE-NOTES.md) / [C5](port/stm32c5/HARDWARE-NOTES.md) | Per-port bring-up, DMA and timing measurements |
 | [Architecture and RTOS](docs/architecture.md) | The TIM1+DMA engine, layer contracts, state machine, RTOS use |
 | [API, performance and configuration](docs/api-reference.md) | The public API, RAM/flash footprint, clocks and timing presets |
 | [Migrating from earlier releases](docs/migration.md) | The 3.0 `OW_PORT_*` rename table and other breaking changes |

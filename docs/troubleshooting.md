@@ -12,6 +12,7 @@
 - [Build fails with "no MCU selected", or selects the wrong backend](#build-fails-with-no-mcu-selected-or-selects-the-wrong-backend)
 - [Link fails with undefined references after enabling LTO](#link-fails-with-undefined-references-after-enabling-lto)
 - [An operation never completes, or the drivers interfere](#an-operation-never-completes-or-the-drivers-interfere)
+- [DS2413 PIO reads return 0xFF or writes fail](#ds2413-pio-reads-return-0xff-or-writes-fail)
 - [Parasite-powered sensors read 85.0 °C or 127.9 °C, or conversions fail](#parasite-powered-sensors-read-850-c-or-1279-c-or-conversions-fail)
 - [`ds18b20_poll()` blocks for hundreds of milliseconds](#ds18b20_poll-blocks-for-hundreds-of-milliseconds)
 - [The wrong pin is used, or a peripheral conflict appears](#the-wrong-pin-is-used-or-a-peripheral-conflict-appears)
@@ -100,15 +101,28 @@
 
 ### An operation never completes, or the drivers interfere
 
-- **Cause:** starting an operation while another owns TIM1/DMA, polling both
+- **Cause:** starting an operation while another owns TIM1/DMA, polling two
   drivers at once, or calling a second `*_init()` during activity. A second init
   is **not** a reset and does not stop an active operation.
 - **Fix:** keep one bus owner at a time. Finish and retire the operation with its
-  own `*_poll()` before the other driver starts, and never poll both
-  concurrently — `9_multi` shows the explicit owner state machine. Once activity
-  has started, a clean new driver lifecycle requires an MCU reset.
-  `ds18b20_start_measure()` and every `*_start()` are ignored while the bus is
-  busy.
+  own `*_poll()` before another driver starts, and never poll two concurrently —
+  `9_multi` shows the explicit owner state machine. Once activity has started, a
+  clean new driver lifecycle requires an MCU reset. `ds18b20_start_measure()` and
+  every `*_start()` are ignored while the bus is busy.
+
+### DS2413 PIO reads return 0xFF or writes fail
+
+- **Cause:** no valid reply (absent device, wrong ROM, bus not idle), a missing
+  parasite strong pull-up, or a PIO pin driven externally so the reply does not
+  match the latch.
+- **Fix:**
+  - Check `ds2413_last_reply()`: `0xFF` means no answer. Confirm the family code
+    `0x3A` and that the ROM passed to `ds2413_select()` is the device on the bus.
+  - On a parasite-powered DS2413 keep `-DOW_PARASITE_POWER=1`; the driver still
+    issues its own 1 ms strong pull-up prime before each operation.
+  - Finish any other driver operation first; the bus is single-owner.
+  - The driver retries a bad reply three times. A pin that is externally driven
+    reads back the actual level, not the commanded latch.
 
 ### Parasite-powered sensors read 85.0 °C or 127.9 °C, or conversions fail
 
