@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, h7]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
@@ -102,7 +102,7 @@ jobs:
         # keeping every backend's dependency set present lets any matrix cell
         # configure either target without re-downloading.
         run: make deps-all
-      # One step for all sixteen configurations: the family comes from the job
+      # One step for every configuration: the family comes from the job
       # matrix above, so only the variant list is spelled out here. The opt-in
       # variants rebuild the SAME suite with a feature flag changed -
       # test-lowpower with -DOW_LOW_POWER=1 (the WFE path: SEVONPEND,
