@@ -14,7 +14,7 @@
  * shared timer/DMA engine and returns immediately; the caller advances by
  * polling ow_port_bus_done(). The CPU is never in the timing-critical path.
  *
- * Layout: protocol constants, then the target facts (ow_mcu.h: the nine MCU
+ * Layout: protocol constants, then the target facts (ow_mcu.h: the ten MCU
  * sections, plus the family dispatch and ow_pulse_t from the public
  * ow_board.h), then the shared TIM1+DMA engine below.  Library-internal:
  * src/onewire.c is the only consumer, and the public headers never reach it.

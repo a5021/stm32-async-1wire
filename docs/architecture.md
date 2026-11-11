@@ -234,8 +234,8 @@ be moved to an arbitrary pin: the chosen GPIO must be the CH3/CH4 pair's
 output/capture pin on the selected timer.  On STM32F1 this is PA10
 (default AFIO map); on STM32F0, PA10 (AF2); on STM32F3, PA10 (AF6); on
 STM32G0, the PA12 pad remapped to logical PA10 via `SYSCFG_CFGR1.PA12_RMP`;
-on STM32G4, PA10 (AF6); on STM32L4, PA10 (AF1); on STM32F4, PA10 (AF1); and on
-STM32H5 and STM32H7, PA10 (AF1).
+on STM32G4, PA10 (AF6); on STM32L4, PA10 (AF1); on STM32F4, PA10 (AF1); on
+STM32C5, PA10 (AF1); and on STM32H5 and STM32H7, PA10 (AF1).
 
 #### 3. DMA
 
@@ -253,7 +253,8 @@ request 45.  L4 keeps the classic DMA1 channels but selects the request in
 `DMA1_CSELR`: selection 7 is TIM1_CH2 on channel 3 and TIM1_CH4 on channel 4
 (the selector is per-channel).  F4 uses DMA2 with the per-stream `CHSEL` field
 set to 6 (`TIM1_CH2`/`TIM1_CH4`): stream 2 = feed, stream 4 = capture.  H5 uses
-GPDMA1 with `REQSEL` 59 (feed) and 61 (capture); H7 uses DMA1 streams 2/3 with
+GPDMA1 with `REQSEL` 59 (feed) and 61 (capture); C5 uses LPDMA1 the same way,
+with `REQSEL` 25 (feed) and 27 (capture); H7 uses DMA1 streams 2/3 with
 DMAMUX1 requests 12 (feed) and 14 (capture).  A new
 backend must verify the DMA request numbers for its target; the channel roles
 are identical across all families.
@@ -273,8 +274,9 @@ are identical across all families.
   and 180 MHz and *relies* on the doubling (84→168, 42→84, 90→180), with
   PPRE2=/1 only on the raw-HSI and raw-HSE paths; G4 and L4 leave every
   prescaler at /1 at both of their clocks; H5 leaves every prescaler at /1 at
-  64, 8 and 250 MHz; H7 runs APB1/2/3/4 at /2, so the timer doubling gives
-  TIM1 = 240 MHz even when CPU/SYSCLK is the opt-in 480 MHz.  See
+  64, 8 and 250 MHz; C5 leaves every prescaler at /1 at 144, 48 and 8 MHz
+  (HSE → PSI, HSIDIV3 and raw HSE); H7 runs APB1/2/3/4 at /2, so the timer
+  doubling gives TIM1 = 240 MHz even when CPU/SYSCLK is the opt-in 480 MHz.  See
   `examples/app/app.c`.
   
   #### 5. GPIO

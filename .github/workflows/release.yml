@@ -566,7 +566,7 @@ jobs:
             - **True non-blocking 1-Wire**: TIM1 Output Compare + Input Capture with DMA - a hardware state machine does the timing, the CPU just polls a flag
             - **Zero interrupts**: no NVIC IRQs at all
             - **Pure bare-metal C**: register-level, no HAL/LL, arm-none-eabi-gcc
-            - **Nine MCU backends**: STM32F0 (bus on PA10), STM32F1 (bus on PA10), STM32F3 (bus on PA10), STM32F4 (bus on PA10), STM32G0 (bus on PA12 via remap), STM32G4 (bus on PA10), STM32L4 (bus on PA10), STM32H5 (bus on PA10), STM32H7 (bus on PA10), one shared core
+            - **Ten MCU backends**: STM32F0 (bus on PA10), STM32F1 (bus on PA10), STM32F3 (bus on PA10), STM32F4 (bus on PA10), STM32G0 (bus on PA12 via remap), STM32G4 (bus on PA10), STM32L4 (bus on PA10), STM32C5 (bus on PA10), STM32H5 (bus on PA10), STM32H7 (bus on PA10), one shared core
             - **Accuracy**: 0.1 C resolution, +/-0.5 C typical, one reading every ~0.76 s
             - **CRC-8 validation** on every 9-byte scratchpad read
             - **Weak callbacks** `ds18b20_busy()` / `ds18b20_complete()`

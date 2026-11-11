@@ -401,7 +401,8 @@ Load activity: channel 1 restarted its finite burst 8300/1400 times at level 4
 and 3500/700 times at level 5 (the CPU hammer takes part of the restart time).
 The CPU pass counts are in the table. The feed stayed clean at a 2 µs window in
 every cell, so the 5 µs default needs no change on F0. This result is specific
-to the F030; other DMA IPs (F4 streams, H5/H7 GPDMA) need their own run.
+to the F030; other DMA IPs (F4 streams, H5 GPDMA, C5 LPDMA) need their own
+run.
 
 Circular mem-to-memory is not allowed on F0 (RM0091), so level 4 is a stream of
 restartable finite bursts on channel 1.

@@ -36,8 +36,9 @@ void ds18b20_init(void);
 ```
 Initialize the DS18B20 driver. Enables the peripherals the backend needs (the bus
 GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4,
-GPDMA1 on H5, DMA1 through DMAMUX1 on H7) and sets up the timer prescaler for a
-1 µs resolution. System clock configuration is handled separately in the
+GPDMA1 on H5, LPDMA1 on C5, DMA1 through DMAMUX1 on H7) and sets up the timer
+prescaler for a 1 µs resolution. System clock configuration is handled
+separately in the
 application (see `app.c`). This function does NOT start a measurement.
 
 ```c
@@ -141,7 +142,7 @@ hold `slots + 1` entries, the last one equal to `ONEWIRE_RELEASE_PULSE` — the
 hardware bus-release sentinel, not an extra slot (a single-slot write uses a
 separate path and reads only entry 0). `onewire_encode_byte()` and the
 `ow_pulse_t` type are declared in `inc/onewire.h` alongside the rest of the
-layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0/G4/L4/H5 and 16 bits on F4/H7.
+layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0/G4/L4/C5/H5 and 16 bits on F4/H7.
 
 Two startup checks guard the two silent mismatches between the archive and the
 application. `onewire_config_token()` reports the `OW_CONFIG_TOKEN` the
@@ -802,9 +803,14 @@ once):
 | STM32G4 | 329 B | 652 B | 432 B |
 | STM32L4 | 329 B | 652 B | 432 B |
 | STM32H5 | 329 B | 652 B | 432 B |
+| STM32C5 | 329 B | 2192 B | 1976 B |
 
-The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4 and
-H5 latch 8-bit entries like F0. The F1, F3 and H7 backends are not part of this
+The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4, H5
+and C5 latch 8-bit entries like F0, so the driver-owned sum is the same 329 B
+everywhere except F4. The C5 totals are larger for a linker-script reason, not
+a driver one: its script places the stack and the heap inside RAM, so they
+count in the image's `.bss`, while the other scripts put the stack at the top
+of RAM where it does not. The F1, F3 and H7 backends are not part of this
 gate; F1/F3 use the 8-bit layout and H7 the 16-bit one, so expect their numbers
 to land in the same range as F0 and F4 respectively.
 
@@ -856,7 +862,7 @@ point of how the project is laid out:
   | `CHIP_LINKER` | linker script — the memory map is the part's own |
   | `CHIP_JFLASH` / `CHIP_JDEBUG` | J-Flash (where available) and SEGGER Ozone projects |
   | `CHIP_SVD` | register view for debuggers (optional; no upstream SVD for H503/H743) |
-  | `CHIP_HSE_MHZ` | the board crystal the part file is named after (F3/F4/G4/L4/H5/H7), overridable via `HSE_MHZ` |
+  | `CHIP_HSE_MHZ` | the board crystal the part file is named after (F3/F4/G4/C5/H5/H7), overridable via `HSE_MHZ` |
   | `CHIP_SYSCLK_MHZ` | the part's default clock, overridable via `SYSCLK_MHZ` |
 
 Both build systems read the same file, so they cannot drift on the device macro,

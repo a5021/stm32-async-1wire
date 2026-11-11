@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The STM32C5 backend is now covered by the static-analysis and RAM-budget
+  gates.** `make cppcheck` reads `stm32c552xx.h` and analyses the C5
+  configuration at 144, 48 and 8 MHz, `make deps-all` fetches the C5 device
+  package, and `tests/check_ram_budget.sh` measures the C5 images: 329 B of
+  driver-owned `.bss` (like the other 8-bit-pulse families), 2192 B / 1976 B
+  total - larger than the other families' because the C5 linker script places
+  the stack and the heap inside RAM.
+
+### Fixed
+
+- **The documentation matches the code again.** The C5 backend was missing from
+  the family lists (README, architecture, API reference, getting started,
+  project, examples, file structure, `make help`, the release notes), the
+  per-family host-suite test counts were two low for every family, and the C5
+  hardware notes still described the backend as initial with six open
+  questions the bench had already answered.
+
 ## [3.1.2] - 2026-11-10
 
 ### Added

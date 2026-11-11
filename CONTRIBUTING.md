@@ -77,7 +77,7 @@ interrupt-free, minimal CPU usage).
 make                # release build (must succeed with -Werror)
 make SYSCLK_MHZ=8   # 8MHz variant
 make debug          # optional, for debugging
-make test           # host suite (F1); test-all-families = f0/f1/f3/f4/g0/g4/l4/h5/h7
+make test           # host suite (F1); test-all-families = f0/f1/f3/f4/g0/g4/l4/c5/h5/h7
 make test-ds2431    # the DS2431 EEPROM driver suite
 make test-ds2413    # the DS2413 switch driver suite
 make test-lowpower  # same suite with the -DOW_LOW_POWER=1 WFE path

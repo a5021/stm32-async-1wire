@@ -104,7 +104,8 @@ on the bus primitives.
   [1-Wire Layer (shared)](docs/api-reference.md#1-wire-layer-shared).
   - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
     header-only backends for STM32F0, STM32F1, STM32F3, STM32F4, STM32G0,
-    STM32G4, STM32L4, STM32H5 and STM32H7, all on the shared CH3/CH4 scheme.
+    STM32G4, STM32L4, STM32C5, STM32H5 and STM32H7, all on the shared CH3/CH4
+    scheme.
     Select at build time with `make OW_MCU=STM32F030x6` /
     `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
     `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` /

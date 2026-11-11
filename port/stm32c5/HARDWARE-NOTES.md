@@ -1,9 +1,10 @@
 # WeAct STM32C5 48-pin Core Board - bring-up notes
 
-Status: initial backend. `2_device_search` is bench-proven on the WeAct board
-with seven parasite-powered DS18B20 at 144 MHz (HSE -> PSI), 48 MHz HSI
-(HSIDIV3) and raw 8 MHz HSE; the remaining examples and the low-power path are
-still to be checked.
+Status: bench-validated. Every example in the matrix below was run on the
+WeAct board with seven parasite-powered DS18B20 at 144 MHz (HSE -> PSI), 48 MHz
+HSIDIV3 and raw 8 MHz HSE, and the backend is host-modelled as well
+(`tests/mock/stm32c5xx.h`), so the LPDMA request routing and the BNDT byte
+counts are pinned by the test suite.
 
 ## Part and board
 
@@ -37,7 +38,9 @@ still to be checked.
 - TIM1 sits on APB2. With APB2 divided by 1, `PSC = SYSCLK_MHZ - 1` gives the
   same 1 us tick as the other families: 143 at 144 MHz.
 
-Open checks: PSI lock/failure handling and voltage scaling at 144 MHz.
+The PSI wait is bounded like the HSE and switch waits on the other families,
+and this backend needs no voltage scaling: the library does not touch PWR on
+the C5.
 
 Bench result: 144 MHz is HSE -> PSI with `PSIREF = 8 MHz`, `PSIFREQ = 144 MHz`
 and 4 flash wait states; `CFGR1 = 0x1B` (SW/SWS = PSIS) and `CR2 = 0x10100000`.
@@ -54,16 +57,18 @@ with 0 wait states. APB1/2/3 stay at /1 in all three.
   no DMAMUX.
 - Request numbers from `stm32c5xx_ll_dma.h`:
   `LL_LPDMA1_REQUEST_TIM1_CC2 = 25`, `LL_LPDMA1_REQUEST_TIM1_CC4 = 27`.
-- Proposed assignment: feed on **LPDMA1_CH2** (TIM1_CC2), capture on
-  **LPDMA1_CH3** (TIM1_CC4).
+- Assignment (implemented and bench-validated): feed on **LPDMA1_CH2**
+  (TIM1_CC2), capture on **LPDMA1_CH3** (TIM1_CC4).
 - Feed entries stay 8-bit: LPDMA converts widths in hardware to the CCR3
   halfword. Capture reads the CCR4 halfword into 16-bit durations. `CBR1.BNDT`
   counts bytes, so a halfword source needs `count * 2`.
 - The CTR1 bit names match the H5 backend (`SDW_LOG2`, `DDW_LOG2`, `SINC`,
   `DINC`), and `CFCR.TCF/SUSPF`, `CCR.EN`, `CBR1.BNDT` are present.
 
-Open checks: confirm the request numbers against the C5 reference manual and
-that LPDMA1 channels 2/3 have no unexpected restrictions.
+Confirmed: the request numbers match the C5 reference manual and CubeC5's
+`stm32c5xx_ll_dma.h`, and LPDMA1 channels 2/3 carry no conflicting request
+(the console is polled, never DMA-fed). The host suite pins both numbers in
+the live registers (`test_dma_contract`).
 
 ## CMSIS and startup
 
@@ -85,9 +90,9 @@ that LPDMA1 channels 2/3 have no unexpected restrictions.
 ## Interrupts and low power
 
 - TIM1 update vector is `TIM1_UPD_IRQn = 37` (split update vector, like H5).
-- Planned low-power path is unchanged: UIE plus SEVONPEND wake the core from
-  WFE, UIF remains the completion flag, and no ISR is installed.
-- Open check: confirm SEVONPEND and pending-bit retirement on C5.
+- The low-power path is unchanged: UIE plus SEVONPEND wake the core from
+  WFE, UIF remains the completion flag, and no ISR is installed. `7_low_power`
+  passes at all three clocks.
 
 ## Bench status
 
@@ -129,15 +134,31 @@ seven devices on the bus, because Read ROM is only valid with one device. The
 DS2431 write/read-back and the 9_multi peak/low cycles complete on all three
 clocks.
 
+## Host model
+
+The backend is host-modelled in `tests/mock/stm32c5xx.h`: the mock carries the
+LPDMA channel registers (`CTR1`/`CTR2`/`CBR1`/`CSAR`/`CDAR`), the RCC
+`CR1`/`CR2`/`CFGR1` clock path and the GPIO registers, so
+`make test OW_TARGET=c5` runs the whole suite at 144, 48 and 8 MHz and
+`tests/check_mock_headers.sh` compares the mock's macros against
+`stm32c552xx.h`.
+
 ## Open questions
 
-1. PSI lock/failure handling and voltage scaling at 144 MHz.
-2. LPDMA request mapping and channel restrictions.
-3. TIM1 CH4 indirect capture via TI3 and `TISEL` on C5.
-4. PA10 AF1 and USART1 AF7 on the actual board.
-5. WFE wake-up and TIM1 update pending behaviour.
-6. Flashing/debug: ST-Link over SWD, option bytes and boot selection.
-7. CMSIS package pinning and license review.
+1. CMSIS package pinning and license review.
+
+The rest of this list is answered by the bench runs above:
+
+- PSI lock/failure handling: the HSE and PSI waits are bounded, and a missing
+  crystal stops the boot with a console message instead of hanging.
+- LPDMA request mapping: 25/27, confirmed against the reference manual and
+  CubeC5 and pinned by the host suite.
+- TIM1 CH4 indirect capture via TI3 and `TISEL`: works on the bench.
+- PA10 AF1 and USART1 AF7 on the actual board: confirmed.
+- WFE wake-up and TIM1 update pending behaviour: `7_low_power` passes at all
+  three clocks.
+- Flashing/debug: ST-Link over SWD works; the same image was also flashed
+  with STM32CubeProgrammer 2.23.
 
 ## Sources
 

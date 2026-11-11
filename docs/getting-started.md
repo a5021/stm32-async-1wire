@@ -62,7 +62,8 @@ The bus hardware is fixed by design, not configurable. Check these five
 facts before wiring or porting:
 
 - **Bus pin is PA10 (TIM1_CH3).** F0 AF2, F1 default map, F3 AF6, F4 AF1,
-  C5 AF1, G4 AF6, H5/H7 AF1; G0 uses the PA12 pad remapped to logical PA10 via
+  L4 AF1, C5 AF1, G4 AF6, H5/H7 AF1; G0 uses the PA12 pad remapped to logical
+  PA10 via
   `SYSCFG_CFGR1.PA12_RMP` (see Hardware Connections). There is no pin or
   timer choice: the IC4→TI3 capture topology requires this pair.
 - **TIM1 + DMA pair + bus pin belong to the library after init.**

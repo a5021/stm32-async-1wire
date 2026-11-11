@@ -933,6 +933,7 @@ deps-all:
 	@$(MAKE) --no-print-directory OW_MCU=STM32G031xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32G474xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32L476xx download-deps
+	@$(MAKE) --no-print-directory OW_MCU=STM32C552xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32H503xx download-deps
 	@$(MAKE) --no-print-directory OW_MCU=STM32H743xx download-deps
 
@@ -964,7 +965,7 @@ CPPCHECK_SOURCES = src/ds18b20.c src/ds2431.c src/ds2413.c src/onewire.c src/ow_
                    examples/app/app.c $(wildcard examples/*/main.c)
 CPPCHECK_DEVICES = stm32f103xb.h stm32f030x6.h stm32g031xx.h stm32f303xc.h \
                    stm32f407xx.h stm32f446xx.h stm32g474xx.h stm32l476xx.h \
-                   stm32h503xx.h stm32h743xx.h
+                   stm32c552xx.h stm32h503xx.h stm32h743xx.h
 # label|defines (quoted: the shell would read the pipe and the spaces as
 # syntax, and each item must stay one word of the for list)
 CPPCHECK_PASSES = \
@@ -978,6 +979,9 @@ CPPCHECK_PASSES = \
 	'g4-16|-DSTM32G474xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
 	'l4-80|-DSTM32L476xx -DOW_SYSCLK_MHZ=80 -D__GNUC__' \
 	'l4-16|-DSTM32L476xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
+	'c5-144|-DSTM32C552xx -DOW_SYSCLK_MHZ=144 -D__GNUC__' \
+	'c5-48|-DSTM32C552xx -DOW_SYSCLK_MHZ=48 -D__GNUC__' \
+	'c5-8|-DSTM32C552xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'h5-64|-DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
 	'h5-250|-DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'h5-8|-DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__' \
@@ -2036,11 +2040,11 @@ help:
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
 	@echo "  lib             - Build only libstm32_async_1wire_<stamp>.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
-	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
+	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
 	@echo "  test-all-families - ... against every host backend in OW_HOST_TEST_TARGETS, one run"
-	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
-	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
-	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
+	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
+	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
+	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
 	@echo "  test-dma-prio   - contract suite with -DOW_DMA_PRIO=3 (f0/f4/h5/h7, one per encoding)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-ds2413     - run the DS2413 switch driver suite alone"
@@ -2052,7 +2056,7 @@ help:
 	@echo "  update-public-api - Rewrite tests/api/public-api.txt after a deliberate API change"
 	@echo "  test-viewer     - Run the 1-Wire visualizer selftest in headless Chromium (needs Playwright)"
 	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
-	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-h5/-h7)"
+	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  check           - Pre-push gate: formatting, cppcheck, version, HIL parsers (no toolchain)"

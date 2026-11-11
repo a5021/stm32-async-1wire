@@ -13,7 +13,7 @@ version:
    DS2431 and DS2413 suites) for the default F1 backend, or
    `make test-all-families` for
    every backend; `make test-<family>` runs one (`f0`, `f1`, `f3`, `f4`, `g0`,
-   `g4`, `l4`, `h5`, `h7`).
+   `g4`, `l4`, `c5`, `h5`, `h7`).
 3. Format touched sources with the repo's `.clang-format`
    (`clang-format --dry-run --Werror <files>` must pass), using the
    `clang-format` version CI pins — see the `format` job in
@@ -49,6 +49,8 @@ For issues and questions, please open an issue on GitHub.
 - STM32L4 Reference Manual (RM0394)
 - STM32H5 Reference Manual (RM0492)
 - STM32H7 Reference Manual (RM0433)
+- STM32C5 Reference Manual (RM0522)  
+  https://www.st.com/resource/en/reference_manual/rm0522-stm32c5-series-armbased-32bit-mcus-stmicroelectronics.pdf
 
 - 1-Wire Protocol Specification  
   https://www.analog.com/en/resources/technical-articles/1wire-communication.html

@@ -45,10 +45,17 @@
 #   g4             329                 652              432
 #   l4             329                 652              432
 #   h5             329                 652              432
+#   c5             329                2192             1976
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
 # (h5 measured 2026-10-10: same uint8_t pulse tables again - GPDMA converts
 # widths in hardware, so no F4-style halfword tables - hence the same 329.)
+# (c5 measured 2026-11-11: the same uint8_t pulse tables, so the driver-owned
+# sum is the same 329. The two totals are larger because the C5 linker script
+# places the stack and the heap inside RAM (STACK_SIZE/HEAP_SIZE after
+# `end`), so they are part of the image's .bss; the other scripts put the
+# stack at the top of RAM, where it is not. The gap is structural, not
+# driver growth.)
 #
 # 2026-10-14: ONEWIRE_PARAM_CHECK replaced assert(0) in the onewire.c reject
 # paths (fail-soft everywhere, trap only under the test harness). The 5_commands
@@ -223,6 +230,7 @@ check STM32F407xx 434 756 536
 check STM32G474xx 329 652 432
 check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
+check STM32C552xx 329 2192 1976
 
 check_app STM32F030x6 0_dma_pressure 2456 1484
 check_app STM32F030x6 6_statistics 6336 1788
