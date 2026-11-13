@@ -20,10 +20,10 @@
 # so they are the first to break on innocent growth. Both text (flash proxy;
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
-#   0_dma_pressure 2456    1484   (diagnostic; 1024 B of it is the stress array)
-#   6_statistics   6336    1788
-#   8_ds2431       6156    768
-#   9_multi        12792   1456
+#   0_dma_pressure 2556    1484   (diagnostic; 1024 B of it is the stress array)
+#   6_statistics   6484    1788
+#   8_ds2431       5700    768
+#   9_multi        12332   1456
 #
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
@@ -38,6 +38,14 @@
 # start-timeout status and its telemetry word (the extra word is 4 B).
 # 2026-11-05: text 2424->2456, bss 1480->1484 for the load-channel error
 # telemetry word and the checks around it.
+# 2026-11-13: 0_dma_pressure text 2456->2556 and 6_statistics 6336->6484 for
+#   the pulse-encoder and CRC nibble tables (+64 B encoder table, +16 B CRC-8
+#   table, plus the two-lookup bodies where the old shifted loop was
+#   smaller); 8_ds2431 6156->5700 and 9_multi 12792->12332 because the same
+#   change replaces their unrolled CRC-8/CRC-16 bit loops with two lookups
+#   per byte: less code and ~4.8x/4.4x fewer instructions. No .bss movement.
+#   The encoder table is 128 B rather than 64 on the 16-bit ow_pulse_t
+#   families (F4/H7), which are not text-gated here.
 # 2026-11-10: 9_multi text 12764->12792 for the DS2413 pin/latch split.
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
 #   f0             329                 652              432
@@ -309,10 +317,10 @@ check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
 check STM32C552xx 329 2192 1976
 
-check_app STM32F030x6 0_dma_pressure 2456 1484
-check_app STM32F030x6 6_statistics 6336 1788
-check_app STM32F030x6 8_ds2431 6156 768
-check_app STM32F030x6 9_multi 12792 1456
+check_app STM32F030x6 0_dma_pressure 2556 1484
+check_app STM32F030x6 6_statistics 6484 1788
+check_app STM32F030x6 8_ds2431 5700 768
+check_app STM32F030x6 9_multi 12332 1456
 
 if [ "$fail" -ne 0 ]; then
     exit 1
