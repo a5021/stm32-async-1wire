@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The CMake build no longer shallow-clones the CMSIS device package.** On the
+  CI runner the H7 pin came back from `git fetch --depth 1` with a missing tree
+  (`fatal: unable to read tree`), so that leg failed at configure while every
+  other family passed. A full clone checks the pinned SHA out reliably.
+
 - **The standalone-consumer template compiled the library at `-O3`.** Its
   `-Os` was app-local, so `CMAKE_BUILD_TYPE=Release` left `owlib` on CMake's
   default and the vendored path did not match the advertised size profile.
