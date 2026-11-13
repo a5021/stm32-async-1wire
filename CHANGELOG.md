@@ -39,6 +39,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hardware notes still described the backend as initial with six open
   questions the bench had already answered.
 
+### Changed
+
+- **The CRC-8/CRC-16 helpers and the pulse encoder/decoder run from compact
+  tables.** `onewire_crc8()`, `onewire_crc16()` and `onewire_encode_byte()` now
+  do two nibble lookups per byte instead of eight shift/XOR (or shift/branch)
+  rounds, and `onewire_decode_pulses()` classifies four captured slots at a
+  time with a packed compare that is exact for every 8-bit capture value, not
+  just for the two widths the bus produces. The output is unchanged: the host
+  suite compares each helper against the bit-wise definition for every byte
+  value, and the existing fuzz harnesses keep the per-bit equivalence property.
+  On the release profile (`-Os`) the hot paths execute roughly 4.8x (CRC-8),
+  4.4x (CRC-16), 3.4x (encoder) and 2.0x (decoder) fewer instructions. The
+  tables cost about 112 bytes of flash on the 8-bit families (176 on F4/H7).
+  The aggregate CPU profile in `docs/cpu-profile.md` was not re-run.
+
 ## [3.1.2] - 2026-11-10
 
 ### Added

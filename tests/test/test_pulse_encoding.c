@@ -166,6 +166,21 @@ void test_onewire_decode_pulses_two_bytes(void) {
     TEST_ASSERT_EQUAL_UINT8(0xAA, dst[1]);
 }
 
+/* The encoder is table-driven: prove every row against the bit-wise
+ * definition, so a transposed or shifted row cannot pass. The other tests here
+ * only exercise a handful of byte values. */
+void test_onewire_encode_byte_matches_bitwise_reference(void) {
+    ow_pulse_t out[ONEWIRE_BITS_PER_BYTE];
+    for (int value = 0; value < 256; value++) {
+        onewire_encode_byte(out, (uint8_t)value);
+        for (int bit = 0; bit < ONEWIRE_BITS_PER_BYTE; bit++) {
+            ow_pulse_t want =
+                ((value >> bit) & 1) ? (ow_pulse_t)ONEWIRE_ONE_PULSE : (ow_pulse_t)ONEWIRE_ZERO_PULSE;
+            TEST_ASSERT_EQUAL_UINT8(want, out[bit]);
+        }
+    }
+}
+
 /* The decoder classifies four slots at a time with a packed compare. Prove it
  * against onewire_bit_from_pulse() for every possible capture value in every
  * slot position: the packed form must stay exact for values on both sides of
@@ -228,6 +243,7 @@ void run_test_pulse_encoding(void) {
     TEST_RUN(test_onewire_decode_pulses_all_long_is_0x00);
     TEST_RUN(test_onewire_decode_pulses_pattern);
     TEST_RUN(test_onewire_decode_pulses_two_bytes);
+    TEST_RUN(test_onewire_encode_byte_matches_bitwise_reference);
     TEST_RUN(test_onewire_decode_pulses_matches_per_bit_reference);
     TEST_RUN(test_onewire_decode_pulses_max_length);
 }

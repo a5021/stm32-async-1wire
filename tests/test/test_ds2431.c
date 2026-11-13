@@ -184,6 +184,38 @@ void test_crc16_maxim_vector(void) {
     TEST_ASSERT_EQUAL_HEX16(0x0000, onewire_crc16(v, 0));
 }
 
+/* Bit-wise reference for the table-driven helper: the same reflected loop
+ * the primitive used before the table existed, so the table is proven against
+ * the definition and not only against the published vector. */
+static uint16_t crc16_reference(const uint8_t* data, uint8_t len) {
+    uint16_t crc = 0;
+    for (uint8_t i = 0; i < len; i++) {
+        crc ^= data[i];
+        for (uint8_t bit = 0; bit < 8u; bit++) {
+            if (crc & 0x0001u) {
+                crc = (uint16_t)((crc >> 1) ^ 0xA001u); /* ONEWIRE_CRC16_POLY */
+            } else {
+                crc = (uint16_t)(crc >> 1);
+            }
+        }
+    }
+    return crc;
+}
+
+void test_crc16_table_matches_bitwise_reference(void) {
+    uint8_t data[16];
+    for (int value = 0; value < 256; value++) {
+        data[0] = (uint8_t)value;
+        TEST_ASSERT_EQUAL_HEX16(crc16_reference(data, 1), onewire_crc16(data, 1));
+    }
+    for (uint8_t len = 0; len <= 16u; len++) {
+        for (uint8_t i = 0; i < len; i++) {
+            data[i] = (uint8_t)(0xA5u + (uint8_t)(i * 29u));
+        }
+        TEST_ASSERT_EQUAL_HEX16(crc16_reference(data, len), onewire_crc16(data, len));
+    }
+}
+
 /*-------------------------------------------------------------
  *  2. Read Memory
  * -----------------------------------------------------------*/
@@ -771,6 +803,7 @@ void test_write_cycle_e2e(void) {
 void run_test_ds2431(void) {
     TEST_RUN(test_ds2431_init_state);
     TEST_RUN(test_crc16_maxim_vector);
+    TEST_RUN(test_crc16_table_matches_bitwise_reference);
     TEST_RUN(test_read_memory_skip_rom);
     TEST_RUN(test_read_memory_match_rom);
     TEST_RUN(test_read_memory_no_presence_aborts);
