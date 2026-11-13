@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-13 20:45:30</td>
+            <td class="headerValue">2026-11-13 21:23:23</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
@@ -375,24 +375,24 @@
 <span id="L304"><span class="lineNum">     304</span>                 :             : _Static_assert(ONEWIRE_SHORT_PULSE_MAX + 1 &lt;= 0x80,</span>
 <span id="L305"><span class="lineNum">     305</span>                 :             :                &quot;onewire_decode_pulses: the packed compare needs a threshold &lt;= 128&quot;);</span>
 <span id="L306"><span class="lineNum">     306</span>                 :             : </span>
-<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">       53238 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
-<span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">       53238 :     const uint32_t limit = (uint32_t)(ONEWIRE_SHORT_PULSE_MAX + 1) * 0x01010101u;</span></span>
-<span id="L309"><span class="lineNum">     309</span>         [<span class="tlaGBC" title="Branch 0 was taken 67031 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 53238 times"> + </span>]:<span class="tlaGNC">      120269 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
-<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">       67031 :         const volatile uint8_t* p = pulse + (uint32_t)byte * ONEWIRE_BITS_PER_BYTE;</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">       67031 :         uint8_t value = 0;</span></span>
-<span id="L312"><span class="lineNum">     312</span>         [<span class="tlaGBC" title="Branch 0 was taken 134062 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67031 times"> + </span>]:<span class="tlaGNC">      201093 :         for (uint8_t half = 0; half &lt; 2u; half++) {</span></span>
-<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">      134062 :             uint32_t w = (uint32_t)p[0] | ((uint32_t)p[1] &lt;&lt; 8) | ((uint32_t)p[2] &lt;&lt; 16) |</span></span>
-<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">      134062 :                          ((uint32_t)p[3] &lt;&lt; 24);</span></span>
-<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">      134062 :             uint32_t x = (w &amp; 0x7F7F7F7Fu) | 0x80808080u;</span></span>
-<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">      134062 :             uint32_t t = ((x - limit) &amp; 0x80808080u) ^ 0x80808080u;</span></span>
-<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">      134062 :             uint32_t f = t &amp; ~w &amp; 0x80808080u;</span></span>
-<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">      134062 :             uint32_t bits = (f &gt;&gt; 7) | (f &gt;&gt; 14) | (f &gt;&gt; 21) | (f &gt;&gt; 28);</span></span>
-<span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaGNC">      134062 :             value = (uint8_t)(value | (uint8_t)((bits &amp; 0x0Fu) &lt;&lt; (half * 4u)));</span></span>
-<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">      134062 :             p += 4;</span></span>
+<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">      173288 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
+<span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">      173288 :     const uint32_t limit = (uint32_t)(ONEWIRE_SHORT_PULSE_MAX + 1) * 0x01010101u;</span></span>
+<span id="L309"><span class="lineNum">     309</span>         [<span class="tlaGBC" title="Branch 0 was taken 187081 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 173288 times"> + </span>]:<span class="tlaGNC">      360369 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">      187081 :         const volatile uint8_t* p = pulse + (uint32_t)byte * ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">      187081 :         uint8_t value = 0;</span></span>
+<span id="L312"><span class="lineNum">     312</span>         [<span class="tlaGBC" title="Branch 0 was taken 374162 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 187081 times"> + </span>]:<span class="tlaGNC">      561243 :         for (uint8_t half = 0; half &lt; 2u; half++) {</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">      374162 :             uint32_t w = (uint32_t)p[0] | ((uint32_t)p[1] &lt;&lt; 8) | ((uint32_t)p[2] &lt;&lt; 16) |</span></span>
+<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">      374162 :                          ((uint32_t)p[3] &lt;&lt; 24);</span></span>
+<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">      374162 :             uint32_t x = (w &amp; 0x7F7F7F7Fu) | 0x80808080u;</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">      374162 :             uint32_t t = ((x - limit) &amp; 0x80808080u) ^ 0x80808080u;</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">      374162 :             uint32_t f = t &amp; ~w &amp; 0x80808080u;</span></span>
+<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">      374162 :             uint32_t bits = (f &gt;&gt; 7) | (f &gt;&gt; 14) | (f &gt;&gt; 21) | (f &gt;&gt; 28);</span></span>
+<span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaGNC">      374162 :             value = (uint8_t)(value | (uint8_t)((bits &amp; 0x0Fu) &lt;&lt; (half * 4u)));</span></span>
+<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">      374162 :             p += 4;</span></span>
 <span id="L321"><span class="lineNum">     321</span>                 :             :         }</span>
-<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">       67031 :         dst[byte] = value;</span></span>
+<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">      187081 :         dst[byte] = value;</span></span>
 <span id="L323"><span class="lineNum">     323</span>                 :             :     }</span>
-<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">       53238 : }</span></span>
+<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">      173288 : }</span></span>
 <span id="L325"><span class="lineNum">     325</span>                 :             : </span>
 <span id="L326"><span class="lineNum">     326</span>                 :             : /* Pre-encoded slots, four per nibble, LSB-first: row n holds the durations for</span>
 <span id="L327"><span class="lineNum">     327</span>                 :             :  * bits 0..3 of n. The encoder used to run eight shift/branch rounds per byte;</span>
