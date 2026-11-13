@@ -31,13 +31,13 @@
             <td class="headerValue">stm32-async-1wire core coverage</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.3&nbsp;%</td>
-            <td class="headerCovTableEntry">193</td>
-            <td class="headerCovTableEntry">184</td>
+            <td class="headerCovTableEntryHi">95.6&nbsp;%</td>
+            <td class="headerCovTableEntry">205</td>
+            <td class="headerCovTableEntry">196</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-13 04:34:11</td>
+            <td class="headerValue">2026-11-13 20:45:30</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
@@ -49,9 +49,9 @@
             <td></td>
             <td></td>
             <td class="headerItem">Branches:</td>
-            <td class="headerCovTableEntryHi">90.2&nbsp;%</td>
-            <td class="headerCovTableEntry">123</td>
+            <td class="headerCovTableEntryMed">89.2&nbsp;%</td>
             <td class="headerCovTableEntry">111</td>
+            <td class="headerCovTableEntry">99</td>
           </tr>
                   <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -237,10 +237,10 @@
 <span id="L166"><span class="lineNum">     166</span>                 :             :  * @{</span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :  */</span>
 <span id="L168"><span class="lineNum">     168</span>                 :             : </span>
-<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        2665 : void onewire_init(void) {</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">        2683 : void onewire_init(void) {</span></span>
 <span id="L170"><span class="lineNum">     170</span>                 :             :     // No search running after init: lets the slave driver own the timer until</span>
 <span id="L171"><span class="lineNum">     171</span>                 :             :     // the application starts a search.</span>
-<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">        2665 :     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">        2683 :     search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
 <span id="L173"><span class="lineNum">     173</span>                 :             :     // Enable clocks, configure the timer prescaler, bus pin AF open-drain.</span>
 <span id="L174"><span class="lineNum">     174</span>                 :             :     ow_port_init();</span>
 <span id="L175"><span class="lineNum">     175</span>                 :             : #if OW_LOW_POWER</span>
@@ -249,9 +249,9 @@
 <span id="L178"><span class="lineNum">     178</span>                 :             :     // pending bit is cleared by the engine wherever it stops depending on it -</span>
 <span id="L179"><span class="lineNum">     179</span>                 :             :     // around the sleep and in ow_port_bus_done(). NVIC_EnableIRQ is never</span>
 <span id="L180"><span class="lineNum">     180</span>                 :             :     // called - the project has no ISR vector for TIM1 at all.</span>
-<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        1005 :     SCB-&gt;SCR |= SCB_SCR_SEVONPEND_Msk;</span></span>
+<span id="L181"><span class="lineNum">     181</span>                 :<span class="tlaGNC">        1014 :     SCB-&gt;SCR |= SCB_SCR_SEVONPEND_Msk;</span></span>
 <span id="L182"><span class="lineNum">     182</span>                 :             : #endif</span>
-<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">        2665 : }</span></span>
+<span id="L183"><span class="lineNum">     183</span>                 :<span class="tlaGNC">        2683 : }</span></span>
 <span id="L184"><span class="lineNum">     184</span>                 :             : </span>
 <span id="L185"><span class="lineNum">     185</span>         [<span class="tlaGBC" title="Branch 0 was taken 77348 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2787 times"> + </span>]:<span class="tlaGNC">       80135 : uint8_t onewire_bus_done(void) {</span></span>
 <span id="L186"><span class="lineNum">     186</span>                 :<span class="tlaGNC">       80135 :     return ow_port_bus_done();</span></span>
@@ -353,271 +353,335 @@
 <span id="L282"><span class="lineNum">     282</span>         [<span class="tlaGBC" title="Branch 0 was taken 1788 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">        3576 :     return ow_port_read_data(dst, bytes);</span></span>
 <span id="L283"><span class="lineNum">     283</span>                 :             : }</span>
 <span id="L284"><span class="lineNum">     284</span>                 :             : </span>
-<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">        2013 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
-<span id="L286"><span class="lineNum">     286</span>         [<span class="tlaGBC" title="Branch 0 was taken 15031 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2013 times"> + </span>]:<span class="tlaGNC">       17044 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
-<span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">       15031 :         uint8_t value = 0;</span></span>
-<span id="L288"><span class="lineNum">     288</span>         [<span class="tlaGBC" title="Branch 0 was taken 120248 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 15031 times"> + </span>]:<span class="tlaGNC">      135279 :         for (uint8_t bit = 0; bit &lt; ONEWIRE_BITS_PER_BYTE; bit++) {</span></span>
-<span id="L289"><span class="lineNum">     289</span>                 :<span class="tlaGNC">      120248 :             value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) &lt;&lt; bit);</span></span>
-<span id="L290"><span class="lineNum">     290</span>                 :             :         }</span>
-<span id="L291"><span class="lineNum">     291</span>                 :<span class="tlaGNC">       15031 :         dst[byte] = value;</span></span>
-<span id="L292"><span class="lineNum">     292</span>                 :             :     }</span>
-<span id="L293"><span class="lineNum">     293</span>                 :<span class="tlaGNC">        2013 : }</span></span>
-<span id="L294"><span class="lineNum">     294</span>                 :             : </span>
-<span id="L295"><span class="lineNum">     295</span>                 :<span class="tlaGNC">       27934 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
-<span id="L296"><span class="lineNum">     296</span>         [<span class="tlaGBC" title="Branch 0 was taken 223472 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 27934 times"> + </span>]:<span class="tlaGNC">      251406 :     for (uint8_t i = 0; i &lt; ONEWIRE_BITS_PER_BYTE; i++) {</span></span>
-<span id="L297"><span class="lineNum">     297</span>         [<span class="tlaGBC" title="Branch 0 was taken 89240 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 134232 times"> + </span>]:<span class="tlaGNC">      223472 :         out[i] = (byte &amp; (1u &lt;&lt; i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;</span></span>
-<span id="L298"><span class="lineNum">     298</span>                 :             :     }</span>
-<span id="L299"><span class="lineNum">     299</span>                 :<span class="tlaGNC">       27934 : }</span></span>
-<span id="L300"><span class="lineNum">     300</span>                 :             : </span>
-<span id="L301"><span class="lineNum">     301</span>                 :<span class="tlaGNC">        5450 : uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {</span></span>
-<span id="L302"><span class="lineNum">     302</span>                 :<span class="tlaGNC">        5450 :     uint8_t crc = 0;</span></span>
-<span id="L303"><span class="lineNum">     303</span>                 :             :     // Process each byte in the buffer</span>
-<span id="L304"><span class="lineNum">     304</span>         [<span class="tlaGBC" title="Branch 0 was taken 41075 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5450 times"> + </span>]:<span class="tlaGNC">       46525 :     for (uint8_t i = 0; i &lt; len; i++) {</span></span>
-<span id="L305"><span class="lineNum">     305</span>                 :<span class="tlaGNC">       41075 :         uint8_t inByte = data[i];</span></span>
-<span id="L306"><span class="lineNum">     306</span>                 :             :         // Process each bit in the byte using Dallas/Maxim CRC8 algorithm</span>
-<span id="L307"><span class="lineNum">     307</span>         [<span class="tlaGBC" title="Branch 0 was taken 328600 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 41075 times"> + </span>]:<span class="tlaGNC">      369675 :         for (uint8_t b = 0; b &lt; ONEWIRE_BITS_PER_BYTE; b++) {</span></span>
-<span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">      328600 :             uint8_t mix = (crc ^ inByte) &amp; 0x01;</span></span>
-<span id="L309"><span class="lineNum">     309</span>                 :<span class="tlaGNC">      328600 :             crc &gt;&gt;= 1;</span></span>
-<span id="L310"><span class="lineNum">     310</span>         [<span class="tlaGBC" title="Branch 0 was taken 150025 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 178575 times"> + </span>]:<span class="tlaGNC">      328600 :             if (mix) crc ^= ONEWIRE_CRC8_POLY;</span></span>
-<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">      328600 :             inByte &gt;&gt;= 1;</span></span>
-<span id="L312"><span class="lineNum">     312</span>                 :             :         }</span>
-<span id="L313"><span class="lineNum">     313</span>                 :             :     }</span>
-<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">        5450 :     return crc;</span></span>
-<span id="L315"><span class="lineNum">     315</span>                 :             : }</span>
-<span id="L316"><span class="lineNum">     316</span>                 :             : </span>
-<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">         378 : uint16_t onewire_crc16(const uint8_t* data, uint8_t len) {</span></span>
-<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">         378 :     uint16_t crc = 0;</span></span>
-<span id="L319"><span class="lineNum">     319</span>                 :             :     // Process each byte in the buffer</span>
-<span id="L320"><span class="lineNum">     320</span>         [<span class="tlaGBC" title="Branch 0 was taken 3582 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 378 times"> + </span>]:<span class="tlaGNC">        3960 :     for (uint8_t i = 0; i &lt; len; i++) {</span></span>
-<span id="L321"><span class="lineNum">     321</span>                 :<span class="tlaGNC">        3582 :         crc ^= data[i];</span></span>
-<span id="L322"><span class="lineNum">     322</span>                 :             :         // Process each bit LSB-first (reflected Maxim CRC-16, polynomial 0xA001)</span>
-<span id="L323"><span class="lineNum">     323</span>         [<span class="tlaGBC" title="Branch 0 was taken 28656 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 3582 times"> + </span>]:<span class="tlaGNC">       32238 :         for (uint8_t b = 0; b &lt; ONEWIRE_BITS_PER_BYTE; b++) {</span></span>
-<span id="L324"><span class="lineNum">     324</span>         [<span class="tlaGBC" title="Branch 0 was taken 14544 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 14112 times"> + </span>]:<span class="tlaGNC">       28656 :             if (crc &amp; 0x0001u) {</span></span>
-<span id="L325"><span class="lineNum">     325</span>                 :<span class="tlaGNC">       14544 :                 crc = (uint16_t)((crc &gt;&gt; 1) ^ ONEWIRE_CRC16_POLY);</span></span>
-<span id="L326"><span class="lineNum">     326</span>                 :             :             } else {</span>
-<span id="L327"><span class="lineNum">     327</span>                 :<span class="tlaGNC">       14112 :                 crc &gt;&gt;= 1;</span></span>
-<span id="L328"><span class="lineNum">     328</span>                 :             :             }</span>
-<span id="L329"><span class="lineNum">     329</span>                 :             :         }</span>
-<span id="L330"><span class="lineNum">     330</span>                 :             :     }</span>
-<span id="L331"><span class="lineNum">     331</span>                 :<span class="tlaGNC">         378 :     return crc;</span></span>
-<span id="L332"><span class="lineNum">     332</span>                 :             : }</span>
-<span id="L333"><span class="lineNum">     333</span>                 :             : </span>
-<span id="L334"><span class="lineNum">     334</span>                 :             : /** @} */</span>
-<span id="L335"><span class="lineNum">     335</span>                 :             : </span>
-<span id="L336"><span class="lineNum">     336</span>                 :             : /**</span>
-<span id="L337"><span class="lineNum">     337</span>                 :             :  * @defgroup ONEWIRE_Search_Impl ONEWIRE Generic Search ROM Engine</span>
-<span id="L338"><span class="lineNum">     338</span>                 :             :  * @{</span>
-<span id="L339"><span class="lineNum">     339</span>                 :             :  */</span>
-<span id="L340"><span class="lineNum">     340</span>                 :             : </span>
-<span id="L341"><span class="lineNum">     341</span>                 :             : /**</span>
-<span id="L342"><span class="lineNum">     342</span>                 :             :  * @brief Process one decoded id/cmp pair: pick a direction, update the ROM,</span>
-<span id="L343"><span class="lineNum">     343</span>                 :             :  *        and schedule the next hardware operation</span>
-<span id="L344"><span class="lineNum">     344</span>                 :             :  * @param[in] id_bit Id bit of the current position</span>
-<span id="L345"><span class="lineNum">     345</span>                 :             :  * @param[in] cmp_bit Complement bit of the current position</span>
-<span id="L346"><span class="lineNum">     346</span>                 :             :  * @note For all but the last bit the direction write is merged with the read</span>
-<span id="L347"><span class="lineNum">     347</span>                 :             :  *       of the next pair (ONEWIRE_SEARCH_WRITE_READ); the 64th bit is written</span>
-<span id="L348"><span class="lineNum">     348</span>                 :             :  *       alone so the device can be finalized.</span>
-<span id="L349"><span class="lineNum">     349</span>                 :             :  */</span>
-<span id="L350"><span class="lineNum">     350</span>                 :<span class="tlaGNC">       64050 : static void onewire_search_advance_bit(uint8_t id_bit, uint8_t cmp_bit) {</span></span>
-<span id="L351"><span class="lineNum">     351</span>                 :<span class="tlaGNC">       64050 :     const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / ONEWIRE_BITS_PER_BYTE;</span></span>
-<span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaGNC">       64050 :     const uint8_t mask = (uint8_t)(1u &lt;&lt; ((search_ctx.id_bit_number - 1) % ONEWIRE_BITS_PER_BYTE));</span></span>
-<span id="L353"><span class="lineNum">     353</span>                 :             :     uint8_t direction;</span>
-<span id="L354"><span class="lineNum">     354</span>                 :             : </span>
-<span id="L355"><span class="lineNum">     355</span>   [<span class="tlaGBC" title="Branch 0 was taken 14075 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49975 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 14025 times"> + </span>]:<span class="tlaGNC">       64050 :     if (id_bit &amp;&amp; cmp_bit) {</span></span>
-<span id="L356"><span class="lineNum">     356</span>                 :             :         // No device follows this path - search tree exhausted</span>
-<span id="L357"><span class="lineNum">     357</span>                 :<span class="tlaGNC">          50 :         search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L358"><span class="lineNum">     358</span>                 :<span class="tlaGNC">          50 :         return;</span></span>
-<span id="L359"><span class="lineNum">     359</span>                 :             :     }</span>
-<span id="L360"><span class="lineNum">     360</span>         [<span class="tlaGBC" title="Branch 0 was taken 59600 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4400 times"> + </span>]:<span class="tlaGNC">       64000 :     if (id_bit != cmp_bit) {</span></span>
-<span id="L361"><span class="lineNum">     361</span>                 :             :         // Single device on this path - its bit fixes the direction</span>
-<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">       59600 :         direction = id_bit;</span></span>
-<span id="L363"><span class="lineNum">     363</span>         [<span class="tlaGBC" title="Branch 0 was taken 2050 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2350 times"> + </span>]:<span class="tlaGNC">        4400 :     } else if (search_ctx.id_bit_number &lt; search_ctx.last_discrepancy) {</span></span>
-<span id="L364"><span class="lineNum">     364</span>                 :             :         // Follow the previously taken path</span>
-<span id="L365"><span class="lineNum">     365</span>         [<span class="tlaGBC" title="Branch 0 was taken 150 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1900 times"> + </span>]:<span class="tlaGNC">        2050 :         direction = (search_ctx.rom[byte_idx] &amp; mask) ? 1u : 0u;</span></span>
-<span id="L366"><span class="lineNum">     366</span>         [<span class="tlaGBC" title="Branch 0 was taken 1900 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 150 times"> + </span>]:<span class="tlaGNC">        2050 :         if (direction == 0) {</span></span>
-<span id="L367"><span class="lineNum">     367</span>                 :             :             // Remember the last 0-branch taken at a discrepancy</span>
-<span id="L368"><span class="lineNum">     368</span>                 :<span class="tlaGNC">        1900 :             search_ctx.last_zero = search_ctx.id_bit_number;</span></span>
-<span id="L369"><span class="lineNum">     369</span>                 :             :         }</span>
-<span id="L370"><span class="lineNum">     370</span>                 :             :     } else {</span>
-<span id="L371"><span class="lineNum">     371</span>                 :             :         // At the discrepancy point take the '1' branch first</span>
-<span id="L372"><span class="lineNum">     372</span>         [<span class="tlaGBC" title="Branch 0 was taken 350 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2000 times"> + </span>]:<span class="tlaGNC">        2350 :         direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;</span></span>
-<span id="L373"><span class="lineNum">     373</span>         [<span class="tlaGBC" title="Branch 0 was taken 2000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 350 times"> + </span>]:<span class="tlaGNC">        2350 :         if (direction == 0) {</span></span>
-<span id="L374"><span class="lineNum">     374</span>                 :             :             // Remember the last 0-branch taken at a discrepancy</span>
-<span id="L375"><span class="lineNum">     375</span>                 :<span class="tlaGNC">        2000 :             search_ctx.last_zero = search_ctx.id_bit_number;</span></span>
-<span id="L376"><span class="lineNum">     376</span>                 :             :         }</span>
-<span id="L377"><span class="lineNum">     377</span>                 :             :     }</span>
-<span id="L378"><span class="lineNum">     378</span>         [<span class="tlaGBC" title="Branch 0 was taken 14525 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49475 times"> + </span>]:<span class="tlaGNC">       64000 :     if (direction) {</span></span>
-<span id="L379"><span class="lineNum">     379</span>                 :<span class="tlaGNC">       14525 :         search_ctx.rom[byte_idx] |= mask;</span></span>
-<span id="L380"><span class="lineNum">     380</span>                 :             :     } else {</span>
-<span id="L381"><span class="lineNum">     381</span>                 :<span class="tlaGNC">       49475 :         search_ctx.rom[byte_idx] &amp;= (uint8_t)~mask;</span></span>
-<span id="L382"><span class="lineNum">     382</span>                 :             :     }</span>
-<span id="L383"><span class="lineNum">     383</span>         [<span class="tlaGBC" title="Branch 0 was taken 63000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1000 times"> + </span>]:<span class="tlaGNC">       64000 :     if (search_ctx.id_bit_number &lt; ONEWIRE_ROM_BITS) {</span></span>
-<span id="L384"><span class="lineNum">     384</span>                 :             :         // Merge the direction write with the read of the next id/cmp pair.</span>
-<span id="L385"><span class="lineNum">     385</span>                 :<span class="tlaGNC">       63000 :         onewire_write_then_read(direction);</span></span>
-<span id="L386"><span class="lineNum">     386</span>                 :<span class="tlaGNC">       63000 :         search_ctx.phase = ONEWIRE_SEARCH_WRITE_READ;</span></span>
-<span id="L387"><span class="lineNum">     387</span>                 :             :     } else {</span>
-<span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">        1000 :         onewire_write_bit(direction);</span></span>
-<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">        1000 :         search_ctx.phase = ONEWIRE_SEARCH_WRITE_DIR;</span></span>
-<span id="L390"><span class="lineNum">     390</span>                 :             :     }</span>
-<span id="L391"><span class="lineNum">     391</span>                 :             : }</span>
-<span id="L392"><span class="lineNum">     392</span>                 :             : </span>
-<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">         993 : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span></span>
-<span id="L394"><span class="lineNum">     394</span>                 :             :                           uint8_t command, uint8_t family) {</span>
-<span id="L395"><span class="lineNum">     395</span>         [<span class="tlaGBC" title="Branch 0 was taken 25 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 968 times"> + </span>]:<span class="tlaGNC">         993 :     if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u) {</span></span>
-<span id="L396"><span class="lineNum">     396</span>                 :<span class="tlaGNC">          25 :         return; // a search is already running</span></span>
-<span id="L397"><span class="lineNum">     397</span>                 :             :     }</span>
-<span id="L398"><span class="lineNum">     398</span>         [<span class="tlaGBC" title="Branch 0 was taken 7744 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 968 times"> + </span>]:<span class="tlaGNC">        8712 :     for (uint8_t i = 0; i &lt; ONEWIRE_ROM_BYTES; i++) {</span></span>
-<span id="L399"><span class="lineNum">     399</span>                 :<span class="tlaGNC">        7744 :         search_ctx.rom[i] = 0;</span></span>
-<span id="L400"><span class="lineNum">     400</span>                 :             :     }</span>
-<span id="L401"><span class="lineNum">     401</span>                 :<span class="tlaGNC">         968 :     search_ctx.sink = sink;</span></span>
-<span id="L402"><span class="lineNum">     402</span>                 :<span class="tlaGNC">         968 :     search_ctx.max = max_devices;</span></span>
-<span id="L403"><span class="lineNum">     403</span>                 :<span class="tlaGNC">         968 :     search_ctx.found = 0;</span></span>
-<span id="L404"><span class="lineNum">     404</span>                 :             :     /* Fresh search: running, previous leaf forgotten. */</span>
-<span id="L405"><span class="lineNum">     405</span>                 :<span class="tlaGNC">         968 :     search_ctx.flags &amp;= (uint8_t)~(ONEWIRE_SEARCH_FLAG_FINISHED | ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID);</span></span>
-<span id="L406"><span class="lineNum">     406</span>                 :<span class="tlaGNC">         968 :     search_ctx.last_discrepancy = 0;</span></span>
-<span id="L407"><span class="lineNum">     407</span>                 :<span class="tlaGNC">         968 :     search_ctx.command = command;</span></span>
-<span id="L408"><span class="lineNum">     408</span>                 :<span class="tlaGNC">         968 :     search_ctx.family = family;</span></span>
-<span id="L409"><span class="lineNum">     409</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 918 times"> + </span>]:<span class="tlaGNC">         968 :     if (max_devices == 0) {</span></span>
-<span id="L410"><span class="lineNum">     410</span>                 :<span class="tlaGNC">          50 :         search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L411"><span class="lineNum">     411</span>                 :<span class="tlaGNC">          50 :         return;</span></span>
-<span id="L412"><span class="lineNum">     412</span>                 :             :     }</span>
-<span id="L413"><span class="lineNum">     413</span>                 :<span class="tlaGNC">         918 :     search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
-<span id="L414"><span class="lineNum">     414</span>                 :<span class="tlaGNC">         918 :     onewire_reset(search_pair_pulse); // Schedule the first hardware operation</span></span>
-<span id="L415"><span class="lineNum">     415</span>                 :             : }</span>
-<span id="L416"><span class="lineNum">     416</span>                 :             : </span>
-<span id="L417"><span class="lineNum">     417</span>                 :<span class="tlaGNC">       68975 : uint8_t onewire_search_poll(void) {</span></span>
-<span id="L418"><span class="lineNum">     418</span>         [<span class="tlaGBC" title="Branch 0 was taken 225 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 68750 times"> + </span>]:<span class="tlaGNC">       68975 :     if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) != 0u) {</span></span>
-<span id="L419"><span class="lineNum">     419</span>                 :<span class="tlaGNC">         225 :         return 1;</span></span>
-<span id="L420"><span class="lineNum">     420</span>                 :             :     }</span>
-<span id="L421"><span class="lineNum">     421</span>                 :             : </span>
-<span id="L422"><span class="lineNum">     422</span>         [<span class="tlaGBC" title="Branch 0 was taken 800 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67950 times"> + </span>]:<span class="tlaGNC">       68750 :     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {</span></span>
-<span id="L423"><span class="lineNum">     423</span>                 :             :         // No hardware operation is pending at the end of the search: the timer</span>
-<span id="L424"><span class="lineNum">     424</span>                 :             :         // stays idle until the owner asks for the next operation (a new search</span>
-<span id="L425"><span class="lineNum">     425</span>                 :             :         // schedules its own reset, a measurement calls ow_timer_kick()).</span>
-<span id="L426"><span class="lineNum">     426</span>                 :<span class="tlaGNC">         800 :         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
-<span id="L427"><span class="lineNum">     427</span>                 :<span class="tlaGNC">         800 :         return 1;</span></span>
-<span id="L428"><span class="lineNum">     428</span>                 :             :     }</span>
-<span id="L429"><span class="lineNum">     429</span>                 :             : </span>
-<span id="L430"><span class="lineNum">     430</span>                 :             :     // Wait for the currently scheduled hardware operation to complete.</span>
-<span id="L431"><span class="lineNum">     431</span>                 :             :     // This is a non-blocking poll, not a busy-wait.</span>
-<span id="L432"><span class="lineNum">     432</span>         [<span class="tlaGBC" title="Branch 0 was taken 750 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67200 times"> + </span>]:<span class="tlaGNC">       67950 :     if (!onewire_bus_done()) {</span></span>
-<span id="L433"><span class="lineNum">     433</span>                 :<span class="tlaGNC">         750 :         return 0;</span></span>
-<span id="L434"><span class="lineNum">     434</span>                 :             :     }</span>
-<span id="L435"><span class="lineNum">     435</span>                 :             : </span>
-<span id="L436"><span class="lineNum">     436</span>                 :             :     OW_PROFILE_WORK_BEGIN();</span>
-<span id="L437"><span class="lineNum">     437</span>   [<span class="tlaGBC" title="Branch 0 was taken 1100 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1050 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1050 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 63000 times"> + </span> :<span class="tlaGNC">       67200 :     switch (search_ctx.phase) {</span></span>
-<span class="lineNum">        </span>       <span class="tlaGBC" title="Branch 4 was taken 1000 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span>]
-<span id="L438"><span class="lineNum">     438</span>                 :<span class="tlaGNC">        1100 :     case ONEWIRE_SEARCH_RESET:</span></span>
-<span id="L439"><span class="lineNum">     439</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
-<span id="L440"><span class="lineNum">     440</span>                 :             :         // the bus, so start a new search pass with the search command</span>
-<span id="L441"><span class="lineNum">     441</span>                 :             :         // (0xF0 Search ROM / 0xEC Alarm Search). The command tables are</span>
-<span id="L442"><span class="lineNum">     442</span>                 :             :         // pre-encoded in flash; only these two protocol commands ever reach</span>
-<span id="L443"><span class="lineNum">     443</span>                 :             :         // this layer (ds18b20_search_start/alarm_search_start pass the</span>
-<span id="L444"><span class="lineNum">     444</span>                 :             :         // DS18B20_* constants, and the tests/fuzz cover both).</span>
-<span id="L445"><span class="lineNum">     445</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1050 times"> + </span>]:<span class="tlaGNC">        1100 :         if (!ow_has_presence(search_pair_pulse)) {</span></span>
-<span id="L446"><span class="lineNum">     446</span>                 :<span class="tlaGNC">          50 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L447"><span class="lineNum">     447</span>                 :<span class="tlaGNC">          50 :             break;</span></span>
-<span id="L448"><span class="lineNum">     448</span>                 :             :         }</span>
-<span id="L449"><span class="lineNum">     449</span>         [<span class="tlaGBC" title="Branch 0 was taken 775 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 275 times"> + </span>]:<span class="tlaGNC">        1050 :         if (search_ctx.command == ONEWIRE_SEARCH_ROM) {</span></span>
-<span id="L450"><span class="lineNum">     450</span>                 :<span class="tlaGNC">         775 :             onewire_write_slots(search_cmd_rom, ONEWIRE_BITS_PER_BYTE);</span></span>
-<span id="L451"><span class="lineNum">     451</span>                 :             :         } else {</span>
-<span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">         275 :             onewire_write_slots(search_cmd_alarm, ONEWIRE_BITS_PER_BYTE);</span></span>
-<span id="L453"><span class="lineNum">     453</span>                 :             :         }</span>
-<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaGNC">        1050 :         search_ctx.phase = ONEWIRE_SEARCH_CMD;</span></span>
-<span id="L455"><span class="lineNum">     455</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
+<span id="L285"><span class="lineNum">     285</span>                 :             : /* Four captured slots are classified per step. The reference rule is</span>
+<span id="L286"><span class="lineNum">     286</span>                 :             :  * `duration &lt;= ONEWIRE_SHORT_PULSE_MAX`, applied independently per slot; the</span>
+<span id="L287"><span class="lineNum">     287</span>                 :             :  * packed form below is exact for every 8-bit capture value, not only for the</span>
+<span id="L288"><span class="lineNum">     288</span>                 :             :  * two widths the bus produces:</span>
+<span id="L289"><span class="lineNum">     289</span>                 :             :  *</span>
+<span id="L290"><span class="lineNum">     290</span>                 :             :  *   x = (w &amp; 0x7F7F7F7F) | 0x80808080</span>
+<span id="L291"><span class="lineNum">     291</span>                 :             :  *       keeps every lane in 128..255, so the subtract can never borrow out of</span>
+<span id="L292"><span class="lineNum">     292</span>                 :             :  *       a lane and corrupt its neighbour;</span>
+<span id="L293"><span class="lineNum">     293</span>                 :             :  *   (x - limit) &amp; 0x80808080, inverted, is &quot;lane &lt; limit&quot;, i.e. a short pulse;</span>
+<span id="L294"><span class="lineNum">     294</span>                 :             :  *   &amp; ~w drops the lanes whose capture was 128 or more. Such a lane is a long</span>
+<span id="L295"><span class="lineNum">     295</span>                 :             :  *       pulse by the rule (limit &lt;= 128, asserted below), and it is the only</span>
+<span id="L296"><span class="lineNum">     296</span>                 :             :  *       lane that could misreport without the mask, because its capture never</span>
+<span id="L297"><span class="lineNum">     297</span>                 :             :  *       carried a borrow out of the lane.</span>
+<span id="L298"><span class="lineNum">     298</span>                 :             :  *</span>
+<span id="L299"><span class="lineNum">     299</span>                 :             :  * The four flags end up in bit 7 of their lane and are gathered LSB-first, so</span>
+<span id="L300"><span class="lineNum">     300</span>                 :             :  * the result matches onewire_bit_from_pulse() slot for slot.</span>
+<span id="L301"><span class="lineNum">     301</span>                 :             :  *</span>
+<span id="L302"><span class="lineNum">     302</span>                 :             :  * A capture value is a byte: the 8-bit read path truncates at 256 us and the</span>
+<span id="L303"><span class="lineNum">     303</span>                 :             :  * port asserts that the slot period stays below that. */</span>
+<span id="L304"><span class="lineNum">     304</span>                 :             : _Static_assert(ONEWIRE_SHORT_PULSE_MAX + 1 &lt;= 0x80,</span>
+<span id="L305"><span class="lineNum">     305</span>                 :             :                &quot;onewire_decode_pulses: the packed compare needs a threshold &lt;= 128&quot;);</span>
+<span id="L306"><span class="lineNum">     306</span>                 :             : </span>
+<span id="L307"><span class="lineNum">     307</span>                 :<span class="tlaGNC">       53238 : void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {</span></span>
+<span id="L308"><span class="lineNum">     308</span>                 :<span class="tlaGNC">       53238 :     const uint32_t limit = (uint32_t)(ONEWIRE_SHORT_PULSE_MAX + 1) * 0x01010101u;</span></span>
+<span id="L309"><span class="lineNum">     309</span>         [<span class="tlaGBC" title="Branch 0 was taken 67031 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 53238 times"> + </span>]:<span class="tlaGNC">      120269 :     for (uint8_t byte = 0; byte &lt; nbytes; byte++) {</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :<span class="tlaGNC">       67031 :         const volatile uint8_t* p = pulse + (uint32_t)byte * ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L311"><span class="lineNum">     311</span>                 :<span class="tlaGNC">       67031 :         uint8_t value = 0;</span></span>
+<span id="L312"><span class="lineNum">     312</span>         [<span class="tlaGBC" title="Branch 0 was taken 134062 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67031 times"> + </span>]:<span class="tlaGNC">      201093 :         for (uint8_t half = 0; half &lt; 2u; half++) {</span></span>
+<span id="L313"><span class="lineNum">     313</span>                 :<span class="tlaGNC">      134062 :             uint32_t w = (uint32_t)p[0] | ((uint32_t)p[1] &lt;&lt; 8) | ((uint32_t)p[2] &lt;&lt; 16) |</span></span>
+<span id="L314"><span class="lineNum">     314</span>                 :<span class="tlaGNC">      134062 :                          ((uint32_t)p[3] &lt;&lt; 24);</span></span>
+<span id="L315"><span class="lineNum">     315</span>                 :<span class="tlaGNC">      134062 :             uint32_t x = (w &amp; 0x7F7F7F7Fu) | 0x80808080u;</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :<span class="tlaGNC">      134062 :             uint32_t t = ((x - limit) &amp; 0x80808080u) ^ 0x80808080u;</span></span>
+<span id="L317"><span class="lineNum">     317</span>                 :<span class="tlaGNC">      134062 :             uint32_t f = t &amp; ~w &amp; 0x80808080u;</span></span>
+<span id="L318"><span class="lineNum">     318</span>                 :<span class="tlaGNC">      134062 :             uint32_t bits = (f &gt;&gt; 7) | (f &gt;&gt; 14) | (f &gt;&gt; 21) | (f &gt;&gt; 28);</span></span>
+<span id="L319"><span class="lineNum">     319</span>                 :<span class="tlaGNC">      134062 :             value = (uint8_t)(value | (uint8_t)((bits &amp; 0x0Fu) &lt;&lt; (half * 4u)));</span></span>
+<span id="L320"><span class="lineNum">     320</span>                 :<span class="tlaGNC">      134062 :             p += 4;</span></span>
+<span id="L321"><span class="lineNum">     321</span>                 :             :         }</span>
+<span id="L322"><span class="lineNum">     322</span>                 :<span class="tlaGNC">       67031 :         dst[byte] = value;</span></span>
+<span id="L323"><span class="lineNum">     323</span>                 :             :     }</span>
+<span id="L324"><span class="lineNum">     324</span>                 :<span class="tlaGNC">       53238 : }</span></span>
+<span id="L325"><span class="lineNum">     325</span>                 :             : </span>
+<span id="L326"><span class="lineNum">     326</span>                 :             : /* Pre-encoded slots, four per nibble, LSB-first: row n holds the durations for</span>
+<span id="L327"><span class="lineNum">     327</span>                 :             :  * bits 0..3 of n. The encoder used to run eight shift/branch rounds per byte;</span>
+<span id="L328"><span class="lineNum">     328</span>                 :             :  * a byte is now two row copies. The rows are built from the same</span>
+<span id="L329"><span class="lineNum">     329</span>                 :             :  * ONEWIRE_ONE_PULSE / ONEWIRE_ZERO_PULSE macros as the bit-wise form, so a</span>
+<span id="L330"><span class="lineNum">     330</span>                 :             :  * timing preset still chooses the waveform and only the way it reaches the</span>
+<span id="L331"><span class="lineNum">     331</span>                 :             :  * buffer changed. tests/test/test_pulse_encoding.c compares every row against</span>
+<span id="L332"><span class="lineNum">     332</span>                 :             :  * the bit-wise definition, so a transposed row cannot pass. */</span>
+<span id="L333"><span class="lineNum">     333</span>                 :             : static const ow_pulse_t encode_nibble[16][4] = {</span>
+<span id="L334"><span class="lineNum">     334</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L335"><span class="lineNum">     335</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L336"><span class="lineNum">     336</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L337"><span class="lineNum">     337</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L338"><span class="lineNum">     338</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L339"><span class="lineNum">     339</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L340"><span class="lineNum">     340</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L341"><span class="lineNum">     341</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},</span>
+<span id="L342"><span class="lineNum">     342</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L343"><span class="lineNum">     343</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L344"><span class="lineNum">     344</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L345"><span class="lineNum">     345</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L346"><span class="lineNum">     346</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L347"><span class="lineNum">     347</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L348"><span class="lineNum">     348</span>                 :             :     {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L349"><span class="lineNum">     349</span>                 :             :     {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},</span>
+<span id="L350"><span class="lineNum">     350</span>                 :             : };</span>
+<span id="L351"><span class="lineNum">     351</span>                 :             : </span>
+<span id="L352"><span class="lineNum">     352</span>                 :<span class="tlaGNC">       34334 : void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {</span></span>
+<span id="L353"><span class="lineNum">     353</span>                 :<span class="tlaGNC">       34334 :     const ow_pulse_t* low = encode_nibble[byte &amp; 0x0Fu];</span></span>
+<span id="L354"><span class="lineNum">     354</span>                 :<span class="tlaGNC">       34334 :     const ow_pulse_t* high = encode_nibble[byte &gt;&gt; 4];</span></span>
+<span id="L355"><span class="lineNum">     355</span>                 :<span class="tlaGNC">       34334 :     out[0] = low[0];</span></span>
+<span id="L356"><span class="lineNum">     356</span>                 :<span class="tlaGNC">       34334 :     out[1] = low[1];</span></span>
+<span id="L357"><span class="lineNum">     357</span>                 :<span class="tlaGNC">       34334 :     out[2] = low[2];</span></span>
+<span id="L358"><span class="lineNum">     358</span>                 :<span class="tlaGNC">       34334 :     out[3] = low[3];</span></span>
+<span id="L359"><span class="lineNum">     359</span>                 :<span class="tlaGNC">       34334 :     out[4] = high[0];</span></span>
+<span id="L360"><span class="lineNum">     360</span>                 :<span class="tlaGNC">       34334 :     out[5] = high[1];</span></span>
+<span id="L361"><span class="lineNum">     361</span>                 :<span class="tlaGNC">       34334 :     out[6] = high[2];</span></span>
+<span id="L362"><span class="lineNum">     362</span>                 :<span class="tlaGNC">       34334 :     out[7] = high[3];</span></span>
+<span id="L363"><span class="lineNum">     363</span>                 :<span class="tlaGNC">       34334 : }</span></span>
+<span id="L364"><span class="lineNum">     364</span>                 :             : </span>
+<span id="L365"><span class="lineNum">     365</span>                 :             : /* Reflected nibble tables for the two polynomials at the top of this file:</span>
+<span id="L366"><span class="lineNum">     366</span>                 :             :  * entry n is the remainder of processing nibble n from a zero state. Two</span>
+<span id="L367"><span class="lineNum">     367</span>                 :             :  * lookups replace eight shift/XOR rounds per byte, which is what a ROM check</span>
+<span id="L368"><span class="lineNum">     368</span>                 :             :  * or a DS2431 scratchpad reply spends its time on. The values are fixed by</span>
+<span id="L369"><span class="lineNum">     369</span>                 :             :  * the polynomials; the host suite compares both helpers against a bit-wise</span>
+<span id="L370"><span class="lineNum">     370</span>                 :             :  * reference over every byte value, so a wrong entry cannot pass unnoticed. */</span>
+<span id="L371"><span class="lineNum">     371</span>                 :             : static const uint8_t crc8_nibble[16] = {0x00, 0x9D, 0x23, 0xBE, 0x46, 0xDB, 0x65, 0xF8,</span>
+<span id="L372"><span class="lineNum">     372</span>                 :             :                                         0x8C, 0x11, 0xAF, 0x32, 0xCA, 0x57, 0xE9, 0x74};</span>
+<span id="L373"><span class="lineNum">     373</span>                 :             : </span>
+<span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">       12100 : uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {</span></span>
+<span id="L375"><span class="lineNum">     375</span>                 :<span class="tlaGNC">       12100 :     uint8_t crc = 0;</span></span>
+<span id="L376"><span class="lineNum">     376</span>         [<span class="tlaGBC" title="Branch 0 was taken 48600 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 12100 times"> + </span>]:<span class="tlaGNC">       60700 :     for (uint8_t i = 0; i &lt; len; i++) {</span></span>
+<span id="L377"><span class="lineNum">     377</span>                 :<span class="tlaGNC">       48600 :         uint8_t in = data[i];</span></span>
+<span id="L378"><span class="lineNum">     378</span>                 :<span class="tlaGNC">       48600 :         crc = (uint8_t)((crc &gt;&gt; 4) ^ crc8_nibble[(crc ^ in) &amp; 0x0Fu]);</span></span>
+<span id="L379"><span class="lineNum">     379</span>                 :<span class="tlaGNC">       48600 :         crc = (uint8_t)((crc &gt;&gt; 4) ^ crc8_nibble[(crc ^ (in &gt;&gt; 4)) &amp; 0x0Fu]);</span></span>
+<span id="L380"><span class="lineNum">     380</span>                 :             :     }</span>
+<span id="L381"><span class="lineNum">     381</span>                 :<span class="tlaGNC">       12100 :     return crc;</span></span>
+<span id="L382"><span class="lineNum">     382</span>                 :             : }</span>
+<span id="L383"><span class="lineNum">     383</span>                 :             : </span>
+<span id="L384"><span class="lineNum">     384</span>                 :             : static const uint16_t crc16_nibble[16] = {0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00,</span>
+<span id="L385"><span class="lineNum">     385</span>                 :             :                                           0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401,</span>
+<span id="L386"><span class="lineNum">     386</span>                 :             :                                           0x5000, 0x9C01, 0x8801, 0x4400};</span>
+<span id="L387"><span class="lineNum">     387</span>                 :             : </span>
+<span id="L388"><span class="lineNum">     388</span>                 :<span class="tlaGNC">        5292 : uint16_t onewire_crc16(const uint8_t* data, uint8_t len) {</span></span>
+<span id="L389"><span class="lineNum">     389</span>                 :<span class="tlaGNC">        5292 :     uint16_t crc = 0;</span></span>
+<span id="L390"><span class="lineNum">     390</span>         [<span class="tlaGBC" title="Branch 0 was taken 10638 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 5292 times"> + </span>]:<span class="tlaGNC">       15930 :     for (uint8_t i = 0; i &lt; len; i++) {</span></span>
+<span id="L391"><span class="lineNum">     391</span>                 :<span class="tlaGNC">       10638 :         uint8_t in = data[i];</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 :<span class="tlaGNC">       10638 :         crc = (uint16_t)((crc &gt;&gt; 4) ^ crc16_nibble[(crc ^ in) &amp; 0x0Fu]);</span></span>
+<span id="L393"><span class="lineNum">     393</span>                 :<span class="tlaGNC">       10638 :         crc = (uint16_t)((crc &gt;&gt; 4) ^ crc16_nibble[(crc ^ (in &gt;&gt; 4)) &amp; 0x0Fu]);</span></span>
+<span id="L394"><span class="lineNum">     394</span>                 :             :     }</span>
+<span id="L395"><span class="lineNum">     395</span>                 :<span class="tlaGNC">        5292 :     return crc;</span></span>
+<span id="L396"><span class="lineNum">     396</span>                 :             : }</span>
+<span id="L397"><span class="lineNum">     397</span>                 :             : </span>
+<span id="L398"><span class="lineNum">     398</span>                 :             : /** @} */</span>
+<span id="L399"><span class="lineNum">     399</span>                 :             : </span>
+<span id="L400"><span class="lineNum">     400</span>                 :             : /**</span>
+<span id="L401"><span class="lineNum">     401</span>                 :             :  * @defgroup ONEWIRE_Search_Impl ONEWIRE Generic Search ROM Engine</span>
+<span id="L402"><span class="lineNum">     402</span>                 :             :  * @{</span>
+<span id="L403"><span class="lineNum">     403</span>                 :             :  */</span>
+<span id="L404"><span class="lineNum">     404</span>                 :             : </span>
+<span id="L405"><span class="lineNum">     405</span>                 :             : /**</span>
+<span id="L406"><span class="lineNum">     406</span>                 :             :  * @brief Process one decoded id/cmp pair: pick a direction, update the ROM,</span>
+<span id="L407"><span class="lineNum">     407</span>                 :             :  *        and schedule the next hardware operation</span>
+<span id="L408"><span class="lineNum">     408</span>                 :             :  * @param[in] id_bit Id bit of the current position</span>
+<span id="L409"><span class="lineNum">     409</span>                 :             :  * @param[in] cmp_bit Complement bit of the current position</span>
+<span id="L410"><span class="lineNum">     410</span>                 :             :  * @note For all but the last bit the direction write is merged with the read</span>
+<span id="L411"><span class="lineNum">     411</span>                 :             :  *       of the next pair (ONEWIRE_SEARCH_WRITE_READ); the 64th bit is written</span>
+<span id="L412"><span class="lineNum">     412</span>                 :             :  *       alone so the device can be finalized.</span>
+<span id="L413"><span class="lineNum">     413</span>                 :             :  */</span>
+<span id="L414"><span class="lineNum">     414</span>                 :<span class="tlaGNC">       64050 : static void onewire_search_advance_bit(uint8_t id_bit, uint8_t cmp_bit) {</span></span>
+<span id="L415"><span class="lineNum">     415</span>                 :<span class="tlaGNC">       64050 :     const uint8_t byte_idx = (search_ctx.id_bit_number - 1) / ONEWIRE_BITS_PER_BYTE;</span></span>
+<span id="L416"><span class="lineNum">     416</span>                 :<span class="tlaGNC">       64050 :     const uint8_t mask = (uint8_t)(1u &lt;&lt; ((search_ctx.id_bit_number - 1) % ONEWIRE_BITS_PER_BYTE));</span></span>
+<span id="L417"><span class="lineNum">     417</span>                 :             :     uint8_t direction;</span>
+<span id="L418"><span class="lineNum">     418</span>                 :             : </span>
+<span id="L419"><span class="lineNum">     419</span>   [<span class="tlaGBC" title="Branch 0 was taken 14075 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49975 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 14025 times"> + </span>]:<span class="tlaGNC">       64050 :     if (id_bit &amp;&amp; cmp_bit) {</span></span>
+<span id="L420"><span class="lineNum">     420</span>                 :             :         // No device follows this path - search tree exhausted</span>
+<span id="L421"><span class="lineNum">     421</span>                 :<span class="tlaGNC">          50 :         search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L422"><span class="lineNum">     422</span>                 :<span class="tlaGNC">          50 :         return;</span></span>
+<span id="L423"><span class="lineNum">     423</span>                 :             :     }</span>
+<span id="L424"><span class="lineNum">     424</span>         [<span class="tlaGBC" title="Branch 0 was taken 59600 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 4400 times"> + </span>]:<span class="tlaGNC">       64000 :     if (id_bit != cmp_bit) {</span></span>
+<span id="L425"><span class="lineNum">     425</span>                 :             :         // Single device on this path - its bit fixes the direction</span>
+<span id="L426"><span class="lineNum">     426</span>                 :<span class="tlaGNC">       59600 :         direction = id_bit;</span></span>
+<span id="L427"><span class="lineNum">     427</span>         [<span class="tlaGBC" title="Branch 0 was taken 2050 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2350 times"> + </span>]:<span class="tlaGNC">        4400 :     } else if (search_ctx.id_bit_number &lt; search_ctx.last_discrepancy) {</span></span>
+<span id="L428"><span class="lineNum">     428</span>                 :             :         // Follow the previously taken path</span>
+<span id="L429"><span class="lineNum">     429</span>         [<span class="tlaGBC" title="Branch 0 was taken 150 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1900 times"> + </span>]:<span class="tlaGNC">        2050 :         direction = (search_ctx.rom[byte_idx] &amp; mask) ? 1u : 0u;</span></span>
+<span id="L430"><span class="lineNum">     430</span>         [<span class="tlaGBC" title="Branch 0 was taken 1900 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 150 times"> + </span>]:<span class="tlaGNC">        2050 :         if (direction == 0) {</span></span>
+<span id="L431"><span class="lineNum">     431</span>                 :             :             // Remember the last 0-branch taken at a discrepancy</span>
+<span id="L432"><span class="lineNum">     432</span>                 :<span class="tlaGNC">        1900 :             search_ctx.last_zero = search_ctx.id_bit_number;</span></span>
+<span id="L433"><span class="lineNum">     433</span>                 :             :         }</span>
+<span id="L434"><span class="lineNum">     434</span>                 :             :     } else {</span>
+<span id="L435"><span class="lineNum">     435</span>                 :             :         // At the discrepancy point take the '1' branch first</span>
+<span id="L436"><span class="lineNum">     436</span>         [<span class="tlaGBC" title="Branch 0 was taken 350 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 2000 times"> + </span>]:<span class="tlaGNC">        2350 :         direction = (search_ctx.id_bit_number == search_ctx.last_discrepancy) ? 1u : 0u;</span></span>
+<span id="L437"><span class="lineNum">     437</span>         [<span class="tlaGBC" title="Branch 0 was taken 2000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 350 times"> + </span>]:<span class="tlaGNC">        2350 :         if (direction == 0) {</span></span>
+<span id="L438"><span class="lineNum">     438</span>                 :             :             // Remember the last 0-branch taken at a discrepancy</span>
+<span id="L439"><span class="lineNum">     439</span>                 :<span class="tlaGNC">        2000 :             search_ctx.last_zero = search_ctx.id_bit_number;</span></span>
+<span id="L440"><span class="lineNum">     440</span>                 :             :         }</span>
+<span id="L441"><span class="lineNum">     441</span>                 :             :     }</span>
+<span id="L442"><span class="lineNum">     442</span>         [<span class="tlaGBC" title="Branch 0 was taken 14525 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 49475 times"> + </span>]:<span class="tlaGNC">       64000 :     if (direction) {</span></span>
+<span id="L443"><span class="lineNum">     443</span>                 :<span class="tlaGNC">       14525 :         search_ctx.rom[byte_idx] |= mask;</span></span>
+<span id="L444"><span class="lineNum">     444</span>                 :             :     } else {</span>
+<span id="L445"><span class="lineNum">     445</span>                 :<span class="tlaGNC">       49475 :         search_ctx.rom[byte_idx] &amp;= (uint8_t)~mask;</span></span>
+<span id="L446"><span class="lineNum">     446</span>                 :             :     }</span>
+<span id="L447"><span class="lineNum">     447</span>         [<span class="tlaGBC" title="Branch 0 was taken 63000 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1000 times"> + </span>]:<span class="tlaGNC">       64000 :     if (search_ctx.id_bit_number &lt; ONEWIRE_ROM_BITS) {</span></span>
+<span id="L448"><span class="lineNum">     448</span>                 :             :         // Merge the direction write with the read of the next id/cmp pair.</span>
+<span id="L449"><span class="lineNum">     449</span>                 :<span class="tlaGNC">       63000 :         onewire_write_then_read(direction);</span></span>
+<span id="L450"><span class="lineNum">     450</span>                 :<span class="tlaGNC">       63000 :         search_ctx.phase = ONEWIRE_SEARCH_WRITE_READ;</span></span>
+<span id="L451"><span class="lineNum">     451</span>                 :             :     } else {</span>
+<span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">        1000 :         onewire_write_bit(direction);</span></span>
+<span id="L453"><span class="lineNum">     453</span>                 :<span class="tlaGNC">        1000 :         search_ctx.phase = ONEWIRE_SEARCH_WRITE_DIR;</span></span>
+<span id="L454"><span class="lineNum">     454</span>                 :             :     }</span>
+<span id="L455"><span class="lineNum">     455</span>                 :             : }</span>
 <span id="L456"><span class="lineNum">     456</span>                 :             : </span>
-<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaGNC">        1050 :     case ONEWIRE_SEARCH_CMD:</span></span>
-<span id="L458"><span class="lineNum">     458</span>                 :             :         // Search command sent: prepare the first bit iteration and read the</span>
-<span id="L459"><span class="lineNum">     459</span>                 :             :         // id/cmp pair.</span>
-<span id="L460"><span class="lineNum">     460</span>                 :<span class="tlaGNC">        1050 :         search_ctx.id_bit_number = 1;</span></span>
-<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaGNC">        1050 :         search_ctx.last_zero = 0;</span></span>
-<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">        1050 :         onewire_read_pair(search_pair_pulse);</span></span>
-<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">        1050 :         search_ctx.phase = ONEWIRE_SEARCH_READ_PAIR;</span></span>
-<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
-<span id="L465"><span class="lineNum">     465</span>                 :             : </span>
-<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">        1050 :     case ONEWIRE_SEARCH_READ_PAIR:</span></span>
-<span id="L467"><span class="lineNum">     467</span>                 :             :         // First id/cmp pair decoded from the plain two-slot read.</span>
-<span id="L468"><span class="lineNum">     468</span>                 :             :         {</span>
-<span id="L469"><span class="lineNum">     469</span>                 :             :             uint8_t id_bit;</span>
-<span id="L470"><span class="lineNum">     470</span>                 :             :             uint8_t cmp_bit;</span>
-<span id="L471"><span class="lineNum">     471</span>                 :<span class="tlaGNC">        1050 :             onewire_pair_bits(search_pair_pulse, &amp;id_bit, &amp;cmp_bit);</span></span>
-<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">        1050 :             onewire_search_advance_bit(id_bit, cmp_bit);</span></span>
-<span id="L473"><span class="lineNum">     473</span>                 :             :         }</span>
-<span id="L474"><span class="lineNum">     474</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
-<span id="L475"><span class="lineNum">     475</span>                 :             : </span>
-<span id="L476"><span class="lineNum">     476</span>                 :<span class="tlaGNC">       63000 :     case ONEWIRE_SEARCH_WRITE_READ:</span></span>
-<span id="L477"><span class="lineNum">     477</span>                 :             :         // The merged operation wrote the direction for the previous bit and</span>
-<span id="L478"><span class="lineNum">     478</span>                 :             :         // captured the id/cmp pair of the current bit into search_pulse3.</span>
-<span id="L479"><span class="lineNum">     479</span>                 :<span class="tlaGNC">       63000 :         search_ctx.id_bit_number++;</span></span>
-<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaGNC">       63000 :         onewire_search_advance_bit(</span></span>
-<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">       63000 :             onewire_bit_from_pulse(search_pulse3[1]),</span></span>
-<span id="L482"><span class="lineNum">     482</span>                 :<span class="tlaGNC">       63000 :             onewire_bit_from_pulse(search_pulse3[2]));</span></span>
-<span id="L483"><span class="lineNum">     483</span>                 :<span class="tlaGNC">       63000 :         break;</span></span>
-<span id="L484"><span class="lineNum">     484</span>                 :             : </span>
-<span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">        1000 :     case ONEWIRE_SEARCH_WRITE_DIR:</span></span>
-<span id="L486"><span class="lineNum">     486</span>                 :             :         // The final (64th) direction bit was written: the ROM is assembled.</span>
-<span id="L487"><span class="lineNum">     487</span>                 :<span class="tlaGNC">        1000 :         search_ctx.id_bit_number++;</span></span>
-<span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaGNC">        1000 :         search_ctx.last_discrepancy = search_ctx.last_zero;</span></span>
-<span id="L489"><span class="lineNum">     489</span>         [<span class="tlaGBC" title="Branch 0 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 925 times"> + </span>]:<span class="tlaGNC">        1000 :         if (onewire_crc8(search_ctx.rom, ONEWIRE_ROM_BYTES) != 0) {</span></span>
-<span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaGNC">          75 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L491"><span class="lineNum">     491</span>                 :<span class="tlaGNC">          75 :             break;</span></span>
-<span id="L492"><span class="lineNum">     492</span>                 :             :         }</span>
-<span id="L493"><span class="lineNum">     493</span>                 :             :         // The family filter decides which devices are accepted: only accepted</span>
-<span id="L494"><span class="lineNum">     494</span>                 :             :         // devices increment the found counter and reach the sink. The sink may</span>
-<span id="L495"><span class="lineNum">     495</span>                 :             :         // stop the search early with a non-zero return value.</span>
-<span id="L496"><span class="lineNum">     496</span>   [<span class="tlaGBC" title="Branch 0 was taken 900 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 25 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 825 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 75 times"> + </span>]:<span class="tlaGNC">         925 :         if (search_ctx.family == 0u || search_ctx.rom[0] == search_ctx.family) {</span></span>
-<span id="L497"><span class="lineNum">     497</span>                 :<span class="tlaGNC">         850 :             search_ctx.found++;</span></span>
-<span id="L498"><span class="lineNum">     498</span>                 :             :             OW_PROFILE_WORK_END();</span>
-<span id="L499"><span class="lineNum">     499</span>         [<span class="tlaGBC" title="Branch 0 was taken 850 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">         850 :             uint8_t stop = search_ctx.sink ? search_ctx.sink(search_ctx.rom) : 0u;</span></span>
-<span id="L500"><span class="lineNum">     500</span>                 :             :             OW_PROFILE_WORK_BEGIN();</span>
-<span id="L501"><span class="lineNum">     501</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 800 times"> + </span>]:<span class="tlaGNC">         850 :             if (stop) {</span></span>
-<span id="L502"><span class="lineNum">     502</span>                 :<span class="tlaGNC">          50 :                 search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L503"><span class="lineNum">     503</span>                 :<span class="tlaGNC">          50 :                 break;</span></span>
-<span id="L504"><span class="lineNum">     504</span>                 :             :             }</span>
-<span id="L505"><span class="lineNum">     505</span>         [<span class="tlaGBC" title="Branch 0 was taken 475 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 325 times"> + </span>]:<span class="tlaGNC">         800 :             if (search_ctx.found &gt;= search_ctx.max) {</span></span>
-<span id="L506"><span class="lineNum">     506</span>                 :<span class="tlaGNC">         475 :                 search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L507"><span class="lineNum">     507</span>                 :<span class="tlaGNC">         475 :                 break;</span></span>
-<span id="L508"><span class="lineNum">     508</span>                 :             :             }</span>
-<span id="L509"><span class="lineNum">     509</span>                 :             :         }</span>
-<span id="L510"><span class="lineNum">     510</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 350 times"> + </span>]:<span class="tlaGNC">         400 :         if (search_ctx.last_discrepancy == 0) {</span></span>
-<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">          50 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L512"><span class="lineNum">     512</span>                 :<span class="tlaGNC">          50 :             break;</span></span>
-<span id="L513"><span class="lineNum">     513</span>                 :             :         }</span>
-<span id="L514"><span class="lineNum">     514</span>                 :             :         // Another device may exist - run another search pass. On a real bus</span>
-<span id="L515"><span class="lineNum">     515</span>                 :             :         // every walk lands on a leaf the search has not visited before, so a</span>
-<span id="L516"><span class="lineNum">     516</span>                 :             :         // leaf identical to the previous pass proves the search made no</span>
-<span id="L517"><span class="lineNum">     517</span>                 :             :         // progress (a CRC-valid ROM rejected by the family filter, or a</span>
-<span id="L518"><span class="lineNum">     518</span>                 :             :         // hostile/broken slave answering the same profile twice). Terminate</span>
-<span id="L519"><span class="lineNum">     519</span>                 :             :         // instead of walking the same subtree forever.</span>
-<span id="L520"><span class="lineNum">     520</span>         [<span class="tlaGBC" title="Branch 0 was taken 225 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 125 times"> + </span>]:<span class="tlaGNC">         350 :         if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID) != 0u &amp;&amp;</span></span>
-<span id="L521"><span class="lineNum">     521</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 225 times"> + </span>]:<span class="tlaGNC">         225 :             memcmp(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES) == 0) {</span></span>
-<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaUNC">           0 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
-<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
-<span id="L524"><span class="lineNum">     524</span>                 :             :         }</span>
-<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">         350 :         memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);</span></span>
-<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">         350 :         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID;</span></span>
-<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">         350 :         onewire_reset(search_pair_pulse);</span></span>
-<span id="L528"><span class="lineNum">     528</span>                 :<span class="tlaGNC">         350 :         search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
-<span id="L529"><span class="lineNum">     529</span>                 :<span class="tlaGNC">         350 :         break;</span></span>
-<span id="L530"><span class="lineNum">     530</span>                 :             : </span>
-<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaUNC">           0 :     case ONEWIRE_SEARCH_DONE:</span></span>
-<span id="L532"><span class="lineNum">     532</span>                 :             :         // DONE is handled before the switch (see above); keep as a</span>
-<span id="L533"><span class="lineNum">     533</span>                 :             :         // no-op so -Wswitch-enum stays satisfied.</span>
-<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
-<span id="L535"><span class="lineNum">     535</span>                 :             : </span>
-<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaUNC">           0 :     default:</span></span>
-<span id="L537"><span class="lineNum">     537</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
-<span id="L538"><span class="lineNum">     538</span>                 :             :     }</span>
+<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaGNC">         993 : void onewire_search_start(onewire_search_sink_t sink, uint8_t max_devices,</span></span>
+<span id="L458"><span class="lineNum">     458</span>                 :             :                           uint8_t command, uint8_t family) {</span>
+<span id="L459"><span class="lineNum">     459</span>         [<span class="tlaGBC" title="Branch 0 was taken 25 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 968 times"> + </span>]:<span class="tlaGNC">         993 :     if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u) {</span></span>
+<span id="L460"><span class="lineNum">     460</span>                 :<span class="tlaGNC">          25 :         return; // a search is already running</span></span>
+<span id="L461"><span class="lineNum">     461</span>                 :             :     }</span>
+<span id="L462"><span class="lineNum">     462</span>         [<span class="tlaGBC" title="Branch 0 was taken 7744 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 968 times"> + </span>]:<span class="tlaGNC">        8712 :     for (uint8_t i = 0; i &lt; ONEWIRE_ROM_BYTES; i++) {</span></span>
+<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">        7744 :         search_ctx.rom[i] = 0;</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :             :     }</span>
+<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">         968 :     search_ctx.sink = sink;</span></span>
+<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">         968 :     search_ctx.max = max_devices;</span></span>
+<span id="L467"><span class="lineNum">     467</span>                 :<span class="tlaGNC">         968 :     search_ctx.found = 0;</span></span>
+<span id="L468"><span class="lineNum">     468</span>                 :             :     /* Fresh search: running, previous leaf forgotten. */</span>
+<span id="L469"><span class="lineNum">     469</span>                 :<span class="tlaGNC">         968 :     search_ctx.flags &amp;= (uint8_t)~(ONEWIRE_SEARCH_FLAG_FINISHED | ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID);</span></span>
+<span id="L470"><span class="lineNum">     470</span>                 :<span class="tlaGNC">         968 :     search_ctx.last_discrepancy = 0;</span></span>
+<span id="L471"><span class="lineNum">     471</span>                 :<span class="tlaGNC">         968 :     search_ctx.command = command;</span></span>
+<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">         968 :     search_ctx.family = family;</span></span>
+<span id="L473"><span class="lineNum">     473</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 918 times"> + </span>]:<span class="tlaGNC">         968 :     if (max_devices == 0) {</span></span>
+<span id="L474"><span class="lineNum">     474</span>                 :<span class="tlaGNC">          50 :         search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L475"><span class="lineNum">     475</span>                 :<span class="tlaGNC">          50 :         return;</span></span>
+<span id="L476"><span class="lineNum">     476</span>                 :             :     }</span>
+<span id="L477"><span class="lineNum">     477</span>                 :<span class="tlaGNC">         918 :     search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
+<span id="L478"><span class="lineNum">     478</span>                 :<span class="tlaGNC">         918 :     onewire_reset(search_pair_pulse); // Schedule the first hardware operation</span></span>
+<span id="L479"><span class="lineNum">     479</span>                 :             : }</span>
+<span id="L480"><span class="lineNum">     480</span>                 :             : </span>
+<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaGNC">       68975 : uint8_t onewire_search_poll(void) {</span></span>
+<span id="L482"><span class="lineNum">     482</span>         [<span class="tlaGBC" title="Branch 0 was taken 225 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 68750 times"> + </span>]:<span class="tlaGNC">       68975 :     if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) != 0u) {</span></span>
+<span id="L483"><span class="lineNum">     483</span>                 :<span class="tlaGNC">         225 :         return 1;</span></span>
+<span id="L484"><span class="lineNum">     484</span>                 :             :     }</span>
+<span id="L485"><span class="lineNum">     485</span>                 :             : </span>
+<span id="L486"><span class="lineNum">     486</span>         [<span class="tlaGBC" title="Branch 0 was taken 800 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67950 times"> + </span>]:<span class="tlaGNC">       68750 :     if (search_ctx.phase == ONEWIRE_SEARCH_DONE) {</span></span>
+<span id="L487"><span class="lineNum">     487</span>                 :             :         // No hardware operation is pending at the end of the search: the timer</span>
+<span id="L488"><span class="lineNum">     488</span>                 :             :         // stays idle until the owner asks for the next operation (a new search</span>
+<span id="L489"><span class="lineNum">     489</span>                 :             :         // schedules its own reset, a measurement calls ow_timer_kick()).</span>
+<span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaGNC">         800 :         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_FINISHED;</span></span>
+<span id="L491"><span class="lineNum">     491</span>                 :<span class="tlaGNC">         800 :         return 1;</span></span>
+<span id="L492"><span class="lineNum">     492</span>                 :             :     }</span>
+<span id="L493"><span class="lineNum">     493</span>                 :             : </span>
+<span id="L494"><span class="lineNum">     494</span>                 :             :     // Wait for the currently scheduled hardware operation to complete.</span>
+<span id="L495"><span class="lineNum">     495</span>                 :             :     // This is a non-blocking poll, not a busy-wait.</span>
+<span id="L496"><span class="lineNum">     496</span>         [<span class="tlaGBC" title="Branch 0 was taken 750 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 67200 times"> + </span>]:<span class="tlaGNC">       67950 :     if (!onewire_bus_done()) {</span></span>
+<span id="L497"><span class="lineNum">     497</span>                 :<span class="tlaGNC">         750 :         return 0;</span></span>
+<span id="L498"><span class="lineNum">     498</span>                 :             :     }</span>
+<span id="L499"><span class="lineNum">     499</span>                 :             : </span>
+<span id="L500"><span class="lineNum">     500</span>                 :             :     OW_PROFILE_WORK_BEGIN();</span>
+<span id="L501"><span class="lineNum">     501</span>   [<span class="tlaGBC" title="Branch 0 was taken 1100 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1050 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 1050 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 63000 times"> + </span> :<span class="tlaGNC">       67200 :     switch (search_ctx.phase) {</span></span>
+<span class="lineNum">        </span>       <span class="tlaGBC" title="Branch 4 was taken 1000 times"> + </span><span class="tlaUNC" title="Branch 5 was not taken"> - </span><span class="tlaUNC" title="Branch 6 was not taken"> - </span>]
+<span id="L502"><span class="lineNum">     502</span>                 :<span class="tlaGNC">        1100 :     case ONEWIRE_SEARCH_RESET:</span></span>
+<span id="L503"><span class="lineNum">     503</span>                 :             :         // Reset completed: a presence pulse means at least one device is on</span>
+<span id="L504"><span class="lineNum">     504</span>                 :             :         // the bus, so start a new search pass with the search command</span>
+<span id="L505"><span class="lineNum">     505</span>                 :             :         // (0xF0 Search ROM / 0xEC Alarm Search). The command tables are</span>
+<span id="L506"><span class="lineNum">     506</span>                 :             :         // pre-encoded in flash; only these two protocol commands ever reach</span>
+<span id="L507"><span class="lineNum">     507</span>                 :             :         // this layer (ds18b20_search_start/alarm_search_start pass the</span>
+<span id="L508"><span class="lineNum">     508</span>                 :             :         // DS18B20_* constants, and the tests/fuzz cover both).</span>
+<span id="L509"><span class="lineNum">     509</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 1050 times"> + </span>]:<span class="tlaGNC">        1100 :         if (!ow_has_presence(search_pair_pulse)) {</span></span>
+<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">          50 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">          50 :             break;</span></span>
+<span id="L512"><span class="lineNum">     512</span>                 :             :         }</span>
+<span id="L513"><span class="lineNum">     513</span>         [<span class="tlaGBC" title="Branch 0 was taken 775 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 275 times"> + </span>]:<span class="tlaGNC">        1050 :         if (search_ctx.command == ONEWIRE_SEARCH_ROM) {</span></span>
+<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">         775 :             onewire_write_slots(search_cmd_rom, ONEWIRE_BITS_PER_BYTE);</span></span>
+<span id="L515"><span class="lineNum">     515</span>                 :             :         } else {</span>
+<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">         275 :             onewire_write_slots(search_cmd_alarm, ONEWIRE_BITS_PER_BYTE);</span></span>
+<span id="L517"><span class="lineNum">     517</span>                 :             :         }</span>
+<span id="L518"><span class="lineNum">     518</span>                 :<span class="tlaGNC">        1050 :         search_ctx.phase = ONEWIRE_SEARCH_CMD;</span></span>
+<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
+<span id="L520"><span class="lineNum">     520</span>                 :             : </span>
+<span id="L521"><span class="lineNum">     521</span>                 :<span class="tlaGNC">        1050 :     case ONEWIRE_SEARCH_CMD:</span></span>
+<span id="L522"><span class="lineNum">     522</span>                 :             :         // Search command sent: prepare the first bit iteration and read the</span>
+<span id="L523"><span class="lineNum">     523</span>                 :             :         // id/cmp pair.</span>
+<span id="L524"><span class="lineNum">     524</span>                 :<span class="tlaGNC">        1050 :         search_ctx.id_bit_number = 1;</span></span>
+<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">        1050 :         search_ctx.last_zero = 0;</span></span>
+<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">        1050 :         onewire_read_pair(search_pair_pulse);</span></span>
+<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">        1050 :         search_ctx.phase = ONEWIRE_SEARCH_READ_PAIR;</span></span>
+<span id="L528"><span class="lineNum">     528</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
+<span id="L529"><span class="lineNum">     529</span>                 :             : </span>
+<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">        1050 :     case ONEWIRE_SEARCH_READ_PAIR:</span></span>
+<span id="L531"><span class="lineNum">     531</span>                 :             :         // First id/cmp pair decoded from the plain two-slot read.</span>
+<span id="L532"><span class="lineNum">     532</span>                 :             :         {</span>
+<span id="L533"><span class="lineNum">     533</span>                 :             :             uint8_t id_bit;</span>
+<span id="L534"><span class="lineNum">     534</span>                 :             :             uint8_t cmp_bit;</span>
+<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">        1050 :             onewire_pair_bits(search_pair_pulse, &amp;id_bit, &amp;cmp_bit);</span></span>
+<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">        1050 :             onewire_search_advance_bit(id_bit, cmp_bit);</span></span>
+<span id="L537"><span class="lineNum">     537</span>                 :             :         }</span>
+<span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">        1050 :         break;</span></span>
 <span id="L539"><span class="lineNum">     539</span>                 :             : </span>
-<span id="L540"><span class="lineNum">     540</span>                 :             :     OW_PROFILE_WORK_END();</span>
-<span id="L541"><span class="lineNum">     541</span>                 :<span class="tlaGNC">       67200 :     return 0;</span></span>
-<span id="L542"><span class="lineNum">     542</span>                 :             : }</span>
-<span id="L543"><span class="lineNum">     543</span>                 :             : </span>
-<span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">         900 : uint8_t onewire_search_count(void) { return search_ctx.found; }</span></span>
-<span id="L545"><span class="lineNum">     545</span>                 :             : </span>
-<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">       10688 : uint8_t onewire_search_active(void) { return (uint8_t)((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u); }</span></span>
-<span id="L547"><span class="lineNum">     547</span>                 :             : </span>
-<span id="L548"><span class="lineNum">     548</span>                 :             : /** @} */</span>
+<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">       63000 :     case ONEWIRE_SEARCH_WRITE_READ:</span></span>
+<span id="L541"><span class="lineNum">     541</span>                 :             :         // The merged operation wrote the direction for the previous bit and</span>
+<span id="L542"><span class="lineNum">     542</span>                 :             :         // captured the id/cmp pair of the current bit into search_pulse3.</span>
+<span id="L543"><span class="lineNum">     543</span>                 :<span class="tlaGNC">       63000 :         search_ctx.id_bit_number++;</span></span>
+<span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">       63000 :         onewire_search_advance_bit(</span></span>
+<span id="L545"><span class="lineNum">     545</span>                 :<span class="tlaGNC">       63000 :             onewire_bit_from_pulse(search_pulse3[1]),</span></span>
+<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">       63000 :             onewire_bit_from_pulse(search_pulse3[2]));</span></span>
+<span id="L547"><span class="lineNum">     547</span>                 :<span class="tlaGNC">       63000 :         break;</span></span>
+<span id="L548"><span class="lineNum">     548</span>                 :             : </span>
+<span id="L549"><span class="lineNum">     549</span>                 :<span class="tlaGNC">        1000 :     case ONEWIRE_SEARCH_WRITE_DIR:</span></span>
+<span id="L550"><span class="lineNum">     550</span>                 :             :         // The final (64th) direction bit was written: the ROM is assembled.</span>
+<span id="L551"><span class="lineNum">     551</span>                 :<span class="tlaGNC">        1000 :         search_ctx.id_bit_number++;</span></span>
+<span id="L552"><span class="lineNum">     552</span>                 :<span class="tlaGNC">        1000 :         search_ctx.last_discrepancy = search_ctx.last_zero;</span></span>
+<span id="L553"><span class="lineNum">     553</span>         [<span class="tlaGBC" title="Branch 0 was taken 75 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 925 times"> + </span>]:<span class="tlaGNC">        1000 :         if (onewire_crc8(search_ctx.rom, ONEWIRE_ROM_BYTES) != 0) {</span></span>
+<span id="L554"><span class="lineNum">     554</span>                 :<span class="tlaGNC">          75 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L555"><span class="lineNum">     555</span>                 :<span class="tlaGNC">          75 :             break;</span></span>
+<span id="L556"><span class="lineNum">     556</span>                 :             :         }</span>
+<span id="L557"><span class="lineNum">     557</span>                 :             :         // The family filter decides which devices are accepted: only accepted</span>
+<span id="L558"><span class="lineNum">     558</span>                 :             :         // devices increment the found counter and reach the sink. The sink may</span>
+<span id="L559"><span class="lineNum">     559</span>                 :             :         // stop the search early with a non-zero return value.</span>
+<span id="L560"><span class="lineNum">     560</span>   [<span class="tlaGBC" title="Branch 0 was taken 900 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 25 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 825 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 75 times"> + </span>]:<span class="tlaGNC">         925 :         if (search_ctx.family == 0u || search_ctx.rom[0] == search_ctx.family) {</span></span>
+<span id="L561"><span class="lineNum">     561</span>                 :<span class="tlaGNC">         850 :             search_ctx.found++;</span></span>
+<span id="L562"><span class="lineNum">     562</span>                 :             :             OW_PROFILE_WORK_END();</span>
+<span id="L563"><span class="lineNum">     563</span>         [<span class="tlaGBC" title="Branch 0 was taken 850 times"> + </span><span class="tlaUNC" title="Branch 1 was not taken"> - </span>]:<span class="tlaGNC">         850 :             uint8_t stop = search_ctx.sink ? search_ctx.sink(search_ctx.rom) : 0u;</span></span>
+<span id="L564"><span class="lineNum">     564</span>                 :             :             OW_PROFILE_WORK_BEGIN();</span>
+<span id="L565"><span class="lineNum">     565</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 800 times"> + </span>]:<span class="tlaGNC">         850 :             if (stop) {</span></span>
+<span id="L566"><span class="lineNum">     566</span>                 :<span class="tlaGNC">          50 :                 search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L567"><span class="lineNum">     567</span>                 :<span class="tlaGNC">          50 :                 break;</span></span>
+<span id="L568"><span class="lineNum">     568</span>                 :             :             }</span>
+<span id="L569"><span class="lineNum">     569</span>         [<span class="tlaGBC" title="Branch 0 was taken 475 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 325 times"> + </span>]:<span class="tlaGNC">         800 :             if (search_ctx.found &gt;= search_ctx.max) {</span></span>
+<span id="L570"><span class="lineNum">     570</span>                 :<span class="tlaGNC">         475 :                 search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L571"><span class="lineNum">     571</span>                 :<span class="tlaGNC">         475 :                 break;</span></span>
+<span id="L572"><span class="lineNum">     572</span>                 :             :             }</span>
+<span id="L573"><span class="lineNum">     573</span>                 :             :         }</span>
+<span id="L574"><span class="lineNum">     574</span>         [<span class="tlaGBC" title="Branch 0 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 350 times"> + </span>]:<span class="tlaGNC">         400 :         if (search_ctx.last_discrepancy == 0) {</span></span>
+<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">          50 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">          50 :             break;</span></span>
+<span id="L577"><span class="lineNum">     577</span>                 :             :         }</span>
+<span id="L578"><span class="lineNum">     578</span>                 :             :         // Another device may exist - run another search pass. On a real bus</span>
+<span id="L579"><span class="lineNum">     579</span>                 :             :         // every walk lands on a leaf the search has not visited before, so a</span>
+<span id="L580"><span class="lineNum">     580</span>                 :             :         // leaf identical to the previous pass proves the search made no</span>
+<span id="L581"><span class="lineNum">     581</span>                 :             :         // progress (a CRC-valid ROM rejected by the family filter, or a</span>
+<span id="L582"><span class="lineNum">     582</span>                 :             :         // hostile/broken slave answering the same profile twice). Terminate</span>
+<span id="L583"><span class="lineNum">     583</span>                 :             :         // instead of walking the same subtree forever.</span>
+<span id="L584"><span class="lineNum">     584</span>         [<span class="tlaGBC" title="Branch 0 was taken 225 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 125 times"> + </span>]:<span class="tlaGNC">         350 :         if ((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID) != 0u &amp;&amp;</span></span>
+<span id="L585"><span class="lineNum">     585</span>         [<span class="tlaUNC" title="Branch 0 was not taken"> - </span><span class="tlaGBC" title="Branch 1 was taken 225 times"> + </span>]:<span class="tlaGNC">         225 :             memcmp(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES) == 0) {</span></span>
+<span id="L586"><span class="lineNum">     586</span>                 :<span class="tlaUNC">           0 :             search_ctx.phase = ONEWIRE_SEARCH_DONE;</span></span>
+<span id="L587"><span class="lineNum">     587</span>                 :<span class="tlaUNC">           0 :             break;</span></span>
+<span id="L588"><span class="lineNum">     588</span>                 :             :         }</span>
+<span id="L589"><span class="lineNum">     589</span>                 :<span class="tlaGNC">         350 :         memcpy(search_ctx.prev_leaf, search_ctx.rom, ONEWIRE_ROM_BYTES);</span></span>
+<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">         350 :         search_ctx.flags |= ONEWIRE_SEARCH_FLAG_PREV_LEAF_VALID;</span></span>
+<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">         350 :         onewire_reset(search_pair_pulse);</span></span>
+<span id="L592"><span class="lineNum">     592</span>                 :<span class="tlaGNC">         350 :         search_ctx.phase = ONEWIRE_SEARCH_RESET;</span></span>
+<span id="L593"><span class="lineNum">     593</span>                 :<span class="tlaGNC">         350 :         break;</span></span>
+<span id="L594"><span class="lineNum">     594</span>                 :             : </span>
+<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaUNC">           0 :     case ONEWIRE_SEARCH_DONE:</span></span>
+<span id="L596"><span class="lineNum">     596</span>                 :             :         // DONE is handled before the switch (see above); keep as a</span>
+<span id="L597"><span class="lineNum">     597</span>                 :             :         // no-op so -Wswitch-enum stays satisfied.</span>
+<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
+<span id="L599"><span class="lineNum">     599</span>                 :             : </span>
+<span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaUNC">           0 :     default:</span></span>
+<span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaUNC">           0 :         break;</span></span>
+<span id="L602"><span class="lineNum">     602</span>                 :             :     }</span>
+<span id="L603"><span class="lineNum">     603</span>                 :             : </span>
+<span id="L604"><span class="lineNum">     604</span>                 :             :     OW_PROFILE_WORK_END();</span>
+<span id="L605"><span class="lineNum">     605</span>                 :<span class="tlaGNC">       67200 :     return 0;</span></span>
+<span id="L606"><span class="lineNum">     606</span>                 :             : }</span>
+<span id="L607"><span class="lineNum">     607</span>                 :             : </span>
+<span id="L608"><span class="lineNum">     608</span>                 :<span class="tlaGNC">         900 : uint8_t onewire_search_count(void) { return search_ctx.found; }</span></span>
+<span id="L609"><span class="lineNum">     609</span>                 :             : </span>
+<span id="L610"><span class="lineNum">     610</span>                 :<span class="tlaGNC">       10688 : uint8_t onewire_search_active(void) { return (uint8_t)((search_ctx.flags &amp; ONEWIRE_SEARCH_FLAG_FINISHED) == 0u); }</span></span>
+<span id="L611"><span class="lineNum">     611</span>                 :             : </span>
+<span id="L612"><span class="lineNum">     612</span>                 :             : /** @} */</span>
         </pre>
               </td>
             </tr>
