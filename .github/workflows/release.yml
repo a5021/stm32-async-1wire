@@ -317,6 +317,32 @@ jobs:
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
             `make OW_MCU=STM32C552xx` / `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
 
+            ## What's new in 3.1.3
+
+            3.1.3 makes the 1-Wire bit paths smaller and faster and closes the
+            remaining gaps in the release checks.
+
+            - **Table-driven hot paths.** `onewire_crc8()`, `onewire_crc16()`
+              and `onewire_encode_byte()` do two nibble lookups per byte, and
+              `onewire_decode_pulses()` classifies four captured slots with one
+              packed compare that is exact for every 8-bit capture value. The
+              host suite compares each helper against its bit-wise definition,
+              and a new `fuzz_crc16` harness checks CRC-16 against its own
+              reference and the append-CRC residue.
+            - **The vendored consumer is footprint-gated.** The standalone
+              template build runs the same exact-ceiling RAM gate as
+              `make test-ram`, and `OW_OPTIMIZATION` (default `-Os`) now applies
+              to the library as well as the app.
+            - **The STM32C5 backend joins the static-analysis and RAM gates.**
+              `make cppcheck` and `tests/check_ram_budget.sh` cover the C5
+              configuration, and `make deps-all` fetches the C5 device package.
+            - **The release checks can go red.** CI now applies a deliberate
+              version drift in a scratch tree and requires
+              `tests/check_version.sh` to reject it.
+            - **CMake checks out CMSIS in full.** The shallow clone failed on
+              the H7 pin with a missing tree; a full clone is reliable.
+            - **One archive.** All variants ship inside `firmware-3.1.3.zip`.
+
             ## What's new in 3.1.2
 
             3.1.2 brings the STM32C5 backend into the host test suite.
@@ -518,7 +544,7 @@ jobs:
 
             ## Download
 
-            Everything ships in one archive, `firmware-3.1.2.zip`: `.bin` / `.hex` /
+            Everything ships in one archive, `firmware-3.1.3.zip`: `.bin` / `.hex` /
             `.elf` per variant, plus `LICENSE` and `SHA256SUMS.txt` for integrity
             checks. The table below names the artifact stems in that archive:
 

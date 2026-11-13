@@ -144,6 +144,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/c5/h5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
+| `make fuzz-crc16` | Fuzz `onewire_crc16` alone against a bit-wise reference and the append-CRC residue (no call back into the helper under test) |
 | `make fuzz-measure` | Fuzz the DS18B20 measurement state machine (single + scan + Match ROM + parasite) against a reference model |
 | `make fuzz-txn` | Fuzz the DS18B20 command-transaction engine (ROM/scratchpad/thresholds/copy/recall/power-supply) against a reference model |
 | `make fuzz-ds2431-txn` | Fuzz the DS2431 EEPROM command-transaction engine (Read Memory, Write/Read/Copy Scratchpad) against a reference model |
@@ -618,7 +619,7 @@ No files are copied: the library is added as a subproject and manages its own CM
 include(FetchContent)
 FetchContent_Declare(stm32_async_1wire
     GIT_REPOSITORY https://github.com/a5021/stm32-async-1wire.git
-    GIT_TAG        v3.1.2
+    GIT_TAG        v3.1.3
 )
 FetchContent_MakeAvailable(stm32_async_1wire)
 target_link_libraries(your_app PRIVATE stm32_async_1wire)

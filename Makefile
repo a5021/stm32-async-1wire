@@ -1904,7 +1904,7 @@ define run_fuzz
 	$(FUZZ_OUT)/$(1) $(FUZZ_CORPUS)/$(1) $(FUZZ_SEEDS) -dict=$(FUZZ_DICT) -max_total_time=$(FUZZ_TIME) -print_final_stats=1
 endef
 
-.PHONY: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
+.PHONY: fuzz-crc8 fuzz-crc16 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
         fuzz-encode-byte fuzz-bit-from-pulse \
         fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
         fuzz-measure fuzz-txn fuzz-lowpower fuzz-ds2431-txn fuzz-all
@@ -1917,6 +1917,13 @@ fuzz-crc8: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_crc8.c src/onewire.c $(FUZZ_HW_MOCK) \
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_crc8
 	$(call run_fuzz,fuzz_crc8)
+
+# The expected value comes from a bit-wise reference inside the harness, never
+# from onewire_crc16() itself, so a wrong table entry cannot cancel out.
+fuzz-crc16: | $(FUZZ_OUT)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_crc16.c src/onewire.c $(FUZZ_HW_MOCK) \
+	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_crc16
+	$(call run_fuzz,fuzz_crc16)
 
 fuzz-decode-pulses: | $(FUZZ_OUT)
 	$(FUZZ_CC) $(FUZZ_CFLAGS) tests/fuzz/fuzz_decode_pulses.c src/onewire.c $(FUZZ_HW_MOCK) \
@@ -2024,7 +2031,7 @@ fuzz-ds2431-txn: | $(FUZZ_OUT)
 	    $(FUZZ_LDFLAGS) -o $(FUZZ_OUT)/fuzz_ds2431_txn
 	$(call run_fuzz,fuzz_ds2431_txn)
 
-fuzz-all: fuzz-crc8 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
+fuzz-all: fuzz-crc8 fuzz-crc16 fuzz-decode-pulses fuzz-present fuzz-pair-bits \
           fuzz-encode-byte fuzz-bit-from-pulse \
           fuzz-stats fuzz-ds18b20-decode fuzz-search fuzz-resolution \
           fuzz-measure fuzz-txn fuzz-lowpower fuzz-ds2431-txn
@@ -2074,6 +2081,7 @@ help:
 	@echo "  debug           - Build with debug symbols"
 	@echo "  fuzz-all        - Fuzz all targets (requires clang or gcc with sanitizers)"
 	@echo "  fuzz-crc8       - Fuzz onewire_crc8 (60s)"
+	@echo "  fuzz-crc16      - Fuzz onewire_crc16 against a bit-wise reference"
 	@echo "  fuzz-measure    - Fuzz the DS18B20 measurement state machine"
 	@echo "  fuzz-txn        - Fuzz the DS18B20 command-transaction engine"
 	@echo "  fuzz-lowpower   - Fuzz the low-power predicate + WFE sleep (OW_LOW_POWER=1)"

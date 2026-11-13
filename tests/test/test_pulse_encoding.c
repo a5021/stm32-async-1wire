@@ -186,6 +186,8 @@ void test_onewire_encode_byte_matches_bitwise_reference(void) {
  * slot position: the packed form must stay exact for values on both sides of
  * the threshold and for values above 128, which are where a naive lane
  * subtract would carry into its neighbour. */
+static void check_adjacent_boundaries(void);
+
 void test_onewire_decode_pulses_matches_per_bit_reference(void) {
     for (int value = 0; value < 256; value++) {
         for (int pos = 0; pos < ONEWIRE_BITS_PER_BYTE; pos++) {
@@ -198,6 +200,46 @@ void test_onewire_decode_pulses_matches_per_bit_reference(void) {
             uint8_t dst[1];
             onewire_decode_pulses(dst, pulse, 1);
             TEST_ASSERT_EQUAL_UINT8(want, dst[0]);
+        }
+    }
+    check_adjacent_boundaries();
+}
+
+/* Simultaneous boundary values: the packed compare classifies four lanes at
+ * once, so the interesting cases put a boundary in more than one lane. The
+ * single-slot loop above cannot tell a lane-wise compare from one that lets a
+ * borrow or the ~w mask leak into a neighbour. Sweep every combination of the
+ * values on both sides of the threshold, plus the captures at and above 128
+ * that the mask exists for, across each nibble. */
+static void check_adjacent_boundaries(void) {
+    static const uint8_t edges[] = {0, ONEWIRE_SHORT_PULSE_MAX,
+                                    ONEWIRE_SHORT_PULSE_MAX + 1, 127,
+                                    128, 129,
+                                    255};
+    const unsigned n = (unsigned)(sizeof(edges) / sizeof(edges[0]));
+    for (unsigned half = 0; half < 2u; half++) {
+        for (unsigned a = 0; a < n; a++) {
+            for (unsigned b = 0; b < n; b++) {
+                for (unsigned c = 0; c < n; c++) {
+                    for (unsigned d = 0; d < n; d++) {
+                        uint8_t pulse[ONEWIRE_BITS_PER_BYTE];
+                        uint8_t want = 0;
+                        for (unsigned slot = 0; slot < ONEWIRE_BITS_PER_BYTE; slot++) {
+                            pulse[slot] = ONEWIRE_ZERO_PULSE;
+                        }
+                        pulse[half * 4u + 0u] = edges[a];
+                        pulse[half * 4u + 1u] = edges[b];
+                        pulse[half * 4u + 2u] = edges[c];
+                        pulse[half * 4u + 3u] = edges[d];
+                        for (unsigned slot = 0; slot < ONEWIRE_BITS_PER_BYTE; slot++) {
+                            want |= (uint8_t)(onewire_bit_from_pulse(pulse[slot]) << slot);
+                        }
+                        uint8_t dst[1];
+                        onewire_decode_pulses(dst, pulse, 1);
+                        TEST_ASSERT_EQUAL_UINT8(want, dst[0]);
+                    }
+                }
+            }
         }
     }
 }

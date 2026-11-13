@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-11-14
+
 ### Added
 
 - **The STM32C5 backend is now covered by the static-analysis and RAM-budget
@@ -25,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path cannot quietly grow past the advertised flash/RAM numbers. The template
   gained `OW_OPTIMIZATION` (default `-Os`) and applies it to the library as
   well as the app.
+
+- **The table-driven hot paths are pinned by stronger tests.** The packed
+  decoder is swept across simultaneous boundary captures in all four lanes
+  (the case the `~w` mask exists for), a `fuzz_crc16` harness checks CRC-16
+  against a bit-wise reference and the append-CRC residue without calling the
+  helper under test, and CI now proves `tests/check_version.sh` still fails on
+  a drifted version. The documented test counts are unchanged.
 
 ### Changed
 
@@ -2900,4 +2909,5 @@ without a section here, and its changes had drifted into the section below.
 [3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...v3.1.0
 [3.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...v3.1.1
 [3.1.2]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...v3.1.2
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.2...HEAD
+[3.1.3]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.2...v3.1.3
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.3...HEAD

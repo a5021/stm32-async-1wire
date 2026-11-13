@@ -570,12 +570,33 @@ jobs:
         run: make test-manifest
 
       - name: Check the project version is consistent
-        # inc/ds18b20.h is the source; the CMake project(), both PlatformIO
-        # manifests, the Doxygen PROJECT_NUMBER and the docs/building.md GIT_TAG
-        # example must agree, and CHANGELOG.md must carry a dated section for the version
-        # being released. v1.8.1 shipped with no [1.8.1] section at all because
-        # nothing checked for one.
+        # inc/ow_version.h is the source; the CMake project(), library.json,
+        # the Doxygen PROJECT_NUMBER, the docs/building.md GIT_TAG example and
+        # the static release notes must agree, and CHANGELOG.md must carry a
+        # dated section for the version being released. v1.8.1 shipped with no
+        # [1.8.1] section at all because nothing checked for one.
         run: make test-version
+
+      - name: Check the version drift check can still fail
+        # The step above proves this tree is consistent. This one proves the
+        # checker is not vacuous: copy just the files it reads to a scratch
+        # directory, change one declaration (the CMake version) and require a
+        # non-zero exit. A bump that misses a site must fail the release, not
+        # ship.
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          mkdir -p "$tmp/inc" "$tmp/tests" "$tmp/docs" "$tmp/.github/workflows"
+          cp inc/ow_version.h "$tmp/inc/"
+          cp CMakeLists.txt library.json Doxyfile CHANGELOG.md "$tmp/"
+          cp docs/building.md "$tmp/docs/"
+          cp .github/workflows/release.yml "$tmp/.github/workflows/"
+          cp tests/check_version.sh "$tmp/tests/"
+          sed -i 's/project(stm32_async_1wire VERSION [0-9][0-9.]*/project(stm32_async_1wire VERSION 9.9.9/' "$tmp/CMakeLists.txt"
+          if (cd "$tmp" && sh tests/check_version.sh >/dev/null 2>&1); then
+            echo "check_version.sh accepted a tree with a drifted CMake version" >&2
+            exit 1
+          fi
 
       - name: Check the host mocks against the real CMSIS headers
         # Without this the mock-vs-CMSIS drift guard only runs locally: the
