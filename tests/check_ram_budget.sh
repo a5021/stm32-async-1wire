@@ -268,14 +268,17 @@ fi
 # pinned the wrong way round). data is a constant 12 B.
 #
 #   image              text   total .bss   driver .bss
-#   ow_consumer.elf    5588       352          314
+#   ow_consumer.elf    5768       352          314
 #
+# The 5588 B of the first measurement became 5768 B with the table-driven
+# CRC and pulse codec: 112 B of tables plus the larger decode/encode bodies,
+# in an image that links no bit loop for them to replace. .bss is unchanged.
 # The driver sum is 314 B, not the 329 B of 5_commands, because this app only
 # runs the measure path: --gc-sections drops the search/transaction statics
 # (search_user_sink, search_pulse3, search_pair_pulse) that 5_commands keeps.
 check_consumer() {
     elf="$1"
-    textmax=5588
+    textmax=5768
     bssmax=352
     libmax=314
     if [ ! -f "$elf" ]; then
