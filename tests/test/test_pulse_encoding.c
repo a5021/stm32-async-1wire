@@ -166,6 +166,50 @@ void test_onewire_decode_pulses_two_bytes(void) {
     TEST_ASSERT_EQUAL_UINT8(0xAA, dst[1]);
 }
 
+/* The decoder classifies four slots at a time with a packed compare. Prove it
+ * against onewire_bit_from_pulse() for every possible capture value in every
+ * slot position: the packed form must stay exact for values on both sides of
+ * the threshold and for values above 128, which are where a naive lane
+ * subtract would carry into its neighbour. */
+void test_onewire_decode_pulses_matches_per_bit_reference(void) {
+    for (int value = 0; value < 256; value++) {
+        for (int pos = 0; pos < ONEWIRE_BITS_PER_BYTE; pos++) {
+            uint8_t pulse[ONEWIRE_BITS_PER_BYTE];
+            uint8_t want = 0;
+            for (int slot = 0; slot < ONEWIRE_BITS_PER_BYTE; slot++) {
+                pulse[slot] = (uint8_t)((slot == pos) ? value : ONEWIRE_ZERO_PULSE);
+                want |= (uint8_t)(onewire_bit_from_pulse(pulse[slot]) << slot);
+            }
+            uint8_t dst[1];
+            onewire_decode_pulses(dst, pulse, 1);
+            TEST_ASSERT_EQUAL_UINT8(want, dst[0]);
+        }
+    }
+}
+
+/* Full-length decode: the 32-byte maximum is what a raw read uses, and it
+ * walks the outer loop and the 4-slot step to their last iteration. */
+void test_onewire_decode_pulses_max_length(void) {
+    uint8_t pulse[ONEWIRE_MAX_READ_BYTES * ONEWIRE_BITS_PER_BYTE];
+    uint8_t dst[ONEWIRE_MAX_READ_BYTES];
+    uint8_t want[ONEWIRE_MAX_READ_BYTES];
+    for (int i = 0; i < (int)sizeof(pulse); i++) {
+        /* Alternate the two real pulse widths, with an irregular phase so a
+         * slot cannot be predicted from its index alone. */
+        pulse[i] = (uint8_t)((((i * 37u) >> 3) & 1u) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE);
+    }
+    for (int b = 0; b < (int)ONEWIRE_MAX_READ_BYTES; b++) {
+        want[b] = 0;
+        for (int bit = 0; bit < ONEWIRE_BITS_PER_BYTE; bit++) {
+            want[b] |= (uint8_t)(onewire_bit_from_pulse(pulse[b * ONEWIRE_BITS_PER_BYTE + bit]) << bit);
+        }
+    }
+    onewire_decode_pulses(dst, pulse, ONEWIRE_MAX_READ_BYTES);
+    for (int b = 0; b < (int)ONEWIRE_MAX_READ_BYTES; b++) {
+        TEST_ASSERT_EQUAL_UINT8(want[b], dst[b]);
+    }
+}
+
 void run_test_pulse_encoding(void) {
     TEST_RUN(test_pulse_encoding_zero_byte_all_zero_pulse);
     TEST_RUN(test_pulse_encoding_0xFF_all_one_pulse);
@@ -184,4 +228,6 @@ void run_test_pulse_encoding(void) {
     TEST_RUN(test_onewire_decode_pulses_all_long_is_0x00);
     TEST_RUN(test_onewire_decode_pulses_pattern);
     TEST_RUN(test_onewire_decode_pulses_two_bytes);
+    TEST_RUN(test_onewire_decode_pulses_matches_per_bit_reference);
+    TEST_RUN(test_onewire_decode_pulses_max_length);
 }

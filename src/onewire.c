@@ -282,11 +282,42 @@ uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
     return ow_port_read_data(dst, bytes);
 }
 
+/* Four captured slots are classified per step. The reference rule is
+ * `duration <= ONEWIRE_SHORT_PULSE_MAX`, applied independently per slot; the
+ * packed form below is exact for every 8-bit capture value, not only for the
+ * two widths the bus produces:
+ *
+ *   x = (w & 0x7F7F7F7F) | 0x80808080
+ *       keeps every lane in 128..255, so the subtract can never borrow out of
+ *       a lane and corrupt its neighbour;
+ *   (x - limit) & 0x80808080, inverted, is "lane < limit", i.e. a short pulse;
+ *   & ~w drops the lanes whose capture was 128 or more. Such a lane is a long
+ *       pulse by the rule (limit <= 128, asserted below), and it is the only
+ *       lane that could misreport without the mask, because its capture never
+ *       carried a borrow out of the lane.
+ *
+ * The four flags end up in bit 7 of their lane and are gathered LSB-first, so
+ * the result matches onewire_bit_from_pulse() slot for slot.
+ *
+ * A capture value is a byte: the 8-bit read path truncates at 256 us and the
+ * port asserts that the slot period stays below that. */
+_Static_assert(ONEWIRE_SHORT_PULSE_MAX + 1 <= 0x80,
+               "onewire_decode_pulses: the packed compare needs a threshold <= 128");
+
 void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {
+    const uint32_t limit = (uint32_t)(ONEWIRE_SHORT_PULSE_MAX + 1) * 0x01010101u;
     for (uint8_t byte = 0; byte < nbytes; byte++) {
+        const volatile uint8_t* p = pulse + (uint32_t)byte * ONEWIRE_BITS_PER_BYTE;
         uint8_t value = 0;
-        for (uint8_t bit = 0; bit < ONEWIRE_BITS_PER_BYTE; bit++) {
-            value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) << bit);
+        for (uint8_t half = 0; half < 2u; half++) {
+            uint32_t w = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
+                         ((uint32_t)p[3] << 24);
+            uint32_t x = (w & 0x7F7F7F7Fu) | 0x80808080u;
+            uint32_t t = ((x - limit) & 0x80808080u) ^ 0x80808080u;
+            uint32_t f = t & ~w & 0x80808080u;
+            uint32_t bits = (f >> 7) | (f >> 14) | (f >> 21) | (f >> 28);
+            value = (uint8_t)(value | (uint8_t)((bits & 0x0Fu) << (half * 4u)));
+            p += 4;
         }
         dst[byte] = value;
     }
