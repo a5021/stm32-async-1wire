@@ -26,19 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gained `OW_OPTIMIZATION` (default `-Os`) and applies it to the library as
   well as the app.
 
-### Fixed
-
-- **The standalone-consumer template compiled the library at `-O3`.** Its
-  `-Os` was app-local, so `CMAKE_BUILD_TYPE=Release` left `owlib` on CMake's
-  default and the vendored path did not match the advertised size profile.
-
-- **The documentation matches the code again.** The C5 backend was missing from
-  the family lists (README, architecture, API reference, getting started,
-  project, examples, file structure, `make help`, the release notes), the
-  per-family host-suite test counts were two low for every family, and the C5
-  hardware notes still described the backend as initial with six open
-  questions the bench had already answered.
-
 ### Changed
 
 - **The CRC-8/CRC-16 helpers and the pulse encoder/decoder run from compact
@@ -51,8 +38,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value, and the existing fuzz harnesses keep the per-bit equivalence property.
   On the release profile (`-Os`) the hot paths execute roughly 4.8x (CRC-8),
   4.4x (CRC-16), 3.4x (encoder) and 2.0x (decoder) fewer instructions. The
-  tables cost about 112 bytes of flash on the 8-bit families (176 on F4/H7).
-  The aggregate CPU profile in `docs/cpu-profile.md` was not re-run.
+  tables themselves add about 112 bytes of flash on the 8-bit families (176 on
+  F4/H7); the net image delta depends on which loops an image links, and it is
+  recorded where the budgets are (for example `0_dma_pressure` +100 B,
+  `6_statistics` +148 B, the consumer template +180 B). The aggregate CPU
+  profile in `docs/cpu-profile.md` was not re-run.
+
+### Fixed
+
+- **The standalone-consumer template compiled the library at `-O3`.** Its
+  `-Os` was app-local, so `CMAKE_BUILD_TYPE=Release` left `owlib` on CMake's
+  default and the vendored path did not match the advertised size profile.
+
+- **The documentation matches the code again.** The C5 backend was missing from
+  the family lists (README, architecture, API reference, getting started,
+  project, examples, file structure, `make help`, the release notes), the
+  per-family host-suite test counts were two low for every family, and the C5
+  hardware notes still described the backend as initial with six open
+  questions the bench had already answered.
 
 ## [3.1.2] - 2026-11-10
 

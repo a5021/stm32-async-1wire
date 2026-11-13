@@ -135,7 +135,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
-| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
+| `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (35 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-ds2413` | Run the DS2413 switch driver suite alone (14 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps). `sh tests/check_ram_budget.sh --consumer <elf>` applies the same gate to a CMake-built image without building anything |
@@ -188,7 +188,7 @@ make test-c5     # same suite against the STM32C5 backend mock (144/48/8 MHz)
 make test-h5     # same suite against the STM32H5 backend mock
 make test-h7     # same suite against the STM32H7 backend mock
 make test-all-families  # every backend above in one run
-make test-ds2431 # DS2431 EEPROM suite (34 tests; also runs inside every make test)
+make test-ds2431 # DS2431 EEPROM suite (35 tests; also runs inside every make test)
 make test-ds2413 # DS2413 switch suite (14 tests; also runs inside every make test)
 ```
 
@@ -207,21 +207,21 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    owns the context and the public API, engine TU `src/ds2431_txn.c` works
    on the caller-owned context via `src/ds2431_internal.h`
    (`tests/mock/ds2431_test_access.c` pulls both plus `src/onewire.c`
-   into one test object). The base suite runs 324 tests against the F0 and F1
-   mocks, 325 against the F3, F4, L4 and H7 backends (the F4 target also builds
+   into one test object). The base suite runs 328 tests against the F0 and F1
+   mocks, 329 against the F3, F4, L4 and H7 backends (the F4 target also builds
    and runs its 180 MHz clock-default host variant `ds18b20_test_f4_180mhz.exe`
    as an extra; the L4 target runs its 16 MHz variant
    `ds18b20_test_l4_16mhz.exe`; the H7 target runs its 64 MHz and 480/240 MHz
    variants `ds18b20_test_h7_64mhz.exe` and
-   `ds18b20_test_h7_480_240mhz.exe`; all with the same count), 326 against G0
-   (which adds two DMAMUX request-routing tests), 327 against G4 (same two
+   `ds18b20_test_h7_480_240mhz.exe`; all with the same count), 330 against G0
+   (which adds two DMAMUX request-routing tests), 331 against G4 (same two
    DMAMUX tests plus the G4 console-baud test; the 16 MHz variant
-   `ds18b20_test_g4_16mhz.exe` runs as an extra, same count) and 328 against H5
+   `ds18b20_test_g4_16mhz.exe` runs as an extra, same count) and 332 against H5
    and C5 (both add the two request-routing tests, a console-baud test and the
    IC4PSC check, and both run their clock variants as extras -
    `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` for H5,
    `ds18b20_test_c5_48mhz.exe` and `ds18b20_test_c5_8mhz.exe` for C5 - same
-   count). Every wrapper runs the DS2431 suite alongside it (34 tests, see
+   count). Every wrapper runs the DS2431 suite alongside it (35 tests, see
    `make test-ds2431`) and the DS2413 suite (14 tests, see `make test-ds2413`).
     The suite covers:
 
@@ -286,11 +286,11 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     busy guard and select-while-busy
 
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
-tests + the 34-test DS2431 and 14-test DS2413 suites, every family),
-`make test-lowpower` (full suite + low-power WFE path: 341 tests against
-F0/F1, 342 against F3/F4/L4/H7, 343 against G0, 344 against G4, 345 against H5
-and C5, plus the same 34 DS2431 and 14 DS2413 tests) and `make test-ndebug`
-(337 / 338 / 339 / 340 / 341 + the same 34 + 14, asserts off).
+tests + the 35-test DS2431 and 14-test DS2413 suites, every family),
+`make test-lowpower` (full suite + low-power WFE path: 345 tests against
+F0/F1, 346 against F3/F4/L4/H7, 347 against G0, 348 against G4, 349 against H5
+and C5, plus the same 35 DS2431 and 14 DS2413 tests) and `make test-ndebug`
+(341 / 342 / 343 / 344 / 345 + the same 35 + 14, asserts off).
 
 ### Does the suite actually notice a broken DMA contract?
 
