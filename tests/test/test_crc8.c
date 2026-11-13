@@ -60,6 +60,37 @@ void test_crc8_all_0xFF_bytes(void) {
     TEST_ASSERT_NOT_EQUAL(0, ds18b20_crc8(data, 8));
 }
 
+/* Bit-wise reference for the table-driven helper: the same Dallas/Maxim loop
+ * the driver used before the table existed, kept here so the table is proven
+ * against the definition rather than against one known vector. */
+static uint8_t crc8_reference(const uint8_t* data, uint8_t len) {
+    uint8_t crc = 0;
+    for (uint8_t i = 0; i < len; i++) {
+        uint8_t in = data[i];
+        for (uint8_t bit = 0; bit < 8u; bit++) {
+            uint8_t mix = (uint8_t)((crc ^ in) & 1u);
+            crc >>= 1;
+            if (mix) crc ^= 0x8Cu; /* ONEWIRE_CRC8_POLY */
+            in >>= 1;
+        }
+    }
+    return crc;
+}
+
+void test_crc8_table_matches_bitwise_reference(void) {
+    uint8_t data[9];
+    for (int value = 0; value < 256; value++) {
+        data[0] = (uint8_t)value;
+        TEST_ASSERT_EQUAL_HEX8(crc8_reference(data, 1), ds18b20_crc8(data, 1));
+    }
+    for (uint8_t len = 0; len <= 9u; len++) {
+        for (uint8_t i = 0; i < len; i++) {
+            data[i] = (uint8_t)(0x5Au + (uint8_t)(i * 37u));
+        }
+        TEST_ASSERT_EQUAL_HEX8(crc8_reference(data, len), ds18b20_crc8(data, len));
+    }
+}
+
 void run_test_crc8(void) {
     TEST_RUN(test_crc8_empty_buffer_returns_zero);
     TEST_RUN(test_crc8_single_zero_byte_returns_zero);
@@ -70,4 +101,5 @@ void run_test_crc8(void) {
     TEST_RUN(test_crc8_is_deterministic);
     TEST_RUN(test_crc8_different_lengths_produce_different_results);
     TEST_RUN(test_crc8_all_0xFF_bytes);
+    TEST_RUN(test_crc8_table_matches_bitwise_reference);
 }

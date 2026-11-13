@@ -282,51 +282,115 @@ uint8_t onewire_read_data(volatile uint8_t* dst, uint8_t bytes) {
     return ow_port_read_data(dst, bytes);
 }
 
+/* Four captured slots are classified per step. The reference rule is
+ * `duration <= ONEWIRE_SHORT_PULSE_MAX`, applied independently per slot; the
+ * packed form below is exact for every 8-bit capture value, not only for the
+ * two widths the bus produces:
+ *
+ *   x = (w & 0x7F7F7F7F) | 0x80808080
+ *       keeps every lane in 128..255, so the subtract can never borrow out of
+ *       a lane and corrupt its neighbour;
+ *   (x - limit) & 0x80808080, inverted, is "lane < limit", i.e. a short pulse;
+ *   & ~w drops the lanes whose capture was 128 or more. Such a lane is a long
+ *       pulse by the rule (limit <= 128, asserted below), and it is the only
+ *       lane that could misreport without the mask, because its capture never
+ *       carried a borrow out of the lane.
+ *
+ * The four flags end up in bit 7 of their lane and are gathered LSB-first, so
+ * the result matches onewire_bit_from_pulse() slot for slot.
+ *
+ * A capture value is a byte: the 8-bit read path truncates at 256 us and the
+ * port asserts that the slot period stays below that. */
+_Static_assert(ONEWIRE_SHORT_PULSE_MAX + 1 <= 0x80,
+               "onewire_decode_pulses: the packed compare needs a threshold <= 128");
+
 void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes) {
+    const uint32_t limit = (uint32_t)(ONEWIRE_SHORT_PULSE_MAX + 1) * 0x01010101u;
     for (uint8_t byte = 0; byte < nbytes; byte++) {
+        const volatile uint8_t* p = pulse + (uint32_t)byte * ONEWIRE_BITS_PER_BYTE;
         uint8_t value = 0;
-        for (uint8_t bit = 0; bit < ONEWIRE_BITS_PER_BYTE; bit++) {
-            value |= (uint8_t)(onewire_bit_from_pulse(pulse[byte * ONEWIRE_BITS_PER_BYTE + bit]) << bit);
+        for (uint8_t half = 0; half < 2u; half++) {
+            uint32_t w = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
+                         ((uint32_t)p[3] << 24);
+            uint32_t x = (w & 0x7F7F7F7Fu) | 0x80808080u;
+            uint32_t t = ((x - limit) & 0x80808080u) ^ 0x80808080u;
+            uint32_t f = t & ~w & 0x80808080u;
+            uint32_t bits = (f >> 7) | (f >> 14) | (f >> 21) | (f >> 28);
+            value = (uint8_t)(value | (uint8_t)((bits & 0x0Fu) << (half * 4u)));
+            p += 4;
         }
         dst[byte] = value;
     }
 }
 
+/* Pre-encoded slots, four per nibble, LSB-first: row n holds the durations for
+ * bits 0..3 of n. The encoder used to run eight shift/branch rounds per byte;
+ * a byte is now two row copies. The rows are built from the same
+ * ONEWIRE_ONE_PULSE / ONEWIRE_ZERO_PULSE macros as the bit-wise form, so a
+ * timing preset still chooses the waveform and only the way it reaches the
+ * buffer changed. tests/test/test_pulse_encoding.c compares every row against
+ * the bit-wise definition, so a transposed row cannot pass. */
+static const ow_pulse_t encode_nibble[16][4] = {
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ZERO_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},
+    {ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE, ONEWIRE_ONE_PULSE},
+};
+
 void onewire_encode_byte(ow_pulse_t* out, uint8_t byte) {
-    for (uint8_t i = 0; i < ONEWIRE_BITS_PER_BYTE; i++) {
-        out[i] = (byte & (1u << i)) ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
-    }
+    const ow_pulse_t* low = encode_nibble[byte & 0x0Fu];
+    const ow_pulse_t* high = encode_nibble[byte >> 4];
+    out[0] = low[0];
+    out[1] = low[1];
+    out[2] = low[2];
+    out[3] = low[3];
+    out[4] = high[0];
+    out[5] = high[1];
+    out[6] = high[2];
+    out[7] = high[3];
 }
+
+/* Reflected nibble tables for the two polynomials at the top of this file:
+ * entry n is the remainder of processing nibble n from a zero state. Two
+ * lookups replace eight shift/XOR rounds per byte, which is what a ROM check
+ * or a DS2431 scratchpad reply spends its time on. The values are fixed by
+ * the polynomials; the host suite compares both helpers against a bit-wise
+ * reference over every byte value, so a wrong entry cannot pass unnoticed. */
+static const uint8_t crc8_nibble[16] = {0x00, 0x9D, 0x23, 0xBE, 0x46, 0xDB, 0x65, 0xF8,
+                                        0x8C, 0x11, 0xAF, 0x32, 0xCA, 0x57, 0xE9, 0x74};
 
 uint8_t onewire_crc8(const uint8_t* data, uint8_t len) {
     uint8_t crc = 0;
-    // Process each byte in the buffer
     for (uint8_t i = 0; i < len; i++) {
-        uint8_t inByte = data[i];
-        // Process each bit in the byte using Dallas/Maxim CRC8 algorithm
-        for (uint8_t b = 0; b < ONEWIRE_BITS_PER_BYTE; b++) {
-            uint8_t mix = (crc ^ inByte) & 0x01;
-            crc >>= 1;
-            if (mix) crc ^= ONEWIRE_CRC8_POLY;
-            inByte >>= 1;
-        }
+        uint8_t in = data[i];
+        crc = (uint8_t)((crc >> 4) ^ crc8_nibble[(crc ^ in) & 0x0Fu]);
+        crc = (uint8_t)((crc >> 4) ^ crc8_nibble[(crc ^ (in >> 4)) & 0x0Fu]);
     }
     return crc;
 }
 
+static const uint16_t crc16_nibble[16] = {0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00,
+                                          0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401,
+                                          0x5000, 0x9C01, 0x8801, 0x4400};
+
 uint16_t onewire_crc16(const uint8_t* data, uint8_t len) {
     uint16_t crc = 0;
-    // Process each byte in the buffer
     for (uint8_t i = 0; i < len; i++) {
-        crc ^= data[i];
-        // Process each bit LSB-first (reflected Maxim CRC-16, polynomial 0xA001)
-        for (uint8_t b = 0; b < ONEWIRE_BITS_PER_BYTE; b++) {
-            if (crc & 0x0001u) {
-                crc = (uint16_t)((crc >> 1) ^ ONEWIRE_CRC16_POLY);
-            } else {
-                crc >>= 1;
-            }
-        }
+        uint8_t in = data[i];
+        crc = (uint16_t)((crc >> 4) ^ crc16_nibble[(crc ^ in) & 0x0Fu]);
+        crc = (uint16_t)((crc >> 4) ^ crc16_nibble[(crc ^ (in >> 4)) & 0x0Fu]);
     }
     return crc;
 }

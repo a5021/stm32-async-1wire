@@ -313,7 +313,12 @@ endif()
 FetchContent_Declare(cmsis_device
     GIT_REPOSITORY ${CMSIS_DEVICE_REPO}
     GIT_TAG        ${CMSIS_DEVICE_TAG}
-    GIT_SHALLOW    TRUE
+    # Not shallow: a --depth 1 clone followed by "git fetch --depth 1 <sha>"
+    # has left the CI runner with the commit but a missing tree for the H7 pin
+    # ("fatal: unable to read tree"), while a full clone checks the same SHA
+    # out every time. The device repos are small enough that the extra history
+    # costs less than a configure that fails only on one family.
+    GIT_SHALLOW    FALSE
     GIT_PROGRESS   TRUE
 )
 if(NOT OW_USE_SYSTEM_CMSIS)

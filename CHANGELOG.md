@@ -26,7 +26,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gained `OW_OPTIMIZATION` (default `-Os`) and applies it to the library as
   well as the app.
 
+### Changed
+
+- **The CRC-8/CRC-16 helpers and the pulse encoder/decoder run from compact
+  tables.** `onewire_crc8()`, `onewire_crc16()` and `onewire_encode_byte()` now
+  do two nibble lookups per byte instead of eight shift/XOR (or shift/branch)
+  rounds, and `onewire_decode_pulses()` classifies four captured slots at a
+  time with a packed compare that is exact for every 8-bit capture value, not
+  just for the two widths the bus produces. The output is unchanged: the host
+  suite compares each helper against the bit-wise definition for every byte
+  value, and the existing fuzz harnesses keep the per-bit equivalence property.
+  On the release profile (`-Os`) the hot paths execute roughly 4.8x (CRC-8),
+  4.4x (CRC-16), 3.4x (encoder) and 2.0x (decoder) fewer instructions. The
+  tables themselves add about 112 bytes of flash on the 8-bit families (176 on
+  F4/H7); the net image delta depends on which loops an image links, and it is
+  recorded where the budgets are (for example `0_dma_pressure` +100 B,
+  `6_statistics` +148 B, the consumer template +180 B). The aggregate CPU
+  profile in `docs/cpu-profile.md` was not re-run.
+
 ### Fixed
+
+- **The CMake build no longer shallow-clones the CMSIS device package.** On the
+  CI runner the H7 pin came back from `git fetch --depth 1` with a missing tree
+  (`fatal: unable to read tree`), so that leg failed at configure while every
+  other family passed. A full clone checks the pinned SHA out reliably.
 
 - **The standalone-consumer template compiled the library at `-O3`.** Its
   `-Os` was app-local, so `CMAKE_BUILD_TYPE=Release` left `owlib` on CMake's

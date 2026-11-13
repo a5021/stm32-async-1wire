@@ -287,9 +287,10 @@ static inline uint8_t onewire_bit_from_pulse(uint16_t dur) {
  * @param[out] dst Decoded bytes
  * @param[in] pulse Captured per-bit pulse durations (one entry per bit)
  * @param[in] nbytes Number of bytes to decode (pulse must hold nbytes × 8 entries)
- * @note Each bit is recovered with onewire_bit_from_pulse(); bit 0 maps to the
- *       LSB of its byte. Recovers scratchpad / register bytes from the 1-Wire
- *       read capture.
+ * @note Each bit is classified with the same `<= ONEWIRE_SHORT_PULSE_MAX` rule
+ *       as onewire_bit_from_pulse(), slot for slot; bit 0 maps to the LSB of
+ *       its byte. Recovers scratchpad / register bytes from the 1-Wire read
+ *       capture.
  */
 void onewire_decode_pulses(uint8_t* dst, const volatile uint8_t* pulse, uint8_t nbytes);
 

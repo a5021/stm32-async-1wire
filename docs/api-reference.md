@@ -819,10 +819,10 @@ Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 
 | Example | `.text` | Total `.bss` |
 | --- | ---: | ---: |
-| `0_dma_pressure` | 2456 B | 1484 B |
-| `6_statistics` | 6336 B | 1788 B |
-| `8_ds2431` | 6156 B | 768 B |
-| `9_multi` | 12792 B | 1456 B |
+| `0_dma_pressure` | 2556 B | 1484 B |
+| `6_statistics` | 6484 B | 1788 B |
+| `8_ds2431` | 5700 B | 768 B |
+| `9_multi` | 12332 B | 1456 B |
 
 `6_statistics` owns the largest `.bss` (1024 B UART ring + ~304 B stats state);
 `9_multi` owns the largest `.text` (DS18B20 + DS2431 + DS2413 in one image,
@@ -830,7 +830,7 @@ about 78% of the 16 KB flash). The DS2431 and DS2413 drivers are dropped by
 `--gc-sections` from images that never call them.
 
 The vendored template (`templates/standalone-consumer`, STM32H503xx) is gated
-too: `sh tests/check_ram_budget.sh --consumer <elf>` pins its image at 5588 B
+too: `sh tests/check_ram_budget.sh --consumer <elf>` pins its image at 5768 B
 `.text` and 352 B total `.bss`, 314 B of it driver-owned. The driver sum is
 below the 329 B of `5_commands` because the template's measure-only app lets
 `--gc-sections` drop the search and transaction statics. `OW_OPTIMIZATION`
