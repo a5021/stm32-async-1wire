@@ -789,7 +789,8 @@ erases the four record/ROM blocks before a fresh capture and then stops.
 
 The driver keeps all of its state in `.bss`; the flash cost is the driver plus
 the application. `make test-ram` (`tests/check_ram_budget.sh`) gates both with
-exact ceilings, so any growth has to be a deliberate budget change. The numbers
+exact ceilings, so any growth has to be a deliberate budget change; the same
+script's `--consumer <elf>` mode gates a CMake-built image. The numbers
 below are the ceilings enforced there.
 
 Driver-owned `.bss` is the sum of the DS18B20 context, search and transaction
@@ -827,6 +828,14 @@ Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 `9_multi` owns the largest `.text` (DS18B20 + DS2431 + DS2413 in one image,
 about 78% of the 16 KB flash). The DS2431 and DS2413 drivers are dropped by
 `--gc-sections` from images that never call them.
+
+The vendored template (`templates/standalone-consumer`, STM32H503xx) is gated
+too: `sh tests/check_ram_budget.sh --consumer <elf>` pins its image at 5588 B
+`.text` and 352 B total `.bss`, 314 B of it driver-owned. The driver sum is
+below the 329 B of `5_commands` because the template's measure-only app lets
+`--gc-sections` drop the search and transaction statics. `OW_OPTIMIZATION`
+defaults to `-Os` for the library and the app; CMake's Release `-O3` would
+build the same image 540 B larger.
 
 ## Configuration
 

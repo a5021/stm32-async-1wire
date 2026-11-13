@@ -106,13 +106,33 @@
 # Matching goes through fixed strings on purpose (see check_version.sh: this
 # repo checks out CRLF on Windows and LF in CI).
 #
-# Usage: sh tests/check_ram_budget.sh        (make test-ram is the usual entry)
-# Env: GCC_PATH — same as make (directory holding arm-none-eabi-*); empty
+# Usage: sh tests/check_ram_budget.sh
+#          (make test-ram is the usual entry)
+#        sh tests/check_ram_budget.sh --consumer <elf>
+#          gate the CMake-built standalone-consumer template (CI builds it in
+#          the cmake (h5) leg; nothing here builds or needs CMSIS)
+# Env: GCC_PATH - same as make (directory holding arm-none-eabi-*); empty
 # means the tools are on PATH (CI puts them there).
 
 set -u
 
 cd "$(dirname "$0")/.." || exit 1
+
+consumer_elf=""
+case "${1:-}" in
+    "") ;;
+    --consumer)
+        if [ $# -ne 2 ]; then
+            echo "usage: $0 [--consumer <elf>]" >&2
+            exit 2
+        fi
+        consumer_elf="$2"
+        ;;
+    *)
+        echo "usage: $0 [--consumer <elf>]" >&2
+        exit 2
+        ;;
+esac
 
 if [ -n "${GCC_PATH:-}" ]; then
     TC="$GCC_PATH/"
@@ -223,6 +243,63 @@ for t in "$NM" "$SZ"; do
 done
 if [ "$fail" -ne 0 ]; then
     exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Tier 4: the CMake-built standalone-consumer template (H5)
+# ---------------------------------------------------------------------------
+# Every budget above measures a Make-built image. The vendored template is the
+# only CMake-built ELF in CI that goes through cmake/ow_add_library.cmake end to
+# end, so a regression on that documented path - or a helper flag that pushes
+# the image over the advertised footprint - used to pass unnoticed.
+#
+# Measured 2026-11-13 with toolchain 15.2.rel1 and the SHA-pinned CMSIS:
+# OW_MCU=STM32H503xx, default OW_OPTIMIZATION=-Os (the template now applies -Os
+# to the library too; a bare CMAKE_BUILD_TYPE=Release gives CMake's -O3 and a
+# 540 B larger .text, which is exactly the divergence this gate would have
+# pinned the wrong way round). data is a constant 12 B.
+#
+#   image              text   total .bss   driver .bss
+#   ow_consumer.elf    5588       352          314
+#
+# The driver sum is 314 B, not the 329 B of 5_commands, because this app only
+# runs the measure path: --gc-sections drops the search/transaction statics
+# (search_user_sink, search_pulse3, search_pair_pulse) that 5_commands keeps.
+check_consumer() {
+    elf="$1"
+    textmax=5588
+    bssmax=352
+    libmax=314
+    if [ ! -f "$elf" ]; then
+        bad "consumer ELF not found: $elf"
+        return
+    fi
+    mkdir -p build
+    note "consumer ELF=$elf"
+    text=$(textsize "$elf")
+    tot=$(totalbss "$elf")
+    lib=$(libsum "$elf")
+    note "text=$text (budget $textmax)"
+    note "total .bss=$tot (budget $bssmax)"
+    note "driver .bss=$lib (budget $libmax)"
+    if [ "$text" -gt "$textmax" ]; then
+        bad "consumer text $text exceeds budget $textmax"
+    fi
+    if [ "$tot" -gt "$bssmax" ]; then
+        bad "consumer total .bss $tot exceeds budget $bssmax"
+    fi
+    if [ "$lib" -gt "$libmax" ]; then
+        bad "consumer driver .bss $lib exceeds budget $libmax"
+    fi
+}
+
+if [ -n "$consumer_elf" ]; then
+    check_consumer "$consumer_elf"
+    if [ "$fail" -ne 0 ]; then
+        exit 1
+    fi
+    note "RAM budget OK (consumer)"
+    exit 0
 fi
 
 check STM32F030x6 329 652 432

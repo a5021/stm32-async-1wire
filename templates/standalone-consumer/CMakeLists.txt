@@ -72,6 +72,14 @@ set(OW_MCU "STM32H503xx" CACHE STRING
 set(OW_SYSCLK_MHZ "64" CACHE STRING
     "System clock in MHz the firmware runs at (board.c implements 64)")
 set(OW_PARASITE ON CACHE BOOL "Devices are powered over the data line (parasite)")
+# The library is advertised by its -Os footprint, so the template must compile
+# it that way too: CMAKE_BUILD_TYPE=Release alone brings CMake's default -O3,
+# which is ~540 B larger on H5. The knob applies to the library and the app;
+# pass e.g. -DOW_OPTIMIZATION="-Og -g3" while debugging. The CI footprint gate
+# (tests/check_ram_budget.sh --consumer) pins the default.
+set(OW_OPTIMIZATION "-Os" CACHE STRING
+    "Optimisation flags for the library and the application (default: -Os)")
+separate_arguments(_ow_optimization UNIX_COMMAND "${OW_OPTIMIZATION}")
 
 set(OW_CMSIS_CORE_INCLUDE "" CACHE PATH
     "Directory holding cmsis_gcc.h / core_cm33.h (your CMSIS Core/Include)")
@@ -123,6 +131,9 @@ if(OW_PARASITE)
     list(APPEND _ow_args PARASITE)
 endif()
 ow_add_library(owlib ${_ow_args})
+# The helper deliberately sets no optimisation level (it is PUBLIC flags only);
+# the consumer owns that choice. -Os here overrides CMake's Release -O3.
+target_compile_options(owlib PRIVATE ${_ow_optimization})
 
 # ---------------------------------------------------------------------------
 # Application
@@ -139,10 +150,11 @@ target_include_directories(ow_consumer PRIVATE
 )
 # owlib's flags are PUBLIC, so the app already inherits -mcpu/-mthumb, the device
 # and clock defines, and -Wall/-Wextra; only the optimisation is app-local.
-target_compile_options(ow_consumer PRIVATE -Os)
+target_compile_options(ow_consumer PRIVATE ${_ow_optimization})
 
 target_link_libraries(ow_consumer PRIVATE owlib)
 target_link_options(ow_consumer PRIVATE
+    ${_ow_optimization}
     -T${OW_LINKER_SCRIPT}
     -Wl,--gc-sections
     --specs=nano.specs

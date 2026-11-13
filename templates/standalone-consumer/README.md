@@ -70,6 +70,7 @@ cmake --build build
 | `OW_MCU` | `STM32H503xx` | Device macro (`STM32H503xx`) or family macro (`STM32H5`). |
 | `OW_SYSCLK_MHZ` | `64` | System clock the firmware runs at. `board.c` implements 64. |
 | `OW_PARASITE` | `ON` | Devices are powered over the data line (`-DOW_PARASITE_POWER=1`). |
+| `OW_OPTIMIZATION` | `-Os` | Optimisation flags for the library **and** the app. `CMAKE_BUILD_TYPE=Release` alone would compile the library at CMake's default `-O3`; this knob keeps the vendored path on the advertised size profile. |
 | `OW_CMSIS_CORE_INCLUDE` | - | Directory holding `cmsis_gcc.h`. **Required.** |
 | `OW_CMSIS_DEVICE_INCLUDE` | - | Directory holding `stm32h5xx.h`. **Required.** |
 | `OW_CMSIS_SYSTEM_SRC` | `<device>/system_stm32h5xx.c` | CMSIS system source. |
@@ -107,4 +108,10 @@ pair well with a native `make` plus a Cygwin `sh`.
 - **Parasite power.** With `OW_PARASITE=ON` the driver holds the bus high through
   the conversion; a normal (3-wire) bus should build with `-DOW_PARASITE=OFF`.
 - **LTO.** The helper points the archiver at `arm-none-eabi-gcc-ar` when it is
-  available, so `-flto` works; the template itself builds with `-Os` only.
+  available, so `-flto` works; the template itself builds with `-Os` by default
+  (`OW_OPTIMIZATION`), so the library and the app land on the size profile the
+  footprint numbers describe. Pass the flag through that knob if you want
+  another level - the CI footprint gate is pinned to the default.
+- **Footprint gate.** CI builds this template and runs
+  `tests/check_ram_budget.sh --consumer <elf>` on the result, so the vendored
+  path cannot drift past the advertised `.text`/`.bss` budget.

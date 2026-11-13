@@ -992,6 +992,12 @@ jobs:
                 -DOW_CMSIS_STARTUP_ASM="$STARTUP"
           cmake --build build/consumer-template -- -j"$(nproc)"
           test -f build/consumer-template/ow_consumer.elf
+      - name: Check the standalone-consumer footprint (OW_MCU=STM32H503xx)
+        if: matrix.backend == 'h5'
+        # The Make-based ram-budget job never sees this ELF, so the documented
+        # vendored path could grow past the advertised flash/RAM footprint
+        # silently. Same exact-ceiling gate, applied to the image above.
+        run: sh tests/check_ram_budget.sh --consumer build/consumer-template/ow_consumer.elf
 
   fuzz:
     runs-on: ubuntu-26.04

@@ -138,7 +138,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (34 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-ds2413` | Run the DS2413 switch driver suite alone (14 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
-| `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps) |
+| `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps). `sh tests/check_ram_budget.sh --consumer <elf>` applies the same gate to a CMake-built image without building anything |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|ds2413\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/c5/h5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
@@ -709,6 +709,13 @@ the same target. It does **not** fetch CMSIS: pass your own include directories
 through `CMSIS_INCLUDE_DIRS`. Anything else (`MAX_DEVICES` for
 `-DDS18B20_MAX_DEVICES`, or any `OW_*` the helper has no knob for) goes through
 `EXTRA_DEFINITIONS`.
+
+The helper sets no optimisation level on purpose: the consumer owns that choice.
+The template defaults `OW_OPTIMIZATION=-Os` and applies it to the library **and**
+the app, because `CMAKE_BUILD_TYPE=Release` alone leaves the library at CMake's
+`-O3` (about 540 B larger on H5). CI builds the template and gates the ELF with
+`sh tests/check_ram_budget.sh --consumer build/consumer-template/ow_consumer.elf`,
+so the vendored path cannot drift past the advertised footprint.
 
 **The copy is not self-contained.** A consumer also needs:
 

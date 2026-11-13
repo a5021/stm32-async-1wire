@@ -19,7 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   total - larger than the other families' because the C5 linker script places
   the stack and the heap inside RAM.
 
+- **The vendored consumer template is footprint-gated.** The standalone-consumer
+  build in CI now runs the same exact-ceiling gate as `make test-ram`
+  (`tests/check_ram_budget.sh --consumer <elf>`), so the documented vendored
+  path cannot quietly grow past the advertised flash/RAM numbers. The template
+  gained `OW_OPTIMIZATION` (default `-Os`) and applies it to the library as
+  well as the app.
+
 ### Fixed
+
+- **The standalone-consumer template compiled the library at `-O3`.** Its
+  `-Os` was app-local, so `CMAKE_BUILD_TYPE=Release` left `owlib` on CMake's
+  default and the vendored path did not match the advertised size profile.
 
 - **The documentation matches the code again.** The C5 backend was missing from
   the family lists (README, architecture, API reference, getting started,
