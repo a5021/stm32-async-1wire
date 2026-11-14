@@ -4,8 +4,9 @@
 
 ## Requirements
 
-- Microcontroller: any STM32 with a single advanced-control timer instance
-  that satisfies the complete [Required Timer Capabilities](architecture.md#required-timer-capabilities)
+- Microcontroller: an STM32 supported by a port in `src/ow_mcu.h` with a
+  single advanced-control timer that satisfies the complete
+  [Required Timer Capabilities](architecture.md#required-timer-capabilities)
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F446RE,
   STM32G031x6, STM32G474CB, STM32L476RG, STM32C552CET6, STM32H503CB,
@@ -230,7 +231,9 @@ void ds18b20_busy(unsigned action) {
 void ds18b20_complete(int16_t temp) {
     if (temp >= -550 && temp <= 1250) {
         // Valid temperature in tenths of °C
-        printf("Temperature: %d.%d°C\n", temp/10, abs(temp%10));
+        int t = temp;
+        if (t < 0) t = -t;
+        printf("Temperature: %s%d.%d°C\n", temp < 0 ? "-" : "", t / 10, t % 10);
     } else {
         // Error condition
         switch (temp) {

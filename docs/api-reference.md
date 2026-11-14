@@ -140,9 +140,10 @@ driver builds its command slots the same way (`src/ds18b20_measure.c`,
 `src/ds18b20_txn.c`, `src/ds18b20_resolution.c`). A multi-slot write buffer must
 hold `slots + 1` entries, the last one equal to `ONEWIRE_RELEASE_PULSE` — the
 hardware bus-release sentinel, not an extra slot (a single-slot write uses a
-separate path and reads only entry 0). `onewire_encode_byte()` and the
-`ow_pulse_t` type are declared in `inc/onewire.h` alongside the rest of the
-layer; `ow_pulse_t` is 8 bits wide on F0/F1/F3/G0/G4/L4/C5/H5 and 16 bits on F4/H7.
+separate path and reads only entry 0). `onewire_encode_byte()` is declared in
+`inc/onewire.h`; the `ow_pulse_t` type is defined in `inc/ow_board.h` (included
+by `onewire.h`). It is 8 bits wide on F0/F1/F3/G0/G4/L4/C5/H5 and 16 bits on
+F4/H7.
 
 Two startup checks guard the two silent mismatches between the archive and the
 application. `onewire_config_token()` reports the `OW_CONFIG_TOKEN` the
@@ -391,7 +392,9 @@ while (1) {
 // inside ds18b20_complete(): identify the sensor
 void ds18b20_complete(int16_t temp) {
     uint8_t idx = ds18b20_scan_index();
-    printf("Sensor %u: %d.%d C\n", idx, temp / 10, abs(temp % 10));
+    int t = temp;
+    if (t < 0) t = -t;
+    printf("Sensor %u: %s%d.%d C\n", idx, temp < 0 ? "-" : "", t / 10, t % 10);
 }
 ```
 
