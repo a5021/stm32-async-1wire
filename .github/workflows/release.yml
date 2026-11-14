@@ -359,8 +359,9 @@ jobs:
 
             ## What's new in 3.1.0
 
-            3.1.0 adds the DS2413 switch driver, the raw pulse viewer, the
-            STM32C5 backend and the `OW_DMA_PRIO` knob.
+            3.1.0 adds the DS2413 switch driver, the STM32L4/C5 backends, the
+            raw pulse viewer and the `OW_DMA_PRIO` knob, and folds in the
+            post-3.0.0 hardening.
 
             - **DS2413 dual-channel switch driver.** PIO Access Read/Write as
               non-blocking operations on the shared 1-Wire layer, with
@@ -372,28 +373,17 @@ jobs:
               1-Wire controls; the 9_multi PIO links use it.
             - **STM32C5 family support.** The STM32C552CET6 joins the port with
               a TIM1 + LPDMA1 backend and 144/48/8 MHz clock paths.
+            - **STM32L4 backend.** NUCLEO-L476RG at 80 MHz (HSI16+PLL) or
+              16 MHz raw HSI16, with PA10/TIM1_CH3, DMA1 channels 3/4 selected
+              through `DMA1_CSELR`, and a host-test mock.
             - **`OW_DMA_PRIO`.** One build knob for the feed/capture DMA
               arbitration class on every backend, with the F4/H5 staircase
               measured in `docs/stress/`.
+            - **Post-3.0.0 hardening folded in.** Removed macro names now fail
+              with `#error`, the public declarations are pinned by
+              `tests/api/public-api.txt`, and header hygiene covers all ten
+              families.
             - **One archive.** All variants ship inside `firmware-3.1.0.zip`.
-
-            ## What's new in 3.0.1
-
-            3.0.1 hardens the 3.0.0 migration and changes no firmware behaviour.
-
-            - **Removed macro names are hard errors.** `OW_PORT_FAMILY_*`,
-              `OW_PORT_SYSCLK_MHZ`, `OW_PORT_LOW_POWER`, the
-              `OW_PORT_*_MAX_SYSCLK_MHZ` ceilings and the older
-              `PARASITE_POWER` now stop the build with an `#error` that names
-              the replacement. A `-DOW_PORT_LOW_POWER=1` build can no longer
-              compile with the WFE path silently disabled.
-            - **Public-API snapshot.** `tests/api/public-api.txt` pins the
-              declarations in `inc/`, and a canary proves the check catches a
-              rename, a removal and a signature change. It is a declarations
-              snapshot, not an ABI pin.
-            - **Header hygiene covers L4 and H7.** The public headers are now
-              checked for register-vocabulary leaks on all nine families.
-            - **One archive.** All variants ship inside `firmware-3.0.1.zip`.
 
             ## What's new in 3.0.0
 

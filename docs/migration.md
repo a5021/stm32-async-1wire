@@ -7,7 +7,7 @@
 The public macros lost the `PORT_` infix, because the port layer is private to
 the library and a public macro named after it invited consumers to depend on
 something they cannot see. There are no compatibility aliases — the old names
-are gone, deliberately. 3.0.1 makes every one of them a hard `#error` that
+are gone, deliberately. 3.1.0 makes every one of them a hard `#error` that
 names the replacement, so a missed migration fails at build time instead of
 silently compiling with the renamed knob at its default.
 

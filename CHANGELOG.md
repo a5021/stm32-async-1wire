@@ -250,6 +250,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test_stress_report.py`) now gracefully skip with exit code 0 when `numpy` is
   absent rather than aborting test execution.
 
+- **Removed public names are hard errors.** `inc/ow_board.h` and
+  `inc/ow_config.h` now reject `OW_PORT_FAMILY_*`, `OW_PORT_SYSCLK_MHZ`,
+  `OW_PORT_LOW_POWER`, the `OW_PORT_*_MAX_SYSCLK_MHZ` ceilings and the older
+  `PARASITE_POWER`, each with an `#error` that names the replacement. Before
+  this a build with `-DOW_PORT_LOW_POWER=1` compiled cleanly and silently lost
+  the WFE path. `tests/check_removed_macros.sh` proves every guard fires and
+  that the renamed forms still build; `make test-removed-macros` runs it with
+  only the host compiler.
+- **Public-API declaration snapshot.** `tests/api/public-api.txt` records the
+  macros, typedefs, structs and function declarations a consumer sees in
+  `inc/` (`ow_version.h` is excluded because the version has its own gate).
+  `tests/api/public_api.py` compares it in `make check` and the CI
+  `part-matrix`, and `make update-public-api` regenerates it after a deliberate
+  API change. `tests/api/test_public_api.py` is the canary: it mutates a copy
+  of the headers and requires the check to go red on a rename, a removal and a
+  signature change. This is a declarations snapshot, not an ABI pin.
+- **Header hygiene now covers L4 and H7.** `tests/check_header_hygiene.sh`
+  adds `STM32L4` and `STM32H7` to the family matrix (81 header x family
+  combinations) and now includes `ow_config.h` and `ow_stats.h`, so every public
+  header is checked. The removed-name guards are the only `OW_PORT_*` mentions
+  the public-header grep allows.
+- **STM32L4 backend and NUCLEO-L476RG support.** A new `OW_FAMILY_L4` section
+  drives the bus on PA10 (TIM1_CH3, AF1), captures on TIM1_CH4, and feeds/reloads
+  CCR3 through classic DMA1 channels 3/4 with the request selected in
+  `DMA1_CSELR` (both channels use selection 7: TIM1_CH2 and TIM1_CH4). The clock
+  tree is HSI16-only because the board's HSE crystal is not populated: 80MHz
+  via HSI16+PLL (M=1, N=10, R=2, voltage Range 1, 4 flash wait states) or
+  16MHz raw HSI16, with console on USART1 PA9 (AF7) and the LED on PA5.
+  Adds `chips/l476rg.mk`, `port/stm32l4/` (1MB flash / 96KB SRAM1 linker
+  script and Ozone project), a host mock, the `test-l4` / `test-clocks-l4`
+  matrix entries, CMake dispatch, CI coverage and release builds, the
+  `STM32L476xx` HIL profile, and `OW_L4_CONSOLE_BRR` / clock-tree tests.
+  Bench-validated with 7 DS18B20 in parasite power plus one DS2431 at both
+  clocks: `2_device_search` (7 ROMs, 27.6-27.9 C), `4_scan_mode`,
+  `6_statistics` (5040 pulses, 0 errors), `7_low_power` and `8_ds2431`
+  (read-back baseline+1) pass; the LA geometry check needs
+  `--tolerance-us 5` because HSI16 is a nominal RC (+/-1%).
+- **`0_dma_pressure` diagnostic example and its HIL guard-band matrix.** The
+  example transmits a fixed 64-slot pattern under a selectable
+  memory-subsystem load (CPU SRAM hammer, finite DMA1 memory-to-memory
+  bursts on channels 1/2, all at the default DMA priority) and
+  reports `cndtr_late` / `dma_error`, plus a RAM telemetry block a debugger can
+  read. `tests/hil/dma_pressure.py` bisects `ONEWIRE_GUARD_BAND` per level:
+  the smallest guard with a clean per-slot geometry bounds the feed latency
+  from above. `tests/hil/test_dma_pressure.py` synthesizes every failure shape and
+  runs in `make check`, so the analyser cannot silently lose its teeth.
+  Measured on the F030 bench at 48 MHz and 8 MHz: all five load levels are
+  clean at guard 1 (a 2 µs window) with `cndtr_late = 0`; channel 1 restarted
+  its finite burst 8400/1400 times per run at level 4. The
+  5 µs default therefore needs no change on F0; the stress generator is F0-only
+  and the other families compile and run level 0.
+- **Capture-drain and deliberate-delay checks for `0_dma_pressure`.** The
+  example gains a Search ROM mode (`STRESS_CAPTURE=1`) that reads through the
+  capture DMA under the same load; the level-0 search is the baseline and all
+  24 stressed cells returned the same 7 DS18B20 ROMs and checksum.
+  `STRESS_INJECT_US` holds the feed (write) or capture (search) channel
+  disabled for N us as a negative control; the harness detects the first
+  delayed feed at 80 us and the first delayed capture at 200 us. The report
+  adds the capture table, the negative-control table and per-cell viewer links.
+- **Viewer: shareable capture links (`?src=`).** The browser viewer accepts
+  `?src=<capture>` (relative or same-origin) and optional
+  `&speed=standard|overdrive`; the URL is resolved against the page and
+  cross-origin, `javascript:` and `data:` values are rejected. The selftest
+  grows twelve checks (95 total). `speed=standard` is pinned by the stress
+  report because a 60 us '0' pulse otherwise looks like an overdrive reset to
+  the auto detector.
+- **Published stress-test report at `/stress/`.** `docs/stress/` holds the
+  measured `results.json`, the console log and one representative 64-slot frame
+  per level/clock/guard cell; `tools/stress_report.py` renders the page and
+  `make test-stress-report` regenerates it, compares the bytes and decodes every
+  linked capture. Every level/clock row links its 100/5/1 us cells into the
+  browser viewer.
+- **`make test-all-families` runs the suite on every backend in one command.**
+  Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
+  the families over a job matrix, so a local "all families" sweep used to be a
+  hand-written list of `make test-<family>` calls — which is how a run skipped
+  f3. The aggregate expands `OW_KNOWN_TARGETS`, so a new backend is included
+  automatically. It is serialised on purpose: `test` builds the shared F4
+  per-part clock objects, and under `-j` two families would race on them.
+
 ### Changed
 
 - **Pulse viewer for non-1-Wire channels (`?raw=1`).** The browser viewer can
@@ -379,102 +459,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Trailing newline in `src/ds2431.c`.** Restored the missing POSIX newline at
   the end of the file.
 
-## [3.0.1] - 2026-11-04
-
-3.0.1 is a hardening release for everyone migrating from 3.0.0: the removed
-macro names now fail at compile time and the public declarations are pinned by
-a snapshot, so the next accidental API break is visible in review. Firmware
-behaviour is unchanged.
-
-### Added
-
-- **Removed public names are hard errors.** `inc/ow_board.h` and
-  `inc/ow_config.h` now reject `OW_PORT_FAMILY_*`, `OW_PORT_SYSCLK_MHZ`,
-  `OW_PORT_LOW_POWER`, the `OW_PORT_*_MAX_SYSCLK_MHZ` ceilings and the older
-  `PARASITE_POWER`, each with an `#error` that names the replacement. Before
-  this a build with `-DOW_PORT_LOW_POWER=1` compiled cleanly and silently lost
-  the WFE path. `tests/check_removed_macros.sh` proves every guard fires and
-  that the renamed forms still build; `make test-removed-macros` runs it with
-  only the host compiler.
-- **Public-API declaration snapshot.** `tests/api/public-api.txt` records the
-  macros, typedefs, structs and function declarations a consumer sees in
-  `inc/` (`ow_version.h` is excluded because the version has its own gate).
-  `tests/api/public_api.py` compares it in `make check` and the CI
-  `part-matrix`, and `make update-public-api` regenerates it after a deliberate
-  API change. `tests/api/test_public_api.py` is the canary: it mutates a copy
-  of the headers and requires the check to go red on a rename, a removal and a
-  signature change. This is a declarations snapshot, not an ABI pin.
-- **Header hygiene now covers L4 and H7.** `tests/check_header_hygiene.sh`
-  adds `STM32L4` and `STM32H7` to the family matrix (81 header x family
-  combinations) and now includes `ow_config.h` and `ow_stats.h`, so every public
-  header is checked. The removed-name guards are the only `OW_PORT_*` mentions
-  the public-header grep allows.
-- **STM32L4 backend and NUCLEO-L476RG support.** A new `OW_FAMILY_L4` section
-  drives the bus on PA10 (TIM1_CH3, AF1), captures on TIM1_CH4, and feeds/reloads
-  CCR3 through classic DMA1 channels 3/4 with the request selected in
-  `DMA1_CSELR` (both channels use selection 7: TIM1_CH2 and TIM1_CH4). The clock
-  tree is HSI16-only because the board's HSE crystal is not populated: 80MHz
-  via HSI16+PLL (M=1, N=10, R=2, voltage Range 1, 4 flash wait states) or
-  16MHz raw HSI16, with console on USART1 PA9 (AF7) and the LED on PA5.
-  Adds `chips/l476rg.mk`, `port/stm32l4/` (1MB flash / 96KB SRAM1 linker
-  script and Ozone project), a host mock, the `test-l4` / `test-clocks-l4`
-  matrix entries, CMake dispatch, CI coverage and release builds, the
-  `STM32L476xx` HIL profile, and `OW_L4_CONSOLE_BRR` / clock-tree tests.
-  Bench-validated with 7 DS18B20 in parasite power plus one DS2431 at both
-  clocks: `2_device_search` (7 ROMs, 27.6-27.9 C), `4_scan_mode`,
-  `6_statistics` (5040 pulses, 0 errors), `7_low_power` and `8_ds2431`
-  (read-back baseline+1) pass; the LA geometry check needs
-  `--tolerance-us 5` because HSI16 is a nominal RC (+/-1%).
-- **`0_dma_pressure` diagnostic example and its HIL guard-band matrix.** The
-  example transmits a fixed 64-slot pattern under a selectable
-  memory-subsystem load (CPU SRAM hammer, finite DMA1 memory-to-memory
-  bursts on channels 1/2, all at the default DMA priority) and
-  reports `cndtr_late` / `dma_error`, plus a RAM telemetry block a debugger can
-  read. `tests/hil/dma_pressure.py` bisects `ONEWIRE_GUARD_BAND` per level:
-  the smallest guard with a clean per-slot geometry bounds the feed latency
-  from above. `tests/hil/test_dma_pressure.py` synthesizes every failure shape and
-  runs in `make check`, so the analyser cannot silently lose its teeth.
-  Measured on the F030 bench at 48 MHz and 8 MHz: all five load levels are
-  clean at guard 1 (a 2 µs window) with `cndtr_late = 0`; channel 1 restarted
-  its finite burst 8400/1400 times per run at level 4. The
-  5 µs default therefore needs no change on F0; the stress generator is F0-only
-  and the other families compile and run level 0.
-- **Capture-drain and deliberate-delay checks for `0_dma_pressure`.** The
-  example gains a Search ROM mode (`STRESS_CAPTURE=1`) that reads through the
-  capture DMA under the same load; the level-0 search is the baseline and all
-  24 stressed cells returned the same 7 DS18B20 ROMs and checksum.
-  `STRESS_INJECT_US` holds the feed (write) or capture (search) channel
-  disabled for N us as a negative control; the harness detects the first
-  delayed feed at 80 us and the first delayed capture at 200 us. The report
-  adds the capture table, the negative-control table and per-cell viewer links.
-- **Viewer: shareable capture links (`?src=`).** The browser viewer accepts
-  `?src=<capture>` (relative or same-origin) and optional
-  `&speed=standard|overdrive`; the URL is resolved against the page and
-  cross-origin, `javascript:` and `data:` values are rejected. The selftest
-  grows twelve checks (95 total). `speed=standard` is pinned by the stress
-  report because a 60 us '0' pulse otherwise looks like an overdrive reset to
-  the auto detector.
-- **Published stress-test report at `/stress/`.** `docs/stress/` holds the
-  measured `results.json`, the console log and one representative 64-slot frame
-  per level/clock/guard cell; `tools/stress_report.py` renders the page and
-  `make test-stress-report` regenerates it, compares the bytes and decodes every
-  linked capture. Every level/clock row links its 100/5/1 us cells into the
-  browser viewer.
-- **`make test-all-families` runs the suite on every backend in one command.**
-  Bare `make test` covers one `OW_TARGET` (f1 unless selected), and CI spreads
-  the families over a job matrix, so a local "all families" sweep used to be a
-  hand-written list of `make test-<family>` calls — which is how a run skipped
-  f3. The aggregate expands `OW_KNOWN_TARGETS`, so a new backend is included
-  automatically. It is serialised on purpose: `test` builds the shared F4
-  per-part clock objects, and under `-j` two families would race on them.
-
 ## [3.0.0] - 2026-11-02
 
 3.0.0 adds the eighth backend (STM32H7) and closes the public surface: the
 engine becomes library-private, the public macros lose the `PORT_` infix, and
 presence is proved by the captured edge count rather than by a zeroed buffer.
-Those three are source-breaking; the migration notes are in the README under
-"Upgrading: the renamed macros".
+Those three are source-breaking; the migration notes are in `docs/migration.md`.
 
 ### Added
 
@@ -2905,8 +2895,7 @@ without a section here, and its changes had drifted into the section below.
 [2.3.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.2.0...v2.3.0
 [2.4.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.3.0...v2.4.0
 [3.0.0]: https://github.com/a5021/stm32-async-1wire/compare/v2.4.0...v3.0.0
-[3.0.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.0.1
-[3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.1...v3.1.0
+[3.1.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.0.0...v3.1.0
 [3.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...v3.1.1
 [3.1.2]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...v3.1.2
 [3.1.3]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.2...v3.1.3
