@@ -37,7 +37,7 @@ SENSOR_RE = re.compile(
 )
 HIST_RE = re.compile(r"^h:(.*)$")
 BUCKET_RE = re.compile(r"(\d+)=(\d+)")
-TOTAL_RE = re.compile(r"^t=(\d+)c (\d+)e$")
+TOTAL_RE = re.compile(r"^t=(\d+)c (\d+)e(?: (\d+)o)?$")
 
 # Firmware constants the dump exposes indirectly. Kept here, not as literals, so
 # a deliberate change in the firmware points at one place to revisit.
@@ -75,6 +75,7 @@ def run(uart, ctx):
             m = TOTAL_RE.match(line)
             if m:
                 cur["total"] = (int(m.group(1)), int(m.group(2)))
+                cur["overruns"] = int(m.group(3)) if m.group(3) else 0
                 dumps.append(cur)
                 cur = None
             # Any other line inside a dump is a torn fragment; it matches
@@ -125,6 +126,8 @@ def _check_dump(dump, found, expected):
     if dump["total"] is None:
         return "dump has no totals line"
     total_cycles, total_errors = dump["total"]
+    if dump.get("overruns"):
+        return "dump reports %d UART overrun(s)" % dump["overruns"]
     if total_cycles != n:
         return "totals cycles %d disagree with header %d" % (total_cycles, n)
 

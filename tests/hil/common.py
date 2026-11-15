@@ -72,6 +72,14 @@ BENCH_PROFILES = {
         "ext": "-DOW_PARASITE_POWER=1",
         "marker": True,  # PA11 -> LA D1, bracketed frames
     },
+    "STM32U585xx": {
+        # Bare STM32U585CIU6 on the UFQFPN48 adapter, parasite-powered bus,
+        # external USB-TTL on USART1 PA9. Secure build (-mcmse); TZEN=0 on
+        # this part, which the secure aliases handle either way.
+        "hints": ("STM32U575", "STM32U585", "STM32U5x5"),
+        "device_id": "0x482",
+        "ext": "-DOW_PARASITE_POWER=1",
+    },
     "STM32L476xx": {
         # NUCLEO-L476RG, parasite-powered bus, external USB-TTL on USART1
         # PA9 (the on-board VCP is USART2 and is not used). HIL_PORT must name
