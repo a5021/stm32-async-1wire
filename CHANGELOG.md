@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-15
+
 ### Added
 
 - **STM32U5 family support.** The STM32U585CIU6 joins the port with the same
@@ -18,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   160 MHz from the 25 MHz HSE through PLL1 (VOS1 + EPOD, 4 WS); the 16 MHz
   HSI16 build is the fallback. Host tests, the CMSIS mock and the RAM budget
   cover the new family. Bench-validated at 160 MHz with 7 × DS18B20 on
-  parasite power (HIL smoke/scan/stats/lowpower, LA geometry and CRC decode).
+  parasite power, a DS2431 and a DS2413 (HIL smoke/scan/stats/lowpower/
+  ds2431/ds2413, LA geometry and CRC decode, 30-minute soak with 0 errors).
 
 ## [3.1.3] - 2026-11-14
 
@@ -2910,4 +2913,5 @@ without a section here, and its changes had drifted into the section below.
 [3.1.1]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.0...v3.1.1
 [3.1.2]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.1...v3.1.2
 [3.1.3]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.2...v3.1.3
-[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.3...HEAD
+[3.2.0]: https://github.com/a5021/stm32-async-1wire/compare/v3.1.3...v3.2.0
+[Unreleased]: https://github.com/a5021/stm32-async-1wire/compare/v3.2.0...HEAD
