@@ -221,9 +221,11 @@ peripheral aliases; this works whether the TZEN option byte is 0 or 1. The
 bench part is TZEN=0 / RDP=0.
 Measured at 160 MHz: HIL `smoke` 7 devices / 13 readings (25.6–25.9 °C),
 `scan` 20 rounds, `stats` 70 cycles / 5040 pulses / 0 errors, `lowpower`
-6 readings. LA geometry: 166.0 µs slot, 5.00 µs ONE, 60.00 µs ZERO, 481.25 µs
-reset, 751.95 ms conversion wait; the decoder reads MATCH ROM + READ
-SCRATCHPAD with CRC ok at 26.0 °C.
+6 readings, `ds2431` 1 device / read-back baseline+1. The DS2413 is detected
+and its commands report no errors, but PIOA/PIOB read 0 without external
+pull-ups on the open-drain PIO pins. LA geometry: 166.0 µs slot, 5.00 µs ONE,
+60.00 µs ZERO, 481.25 µs reset, 751.95 ms conversion wait; the decoder reads
+MATCH ROM + READ SCRATCHPAD with CRC ok at 26.0 °C.
 Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=16` for HSI16).
 Bring-up and flashing notes: [port/stm32u5/HARDWARE-NOTES.md](../port/stm32u5/HARDWARE-NOTES.md).
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)

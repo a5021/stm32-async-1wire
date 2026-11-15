@@ -49,6 +49,14 @@ All with `EXT="-DOW_PARASITE_POWER=1"`, default 160 MHz unless noted.
   157.2 us.
 - LA content (`la_decode.py`): MATCH ROM + READ SCRATCHPAD with CRC ok,
   26.0000 C, `ИТОГ: PASS`.
+- DS2431 (`HIL_SCRIPT=ds2431`): PASS, 1 device, 2 EEPROM reads, read-back is
+  baseline+1 at 160 MHz.
+- DS2413 (`HIL_SCRIPT=ds2413`): the device is found (`3A 9F 47 03 00 00 00 3A`)
+  and the write/read commands complete with `ds2413_errors == 0`, but PIOA and
+  PIOB read back 0 for every commanded 1/2 at both 160 and 16 MHz. The PIO
+  pins are open-drain and need external pull-ups (or the board's LED wiring
+  must not hold them low); this is a bench-wiring item, not a clock or driver
+  failure. The host suite still covers both PIO states (14 tests).
 
 The `--wait-ms 750` check is meant for an example whose longest pause is the
 conversion wait. On `2_device_search` the application's inter-scan pause is
@@ -73,5 +81,4 @@ st-flash --reset write build/ds18b20_2_device_search.bin 0x08000000
 
 ## Not covered yet
 
-- No DS2431/DS2413 on this bench.
 - No stress/DMA-pressure measurements for U5.
