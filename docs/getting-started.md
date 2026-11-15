@@ -9,7 +9,7 @@
   and DMA topology (currently supported: STM32F030x6, STM32F103C8T6,
   STM32F303VC, STM32F407VGT6, STM32F401CC, STM32F446RE,
   STM32G031x6, STM32G474CB, STM32L476RG, STM32C552CET6, STM32H503CB,
-  STM32H743VI; see the per-family sections in `src/ow_mcu.h`).
+  STM32U585CIU6, STM32H743VI; see the per-family sections in `src/ow_mcu.h`).
 - Sensor: DS18B20 temperature sensor, DS2431 EEPROM and/or DS2413 dual-channel
   switch; the bundled drivers take turns owning the bus, one operation at a
   time (see
@@ -32,6 +32,7 @@
 | STM32L476 | 80 MHz HSI16+PLL (M=1, N=10, R=2, Range 1, 4 WS) | 16 MHz raw HSI16. The NUCLEO-L476RG has no HSE crystal populated, so there is deliberately no crystal clock. |
 | STM32C552CET6 | 144 MHz HSE->PSI | 48 MHz HSIDIV3 reset clock; raw 8 MHz HSE (`SYSCLK_MHZ=8`, `HSE_MHZ=8`); 8-bit feed tables |
 | STM32H503 | 64 MHz raw HSI | 8 MHz raw HSE (`SYSCLK_MHZ=8`, `HSE_MHZ=8`); 250 MHz HSE+PLL1 (M=HSE/4, N=125, P=2, VOS0, 5 WS) |
+| STM32U585 | 16 MHz HSI16 (1 WS) | 4 MHz raw MSI (`SYSCLK_MHZ=4`). No crystal path; secure build (`-mcmse`) |
 | STM32H743 | 240 MHz HSE+PLL (M=HSE/5, N=96, P=2, LDO, VOS0, 4 WS; 25 MHz crystal) | 480/240 MHz split (`SYSCLK_MHZ=480 TIM1_MHZ=240`, HPRE=/2 keeps HCLK=240 MHz) |
 
 On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's*
@@ -62,7 +63,7 @@ The bus hardware is fixed by design, not configurable. Check these five
 facts before wiring or porting:
 
 - **Bus pin is PA10 (TIM1_CH3).** F0 AF2, F1 default map, F3 AF6, F4 AF1,
-  L4 AF1, C5 AF1, G4 AF6, H5/H7 AF1; G0 uses the PA12 pad remapped to logical
+  L4 AF1, C5 AF1, U5 AF1, G4 AF6, H5/H7 AF1; G0 uses the PA12 pad remapped to logical
   PA10 via
   `SYSCFG_CFGR1.PA12_RMP` (see Hardware Connections). There is no pin or
   timer choice: the IC4→TI3 capture topology requires this pair.
@@ -195,7 +196,7 @@ shared example layer `examples/app/app.c` supplies a strong `ds18b20_busy()`
 that drives the onboard LED (F0/G0: PA4, F1: PC13, F3: PE8, F4: PD12 — or PB2
 with `-DOW_F4_LED_PB2` on a WeAct F446RET6, G4: PA8 on a WeAct G474 Long,
 L4: PA5 on a NUCLEO-L476RG, C5: PE2 on a WeAct C5 Core Board, H5: PC13 on a
-WeAct H503, H7: PE3 on a WeAct H743).
+WeAct H503, U5: PC13 on the bench adapter, H7: PE3 on a WeAct H743).
 There is no shared
 `ds18b20_complete()`: each example implements its own, because the output
 format differs.
@@ -209,7 +210,8 @@ format differs.
 > PC13 is that board's user button, not an LED); G4 uses PA8 active-high
 > (WeAct G474 Long blue LED — PC13 there is the user button too); L4 uses PA5
 > **active-high** (green LD2 on the NUCLEO-L476RG); C5 uses PE2 **active-low**
-> (WeAct C5 Core Board); H5 uses PC13 **active-low** (WeAct H503 blue LED); H7
+> (WeAct C5 Core Board); H5 uses PC13 **active-low** (WeAct H503 blue LED); U5
+> uses PC13 **active-low** (bench adapter); H7
 > uses PE3 **active-high** (WeAct H743 blue LED). On F0/G0/G4/L4 the same logic
 > targets `GPIOA` instead of `GPIOC`; C5 and H7 target `GPIOE` (PE2 and PE3).
 

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **STM32U5 family support.** The STM32U585CIU6 joins the port with the same
+  TIM1 CH3/CH4 scheme on PA10 and GPDMA1 channels 2/3 (`REQSEL` 43/45). The
+  build compiles secure (`-mcmse`), so the CMSIS `*_S` aliases are used and
+  the backend does not depend on the TZEN option byte. Default clock is
+  16 MHz HSI16 (1 flash wait state) with the reset MSI 4 MHz as the fallback;
+  host tests, the CMSIS mock and the RAM budget cover the new family.
+
 ## [3.1.3] - 2026-11-14
 
 ### Added

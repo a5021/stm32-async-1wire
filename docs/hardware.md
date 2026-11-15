@@ -9,7 +9,7 @@ console). Measurement logs are deliberately not kept in the repo. Deeper
 per-port bring-up and timing notes live next to the linker scripts:
 [STM32F1](../port/stm32f1/HARDWARE-NOTES.md),
 [STM32F4](../port/stm32f4/HARDWARE-NOTES.md) and
-[STM32C5](../port/stm32c5/HARDWARE-NOTES.md).
+[STM32C5](../port/stm32c5/HARDWARE-NOTES.md), [STM32U5](../port/stm32u5/STM32U585CI_FLASH.ld).
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -208,6 +208,17 @@ both channels (the same knob selects `DMA_SxCR_PL` on F4/H7 and `DMA_CCR_PL` on
 the classic DMA1 backends).
 Build with `make OW_MCU=STM32H503xx`.
 
+### STM32U585CIU6 (bare UFQFPN48)
+Bring-up target, **not yet bench-validated** (the first run is the U5
+bring-up): 1-Wire on **PA10** (AF1; TIM1 CH3/CH4 pair, GPDMA1 channels 2/3 —
+requests 43/45, no DMAMUX, 8-bit feed tables), console on USART1 TX / **PA9**
+(AF7) at 115200 8N1, busy LED on **PC13** (active-low), flashed via ST-Link
+SWD. Clock: 16 MHz HSI16 (1 flash wait state at the reset VOS range) or the
+reset MSI 4 MHz; no crystal. The part has TrustZone, so the build uses
+`-mcmse` and the secure peripheral aliases; this works whether the TZEN option
+byte is 0 or 1, but a chip that already ran a non-secure image should be
+checked with `STM32_Programmer_CLI -ob displ` before the first flash.
+Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=4` for raw MSI).
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 
 Validated on a WeAct Studio STM32H7XX (STM32H743VI, ST-Link, 2 MB flash): 7 DS18B20 in parasite

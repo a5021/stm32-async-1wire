@@ -53,11 +53,14 @@
 #   g4             329                 652              432
 #   l4             329                 652              432
 #   h5             329                 652              432
+#   u5             329                 652              432
 #   c5             329                2192             1976
 # (g4 measured 2026-10-08: same uint8_t pulse tables as f0, so the library
 # lands byte-identical; only the part Statics differ, none driver-owned.)
 # (h5 measured 2026-10-10: same uint8_t pulse tables again - GPDMA converts
 # widths in hardware, so no F4-style halfword tables - hence the same 329.)
+# (u5 measured 2026-11-15: the same GPDMA1 IP and uint8_t pulse tables as H5,
+# so the driver-owned sum and both totals are byte-identical to H5.)
 # (c5 measured 2026-11-11: the same uint8_t pulse tables, so the driver-owned
 # sum is the same 329. The two totals are larger because the C5 linker script
 # places the stack and the heap inside RAM (STACK_SIZE/HEAP_SIZE after
@@ -318,6 +321,7 @@ check STM32F407xx 434 756 536
 check STM32G474xx 329 652 432
 check STM32L476xx 329 652 432
 check STM32H503xx 329 652 432
+check STM32U585xx 329 652 432
 check STM32C552xx 329 2192 1976
 
 check_app STM32F030x6 0_dma_pressure 2556 1484

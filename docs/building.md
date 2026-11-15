@@ -64,7 +64,7 @@
 
 ### CMSIS Dependencies
 
-ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7) are not stored in the
+ARM CMSIS core headers and STM32 device files (F0/F1/F3/F4/G0/G4/L4/C5/H5/U5/H7) are not stored in the
 repository. They are downloaded automatically at build time to
 `CMSIS/core/` and `CMSIS/device/`:
 
@@ -105,7 +105,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make` / `make all` | Build release |
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
-| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/c5/h5/h7), the local equivalent of the CI family matrix; ten families, all host-modeled |
+| `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7), the local equivalent of the CI family matrix; eleven families, all host-modeled |
 | `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
@@ -126,10 +126,11 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-l4` | Build and run host tests against the STM32L4 backend mock |
 | `make test-c5` | Build and run host tests against the STM32C5 LPDMA backend mock (144/48/8 MHz) |
 | `make test-h5` | Build and run host tests against the STM32H5 backend mock |
+| `make test-u5` | Build and run host tests against the STM32U5 GPDMA1 backend mock (16/4 MHz) |
 | `make test-h7` | Build and run host tests against the STM32H7 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
-| `make test-active-<family>` | Same as above for one backend: `<family>` is `f0`, `f1`, `f3`, `f4`, `g0`, `g4`, `l4`, `c5`, `h5` or `h7` |
+| `make test-active-<family>` | Same as above for one backend: `<family>` is `f0`, `f1`, `f3`, `f4`, `g0`, `g4`, `l4`, `c5`, `h5`, `u5` or `h7` |
 | `make test-lowpower` | Same suite rebuilt with `-DOW_LOW_POWER=1` (WFE path, F1) |
 | `make test-lowpower-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
@@ -141,7 +142,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps). `sh tests/check_ram_budget.sh --consumer <elf>` applies the same gate to a CMake-built image without building anything |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|ds2413\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
-| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/c5/h5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
+| `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
 | `make fuzz-crc16` | Fuzz `onewire_crc16` alone against a bit-wise reference and the append-CRC residue (no call back into the helper under test) |
@@ -187,6 +188,7 @@ make test-g4     # same suite against the STM32G4 backend mock
 make test-l4     # same suite against the STM32L4 backend mock
 make test-c5     # same suite against the STM32C5 backend mock (144/48/8 MHz)
 make test-h5     # same suite against the STM32H5 backend mock
+make test-u5     # same suite against the STM32U5 backend mock (16/4 MHz)
 make test-h7     # same suite against the STM32H7 backend mock
 make test-all-families  # every backend above in one run
 make test-ds2431 # DS2431 EEPROM suite (35 tests; also runs inside every make test)
@@ -198,7 +200,7 @@ unit (`tests/mock/ds18b20_test_access.c`) against a behavioural model of the
 TIM1/DMA hardware (`tests/mock/hw_model.c`) and a register mock of the target
 CMSIS header (`tests/mock/stm32f0xx.h` / `stm32f1xx.h` / `stm32f3xx.h` /
 `stm32f4xx.h` / `stm32g0xx.h` / `stm32g4xx.h` / `stm32l4xx.h` / `stm32c5xx.h` /
-`stm32h5xx.h` /
+`stm32h5xx.h` / `stm32u5xx.h` /
 `stm32h7xx.h`) — each suite runs
 the full driver against its own
 backend's channel/DMA wiring. (The driver itself is an amalgamated translation unit
@@ -217,12 +219,12 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    `ds18b20_test_h7_480_240mhz.exe`; all with the same count), 330 against G0
    (which adds two DMAMUX request-routing tests), 331 against G4 (same two
    DMAMUX tests plus the G4 console-baud test; the 16 MHz variant
-   `ds18b20_test_g4_16mhz.exe` runs as an extra, same count) and 332 against H5
-   and C5 (both add the two request-routing tests, a console-baud test and the
-   IC4PSC check, and both run their clock variants as extras -
+   `ds18b20_test_g4_16mhz.exe` runs as an extra, same count) and 332 against H5,
+   C5 and U5 (all add the two request-routing tests, a console-baud test and the
+   IC4PSC check, and each runs its clock variants as extras -
    `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` for H5,
-   `ds18b20_test_c5_48mhz.exe` and `ds18b20_test_c5_8mhz.exe` for C5 - same
-   count). Every wrapper runs the DS2431 suite alongside it (35 tests, see
+   `ds18b20_test_c5_48mhz.exe` and `ds18b20_test_c5_8mhz.exe` for C5, and
+   `ds18b20_test_u5_4mhz.exe` for U5 - same count). Every wrapper runs the DS2431 suite alongside it (35 tests, see
    `make test-ds2431`) and the DS2413 suite (14 tests, see `make test-ds2413`).
     The suite covers:
 
@@ -246,7 +248,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
       multi-slot writes, multi-byte reads, search engine (device + alarm),
       ownership guards and the merged search capture buffers
 -   DMA buffer/transfer contracts (`test_dma`), peripheral request routing on
-    G0/G4 (DMAMUX) and on H5/C5 (`CTR2.REQSEL`) in `test_dmamux`
+    G0/G4 (DMAMUX) and on H5/C5/U5 (`CTR2.REQSEL`) in `test_dmamux`
 -   DMA per-operation contract table (`test_dma_contract`): for every bus
     operation the exact source and destination addresses, the transfer counts,
     the transfer width and direction, the address-increment bit, the timer
@@ -289,8 +291,8 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
 Separate opt-in builds extend the suite: `make test-active` (active-drive, 8
 tests + the 35-test DS2431 and 14-test DS2413 suites, every family),
 `make test-lowpower` (full suite + low-power WFE path: 345 tests against
-F0/F1, 346 against F3/F4/L4/H7, 347 against G0, 348 against G4, 349 against H5
-and C5, plus the same 35 DS2431 and 14 DS2413 tests) and `make test-ndebug`
+F0/F1, 346 against F3/F4/L4/H7, 347 against G0, 348 against G4, 349 against H5,
+C5 and U5, plus the same 35 DS2431 and 14 DS2413 tests) and `make test-ndebug`
 (341 / 342 / 343 / 344 / 345 + the same 35 + 14, asserts off).
 
 ### Does the suite actually notice a broken DMA contract?

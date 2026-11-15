@@ -89,10 +89,10 @@ FLASH_TypeDef mock_flash; /* L4 backend only: clock-latency register */
 PWR_TypeDef mock_pwr; /* L4 backend only: Range 1 for 80MHz */
 DMA_Request_TypeDef mock_dma1_cselr; /* L4 backend only: DMA1_CSELR routing */
 #endif
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 FLASH_TypeDef mock_flash; /* H5/C5 backend only: clock-latency register */
 #endif
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32U5)
 PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
 #endif
 static uint16_t tim_shadow_out;
@@ -199,7 +199,7 @@ void hw_register_buf(const void* ptr) {
  * writes to, as the silicon sees it: the direction-relative registers on
  * GPDMA (H5) / LPDMA (C5), the classic CMAR everywhere else. */
 static uint32_t hw_feed_addr(void) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     return (uint32_t)MOCK_DMA_FEED.CSAR;
 #else
     return (uint32_t)MOCK_DMA_FEED.CMAR;
@@ -207,7 +207,7 @@ static uint32_t hw_feed_addr(void) {
 }
 
 static uint32_t hw_cap_addr(void) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     return (uint32_t)MOCK_DMA_CAP.CDAR;
 #else
     return (uint32_t)MOCK_DMA_CAP.CMAR;
@@ -228,7 +228,7 @@ const void* hw_capture_destination(void) {
  * fixed in silicon (there the port programs nothing, and there is nothing to
  * read back). */
 uint32_t hw_feed_request(void) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     return (mock_feed_ch.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
 #elif defined(STM32L4)
     return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C3S) >> DMA_CSELR_C3S_Pos);
@@ -240,7 +240,7 @@ uint32_t hw_feed_request(void) {
 }
 
 uint32_t hw_capture_request(void) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     return (mock_dma1_ch4.CTR2 >> DMA_CTR2_REQSEL_Pos) & 0xFFu;
 #elif defined(STM32L4)
     return (uint32_t)((mock_dma1_cselr.CSELR & DMA_CSELR_C4S) >> DMA_CSELR_C4S_Pos);
@@ -267,7 +267,7 @@ void hw_reset_all(void) {
     /* USART TXE is set by hardware when the transmit buffer is empty —
      * that is the reset/power-on state.  Pre-set it so ow_tx_char() does
      * not spin-wait in host tests. */
-#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32G0) || defined(STM32F0) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32U5) || defined(STM32H7)
     mock_usart1.ISR = 0x00000080u; /* USART_ISR_TXE / USART_ISR_TXE_TXFNF */
 #else
     mock_usart1.SR = 0x00000080u; /* USART_SR_TXE */
@@ -289,7 +289,7 @@ void hw_reset_all(void) {
     mock_pwr = (PWR_TypeDef){0};
     mock_dma1_cselr = (DMA_Request_TypeDef){0};
 #endif
-#if defined(STM32H5)
+#if defined(STM32H5) || defined(STM32U5)
     mock_flash = (FLASH_TypeDef){0};
     /* VOS0/HSERDY/PLL1RDY all start clear: the mock does not model the
      * regulator ramp, the oscillator start or the PLL lock, so the clock tests
@@ -426,7 +426,7 @@ static void dma13_transfer(void) {
                  (unsigned long)hw_cap_addr());
     }
     uint16_t val = (uint16_t)MOCK_TIM_CAP_CCR;
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     /* GPDMA/LPDMA carries the memory width in CTR1.DDW_LOG2 (halfword =
      * 16-bit cells); the classic backends carry it in CCR.MSIZE_0. */
     if (d->CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
@@ -634,7 +634,7 @@ static uint32_t hw_tim_next_capture_tick(void) {
 static void hw_tim_do_capture(void) {
     uint16_t val = capture_source ? capture_source(g_tim.cap_done) : 0u;
     mock_tim1.CCR4 = val;
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     /* GPDMA/LPDMA width in CTR1.DDW_LOG2 (halfword = 16-bit cells). */
     if (mock_dma1_ch4.CTR1 & (1u << DMA_CTR1_DDW_LOG2_Pos)) {
 #else

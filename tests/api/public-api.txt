@@ -98,6 +98,7 @@
 #define OW_STATS_HIST_BUCKETS 16
 #define OW_STATS_MAX_SENSORS 8
 #define OW_TIM1_MHZ OW_SYSCLK_MHZ
+#define OW_U5_MAX_SYSCLK_MHZ 160
 
 [DECLARATIONS]
 const uint8_t*ds18b20_device_rom(uint8_t index);

@@ -78,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, u5, h7]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
@@ -764,6 +764,14 @@ jobs:
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=8 HSE_MHZ=8
       - name: Build release (H5 backend, 250MHz HSE+PLL1)
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=250 HSE_MHZ=8
+      # The U585's two clocks, each its own app.c branch: the 16MHz HSI16
+      # default (HSIRDY wait + 1 flash wait state + CFGR1 switch) and the
+      # reset MSI 4MHz (nothing to start, 0 wait states). Each gets its own
+      # `make clean` so the run cannot pass on the previous clock's objects.
+      - name: Build release (U5 backend, 16MHz HSI16 default)
+        run: make clean && make OW_MCU=STM32U585xx
+      - name: Build release (U5 backend, 4MHz raw MSI)
+        run: make clean && make OW_MCU=STM32U585xx SYSCLK_MHZ=4
       # The H743's three clocks are separate app.c branches: 240MHz HSE+PLL1 in
       # VOS0, 480/240 split (SYSCLK 480, TIM1 240), and 64MHz raw HSI. Each gets
       # its own `make clean` so the run cannot pass on the previous clock's
@@ -818,7 +826,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, h7]
+        backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, u5, h7]
         include:
           - backend: f0
             mcu: STM32F030x6
@@ -838,6 +846,8 @@ jobs:
             mcu: STM32C552xx
           - backend: h5
             mcu: STM32H503xx
+          - backend: u5
+            mcu: STM32U585xx
           - backend: h7
             mcu: STM32H743xx
     runs-on: ubuntu-26.04

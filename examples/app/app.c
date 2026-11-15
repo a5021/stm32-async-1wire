@@ -20,6 +20,8 @@
 #include "stm32c5xx.h"
 #elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
+#elif defined(OW_FAMILY_U5)
+#include "stm32u5xx.h"
 #elif defined(OW_FAMILY_H7)
 #include "stm32h7xx.h"
 #include "system_stm32h7xx.h"
@@ -48,7 +50,7 @@ void uart_poll_tx(void) {
         // Write byte to UART data register for transmission
         USART1->TDR = b;
     }
-#elif defined(OW_FAMILY_G0) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#elif defined(OW_FAMILY_G0) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
     // G0/G4/C5/H5/H7 use the modern USART naming: TXE/TXFNF lives in ISR, data in TDR
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (uart_tx_tail != uart_tx_head)) {
         uint8_t b = uart_tx_buf[uart_tx_tail];
@@ -200,7 +202,7 @@ void ow_stats_tx_enqueue(char c) {
  * against the RCC and FLASH mocks. hardware_init/app_init/ds18b20_busy stay
  * target-only. */
 
-#if !defined(DS18B20_TEST_HARNESS) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if !defined(DS18B20_TEST_HARNESS) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
 /**
  * @brief Configure system clock
  * @note The source is derived from OW_SYSCLK_MHZ (see onewire.h).
@@ -230,7 +232,7 @@ void ow_stats_tx_enqueue(char c) {
  *       scale every 1-Wire timing by an unknown factor. app_init() reports the
  *       reason over the console and stops.
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
 /* Set by configure_system_clock() and read by app_init(). A return value would
  * have been the obvious channel, but changing the signature changed codegen in
  * families that can never fail, so the state is a flag and the signature is
@@ -263,6 +265,8 @@ static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 #define OW_CLOCK_NEEDS_WAIT 1 /* both 80MHz and 16MHz start HSI16 and switch to it */
 #elif defined(OW_FAMILY_H5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64)
+#elif defined(OW_FAMILY_U5)
+#define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 4) /* raw MSI configures nothing */
 #elif defined(OW_FAMILY_C5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 48) /* 48MHz is the reset source; HSE/PSI paths wait */
 #elif defined(OW_FAMILY_H7)
@@ -311,7 +315,7 @@ static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t valu
 #endif
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7))
 /* The F3/F4/G4/L4/C5/H5 host harness needs to know whether the clock started, since that
  * is now a flag rather than a return value. It lives here, not beside the console
  * helpers: those sit in the !DS18B20_TEST_HARNESS block, so under the harness
@@ -857,6 +861,39 @@ void configure_system_clock(void) {
 #else
 #error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSE->PSI) or a value equal to HSE_MHZ (raw HSE)"
 #endif
+#elif defined(OW_FAMILY_U5)
+/* STM32U5 clock tree: HSI16 at 16MHz (the bring-up clock) or the reset MSI
+ * at 4MHz.  Both leave the AHB/APB prescalers at their reset /1, so TIM1 =
+ * PCLK2 = SYSCLK directly, which is what keeps the ow_port 1us-tick
+ * invariant and OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
+ *
+ * 16MHz HSI16: the reset clock is MSI 4MHz, so HSI16 is started and selected
+ * explicitly.  At the reset voltage range (VOS4, 0.9V) the flash needs 1 WS
+ * for 8 < HCLK <= 16 (STM32CubeU5 HAL RCC Table 1); 0 WS is valid only to
+ * 8MHz.  The latency is raised before the switch.  A failed HSI16 start
+ * leaves the tree on MSI 4MHz, which is why app_init() falls back to the 4MHz
+ * console divisor.
+ *
+ * 4MHz MSI: the reset clock, nothing to start and nothing to switch; only
+ * the flash latency is pinned to 0 WS. */
+#if (OW_SYSCLK_MHZ) > (OW_U5_MAX_SYSCLK_MHZ)
+#error "OW_SYSCLK_MHZ exceeds this U5 part's ceiling (OW_U5_MAX_SYSCLK_MHZ in ow_board.h). 160MHz is the U585 cap."
+#endif
+#if (OW_SYSCLK_MHZ) == 16
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS;
+    RCC->CR |= RCC_CR_HSION;
+    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSIRDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_0; // HSI16 = 01
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
+        ;
+#elif (OW_SYSCLK_MHZ) == 4
+    FLASH->ACR = FLASH_ACR_PRFTEN; // MSI 4MHz: 0 wait states
+#else
+#error "Unsupported OW_SYSCLK_MHZ for U5: use 16 (HSI16) or 4 (raw MSI)"
+#endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
  * the part ceiling.  All three leave the AHB/APB prescalers at their reset /1,
@@ -1176,7 +1213,7 @@ void configure_system_clock(void) {
 #endif
 #endif
 }
-#endif /* !DS18B20_TEST_HARNESS || OW_FAMILY_F4 || OW_FAMILY_G4 || OW_FAMILY_L4 || OW_FAMILY_C5 || OW_FAMILY_H5 || OW_FAMILY_H7 */
+#endif /* !DS18B20_TEST_HARNESS || OW_FAMILY_F4 || OW_FAMILY_G4 || OW_FAMILY_L4 || OW_FAMILY_C5 || OW_FAMILY_H5 || OW_FAMILY_U5 || OW_FAMILY_H7 */
 
 #if !defined(DS18B20_TEST_HARNESS)
 /**
@@ -1201,7 +1238,7 @@ void configure_system_clock(void) {
  *       silkscreen, active high (per the WeAct schematic) - opts in with
  *       -DOW_F4_LED_PB2.
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
 __STATIC_FORCEINLINE void app_set_console_baud(uint32_t pclk_mhz) {
 #if defined(OW_UART_USART3)
     /* An F4-only knob: USART3 sits on APB1. No F3 build defines it. */
@@ -1425,6 +1462,30 @@ __STATIC_FORCEINLINE void hardware_init(void) {
     // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
     app_set_console_baud(OW_C5_PCLK2_MHZ);
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE;
+#elif defined(OW_FAMILY_U5)
+    /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (push-pull output).
+     *
+     * The bare U585CIU6 board has an external USB-UART on PA9 - TX only, like
+     * every other family. PA9 sits next to PA10 without touching it, so the
+     * bus and the console share the port. PC13 is the spare pad wired to the
+     * busy LED on the bench adapter.
+     *
+     * USART1 is on APB2, left at /1 - so PCLK2 = SYSCLK (test pins it through
+     * OW_U5_CONSOLE_BRR in app.h). */
+    RCC->AHB2ENR1 |= RCC_AHB2ENR1_GPIOAEN | RCC_AHB2ENR1_GPIOCEN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+    // PA9: alternate function push-pull, AF7 = USART1_TX (pin 9 is in AFR[1]).
+    GPIOA->MODER = (GPIOA->MODER & ~GPIO_MODER_MODE9) | GPIO_MODER_MODE9_1;
+    GPIOA->OTYPER &= ~GPIO_OTYPER_OT9;
+    GPIOA->AFR[1] = (GPIOA->AFR[1] & ~GPIO_AFRH_AFSEL9) | (7u << GPIO_AFRH_AFSEL9_Pos);
+
+    // PC13: plain push-pull output for the busy LED (push-pull is the reset state).
+    GPIOC->MODER = (GPIOC->MODER & ~GPIO_MODER_MODE13) | GPIO_MODER_MODE13_0;
+
+    // Configure USART1: 115200 baud, 8 data bits, no parity, 1 stop bit, TX only
+    app_set_console_baud(OW_U5_PCLK2_MHZ);
+    USART1->CR1 = USART_CR1_TE | USART_CR1_UE; // Enable USART1; TX enable only
 #elif defined(OW_FAMILY_H5)
     /* Console on PA9 (AF7 = USART1_TX), busy LED on PC13 (push-pull output).
      *
@@ -1502,7 +1563,7 @@ void app_time_init(void); /* defined below, with the polled millisecond clock */
 /**
  * @brief Initialize system clock, USART1 TX and the busy LED GPIO
  */
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
 /**
  * @brief Report a clock that never started, then stop.
  * @note Called with the console already up so the reason can be printed, which is
@@ -1634,6 +1695,10 @@ static void app_stop_on_clock_failure(void) {
      * message stays readable whatever the reset clock is. */
 #if defined(OW_FAMILY_H5)
     app_set_console_baud(32u);
+#elif defined(OW_FAMILY_U5)
+    /* The U5 tree is left on the MSI 4MHz reset source when the HSI16 start
+     * fails, so the console divisor follows MSI, not the requested 16MHz. */
+    app_set_console_baud(4u);
 #elif defined(OW_FAMILY_C5)
     /* The C5 tree is left on the 48MHz HSIDIV3 reset source when a wait fails. */
     app_set_console_baud(48u);
@@ -1679,7 +1744,7 @@ void app_init(void) {
     configure_system_clock();
     hardware_init();
     app_time_init();
-#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7)
+#if defined(OW_FAMILY_F3) || defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7)
     if (!ow_clock_ok)
         app_stop_on_clock_failure();
 #endif

@@ -57,6 +57,9 @@
 │   ├── stm32h5/            # STM32H5: TIM1 + GPDMA1 + PA10
 │   │   ├── STM32H503CB_FLASH.ld  # Linker script, STM32H503CB (128KB flash / 32KB RAM)
 │   │   └── project-h503cb.jdebug  # SEGGER Ozone project (STM32H503CB, SWD; no J-Flash: CoreID unverified)
+│   ├── stm32u5/            # STM32U5: TIM1 + GPDMA1 + PA10, secure build
+│   │   ├── STM32U585CI_FLASH.ld  # Linker script, STM32U585CIU6 (2MB flash / 768KB SRAM)
+│   │   └── project-u585ci.jdebug  # SEGGER Ozone project (STM32U585CI, SWD)
 │   └── stm32h7/            # STM32H7: TIM1 + DMA1/DMAMUX1 + PA10
 │       ├── STM32H743VI_FLASH.ld  # Linker script, STM32H743VI (2MB flash / 512KB AXI SRAM1)
 │       └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
@@ -74,10 +77,11 @@
 │   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)
 │   ├── c552ce.mk           # 512KB flash / 128KB SRAM, 144MHz HSE->PSI default (WeAct C5 48-pin, 8MHz HSE)
 │   ├── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
+│   ├── u585ci.mk           # 2MB flash / 768KB SRAM, 16MHz HSI16 default (bare U585CIU6, no HSE)
 │   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
-│   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 10 family sections)
+│   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 11 family sections)
 │   ├── ow_compiler.h       # Private compiler-attribute shim for the driver sources
 │   ├── ow_glue.h           # Internal bridge: timed waits and state-machine kicks
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
@@ -158,7 +162,7 @@
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── CMSIS/                  # Makefile's downloaded dependencies (gitignored)
 │   ├── core/               # ARM CMSIS 5 core headers
-│   └── device/             # STM32 headers/startup (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7); SVDs where available (none for H503/H743)
+│   └── device/             # STM32 headers/startup (F0/F1/F3/F4/G0/G4/L4/C5/H5/U5/H7); SVDs where available (none for H503/H743)
 ├── _deps/                  # CMake FetchContent clones of the same CMSIS sources (gitignored)
 ├── .vscode/                # VSCode workspace configuration
 │   ├── tasks.json          # Build tasks (Ctrl+Shift+B)

@@ -28,6 +28,8 @@
 #include "stm32c5xx.h"
 #elif defined(OW_FAMILY_H5)
 #include "stm32h5xx.h"
+#elif defined(OW_FAMILY_U5)
+#include "stm32u5xx.h"
 #elif defined(OW_FAMILY_H7)
 #include "stm32h7xx.h"
 #else

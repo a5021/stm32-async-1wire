@@ -12,7 +12,7 @@
  *    PlatformIO / CubeMX path must reach the port core's SystemCoreClock
  *    auto-path instead of a silent fallback.
  *  Selecting a family through the raw family macro (STM32F0/F1/F3/F4/G0/
- *  G4/L4/C5/H5/H7 - for F4/G4/C5/H5/H7 also the concrete device spellings)
+ *  G4/L4/C5/H5/U5/H7 - for F4/G4/C5/H5/H7 also the concrete device spellings)
  *  must still resolve the OW_FAMILY_* token in both modes. Built per
  *  OW_TARGET by the test-clocks Makefile target.
  * ============================================================ */
@@ -108,6 +108,10 @@
 #if OW_SYSCLK_MHZ != 64
 #error "H5 family-macro selection must default to a 64 MHz system clock"
 #endif
+#elif defined(STM32U5)
+#if OW_SYSCLK_MHZ != 16
+#error "U5 family-macro selection must default to a 16 MHz system clock"
+#endif
 #elif defined(STM32H7)
 #if OW_SYSCLK_MHZ != 240
 #error "H7 family-macro selection must default to a 240 MHz system clock"
@@ -150,6 +154,13 @@
  * H503 tops out at 250MHz; the 64MHz HSI default is far below it. */
 #if (OW_SYSCLK_MHZ) > (OW_H5_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_H5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
+#endif
+#elif defined(STM32U5)
+/* Same pair for U5 (OW_U5_MAX_SYSCLK_MHZ, owned by the ow_board.h U5
+ * section): the U585 tops out at 160MHz; the 16MHz HSI16 default is far
+ * below it. */
+#if (OW_SYSCLK_MHZ) > (OW_U5_MAX_SYSCLK_MHZ)
+#error "the default clock exceeds OW_U5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif
 #elif defined(STM32H7)
 /* H7 has independent limits: Rev V core/SYSCLK up to 480MHz and TIM1 up to
@@ -266,7 +277,7 @@
 #ifdef OW_SYSCLK_MHZ
 #error "test_sysclk_fallback: OW_SYSCLK_MHZ is defined without a -D - a family header reintroduced a fallback default; the port core must read SystemCoreClock instead"
 #endif
-#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_L4) && !defined(OW_FAMILY_C5) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_H7)
+#if !defined(OW_FAMILY_F0) && !defined(OW_FAMILY_F1) && !defined(OW_FAMILY_F3) && !defined(OW_FAMILY_F4) && !defined(OW_FAMILY_G0) && !defined(OW_FAMILY_G4) && !defined(OW_FAMILY_L4) && !defined(OW_FAMILY_C5) && !defined(OW_FAMILY_H5) && !defined(OW_FAMILY_U5) && !defined(OW_FAMILY_H7)
 #error "test_sysclk_fallback: no OW_FAMILY_* token resolved (family macro not defined)"
 #endif
 #endif /* OW_SYSCLK_VALUES_CHECK */
