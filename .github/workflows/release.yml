@@ -324,10 +324,11 @@ jobs:
             bare-metal, register-level.
             1-Wire timing is handled entirely by TIM1 and DMA - no interrupts,
             no software delays, minimal CPU usage. One MCU-independent core and
-            ten header-only backends (F0/F1/F3/F4/G0/G4/L4/C5/H5/H7) selected at build time with
+            eleven header-only backends (F0/F1/F3/F4/G0/G4/L4/C5/H5/U5/H7) selected at build time with
             `make OW_MCU=STM32F030x6` / `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
             `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` / `make OW_MCU=STM32L476xx` /
-            `make OW_MCU=STM32C552xx` / `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx`.
+            `make OW_MCU=STM32C552xx` / `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32U585xx` /
+            `make OW_MCU=STM32H743xx`.
 
             ## What's new in 3.2.0
 
