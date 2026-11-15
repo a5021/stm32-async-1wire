@@ -225,7 +225,8 @@ Measured at 160 MHz: HIL `smoke` 7 devices / 13 readings (25.6–25.9 °C),
 PIOA/PIOB alternating and no errors (external pull-ups on the open-drain PIO
 pins). LA geometry: 166.0 µs slot, 5.00 µs ONE, 60.00 µs ZERO, 481.25 µs
 reset, 751.95 ms conversion wait; the decoder sees the DS2413 and DS2431 ROMs
-with CRC ok and reads the DS2431 baseline+1.
+with CRC ok and reads the DS2431 baseline+1. A 30-minute `9_multi` soak at
+160 MHz completed 586 cycles with 0 CRC failures and PIOA/PIOB alternating.
 Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=16` for HSI16).
 Bring-up and flashing notes: [port/stm32u5/HARDWARE-NOTES.md](../port/stm32u5/HARDWARE-NOTES.md).
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)

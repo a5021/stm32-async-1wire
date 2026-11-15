@@ -54,6 +54,10 @@ All with `EXT="-DOW_PARASITE_POWER=1"`, default 160 MHz unless noted.
 - DS2413 (`HIL_SCRIPT=ds2413`): PASS, 11 blinks, commands
   `12121212121`, read-back `12121212121`, no errors. The open-drain PIOA/PIOB
   pins need external pull-ups; without them both read 0.
+- 30-minute soak on `9_multi` at 160 MHz: 586 measurement cycles, 0 CRC
+  failures, 0 `error` lines, DS2413 PIOA/PIOB alternating throughout
+  (1170/1169 samples). DS2431 writes are event-driven and did not trigger in
+  this run; the `ds2431` HIL run above covers the write/read cycle.
 - LA content (`la_decode.py` on `8_ds2431`): SEARCH ROM sees the DS2413
   (`3A 9F 47 03 00 00 00 3A`) and the DS2431 (`2D F8 47 60 26 00 00 69`),
   both CRC ok; `ИТОГ: PASS`. The decoder does not yet understand the DS2413
