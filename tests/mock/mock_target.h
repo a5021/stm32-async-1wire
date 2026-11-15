@@ -2,7 +2,7 @@
 #define MOCK_TARGET_H
 /* Target dispatcher for the host-test mocks: pulls in the device stand-in
  * matching the backend under test (STM32F0 / STM32F1 / STM32F3 / STM32F4 /
- * STM32G0 / STM32G4 / STM32L4 / STM32C5 / STM32H5 / STM32H7, passed as -D by
+ * STM32G0 / STM32G4 / STM32L4 / STM32C5 / STM32H5 / STM32U5 / STM32H7, passed as -D by
  * the host build). */
 #if defined(STM32F0)
 #include "stm32f0xx.h"
@@ -20,6 +20,8 @@
 #include "stm32c5xx.h"
 #elif defined(STM32H5)
 #include "stm32h5xx.h"
+#elif defined(STM32U5)
+#include "stm32u5xx.h"
 #elif defined(STM32H7)
 #include "stm32h7xx.h"
 #else
@@ -71,7 +73,7 @@
  * MOCK_CAP_TRANSFERS() / MOCK_CAP_BYTES_PER_XFR. The feed source is an
  * 8-bit cell (1 byte per transfer) on every family, so feed BNDT/CNDTR
  * unchanged. */
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #define MOCK_CAP_BYTES_PER_XFR 2u
 #define MOCK_CAP_CNDTR(n) ((n) * 2u)
 #define MOCK_CAP_TRANSFERS(cndtr) ((cndtr) / 2u)
@@ -104,7 +106,7 @@
 #define MOCK_PIN_IS_PP() (((mock_gpioa.CRH & GPIO_CRH_CNF10_0) == 0u))
 #define MOCK_PIN_AT_MAX_SPEED() (((mock_gpioa.CRH & GPIO_CRH_MODE10) == GPIO_CRH_MODE10_1))
 #else
-#if defined(STM32G0) || defined(STM32H5) || defined(STM32C5)
+#if defined(STM32G0) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #define MOCK_PIN_MODER GPIO_MODER_MODE10
 #define MOCK_PIN_MODE_AF GPIO_MODER_MODE10_1
 #define MOCK_PIN_MODE_AF_0 GPIO_MODER_MODE10_0

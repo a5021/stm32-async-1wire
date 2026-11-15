@@ -180,6 +180,16 @@ jobs:
             "5_commands|STM32H503xx|8|ds18b20_5_commands_h5_8mhz|"
             "6_statistics|STM32H503xx|8|ds18b20_6_statistics_h5_8mhz|"
             "7_low_power|STM32H503xx|8|ds18b20_7_low_power_lp_h5_8mhz|lowpower"
+            # STM32U585xx (bare UFQFPN48) - 160MHz HSE25+PLL1 default, 16MHz HSI16 fallback
+            "1_basic|STM32U585xx|-|ds18b20_1_basic_u5_160mhz|"
+            "2_device_search|STM32U585xx|-|ds18b20_2_device_search_u5_160mhz|"
+            "3_round_robin|STM32U585xx|-|ds18b20_3_round_robin_u5_160mhz|"
+            "4_scan_mode|STM32U585xx|-|ds18b20_4_scan_mode_u5_160mhz|"
+            "5_commands|STM32U585xx|-|ds18b20_5_commands_u5_160mhz|"
+            "6_statistics|STM32U585xx|-|ds18b20_6_statistics_u5_160mhz|"
+            "7_low_power|STM32U585xx|-|ds18b20_7_low_power_lp_u5_160mhz|lowpower"
+            "1_basic|STM32U585xx|16|ds18b20_1_basic_u5_16mhz|"
+            "2_device_search|STM32U585xx|16|ds18b20_2_device_search_u5_16mhz|"
             # STM32H743xx (WeAct Studio H7XX) - 240MHz default, 480/240 opt-in, 64MHz raw HSI
             "1_basic|STM32H743xx|-|ds18b20_1_basic_h7_240mhz|"
             "2_device_search|STM32H743xx|-|ds18b20_2_device_search_h7_240mhz|"
@@ -238,7 +248,7 @@ jobs:
             "7_low_power|STM32F446xx|-|ds18b20_7_low_power_lp_f446xx_180mhz|lowpower"
             # 8_ds2431: one default-clock build per MCU. The DS2431 EEPROM
             # example ships no clock or EXT variants, so this is the complete
-            # set - eleven rows, one per family member in the matrix above.
+            # set - thirteen rows, one per family member in the matrix above.
             "8_ds2431|-|-|ds18b20_8_ds2431_72mhz|"
             "8_ds2431|STM32F030x6|-|ds18b20_8_ds2431_f0_48mhz|"
             "8_ds2431|STM32G031xx|-|ds18b20_8_ds2431_g0_64mhz|"
@@ -247,6 +257,7 @@ jobs:
             "8_ds2431|STM32L476xx|-|ds18b20_8_ds2431_l4_80mhz|"
             "8_ds2431|STM32C552xx|-|ds18b20_8_ds2431_c5_144mhz|"
             "8_ds2431|STM32H503xx|-|ds18b20_8_ds2431_h5_64mhz|"
+            "8_ds2431|STM32U585xx|-|ds18b20_8_ds2431_u5_160mhz|"
             "8_ds2431|STM32F407xx|-|ds18b20_8_ds2431_f407xx_168mhz|"
             "8_ds2431|STM32F401xC|-|ds18b20_8_ds2431_f401xc_84mhz|"
             "8_ds2431|STM32F446xx|-|ds18b20_8_ds2431_f446xx_180mhz|"
@@ -261,6 +272,7 @@ jobs:
             "9_multi|STM32L476xx|-|ds18b20_9_multi_l4_80mhz|"
             "9_multi|STM32C552xx|-|ds18b20_9_multi_c5_144mhz|"
             "9_multi|STM32H503xx|-|ds18b20_9_multi_h5_64mhz|"
+            "9_multi|STM32U585xx|-|ds18b20_9_multi_u5_160mhz|"
             "9_multi|STM32F407xx|-|ds18b20_9_multi_f407xx_168mhz|"
             "9_multi|STM32F401xC|-|ds18b20_9_multi_f401xc_84mhz|"
             "9_multi|STM32F446xx|-|ds18b20_9_multi_f446xx_180mhz|"

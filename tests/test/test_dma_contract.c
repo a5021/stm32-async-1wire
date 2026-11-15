@@ -51,7 +51,7 @@ static uint16_t presence_src(uint32_t idx) {
  * expectation below carries them, so the same suite run twice - default and
  * `make test-dma-prio` (-DOW_DMA_PRIO=3) - proves the knob reaches the
  * register word on each DMA IP rather than sitting in a header. */
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #define TEST_PRIO_BITS OW_PORT_GPDMA_PRIO_BITS
 #elif defined(STM32F4) || defined(STM32H7)
 #define TEST_PRIO_BITS OW_PORT_DMA_PL
@@ -67,7 +67,7 @@ _Static_assert(TEST_PRIO_BITS == 0u,
                "OW_DMA_PRIO=0 must leave the reset priority field");
 #endif
 
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #define WIDTH_MSIZE16 0u
 #define WIDTH_PSIZE8 0u
 #define FEED_8BIT_HI (DMA_CCR_EN | TEST_PRIO_BITS)
@@ -181,6 +181,9 @@ static const dma_ledger_row_t k_ledger[] = {
     /* C5: no DMA1/GPDMA1 and no DMAMUX - the LPDMA transfer register's
      * REQSEL carries the request (TIM1_CC2 -> 25, TIM1_CC4 -> 27). */
     {"c5", 25u, 27u, "LPDMA transfer register REQSEL"},
+    /* U5: GPDMA1 like H5, but the request ids differ (TIM1_CH2 -> 43,
+     * TIM1_CH4 -> 45, STM32CubeU5 stm32u5xx_ll_dma.h). */
+    {"u5", 43u, 45u, "GPDMA transfer register REQSEL"},
 };
 
 #if defined(STM32F0)
@@ -201,6 +204,8 @@ static const dma_ledger_row_t k_ledger[] = {
 #define CURRENT_FAMILY "c5"
 #elif defined(STM32H5)
 #define CURRENT_FAMILY "h5"
+#elif defined(STM32U5)
+#define CURRENT_FAMILY "u5"
 #elif defined(STM32H7)
 #define CURRENT_FAMILY "h7"
 #else
@@ -577,7 +582,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* feed channel: exact CMAR/CPAR/CNDTR, required CCR bits */
     if (row->exp_feed_cmar != 0u) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
         /* GPDMA/LPDMA SAR/DAR are direction-relative: feed memory in CSAR. */
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cmar, mock_feed_ch.CSAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_feed_cpar, mock_feed_ch.CDAR);
@@ -600,7 +605,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
 
     /* capture channel */
     if (row->exp_cap_cmar != 0u) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
         /* GPDMA/LPDMA SAR/DAR are direction-relative: capture memory in CDAR. */
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cmar, mock_dma1_ch4.CDAR);
         TEST_ASSERT_EQUAL_UINT32((uint32_t)row->exp_cap_cpar, mock_dma1_ch4.CSAR);
@@ -654,7 +659,7 @@ static void run_contract_row(const dma_contract_row_t* row) {
  * discriminating bits (PSIZE present/absent on 8-bit captures, MSIZE on
  * halfword memories, CHSEL on F4 streams). */
 void test_dma_cr_value_macros(void) {
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     /* GPDMA/LPDMA CTR1 templates (transfer-register-1 words, not CCR):
      * capture reads the halfword CCR4 into incrementing memory (16- or 8-bit
      * cells), feed reads incrementing byte memory into the fixed halfword
@@ -677,6 +682,12 @@ void test_dma_cr_value_macros(void) {
      * (LL_LPDMA1_REQUEST_TIM1_CC2 = 25, LL_LPDMA1_REQUEST_TIM1_CC4 = 27). */
     TEST_ASSERT_EQUAL_UINT32(25u, (uint32_t)OW_PORT_LPDMA_REQ_TIM1_CC2);
     TEST_ASSERT_EQUAL_UINT32(27u, (uint32_t)OW_PORT_LPDMA_REQ_TIM1_CH4);
+#elif defined(STM32U5)
+    /* REQSEL routing (no DMAMUX on U5): feed <- TIM1_CH2, capture <-
+     * TIM1_CH4. Double-sourced from STM32CubeU5 stm32u5xx_ll_dma.h
+     * (LL_GPDMA1_REQUEST_TIM1_CH2 = 43, LL_GPDMA1_REQUEST_TIM1_CH4 = 45). */
+    TEST_ASSERT_EQUAL_UINT32(43u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CC2);
+    TEST_ASSERT_EQUAL_UINT32(45u, (uint32_t)OW_PORT_GPDMA_REQ_TIM1_CH4);
 #else
     /* REQSEL routing (no DMAMUX on H5): feed <- TIM1_CH2, capture <-
      * TIM1_CH4. Double-sourced from the H5 RM mapping table and CubeH5. */

@@ -9,7 +9,7 @@ console). Measurement logs are deliberately not kept in the repo. Deeper
 per-port bring-up and timing notes live next to the linker scripts:
 [STM32F1](../port/stm32f1/HARDWARE-NOTES.md),
 [STM32F4](../port/stm32f4/HARDWARE-NOTES.md) and
-[STM32C5](../port/stm32c5/HARDWARE-NOTES.md).
+[STM32C5](../port/stm32c5/HARDWARE-NOTES.md), [STM32U5](../port/stm32u5/STM32U585CI_FLASH.ld).
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -208,6 +208,27 @@ both channels (the same knob selects `DMA_SxCR_PL` on F4/H7 and `DMA_CCR_PL` on
 the classic DMA1 backends).
 Build with `make OW_MCU=STM32H503xx`.
 
+### STM32U585CIU6 (bare UFQFPN48)
+Validated on a bare STM32U585CIU6 (UFQFPN48) with 7 × DS18B20 in parasite
+power mode on one 1-Wire bus on **PA10** (AF1; TIM1 CH3/CH4 pair, GPDMA1
+channels 2/3 — requests 43/45, no DMAMUX, 8-bit feed tables), console on
+USART1 TX / **PA9** (AF7) at 115200 8N1 via a CP210x USB-UART, busy LED on
+**PC13** (active-low), flashed via ST-Link SWD. Default clock: 160 MHz from the
+25 MHz crystal through PLL1 (M=5, N=64, R=2, VOS range 1, EPOD booster,
+4 flash wait states); the 16 MHz HSI16 build (`SYSCLK_MHZ=16`) is the
+fallback. The part has TrustZone, so the build uses `-mcmse` and the secure
+peripheral aliases; this works whether the TZEN option byte is 0 or 1. The
+bench part is TZEN=0 / RDP=0.
+Measured at 160 MHz: HIL `smoke` 7 devices / 13 readings (25.6–25.9 °C),
+`scan` 20 rounds, `stats` 70 cycles / 5040 pulses / 0 errors, `lowpower`
+6 readings, `ds2431` 1 device / read-back baseline+1, `ds2413` 11 blinks with
+PIOA/PIOB alternating and no errors (external pull-ups on the open-drain PIO
+pins). LA geometry: 166.0 µs slot, 5.00 µs ONE, 60.00 µs ZERO, 481.25 µs
+reset, 751.95 ms conversion wait; the decoder sees the DS2413 and DS2431 ROMs
+with CRC ok and reads the DS2431 baseline+1. A 30-minute `9_multi` soak at
+160 MHz completed 586 cycles with 0 CRC failures and PIOA/PIOB alternating.
+Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=16` for HSI16).
+Bring-up and flashing notes: [port/stm32u5/HARDWARE-NOTES.md](../port/stm32u5/HARDWARE-NOTES.md).
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 
 Validated on a WeAct Studio STM32H7XX (STM32H743VI, ST-Link, 2 MB flash): 7 DS18B20 in parasite

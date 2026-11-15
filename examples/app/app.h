@@ -149,6 +149,17 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 #define OW_C5_CONSOLE_BRR USART_BRR_CALC(OW_C5_PCLK2_MHZ * 1000000u, 115200)
 #endif /* OW_FAMILY_C5 */
 
+/* --- U5 console divisor ----------------------------------------------------
+ *
+ * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  The 16MHz HSI16 clock
+ * needs no PLL, so this is one line like G4/H5/C5. */
+#if defined(OW_FAMILY_U5)
+/** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
+#define OW_U5_PCLK2_MHZ ((OW_SYSCLK_MHZ))
+/** @brief Console BRR on USART1/APB2 at 115200 baud */
+#define OW_U5_CONSOLE_BRR USART_BRR_CALC(OW_U5_PCLK2_MHZ * 1000000u, 115200)
+#endif /* OW_FAMILY_U5 */
+
 /* --- H7 console divisor ----------------------------------------------------
  *
  * USART1 is on APB2. In both H7 PLL modes PCLK2 is 120MHz: at 240/240,
@@ -199,7 +210,7 @@ void app_init(void);
 uint32_t app_millis(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7))
 /**
  * @brief Configure system clock (exposed for the F4/G4/L4/C5/H5/H7 host harness)
  * @note On target builds this is file-local and force-inlined in app.c.
@@ -210,7 +221,7 @@ uint32_t app_millis(void);
 void configure_system_clock(void);
 #endif
 
-#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_H7))
+#if defined(DS18B20_TEST_HARNESS) && (defined(OW_FAMILY_F4) || defined(OW_FAMILY_G4) || defined(OW_FAMILY_L4) || defined(OW_FAMILY_C5) || defined(OW_FAMILY_H5) || defined(OW_FAMILY_U5) || defined(OW_FAMILY_H7))
 /**
  * @brief Whether the requested clock actually started (F4/G4/L4/C5/H5/H7 harness surface)
  * @note F4/G4/L4/C5/H5/H7 report a clock that never came up through this rather than through a

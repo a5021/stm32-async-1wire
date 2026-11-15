@@ -105,6 +105,10 @@ make OW_MCU=STM32C552xx SYSCLK_MHZ=8 HSE_MHZ=8 APP=4_scan_mode
 
 # STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
 make OW_MCU=STM32H503xx APP=4_scan_mode
+# STM32U585CIU6 target (bare UFQFPN48, 160MHz HSE25+PLL1 default):
+make OW_MCU=STM32U585xx APP=4_scan_mode
+# ... 16MHz HSI16 fallback:
+make OW_MCU=STM32U585xx SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32H743VI target (WeAct STM32H743VI Core Board, 240MHz HSE+PLL default):
 make OW_MCU=STM32H743xx APP=4_scan_mode
@@ -279,7 +283,7 @@ smallest guard with clean per-slot geometry bounds the feed latency from above.
 The timer resolution is 1 µs, so guard 1 (a 2 µs window) is the measurement
 floor: a clean run there means a 2 µs window was enough.
 
-| `STRESS_LEVEL` | Load (F0/F4/H5) |
+| `STRESS_LEVEL` | Load (F0/F4/H5/U5) |
 |---|---|
 | 0 | none - the driver's own margin |
 | 1 | CPU hammers the SRAM array in the `onewire_bus_done()` loop |
@@ -401,7 +405,7 @@ Load activity: channel 1 restarted its finite burst 8300/1400 times at level 4
 and 3500/700 times at level 5 (the CPU hammer takes part of the restart time).
 The CPU pass counts are in the table. The feed stayed clean at a 2 µs window in
 every cell, so the 5 µs default needs no change on F0. This result is specific
-to the F030; other DMA IPs (F4 streams, H5 GPDMA, C5 LPDMA) need their own
+to the F030; other DMA IPs (F4 streams, H5/U5 GPDMA, C5 LPDMA) need their own
 run.
 
 Circular mem-to-memory is not allowed on F0 (RM0091), so level 4 is a stream of

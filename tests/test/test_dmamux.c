@@ -27,15 +27,18 @@
 #include "onewire.h"
 #include "unity.h"
 
-#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 
 #if defined(STM32G4)
 #define DMAMUX_EXPECT_FEED 43u
 #define DMAMUX_EXPECT_CAP 45u
-#elif defined(STM32H5) || defined(STM32C5)
+#elif defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #if defined(STM32C5)
 #define GPDMA_EXPECT_FEED_REQ 25u /* TIM1_CC2, in CTR2.REQSEL */
 #define GPDMA_EXPECT_CAP_REQ 27u /* TIM1_CC4, in CTR2.REQSEL */
+#elif defined(STM32U5)
+#define GPDMA_EXPECT_FEED_REQ 43u /* TIM1_CH2, in CTR2.REQSEL */
+#define GPDMA_EXPECT_CAP_REQ 45u /* TIM1_CH4, in CTR2.REQSEL */
 #else
 #define GPDMA_EXPECT_FEED_REQ 59u /* TIM1_CH2, in CTR2.REQSEL */
 #define GPDMA_EXPECT_CAP_REQ 61u /* TIM1_CH4, in CTR2.REQSEL */
@@ -57,7 +60,7 @@ void test_dmamux_capture_request_routed_on_reset(void) {
     hw_set_capture_source(rx_src);
 
     onewire_reset(capture); /* schedules the CC4 capture drain */
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     TEST_ASSERT_EQUAL_UINT32((GPDMA_EXPECT_CAP_REQ << DMA_CTR2_REQSEL_Pos),
                              mock_dma1_ch4.CTR2);
     TEST_ASSERT_BITS_HIGH(DMA_CCR_EN, mock_dma1_ch4.CCR);
@@ -83,7 +86,7 @@ void test_dmamux_feed_request_routed_on_write(void) {
     onewire_encode_byte(pulses, 0xCC);
     pulses[ONEWIRE_BITS_PER_BYTE] = 0; /* trailing hardware bus release */
     onewire_write_slots(pulses, ONEWIRE_BITS_PER_BYTE);
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 #if defined(STM32C5)
     TEST_ASSERT_EQUAL_UINT32((GPDMA_EXPECT_FEED_REQ << DMA_CTR2_REQSEL_Pos),
                              mock_feed_ch.CTR2);
@@ -109,7 +112,7 @@ void test_dmamux_feed_request_routed_on_write(void) {
 #endif /* STM32G0 || STM32G4 || STM32H5 || STM32C5 */
 
 void run_test_dmamux(void) {
-#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5)
+#if defined(STM32G0) || defined(STM32G4) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     TEST_RUN(test_dmamux_capture_request_routed_on_reset);
     TEST_RUN(test_dmamux_feed_request_routed_on_write);
 #endif

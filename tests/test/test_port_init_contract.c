@@ -154,6 +154,16 @@ static const setup_row_t k_setup[] = {
     {"push_pull", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
     {"open_drain", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
 };
+#elif defined(STM32U5)
+/* Same PA10/AF1 pin setup as H5. The clock gates differ only in the register
+ * name: U5 puts GPIOA in RCC_AHB2ENR1 (still bit 0), so the packed value is
+ * identical: APB2ENR low (TIM1EN = 0x800), AHB2ENR1 middle (GPIOAEN = 0x1),
+ * AHB1ENR high (GPDMA1EN = 0x1). */
+static const setup_row_t k_setup[] = {
+    {"init", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+    {"push_pull", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0u, 0x00000100u, 0x00300000u, 0u},
+    {"open_drain", 0x01010800u, 0x003Fu, 0x8000u, 0x00200000u, 0x00000400u, 0x00000100u, 0x00300000u, 0u},
+};
 #elif defined(STM32H7)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10
  * open-drain, cleared for push-pull; af 0x100 = AF1 for TIM1_CH3 (DS12110
@@ -234,6 +244,16 @@ port_setup_t port_setup_snapshot(void) {
      * (GPDMA1EN): same three-register packing as G4. */
     s.clk = (uint32_t)mock_rcc.APB2ENR |
             ((uint32_t)mock_rcc.AHB2ENR << 16) |
+            ((uint32_t)mock_rcc.AHB1ENR << 24);
+    s.pin_mode = (uint32_t)mock_gpioa.MODER;
+    s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
+    s.pin_af = (uint32_t)mock_gpioa.AFR[1];
+    s.pin_speed = (uint32_t)mock_gpioa.OSPEEDR;
+#elif defined(STM32U5)
+    /* APB2ENR low (TIM1EN), AHB2ENR1 middle (GPIOAEN), AHB1ENR high
+     * (GPDMA1EN): the U5 gate registers, same packing as H5. */
+    s.clk = (uint32_t)mock_rcc.APB2ENR |
+            ((uint32_t)mock_rcc.AHB2ENR1 << 16) |
             ((uint32_t)mock_rcc.AHB1ENR << 24);
     s.pin_mode = (uint32_t)mock_gpioa.MODER;
     s.pin_otype = (uint32_t)mock_gpioa.OTYPER;
@@ -324,7 +344,7 @@ static void test_port_setup_open_drain(void) {
     check(SETUP_OPEN_DRAIN);
 }
 
-#if defined(STM32F3) || defined(STM32H5) || defined(STM32C5)
+#if defined(STM32F3) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
 /* The F3/H5/C5 TIM1 has an IC4PSC capture prescaler in CCMR2 bits [11:10] that
  * F4 does not have - on F4 those bits are reserved. The shared core assigns
  * the whole register and passes no IC4PSC bit, so it lands at 0, which is
@@ -340,7 +360,7 @@ static void test_port_ic4psc_is_no_prescaler(void) {
     hw_reset_all();
     ow_port_init();
     /* A reset goes through ow_port_capture(), which is what programs CCMR2. */
-#if defined(STM32H5) || defined(STM32C5)
+#if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     ow_port_capture((volatile void*)(uintptr_t)mock_feed_ch.CSAR, 1u, 16u);
 #else
     ow_port_capture((volatile void*)(uintptr_t)mock_feed_ch.CMAR, 1u, 16u);
@@ -376,7 +396,7 @@ void run_test_port_init_contract(void) {
     TEST_RUN(test_port_setup_after_init);
     TEST_RUN(test_port_setup_push_pull);
     TEST_RUN(test_port_setup_open_drain);
-#if defined(STM32F3) || defined(STM32H5) || defined(STM32C5)
+#if defined(STM32F3) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
     TEST_RUN(test_port_ic4psc_is_no_prescaler);
 #endif
 }

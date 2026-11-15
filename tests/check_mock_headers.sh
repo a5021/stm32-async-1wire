@@ -126,6 +126,7 @@ compare g4 "$MOCK_DIR/stm32g4xx.h" "$CMSIS_DIR/stm32g474xx.h"
 compare l4 "$MOCK_DIR/stm32l4xx.h" "$CMSIS_DIR/stm32l476xx.h"
 compare c5 "$MOCK_DIR/stm32c5xx.h" "$CMSIS_DIR/stm32c552xx.h" try_msk
 compare h5 "$MOCK_DIR/stm32h5xx.h" "$CMSIS_DIR/stm32h503xx.h"
+compare u5 "$MOCK_DIR/stm32u5xx.h" "$CMSIS_DIR/stm32u585xx.h"
 compare h7 "$MOCK_DIR/stm32h7xx.h" "$CMSIS_DIR/stm32h743xx.h"
 # The F4 mock twice, against a second real header. One F4 mock has to serve the
 # whole family, and the over-drive bits the F446's 180MHz branch needs

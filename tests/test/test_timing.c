@@ -12,7 +12,7 @@
 #include "mock_target.h"
 #include "onewire.h"
 #include "unity.h"
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32H7)
+#if defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32C5) || defined(STM32H5) || defined(STM32U5) || defined(STM32H7)
 #include "app.h" /* configure_system_clock() test surface */
 #endif
 
@@ -549,6 +549,52 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(0u, mock_rcc.CFGR2 &
                                      (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
 #endif
+#elif defined(STM32U5)
+#if (OW_SYSCLK_MHZ) == 160
+    /* 160MHz HSE25+PLL1: HSERDY, PLL1RDY, VOSRDY and BOOSTRDY are presets
+     * because the mock does not model the oscillator start, the PLL lock,
+     * the regulator ramp or the EPOD booster. SWS is preset to PLL1 (11)
+     * because the mock does not mirror SW -> SWS. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS;
+    mock_pwr.VOSR = PWR_VOSR_VOSRDY | PWR_VOSR_BOOSTRDY;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* PWR is clocked from AHB3 before VOSR is written. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_AHB3ENR_PWREN, mock_rcc.AHB3ENR & RCC_AHB3ENR_PWREN);
+    /* VOS range 1 (11) and the EPOD booster. */
+    TEST_ASSERT_EQUAL_UINT32(PWR_VOSR_VOS, mock_pwr.VOSR & PWR_VOSR_VOS);
+    TEST_ASSERT_EQUAL_UINT32(PWR_VOSR_BOOSTEN,
+                             mock_pwr.VOSR & PWR_VOSR_BOOSTEN);
+    /* 4 WS + prefetch in one write. */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS,
+                             mock_flash.ACR);
+    /* PLL1: HSE (11), 4..8MHz input window, M = 5, MBOOST = DIV2, R enabled. */
+    TEST_ASSERT_EQUAL_UINT32(
+        RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 | RCC_PLL1CFGR_PLL1REN,
+        mock_rcc.PLL1CFGR & ~(RCC_PLL1CFGR_PLL1M | RCC_PLL1CFGR_PLL1MBOOST));
+    TEST_ASSERT_EQUAL_UINT32(4u, (mock_rcc.PLL1CFGR >> RCC_PLL1CFGR_PLL1M_Pos) & 0xFu);
+    TEST_ASSERT_EQUAL_UINT32(
+        1u, (mock_rcc.PLL1CFGR >> RCC_PLL1CFGR_PLL1MBOOST_Pos) & 0xFu);
+    TEST_ASSERT_EQUAL_UINT32(63u, (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1N_Pos) & 0x1FFu);
+    TEST_ASSERT_EQUAL_UINT32(1u, (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1R_Pos) & 0x7Fu);
+    /* SYSCLK switched to PLL1 (SW = 11). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+#elif (OW_SYSCLK_MHZ) == 16
+    /* HSI16: the reset clock is MSI 4MHz, so the path starts HSI16,
+     * waits for HSIRDY, raises the flash latency to 1 WS and switches SW to
+     * HSI16 (01). HSIRDY and SWS are preset because the mock does not model
+     * the oscillator start and does not mirror SW -> SWS. */
+    mock_rcc.CR = RCC_CR_HSIRDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS_0;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS,
+                             mock_flash.ACR);
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW_0, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+#else
+#error "test_timing: U5 supports 160 (HSE25+PLL1) or 16 (HSI16)"
+#endif
 #elif defined(STM32H7)
 #if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
     /* H743 Rev V. The mock does not model PWR supply, VOS or oscillator
@@ -962,6 +1008,26 @@ void test_c5_console_baud_divisor(void) {
     TEST_ASSERT_TRUE(brr_expected > 50u && brr_expected < 4096u);
 }
 #endif /* STM32C5 */
+#if defined(STM32U5)
+/*-------------------------------------------------------------
+ *  The console UART divisor must follow the APB prescalers.
+ *
+ *  Same gap the G4/H5/C5 divisor checks close: the BRR write lives in
+ *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
+ *  build has ever compiled it on any family. The U5 backend leaves APB2 at
+ *  /1, so PCLK2 = SYSCLK; asserting the app.h value pins that. At 160MHz the
+ *  divisor is 1389 and at 16MHz it is 139. */
+void test_u5_console_baud_divisor(void) {
+    uint32_t brr_expected;
+    TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_U5_PCLK2_MHZ);
+    /* 115200 baud: BRR = round(PCLK / 115200). */
+    brr_expected = ((OW_SYSCLK_MHZ) * 1000000u + 57600u) / 115200u;
+    TEST_ASSERT_EQUAL_UINT32(brr_expected, (uint32_t)OW_U5_CONSOLE_BRR);
+    /* Sanity on the arithmetic itself: the divisor must land in the USARTDIV
+     * range the 12-bit mantissa can hold at every U5 clock. */
+    TEST_ASSERT_TRUE(brr_expected > 20u && brr_expected < 4096u);
+}
+#endif /* STM32U5 */
 
 #if defined(STM32H7)
 /*-------------------------------------------------------------
@@ -1024,6 +1090,9 @@ void run_test_timing(void) {
 #endif
 #if defined(STM32C5)
     TEST_RUN(test_c5_console_baud_divisor);
+#endif
+#if defined(STM32U5)
+    TEST_RUN(test_u5_console_baud_divisor);
 #endif
 #if defined(STM32H7)
     TEST_RUN(test_h7_console_baud_divisor);

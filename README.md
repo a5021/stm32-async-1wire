@@ -23,7 +23,7 @@ module) and the per-driver headers. The TIM1+DMA engine (`src/ow_port.h`) and
 the register-level per-family facts (`src/ow_mcu.h`) are library-internal: a
 consumer needs only `-Iinc` and never sees the port.
 
-Ten families ship today; the verified board, wiring and clock details are in
+Eleven families ship today; the verified board, wiring and clock details are in
 [Hardware](docs/hardware.md).
 
 | Family | Verified part / board | Bus pin | DMA route | Notes |
@@ -37,6 +37,7 @@ Ten families ship today; the verified board, wiring and clock details are in
 | STM32L4 | STM32L476RG (NUCLEO-L476RG) | PA10 (AF1) | DMA1_CSELR selection 7 | 80 MHz HSI16+PLL, no HSE; bench-validated with 7 × DS18B20 + DS2431 |
 | STM32C5 | STM32C552CET6 (WeAct 48-pin) | PA10 (AF1) | LPDMA1 channels 2/3 (`REQSEL` 25/27) | 144 MHz HSE -> PSI, 48 MHz HSIDIV3 or raw 8 MHz HSE; 8-bit feed; bench-validated with 7 × DS18B20 + DS2431 |
 | STM32H5 | STM32H503CB (WeAct Core) | PA10 (AF1) | GPDMA1 channels 2/3 (`REQSEL` 59/61) | 64 MHz HSI, 8 MHz HSE or 250 MHz PLL1; 8-bit feed |
+| STM32U5 | STM32U585CIU6 (UFQFPN48) | PA10 (AF1) | GPDMA1 channels 2/3 (`REQSEL` 43/45) | 160 MHz HSE25+PLL1 (VOS1 + EPOD, 4 WS) or 16 MHz HSI16; secure build (`-mcmse`), TrustZone option byte independent; 8-bit feed |
 | STM32H7 | STM32H743VI (WeAct H7) | PA10 (AF1) | DMA1 streams 2/3, DMAMUX1 requests 12/14 | 240 MHz HSE+PLL, opt-in 480/240 MHz split; 16-bit feed; D-cache off |
 
 ## Quick start
@@ -104,13 +105,14 @@ on the bus primitives.
   [1-Wire Layer (shared)](docs/api-reference.md#1-wire-layer-shared).
   - Multi-MCU Backend: one MCU-independent core over a `ow_port_*` interface;
     header-only backends for STM32F0, STM32F1, STM32F3, STM32F4, STM32G0,
-    STM32G4, STM32L4, STM32C5, STM32H5 and STM32H7, all on the shared CH3/CH4
+    STM32G4, STM32L4, STM32C5, STM32H5, STM32U5 and STM32H7, all on the shared CH3/CH4
     scheme.
     Select at build time with `make OW_MCU=STM32F030x6` /
     `make OW_MCU=STM32F303xC` / `make OW_MCU=STM32F407xx` /
     `make OW_MCU=STM32G031xx` / `make OW_MCU=STM32G474xx` /
     `make OW_MCU=STM32L476xx` / `make OW_MCU=STM32C552xx` /
-    `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32H743xx` (STM32F103xB is the default).
+    `make OW_MCU=STM32H503xx` / `make OW_MCU=STM32U585xx` /
+    `make OW_MCU=STM32H743xx` (STM32F103xB is the default).
 - DS2431 EEPROM Driver: `inc/ds2431.h` + `src/ds2431.c` — the four DS2431
   commands (Read Memory 0xF0, Write/Read Scratchpad 0x0F/0xAA, Copy Scratchpad
   0x55) as non-blocking, polled state machines on the same shared 1-Wire layer

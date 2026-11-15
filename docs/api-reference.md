@@ -807,10 +807,11 @@ once):
 | STM32G4 | 329 B | 652 B | 432 B |
 | STM32L4 | 329 B | 652 B | 432 B |
 | STM32H5 | 329 B | 652 B | 432 B |
+| STM32U5 | 329 B | 652 B | 432 B |
 | STM32C5 | 329 B | 2192 B | 1976 B |
 
-The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4, H5
-and C5 latch 8-bit entries like F0, so the driver-owned sum is the same 329 B
+The 105-byte difference on F4 is the 16-bit `ow_pulse_t` feed table; G4, L4, H5,
+U5 and C5 latch 8-bit entries like F0, so the driver-owned sum is the same 329 B
 everywhere except F4. The C5 totals are larger for a linker-script reason, not
 a driver one: its script places the stack and the heap inside RAM, so they
 count in the image's `.bss`, while the other scripts put the stack at the top
