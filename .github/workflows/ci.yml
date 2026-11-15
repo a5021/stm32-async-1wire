@@ -764,14 +764,15 @@ jobs:
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=8 HSE_MHZ=8
       - name: Build release (H5 backend, 250MHz HSE+PLL1)
         run: make clean && make OW_MCU=STM32H503xx SYSCLK_MHZ=250 HSE_MHZ=8
-      # The U585's two clocks, each its own app.c branch: the 16MHz HSI16
-      # default (HSIRDY wait + 1 flash wait state + CFGR1 switch) and the
-      # reset MSI 4MHz (nothing to start, 0 wait states). Each gets its own
-      # `make clean` so the run cannot pass on the previous clock's objects.
-      - name: Build release (U5 backend, 16MHz HSI16 default)
+      # The U585's two clocks, each its own app.c branch: the 160MHz
+      # HSE25+PLL1 default (VOS1 + EPOD + 4 flash wait states) and the 16MHz
+      # HSI16 fallback (HSIRDY wait + 1 wait state + CFGR1 switch). Each gets
+      # its own `make clean` so the run cannot pass on the previous clock's
+      # objects.
+      - name: Build release (U5 backend, 160MHz HSE25+PLL1 default)
         run: make clean && make OW_MCU=STM32U585xx
-      - name: Build release (U5 backend, 4MHz raw MSI)
-        run: make clean && make OW_MCU=STM32U585xx SYSCLK_MHZ=4
+      - name: Build release (U5 backend, 16MHz HSI16)
+        run: make clean && make OW_MCU=STM32U585xx SYSCLK_MHZ=16
       # The H743's three clocks are separate app.c branches: 240MHz HSE+PLL1 in
       # VOS0, 480/240 split (SYSCLK 480, TIM1 240), and 64MHz raw HSI. Each gets
       # its own `make clean` so the run cannot pass on the previous clock's

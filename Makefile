@@ -317,9 +317,9 @@ ifdef HSE_MHZ
 DEF += -DOW_HSE_MHZ=$(HSE_MHZ)
 endif
 
-# The C5 system file's SystemCoreClockUpdate() needs the crystal value for the
-# raw-HSE path. The part file owns the board default; HSE_MHZ= overrides it.
-ifeq ($(OW_TARGET),c5)
+# The C5/U5 system file's SystemCoreClockUpdate() needs the crystal value.
+# The part file owns the board default; HSE_MHZ= overrides it.
+ifneq ($(filter c5 u5,$(OW_TARGET)),)
 DEF += -DHSE_VALUE=$(if $(HSE_MHZ),$(HSE_MHZ),$(CHIP_HSE_MHZ))000000
 endif
 
@@ -1016,6 +1016,7 @@ CPPCHECK_PASSES = \
 	'h5-64|-DSTM32H503xx -DOW_SYSCLK_MHZ=64 -D__GNUC__' \
 	'h5-250|-DSTM32H503xx -DOW_SYSCLK_MHZ=250 -DOW_HSE_MHZ=8 -D__GNUC__' \
 	'h5-8|-DSTM32H503xx -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8 -D__GNUC__' \
+	'u5-160|-DSTM32U585xx -DOW_SYSCLK_MHZ=160 -DOW_HSE_MHZ=25 -D__GNUC__' \
 	'u5-16|-DSTM32U585xx -DOW_SYSCLK_MHZ=16 -D__GNUC__' \
 	'h7-240|-DSTM32H743xx -DOW_SYSCLK_MHZ=240 -DOW_HSE_MHZ=25 -D__GNUC__' \
 	'h7-480-240|-DSTM32H743xx -DOW_SYSCLK_MHZ=480 -DOW_TIM1_MHZ=240 -DOW_HSE_MHZ=25 -D__GNUC__'
@@ -1433,7 +1434,7 @@ else ifeq ($(OW_TARGET),h5)
 TEST_PORT_FLAG = -DSTM32H5
 TEST_EXE = $(TEST_OUT)/ds18b20_test_h5.exe
 else ifeq ($(OW_TARGET),u5)
-TEST_PORT_FLAG = -DSTM32U5
+TEST_PORT_FLAG = -DSTM32U5 -DOW_HSE_MHZ=$(CHIP_HSE_MHZ)
 TEST_EXE = $(TEST_OUT)/ds18b20_test_u5.exe
 else ifeq ($(OW_TARGET),h7)
 TEST_PORT_FLAG = -DSTM32H7
@@ -1530,14 +1531,14 @@ TEST_C5_8_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=8 -DOW_HSE_MHZ=8
 TEST_C5_8_EXE = $(TEST_OUT)/ds18b20_test_c5_8mhz.exe
 TEST_EXTRA_EXES = $(TEST_C5_48_EXE) $(TEST_C5_8_EXE)
 endif
-# U5 carries the 16MHz HSI16 default and the 4MHz reset MSI branch, which
-# configure nothing and set 0 flash wait states. The extra executable forces
-# the low clock, so the suite's per-clock asserts in test_timing.c are
-# compiled and run on both paths.
+# U5 carries the 160MHz HSE+PLL1 default and the 16MHz HSI16 alternative.
+# The extra executable forces 16MHz so the per-clock asserts in
+# test_timing.c are compiled and run on both paths.
 ifneq ($(filter u5,$(OW_TARGET)),)
-TEST_U5_4_FLAG = $(TEST_FLAG) -DOW_SYSCLK_MHZ=4
-TEST_U5_4_EXE = $(TEST_OUT)/ds18b20_test_u5_4mhz.exe
-TEST_EXTRA_EXES = $(TEST_U5_4_EXE)
+TEST_U5_BASE_FLAG = $(filter-out -DOW_SYSCLK_MHZ=%,$(TEST_FLAG))
+TEST_U5_16_FLAG = $(TEST_U5_BASE_FLAG) -DOW_SYSCLK_MHZ=16
+TEST_U5_16_EXE = $(TEST_OUT)/ds18b20_test_u5_16mhz.exe
+TEST_EXTRA_EXES = $(TEST_U5_16_EXE)
 endif
 # H7 host suite covers the 240/240 default, 64/64 raw-HSI fallback, and the
 # split 480/240 mode (core/SYSCLK/TIM1 MHz). The split clock exercises a
@@ -1865,8 +1866,8 @@ $(TEST_C5_8_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examp
 # The U5 suite at the 4MHz reset MSI clock: same sources and test_main, only
 # the clock differs, so a regression in the raw-MSI branch cannot hide behind
 # the 16MHz HSI16 build passing.
-$(TEST_U5_4_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_U5_4_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
+$(TEST_U5_16_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
+	$(HOST_CC) $(TEST_U5_16_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@
 
 $(TEST_H7_64_EXE): $(TEST_SRC) src/ds18b20.c $(DS18B20_PARTS) src/onewire.c examples/app/app.c $(TEST_HDRS) Makefile | $(TEST_OUT)
 	$(HOST_CC) $(TEST_H7_64_FLAG) $(TEST_INC) $(TEST_OPT) $(TEST_SRC) examples/app/app.c -o $@

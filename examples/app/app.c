@@ -266,7 +266,7 @@ static uint8_t ow_h7_clock_failure = OW_H7_CLOCK_FAIL_NONE;
 #elif defined(OW_FAMILY_H5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 64)
 #elif defined(OW_FAMILY_U5)
-#define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 4) /* raw MSI configures nothing */
+#define OW_CLOCK_NEEDS_WAIT 1 /* both 160MHz and 16MHz start an oscillator and wait */
 #elif defined(OW_FAMILY_C5)
 #define OW_CLOCK_NEEDS_WAIT ((OW_SYSCLK_MHZ) != 48) /* 48MHz is the reset source; HSE/PSI paths wait */
 #elif defined(OW_FAMILY_H7)
@@ -862,24 +862,86 @@ void configure_system_clock(void) {
 #error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSE->PSI) or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #elif defined(OW_FAMILY_U5)
-/* STM32U5 clock tree: HSI16 at 16MHz (the bring-up clock) or the reset MSI
- * at 4MHz.  Both leave the AHB/APB prescalers at their reset /1, so TIM1 =
- * PCLK2 = SYSCLK directly, which is what keeps the ow_port 1us-tick
+/* STM32U5 clock tree: 160MHz HSE25+PLL1 (the default), 16MHz HSI16, or the
+ * reset MSI 4MHz.  All three leave the AHB/APB prescalers at their reset /1,
+ * so TIM1 = PCLK2 = SYSCLK directly, which is what keeps the ow_port 1us-tick
  * invariant and OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
+ *
+ * 160MHz: the 25MHz crystal feeds PLL1 through M = 5 (5MHz input, the 4..8MHz
+ * RGE window), N = 64 (320MHz VCO, inside the 128..544MHz wide range) and
+ * P = 2, so SYSCLK = PLL1P = 160MHz.  The part needs VOS range 1 and the EPOD
+ * booster: VOS1 and BOOSTEN are raised, and the bounded waits stop the boot
+ * rather than run the 1-Wire timings on the wrong clock.  PLL1MBOOST is DIV2
+ * (12.5MHz EPOD input); if BOOSTRDY never arrives, the bench fallback is DIV4.
+ * Flash latency is 4 WS (128 < HCLK <= 160 at 1.2V).
  *
  * 16MHz HSI16: the reset clock is MSI 4MHz, so HSI16 is started and selected
  * explicitly.  At the reset voltage range (VOS4, 0.9V) the flash needs 1 WS
  * for 8 < HCLK <= 16 (STM32CubeU5 HAL RCC Table 1); 0 WS is valid only to
- * 8MHz.  The latency is raised before the switch.  A failed HSI16 start
- * leaves the tree on MSI 4MHz, which is why app_init() falls back to the 4MHz
- * console divisor.
+ * 8MHz.  A failed HSI16 start leaves the tree on MSI 4MHz, which is why
+ * app_init() falls back to the 4MHz console divisor.
  *
  * 4MHz MSI: the reset clock, nothing to start and nothing to switch; only
  * the flash latency is pinned to 0 WS. */
 #if (OW_SYSCLK_MHZ) > (OW_U5_MAX_SYSCLK_MHZ)
 #error "OW_SYSCLK_MHZ exceeds this U5 part's ceiling (OW_U5_MAX_SYSCLK_MHZ in ow_board.h). 160MHz is the U585 cap."
 #endif
-#if (OW_SYSCLK_MHZ) == 16
+#if (OW_SYSCLK_MHZ) == 160
+#define OW_U5_PLL_INPUT_MHZ 5u
+#define OW_U5_PLLM ((OW_HSE_MHZ) / OW_U5_PLL_INPUT_MHZ)
+#define OW_U5_PLLN 64u
+#define OW_U5_PLLR 2u
+#define OW_U5_PLLMBOOST_DIV2 1u /* PLL1MBOOST encoding: 0=DIV1, 1=DIV2, ... */
+    _Static_assert((OW_HSE_MHZ) == 25u,
+                   "U5: the 160MHz path is pinned to the 25MHz crystal (M = HSE/5)");
+    _Static_assert((OW_HSE_MHZ) % OW_U5_PLL_INPUT_MHZ == 0u,
+                   "U5: the PLL input is HSE/5 = 5MHz by design");
+    _Static_assert(OW_U5_PLLM >= 1u && OW_U5_PLLM <= 16u,
+                   "U5: PLL1M is 4 bits (1..16)");
+    _Static_assert((OW_U5_PLL_INPUT_MHZ)*OW_U5_PLLN / OW_U5_PLLR == (OW_SYSCLK_MHZ),
+                   "U5: HSE/5 x 64 / 2 must land on the requested 160MHz");
+    /* PWR is on AHB3 on this family; VOSR is not writable until its clock is
+     * gated on.  Read back so the peripheral sees the clock before the write. */
+    RCC->AHB3ENR |= RCC_AHB3ENR_PWREN;
+    (void)RCC->AHB3ENR;
+    /* VOS range 1 (VOS = 11) before raising the clock. */
+    PWR->VOSR = (PWR->VOSR & ~PWR_VOSR_VOS) | PWR_VOSR_VOS;
+    if (!ow_wait_flag(&PWR->VOSR, PWR_VOSR_VOSRDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    /* 4 WS + prefetch in one write, before the clock moves. */
+    FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS;
+    /* HSE on and stable before the PLL locks on it. */
+    RCC->CR |= RCC_CR_HSEON;
+    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    /* PLL1 is off after reset: source HSE, 4..8MHz input window, M = 5,
+     * EPOD divider DIV2, R output enabled (SYSCLK = PLL1R on U5). */
+    RCC->PLL1CFGR = RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 |
+                    ((OW_U5_PLLM - 1u) << RCC_PLL1CFGR_PLL1M_Pos) |
+                    (OW_U5_PLLMBOOST_DIV2 << RCC_PLL1CFGR_PLL1MBOOST_Pos) |
+                    RCC_PLL1CFGR_PLL1REN;
+    RCC->PLL1DIVR = ((OW_U5_PLLN - 1u) << RCC_PLL1DIVR_PLL1N_Pos) |
+                    ((OW_U5_PLLR - 1u) << RCC_PLL1DIVR_PLL1R_Pos);
+    RCC->CR |= RCC_CR_PLL1ON;
+    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLL1RDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    /* EPOD booster is required at 160MHz. */
+    PWR->VOSR |= PWR_VOSR_BOOSTEN;
+    if (!ow_wait_flag(&PWR->VOSR, PWR_VOSR_BOOSTRDY)) {
+        ow_clock_ok = 0u;
+        return;
+    }
+    /* Switch SYSCLK to PLL1 (SW = 11). */
+    RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW;
+    while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS)
+        ;
+#elif (OW_SYSCLK_MHZ) == 16
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS;
     RCC->CR |= RCC_CR_HSION;
     if (!ow_wait_flag(&RCC->CR, RCC_CR_HSIRDY)) {
@@ -889,10 +951,8 @@ void configure_system_clock(void) {
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_0; // HSI16 = 01
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
         ;
-#elif (OW_SYSCLK_MHZ) == 4
-    FLASH->ACR = FLASH_ACR_PRFTEN; // MSI 4MHz: 0 wait states
 #else
-#error "Unsupported OW_SYSCLK_MHZ for U5: use 16 (HSI16) or 4 (raw MSI)"
+#error "Unsupported OW_SYSCLK_MHZ for U5: use 160 (HSE25+PLL1) or 16 (HSI16)"
 #endif
 #elif defined(OW_FAMILY_H5)
 /* STM32H5 clock tree: raw HSI (the bring-up clock), raw HSE, or HSE + PLL1 at
@@ -1696,8 +1756,9 @@ static void app_stop_on_clock_failure(void) {
 #if defined(OW_FAMILY_H5)
     app_set_console_baud(32u);
 #elif defined(OW_FAMILY_U5)
-    /* The U5 tree is left on the MSI 4MHz reset source when the HSI16 start
-     * fails, so the console divisor follows MSI, not the requested 16MHz. */
+    /* The U5 tree is left on the MSI 4MHz reset source when the HSE, PLL1 or
+     * EPOD start fails, so the console divisor follows MSI, not the requested
+     * 160MHz. */
     app_set_console_baud(4u);
 #elif defined(OW_FAMILY_C5)
     /* The C5 tree is left on the 48MHz HSIDIV3 reset source when a wait fails. */

@@ -213,17 +213,18 @@ Validated on a bare STM32U585CIU6 (UFQFPN48) with 7 × DS18B20 in parasite
 power mode on one 1-Wire bus on **PA10** (AF1; TIM1 CH3/CH4 pair, GPDMA1
 channels 2/3 — requests 43/45, no DMAMUX, 8-bit feed tables), console on
 USART1 TX / **PA9** (AF7) at 115200 8N1 via a CP210x USB-UART, busy LED on
-**PC13** (active-low), flashed via ST-Link SWD. Clock: 16 MHz HSI16 (1 flash
-wait state at the reset VOS range) or the reset MSI 4 MHz; no crystal. The
-part has TrustZone, so the build uses `-mcmse` and the secure peripheral
-aliases; this works whether the TZEN option byte is 0 or 1. The bench part is
-TZEN=0 / RDP=0.
-Measured: HIL `smoke` 7 devices / 13 readings (25.3–25.6 °C), `scan` 19 rounds,
-`stats` 70 cycles / 5040 pulses / 0 errors, `lowpower` 6 readings. LA geometry:
-166.25 µs slot, 5.00 µs ONE, 60.00 µs ZERO, 485.0 µs reset (HSI16 ~1% slow),
-751.95 ms conversion wait; the decoder reads MATCH ROM + CONVERT + READ
-SCRATCHPAD with CRC ok at 25.5625 °C.
-Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=4` for raw MSI).
+**PC13** (active-low), flashed via ST-Link SWD. Default clock: 160 MHz from the
+25 MHz crystal through PLL1 (M=5, N=64, R=2, VOS range 1, EPOD booster,
+4 flash wait states); the 16 MHz HSI16 build (`SYSCLK_MHZ=16`) is the
+fallback. The part has TrustZone, so the build uses `-mcmse` and the secure
+peripheral aliases; this works whether the TZEN option byte is 0 or 1. The
+bench part is TZEN=0 / RDP=0.
+Measured at 160 MHz: HIL `smoke` 7 devices / 13 readings (25.6–25.9 °C),
+`scan` 20 rounds, `stats` 70 cycles / 5040 pulses / 0 errors, `lowpower`
+6 readings. LA geometry: 166.0 µs slot, 5.00 µs ONE, 60.00 µs ZERO, 481.25 µs
+reset, 751.95 ms conversion wait; the decoder reads MATCH ROM + READ
+SCRATCHPAD with CRC ok at 26.0 °C.
+Build with `make OW_MCU=STM32U585xx` (or `SYSCLK_MHZ=16` for HSI16).
 Bring-up and flashing notes: [port/stm32u5/HARDWARE-NOTES.md](../port/stm32u5/HARDWARE-NOTES.md).
 ### STM32H743VI (WeAct Studio STM32H7XX Core Board)
 

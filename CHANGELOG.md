@@ -15,10 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TIM1 CH3/CH4 scheme on PA10 and GPDMA1 channels 2/3 (`REQSEL` 43/45). The
   build compiles secure (`-mcmse`), so the CMSIS `*_S` aliases are used and
   the backend does not depend on the TZEN option byte. Default clock is
-  16 MHz HSI16 (1 flash wait state) with the reset MSI 4 MHz as the fallback;
-  host tests, the CMSIS mock and the RAM budget cover the new family.
-  Bench-validated with 7 × DS18B20 on parasite power (HIL smoke/scan/stats/
-  lowpower, LA geometry and CRC decode).
+  160 MHz from the 25 MHz HSE through PLL1 (VOS1 + EPOD, 4 WS); the 16 MHz
+  HSI16 build is the fallback. Host tests, the CMSIS mock and the RAM budget
+  cover the new family. Bench-validated at 160 MHz with 7 × DS18B20 on
+  parasite power (HIL smoke/scan/stats/lowpower, LA geometry and CRC decode).
 
 ## [3.1.3] - 2026-11-14
 

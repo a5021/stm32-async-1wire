@@ -32,7 +32,7 @@
 | STM32L476 | 80 MHz HSI16+PLL (M=1, N=10, R=2, Range 1, 4 WS) | 16 MHz raw HSI16. The NUCLEO-L476RG has no HSE crystal populated, so there is deliberately no crystal clock. |
 | STM32C552CET6 | 144 MHz HSE->PSI | 48 MHz HSIDIV3 reset clock; raw 8 MHz HSE (`SYSCLK_MHZ=8`, `HSE_MHZ=8`); 8-bit feed tables |
 | STM32H503 | 64 MHz raw HSI | 8 MHz raw HSE (`SYSCLK_MHZ=8`, `HSE_MHZ=8`); 250 MHz HSE+PLL1 (M=HSE/4, N=125, P=2, VOS0, 5 WS) |
-| STM32U585 | 16 MHz HSI16 (1 WS) | 4 MHz raw MSI (`SYSCLK_MHZ=4`). No crystal path; secure build (`-mcmse`) |
+| STM32U585 | 160 MHz HSE25+PLL1 (M=5, N=64, R=2, VOS1, EPOD, 4 WS) | 16 MHz HSI16 (`SYSCLK_MHZ=16`, 1 WS). Secure build (`-mcmse`) |
 | STM32H743 | 240 MHz HSE+PLL (M=HSE/5, N=96, P=2, LDO, VOS0, 4 WS; 25 MHz crystal) | 480/240 MHz split (`SYSCLK_MHZ=480 TIM1_MHZ=240`, HPRE=/2 keeps HCLK=240 MHz) |
 
 On F4 the crystal is a separate knob, `HSE_MHZ=N`, because it is the *board's*

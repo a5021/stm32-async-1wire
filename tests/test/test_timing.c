@@ -550,8 +550,38 @@ void test_apb_prescaler_div1_for_tim1(void) {
                                      (RCC_CFGR2_HPRE | RCC_CFGR2_PPRE1 | RCC_CFGR2_PPRE2));
 #endif
 #elif defined(STM32U5)
-#if (OW_SYSCLK_MHZ) == 16
-    /* HSI16 bring-up: the reset clock is MSI 4MHz, so the path starts HSI16,
+#if (OW_SYSCLK_MHZ) == 160
+    /* 160MHz HSE25+PLL1: HSERDY, PLL1RDY, VOSRDY and BOOSTRDY are presets
+     * because the mock does not model the oscillator start, the PLL lock,
+     * the regulator ramp or the EPOD booster. SWS is preset to PLL1 (11)
+     * because the mock does not mirror SW -> SWS. */
+    mock_rcc.CR = RCC_CR_HSERDY | RCC_CR_PLL1RDY;
+    mock_rcc.CFGR1 = RCC_CFGR1_SWS;
+    mock_pwr.VOSR = PWR_VOSR_VOSRDY | PWR_VOSR_BOOSTRDY;
+    configure_system_clock();
+    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
+    /* PWR is clocked from AHB3 before VOSR is written. */
+    TEST_ASSERT_EQUAL_UINT32(RCC_AHB3ENR_PWREN, mock_rcc.AHB3ENR & RCC_AHB3ENR_PWREN);
+    /* VOS range 1 (11) and the EPOD booster. */
+    TEST_ASSERT_EQUAL_UINT32(PWR_VOSR_VOS, mock_pwr.VOSR & PWR_VOSR_VOS);
+    TEST_ASSERT_EQUAL_UINT32(PWR_VOSR_BOOSTEN,
+                             mock_pwr.VOSR & PWR_VOSR_BOOSTEN);
+    /* 4 WS + prefetch in one write. */
+    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS,
+                             mock_flash.ACR);
+    /* PLL1: HSE (11), 4..8MHz input window, M = 5, MBOOST = DIV2, R enabled. */
+    TEST_ASSERT_EQUAL_UINT32(
+        RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 | RCC_PLL1CFGR_PLL1REN,
+        mock_rcc.PLL1CFGR & ~(RCC_PLL1CFGR_PLL1M | RCC_PLL1CFGR_PLL1MBOOST));
+    TEST_ASSERT_EQUAL_UINT32(4u, (mock_rcc.PLL1CFGR >> RCC_PLL1CFGR_PLL1M_Pos) & 0xFu);
+    TEST_ASSERT_EQUAL_UINT32(
+        1u, (mock_rcc.PLL1CFGR >> RCC_PLL1CFGR_PLL1MBOOST_Pos) & 0xFu);
+    TEST_ASSERT_EQUAL_UINT32(63u, (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1N_Pos) & 0x1FFu);
+    TEST_ASSERT_EQUAL_UINT32(1u, (mock_rcc.PLL1DIVR >> RCC_PLL1DIVR_PLL1R_Pos) & 0x7Fu);
+    /* SYSCLK switched to PLL1 (SW = 11). */
+    TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW, mock_rcc.CFGR1 & RCC_CFGR1_SW);
+#elif (OW_SYSCLK_MHZ) == 16
+    /* HSI16: the reset clock is MSI 4MHz, so the path starts HSI16,
      * waits for HSIRDY, raises the flash latency to 1 WS and switches SW to
      * HSI16 (01). HSIRDY and SWS are preset because the mock does not model
      * the oscillator start and does not mirror SW -> SWS. */
@@ -562,13 +592,8 @@ void test_apb_prescaler_div1_for_tim1(void) {
     TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS,
                              mock_flash.ACR);
     TEST_ASSERT_EQUAL_UINT32(RCC_CFGR1_SW_0, mock_rcc.CFGR1 & RCC_CFGR1_SW);
-#elif (OW_SYSCLK_MHZ) == 4
-    /* Raw MSI: the reset clock, nothing to start or switch; 0 WS. */
-    configure_system_clock();
-    TEST_ASSERT_EQUAL_UINT8(1, app_clock_ok());
-    TEST_ASSERT_EQUAL_UINT32(FLASH_ACR_PRFTEN, mock_flash.ACR);
 #else
-#error "test_timing: U5 supports 16 (HSI16) or 4 (raw MSI)"
+#error "test_timing: U5 supports 160 (HSE25+PLL1) or 16 (HSI16)"
 #endif
 #elif defined(STM32H7)
 #if ((OW_SYSCLK_MHZ) == 240 || (OW_SYSCLK_MHZ) == 480) && (OW_TIM1_MHZ) == 240
@@ -990,10 +1015,8 @@ void test_c5_console_baud_divisor(void) {
  *  Same gap the G4/H5/C5 divisor checks close: the BRR write lives in
  *  hardware_init() - inside #if !defined(DS18B20_TEST_HARNESS), so no host
  *  build has ever compiled it on any family. The U5 backend leaves APB2 at
- *  /1, so PCLK2 = SYSCLK; asserting the app.h value pins that. At 16MHz the
- *  divisor is 139 and at 4MHz it is 35 - a reset-clock mistake at 16MHz
- *  (using the 4MHz MSI) would give 35 instead.
- *-------------------------------------------------------------*/
+ *  /1, so PCLK2 = SYSCLK; asserting the app.h value pins that. At 160MHz the
+ *  divisor is 1389 and at 16MHz it is 139. */
 void test_u5_console_baud_divisor(void) {
     uint32_t brr_expected;
     TEST_ASSERT_EQUAL_UINT32((OW_SYSCLK_MHZ), (uint32_t)OW_U5_PCLK2_MHZ);

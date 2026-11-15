@@ -192,8 +192,9 @@ typedef uint8_t ow_pulse_t;
 #if !defined(OW_U5_MAX_SYSCLK_MHZ)
 #define OW_U5_MAX_SYSCLK_MHZ 160 /* U585 ceiling */
 #endif
-/* No OW_HSE_MHZ default: the bench board has no crystal, and the U5 backend
- * is HSI16-only until a board with an HSE is brought up. */
+#if !defined(OW_HSE_MHZ)
+#define OW_HSE_MHZ 25 /* bench board: 25MHz crystal on PH0/PH1 */
+#endif
 #elif defined(OW_FAMILY_H7)
 #if !defined(OW_H7_MAX_SYSCLK_MHZ)
 #define OW_H7_MAX_SYSCLK_MHZ 480 /* Rev V H743 core ceiling; 480MHz requires VOS0 */

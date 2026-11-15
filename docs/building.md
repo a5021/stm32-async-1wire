@@ -126,7 +126,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-l4` | Build and run host tests against the STM32L4 backend mock |
 | `make test-c5` | Build and run host tests against the STM32C5 LPDMA backend mock (144/48/8 MHz) |
 | `make test-h5` | Build and run host tests against the STM32H5 backend mock |
-| `make test-u5` | Build and run host tests against the STM32U5 GPDMA1 backend mock (16/4 MHz) |
+| `make test-u5` | Build and run host tests against the STM32U5 GPDMA1 backend mock (160/16 MHz) |
 | `make test-h7` | Build and run host tests against the STM32H7 backend mock |
 | `make test COVERAGE=1` | Host tests with gcov instrumentation (`.gcno`/`.gcda` land in the tree root; turning them into a report is a CI step — `lcov --capture` + `genhtml` — not a Makefile target) |
 | `make test-active` | Build and run host tests for the active-drive write path (`-DOW_DRIVE_ACTIVE=1`) |
@@ -188,7 +188,7 @@ make test-g4     # same suite against the STM32G4 backend mock
 make test-l4     # same suite against the STM32L4 backend mock
 make test-c5     # same suite against the STM32C5 backend mock (144/48/8 MHz)
 make test-h5     # same suite against the STM32H5 backend mock
-make test-u5     # same suite against the STM32U5 backend mock (16/4 MHz)
+make test-u5     # same suite against the STM32U5 backend mock (160/16 MHz)
 make test-h7     # same suite against the STM32H7 backend mock
 make test-all-families  # every backend above in one run
 make test-ds2431 # DS2431 EEPROM suite (35 tests; also runs inside every make test)
@@ -224,7 +224,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
    IC4PSC check, and each runs its clock variants as extras -
    `ds18b20_test_h5_250mhz.exe` and `ds18b20_test_h5_8mhz.exe` for H5,
    `ds18b20_test_c5_48mhz.exe` and `ds18b20_test_c5_8mhz.exe` for C5, and
-   `ds18b20_test_u5_4mhz.exe` for U5 - same count). Every wrapper runs the DS2431 suite alongside it (35 tests, see
+   `ds18b20_test_u5_16mhz.exe` for U5 - same count). Every wrapper runs the DS2431 suite alongside it (35 tests, see
    `make test-ds2431`) and the DS2413 suite (14 tests, see `make test-ds2413`).
     The suite covers:
 

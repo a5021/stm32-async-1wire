@@ -287,8 +287,8 @@ endforeach()
 # Fold the part into the family-level values the rest of this file consumes.
 string(REGEX REPLACE "^-D" "" _ow_dev "${CHIP_DEV_DEF}")
 set(CMSIS_DEVICE_DEF "${_ow_dev}")
-if(OW_TARGET STREQUAL "c5")
-    # SystemCoreClockUpdate() needs the crystal value for the raw-HSE path.
+if(OW_TARGET STREQUAL "c5" OR OW_TARGET STREQUAL "u5")
+    # SystemCoreClockUpdate() needs the crystal value for the HSE/PLL path.
     list(APPEND CMSIS_DEVICE_DEF "HSE_VALUE=${CHIP_HSE_MHZ}000000")
 endif()
 get_filename_component(STARTUP_ASM "${CHIP_STARTUP}" NAME)

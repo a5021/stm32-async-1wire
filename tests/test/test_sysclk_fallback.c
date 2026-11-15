@@ -109,8 +109,14 @@
 #error "H5 family-macro selection must default to a 64 MHz system clock"
 #endif
 #elif defined(STM32U5)
-#if OW_SYSCLK_MHZ != 16
-#error "U5 family-macro selection must default to a 16 MHz system clock"
+#if OW_SYSCLK_MHZ != 160
+#error "U5 family-macro selection must default to the 160 MHz HSE25+PLL1 clock"
+#endif
+#if !defined(OW_HSE_MHZ) || (OW_HSE_MHZ) != 25
+#error "U5 family-macro selection must default OW_HSE_MHZ to the 25 MHz crystal"
+#endif
+#if (((OW_HSE_MHZ) / 5) * 64 / 2) != 160
+#error "U5: HSE/5 x 64 / 2 must land on 160 MHz"
 #endif
 #elif defined(STM32H7)
 #if OW_SYSCLK_MHZ != 240
@@ -157,8 +163,7 @@
 #endif
 #elif defined(STM32U5)
 /* Same pair for U5 (OW_U5_MAX_SYSCLK_MHZ, owned by the ow_board.h U5
- * section): the U585 tops out at 160MHz; the 16MHz HSI16 default is far
- * below it. */
+ * section): the U585 tops out at 160MHz, which is also the default. */
 #if (OW_SYSCLK_MHZ) > (OW_U5_MAX_SYSCLK_MHZ)
 #error "the default clock exceeds OW_U5_MAX_SYSCLK_MHZ for this part: the ceiling and the default disagree"
 #endif

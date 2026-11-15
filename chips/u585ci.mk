@@ -10,9 +10,11 @@
 # capture off TI3, and GPDMA1 channels 2/3 with REQSEL 43/45. The part file
 # carries the memory sizes, the CMSIS device layer and the clock default.
 #
-# 16MHz from HSI16, 1 flash wait state (VOS range 4 at reset tops out at
-# 16MHz with 1WS). No crystal on the board, so there is no HSE default and no
-# OW_HSE_MHZ. The reset MSI 4MHz is the fallback when the HSI16 start fails.
+# 160MHz from the 25MHz HSE through PLL1: M=5 (5MHz input, 4..8MHz RGE),
+# N=64 (320MHz VCO), R=2 (SYSCLK = PLL1R). VOS range 1 + EPOD booster, 4 flash
+# wait states. PLL1MBOOST=DIV2 (12.5MHz EPOD input) is bench-validated.
+# The 16MHz HSI16 path (1 WS) is the fallback; a 4MHz build is not supported
+# (the polled read path returns CRC failures at that clock).
 # APB1/2 stay /1, so TIM1 = PCLK2 = SYSCLK and the shared PSC =
 # SYSCLK_MHZ - 1 rule still gives the 1us tick.
 #
@@ -31,4 +33,5 @@ CHIP_LINKER = port/stm32u5/STM32U585CI_FLASH.ld
 CHIP_JFLASH =
 CHIP_JDEBUG = port/stm32u5/project-u585ci.jdebug
 CHIP_SVD = $(CMSIS_DEVICE_DIR)/STM32U585.svd
-CHIP_SYSCLK_MHZ = 16
+CHIP_HSE_MHZ = 25
+CHIP_SYSCLK_MHZ = 160

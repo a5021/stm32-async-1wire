@@ -278,8 +278,8 @@ are identical across all families.
   PPRE2=/1 only on the raw-HSI and raw-HSE paths; G4 and L4 leave every
   prescaler at /1 at both of their clocks; H5 leaves every prescaler at /1 at
   64, 8 and 250 MHz; C5 leaves every prescaler at /1 at 144, 48 and 8 MHz
-  (HSE → PSI, HSIDIV3 and raw HSE); U5 leaves every prescaler at /1 at 16 and
-  4 MHz (HSI16 and MSI); H7 runs APB1/2/3/4 at /2, so the timer
+  (HSE → PSI, HSIDIV3 and raw HSE); U5 leaves every prescaler at /1 at 160 and
+  16 MHz (HSE25+PLL1 and HSI16); H7 runs APB1/2/3/4 at /2, so the timer
   doubling gives TIM1 = 240 MHz even when CPU/SYSCLK is the opt-in 480 MHz.  See
   `examples/app/app.c`.
   
@@ -304,7 +304,7 @@ are identical across all families.
   | STM32F4 | TIM1 | PA10 (AF1) | DMA2, CHSEL=6: CC2→stream2 (feeds CCR3), CH4→stream4 | Feed runs 16-bit in direct mode; see `port/stm32f4/HARDWARE-NOTES.md` |
   | STM32H5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#59 (feeds CCR3), CH4=#61 | No DMAMUX; 8-bit feed tables; CBR1.BNDT is a byte count (x2 per halfword capture); bench-validated (64 MHz HSI, 8 MHz HSE, 250 MHz HSE+PLL1) |
   | STM32C5 | TIM1 | PA10 (AF1) | LPDMA1, REQSEL: CH2=#25 (feeds CCR3), CH4=#27 | No DMAMUX; 8-bit feed tables; 144 MHz HSE->PSI, 48 MHz HSIDIV3 or 8 MHz raw HSE |
-  | STM32U5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#43 (feeds CCR3), CH4=#45 | No DMAMUX; 8-bit feed tables; secure build (`-mcmse`); 16 MHz HSI16 or 4 MHz MSI |
+  | STM32U5 | TIM1 | PA10 (AF1) | GPDMA1, REQSEL: CH2=#43 (feeds CCR3), CH4=#45 | No DMAMUX; 8-bit feed tables; secure build (`-mcmse`); 160 MHz HSE25+PLL1 (VOS1+EPOD, 4 WS) or 16 MHz HSI16 |
   | STM32H7 | TIM1 | PA10 (AF1) | DMAMUX1: CC2=#12 (DMA1 stream 2, feeds CCR3), CH4=#14 (DMA1 stream 3) | 16-bit feed tables in direct mode; 240 MHz default with opt-in 480/240 MHz CPU/TIM1 split; D-cache off |
   
   The DMA column is the one thing here that is **not** interchangeable between
