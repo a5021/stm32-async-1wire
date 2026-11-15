@@ -105,9 +105,10 @@ make OW_MCU=STM32C552xx SYSCLK_MHZ=8 HSE_MHZ=8 APP=4_scan_mode
 
 # STM32H503CB target (WeAct STM32H503Cx Core Board, 64MHz raw-HSI default):
 make OW_MCU=STM32H503xx APP=4_scan_mode
-# STM32U585CIU6 target (bare UFQFPN48, 16MHz HSI16 default):
+# STM32U585CIU6 target (bare UFQFPN48, 160MHz HSE25+PLL1 default):
 make OW_MCU=STM32U585xx APP=4_scan_mode
-make OW_MCU=STM32U585xx SYSCLK_MHZ=4 APP=4_scan_mode
+# ... 16MHz HSI16 fallback:
+make OW_MCU=STM32U585xx SYSCLK_MHZ=16 APP=4_scan_mode
 
 # STM32H743VI target (WeAct STM32H743VI Core Board, 240MHz HSE+PLL default):
 make OW_MCU=STM32H743xx APP=4_scan_mode

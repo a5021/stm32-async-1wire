@@ -424,6 +424,15 @@ else
 
 endif
 
+# The legacy ST-LINK_CLI bundled with the Windows toolchain does not know the
+# STM32U5 flash loader. st-flash 1.9 does, and its --format ihex parses the
+# Intel HEX instead of writing the ASCII text. Override only for U5 so the
+# older families keep their existing Windows path.
+ifeq ($(OW_TARGET),u5)
+    STLINK = st-flash
+    STLINK_FLAGS = --reset --format ihex write $(BUILD_DIR)/$(TARGET).hex
+endif
+
 # Set additional compiler flags for dependencies and object file generation
 # -MP is dropped: its phony per-header targets defeat the dependency on exactly
 # the headers that need to trigger a rebuild. The explicit prerequisite lists in
@@ -1704,7 +1713,7 @@ test-all-families: $(OW_FAMILY_WRAPPERS)
 # reads. One family per encoding: f0 = classic DMA1 channel (CCR bits 12..13),
 # f4/h7 = stream CR (bits 16..17, f4 adds CHSEL), h5 = GPDMA CCR (bits 22..23).
 # A separate TEST_OUT keeps these artefacts apart from the default build.
-OW_PRIO_FAMILIES = f0 f4 h5 h7
+OW_PRIO_FAMILIES = f0 f4 h5 u5 h7
 
 .PHONY: test-dma-prio $(addprefix test-dma-prio-,$(OW_PRIO_FAMILIES))
 .NOTPARALLEL: test-dma-prio
@@ -2099,10 +2108,10 @@ help:
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
 	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
 	@echo "  test-all-families - ... against every host backend in OW_HOST_TEST_TARGETS, one run"
-	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
-	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
-	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
-	@echo "  test-dma-prio   - contract suite with -DOW_DMA_PRIO=3 (f0/f4/h5/h7, one per encoding)"
+	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
+	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
+	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
+	@echo "  test-dma-prio   - contract suite with -DOW_DMA_PRIO=3 (f0/f4/h5/u5/h7, one per encoding)"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-ds2413     - run the DS2413 switch driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"
@@ -2113,7 +2122,7 @@ help:
 	@echo "  update-public-api - Rewrite tests/api/public-api.txt after a deliberate API change"
 	@echo "  test-viewer     - Run the 1-Wire visualizer selftest in headless Chromium (needs Playwright)"
 	@echo "  test-mutations  - Break the DMA port on purpose and check the host suite notices (slow; on demand)"
-	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
+	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
 	@echo "  check           - Pre-push gate: formatting, cppcheck, version, HIL parsers (no toolchain)"
@@ -2146,7 +2155,7 @@ help:
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
 	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC,"
 	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx, STM32H503xx, STM32H743xx)"
-	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|l4|h5|h7 - MCU family (firmware build)"
+	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|l4|c5|h5|u5|h7 - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
 	@echo "                                    f401xc, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"

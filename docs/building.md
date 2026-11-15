@@ -135,7 +135,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-lowpower-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
-| `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
+| `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `u5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (35 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-ds2413` | Run the DS2413 switch driver suite alone (14 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |
@@ -371,6 +371,8 @@ make test-hil HIL_SCRIPT=ds2431     # 8_ds2431 - the EEPROM cycle on every DS243
 make test-hil HIL_SCRIPT=ds2413     # 9_multi - DS2413 PIOA/PIOB blink, read over SWD
 make test-hil HIL_SCRIPT=smoke HIL_MCU=STM32L476xx HIL_PORT=COM5
                                     # NUCLEO-L476RG: external USB-TTL on USART1 PA9
+make test-hil HIL_SCRIPT=smoke HIL_MCU=STM32U585xx HIL_PORT=COM5
+                                    # STM32U585CIU6: 160MHz HSE25+PLL1, USB-TTL on PA9
 make test-hil HIL_SCRIPT=dma_pressure HIL_MCU=STM32F030x6
                                     # 0_dma_pressure — guard-band matrix, logic analyzer needed
 python tests/hil/dma_pressure.py --levels 0,4,5 --guards 1,5 --clocks 48,8
@@ -424,7 +426,8 @@ before the run writes anything and ignores `docs/stress`: a run's own output
 does not make the source tree look modified.
 
 The board is auto-detected (`STM32F103xB` reference bench, the
-`STM32H503xx`/`STM32H743xx` WeAct boards, or the `STM32L476xx` NUCLEO); pin it
+`STM32H503xx`/`STM32H743xx` WeAct boards, the `STM32U585xx` U5 bench, or the
+`STM32L476xx` NUCLEO); pin it
 with `HIL_MCU=` - a mismatch against the attached target
 fails rather than flashing the wrong part. The H503 and F446 profiles wire
 PA11 to D1 and the F030 wires PA2: the DMA-pressure harness builds with
