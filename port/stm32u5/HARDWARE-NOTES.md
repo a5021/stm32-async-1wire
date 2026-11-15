@@ -51,12 +51,13 @@ All with `EXT="-DOW_PARASITE_POWER=1"`, default 160 MHz unless noted.
   26.0000 C, `ИТОГ: PASS`.
 - DS2431 (`HIL_SCRIPT=ds2431`): PASS, 1 device, 2 EEPROM reads, read-back is
   baseline+1 at 160 MHz.
-- DS2413 (`HIL_SCRIPT=ds2413`): the device is found (`3A 9F 47 03 00 00 00 3A`)
-  and the write/read commands complete with `ds2413_errors == 0`, but PIOA and
-  PIOB read back 0 for every commanded 1/2 at both 160 and 16 MHz. The PIO
-  pins are open-drain and need external pull-ups (or the board's LED wiring
-  must not hold them low); this is a bench-wiring item, not a clock or driver
-  failure. The host suite still covers both PIO states (14 tests).
+- DS2413 (`HIL_SCRIPT=ds2413`): PASS, 11 blinks, commands
+  `12121212121`, read-back `12121212121`, no errors. The open-drain PIOA/PIOB
+  pins need external pull-ups; without them both read 0.
+- LA content (`la_decode.py` on `8_ds2431`): SEARCH ROM sees the DS2413
+  (`3A 9F 47 03 00 00 00 3A`) and the DS2431 (`2D F8 47 60 26 00 00 69`),
+  both CRC ok; `ИТОГ: PASS`. The decoder does not yet understand the DS2413
+  PIO commands (`0x5A`/`0xF5`), so a `9_multi` capture stops there by design.
 
 The `--wait-ms 750` check is meant for an example whose longest pause is the
 conversion wait. On `2_device_search` the application's inter-scan pause is
