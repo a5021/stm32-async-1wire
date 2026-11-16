@@ -82,8 +82,9 @@ void ds18b20_complete(int16_t temp) {
     } else if (temp == DS18B20_TEMP_ERROR_GENERIC) {
         uart_write_str("generic failure.");
     } else {
-        int whole = temp / 10;
-        int frac = temp % 10;
+        int whole;
+        int frac;
+        app_temp_split(temp, &whole, &frac);
         if (frac < 0) frac = -frac;
         if (whole == 0 && temp < 0) {
             uart_write_str("-0");

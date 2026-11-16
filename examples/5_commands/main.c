@@ -303,8 +303,9 @@ void ds18b20_complete(int16_t temp) {
     } else if (temp == DS18B20_TEMP_ERROR_GENERIC) {
         uart_write_str("generic failure.\r\n");
     } else {
-        int whole = temp / 10; // Get whole degrees (temp is in tenths)
-        int frac = temp % 10; // Get fractional part (tenths)
+        int whole;
+        int frac;
+        app_temp_split(temp, &whole, &frac);
         if (frac < 0) frac = -frac; // Ensure fractional part is positive
         if (whole == 0 && temp < 0) {
             uart_write_str("-0"); // Handle -0.5C case

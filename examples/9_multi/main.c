@@ -234,11 +234,12 @@ static void print_rom(const uint8_t* rom) {
 
 /** @brief Print a tenths-of-a-degree value as "-5.3" / "27.4" / "-0.4" */
 static void print_temp(int16_t t) {
-    int16_t whole = (int16_t)(t / 10);
-    int16_t frac = (int16_t)(t % 10);
+    int whole;
+    int frac;
+    app_temp_split(t, &whole, &frac);
 
     if (frac < 0) {
-        frac = (int16_t)-frac;
+        frac = -frac;
     }
     if (t < 0 && whole == 0) {
         uart_write_str("-");
@@ -547,8 +548,11 @@ static void push_record(uint8_t slot, int16_t temp, uint8_t idx) {
     b[1] = REC_VERSION;
     b[2] = REC_FLAG_VALID | REC_FLAG_ROM;
     b[3] = (uint8_t)(slots[slot].counter + 1u);
-    b[4] = (uint8_t)(int8_t)(temp / 10);
-    b[5] = (uint8_t)(int8_t)(temp % 10);
+    int telemetry_whole;
+    int telemetry_frac;
+    app_temp_split(temp, &telemetry_whole, &telemetry_frac);
+    b[4] = (uint8_t)(int8_t)telemetry_whole;
+    b[5] = (uint8_t)(int8_t)telemetry_frac;
     b[6] = idx;
     b[7] = ds18b20_crc8(b, REC_CRC_LEN);
 }
