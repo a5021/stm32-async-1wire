@@ -21,9 +21,9 @@
 # .data is 8-12 B on every image here) and total .bss are exact ceilings:
 #   app            text    bss
 #   0_dma_pressure 2556    1484   (diagnostic; 1024 B of it is the stress array)
-#   6_statistics   6484    1788
+#   6_statistics   6004    1788
 #   8_ds2431       5700    768
-#   9_multi        12332   1456
+#   9_multi        11880   1456
 #
 # Budgets (measured 2026-10-07, toolchain 15.2, defaults, no EXT flags —
 # parasite/power flags only retune pulse values, not sizes).
@@ -46,6 +46,10 @@
 #   per byte: less code and ~4.8x/4.4x fewer instructions. No .bss movement.
 #   The encoder table is 128 B rather than 64 on the 16-bit ow_pulse_t
 #   families (F4/H7), which are not text-gated here.
+# 2026-11-16: 6_statistics 6484->6004 and 9_multi 12332->11880 on M0/M0+:
+#   app_temp_split() replaces the signed /10 + %10 pair with a subtract loop
+#   where there is no hardware divider, dropping __divsi3 and its idivmod
+#   wrapper (~480 B). Divider-equipped cores keep the original expressions.
 # 2026-11-10: 9_multi text 12764->12792 for the DS2413 pin/latch split.
 #   family  libsum(5_commands)  total(5_commands)  total(1_basic)
 #   f0             329                 652              432
@@ -325,9 +329,9 @@ check STM32U585xx 329 652 432
 check STM32C552xx 329 2192 1976
 
 check_app STM32F030x6 0_dma_pressure 2556 1484
-check_app STM32F030x6 6_statistics 6484 1788
+check_app STM32F030x6 6_statistics 6004 1788
 check_app STM32F030x6 8_ds2431 5700 768
-check_app STM32F030x6 9_multi 12332 1456
+check_app STM32F030x6 9_multi 11880 1456
 
 if [ "$fail" -ne 0 ]; then
     exit 1

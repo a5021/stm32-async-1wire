@@ -28,6 +28,37 @@
 #include "onewire.h"
 #include <stdint.h>
 
+/**
+ * @brief Split tenths of a degree into whole degrees and remaining tenths
+ * @param[in] tenths Temperature in tenths of a degree (negative allowed)
+ * @param[out] whole Whole degrees, truncated toward zero like C division
+ * @param[out] frac Remaining tenths, carrying the sign of @p tenths
+ * @note Cortex-M0/M0+ have no hardware divider, so plain `/ 10` pulls in the
+ *       signed-division helper (~470 B of flash). There a subtract loop is
+ *       cheaper; cores with a divider keep the native expression.
+ */
+#if defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_8M_BASE__)
+static inline void app_temp_split(int16_t tenths, int* whole, int* frac) {
+    int negative = tenths < 0;
+    uint16_t magnitude = negative ? (uint16_t)(-(int32_t)tenths) : (uint16_t)tenths;
+    uint16_t q = 0u;
+    while (magnitude >= 10u) {
+        magnitude -= 10u;
+        q++;
+    }
+    *whole = negative ? -(int)q : (int)q;
+    *frac = negative ? -(int)magnitude : (int)magnitude;
+}
+#else
+/* A macro here expands to the original expressions, so cores with a divider
+ * keep the exact same code as before. */
+#define app_temp_split(tenths, whole, frac) \
+    do {                                    \
+        *(whole) = (tenths) / 10;           \
+        *(frac) = (tenths) % 10;            \
+    } while (0)
+#endif
+
 /* The application layer always needs an explicit clock: unlike the port core
  * (which falls back to SystemCoreClock), an undefined OW_SYSCLK_MHZ
  * would read as 0 in the #if ladders below and silently select the /1

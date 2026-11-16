@@ -824,14 +824,17 @@ Whole-image ceilings on the binding part (STM32F030x6, 16 KB flash / 4 KB RAM):
 | Example | `.text` | Total `.bss` |
 | --- | ---: | ---: |
 | `0_dma_pressure` | 2556 B | 1484 B |
-| `6_statistics` | 6484 B | 1788 B |
+| `6_statistics` | 6004 B | 1788 B |
 | `8_ds2431` | 5700 B | 768 B |
-| `9_multi` | 12332 B | 1456 B |
+| `9_multi` | 11880 B | 1456 B |
 
 `6_statistics` owns the largest `.bss` (1024 B UART ring + ~304 B stats state);
 `9_multi` owns the largest `.text` (DS18B20 + DS2431 + DS2413 in one image,
-about 78% of the 16 KB flash). The DS2431 and DS2413 drivers are dropped by
-`--gc-sections` from images that never call them.
+about 73% of the 16 KB flash). The DS2431 and DS2413 drivers are dropped by
+`--gc-sections` from images that never call them. On the M0/M0+ parts the
+examples use `app_temp_split()` instead of the signed `/10` + `%10` pair, which
+drops the software division helper (~480 B); cores with a divider keep the
+native expressions.
 
 The vendored template (`templates/standalone-consumer`, STM32H503xx) is gated
 too: `sh tests/check_ram_budget.sh --consumer <elf>` pins its image at 5768 B
