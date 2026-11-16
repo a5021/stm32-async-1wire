@@ -236,22 +236,9 @@ extern USART_TypeDef mock_usart1;
  *     Host stubs mirroring the real CMSIS defines; compiled only into the
  *     low-power test build so the default busy-poll build stays byte-identical.
  *     L4 maps OW_PORT_TIM1_UPD_IRQn to TIM1_UP_TIM16_IRQn. --- */
-#if OW_LOW_POWER
-#define TIM1_UP_TIM16_IRQn 25
-#define SCB_SCR_SEVONPEND_Msk 0x00000010u
-typedef struct {
-    volatile uint32_t SCR;
-} SCB_Type;
-extern SCB_Type mock_scb;
-#define SCB (&mock_scb)
-#define __SEV() ((void)0)
-#ifdef MOCK_WFE_HOOK
-void mock_wfe_hook(void);
-#define __WFE() mock_wfe_hook()
-#else
-#define __WFE() ((void)0)
-#endif
-#define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
-#endif /* OW_LOW_POWER */
+/* Low-power WFE stubs: see mock_lowpower.h. */
+#define MOCK_TIM1_UP_IRQ_VALUE 25
+#include "mock_lowpower.h"
+#define TIM1_UP_TIM16_IRQn MOCK_TIM1_UP_IRQn
 
 #endif /* STM32L4XX_MOCK_H */

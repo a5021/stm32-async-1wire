@@ -322,7 +322,6 @@ extern DBGMCU_TypeDef mock_dbgmcu;
 #define DMA_CCR_PSIZE_0 DMA_SxCR_PSIZE_0
 #define DMA_CCR_MSIZE_0 DMA_SxCR_MSIZE_0
 #define DMA_CCR_MSIZE_1 DMA_SxCR_MSIZE_1
-#define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
 
 /* --- Compiler helpers the driver expects from CMSIS --- */
 #ifndef __STATIC_FORCEINLINE
@@ -341,24 +340,9 @@ extern DBGMCU_TypeDef mock_dbgmcu;
      low-power test build so the default busy-poll build stays byte-identical.
      H7 maps OW_PORT_TIM1_UPD_IRQn to TIM1_UP_IRQn (a split vector, like H5).
      --- */
-#if OW_LOW_POWER
-#define TIM1_UP_IRQn 25
-#define SCB_SCR_SEVONPEND_Msk 0x00000010u
-typedef struct {
-    volatile uint32_t SCR;
-} SCB_Type;
-extern SCB_Type mock_scb;
-#define SCB (&mock_scb)
-#define __SEV() ((void)0)
-#ifdef MOCK_WFE_HOOK
-/* Route the sleep through a host hook so a test can model the update event
- * arriving asynchronously (mock_wfe_set_hook). Without the define this stays
- * the plain no-op and every existing low-power build is unchanged. */
-void mock_wfe_hook(void);
-#define __WFE() mock_wfe_hook()
-#else
-#define __WFE() ((void)0)
-#endif
-#endif
+/* Low-power WFE stubs: see mock_lowpower.h. */
+#define MOCK_TIM1_UP_IRQ_VALUE 25
+#include "mock_lowpower.h"
+#define TIM1_UP_IRQn MOCK_TIM1_UP_IRQn
 
 #endif /* STM32H7XX_MOCK_H */

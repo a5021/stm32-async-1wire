@@ -82,6 +82,7 @@
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
 │   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 11 family sections)
+│   ├── ow_gpdma.h          # Shared GPDMA/LPDMA transfer-register vocabulary (H5/C5/U5)
 │   ├── ow_compiler.h       # Private compiler-attribute shim for the driver sources
 │   ├── ow_glue.h           # Internal bridge: timed waits and state-machine kicks
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
