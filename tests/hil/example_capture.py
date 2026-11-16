@@ -29,7 +29,6 @@ import os
 import subprocess
 import sys
 import time
-import zipfile
 
 try:
     import numpy as np
@@ -42,6 +41,7 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
 import common  # noqa: E402
+import sigrok_sr  # noqa: E402
 import dma_pressure as dp  # noqa: E402
 
 BENCH = "STM32F030x6"
@@ -149,36 +149,6 @@ def first_falling_us(raw, rate_hz, channel):
     return (falls[0] + 1) / rate_hz * 1e6 if len(falls) else None
 
 
-def write_sr(raw, rate_hz, dst, start_us, end_us):
-    """Write one trimmed window as a sigrok `.sr` archive."""
-    start = max(0, int(round(start_us * 1e-6 * rate_hz)))
-    end = min(len(raw), int(round(end_us * 1e-6 * rate_hz)))
-    if end - start < 16:
-        raise RuntimeError("capture window is empty")
-    meta = (
-        "[global]\n"
-        "sigrok version=0.6.0-example-capture\n\n"
-        "[device 1]\n"
-        "capturefile=logic-1\n"
-        "total probes=8\n"
-        "samplerate=%s\n"
-        "total analog=0\n"
-        "probe1=D0\n"
-        "probe2=D1\n"
-        "probe3=D2\n"
-        "probe4=D3\n"
-        "probe5=D4\n"
-        "probe6=D5\n"
-        "probe7=D6\n"
-        "probe8=D7\n"
-        "unitsize=1\n" % RATE_TEXT
-    )
-    with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("version", "2")
-        z.writestr("metadata", meta)
-        z.writestr("logic-1-1", np.asarray(raw[start:end], dtype=np.uint8).tobytes())
-
-
 def git_head():
     try:
         proc = subprocess.run(
@@ -257,7 +227,7 @@ def capture_one(entry, args):
         raise RuntimeError("capture for %s produced no data" % app)
     end = start + entry["window_us"]
     dst = os.path.join(args.out_dir, app + ".sr")
-    write_sr(raw, RATE_HZ, dst, start, end)
+    sigrok_sr.write_sr(raw, RATE_HZ, dst, start, end, RATE_TEXT, "example-capture")
     print("  %s: reset at %.1f us, kept %.1f ms -> %s" % (
         app, first, (end - start) / 1000.0, os.path.relpath(dst, REPO)), flush=True)
     return {
