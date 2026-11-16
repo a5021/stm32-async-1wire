@@ -150,31 +150,9 @@ extern USART_TypeDef mock_usart1;
  *     ow_port_capture()/ow_port_bus_done()/onewire_init() compile and link.
  *     They are only compiled into the low-power test build (-DOW_LOW_POWER=1),
  *     so the default busy-poll test build stays byte-identical. --- */
-#if OW_LOW_POWER
-/* The update-event IRQ line the driver arms for WFE wake-up (onewire.h
- * maps OW_PORT_TIM1_UPD_IRQn to this on F1). Value is irrelevant on host. */
-#define TIM1_UP_IRQn 0
-/* SEVONPEND bit in the System Control Register (SCR). */
-#define SCB_SCR_SEVONPEND_Msk 0x00000010u
-typedef struct {
-    volatile uint32_t SCR;
-} SCB_Type;
-extern SCB_Type mock_scb;
-#define SCB (&mock_scb)
-/* WFE/SEV block until an event: no-op on the host (the driver never relies on
- * the block; it only needs the code to compile). */
-#define __SEV() ((void)0)
-#ifdef MOCK_WFE_HOOK
-/* Route the sleep through a host hook so a test can model the update event
- * arriving asynchronously (mock_wfe_set_hook). Without the define this stays
- * the plain no-op and every existing low-power build is unchanged. */
-void mock_wfe_hook(void);
-#define __WFE() mock_wfe_hook()
-#else
-#define __WFE() ((void)0)
-#endif
-/* Clear the NVIC pending bit for an IRQ: no-op on the host. */
-#define NVIC_ClearPendingIRQ(__IRQn) ((void)(__IRQn))
-#endif /* OW_LOW_POWER */
+/* Low-power WFE stubs: see mock_lowpower.h. */
+#define MOCK_TIM1_UP_IRQ_VALUE 0
+#include "mock_lowpower.h"
+#define TIM1_UP_IRQn MOCK_TIM1_UP_IRQn
 
 #endif /* STM32F1XX_MOCK_H */

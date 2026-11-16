@@ -46,6 +46,10 @@ extern "C" {
  * capture, feed and timer waits — 1 ms for every stage. */
 #define OW_PORT_LONG_STAGE_US 1000u
 
+/* One bit slot: a short ONE, a long ZERO, then the release margin. Used by
+ * every feed/capture path, so its arithmetic lives in one place. */
+#define OW_PORT_SLOT_ARR (ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND)
+
 /* Optional logic-analyzer marker hook, empty by default.  Backends that have
  * one may define OW_PORT_MARKER_TOGGLE() to pulse a spare GPIO so a decoder
  * can find the start of a merged operation pass.  The core never calls it, so
@@ -64,6 +68,20 @@ extern "C" {
  * each of which includes ow_board.h through its own guard. */
 #include "onewire.h"
 #include "ow_mcu.h"
+
+/* Default pin-mode switch for the ten families whose PA10 drive is the OTYPER
+ * bit (F1 overrides this with its CRH-based macro). Each family supplies its
+ * own bit spelling through OW_PORT_OTYPER_OT10 next to the pin mux. */
+#ifndef OW_PORT_SET_PIN_MODE
+#define OW_PORT_SET_PIN_MODE(push_pull)        \
+    do {                                       \
+        if (push_pull) {                       \
+            PA.OTYPER &= ~OW_PORT_OTYPER_OT10; \
+        } else {                               \
+            PA.OTYPER |= OW_PORT_OTYPER_OT10;  \
+        }                                      \
+    } while (0)
+#endif
 
 #if defined(OW_SYSCLK_MHZ) && defined(OW_TIM1_MHZ) && !defined(OW_FAMILY_H7) && \
     ((OW_SYSCLK_MHZ) != (OW_TIM1_MHZ))
@@ -522,6 +540,21 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #define OW_PORT_CAPTURE_REMAINING() (OW_PORT_DMA_CAPTURE.CNDTR)
 #endif
 
+/* DIER by operation. UIE is kept only when OW_LOW_POWER is on: the low-power
+ * path wakes __WFE() through the NVIC pending bit (SEVONPEND), with no ISR.
+ * The busy-poll build runs no update interrupt, so those bits are zero. */
+#if OW_LOW_POWER
+#define OW_PORT_CAPTURE_DIER TIM_DIER(CC4DE, UIE)
+#define OW_PORT_FEED_DIER TIM_DIER(CC2DE, UIE)
+#define OW_PORT_WAIT_DIER TIM_DIER(UIE)
+#define OW_PORT_MERGED_DIER TIM_DIER(CC4DE, CC2DE, UIE)
+#else
+#define OW_PORT_CAPTURE_DIER TIM_DIER(CC4DE)
+#define OW_PORT_FEED_DIER TIM_DIER(CC2DE)
+#define OW_PORT_WAIT_DIER 0u
+#define OW_PORT_MERGED_DIER TIM_DIER(CC4DE, CC2DE)
+#endif
+
 /**
  * @brief Edges captured by the last capture operation armed
  * @return 0..OW_PORT_CAPTURE_BUF_SIZE; after a reset, 2 means the armed
@@ -737,14 +770,10 @@ __STATIC_FORCEINLINE void ow_port_capture(volatile void* dst, uint16_t count, ui
 #endif
     T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, UIE);
     /* No duration decision here: ow_port_long_wait_pending() derives it from
      * the caller's ARR/RCR, so every capture path (reset, read, long
      * scratchpad read) shares the one OW_PORT_LONG_STAGE_US rule. */
-#else
-    T1.DIER = TIM_DIER(CC4DE);
-#endif
+    T1.DIER = OW_PORT_CAPTURE_DIER;
     ow_port_update_event();
     T1.CCR3 = ONEWIRE_RELEASE_PULSE;
     OW_PORT_DMA_DISABLE_CAPTURE();
@@ -772,16 +801,12 @@ __STATIC_FORCEINLINE uint8_t ow_port_feed(const ow_pulse_t* cmd, uint16_t slots)
         return 0u;
     }
     T1.RCR = slots - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
+    T1.ARR = OW_PORT_SLOT_ARR;
     T1.CCR3 = cmd[0];
     T1.CCR2 = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE;
     T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2);
     T1.CCER = TIM_CCER(CC3E);
-#if OW_LOW_POWER
-    T1.DIER = TIM_DIER(CC2DE, UIE);
-#else
-    T1.DIER = TIM_DIER(CC2DE);
-#endif
+    T1.DIER = OW_PORT_FEED_DIER;
     ow_port_update_event();
     OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
@@ -917,18 +942,14 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
     if (slots == 1) {
         /* Single slot: no DMA needed, avoids a zero-length DMA transaction */
         T1.RCR = 0; /* Single slot, no repetition */
-        T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+        T1.ARR = OW_PORT_SLOT_ARR; /* Total bit slot time */
         T1.CCR3 = pulses[0]; /* Pulse duration encodes the bit */
         /* OC3PE plus a ONEWIRE_RELEASE_PULSE preload release the bus at the
          * terminal update event, exactly when the one-pulse timer stops
          * (hardware bus release). */
         T1.CCMR2 = TIM_CCMR2(OC3M_0, OC3M_1, OC3M_2) | OW_PORT_OC3PE_ARGS;
         T1.CCER = TIM_CCER(CC3E);
-#if OW_LOW_POWER
-        T1.DIER = TIM_DIER(UIE); /* no DMA for a single bit slot; keep UIE for WFE */
-#else
-        T1.DIER = 0; /* No DMA for a single bit slot */
-#endif
+        T1.DIER = OW_PORT_WAIT_DIER; /* no DMA for a single bit slot */
         ow_port_update_event();
         T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Preload release pulse -> line idles HIGH when the timer stops */
         OW_PORT_TIMER_START();
@@ -943,15 +964,11 @@ __STATIC_FORCEINLINE uint8_t ow_port_write_slots(const ow_pulse_t* pulses, uint1
  */
 __STATIC_FORCEINLINE void ow_port_read_pair(volatile uint16_t* pair_pulses) {
     T1.RCR = 1; /* Two read slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+    T1.ARR = OW_PORT_SLOT_ARR; /* Total bit slot time */
     T1.CCR3 = ONEWIRE_ONE_PULSE; /* Read pulse duration */
     T1.CCMR2 = OW_PORT_CCMR2_CAP;
     T1.CCER = TIM_CCER(CC3E, CC4E);
-#if OW_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, UIE);
-#else
-    T1.DIER = TIM_DIER(CC4DE);
-#endif
+    T1.DIER = OW_PORT_CAPTURE_DIER;
     ow_port_update_event();
     T1.CCR3 = ONEWIRE_RELEASE_PULSE; /* Clear the output-compare value (CCR4 capture is independent) */
     OW_PORT_DMA_DISABLE_CAPTURE();
@@ -981,7 +998,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     const ow_pulse_t write_pulse = bit ? ONEWIRE_ONE_PULSE : ONEWIRE_ZERO_PULSE;
     OW_PORT_MARKER_TOGGLE(); /* opt-in LA hook (no-op by default): merged pass starts here */
     T1.RCR = 2; /* Three slots, then a single update event */
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND; /* Total bit slot time */
+    T1.ARR = OW_PORT_SLOT_ARR; /* Total bit slot time */
     /* Arm the direction pulse first. The bus was released idle-high by
      * ow_port_bus_done(), so this write produces the single clean falling edge
      * the devices re-sync their slot timer to. Holding it from the top instead
@@ -998,11 +1015,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
      * (The end-of-slot CC2 compare event of the previous merged operation can
      * leave a pending request that fires the reload DMA immediately on re-arm,
      * overwriting the freshly written direction pulse in CCR3.) */
-#if OW_LOW_POWER
-    T1.DIER = TIM_DIER(UIE); /* keep UIE for WFE while the DMA requests are apart */
-#else
-    T1.DIER = 0;
-#endif
+    T1.DIER = OW_PORT_WAIT_DIER; /* keep UIE for WFE while the DMA requests are apart */
     ow_port_update_event();
     /* Capture DMA: write-slot capture plus the id/cmp pulse pair into the buffer.
      * Spelled through the PROG vocabulary (DMA1 defaults above write the same
@@ -1017,11 +1030,7 @@ __STATIC_FORCEINLINE void ow_port_write_then_read(uint8_t bit, volatile uint16_t
     OW_PORT_DMA_DISABLE_FEED();
     OW_PORT_ROUTE_FEED();
     OW_PORT_DMA_PROG_FEED(read_pulse, 3, OW_PORT_DMA_CR_TX);
-#if OW_LOW_POWER
-    T1.DIER = TIM_DIER(CC4DE, CC2DE, UIE); /* Capture + CCR3 reload via DMA (UIE for WFE) */
-#else
-    T1.DIER = TIM_DIER(CC4DE, CC2DE); /* Capture + CCR3 reload via DMA */
-#endif
+    T1.DIER = OW_PORT_MERGED_DIER; /* Capture + CCR3 reload via DMA */
     T1.CCR3 = write_pulse; /* Re-arm the direction pulse (safe against a stale CC2 DMA reload) */
     OW_PORT_TIMER_START();
 }
@@ -1040,7 +1049,7 @@ __STATIC_FORCEINLINE uint8_t ow_port_read_data(volatile uint8_t* dst, uint8_t by
     }
     const uint16_t bits = (uint16_t)bytes * ONEWIRE_BITS_PER_BYTE;
     T1.RCR = bits - 1;
-    T1.ARR = ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND;
+    T1.ARR = OW_PORT_SLOT_ARR;
     T1.CCR3 = ONEWIRE_ONE_PULSE;
     ow_port_capture(dst, bits, 8);
     return 1u;
