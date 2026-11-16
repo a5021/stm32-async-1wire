@@ -99,24 +99,9 @@ def bench_setup(argv):
     if not dp.la_present(args.sigrok):
         print("SKIP: no fx2lafw logic analyzer found (SIGROK_CLI=%s)" % args.sigrok)
         return None, args
-    status, detail = common.probe()
-    if status == "absent":
-        print("SKIP: %s" % detail)
+    detected, rc = common.probe_and_select(None, None)
+    if rc is not None:
         return None, args
-    if status == "error":
-        print("FAIL: %s" % detail)
-        return None, args
-    requested = os.environ.get("HIL_MCU")
-    detected = common.bench_from_probe(detail)
-    if requested and detected != requested:
-        print("FAIL: %s is attached but HIL_MCU=%s was requested"
-              % (detected or "an unrecognised target", requested))
-        return None, args
-    if detected is None:
-        print("FAIL: cannot identify the attached target (known: %s)"
-              % ", ".join(common.BENCH_PROFILES))
-        return None, args
-    common.select_bench(detected)
     if args.feed_prio is not None:
         common.BUILD_EXT = (common.BUILD_EXT +
                             " -DOW_DMA_PRIO=%d" % args.feed_prio).strip()

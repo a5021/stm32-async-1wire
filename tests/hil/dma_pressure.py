@@ -32,11 +32,11 @@ import shutil
 import subprocess
 import sys
 import time
-import zipfile
 
 import numpy as np
 
 import common
+import sigrok_sr
 
 APP = "0_dma_pressure"
 HEX = os.path.join(common.REPO, "build", "ds18b20_0_dma_pressure.hex")
@@ -348,46 +348,6 @@ def _result(frames, bad_len, bad_width, bad_bits, bad_period, stuck_low, first,
 
 def analyse_file(path, rate_hz, **kwargs):
     return analyse(np.fromfile(path, dtype=np.uint8), rate_hz, **kwargs)
-
-
-def write_sr(raw, rate_hz, dst, start_us, end_us):
-    """Write one trimmed window as a sigrok `.sr` the viewer can open.
-
-    The stress report links one frame per cell, so the capture opens on the
-    traffic instead of 200 ms of boot settle and 99 more frames. The archive
-    is the same shape sigrok writes: `version`, `metadata`, `logic-1-1`.
-    """
-    start = max(0, int(round(start_us * 1e-6 * rate_hz)))
-    end = min(len(raw), int(round(end_us * 1e-6 * rate_hz)))
-    if end - start < 16:
-        raise RuntimeError("capture window is empty")
-    meta = (
-        "[global]\n"
-        "sigrok version=0.6.0-stress-report\n\n"
-        "[device 1]\n"
-        "capturefile=logic-1\n"
-        "total probes=8\n"
-        "samplerate=%s\n"
-        "total analog=0\n"
-        "probe1=D0\n"
-        "probe2=D1\n"
-        "probe3=D2\n"
-        "probe4=D3\n"
-        "probe5=D4\n"
-        "probe6=D5\n"
-        "probe7=D6\n"
-        "probe8=D7\n"
-        "unitsize=1\n" % SR_RATE_TEXT
-    )
-    with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("version", "2")
-        z.writestr("metadata", meta)
-        z.writestr("logic-1-1", np.asarray(raw[start:end], dtype=np.uint8).tobytes())
-
-
-# ---------------------------------------------------------------------------
-#  Bench plumbing
-# ---------------------------------------------------------------------------
 
 
 def first_marker_us(raw, rate_hz, marker_bit=1):
@@ -711,9 +671,10 @@ class Runner:
         if self.sr_dir and res["first_frame_us"] is not None:
             name = "l%d_%s_g%d.sr" % (
                 level, "%dmhz" % clock if clock else "def", guard)
-            write_sr(raw, RATE_HZ, os.path.join(self.sr_dir, name),
-                     res["first_frame_us"] - SR_LEAD_US,
-                     res["first_frame_us"] + SLOTS * slot_us + SR_TAIL_US)
+            sigrok_sr.write_sr(raw, RATE_HZ, os.path.join(self.sr_dir, name),
+                       res["first_frame_us"] - SR_LEAD_US,
+                       res["first_frame_us"] + SLOTS * slot_us + SR_TAIL_US,
+                       SR_RATE_TEXT, "stress-report")
             res["capture"] = name
         if self.sr_dir and not res["clean"]:
             # A failing cell has no recognised frame, so the window above never
@@ -733,8 +694,9 @@ class Runner:
             start = max(0.0, fail_from - SR_LEAD_US)
             dst = os.path.join(self.sr_dir, name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            write_sr(raw, RATE_HZ, dst, start,
-                     start + SR_LEAD_US + SLOTS * slot_us + SR_TAIL_US)
+            sigrok_sr.write_sr(raw, RATE_HZ, dst, start,
+                       start + SR_LEAD_US + SLOTS * slot_us + SR_TAIL_US,
+                       SR_RATE_TEXT, "stress-report")
             res["capture_fail"] = name
         self.cache[key] = res
         if self.keep_all or not res["clean"]:
@@ -813,24 +775,9 @@ def main(argv=None):
               % args.sigrok)
         return 0
 
-    status, detail = common.probe()
-    if status == "absent":
-        print("SKIP: %s" % detail)
-        return 0
-    if status == "error":
-        print("FAIL: %s" % detail)
-        return 1
-    requested = os.environ.get("HIL_MCU")
-    detected = common.bench_from_probe(detail)
-    if requested and detected != requested:
-        print("FAIL: %s is attached but HIL_MCU=%s was requested"
-              % (detected or "an unrecognised target", requested))
-        return 1
-    if detected is None:
-        print("FAIL: cannot identify the attached target (known: %s)"
-              % ", ".join(common.BENCH_PROFILES))
-        return 1
-    common.select_bench(detected)
+    detected, rc = common.probe_and_select()
+    if rc is not None:
+        return rc
     if args.feed_prio is not None:
         # One build knob on every backend (src/ow_mcu.h); the encoding differs
         # per DMA IP, so the harness never names a family-specific macro.

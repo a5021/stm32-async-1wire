@@ -312,6 +312,19 @@ static uint8_t ow_wait_mask(volatile uint32_t* reg, uint32_t mask, uint32_t valu
     return ((*reg & mask) == value) ? 1u : 0u;
 }
 #endif
+
+/* Every clock wait has the same failure contract: stop the boot rather than
+ * run the 1us tick on a clock the timings were not built for. The _EX form
+ * also records which H7 supply/PLL stage failed for the fatal message. */
+#define OW_CLOCK_WAIT_OR_ABORT_EX(reg, bit, on_fail) \
+    do {                                             \
+        if (!ow_wait_flag(&(reg), (bit))) {          \
+            on_fail;                                 \
+            ow_clock_ok = 0u;                        \
+            return;                                  \
+        }                                            \
+    } while (0)
+#define OW_CLOCK_WAIT_OR_ABORT(reg, bit) OW_CLOCK_WAIT_OR_ABORT_EX((reg), (bit), (void)0)
 #endif
 #endif
 
@@ -406,10 +419,7 @@ void configure_system_clock(void) {
                    "F3: 72MHz is HSE/PREDIV1 x PLLMUL9; the board oscillator is 8MHz");
     /* Bypass: the ST-LINK drives OSC_IN with a square wave, not a crystal. */
     RCC->CR |= RCC_CR_HSEBYP | RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
 #endif
     /* Flash: 2 wait states for 48 < HCLK <= 72MHz, prefetch on. No caches on
      * this family (the F4 ICEN/DCEN bits have no counterpart). */
@@ -419,10 +429,7 @@ void configure_system_clock(void) {
      * PLL disabled). */
     RCC->CFGR = OW_F3_PLL_MUL | OW_F3_PLL_SRC | OW_F3_PPRE;
     RCC->CR |= RCC_CR_PLLON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLLRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLLRDY);
     /* Switch SYSCLK to the PLL. Left unbounded, as on F4 and F1: with the PLL
      * already locked and selected, this cannot hang. */
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL;
@@ -485,18 +492,12 @@ void configure_system_clock(void) {
 #define OW_F4_PLL_START()                                                                    \
     do {                                                                                     \
         RCC->CR |= RCC_CR_HSEON;                                                             \
-        if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {                                        \
-            ow_clock_ok = 0u;                                                                \
-            return;                                                                          \
-        }                                                                                    \
+        OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);                                      \
         RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (OW_F4_PLLM << RCC_PLLCFGR_PLLM_Pos) |       \
                        (OW_F4_PLLN << RCC_PLLCFGR_PLLN_Pos) | (0u << RCC_PLLCFGR_PLLP_Pos) | \
                        (7u << RCC_PLLCFGR_PLLQ_Pos);                                         \
         RCC->CR |= RCC_CR_PLLON;                                                             \
-        if (!ow_wait_flag(&RCC->CR, RCC_CR_PLLRDY)) {                                        \
-            ow_clock_ok = 0u;                                                                \
-            return;                                                                          \
-        }                                                                                    \
+        OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLLRDY);                                      \
     } while (0)
 
 #if (OW_SYSCLK_MHZ) == 180
@@ -540,17 +541,11 @@ void configure_system_clock(void) {
      * a scale change would have to be written here, before the PLL switch
      * further down - not after it. */
     PWR->CR |= PWR_CR_ODEN;
-    if (!ow_wait_flag(&PWR->CSR, PWR_CSR_ODRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(PWR->CSR, PWR_CSR_ODRDY);
     /* Over-drive in the power-saving path; required by the same sequence even
      * though this application never enters a low-power mode. */
     PWR->CR |= PWR_CR_ODSWEN;
-    if (!ow_wait_flag(&PWR->CSR, PWR_CSR_ODSWRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(PWR->CSR, PWR_CSR_ODSWRDY);
     // Flash latency: 5 wait states, the same table row as 168MHz (RM0390): the
     // 180MHz cap moves the voltage-scale-1 limit, not the wait-state count.
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
@@ -602,10 +597,7 @@ void configure_system_clock(void) {
     _Static_assert((OW_SYSCLK_MHZ) <= 30u,
                    "F4: the raw-HSE path programs 0 flash wait states, valid to 30MHz");
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
     // Flash latency: 0 wait states (<= 30MHz); caches on for deterministic timing.
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;
     // APB1/APB2 stay /1, so TIM1 = SYSCLK = HSE.
@@ -691,10 +683,7 @@ void configure_system_clock(void) {
 
 #if (OW_SYSCLK_MHZ) == 170
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
     /* Range 1 Boost before the PLL starts (see above): PWR clock on first,
      * VOS = 00, then wait out the transition. */
     RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;
@@ -714,10 +703,7 @@ void configure_system_clock(void) {
     RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSE | (OW_G4_PLLM << RCC_PLLCFGR_PLLM_Pos) |
                    (OW_G4_PLLN << RCC_PLLCFGR_PLLN_Pos) | RCC_PLLCFGR_PLLREN;
     RCC->CR |= RCC_CR_PLLON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLLRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLLRDY);
     // Flash latency: 8 wait states + prefetch + caches, before the switch.
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN |
                  FLASH_ACR_LATENCY_8WS;
@@ -773,20 +759,14 @@ void configure_system_clock(void) {
     }
     /* HSI16 on and stable before the PLL locks on it. */
     RCC->CR |= RCC_CR_HSION;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSIRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSIRDY);
     /* PLL is off after reset, so PLLCFGR is writable. Source HSI16 (10b),
      * M = 1 (field 0), N = 10, R = 2 (field 0) with PLLREN selecting PLLR. */
     RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC_HSI | (0u << RCC_PLLCFGR_PLLM_Pos) |
                    (10u << RCC_PLLCFGR_PLLN_Pos) | (0u << RCC_PLLCFGR_PLLR_Pos) |
                    RCC_PLLCFGR_PLLREN;
     RCC->CR |= RCC_CR_PLLON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLLRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLLRDY);
     // Flash latency: 4 wait states + prefetch, before the switch.
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS;
     // Switch SYSCLK to PLLRCLK. With the PLL locked and selected this cannot
@@ -800,10 +780,7 @@ void configure_system_clock(void) {
     /* Raw HSI16: the reset clock is MSI, so switch explicitly. 0 wait states
      * is valid to 26MHz at every voltage range (RM0351); prefetch on. */
     RCC->CR |= RCC_CR_HSION;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSIRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSIRDY);
     FLASH->ACR = FLASH_ACR_PRFTEN;
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_HSI;
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
@@ -825,17 +802,11 @@ void configure_system_clock(void) {
     /* HSE -> PSI 144MHz, the vendor-recommended path. PSI source is the 8MHz
      * crystal, PSI reference is 8MHz and the PSI output is 144MHz. */
     RCC->CR1 |= RCC_CR1_HSEON;
-    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR1, RCC_CR1_HSERDY);
     RCC->CR2 = (RCC->CR2 & ~(RCC_CR2_PSIREFSRC | RCC_CR2_PSIREF | RCC_CR2_PSIFREQ)) |
                RCC_CR2_PSIREF_0 | RCC_CR2_PSIFREQ_0; // HSE, 8MHz, 144MHz
     RCC->CR1 |= RCC_CR1_PSISON;
-    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_PSISRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR1, RCC_CR1_PSISRDY);
     FLASH->ACR = (FLASH->ACR & ~FLASH_ACR_LATENCY) | FLASH_ACR_LATENCY_4;
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW; // PSIS = 11
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS)
@@ -850,10 +821,7 @@ void configure_system_clock(void) {
     /* Raw HSE: the board crystal straight to SYSCLK, no PLL or PSI. At 8MHz
      * zero flash wait states are enough. */
     RCC->CR1 |= RCC_CR1_HSEON;
-    if (!ow_wait_flag(&RCC->CR1, RCC_CR1_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR1, RCC_CR1_HSERDY);
     FLASH->ACR &= (uint32_t)~FLASH_ACR_LATENCY;
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_1)
@@ -908,18 +876,12 @@ void configure_system_clock(void) {
     (void)RCC->AHB3ENR;
     /* VOS range 1 (VOS = 11) before raising the clock. */
     PWR->VOSR = (PWR->VOSR & ~PWR_VOSR_VOS) | PWR_VOSR_VOS;
-    if (!ow_wait_flag(&PWR->VOSR, PWR_VOSR_VOSRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(PWR->VOSR, PWR_VOSR_VOSRDY);
     /* 4 WS + prefetch in one write, before the clock moves. */
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_4WS;
     /* HSE on and stable before the PLL locks on it. */
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
     /* PLL1 is off after reset: source HSE, 4..8MHz input window, M = 5,
      * EPOD divider DIV2, R output enabled (SYSCLK = PLL1R on U5). */
     RCC->PLL1CFGR = RCC_PLL1CFGR_PLL1SRC | RCC_PLL1CFGR_PLL1RGE_1 |
@@ -929,16 +891,10 @@ void configure_system_clock(void) {
     RCC->PLL1DIVR = ((OW_U5_PLLN - 1u) << RCC_PLL1DIVR_PLL1N_Pos) |
                     ((OW_U5_PLLR - 1u) << RCC_PLL1DIVR_PLL1R_Pos);
     RCC->CR |= RCC_CR_PLL1ON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLL1RDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLL1RDY);
     /* EPOD booster is required at 160MHz. */
     PWR->VOSR |= PWR_VOSR_BOOSTEN;
-    if (!ow_wait_flag(&PWR->VOSR, PWR_VOSR_BOOSTRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(PWR->VOSR, PWR_VOSR_BOOSTRDY);
     /* Switch SYSCLK to PLL1 (SW = 11). */
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW;
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS)
@@ -946,10 +902,7 @@ void configure_system_clock(void) {
 #elif (OW_SYSCLK_MHZ) == 16
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_1WS;
     RCC->CR |= RCC_CR_HSION;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSIRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSIRDY);
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_0; // HSI16 = 01
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_0)
         ;
@@ -1008,18 +961,12 @@ void configure_system_clock(void) {
                    "H5: HSE/M x 125 / 2 must land on the requested 250MHz (M = HSE/4)");
     // VOS0 (VOS = 11 -> PWR_VOSCR_VOS), then wait for the regulator
     PWR->VOSCR = (PWR->VOSCR & ~PWR_VOSCR_VOS) | PWR_VOSCR_VOS;
-    if (!ow_wait_flag(&PWR->VOSSR, PWR_VOSSR_VOSRDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(PWR->VOSSR, PWR_VOSSR_VOSRDY);
     // 5 wait states + prefetch in one write, before the clock moves
     FLASH->ACR = FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_5WS;
     // HSE on and stable before the PLL locks on it
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
     // PLL1 is off after reset and has not been started, so its dividers are
     // writable now (RM0481: PLL1CFGR/PLL1DIVR only when PLL1ON = 0).  Source
     // is HSE (PLL1SRC = 11), input range RGE = 01 for 4..8MHz, wide VCO, and
@@ -1029,10 +976,7 @@ void configure_system_clock(void) {
     RCC->PLL1DIVR = ((OW_H5_PLLN - 1u) << RCC_PLL1DIVR_PLL1N_Pos) |
                     ((OW_H5_PLLP - 1u) << RCC_PLL1DIVR_PLL1P_Pos);
     RCC->CR |= RCC_CR_PLL1ON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLL1RDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_PLL1RDY);
     // Switch SYSCLK to PLL1 (SW = 11).  Left unbounded, as on F4/G4: with the
     // PLL already locked and selected this cannot hang.
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW;
@@ -1048,10 +992,7 @@ void configure_system_clock(void) {
                    "H5: the raw-HSE path programs 0 flash wait states, valid to 16MHz");
     FLASH->ACR = FLASH_ACR_PRFTEN;
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT(RCC->CR, RCC_CR_HSERDY);
     RCC->CFGR1 = (RCC->CFGR1 & ~RCC_CFGR1_SW) | RCC_CFGR1_SW_1; // HSE = 10
     while ((RCC->CFGR1 & RCC_CFGR1_SWS) != RCC_CFGR1_SWS_1)
         ;
@@ -1136,11 +1077,7 @@ void configure_system_clock(void) {
         ow_clock_ok = 0u;
         return;
     }
-    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
-        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_SUPPLY_READY;
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT_EX(PWR->CSR1, PWR_CSR1_ACTVOSRDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_SUPPLY_READY;);
 
     /* SYSCFG is needed for the Rev V VOS0 transition. Enable it before
      * touching ODEN. If a system reset retained ODEN, return through VOS1
@@ -1149,26 +1086,14 @@ void configure_system_clock(void) {
     (void)RCC->APB4ENR;
     if (SYSCFG->PWRCR & SYSCFG_PWRCR_ODEN) {
         SYSCFG->PWRCR &= ~SYSCFG_PWRCR_ODEN;
-        if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
-            ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;
-            ow_clock_ok = 0u;
-            return;
-        }
+        OW_CLOCK_WAIT_OR_ABORT_EX(PWR->CSR1, PWR_CSR1_ACTVOSRDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;);
     }
 
     /* H743 Rev V VOS0 entry must pass through VOS1 first. */
     PWR->D3CR = (PWR->D3CR & ~PWR_D3CR_VOS) | PWR_D3CR_VOS_1 | PWR_D3CR_VOS_0;
-    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
-        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT_EX(PWR->CSR1, PWR_CSR1_ACTVOSRDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS1_READY;);
     SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
-    if (!ow_wait_flag(&PWR->CSR1, PWR_CSR1_ACTVOSRDY)) {
-        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS0_READY;
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT_EX(PWR->CSR1, PWR_CSR1_ACTVOSRDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_VOS0_READY;);
 
     // 4 wait states for VOS0, HCLK = 240MHz (H743 Rev V data sheet).
     FLASH->ACR = FLASH_ACR_LATENCY_4WS;
@@ -1182,11 +1107,7 @@ void configure_system_clock(void) {
     RCC->D3CFGR = (RCC->D3CFGR & ~RCC_D3CFGR_D3PPRE) | RCC_D3CFGR_D3PPRE_DIV2;
     // HSE on and stable before the PLL locks on it
     RCC->CR |= RCC_CR_HSEON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_HSERDY)) {
-        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_HSE_READY;
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT_EX(RCC->CR, RCC_CR_HSERDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_HSE_READY;);
     // PLL1 is off after reset and has not been started, so its dividers are
     // writable now (RM0433: PLLCKSELR/PLLCFGR/PLL1DIVR only when PLL1ON = 0).
     // Source is HSE, input range RGE = 10 (4..8MHz, RGE_2 - the encoding
@@ -1198,11 +1119,7 @@ void configure_system_clock(void) {
     RCC->PLL1DIVR = ((OW_H7_PLLN - 1u) << RCC_PLL1DIVR_N1_Pos) |
                     ((OW_H7_PLLP - 1u) << RCC_PLL1DIVR_P1_Pos);
     RCC->CR |= RCC_CR_PLL1ON;
-    if (!ow_wait_flag(&RCC->CR, RCC_CR_PLL1RDY)) {
-        ow_h7_clock_failure = OW_H7_CLOCK_FAIL_PLL1_READY;
-        ow_clock_ok = 0u;
-        return;
-    }
+    OW_CLOCK_WAIT_OR_ABORT_EX(RCC->CR, RCC_CR_PLL1RDY, ow_h7_clock_failure = OW_H7_CLOCK_FAIL_PLL1_READY;);
     // Switch SYSCLK to PLL1 (SW = 011), with a bounded status wait.
     RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_PLL1;
     if (!ow_wait_mask(&RCC->CFGR, RCC_CFGR_SWS_Msk, RCC_CFGR_SWS_PLL1)) {

@@ -47,24 +47,9 @@ def _read(prog, addr, size):
 
 
 def main(argv):
-    status, detail = common.probe()
-    if status == "absent":
-        print("SKIP: %s" % detail)
-        return 0
-    if status == "error":
-        print("FAIL: %s" % detail)
-        return 1
-
-    requested = os.environ.get("HIL_MCU")
-    detected = common.bench_from_probe(detail)
-    if requested and detected != requested:
-        print("FAIL: %s is attached but HIL_MCU=%s was requested"
-              % (detected or "an unrecognised target", requested))
-        return 1
-    if detected is None:
-        print("FAIL: cannot identify the attached target")
-        return 1
-    common.select_bench(detected)
+    detected, rc = common.probe_and_select()
+    if rc is not None:
+        return rc
     print("bench: %s" % detected)
 
     try:

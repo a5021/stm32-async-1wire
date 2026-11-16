@@ -650,6 +650,33 @@ def probe():
     return "ok", conn.stdout
 
 
+def probe_and_select(ret_skip=0, ret_fail=1):
+    """Probe, honour HIL_MCU and select the bench.
+
+    Return (detected, rc). rc is None when the script should continue; on a
+    SKIP or FAIL the message has been printed and rc is the value to return.
+    """
+    status, detail = probe()
+    if status == "absent":
+        print("SKIP: %s" % detail)
+        return None, ret_skip
+    if status == "error":
+        print("FAIL: %s" % detail)
+        return None, ret_fail
+    requested = os.environ.get("HIL_MCU")
+    detected = bench_from_probe(detail)
+    if requested and detected != requested:
+        print("FAIL: %s is attached but HIL_MCU=%s was requested"
+              % (detected or "an unrecognised target", requested))
+        return None, ret_fail
+    if detected is None:
+        print("FAIL: cannot identify the attached target (known: %s)"
+              % ", ".join(BENCH_PROFILES))
+        return None, ret_fail
+    select_bench(detected)
+    return detected, None
+
+
 def save_log(name, lines, app="", hexpath=""):
     os.makedirs(LOG_DIR, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
