@@ -61,6 +61,7 @@
 
 /* Peripheral request ids, asserted as literals so a wrong macro cannot pass:
  * H5 GPDMA selects TIM1_CH2=59 (feed) and TIM1_CH4=61 (capture) in CTR2;
+ * U5 GPDMA1 selects TIM1_CH2=43 and TIM1_CH4=45 the same way;
  * C5 LPDMA selects TIM1_CC2=25 and TIM1_CC4=27. */
 #if defined(STM32C5)
 #define TEST_FEED_REQ 25u

@@ -165,7 +165,7 @@
  * 0 = the reset class (the shipped default), 3 = the highest class. The
  * encoding is per DMA IP and private to the engine (`DMA_CCR_PL` on the
  * classic DMA1 channels, `DMA_SxCR_PL` on the F4/H7 streams, `DMA_CCR_PRIO`
- * on the H5/C5 GPDMA/LPDMA channels), so a build only ever passes a level.
+ * on the H5/C5/U5 GPDMA/LPDMA channels), so a build only ever passes a level.
  *
  * Raise it when the application runs its own DMA above the driver's: on the
  * benches a level-5 load starved the default class on F446 (8/16 MHz) and
@@ -174,9 +174,9 @@
  * class below the load's own class starves. On classic DMA and F4 streams an
  * equal-class load is still ordered by channel/stream index, so this is not
  * a substitute for the portable rule there: a higher-ranked burst must not
- * outlast the feed window (`guard + 1` us). On the H5 GPDMA only class 3 is
- * a fixed higher class; class 0/1/2 share a weighted round-robin (RM0492,
- * GPDMA channel arbitration), and equal class is clean: `CCR.PRIO` does not
+ * outlast the feed window (`guard + 1` us). On the H5/U5 GPDMA only class 3 is
+ * a fixed higher class; class 0/1/2 share a weighted round-robin (RM0492 for
+ * the H5, RM0456 for the U5, GPDMA channel arbitration), and equal class is clean: `CCR.PRIO` does not
  * break ties by channel number.
  *
  * The knob changes no timing constant and no ABI, so it is deliberately not

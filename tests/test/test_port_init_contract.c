@@ -345,7 +345,7 @@ static void test_port_setup_open_drain(void) {
 }
 
 #if defined(STM32F3) || defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
-/* The F3/H5/C5 TIM1 has an IC4PSC capture prescaler in CCMR2 bits [11:10] that
+/* The F3/H5/C5/U5 TIM1 has an IC4PSC capture prescaler in CCMR2 bits [11:10] that
  * F4 does not have - on F4 those bits are reserved. The shared core assigns
  * the whole register and passes no IC4PSC bit, so it lands at 0, which is
  * "no prescaler" and therefore leaves the IC4F tier arithmetic in

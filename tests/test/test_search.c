@@ -22,7 +22,8 @@
 #define ZERO ONEWIRE_ZERO_PULSE
 
 /* Peripheral request ids in CTR2.REQSEL: C5 LPDMA selects TIM1_CC2 = 25 and
- * TIM1_CC4 = 27; the H5 GPDMA backend selects TIM1_CH2 = 59 and TIM1_CH4 = 61. */
+ * TIM1_CC4 = 27; the H5 GPDMA backend selects TIM1_CH2 = 59 and TIM1_CH4 = 61;
+ * the U5 GPDMA1 backend selects TIM1_CH2 = 43 and TIM1_CH4 = 45. */
 #if defined(STM32C5)
 #define TEST_FEED_REQ 25u
 #define TEST_CAP_REQ 27u

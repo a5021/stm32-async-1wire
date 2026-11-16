@@ -151,8 +151,9 @@ _Static_assert((OW_SYSCLK_MHZ) % (int)OW_F4_APB1_DIV == 0 &&
 
 /* --- U5 console divisor ----------------------------------------------------
  *
- * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  The 16MHz HSI16 clock
- * needs no PLL, so this is one line like G4/H5/C5. */
+ * USART1 is on APB2, left at /1, so PCLK2 = SYSCLK.  Both supported clocks
+ * (160MHz from the HSE through PLL1, 16MHz HSI16) keep APB2 at /1, so this is
+ * one line like G4/H5/C5. */
 #if defined(OW_FAMILY_U5)
 /** @brief APB2 peripheral clock in MHz (USART1 console path; APB2 stays /1) */
 #define OW_U5_PCLK2_MHZ ((OW_SYSCLK_MHZ))

@@ -254,7 +254,7 @@ backend's channel/DMA wiring. (The driver itself is an amalgamated translation u
     the transfer width and direction, the address-increment bit, the timer
     repetition count, the peripheral request each channel must carry, and the
     accounting after the run (every scheduled transfer fired, both channels
-    drained). The same table runs on all ten host-modeled families (every
+    drained). The same table runs on all eleven host-modeled families (every
     buildable backend). The per-family encoding of the same guarantee is pinned
     separately
     (`test_dma_cr_value_macros`)

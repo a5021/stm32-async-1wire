@@ -1,5 +1,5 @@
 /* ============================================================
- *  test_dmamux.c - G0/G4 DMAMUX and H5 GPDMA request-routing tests
+ *  test_dmamux.c - G0/G4 DMAMUX and H5/U5 GPDMA request-routing tests
  *
  *  STM32G031 and STM32G474 have no fixed DMA request map: peripheral requests
  *  reach DMA channels through DMAMUX. The backend must program
@@ -12,6 +12,9 @@
  *  CTR2.REQSEL, programmed by the PROG macros before each operation:
  *    - H5:  TIM1_CH2 (marker feed -> CCR3) = request 59 on channel 2
  *    - H5:  TIM1_CH4 (capture drain <- CCR4) = request 61 on channel 3
+ *  U5 picks its requests the same way, on GPDMA1:
+ *    - U5:  TIM1_CH2 (marker feed -> CCR3) = request 43 on channel 2
+ *    - U5:  TIM1_CH4 (capture drain <- CCR4) = request 45 on channel 3
  *  C5 likewise has no DMAMUX, but only LPDMA1/LPDMA2:
  *    - C5:  TIM1_CC2 (marker feed -> CCR3) = request 25 on channel 2
  *    - C5:  TIM1_CC4 (capture drain <- CCR4) = request 27 on channel 3

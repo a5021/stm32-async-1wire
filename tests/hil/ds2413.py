@@ -1,7 +1,7 @@
-"""DS2413 check: examples/9_multi on the F446 bench, read over SWD.
+"""DS2413 check: examples/9_multi on the F446 or U5 bench, read over SWD.
 
-The F446 console is not always wired to the host COM port, so this check does
-not use the generic UART flow. It flashes `9_multi`, waits for the search to
+The F446 and U5 consoles are not always wired to the host COM port, so this
+check does not use the generic UART flow. It flashes `9_multi`, waits for the search to
 finish, then samples the example's `ds2413_blinks`, `ds2413_last_state` and
 `ds2413_errors` globals through the ST-Link (HOTPLUG, no reset) and requires:
 

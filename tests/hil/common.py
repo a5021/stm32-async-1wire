@@ -1,10 +1,10 @@
 """Shared helpers for the hardware-in-the-loop harness in tests/hil/.
 
-Identifies which bench is attached (the F103 reference board or the H503 WeAct
-the harness was written on; see BENCH_PROFILES), builds the chosen example for
-it, flashes it with the STM32CubeProgrammer CLI and reads the example's UART
-output. Nothing here is wired into CI: `make test-hil` is the only entry
-point, and it skips when no ST-Link or target is attached.
+Identifies which bench is attached (see BENCH_PROFILES: F030, F446, F103, H503,
+U585, L476 and H743), builds the chosen example for it, flashes
+it with the STM32CubeProgrammer CLI and reads the example's UART output. Nothing
+here is wired into CI: `make test-hil` is the only entry point, and it skips
+when no ST-Link or target is attached.
 """
 
 import glob
@@ -29,7 +29,7 @@ FLASH_ADDR = "0x08000000"
 # is its 240MHz successor. run.py reads the profile off the target the probe
 # attached to; HIL_MCU pins one explicitly.
 #
-# Both benches run a parasite-powered bus, so both profiles build with the
+# Both reference benches run a parasite-powered bus, so those profiles build with the
 # strong pull-up enabled: without it the sensors brown out mid-conversion
 # (127.9 C) and report their power-on-reset value (85.0 C). HIL_EXT= (empty)
 # opts out for an externally powered bus. The NUCLEO-L476RG profile uses the

@@ -1,4 +1,4 @@
-"""Probe for an attached ST-Link and STM32H503 target.
+"""Probe for an attached ST-Link and a recognised STM32 target.
 
 Standalone entry point for `make test-hil`: prints what it found and exits 0
 when the probe or target is absent (the caller skips) or present, 1 when a

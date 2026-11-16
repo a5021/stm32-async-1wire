@@ -90,10 +90,10 @@ PWR_TypeDef mock_pwr; /* L4 backend only: Range 1 for 80MHz */
 DMA_Request_TypeDef mock_dma1_cselr; /* L4 backend only: DMA1_CSELR routing */
 #endif
 #if defined(STM32H5) || defined(STM32C5) || defined(STM32U5)
-FLASH_TypeDef mock_flash; /* H5/C5 backend only: clock-latency register */
+FLASH_TypeDef mock_flash; /* H5/C5/U5 backend only: clock-latency register */
 #endif
 #if defined(STM32H5) || defined(STM32U5)
-PWR_TypeDef mock_pwr; /* H5 backend only: VOS0 for the 250MHz clock */
+PWR_TypeDef mock_pwr; /* H5/U5 backend only: VOS for the high-speed clock */
 #endif
 static uint16_t tim_shadow_out;
 static hw_capture_fn capture_source;
@@ -223,8 +223,8 @@ const void* hw_capture_destination(void) {
 }
 
 /* The peripheral request the channel carries, as the silicon sees it: the
- * DMAMUX channel's request id on G0/G4, the GPDMA/LPDMA transfer register's
- * REQSEL on H5/C5, and nothing at all on the families whose request map is
+ * DMAMUX channel's request id on G0/G4, the GPDMA1/LPDMA1 transfer register's
+ * REQSEL on H5/C5/U5, and nothing at all on the families whose request map is
  * fixed in silicon (there the port programs nothing, and there is nothing to
  * read back). */
 uint32_t hw_feed_request(void) {
@@ -439,7 +439,7 @@ static void dma13_transfer(void) {
         *(volatile uint8_t*)d13_cur = (uint8_t)val;
         d13_cur += 1;
     }
-    d->CNDTR -= MOCK_CAP_BYTES_PER_XFR; /* classic: 1/transfer; H5/C5: BNDT bytes (2 for halfword source) */
+    d->CNDTR -= MOCK_CAP_BYTES_PER_XFR; /* classic: 1/transfer; GPDMA/LPDMA: BNDT bytes (2 for halfword source) */
     if (d->CNDTR == 0) {
         d->CCR &= ~MOCK_DMA_CAP_EN;
     }

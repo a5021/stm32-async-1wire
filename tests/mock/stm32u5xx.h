@@ -41,15 +41,15 @@ typedef struct {
     volatile uint32_t DMAR;
 } TIM1_TypeDef;
 
-/* GPDMA channel registers: real H5 spelling CCR/CTR1/CTR2/CBR1/CSAR/CDAR.
+/* GPDMA channel registers: the U5 spelling is CCR/CTR1/CTR2/CBR1/CSAR/CDAR.
  * SAR/DAR are direction-relative (source/destination), unlike the classic
  * CPAR (always peripheral) / CMAR (always memory) - feed is memory-to-
  * peripheral (mem in CSAR, CCR3 in CDAR) while capture is peripheral-to-
  * memory (CCR4 in CSAR, mem in CDAR) - so no legacy union can name both
  * directions at once. The model and the contract tests therefore read the
- * direction-correct register per operation (see the STM32H5
+ * direction-correct register per operation (see the STM32U5
  * branches in mock_target.h); CNDTR here aliases CBR1, whose BNDT field is a *source-byte*
- * count, NOT a transfer count (RM0481: "Block number of data bytes to
+ * count, NOT a transfer count (RM0456: "Block number of data bytes to
  * transfer from the source").  Because the capture source is the halfword
  * CCR4, the driver programs BNDT = 2 x transfer count and each transfer
  * consumes 2 BNDT bytes; mock_target.h carries the per-target conversion
@@ -114,10 +114,9 @@ typedef struct {
     volatile uint32_t ACR;
 } FLASH_TypeDef;
 
-/* PWR: only the voltage-scaling registers the H5 250MHz clock path touches.
- * On this family PWR is in the always-on domain (no RCC enable bit), so the
- * mock needs no clock gate - VOSCR/VOSSR are writable as soon as the mock
- * instance exists. */
+/* PWR: only the voltage-scaling register the U5 160MHz clock path touches.
+ * On this family PWR sits behind the RCC_AHB3ENR_PWREN gate, but the mock does
+ * not model the gate - VOSR is writable as soon as the mock instance exists. */
 typedef struct {
     volatile uint32_t VOSR;
 
@@ -138,9 +137,9 @@ typedef struct {
 } USART_TypeDef;
 
 /* Instances: pointers so the port core's (*TIM1), (*GPDMA1_Channel2), etc. work.
- * H5 routes peripheral DMA requests per channel through REQSEL in CTR2 (no
- * DMAMUX): feed rides GPDMA1_Channel2 (TIM1_CH2, REQSEL 59), capture rides
- * GPDMA1_Channel3 (TIM1_CH4, REQSEL 61). The storage objects keep their
+ * U5 routes peripheral DMA requests per channel through REQSEL in CTR2 (no
+ * DMAMUX): feed rides GPDMA1_Channel2 (TIM1_CH2, REQSEL 43), capture rides
+ * GPDMA1_Channel3 (TIM1_CH4, REQSEL 45). The storage objects keep their
  * legacy names so tests and hw_model stay target-agnostic. */
 extern TIM1_TypeDef mock_tim1;
 extern DMA1_Channel_TypeDef mock_dma1_ch4;
@@ -159,7 +158,7 @@ extern USART_TypeDef mock_usart1;
 #define PWR (&mock_pwr)
 #define USART1 (&mock_usart1)
 
-/* --- Bit-field constants used by the driver (H5 spellings, real values) --- */
+/* --- Bit-field constants used by the driver (U5 spellings, real values) --- */
 #define RCC_AHB1ENR_GPDMA1EN 0x00000001u
 #define RCC_AHB2ENR1_GPIOAEN 0x00000001u
 #define RCC_AHB2ENR1_GPIOCEN 0x00000004u
@@ -272,7 +271,7 @@ extern USART_TypeDef mock_usart1;
 /* --- Core primitives for the opt-in low-power WFE path (OW_LOW_POWER).
  *     Host stubs mirroring the real CMSIS defines; compiled only into the
  *     low-power test build so the default busy-poll build stays byte-identical.
- *     H5 uses the split TIM1_UP vector (not a combined BRK/UP/TRG/COM). --- */
+ *     U5 uses the split TIM1_UP vector (not a combined BRK/UP/TRG/COM). --- */
 #if OW_LOW_POWER
 #define TIM1_UP_IRQn 0
 #define SCB_SCR_SEVONPEND_Msk 0x00000010u

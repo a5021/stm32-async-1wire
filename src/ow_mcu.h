@@ -38,10 +38,10 @@
  * public knob OW_DMA_PRIO raises both.  The class sits in a different field
  * per DMA IP, so each backend adds its own encoding to the CR/CCR word
  * (defined in src/ow_port.h once the CMSIS header is in scope, then referenced
- * by the F4/H7/H5/C5 sections below):
+ * by the F4/H7/H5/C5/U5 sections below):
  *   classic DMA1 channels  DMA_CCR_PL    bits 12..13  OW_PORT_DMA_CCR_PL
  *   F4/H7 streams          DMA_SxCR_PL   bits 16..17  OW_PORT_DMA_PL
- *   H5/C5 GPDMA/LPDMA      DMA_CCR_PRIO  bits 22..23  OW_PORT_GPDMA_PRIO_BITS
+ *   H5/C5/U5 GPDMA/LPDMA   DMA_CCR_PRIO  bits 22..23  OW_PORT_GPDMA_PRIO_BITS
  *
  * The OW_PORT_* names above are engine vocabulary (private, per
  * docs/migration.md); the user-facing value is OW_DMA_PRIO only.  An
@@ -1281,9 +1281,10 @@
  *    depend on the TZEN option byte.  The linker script places the image at
  *    the secure flash address 0x08000000.
  *
- *  Bench status: not yet validated.  The first target is the bare
- *  STM32U585CIU6 at the HSI16 16MHz default with parasite-powered sensors
- *  and a logic analyzer on PA10.
+ *  Bench status: validated on a bare STM32U585CIU6 at the 160MHz
+ *  HSE25+PLL1 default with 7 parasite-powered DS18B20, a DS2431 and a
+ *  DS2413, plus a logic analyzer on PA10.  The 16MHz HSI16 build is the
+ *  fallback; see port/stm32u5/HARDWARE-NOTES.md.
  */
 #if defined(OW_FAMILY_U5)
 #include "stm32u5xx.h"
@@ -1292,11 +1293,12 @@
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry (GPDMA width conversion in hardware).
- *  - OW_SYSCLK_MHZ: system clock in MHz (HSI16 16MHz direct, see app.c).
+ *  - OW_SYSCLK_MHZ: system clock in MHz (160MHz HSE25+PLL1 by default,
+ *    16MHz HSI16 as the fallback build, see app.c).
  *    The build systems pass it explicitly from chips/<part>.mk; without it
  *    the shared core reads the CMSIS SystemCoreClock at startup instead.
- *    The reset clock is MSI 4MHz, which is also the fallback when the HSI16
- *    start fails.
+ *    The reset clock is MSI 4MHz; that is only the failure state a bounded
+ *    wait leaves the tree on, not a supported build.
  *  - OW_U5_MAX_SYSCLK_MHZ: the part ceiling (U585: 160MHz).
  *  - OW_PORT_TIM1_UPD_IRQn: TIM1 update IRQ for the low-power WFE path
  *    (split vector on this family: TIM1_UP, like H5). */
@@ -1305,8 +1307,8 @@
 #endif
 /* U5 TIM1 kernel-clock proof (why the shared core's PSC = SYSCLK_MHZ - 1
  * gives a 1us tick here): TIM1 is on APB2, and configure_system_clock()
- * (app.c) leaves every prescaler at /1 on the 16MHz HSI16 clock — so
- * TIM1 = PCLK2 = SYSCLK directly, with no x2 doubling. */
+ * (app.c) leaves every prescaler at /1 on both the 160MHz and the 16MHz
+ * clock — so TIM1 = PCLK2 = SYSCLK directly, with no x2 doubling. */
 /* ------------------------------------------------------------------
  *  1-Wire bus pin: PA10 (TIM1_CH3 output + IC4 capture via TI3, AF1).
  *
@@ -1612,7 +1614,8 @@
  * These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
  * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA,
- * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof),
+ * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof, U5 GPDMA1
+ *  channels 2/3 with REQSEL 43/45 LA-verified),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
  * deliberately no #error here: D13/D14 expand through ow_port.h's register

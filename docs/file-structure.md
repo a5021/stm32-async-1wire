@@ -77,7 +77,7 @@
 │   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)
 │   ├── c552ce.mk           # 512KB flash / 128KB SRAM, 144MHz HSE->PSI default (WeAct C5 48-pin, 8MHz HSE)
 │   ├── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
-│   ├── u585ci.mk           # 2MB flash / 768KB SRAM, 16MHz HSI16 default (bare U585CIU6, no HSE)
+│   ├── u585ci.mk           # 2MB flash / 768KB SRAM, 160MHz HSE25+PLL1 default (16MHz HSI16 fallback)
 │   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)

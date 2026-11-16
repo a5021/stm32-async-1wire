@@ -229,7 +229,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *  F4 rides the same core through accessor macros with DMA1 defaults (see the
  *  OW_PORT_DMA_* block below) that the F4 section overrides — same bodies,
  *  family-spelled registers, with init clocks/pins/drive arriving through
- *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks — and H5
+ *  the OW_PORT_ENABLE_BUS_CLOCKS/OW_PORT_CONFIG_BUS_PIN hooks — and H5/U5
  *  through GPDMA CTR1/CTR2/REQSEL vocabulary overrides the same way.  Even the
  *  merged write+read pass is shared by all supported families with no
  *  per-family knobs left: two arm-order experiments on F446 (UG-vs-DMA order,
@@ -247,7 +247,8 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  * These are not
  * arbitrary channel numbers: each backend's pair was read out of its own
  * reference manual and bench-verified (F0/F1/F3/G0/G4 14/14 matrices, F4 LA,
- * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof),
+ * H5 GPDMA channels 2/3 with REQSEL 59/61 pending LA proof, U5 GPDMA1
+ * channels 2/3 with REQSEL 43/45 LA-verified),
  * and a wrong pair is silent (feed never fires, captures read back empty).
  * A backend on different DMA IP (F4: DMA2 streams) overrides both.  There is
  * deliberately no #error here: D13/D14 resolve through the vocabulary block
@@ -285,7 +286,7 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *     living here because the shared core is the one place all supported families
  *     are processed.  The F4 section uses this same ladder through the core
  *     (it overrides only the DMA register spelling, not the timer setup), and
- *     so does H5 (GPDMA CTR1/CTR2/REQSEL overrides only).
+ *     so does H5/U5 (GPDMA CTR1/CTR2/REQSEL overrides only).
  *
  *     ICxF is a 4-bit ladder.  The values this port actually programs, decoded
  *     from the RM0090 table (the same one ST's stm32f0xx_ll_tim.h spells out),
@@ -429,7 +430,7 @@ __STATIC_FORCEINLINE uint32_t ow_port_ic4f_mask_from_hz(uint32_t hz) {
 #define OW_PORT_DMA_CCR_PL ((OW_DMA_PRIO) << DMA_CCR_PL_Pos)
 /* F4/H7 streams (PL in the stream CR word). */
 #define OW_PORT_DMA_PL ((OW_DMA_PRIO) << DMA_SxCR_PL_Pos)
-/* H5/C5 GPDMA/LPDMA (PRIO in the channel CCR word). */
+/* H5/C5/U5 GPDMA/LPDMA (PRIO in the channel CCR word). */
 #define OW_PORT_GPDMA_PRIO_BITS ((OW_DMA_PRIO) << DMA_CCR_PRIO_Pos)
 
 /* DMA control-value accessors (port-unification vocabulary): the exact

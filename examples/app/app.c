@@ -862,27 +862,29 @@ void configure_system_clock(void) {
 #error "Unsupported OW_SYSCLK_MHZ for C5: use 48 (HSIDIV3), 144 (HSE->PSI) or a value equal to HSE_MHZ (raw HSE)"
 #endif
 #elif defined(OW_FAMILY_U5)
-/* STM32U5 clock tree: 160MHz HSE25+PLL1 (the default), 16MHz HSI16, or the
- * reset MSI 4MHz.  All three leave the AHB/APB prescalers at their reset /1,
+/* STM32U5 clock tree: 160MHz HSE25+PLL1 (the default) or 16MHz HSI16.
+ * Both leave the AHB/APB prescalers at their reset /1,
  * so TIM1 = PCLK2 = SYSCLK directly, which is what keeps the ow_port 1us-tick
  * invariant and OW_PORT_TIM_PRESCALER at SYSCLK_MHZ - 1.
  *
  * 160MHz: the 25MHz crystal feeds PLL1 through M = 5 (5MHz input, the 4..8MHz
  * RGE window), N = 64 (320MHz VCO, inside the 128..544MHz wide range) and
- * P = 2, so SYSCLK = PLL1P = 160MHz.  The part needs VOS range 1 and the EPOD
+ * R = 2.  SYSCLK is taken from PLL1R, not PLL1P: on this family the SW = 11
+ * mux selects the R output, and enabling only PLL1P would leave SWS at MSI.
+ * The part needs VOS range 1 and the EPOD
  * booster: VOS1 and BOOSTEN are raised, and the bounded waits stop the boot
  * rather than run the 1-Wire timings on the wrong clock.  PLL1MBOOST is DIV2
- * (12.5MHz EPOD input); if BOOSTRDY never arrives, the bench fallback is DIV4.
- * Flash latency is 4 WS (128 < HCLK <= 160 at 1.2V).
+ * (12.5MHz EPOD input).  Flash latency is 4 WS (128 < HCLK <= 160 at 1.2V).
  *
  * 16MHz HSI16: the reset clock is MSI 4MHz, so HSI16 is started and selected
  * explicitly.  At the reset voltage range (VOS4, 0.9V) the flash needs 1 WS
  * for 8 < HCLK <= 16 (STM32CubeU5 HAL RCC Table 1); 0 WS is valid only to
- * 8MHz.  A failed HSI16 start leaves the tree on MSI 4MHz, which is why
- * app_init() falls back to the 4MHz console divisor.
+ * 8MHz.
  *
- * 4MHz MSI: the reset clock, nothing to start and nothing to switch; only
- * the flash latency is pinned to 0 WS. */
+ * MSI 4MHz is the reset clock and only the failure state: a bounded wait that
+ * never completes leaves the tree there, so app_init() reports the error on
+ * the 4MHz console divisor and stops.  A 4MHz build is not supported (the
+ * polled read path returns CRC failures at that clock). */
 #if (OW_SYSCLK_MHZ) > (OW_U5_MAX_SYSCLK_MHZ)
 #error "OW_SYSCLK_MHZ exceeds this U5 part's ceiling (OW_U5_MAX_SYSCLK_MHZ in ow_board.h). 160MHz is the U585 cap."
 #endif

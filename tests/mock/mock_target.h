@@ -46,7 +46,7 @@
 /* --- DMA model abstraction -------------------------------------------------
  * The hw_model works on one feed and one capture channel per family. F0/F1/G0/
  * G4 use DMA1 channels with the CCR/CNDTR/CPAR/CMAR register names and 8-bit
- * memory cells; F4/H7 use DMA streams with CR/NDTR/PAR/M0AR. H5 GPDMA and C5
+ * memory cells; F4/H7 use DMA streams with CR/NDTR/PAR/M0AR. H5/U5 GPDMA and C5
  * LPDMA use CTR1/CTR2/CBR1/CSAR/CDAR; the stream mocks union the legacy field
  * spellings valid, so the model can name a field uniformly; only the
  * ENABLE/MSIZE bit spellings and the memory-cell width genuinely differ and
@@ -64,7 +64,7 @@
 #endif
 
 /* --- capture-count semantics: classic CNDTR vs GPDMA/LPDMA BNDT ---
- * Classic DMA1/F4 count *transfers* in CNDTR/NDTR. H5 GPDMA and C5 LPDMA
+ * Classic DMA1/F4 count *transfers* in CNDTR/NDTR. H5/U5 GPDMA and C5 LPDMA
  * count *source bytes* in CBR1.BNDT: each halfword capture transfer (the
  * CCR4 source is a halfword, SDW_LOG2 = 1) consumes 2 BNDT bytes, so an
  * N-transfer capture programs the register with 2*N.  Tests therefore
