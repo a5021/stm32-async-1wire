@@ -85,6 +85,7 @@
 │   ├── ow_gpdma.h          # Shared GPDMA/LPDMA transfer-register vocabulary (H5/C5/U5)
 │   ├── ow_compiler.h       # Private compiler-attribute shim for the driver sources
 │   ├── ow_glue.h           # Internal bridge: timed waits and state-machine kicks
+│   ├── ow_profile.h        # Optional compile-time profiling hooks around the driver work branch
 │   ├── ow_stats.c          # Signal statistics implementation (histogram, UART dump)
 │   ├── onewire.c           # 1-Wire layer: state machine + bus primitives
 │   │                       #               + non-blocking Search ROM engine
@@ -123,7 +124,7 @@
 ├── tests/                  # Host test suite (no hardware required)
 │   ├── mock/               # Behavioural TIM1/DMA model + register mocks
 │   │                       # (+ optional WFE sleep hook, -DMOCK_WFE_HOOK)
-│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 14 harnesses)
+│   ├── fuzz/               # libFuzzer harnesses (ASAN/UBSAN, 15 harnesses)
 │   ├── test/               # Unity-based test cases
 │   ├── integration/        # Consumer fixtures: both CMake paths + PlatformIO
 │   ├── api/                # Public-API declaration snapshot + mutation canary

@@ -2106,7 +2106,7 @@ help:
 	@echo "  clean           - Remove build artifacts and CMake install prefixes"
 	@echo "  lib             - Build only libstm32_async_1wire_<stamp>.a (driver sources, no examples)"
 	@echo "  test            - Build and run host tests (tests/, PC toolchain)"
-	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-h7)"
+	@echo "  test-f0         - ... against the STM32F0 backend (also -f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-all-families - ... against every host backend in OW_HOST_TEST_TARGETS, one run"
 	@echo "  test-lowpower   - ... with -DOW_LOW_POWER=1 (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
