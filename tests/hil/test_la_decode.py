@@ -264,7 +264,7 @@ def test_main_refuses_what_it_cannot_decode():
         missing = os.path.join(d, "nope.bin")
         code, out = run_main([missing])
         check("a missing capture exits 1", code == 1)
-        check("and says why", "ИТОГ: FAIL" in out and "захвата нет" in out)
+        check("and says why", "VERDICT: FAIL" in out and "no capture" in out)
 
         idle = os.path.join(d, "idle.bin")
         with open(idle, "wb") as fh:
@@ -272,12 +272,12 @@ def test_main_refuses_what_it_cannot_decode():
         code, out = run_main([idle])
         check("an idle bus exits 1", code == 1)
         check("and says the bus was idle",
-              "ИТОГ: FAIL" in out and "простаивала" in out)
+              "VERDICT: FAIL" in out and "idle" in out)
 
         code, out = run_main([idle, "--log", os.path.join(d, "nope.log")])
         check("a missing --log exits 1", code == 1)
         check("and names the log",
-              "ИТОГ: FAIL" in out and "лога нет" in out)
+              "VERDICT: FAIL" in out and "no log" in out)
 
 
 def test_ds2431_log_matches_bytes():
@@ -372,13 +372,13 @@ def test_a_sidecar_is_the_artifacts_own_statement():
         check("a matching flag is accepted",
               la_decode.resolve_capture(path, "8M", 1, digest)[3] is None)
         check("a contradicting rate is refused",
-              "метаданн" in (la_decode.resolve_capture(
+              "metadata" in (la_decode.resolve_capture(
                   path, "4M", 1, digest)[3] or ""))
         check("a contradicting channel is refused",
-              "метаданн" in (la_decode.resolve_capture(
+              "metadata" in (la_decode.resolve_capture(
                   path, None, 0, digest)[3] or ""))
         check("a replaced artifact is refused",
-              "изменён" in (la_decode.resolve_capture(
+              "changed" in (la_decode.resolve_capture(
                   path, None, None, "0" * 64)[3] or ""))
 
 
@@ -394,7 +394,7 @@ def test_ds2431_readback_confirms_the_write():
         bad = la_decode.ds2431_readback_errors(events)
     check("the written row is read back unchanged", bad == 0)
     check("a row that already held the bytes is a note, not a proof",
-          "примечание" in buf.getvalue())
+          "note" in buf.getvalue())
 
 
 def test_ds2431_a_changed_row_proves_the_copy():
@@ -410,9 +410,9 @@ def test_ds2431_a_changed_row_proves_the_copy():
     report = buf.getvalue()
     check("the read-back matches the write", bad == 0)
     check("the report says the row changed and the copy is proven",
-          "копирование доказано" in report)
+          "copy proven" in report)
     check("the equal-baseline note is not repeated",
-          "примечание" not in report)
+          "note" not in report)
 
 
 def test_ds2431_no_baseline_is_not_a_proof():
@@ -426,7 +426,7 @@ def test_ds2431_no_baseline_is_not_a_proof():
     report = buf.getvalue()
     check("the read-back matches the write", bad == 0)
     check("but a change cannot be claimed without the baseline",
-          "копирование доказано" not in report)
+          "copy proven" not in report)
 
 
 def test_ds2431_readback_is_not_the_log_agreeing_with_itself():
@@ -493,7 +493,7 @@ def test_ds2431_the_logs_verdict_is_checked_against_the_wire():
         check("the contradictory verdict fails both the write and the claim",
               bad == 2)
         check("the report names the contradiction",
-              "лог утверждает" in buf.getvalue())
+              "the log claims" in buf.getvalue())
     finally:
         os.unlink(path)
 
@@ -501,7 +501,7 @@ def test_ds2431_the_logs_verdict_is_checked_against_the_wire():
     with contextlib.redirect_stdout(buf):
         bad = la_decode.ds2431_readback_errors([], {ROM_D: True})
     check("a verdict for a cycle outside the capture is only a note", bad == 0)
-    check("and it is printed as one", "примечание" in buf.getvalue())
+    check("and it is printed as one", "note" in buf.getvalue())
 
 
 def test_ds2431_copy_without_readback_fails():
@@ -595,7 +595,7 @@ def test_a_search_cut_by_a_flash_reset_is_a_note():
     with contextlib.redirect_stdout(buf):
         la_decode.report(txns, 0, 0)
     check("the report says the exchange was cut",
-          "прерван" in buf.getvalue())
+          "interrupted" in buf.getvalue())
 
     try:
         decode([

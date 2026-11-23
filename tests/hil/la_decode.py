@@ -30,10 +30,10 @@ says, so a comparison that stopped working cannot pass on the bytes alone.
 
 The report opens with what makes the run reproducible - the capture and log
 hashes, the slot geometry, and the `# hil:` identity the log carries - and
-ends with one `ИТОГ: PASS/FAIL` line. A capture on its own says what the wire
-did, not which image drove it; the header the HIL run writes into its log
-names the version, the commit, the build's EXT flags, the UART buffer size and
-the image hash.
+ends with one `VERDICT: PASS/FAIL` line. A capture on its own says what the
+wire did, not which image drove it; the header the HIL run writes into its
+log names the version, the commit, the build's EXT flags, the UART buffer
+size and the image hash.
 
 Understood: Read ROM / Skip ROM / Match ROM / Search ROM / Alarm Search, the
 DS18B20 Convert and Read Scratchpad, and the DS2431 Write Scratchpad, Read
@@ -231,7 +231,8 @@ def read_bit(width, cfg):
         return 1
     if width <= 2.0 * zero:  # a write-0 or a device-extended read-0
         return 0
-    raise DecodeError("ширина %.1f мкс не слот: между '0' и presence" % width)
+    raise DecodeError("width %.1f us is not a slot: between '0' and "
+                      "presence" % width)
 
 
 def slot_period(cfg, gaps):
@@ -251,12 +252,12 @@ def slot_period(cfg, gaps):
         cfg["one"] + cfg["zero"] + cfg["guard_parasite"],
     ]
     if len(gaps) == 0:
-        raise DecodeError("нет интервалов между слотами")
+        raise DecodeError("no gaps between slots")
     for candidate in candidates:
         if all(abs(g - candidate) <= 10.0 for g in gaps):
             return candidate
     raise DecodeError(
-        "период слота %.1f-%.1f мкс не совпал ни с %s (конфигурация)"
+        "slot period %.1f-%.1f us matches neither %s (configuration)"
         % (min(gaps), max(gaps),
            " / ".join("%.0f" % c for c in candidates)))
 
@@ -265,7 +266,8 @@ def take_bytes(slots, i, count):
     """Read count whole bytes from the slot cursor, LSB first."""
     need = count * BITS_PER_BYTE
     if len(slots) - i < need:
-        raise DecodeError("обрыв: %d слотов на %d байт" % (len(slots) - i, count))
+        raise DecodeError("truncated: %d slots for %d bytes"
+                          % (len(slots) - i, count))
     data = bytes(
         sum(slots[i + b * BITS_PER_BYTE + k].bit << k
             for k in range(BITS_PER_BYTE))
@@ -279,8 +281,9 @@ def scratchpad_data_len(ta1, es):
     if n <= 0:
         n += 8
     if n > 8:
-        raise DecodeError("READ SCRATCHPAD: окно %d байт (TA1=%02X ES=%02X)"
-                          % (n, ta1, es))
+        raise DecodeError(
+            "READ SCRATCHPAD: window of %d bytes (TA1=%02X ES=%02X)"
+            % (n, ta1, es))
     return n
 
 
@@ -306,7 +309,8 @@ def parse_transaction(slots, cfg):
 
         if first:
             if command not in ROM_COMMANDS:
-                raise DecodeError("первый байт 0x%02X не ROM-команда" % command)
+                raise DecodeError("first byte 0x%02X is not a ROM command"
+                                  % command)
             name, nbytes = ROM_COMMANDS[command]
             frame = Frame(command, name)
             if nbytes:
@@ -320,10 +324,10 @@ def parse_transaction(slots, cfg):
         table = FUNCTION_COMMANDS.get(family)
         if table is None:
             raise DecodeError(
-                "функция 0x%02X без MATCH ROM: семейство неизвестно (0x55 и "
-                "0xF0 означают разное у 28 и 2D)" % command)
+                "function 0x%02X without MATCH ROM: family unknown (0x55 and "
+                "0xF0 mean different things on 28 and 2D)" % command)
         if command not in table:
-            raise DecodeError("неизвестная функция 0x%02X для семейства %02X"
+            raise DecodeError("unknown function 0x%02X for family %02X"
                               % (command, family))
         name, nbytes = table[command]
         frame = Frame(command, name)
@@ -335,7 +339,7 @@ def parse_transaction(slots, cfg):
             frame.addr, i = take_bytes(slots, i, 2)
             rest = len(slots) - i
             if rest <= 0 or rest % BITS_PER_BYTE:
-                raise DecodeError("READ MEMORY: хвост из %d слотов" % rest)
+                raise DecodeError("READ MEMORY: trailing %d slots" % rest)
             frame.data, i = take_bytes(slots, i, rest // BITS_PER_BYTE)
             frame.payload = frame.addr + frame.data
         else:
@@ -353,15 +357,15 @@ def parse_transaction(slots, cfg):
                 frame.crc_ok = got == expected
                 tail = payload[3 + n + 2:]
                 if tail and any(b != 0xFF for b in tail):
-                    frame.problem = "после CRC16 не 0xFF"
+                    frame.problem = "not 0xFF after the CRC16"
             elif family == 0x2D and command in (0x0F, 0x55):
                 frame.addr, frame.data = payload[:2], payload[2:]
                 if command == 0x55 and payload[2] != COPY_ES:
-                    frame.problem = ("ES=0x%02X, ожидалось 0x%02X"
+                    frame.problem = ("ES=0x%02X, expected 0x%02X"
                                      % (payload[2], COPY_ES))
         frames.append(frame)
     if not frames:
-        raise DecodeError("транзакция без команд")
+        raise DecodeError("transaction with no commands")
     return frames
 
 
@@ -383,7 +387,7 @@ def parse_search(slots):
         ended = False
         for k in range(64):
             if len(slots) - i < 2:
-                raise TruncatedExchange("поиск обрывается на бите %d" % k)
+                raise TruncatedExchange("search cuts off at bit %d" % k)
             b, c = slots[i].bit, slots[i + 1].bit
             i += 2
             if b == 1 and c == 1:
@@ -393,16 +397,16 @@ def parse_search(slots):
             if b == 0 and c == 0:
                 collisions += 1
             if len(slots) - i < 1:
-                raise TruncatedExchange("поиск: нет бита направления после пары "
-                                        "на бите %d" % k)
+                raise TruncatedExchange("search: no direction bit after the "
+                                        "pair at bit %d" % k)
             d = slots[i].bit
             i += 1
             if b == 1 and d != 1:
-                raise DecodeError("поиск, бит %d: все единицы, а записано %d"
-                                  % (k, d))
+                raise DecodeError("search, bit %d: all ones, but %d was "
+                                  "written" % (k, d))
             if c == 1 and d != 0:
-                raise DecodeError("поиск, бит %d: все нули, а записано %d"
-                                  % (k, d))
+                raise DecodeError("search, bit %d: all zeros, but %d was "
+                                  "written" % (k, d))
             bits.append(d)
         if ended:
             break
@@ -442,15 +446,16 @@ def decode(widths, gaps, cfg):
         # reset, then the presence pulse the devices answer it with
         reset = w
         if i + 1 >= n:
-            raise DecodeError("reset без presence в конце захвата")
+            raise DecodeError("reset without a presence pulse at the end of "
+                              "the capture")
         delay = float(gaps[i]) - reset
         presence = float(widths[i + 1])
         if not (60.0 <= presence <= 260.0):
-            raise DecodeError("после reset ширина %.1f мкс - не presence "
-                              "(1-Wire: 60-240 мкс)" % presence)
+            raise DecodeError("width %.1f us after reset is not a presence "
+                              "pulse (1-Wire: 60-240 us)" % presence)
         if not (5.0 <= delay <= 80.0):
-            raise DecodeError("presence через %.1f мкс после reset "
-                              "(ожидалось 15-60)" % delay)
+            raise DecodeError("presence %.1f us after reset "
+                              "(expected 15-60)" % delay)
         txn = Transaction(reset, presence, delay)
         first_gap = float(gaps[i + 1]) if i + 1 < len(gaps) else None
         i += 2
@@ -459,7 +464,8 @@ def decode(widths, gaps, cfg):
         while i < n and float(widths[i]) <= reset_min:
             w = float(widths[i])
             if w > 2.0 * cfg["zero"]:
-                raise DecodeError("presence внутри транзакции (%.1f мкс)" % w)
+                raise DecodeError("presence inside a transaction (%.1f us)"
+                                  % w)
             period = float(gaps[i]) if i < len(gaps) else None
             slots.append(Slot(read_bit(w, cfg), w, period))
             # A long silence ends the exchange even if no reset follows: the
@@ -470,7 +476,8 @@ def decode(widths, gaps, cfg):
             i += 1
 
         if not slots:
-            raise DecodeError("reset без обмена: на шине никто не ответил?")
+            raise DecodeError("reset with no exchange: nothing answered "
+                              "on the bus?")
         inner = [s.period for s in slots[:-1]]  # the last gap leads to the reset
         slot_period(cfg, inner)
         try:
@@ -498,28 +505,29 @@ def decode(widths, gaps, cfg):
 
 
 def report(transactions, orphan, dropped):
-    print("\n=== содержимое 1-Wire ===")
+    print("\n=== 1-Wire content ===")
     if dropped:
-        print("  отброшено %d импульсов короче %.1f мкс (артефакты краёв)"
+        print("  dropped %d pulses shorter than %.1f us (edge artifacts)"
               % (dropped, MIN_WIDTH_US))
     if orphan:
-        print("  до первого reset: %d слотов (начало захвата, пропущено)" % orphan)
+        print("  before the first reset: %d slots (start of the capture, "
+              "skipped)" % orphan)
     for k, txn in enumerate(transactions, 1):
-        print("  транзакция %d: reset %.1f мкс, presence %.1f мкс (через %.1f)"
+        print("  transaction %d: reset %.1f us, presence %.1f us (after %.1f)"
               % (k, txn.reset, txn.presence, txn.presence_delay))
         if txn.interrupted:
-            print("    обмен прерван (сброс или конец захвата): %s"
+            print("    exchange interrupted (reset or end of capture): %s"
                   % txn.problem)
             continue
         for f in txn.frames:
             # 0xF0 is SEARCH ROM in the first position and READ MEMORY later;
             # a search frame carries passes, a memory read carries bytes.
             if f.command in SEARCH_COMMANDS and not f.payload:
-                print("    %s (0x%02X): %d проходов%s"
+                print("    %s (0x%02X): %d passes%s"
                       % (f.name, f.command, len(f.passes),
-                         ", пустой терминатор" if f.empty_terminator else ""))
+                         ", empty terminator" if f.empty_terminator else ""))
                 for p in f.passes:
-                    print("      %s  CRC %s, коллизий %d"
+                    print("      %s  CRC %s, collisions %d"
                           % (hexs(p.rom), "ok" if p.crc_ok else "FAIL",
                              p.collisions))
             elif f.rom:
@@ -558,7 +566,7 @@ def failures(transactions):
             for p in f.passes:
                 if not p.crc_ok:
                     bad += 1
-                    print("  FAIL CRC поиска: %s" % hexs(p.rom))
+                    print("  FAIL search CRC: %s" % hexs(p.rom))
     return bad
 
 
@@ -703,18 +711,19 @@ def compare_events(wire, log):
     the wire's sequence.
     """
     if not log:
-        print("  FAIL на проводе трафик DS2431, а в логе его нет")
+        print("  FAIL the wire carries DS2431 traffic but the log has none")
         return 1
     for start in range(len(wire) - len(log) + 1):
         if all(wire[start + k] == log[k] for k in range(len(log))):
-            print("  DS2431: %d команд совпали с логом байт в байт" % len(log))
+            print("  DS2431: %d commands match the log byte for byte"
+                  % len(log))
             return 0
 
-    print("  FAIL последовательность DS2431 не совпала (%d команд на проводе, "
-          "%d в логе)" % (len(wire), len(log)))
+    print("  FAIL the DS2431 sequence does not match (%d commands on the "
+          "wire, %d in the log)" % (len(wire), len(log)))
     for k in range(min(len(wire), len(log))):
         if wire[k] != log[k]:
-            print("    команда %d: провод %s, лог %s"
+            print("    command %d: wire %s, log %s"
                   % (k + 1, event_str(wire[k]), event_str(log[k])))
             break
     return 1
@@ -756,7 +765,7 @@ def ds2431_readback_errors(events, claims=None):
         elif kind == "frame" and rom in written:
             # frame = TA1 TA2 ES + the data the scratchpad returned.
             if data[3:] != written[rom]:
-                print("  FAIL %s: кадр scratchpad %s, записано %s"
+                print("  FAIL %s: scratchpad frame %s, wrote %s"
                       % (hexs(rom), hexs(data[3:]), hexs(written[rom])))
                 bad += 1
         elif kind == "copy" and rom in written:
@@ -765,7 +774,7 @@ def ds2431_readback_errors(events, claims=None):
             want = awaiting.pop(rom)
             if len(data) < len(want) or data[:len(want)] != want:
                 results[rom] = False
-                print("  FAIL %s: после копирования EEPROM %s, записано %s"
+                print("  FAIL %s: EEPROM %s after the copy, wrote %s"
                       % (hexs(rom), hexs(data), hexs(want)))
                 bad += 1
             else:
@@ -780,37 +789,39 @@ def ds2431_readback_errors(events, claims=None):
                     # Reading the same bytes back proves the read path, but
                     # not the write: an EEPROM that already held them looks
                     # identical when the copy is ignored.
-                    print("  примечание %s: записанное уже было в EEPROM - "
-                          "копирование этим прогоном не доказано" % hexs(rom))
+                    print("  note %s: the EEPROM already held the written "
+                          "bytes - this run does not prove the copy"
+                          % hexs(rom))
                 else:
                     # The row changed and the device returned the new bytes:
                     # the Copy cannot have been ignored.
                     changed += 1
-                    print("  DS2431 %s: ряд %s -> %s, чтение после Copy "
-                          "подтвердило запись"
+                    print("  DS2431 %s: row %s -> %s, the read after Copy "
+                          "confirmed the write"
                           % (hexs(rom), hexs(old), hexs(want)))
         elif kind == "read":
             baseline[rom] = data
     for rom in sorted(awaiting):
-        print("  FAIL %s: запись скопирована, но не прочитана - EEPROM "
-              "не подтверждён" % hexs(rom))
+        print("  FAIL %s: the write was copied but not read back - EEPROM "
+              "not confirmed" % hexs(rom))
         bad += 1
 
     for rom in sorted(claims or {}):
         if rom not in results:
-            print("  примечание %s: вердикт лога вне захвата - проверить "
-                  "нечем" % hexs(rom))
+            print("  note %s: the log's verdict is outside the capture - "
+                  "nothing to check it against" % hexs(rom))
         elif claims[rom] != results[rom]:
-            print("  FAIL %s: лог утверждает %s, а провод - %s"
+            print("  FAIL %s: the log claims %s, the wire says %s"
                   % (hexs(rom),
-                     "совпадение" if claims[rom] else "расхождение",
-                     "совпадение" if results[rom] else "расхождение"))
+                     "match" if claims[rom] else "mismatch",
+                     "match" if results[rom] else "mismatch"))
             bad += 1
 
     if confirmed:
-        print("  DS2431: %d записей подтверждены чтением EEPROM" % confirmed)
+        print("  DS2431: %d writes confirmed by reading the EEPROM"
+              % confirmed)
     if changed:
-        print("  DS2431: %d из них изменили ряд - копирование доказано"
+        print("  DS2431: %d of them changed the row - copy proven"
               % changed)
     return bad
 
@@ -847,10 +858,10 @@ def compare_log(transactions, roms, readings, found, events=(), claims=None):
 
     for rom in sorted(roms):
         if rom not in wire_roms:
-            print("  FAIL %s есть в логе, но не на проводе" % hexs(rom))
+            print("  FAIL %s is in the log but not on the wire" % hexs(rom))
             bad += 1
     if found is not None and found != len(roms):
-        print("  FAIL лог объявил %d устройств, а перечислил %d"
+        print("  FAIL the log announced %d devices but listed %d"
               % (found, len(roms)))
         bad += 1
 
@@ -861,12 +872,12 @@ def compare_log(transactions, roms, readings, found, events=(), claims=None):
     paired = 0
     for (_, rom, value), (log_rom, log_value) in zip(reads, readings):
         if rom != log_rom:
-            print("  FAIL на проводе %s, в логе %s: это разные прогоны?"
+            print("  FAIL wire %s, log %s: are these different runs?"
                   % (hexs(rom), hexs(log_rom)))
             bad += 1
             break
         if tenths(value) != tenths(log_value):
-            print("  FAIL %s: провод %.4f C (%.1f), приложение %.1f C"
+            print("  FAIL %s: wire %.4f C (%.1f), application %.1f C"
                   % (hexs(rom), value, tenths(value) / 10.0, log_value))
             bad += 1
         paired += 1
@@ -874,11 +885,12 @@ def compare_log(transactions, roms, readings, found, events=(), claims=None):
     # zip() stops at the shorter list, and a capture may be shorter than the
     # logged run - but a comparison that paired nothing at all is not a pass.
     if readings and not paired:
-        print("  FAIL ни одно из %d измерений лога не сверено" % len(readings))
+        print("  FAIL none of the log's %d readings was compared"
+              % len(readings))
         bad += 1
     elif paired < len(readings):
-        print("  сверено %d из %d измерений лога (захват короче прогона)"
-              % (paired, len(readings)))
+        print("  compared %d of the log's %d readings (capture shorter than "
+              "the run)" % (paired, len(readings)))
 
     wire_ds2431 = wire_events(transactions)
     if events or wire_ds2431 or claims:
@@ -893,16 +905,16 @@ def compare_log(transactions, roms, readings, found, events=(), claims=None):
     other = [r for r in extra if r[0] not in families]
     for rom in sorted(extra):
         if rom[0] in families:
-            print("  FAIL %s есть на проводе, но не в логе" % hexs(rom))
+            print("  FAIL %s is on the wire but not in the log" % hexs(rom))
             bad += 1
     if other:
-        print("  на проводе ещё %d устройств другого семейства (%s) - "
-              "пример их не печатает"
+        print("  the wire also holds %d devices of another family (%s) - "
+              "the example does not print them"
               % (len(other), ", ".join("%02X" % r[0] for r in sorted(other))))
     if not bad:
-        extra = ", %d команд DS2431" % len(events) if events else ""
-        print("  приложение и провод согласны: %d ROM, %d измерений совпали "
-              "точно%s" % (len(roms), paired, extra))
+        extra = ", %d DS2431 commands" % len(events) if events else ""
+        print("  application and wire agree: %d ROMs, %d readings matched "
+              "exactly%s" % (len(roms), paired, extra))
     return bad
 
 
@@ -943,33 +955,33 @@ def resolve_capture(path, rate_text, channel_arg, digest):
             with open(meta_path, encoding="utf-8") as fh:
                 meta = json.load(fh)
         except (OSError, ValueError) as exc:
-            return None, None, None, "метаданные не читаются: %s" % exc
+            return None, None, None, "metadata unreadable: %s" % exc
         if not isinstance(meta, dict):
-            return None, None, None, "метаданные не читаются: ожидался объект"
+            return None, None, None, "metadata unreadable: expected an object"
         recorded = meta.get("sha256")
         if recorded and recorded != digest:
             return None, None, None, (
-                "%s изменён после записи метаданных - это уже другой захват"
-                % os.path.basename(path))
+                "%s changed after the metadata was written - this is a "
+                "different capture" % os.path.basename(path))
 
     try:
         rate_hz = float(meta["rate_hz"]) if meta and meta.get("rate_hz") else None
         channel = (int(meta["channel"])
                    if meta and meta.get("channel") is not None else None)
     except (KeyError, TypeError, ValueError) as exc:
-        return None, None, None, "метаданные не читаются: %s" % exc
+        return None, None, None, "metadata unreadable: %s" % exc
 
     if rate_text is not None:
         given = parse_rate(rate_text)
         if rate_hz is not None and abs(given - rate_hz) > 0.5:
             return None, None, None, (
-                "частота %s противоречит метаданным захвата (%g МГц)"
+                "rate %s contradicts the capture's metadata (%g MHz)"
                 % (rate_text, rate_hz / 1e6))
         rate_hz = given
     if channel_arg is not None:
         if channel is not None and channel != channel_arg:
             return None, None, None, (
-                "канал D%d противоречит метаданным захвата (D%d)"
+                "channel D%d contradicts the capture's metadata (D%d)"
                 % (channel_arg, channel))
         channel = channel_arg
 
@@ -986,40 +998,41 @@ def identity(path, digest, rate_hz, channel, log_path, meta):
     at; the header the HIL run writes names the image and the tree, and a
     dirty tree is called out because the commit alone would then be a lie.
     """
-    print("=== воспроизводимость ===")
-    print("  захват: %s, %d байт" % (path, os.path.getsize(path)))
+    print("=== reproducibility ===")
+    print("  capture: %s, %d bytes" % (path, os.path.getsize(path)))
     print("  sha256: %s" % digest)
-    print("  частота: %g МГц, канал D%d" % (rate_hz / 1e6, channel))
+    print("  rate: %g MHz, channel D%d" % (rate_hz / 1e6, channel))
     if meta:
-        print("  метаданные: %s.meta, снят %s (%g с, %s)"
+        print("  metadata: %s.meta, taken %s (%g s, %s)"
               % (os.path.basename(path), meta.get("captured", "?"),
                  meta.get("seconds", 0), meta.get("tool", "?")))
     else:
-        print("  метаданные: нет (.meta) - частота и канал взяты из аргументов")
+        print("  metadata: none (.meta) - rate and channel taken from the "
+              "arguments")
     cfg = read_config()
-    print("  конфигурация: ONE=%s мкс, ZERO=%s мкс, guard %d/%d мкс"
+    print("  configuration: ONE=%s us, ZERO=%s us, guard %d/%d us"
           % (cfg["one"], cfg["zero"], cfg["guard_default"],
              cfg["guard_parasite"]))
     if not log_path:
-        print("  лог: не задан (--log)")
+        print("  log: not given (--log)")
         return
-    print("  лог: %s, %d байт" % (log_path, os.path.getsize(log_path)))
+    print("  log: %s, %d bytes" % (log_path, os.path.getsize(log_path)))
     print("  sha256: %s" % sha256_file(log_path))
     facts = parse_log_header(log_path)
     if not facts:
-        print("  прошивка: лог не сообщает (нет шапки # hil:)")
+        print("  firmware: the log does not say (no # hil: header)")
         return
-    dirty = ", дерево изменено" if facts.get("dirty") == "yes" else ""
-    print("  прошивка: %s, коммит %s%s"
+    dirty = ", tree dirty" if facts.get("dirty") == "yes" else ""
+    print("  firmware: %s, commit %s%s"
           % (facts.get("fw", "?"), facts.get("commit", "?"), dirty))
-    print("  стенд: %s (%s), SYSCLK %s"
+    print("  bench: %s (%s), SYSCLK %s"
           % (facts.get("mcu", "?"), facts.get("chip", "?"),
              facts.get("sysclk", "?")))
     if facts.get("ext") or facts.get("uart_tx"):
-        print("  сборка: EXT %s, UART TX %s"
+        print("  build: EXT %s, UART TX %s"
               % (facts.get("ext", "?"), facts.get("uart_tx", "?")))
     if facts.get("sha256"):
-        print("  образ: %s, sha256 %s"
+        print("  image: %s, sha256 %s"
               % (facts.get("hex", "?"), facts["sha256"]))
 
 
@@ -1027,9 +1040,9 @@ def verdict(bad, message):
     """One line that says how the run ended, whatever the detail above."""
     print("")
     if bad:
-        print("ИТОГ: FAIL - %s" % message)
+        print("VERDICT: FAIL - %s" % message)
         return 1
-    print("ИТОГ: PASS - %s" % message)
+    print("VERDICT: PASS - %s" % message)
     return 0
 
 
@@ -1047,11 +1060,11 @@ def main():
 
     path = args.capture or args.out
     if not path:
-        raise SystemExit("нужен файл захвата (позиционный аргумент)")
+        raise SystemExit("a capture file is required (positional argument)")
     if not os.path.isfile(path):
-        return verdict(1, "захвата нет: %s" % path)
+        return verdict(1, "no capture: %s" % path)
     if args.log and not os.path.isfile(args.log):
-        return verdict(1, "лога нет: %s" % args.log)
+        return verdict(1, "no log: %s" % args.log)
 
     digest = sha256_file(path)
     rate_hz, channel, meta, problem = resolve_capture(
@@ -1063,33 +1076,34 @@ def main():
 
     res = analyse(path, rate_hz, channel)
     if res is None:
-        return verdict(1, "шина простаивала весь захват - разбирать нечего")
+        return verdict(1, "the bus was idle for the whole capture - "
+                          "nothing to decode")
     widths, gaps = res
 
     cfg = read_config()
     try:
         transactions, orphan, dropped = decode(widths, gaps, cfg)
     except DecodeError as e:
-        print("  FAIL разбор: %s" % e)
-        return verdict(1, "разбор прерван")
+        print("  FAIL decode: %s" % e)
+        return verdict(1, "decode interrupted")
     if not any(txn.frames for txn in transactions):
-        return verdict(1, "в захвате нет ни одной завершённой транзакции")
+        return verdict(1, "the capture holds no completed transaction")
 
     report(transactions, orphan, dropped)
     bad = failures(transactions)
 
-    print("\n=== сверка с приложением ===")
+    print("\n=== check against the application ===")
     if args.log:
         roms, readings, found, events = parse_log(args.log)
         claims = parse_log_claims(args.log)
         bad += compare_log(transactions, roms, readings, found, events, claims)
     else:
-        print("  лог не задан (--log): сверено только внутреннее (CRC)")
+        print("  log not given (--log): only the internal check (CRC) ran")
         bad += ds2431_readback_errors(wire_events(transactions))
 
     if bad:
-        return verdict(1, "провод не соответствует: %d ошибок" % bad)
-    return verdict(0, "провод разобран, CRC и приложение согласны")
+        return verdict(1, "the wire does not match: %d errors" % bad)
+    return verdict(0, "wire decoded, CRC and application agree")
 
 
 if __name__ == "__main__":

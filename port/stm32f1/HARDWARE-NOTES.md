@@ -102,13 +102,13 @@ about *what* was driven. `tests/hil/la_decode.py` reads the bits and rebuilds
 the frames. Run against the 2026-10-22 capture of the wait run, it produced:
 
 ```text
-транзакция 1: reset 481.8 мкс, presence 128.8 мкс (через 29.0)
+transaction 1: reset 481.8 us, presence 128.8 us (after 29.0)
   MATCH ROM 28 20 78 92 07 00 00 67  CRC ok
   READ SCRATCHPAD: 70 01 19 0F 7F FF 10 10 BB  CRC ok. 23.0000 C
-транзакция 2: ...
+transaction 2: ...
   MATCH ROM 28 78 B8 AC 0B 00 00 2C  CRC ok
   CONVERT (0x44)
-транзакция 3: ...
+transaction 3: ...
   MATCH ROM 28 78 B8 AC 0B 00 00 2C  CRC ok
   READ SCRATCHPAD: 72 01 4B 46 7F FF 0E 10 57  CRC ok. 23.1250 C
 ```
@@ -187,9 +187,9 @@ decoded:
 The same cycle ran on the second `2D` part. In the report:
 
 ```text
-DS2431 2D F8 47 60 26 00 00 69: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
-DS2431 2D C9 AB 5D 26 00 00 9D: ряд DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, чтение после Copy подтвердило запись
-DS2431: 2 из них изменили ряд - копирование доказано
+DS2431 2D F8 47 60 26 00 00 69: row DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, the read after Copy confirmed the write
+DS2431 2D C9 AB 5D 26 00 00 9D: row DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05, the read after Copy confirmed the write
+DS2431: 2 of them changed the row - copy proven
 ```
 
 The read after Copy is the device's answer with its own CRC, and it carries
@@ -197,8 +197,8 @@ the new row, so this is a read that confirms the EEPROM content - not a
 command echo and not the application agreeing with itself. The first artifact
 also holds a cycle from the image that preceded its flash, whose baseline
 already equalled its write; it appears only as
-`записанное уже было в EEPROM - копирование этим прогоном не доказано`. That
-is the intended distinction between a note and a proof.
+`the EEPROM already held the written bytes - this run does not prove the
+copy`. That is the intended distinction between a note and a proof.
 
 **The same proof without the flag.** Once the recipe stopped exporting an
 empty `HIL_EXT`, the capture was repeated through the documented
@@ -206,17 +206,17 @@ empty `HIL_EXT`, the capture was repeated through the documented
 header records `ext=-DOW_PARASITE_POWER=1` and the same image sha256, so the
 default built the same program. Both parts decoded
 `E2 B1 C2 F3 05 06 07 08 -> E3 B2 C3 F4 06 07 08 09`, and the report again
-ended with `копирование доказано`. The example re-searches every
+ended with `copy proven`. The example re-searches every
 `IDENTIFY_INTERVAL_MS`, so this artifact also caught the preceding cycle
 (`E1 ... -> E2 ...`) before the flash; all four changed rows were confirmed by
 a read.
 
 The capture was armed before the flash, so the programmer's reset cuts the
 previous image's search mid-pass (transactions 54 and 225, the latter at the
-end of the capture). Those two are reported as `обмен прерван`, carry no ROMs
-and fail nothing; every completed transaction around them is decoded and
-CRC-checked as usual. The boot search and the EEPROM cycles all sit after the
-last completed search, which is the boot the log belongs to.
+end of the capture). Those two are reported as `exchange interrupted`, carry
+no ROMs and fail nothing; every completed transaction around them is decoded
+and CRC-checked as usual. The boot search and the EEPROM cycles all sit after
+the last completed search, which is the boot the log belongs to.
 
 Artifacts: the first proof `bench_logs/hil/la_ds2431_20261023.bin` (sha256
 `5f215ab8...`), its `.meta`, report `la_ds2431_20261023.report.txt` and log

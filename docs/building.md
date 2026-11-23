@@ -526,11 +526,11 @@ One truncation is expected rather than a failure: arming the capture before
 `make test-hil` means the programmer resets the previous image, often in the
 middle of a search pass. The master stops writing direction bits, the line
 goes idle and the new image starts with its own reset. Such a pass yields no
-ROMs, so there is nothing to compare and nothing is guessed; the report marks
-the exchange `обмен прерван` and keeps the transactions around it. Every other
-cut stays an error - a half-written command, a frame shorter than its command
-says, a read that stops mid-frame - and a capture with no completed
-transaction at all is FAIL. Both sides are covered in
+ROMs, so there is nothing to compare and nothing is guessed; the report
+prints `exchange interrupted` for it and keeps the transactions around it.
+Every other cut stays an error - a half-written command, a frame shorter
+than its command says, a read that stops mid-frame - and a capture with
+no completed transaction at all is FAIL. Both sides are covered in
 `tests/hil/test_la_decode.py`.
 
 The DS2431 cycle is read the same way. The function table follows the family
@@ -561,7 +561,7 @@ neither.
 The 2026-10-23 F1 bench capture is the first one that carries the proof. Both
 `2D` parts went `DE AD BE EF 01 02 03 04 -> DF AE BF F0 02 03 04 05` on the
 wire, the Read Memory after Copy returned the new row with the device's CRC,
-and the report closed with `копирование доказано` for both. The same artifact
+and the report closed with `copy proven` for both. The same artifact
 still holds a cycle from the image that preceded the flash: its baseline
 already equalled its write, so it appears only as the equal-baseline note.
 Having both cases in one report is deliberate - it shows what the note and the
@@ -570,12 +570,12 @@ proof look like.
 The same proof was repeated through the documented command, with no explicit
 `HIL_EXT`: the header recorded the profile's `-DOW_PARASITE_POWER=1`, both rows
 went `E2 B1 C2 F3 05 06 07 08 -> E3 B2 C3 F4 06 07 08 09`, and the report
-again closed with `копирование доказано`.
+again closed with `copy proven`.
 
 The report opens with the capture and log hashes, the sample rate and channel,
-the slot geometry and the `# hil:` identity, and ends with one `ИТОГ: PASS/FAIL`
-line, so a stored artifact can be re-checked and the verdict read off without
-reconstructing it from the prose above.
+the slot geometry and the `# hil:` identity, and ends with one
+`VERDICT: PASS/FAIL` line, so a stored artifact can be re-checked and the
+verdict read off without reconstructing it from the prose above.
 
 A capture also writes a `<file>.meta` sidecar next to it with the rate, channel,
 duration, tool and the SHA-256 of the samples. The decoder takes the rate from

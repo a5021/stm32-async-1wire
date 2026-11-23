@@ -128,14 +128,14 @@ def capture(out_path, seconds, rate, channel, sigrok):
         "--time", str(int(seconds * 1000)),
         "-O", "binary", "-o", out_path,
     ]
-    print("захват: %s" % " ".join(cmd))
+    print("capture: %s" % " ".join(cmd))
     r = subprocess.run(cmd, capture_output=True, text=True)
     if not os.path.exists(out_path):
         sys.stderr.write((r.stdout or "") + (r.stderr or ""))
-        raise SystemExit("захват не удался")
-    print("файл: %s (%d байт)" % (out_path, os.path.getsize(out_path)))
+        raise SystemExit("capture failed")
+    print("file: %s (%d bytes)" % (out_path, os.path.getsize(out_path)))
     meta_path = write_meta(out_path, parse_rate(rate), channel, seconds, sigrok)
-    print("метаданные: %s" % meta_path)
+    print("metadata: %s" % meta_path)
     return out_path
 
 
@@ -174,12 +174,12 @@ def wait_measurements(gaps, target_us, tol_us=WAIT_TOLERANCE_US):
 
 def histogram(values, label, limit=8):
     if len(values) == 0:
-        print("  %s: нет данных" % label)
+        print("  %s: no data" % label)
         return
     u, c = np.unique(np.round(values, 1), return_counts=True)
     order = np.argsort(-c)[:limit]
     print("  %s: %s" % (label, ", ".join(
-        "%.1f мкс x%d" % (u[i], c[i]) for i in order)))
+        "%.1f us x%d" % (u[i], c[i]) for i in order)))
 
 
 def main():
@@ -214,7 +214,7 @@ def main():
 
     res = analyse(out_path, rate_hz, args.channel)
     if res is None:
-        print("шина была простаивающей весь захват - измерять нечего")
+        print("the bus was idle for the whole capture - nothing to measure")
         return 1
     widths, gaps = res
 
@@ -222,11 +222,11 @@ def main():
     guard = cfg["guard_parasite"] if args.parasite else cfg["guard_default"]
     slot = cfg["one"] + cfg["zero"] + guard
 
-    print("\n=== геометрия 1-Wire на проводе ===")
-    histogram(widths, "ширины низких импульсов")
-    histogram(gaps, "межимпульсные интервалы")
+    print("\n=== 1-Wire geometry on the wire ===")
+    histogram(widths, "low pulse widths")
+    histogram(gaps, "inter-pulse gaps")
 
-    print("\n=== сверка с конфигурацией ===")
+    print("\n=== check against the configuration ===")
     checks = []
 
     def check(name, measured, expected, tol=None):
@@ -243,10 +243,10 @@ def main():
             return None
         return float(values[np.argmin(np.abs(values - target))])
 
-    check("слот (ONE+zero+guard)", nearest(gaps, slot), slot)
-    check("импульс '1' (ONE)", nearest(widths, cfg["one"]), cfg["one"])
-    check("импульс '0' (ZERO)", nearest(widths, cfg["zero"]), cfg["zero"])
-    check("сброс (OW_PORT_RESET_PULSE_DURATION)",
+    check("slot (ONE+zero+guard)", nearest(gaps, slot), slot)
+    check("pulse '1' (ONE)", nearest(widths, cfg["one"]), cfg["one"])
+    check("pulse '0' (ZERO)", nearest(widths, cfg["zero"]), cfg["zero"])
+    check("reset (OW_PORT_RESET_PULSE_DURATION)",
           nearest(widths, 480), 480)
 
     # ---- the duration of a long wait -------------------------------------
@@ -265,24 +265,25 @@ def main():
     wait_tol = args.wait_tol_ms * 1000.0
     wait_doubled = None
     if args.wait_ms > 0.0:
-        print("\n=== длительность длинного ожидания ===")
+        print("\n=== long wait duration ===")
         if len(gaps):
-            print("  самая длинная пауза: %.3f мс" % (float(gaps.max()) / 1000.0))
+            print("  longest gap: %.3f ms" % (float(gaps.max()) / 1000.0))
         wait_measured, wait_doubled = wait_measurements(gaps, wait_target, wait_tol)
         if wait_measured is not None:
-            print("  отклонение от ожидания: %+.3f мс (допуск ±%.3f мс)"
+            print("  deviation from the expected wait: %+.3f ms "
+                  "(tolerance ±%.3f ms)"
                   % ((wait_measured - wait_target) / 1000.0, wait_tol / 1000.0))
-        check("ожидание (--wait-ms)", wait_measured, wait_target, wait_tol)
+        check("wait (--wait-ms)", wait_measured, wait_target, wait_tol)
 
     bad = 0
     for name, measured, expected, good in checks:
         if measured is None:
-            print("  FAIL %-34s нет измерения (ожидалось %.1f мкс)"
+            print("  FAIL %-34s no measurement (expected %.1f us)"
                   % (name, expected))
             bad += 1
             continue
         mark = "ok  " if good else "FAIL"
-        print("  %s %-34s измерено %7.2f мкс, ожидалось %6.1f мкс"
+        print("  %s %-34s measured %7.2f us, expected %6.1f us"
               % (mark, name, measured, expected))
         if not good:
             bad += 1
@@ -292,14 +293,16 @@ def main():
     # also present (a capture that spans a resolution change).
     if args.wait_ms > 0.0:
         if wait_doubled is not None:
-            print("  FAIL %-34s пауза %.3f мс" % ("ожидание не удвоено",
+            print("  FAIL %-34s gap %.3f ms" % ("wait not doubled",
                                                   wait_doubled / 1000.0))
             bad += 1
         else:
-            print("  ok   %-34s" % "ожидание не удвоено")
+            print("  ok   %-34s" % "wait not doubled")
 
-    print("\n%s" % ("провод соответствует конфигурации"
-                    if bad == 0 else "провод РАСХОДИТСЯ с конфигурацией"))
+    if bad == 0:
+        print("\nthe wire matches the configuration")
+    else:
+        print("\nthe wire DISAGREES with the configuration")
     return 0 if bad == 0 else 1
 
 

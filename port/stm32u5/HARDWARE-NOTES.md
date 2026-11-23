@@ -48,7 +48,7 @@ All with `EXT="-DOW_PARASITE_POWER=1"`, default 160 MHz unless noted.
   slot 166.00 us, ONE 5.00 us, ZERO 60.00 us, reset 481.25 us, presence
   157.2 us.
 - LA content (`la_decode.py`): MATCH ROM + READ SCRATCHPAD with CRC ok,
-  26.0000 C, `ИТОГ: PASS`.
+  26.0000 C, `VERDICT: PASS`.
 - DS2431 (`HIL_SCRIPT=ds2431`): PASS, 1 device, 2 EEPROM reads, read-back is
   baseline+1 at 160 MHz.
 - DS2413 (`HIL_SCRIPT=ds2413`): PASS, 11 blinks, commands
@@ -60,7 +60,7 @@ All with `EXT="-DOW_PARASITE_POWER=1"`, default 160 MHz unless noted.
   this run; the `ds2431` HIL run above covers the write/read cycle.
 - LA content (`la_decode.py` on `8_ds2431`): SEARCH ROM sees the DS2413
   (`3A 9F 47 03 00 00 00 3A`) and the DS2431 (`2D F8 47 60 26 00 00 69`),
-  both CRC ok; `ИТОГ: PASS`. The decoder does not yet understand the DS2413
+  both CRC ok; `VERDICT: PASS`. The decoder does not yet understand the DS2413
   PIO commands (`0x5A`/`0xF5`), so a `9_multi` capture stops there by design.
 
 The `--wait-ms 750` check is meant for an example whose longest pause is the
