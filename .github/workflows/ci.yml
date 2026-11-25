@@ -10,9 +10,9 @@ jobs:
   format:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache pip wheels (clang-format, numpy)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/pip-wheels
           key: ${{ runner.os }}-pip-format-u2604-v1
@@ -71,7 +71,7 @@ jobs:
     # the model and cannot see.
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Check the DMA contract test can still fail
         run: python3 tests/mutation_check.py --families f1,h5 --mutations M4 --no-control --strict
       - name: Check the wait-plan property test can still fail
@@ -88,7 +88,7 @@ jobs:
         backend: [f0, f1, f3, f4, g0, g4, l4, c5, h5, u5, h7]
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Host toolchain
         # The ubuntu-26.04 image already ships GCC (15.2) and make.
         # Installing GCC from the archive is what used to hang this job, so
@@ -99,7 +99,7 @@ jobs:
           python3 --version
       - name: Cache CMSIS dependencies
         id: cache-cmsis
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
@@ -154,10 +154,10 @@ jobs:
     # bits do not reach the register word.
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache CMSIS dependencies
         id: cache-cmsis
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
@@ -174,9 +174,9 @@ jobs:
         backend: [f0, f1, f3, f4, g0, g4, l4, h5, h7]
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache apt packages (lcov)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/apt-debs
           key: ${{ runner.os }}-apt-lcov-u2604-v2
@@ -185,7 +185,7 @@ jobs:
         run: bash tests/ci/apt_install.sh ~/apt-debs lcov
       - name: Cache CMSIS dependencies
         id: cache-cmsis
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
@@ -259,21 +259,21 @@ jobs:
       # genhtml annotates the merged report with source lines, so the
       # checkout must be present (the trace stores runner workspace paths,
       # which match $GITHUB_WORKSPACE exactly).
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache apt packages (lcov)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/apt-debs
           key: ${{ runner.os }}-apt-lcov-u2604-v2
       - name: Install lcov
         run: bash tests/ci/apt_install.sh ~/apt-debs lcov
       - name: Download coverage traces
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-traces-*
           path: traces
       - name: Download API docs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: api-docs
           path: api-docs
@@ -458,9 +458,9 @@ jobs:
     # covers the no-server path.
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache pip wheels (playwright)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/pip-wheels
           key: ${{ runner.os }}-pip-viewer-${{ hashFiles('tools/1wire_vis/requirements-selftest.txt') }}
@@ -472,7 +472,7 @@ jobs:
         # Keyed by the pinned Playwright requirement: a browser from another
         # release is not what the golden values were captured against, so a
         # version bump must also miss this cache.
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('tools/1wire_vis/requirements-selftest.txt') }}
@@ -488,9 +488,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache apt packages (doxygen)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/apt-debs
           key: ${{ runner.os }}-apt-doxygen-u2604-v2
@@ -507,9 +507,9 @@ jobs:
   cppcheck:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache apt packages (cppcheck)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/apt-debs
           key: ${{ runner.os }}-apt-cppcheck-u2604-v2
@@ -517,7 +517,7 @@ jobs:
         run: bash tests/ci/apt_install.sh ~/apt-debs cppcheck
       - name: Cache CMSIS dependencies
         id: cache-cmsis
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-matrix-${{ hashFiles('Makefile', 'chips/*.mk') }}
@@ -541,7 +541,7 @@ jobs:
     # says which invariant broke.
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Check the part matrix
         run: make test-chips
       - name: Check the Makefile/CMake MCU tables agree
@@ -620,10 +620,10 @@ jobs:
     # caches as the build jobs.
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache Arm Toolchain
         id: cache-toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /opt/gcc-arm-none-eabi
           key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
@@ -636,7 +636,7 @@ jobs:
         run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
       - name: Cache CMSIS dependencies
         id: cache-deps
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
@@ -649,10 +649,10 @@ jobs:
   build:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache Arm Toolchain
         id: cache-toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /opt/gcc-arm-none-eabi
           key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
@@ -665,7 +665,7 @@ jobs:
         run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
       - name: Cache CMSIS dependencies
         id: cache-deps
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: CMSIS/
           key: ${{ runner.os }}-cmsis-${{ hashFiles('Makefile') }}
@@ -860,10 +860,10 @@ jobs:
             mcu: STM32H743xx
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Cache Arm Toolchain
         id: cache-toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /opt/gcc-arm-none-eabi
           key: ${{ runner.os }}-gcc-arm-none-eabi-15.2
@@ -875,7 +875,7 @@ jobs:
       - name: Add Toolchain to PATH
         run: echo "/opt/gcc-arm-none-eabi/bin" >> $GITHUB_PATH
       - name: Cache CMSIS FetchContent dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/build/_deps
           key: ${{ runner.os }}-cmake-deps-${{ hashFiles('CMakeLists.txt') }}
@@ -1041,7 +1041,7 @@ jobs:
   fuzz:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Clang
         # Preinstalled on the runner image (20/21/22, with libFuzzer). apt
         # used to hang this job for 27+ minutes; only the version is checked.
@@ -1051,7 +1051,7 @@ jobs:
       - name: Cache fuzz corpus
         # Carry the coverage-grown corpus between runs: a fresh key per commit
         # saves a new snapshot, the restore-key prefix pulls the latest one.
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/fuzz/corpus
           key: ${{ runner.os }}-fuzz-corpus-${{ github.sha }}
