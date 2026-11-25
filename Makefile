@@ -953,6 +953,21 @@ format-check:
 	@$(CLANG_FORMAT) --version
 	@$(CLANG_FORMAT) --dry-run --Werror $(FORMAT_FILES)
 
+# --- ShellCheck over the repository scripts ---
+# The CI scripts gate everything else, so a defect here is expensive: it can
+# fail after the expensive work or pass vacuously. Warning level only; the
+# info/style classes have no shared baseline in this tree.
+SHELLCHECK ?= shellcheck
+SHELLCHECK_FILES = $(wildcard tests/*.sh tests/ci/*.sh)
+
+.PHONY: check-shell
+check-shell:
+	@command -v $(SHELLCHECK) >/dev/null 2>&1 || { \
+		echo "check-shell: shellcheck not found - install ShellCheck" >&2; \
+		exit 1; }
+	@$(SHELLCHECK) --version
+	@$(SHELLCHECK) -S warning $(SHELLCHECK_FILES)
+
 # --- Every CMSIS family at once ---
 # The cppcheck passes (and the full host matrix in CI) need the device headers
 # of all eleven families, and within F4 the F446 is a separate download: the
@@ -1053,7 +1068,7 @@ cppcheck:
 # the HIL parsers. `make test` is the functional suite and `make` the firmware
 # build; neither is repeated here.
 .PHONY: check
-check: format-check cppcheck test-version test-hil-parsing test-search-trace test-stress-report test-example-captures test-public-api
+check: format-check check-shell cppcheck test-version test-hil-parsing test-search-trace test-stress-report test-example-captures test-public-api
 
 # --- Library .bss budget (see tests/check_ram_budget.sh) ---
 # The phase-union work bought back ~200-430 bytes of .bss; this gate keeps it.
@@ -2127,8 +2142,9 @@ help:
 	@echo "  test-clocks     - Check the per-family and per-part clock defaults (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-manifest   - Check the PlatformIO manifests list every source/header"
 	@echo "  test-version    - Check the version is declared consistently everywhere"
-	@echo "  check           - Pre-push gate: formatting, cppcheck, version, HIL parsers (no toolchain)"
+	@echo "  check           - Pre-push gate: formatting, ShellCheck, cppcheck, version, HIL parsers (no toolchain)"
 	@echo "  format-check    - Check formatting with the file list the format job uses"
+	@echo "  check-shell     - Check the repository shell scripts with ShellCheck (warning level)"
 	@echo "  format          - Rewrite the same files in place"
 	@echo "  cppcheck        - Static analysis, one pass per compiled configuration"
 	@echo "  test-mocks      - Check the tests/mock register-mock headers (downloads deps)"

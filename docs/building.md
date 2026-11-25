@@ -106,7 +106,8 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
 | `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7), the local equivalent of the CI family matrix; eleven families, all host-modeled |
-| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers, the Search ROM trace decoder, the example captures and the published stress report; needs no compiler or ARM toolchain |
+| `make check` | Pre-push gate: formatting, ShellCheck, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers, the Search ROM trace decoder, the example captures and the published stress report; needs no compiler or ARM toolchain |
+| `make check-shell` | Check the repository shell scripts with ShellCheck at warning level (needs `shellcheck`) |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
 | `make test-search-trace` | Check the Search ROM wire decoder on synthetic full and truncated traces (no hardware) |
 | `make test-example-captures` | Check the committed example captures and their viewer links (no hardware) |

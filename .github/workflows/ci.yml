@@ -40,6 +40,22 @@ jobs:
           make test-example-captures
           make test-stress-report
 
+  shellcheck:
+    # The scripts that run every other gate had no linter of their own. Warning
+    # level only: the info/style classes have no shared baseline in this tree.
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Cache apt packages (shellcheck)
+        uses: actions/cache@v6
+        with:
+          path: ~/apt-debs
+          key: ${{ runner.os }}-apt-shellcheck-u2604-v1
+      - name: Install ShellCheck
+        run: bash tests/ci/apt_install.sh ~/apt-debs shellcheck
+      - name: Check the shell scripts
+        run: make check-shell
+
   contract-canary:
     # A green suite proves nothing if it cannot go red. This job applies one
     # deliberate defect to the port - a wrong timer repetition count - and

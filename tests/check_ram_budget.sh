@@ -177,7 +177,7 @@ libsum() {
     # check_version.sh).
     "$NM" --print-size "$1" | tr -d '\r' > "$tmp"
     sum=0
-    while read -r addr size type name rest; do
+    while read -r _ size type name rest; do
         case " $LIBSYMS " in
             *" $name "*)
                 case "$type" in

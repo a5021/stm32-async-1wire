@@ -50,14 +50,15 @@ interrupt-free, minimal CPU usage).
    and `make SYSCLK_MHZ=8` for the 8 MHz RC variant.
 4. Run the code quality checks used in CI. `make check` is the local pre-push
    gate: formatting (`make format-check`, or `make format` to rewrite in
-   place), static analysis (`make cppcheck`), the version declarations, the
-   public-API snapshot, the HIL parsers, the Search ROM trace decoder, the
-   example captures and the published stress report. The same checks run as
-   separate CI jobs; the file list, the cppcheck passes and the suppression
-   list live in the Makefile, so a local run and the workflow cannot drift
-   apart.
+   place), shell linting (`make check-shell`), static analysis
+   (`make cppcheck`), the version declarations, the public-API snapshot, the
+   HIL parsers, the Search ROM trace decoder, the example captures and the
+   published stress report. The same checks run as separate CI jobs; the file
+   list, the cppcheck passes and the suppression list live in the Makefile, so
+   a local run and the workflow cannot drift apart.
    - `make cppcheck` needs the CMSIS headers of every family; on a fresh clone
      run `make deps-all` once.
+   - `make check-shell` needs ShellCheck (`apt install shellcheck`).
    - Use the `clang-format` release the `format` job pins (step 2 above);
      `make format-check` prints the one it invoked.
 5. Update the relevant guide under `docs/` (or the README for the overview) and

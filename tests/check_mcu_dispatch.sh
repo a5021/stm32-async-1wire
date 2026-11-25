@@ -130,7 +130,7 @@ for part in $parts; do
         *" $macro "*) ;;
         *) echo "  chips/$part.mk: CHIP_DEV_DEF $dev is not in Makefile OW_KNOWN_MCUS"; fail=1; continue ;;
     esac
-    mapped=$(sed -n "s/^OW_MCU_CHIP_$macro[ \t]*=[ \t]*//p" "$MK" | sed 's/[ \t]*$//' | tr -d '\r')
+    mapped=$(sed -n "s/^OW_MCU_CHIP_${macro}[ \t]*=[ \t]*//p" "$MK" | sed 's/[ \t]*$//' | tr -d '\r')
     if [ "$mapped" != "$part" ]; then
         echo "  chips/$part.mk: OW_MCU_CHIP_$macro = '$mapped' (expected '$part')"
         fail=1
