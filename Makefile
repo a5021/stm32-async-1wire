@@ -955,7 +955,7 @@ format-check:
 
 # --- Every CMSIS family at once ---
 # The cppcheck passes (and the full host matrix in CI) need the device headers
-# of all eight families, and within F4 the F446 is a separate download: the
+# of all eleven families, and within F4 the F446 is a separate download: the
 # pack ships every part header, but the dependency list fetches only the one
 # the selected chip names, so F407xx does not bring stm32f446xx.h with it.
 # Downloads only what is missing, so it is cheap on a tree that already has
@@ -1083,7 +1083,7 @@ test-ram:
 # between "unset, use the bench profile" and "empty, the caller opted out" by
 # whether the variable is present at all. A Makefile default would make every
 # run look like the opt-out and silently drop the parasite pull-up.
-PYTHON ?= python
+PYTHON ?= python3
 HIL_SCRIPT ?= smoke
 HIL_MCU ?=
 EXPECTED_DEVICES ?=
@@ -2154,15 +2154,19 @@ help:
 	@echo "  OW_MCU=<mcu>                     - primary selector: one ST device macro selects"
 	@echo "                                    family and chip together (STM32F030x6, STM32F103xB,"
 	@echo "                                    STM32F303xC, STM32F407xx, STM32F401xC,"
-	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx, STM32H503xx, STM32H743xx)"
+	@echo "                                    STM32F446xx, STM32G031xx, STM32G474xx,"
+	@echo "                                    STM32L476xx, STM32C552xx, STM32H503xx,"
+	@echo "                                    STM32U585xx, STM32H743xx)"
 	@echo "  OW_TARGET=f0|f1|f3|f4|g0|g4|l4|c5|h5|u5|h7 - MCU family (firmware build)"
 	@echo "  OW_CHIP=<part>                   - part within the family: the name of a"
 	@echo "                                    chips/<part>.mk (f030x6, f103xb, f303xc, f407xx,"
-	@echo "                                    f401xc, f446xx, g031xx, g474cb, h503cb, h743vi); default per family"
+	@echo "                                    f401xc, f446xx, g031xx, g474cb, l476rg, c552ce,"
+	@echo "                                    h503cb, u585ci, h743vi); default per family"
 	@echo "  SYSCLK_MHZ=N                     - system clock in MHz, overriding the part"
 	@echo "                                    default (f0 48, f1 72, f3 72, f4 168/84/180,"
-	@echo "                                    g0 64, g4 170, l4 80, h5 64, h7 240; 8/16 raw RC)"
+	@echo "                                    g0 64, g4 170, l4 80, c5 144, h5 64, u5 160,"
+	@echo "                                    h7 240; 8/16 raw RC)"
 	@echo "  TIM1_MHZ=N                       - timer kernel clock in MHz (defaults to SYSCLK_MHZ); H7 supports 480/240 core/TIM1 on Rev V"
-	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4/H5/H7 only"
+	@echo "  HSE_MHZ=N                        - crystal (HSE) in MHz, F3/F4/G4/C5/H5/U5/H7 only"
 
 # *** EOF ***

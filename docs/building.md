@@ -106,8 +106,11 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make debug` | Build with debug symbols |
 | `make test` | Build and run host tests (PC toolchain) |
 | `make test-all-families` | Run the plain host suite once per backend in `OW_HOST_TEST_TARGETS` (f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7), the local equivalent of the CI family matrix; eleven families, all host-modeled |
-| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers and the published stress report; needs no compiler or ARM toolchain |
+| `make check` | Pre-push gate: formatting, `cppcheck`, version declarations, the public-API snapshot, the HIL parsers, the Search ROM trace decoder, the example captures and the published stress report; needs no compiler or ARM toolchain |
 | `make test-stress-report` | Regenerate the stress report from `docs/stress/results.json`, compare it with the committed page, and decode every linked capture (no hardware) |
+| `make test-search-trace` | Check the Search ROM wire decoder on synthetic full and truncated traces (no hardware) |
+| `make test-example-captures` | Check the committed example captures and their viewer links (no hardware) |
+| `make test-hil-parsing` | Check the bench harness, analyzer, wire decoder and `HIL_EXT` forwarding (no hardware) |
 | `make format-check` | Check formatting with the file list and `clang-format` version the `format` job uses |
 | `make format` | Rewrite the same files in place |
 | `make cppcheck` | Static analysis, one pass per compiled configuration (run `make deps-all` first) |
@@ -142,6 +145,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ram` | Gate the firmware `.bss` budgets against the exact ceilings recorded in `tests/check_ram_budget.sh` (Arm toolchain + CMSIS deps). `sh tests/check_ram_budget.sh --consumer <elf>` applies the same gate to a CMake-built image without building anything |
 | `make test-hil` | Run the on-demand hardware-in-the-loop harness against an attached bench (see [Hardware-in-the-Loop (HIL)](#hardware-in-the-loop-hil)). Not in CI — it needs an ST-Link and real sensors, and skips cleanly when none is attached. `HIL_SCRIPT=smoke\|scan\|stats\|lowpower\|ds2431\|ds2413\|dma_pressure` picks the check; `HIL_MCU`, `HIL_PORT`, `HIL_BAUD`, `HIL_EXT`, `HIL_TIMEOUT`, `HIL_SYSCLK_MHZ`, `HIL_TIM1_MHZ` and `EXPECTED_DEVICES` tune it |
 | `make test-chips` | Check the part matrix: every `chips/<part>.mk` names repository files that exist, its scalars are well formed, and an unknown family or part is rejected. No toolchain and no CMSIS download needed (`tests/check_chips.sh`) |
+| `make test-mcu-dispatch` | Check the Makefile and CMake MCU tables agree (no toolchain needed; `tests/check_mcu_dispatch.sh`) |
 | `make test-clocks` | Compile-check the per-family clock defaults, including the F4 parts whose own default differs from the family one (`test-clocks-f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7`, where the F4 one covers `f401xc` and `f446xx`) |
 | `make fuzz-all` | Build and run all fuzz harnesses (requires host-side Clang; `FUZZ_TIME=N` for duration). Each harness seeds its working corpus from `tests/fuzz/corpus/` and a shared 1-Wire command dictionary (DS18B20 + DS2431 opcodes); CI caches the grown corpus |
 | `make fuzz-crc8` | Fuzz `onewire_crc8` alone |
@@ -155,9 +159,9 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make help` | Show all targets |
 
 The remaining gate targets — `test-mocks`, `test-version`, `test-public-api`,
-`test-header-hygiene`, `test-removed-macros`, `test-elf-variant`, `test-viewer`,
-`test-hil-parsing`, `test-stress-report` and `update-public-api` — are listed by
-`make help`. `make check` runs the subset that needs no compiler.
+`test-header-hygiene`, `test-removed-macros`, `test-elf-variant`, `test-viewer`
+and `update-public-api` — are listed by `make help`. `make check` runs the
+subset that needs no compiler.
 
 Optional build flags (append via `EXT="..."` or `OW_DRIVE_ACTIVE=1`):
 
@@ -425,9 +429,9 @@ differs per cell). `dirty` is sampled
 before the run writes anything and ignores `docs/stress`: a run's own output
 does not make the source tree look modified.
 
-The board is auto-detected (`STM32F103xB` reference bench, the
-`STM32H503xx`/`STM32H743xx` WeAct boards, the `STM32U585xx` U5 bench, or the
-`STM32L476xx` NUCLEO); pin it
+The board is auto-detected (`STM32F103xB` reference bench, the `STM32F030x6`
+TSSOP20 board, the `STM32F446xx`/`STM32H503xx`/`STM32H743xx` WeAct boards, the
+`STM32U585xx` U5 bench, or the `STM32L476xx` NUCLEO); pin it
 with `HIL_MCU=` - a mismatch against the attached target
 fails rather than flashing the wrong part. The H503 and F446 profiles wire
 PA11 to D1 and the F030 wires PA2: the DMA-pressure harness builds with
@@ -812,6 +816,7 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `STM32L476xx` (Cortex-M4) with `OW_MCU=STM32L476xx`;
     `STM32C552xx` (Cortex-M33) with `OW_MCU=STM32C552xx`;
     `STM32H503xx` (Cortex-M33) with `OW_MCU=STM32H503xx`;
+    `STM32U585xx` (Cortex-M33) with `OW_MCU=STM32U585xx`;
     `STM32H743xx` (Cortex-M7) with `OW_MCU=STM32H743xx`.
 
 -   **Target Selection:** `make OW_MCU=STM32F030x6` builds for the STM32F0 backend
@@ -834,7 +839,9 @@ A ready-made consumer lives in `tests/integration/platformio/` — copy that dir
     `make OW_MCU=STM32C552xx` for the STM32C5 backend (144 MHz HSE->PSI default,
     `port/stm32c5/STM32C552CE_FLASH.ld`),
     `make OW_MCU=STM32H503xx` for the STM32H5 backend (64 MHz default clock,
-    `port/stm32h5/STM32H503CB_FLASH.ld`) and
+    `port/stm32h5/STM32H503CB_FLASH.ld`),
+    `make OW_MCU=STM32U585xx` for the STM32U5 backend (160 MHz HSE25+PLL1
+    default clock, `port/stm32u5/STM32U585CI_FLASH.ld`) and
     `make OW_MCU=STM32H743xx` for the STM32H7 backend (240 MHz default clock,
     `port/stm32h7/STM32H743VI_FLASH.ld`). Each part's
     identity lives in its own `chips/<part>.mk`. The default

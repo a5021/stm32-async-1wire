@@ -48,12 +48,14 @@ interrupt-free, minimal CPU usage).
    - Register-level access only — no HAL/LL
 3. Make sure `make` builds cleanly (it builds with `-Wall -Werror`),
    and `make SYSCLK_MHZ=8` for the 8 MHz RC variant.
-4. Run the code quality checks used in CI. `make check` runs all of them that
-   need no compiler: formatting (`make format-check`, or `make format` to
-   rewrite in place), static analysis (`make cppcheck`), the version
-   declarations, the public-API snapshot, the HIL parsers and the published
-   stress report. The file list, the cppcheck passes and the suppression list
-   live in the Makefile, so this is the same command the workflow runs.
+4. Run the code quality checks used in CI. `make check` is the local pre-push
+   gate: formatting (`make format-check`, or `make format` to rewrite in
+   place), static analysis (`make cppcheck`), the version declarations, the
+   public-API snapshot, the HIL parsers, the Search ROM trace decoder, the
+   example captures and the published stress report. The same checks run as
+   separate CI jobs; the file list, the cppcheck passes and the suppression
+   list live in the Makefile, so a local run and the workflow cannot drift
+   apart.
    - `make cppcheck` needs the CMSIS headers of every family; on a fresh clone
      run `make deps-all` once.
    - Use the `clang-format` release the `format` job pins (step 2 above);
@@ -77,7 +79,7 @@ interrupt-free, minimal CPU usage).
 make                # release build (must succeed with -Werror)
 make SYSCLK_MHZ=8   # 8MHz variant
 make debug          # optional, for debugging
-make test           # host suite (F1); test-all-families = f0/f1/f3/f4/g0/g4/l4/c5/h5/h7
+make test           # host suite (F1); test-all-families = f0/f1/f3/f4/g0/g4/l4/c5/h5/u5/h7
 make test-ds2431    # the DS2431 EEPROM driver suite
 make test-ds2413    # the DS2413 switch driver suite
 make test-lowpower  # same suite with the -DOW_LOW_POWER=1 WFE path
