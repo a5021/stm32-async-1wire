@@ -16,6 +16,7 @@ AlignTrailingComments: false
 AlignEscapedNewlines: Left
 SpaceAfterCStyleCast: false
 IndentPPDirectives: None
+InsertNewlineAtEOF: true
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 1000000
 ...
