@@ -1,4 +1,4 @@
-﻿#include "onewire.h"
+#include "onewire.h"
 #include "ow_glue.h"
 #include "ow_port.h"
 #include "ow_profile.h"

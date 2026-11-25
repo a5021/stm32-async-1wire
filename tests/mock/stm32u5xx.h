@@ -1,4 +1,4 @@
-﻿#ifndef STM32U5XX_MOCK_H
+#ifndef STM32U5XX_MOCK_H
 #define STM32U5XX_MOCK_H
 /* Host-build stand-in for the STM32U5 CMSIS device header.
  * Provides just enough register types, instance symbols and bit-field
