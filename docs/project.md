@@ -28,7 +28,7 @@ For issues and questions, please open an issue on GitHub.
 ## References
 
 - DS18B20 Datasheet  
-  https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
 
 - DS2431 Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/DS2431.pdf
 

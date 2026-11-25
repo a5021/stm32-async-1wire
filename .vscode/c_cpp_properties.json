@@ -79,6 +79,134 @@
             ],
             "cStandard": "c11",
             "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32F303 (make OW_MCU=STM32F303xC)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F303xC",
+                "OW_SYSCLK_MHZ=72",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32F446 (make OW_MCU=STM32F446xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32F446xx",
+                "OW_SYSCLK_MHZ=180",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32G474 (make OW_MCU=STM32G474xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32G474xx",
+                "OW_SYSCLK_MHZ=170",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32L476 (make OW_MCU=STM32L476xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32L476xx",
+                "OW_SYSCLK_MHZ=80",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32C552 (make OW_MCU=STM32C552xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32C552xx",
+                "OW_SYSCLK_MHZ=144",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32H503 (make OW_MCU=STM32H503xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32H503xx",
+                "OW_SYSCLK_MHZ=64",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32U585 (make OW_MCU=STM32U585xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32U585xx",
+                "OW_SYSCLK_MHZ=160",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
+        },
+        {
+            "name": "STM32H743 (make OW_MCU=STM32H743xx)",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/inc",
+                "${workspaceFolder}/CMSIS/core",
+                "${workspaceFolder}/CMSIS/device"
+            ],
+            "defines": [
+                "STM32H743xx",
+                "OW_SYSCLK_MHZ=240",
+                "__GNUC__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-gcc-arm"
         }
     ],
     "version": 4
