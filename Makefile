@@ -1415,7 +1415,9 @@ else
 TEST_OPT ?= -O2 -flto
 endif
 # Pointer<->register casts (driver targets a 32-bit Cortex-M3) are expected
-# on a 64-bit host; suppress the size warnings.
+# on a 64-bit host; suppress the size warnings. The compile-only clock checks
+# below take the same pair so they stay warning-free as well.
+TEST_CAST_FLAGS = -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 # OW_TARGET=f0 runs the same suite against the STM32F0 backend mock,
 # OW_TARGET=g0 against the STM32G0 backend mock.
 ifeq ($(OW_TARGET),f0)
@@ -1474,7 +1476,7 @@ TEST_EXTRA_FLAG ?=
 # the ci 84MHz/25MHz-crystal F4 run) still wins by last-`-D`-wins.
 TEST_FLAG = -DHOST_BUILD -DDS18B20_TEST_HARNESS -DOW_STATS_ENABLE=1 $(TEST_PORT_FLAG) -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) $(TEST_EXTRA_FLAG) -Wall -Wextra -Wswitch-enum \
             -Werror=discarded-qualifiers \
-            -Wno-unused-parameter -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast \
+            -Wno-unused-parameter $(TEST_CAST_FLAGS) \
             $(if $(COVERAGE),--coverage,)
 # -Isrc exposes the library-internal engine headers (ow_port.h, ow_mcu.h) to
 # the host tests that drive the port directly; the library itself reaches them
@@ -1734,7 +1736,7 @@ $(addprefix test-dma-prio-,$(OW_PRIO_FAMILIES)): test-dma-prio-%:
 # of every test build so the part file and the literals can never drift.
 
 $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_CAST_FLAGS) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- No-default anti-regression twin (see test_sysclk_fallback.c) ---
 # Compile-only, no -DOW_SYSCLK_MHZ on purpose: fails if any family header
@@ -1742,7 +1744,7 @@ $(TEST_CLOCK_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
 # the backend token (the auto-path a header-less integration gets).
 
 $(TEST_CLOCK_NODEFAULT_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,$(OW_TARGET)) $(TEST_CAST_FLAGS) $(TEST_INC) tests/test/test_sysclk_fallback.c -o $@
 
 # --- SystemCoreClock auto-path runner (see tests/test/test_sysclk_auto.c) ---
 # The only host TU built WITHOUT -DOW_SYSCLK_MHZ: defines its own
@@ -1750,7 +1752,7 @@ $(TEST_CLOCK_NODEFAULT_OBJ): tests/test/test_sysclk_fallback.c Makefile | $(TEST
 # and checks the PSC plus the runtime IC4F tier. Runs in every `make test`.
 
 $(TEST_AUTO_EXE): tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c $(TEST_HDRS) Makefile | $(TEST_OUT)
-	$(HOST_CC) $(TEST_PORT_FLAG) -DHOST_BUILD $(TEST_INC) $(TEST_OPT) tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c -o $@
+	$(HOST_CC) $(TEST_PORT_FLAG) -DHOST_BUILD $(TEST_CAST_FLAGS) $(TEST_INC) $(TEST_OPT) tests/test/test_sysclk_auto.c $(TEST_MOCK)/hw_model.c -o $@
 
 # --- Per-part F4 clock-value compile check (see test_sysclk_fallback.c) ---
 # Compile-only values mode, built as part of every `make test` (via
@@ -1779,10 +1781,10 @@ F4_PART_NODEFAULT_OBJS = $(foreach c,$(F4_PART_CLOCK_CHECKS),$(TEST_OUT)/test_sy
 # part's macro. The chips/f4%.mk prerequisite rebuilds the object when the part
 # file changes.
 $(TEST_OUT)/test_sysclk_fallback_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_SYSCLK_VALUES_CHECK=1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(TEST_CAST_FLAGS) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 $(TEST_OUT)/test_sysclk_nodefault_f4%.o: tests/test/test_sysclk_fallback.c Makefile chips/f4%.mk | $(TEST_OUT)
-	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
+	$(HOST_CC) -c -DOW_CHIP_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -D$(call TEST_CLOCK_FLAG,f4) $(TEST_CAST_FLAGS) $(CHIP_DEV_DEF) -Iinc -Isrc -Iexamples/app -I$(TEST_MOCK) \
 	    tests/test/test_sysclk_fallback.c -o $@
 
 # Built in a sub-make that selects the f4 family and the part, so CHIP_DEV_DEF is
