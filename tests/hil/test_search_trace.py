@@ -11,7 +11,11 @@ and then the exact id/cmp/direction slot order. The tests cover a complete
 import os
 import sys
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    print("test_search_trace: SKIP (numpy not installed)")
+    sys.exit(0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)

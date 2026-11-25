@@ -32,6 +32,13 @@ jobs:
         # it is the only check that can catch a shared misreading of the
         # repetition counter, so it must be shown to go red. No hardware.
         run: make test-hil-parsing
+      - name: Check the Search ROM decoder, example captures and stress report
+        # Offline byte-level checks over committed captures: no hardware and
+        # no compiler. This job already installs numpy, which they need.
+        run: |
+          make test-search-trace
+          make test-example-captures
+          make test-stress-report
 
   contract-canary:
     # A green suite proves nothing if it cannot go red. This job applies one
@@ -278,7 +285,7 @@ jobs:
         # The register-level port (src/ow_port.h) and the example application
         # (examples/app/) stay out for the same reason: their branch structure
         # is per-family compile-time variants (OW_PORT_* overrides, clock
-        # bring-up for eight families, DMA-IP spellings), so merging the
+        # bring-up for eleven families, DMA-IP spellings), so merging the
         # family traces records branches that are unreachable by construction
         # in a given build. The port is still exercised by test_dma_contract,
         # test_port_init_contract, test_tim_model and the HIL bench; what this

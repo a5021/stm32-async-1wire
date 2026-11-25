@@ -25,9 +25,9 @@
 #
 # The check preprocesses a one-line TU per header/family with -dM and fails if
 # any vocabulary name is defined. A marker macro proves the include actually
-# took effect, so a broken include path cannot pass vacuously. All nine headers
-# are covered - the six public ones, plus the three engine headers under src/
-# (reached with -Isrc).
+# took effect, so a broken include path cannot pass vacuously. All eleven
+# headers are covered - the eight public ones, plus the three engine headers
+# under src/ (reached with -Isrc).
 #
 # Run: make test-header-hygiene
 
@@ -51,7 +51,7 @@ MOCK=tests/mock
 # with one.
 PATTERN='^#define (RCC_BITS|RCC_AHBENR|RCC_APB2ENR|GPIO_CRH|TIM_CR1|TIM_DIER|TIM_BDTR|TIM_SR|TIM_EGR|TIM_CCMR2|TIM_CCER|DMA_CCR|DMA_LIFCR|DMA_HIFCR|DMA_SxCR|OW_BITFIELDS|OW_BF_CHOOSER2|OW_BF_CHOOSER1|OW_BF_CHOOSER|OW_BF_NARG_|OW_BF_NARG|OW_BF_ONE|OW_BF_8|OW_BF_7|OW_BF_6|OW_BF_5|OW_BF_4|OW_BF_3|OW_BF_2|OW_BF_1|D13|D14|D2|PA|RC|T1)[ (]'
 
-FAMS="STM32F0 STM32F1 STM32F3 STM32F4 STM32G0 STM32G4 STM32L4 STM32H5 STM32H7"
+FAMS="STM32F0 STM32F1 STM32F3 STM32F4 STM32G0 STM32G4 STM32L4 STM32C5 STM32H5 STM32U5 STM32H7"
 fail=0
 checks=0
 
@@ -92,6 +92,8 @@ check_header ow_mcu.h OW_MCU_H
 check_header ow_glue.h OW_GLUE_H
 check_header ds18b20.h DS18B20_ROM_BYTES
 check_header ds2431.h DS2431_FAMILY_CODE
+check_header ds2413.h DS2413_FAMILY_CODE
+check_header ow_version.h STM32_ASYNC_1WIRE_VERSION_MAJOR
 
 # ---------------------------------------------------------------------------
 # The public surface must speak in OW_*, never in the engine's vocabulary.
