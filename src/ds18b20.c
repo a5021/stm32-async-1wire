@@ -159,10 +159,6 @@ __STATIC_FORCEINLINE void wait_conversion(void) {
 }
 
 /**
- * @brief Start inter-measurement pause period (5s)
- * @note Non-blocking - starts timer for inter-measurement delay
- */
-/**
  * @}
  */
 
@@ -279,9 +275,10 @@ __STATIC_FORCEINLINE void build_addr_cmd(uint8_t cmd_byte) {
  *       and parks the driver at DS18B20_ST_IDLE: nothing runs until the
  *       application calls ds18b20_start_measure() or a search API.
  * @warning This function is a bootstrap operation, not a reinitialization hook.
- *          A second call is unsupported and does not fully reset the timer,
- *          DMA, low-power or DS18B20 software state. Starting a new driver
- *          lifecycle requires an MCU reset.
+ *          A second call before any bus operation re-applies the idle setup;
+ *          during activity it does not stop or fully reset the timer, DMA,
+ *          low-power or DS18B20 software state. Starting a new driver lifecycle
+ *          requires an MCU reset.
  */
 void ds18b20_init(void) {
     onewire_init();

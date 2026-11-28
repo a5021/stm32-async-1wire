@@ -43,7 +43,7 @@
 #define DS18B20_SCRATCHPAD_BITS (DS18B20_SCRATCHPAD_LEN * DS18B20_BITS_PER_BYTE)
 /** @brief Total slots for Match ROM + 8-byte ROM + command */
 #define DS18B20_MATCH_SLOTS ((DS18B20_ROM_BYTES + 2) * DS18B20_BITS_PER_BYTE)
-/** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (built on select) */
+/** @brief Slots for the invariant Match ROM + 8-byte ROM prefix (rebuilt per addressed operation) */
 #define DS18B20_PREFIX_SLOTS ((DS18B20_ROM_BYTES + 1) * DS18B20_BITS_PER_BYTE)
 /** @brief Number of DMA transfers for command transmission (2 bytes x 8 bits) */
 #define DS18B20_DMA_TRANSFERS (2 * DS18B20_BITS_PER_BYTE)

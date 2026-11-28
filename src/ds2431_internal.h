@@ -54,7 +54,7 @@ typedef enum {
  *          consumed by onewire_present(): rebuilding over cap[] there is what
  *          makes aliasing safe. It stays live until the write completes, and
  *          the read capture that reuses the storage happens only in the READ
- *          phase of the next op, after the write finished. The output frame
+ *          phase after the write has finished. The output frame
  *          (raw[]) stays a separate member: it overlaps nothing (the decode
  *          source pulse[] must not be overwritten by its own output).
  */

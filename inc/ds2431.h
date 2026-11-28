@@ -37,9 +37,9 @@
  * so only this comparison catches it before Copy Scratchpad commits it.
  *
  * Usage:
- * 1. Call ds2431_init() once at startup (instead of ds18b20_init(): the two
- *    drivers share the TIM1/DMA/GPIO bus, so only one of them may be used
- *    on a bus at a time)
+ * 1. Call ds2431_init() once at startup. The DS18B20, DS2431 and DS2413
+ *    drivers may all be initialized before the first bus operation, but only
+ *    one of them may own the bus at a time.
  * 2. (Optional) Run the non-blocking device search (onewire_search_start()
  *    with family code DS2431_FAMILY_CODE) to get a ROM address, then call
  *    ds2431_select() so subsequent operations are addressed to that device
@@ -216,11 +216,11 @@ extern "C" {
  *      any 1-Wire bus operation.
  * @note Calls onewire_init(), which takes exclusive ownership of the shared
  *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset).
- *       The DS18B20 driver shares that bus: both driver inits may run before
- *       any bus operation (each onewire_init() re-applies the same idle
- *       configuration), and the two drivers may then be used alternately, one
- *       operation at a time, as examples/9_multi does. Concurrent polling of
- *       the two drivers is unsupported.
+ *       The DS18B20 and DS2413 drivers share that bus: all three driver inits
+ *       may run before any bus operation (each onewire_init() re-applies the
+ *       same idle configuration), and the drivers may then be used alternately,
+ *       one operation at a time, as examples/9_multi does. Concurrent polling
+ *       of the drivers is unsupported.
  * @warning A second call does not stop an active operation and does not fully
  *          reset the timer, DMA, low-power or DS2431 software state.
  */
@@ -233,7 +233,8 @@ void ds2431_init(void);
  * @note With a non-NULL address the driver sends Match ROM (0x55) plus the
  *       device address before every command, so only that device responds.
  *       The address should come from a family-filtered device search
- *       (onewire_search_start(sink, max, DS2431_FAMILY_CODE)).
+ *       (onewire_search_start(sink, max, ONEWIRE_SEARCH_ROM,
+ *       DS2431_FAMILY_CODE)).
  * @note Applies only while the driver is idle. A select() clears the latched
  *       write-cycle state (pending TA/ES): address the same device for the
  *       whole write_scratchpad -> read_scratchpad -> copy_scratchpad cycle.

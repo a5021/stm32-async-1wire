@@ -44,10 +44,11 @@
  *   H5/C5/U5 GPDMA/LPDMA   DMA_CCR_PRIO  bits 22..23  OW_PORT_GPDMA_PRIO_BITS
  *
  * The OW_PORT_* names above are engine vocabulary (private, per
- * docs/migration.md); the user-facing value is OW_DMA_PRIO only.  An
- * equal-class load is still resolved by the channel/stream index, so the knob
- * does not replace the guard + 1 us rule - it is the escape hatch when a
- * higher-ranked burst outlasts the feed window. */
+ * docs/migration.md); the user-facing value is OW_DMA_PRIO only. On classic
+ * DMA and F4/H7 streams an equal-class load is still resolved by the
+ * channel/stream index, so the knob does not replace the guard + 1 us rule.
+ * GPDMA/LPDMA arbitration is IP-specific; see ow_config.h for the measured
+ * H5/U5 behaviour. */
 
 /* === STM32F0 ===
  *  Family-specific half only.  The TIM1/DMA state machine is shared with the
@@ -62,7 +63,7 @@
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
- *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
+ *    8-bit memory read widened to a 16-bit peripheral write (PSIZE=16), so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
  *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
@@ -134,7 +135,7 @@
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
- *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
+ *    8-bit memory read widened to a 16-bit peripheral write (PSIZE=16), so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
  *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
@@ -222,7 +223,7 @@
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
- *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
+ *    8-bit memory read widened to a 16-bit peripheral write (PSIZE=16), so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
  *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
@@ -523,7 +524,7 @@
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
  *  - ow_pulse_t: 8-bit feed entry.  The basic-DMA backends feed CCR3 with a
- *    peripheral read (PSIZE=16) widened to the byte entries, so pulse buffers
+ *    8-bit memory read widened to a 16-bit peripheral write (PSIZE=16), so pulse buffers
  *    are uint8_t here (contrast the F4 backend, a uint16_t direct-mode feed).
  *    Capture-side durations are always uint16_t.
  *  - OW_SYSCLK_MHZ: system clock in MHz; the timer prescaler and the
@@ -620,15 +621,13 @@
  *  Per-family facts owned by this port.  inc/ow_board.h owns the family
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
- *  - ow_pulse_t: 8-bit feed entry.  The classic-DMA backends (F0/F1/F3/G0)
- *    feed CCR3 with a 16-bit peripheral read narrowed to byte memory (the
+ *  - ow_pulse_t: 8-bit feed entry. The classic-DMA backends (F0/F1/F3/G0)
+ *    feed CCR3 from 8-bit memory widened to a 16-bit peripheral write (the
  *    RX8/TX defaults in the shared core), and the G4 DMA is the same classic
  *    IP behind a DMAMUX as G0's, so the same words apply here (contrast the F4
- *    backend, a uint16_t direct-mode feed on DMA2 streams).  Capture-side
- *    durations are always uint16_t.  Pending hardware proof: the first
- *    search-ROM matrix on the WeAct board is the experiment - F4's rejected
- *    byte feed (merged slots, all-zero ROMs, see port/stm32f4/HARDWARE-NOTES.md)
- *    is what a failure looks like.
+ *    backend, a uint16_t direct-mode feed on DMA2 streams). Capture-side
+ *    durations are always uint16_t. Bench-validated on the WeAct G474 board
+ *    with seven parasite-powered DS18B20 sensors at 170 and 16 MHz.
  *  - OW_SYSCLK_MHZ: system clock in MHz (HSE+PLL, see app.c; 16
  *    selects raw HSI16).  The build systems pass it explicitly
  *    (-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) from chips/<part>.mk); without
@@ -736,9 +735,9 @@
  *  Per-family facts owned by this port.  inc/ow_board.h owns the family
  *  dispatch, the ow_pulse_t width and the board clock defaults; the bullets
  *  below record this family's rationale for them.
- *  - ow_pulse_t: 8-bit feed entry.  The classic-DMA backend feeds CCR3 with a
- *    16-bit peripheral read narrowed to byte memory (the RX8/TX defaults in the
- *    shared core), exactly like F0/F1/F3/G0/G4.  Capture-side durations are
+ *  - ow_pulse_t: 8-bit feed entry. The classic-DMA backend feeds CCR3 from
+ *    8-bit memory widened to a 16-bit peripheral write (the RX8/TX defaults in
+ *    the shared core), exactly like F0/F1/F3/G0/G4. Capture-side durations are
  *    always uint16_t.
  *  - OW_SYSCLK_MHZ: system clock in MHz (80 HSI16+PLL, or 16 raw HSI16, see
  *    app.c).  The build systems pass it explicitly

@@ -16,7 +16,7 @@
  * @brief Shared non-blocking engine for every DS2431 operation. Each
  *        operation runs reset -> presence -> write -> (read | timed wait) ->
  *        done, one hardware-timed operation per poll call, so the same
- *        non-blocking discipline as the DS18B20 drivers is preserved. Each
+ *        non-blocking discipline as the DS18B20 driver is preserved. Each
  *        operation owns TIM1/DMA while it runs and leaves the bus idle when
  *        done.
  * @{

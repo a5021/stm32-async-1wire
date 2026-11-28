@@ -492,8 +492,7 @@ Rules for correct RTOS use:
       channels on L4, **DMA2 streams 2 and 4 at `CHSEL=6`** on F4, GPDMA1
       channels 2 and 3 at `REQSEL=59/61` on H5 and `REQSEL=43/45` on U5,
        LPDMA1 channels 2 and 3 at `REQSEL=25/27` on C5, and DMA1 streams 2 and 3
-       through DMAMUX1 requests
-      12 (TIM1_CC2) and 14 (TIM1_CH4) on H7.
+       through DMAMUX1 requests 12 (TIM1_CC2) and 14 (TIM1_CH4) on H7.
     - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or
       the physical PA12 pad remapped to logical PA10 on G0 (those pads must
       not be used as plain GPIO while the driver is active).

@@ -34,9 +34,9 @@
 
 ### Temperature readings are infrequent
 
-- **Cause:** `ds18b20_poll()` is called slowly from the main loop. The driver
-  operates correctly but advances through its states (e.g. the 750 ms
-  conversion wait) at a slower pace.
+- **Cause:** `ds18b20_poll()` is called slowly from the main loop. The hardware
+  still completes each timed operation on schedule, but the driver notices the
+  completion later and advances its state machine with added polling latency.
 - **Fix:** this is often not a problem if a slow update rate is acceptable. If
   faster updates are needed, ensure the main loop runs frequently and avoids
   other blocking code. The driver never waits for a result and does not cause

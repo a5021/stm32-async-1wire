@@ -33,8 +33,9 @@
 -   **wget** (or **curl**): Required for downloading CMSIS build dependencies.
 -   **Host toolchain** for the test and lint suites: **gcc** (`make test*`,
     `make test-mocks`, `make test-manifest`), **clang with libFuzzer**
-    (`make fuzz-all`), **cppcheck** (CI static analysis), **doxygen** (API docs),
-    **lcov** (only to turn the `.gcda` files from `COVERAGE=1` into a report — CI
+    (`make fuzz-all`), **cppcheck** (CI static analysis), **shellcheck**
+    (`make check-shell`), **doxygen** (API docs), **lcov** (only to turn the
+    `.gcda` files from `COVERAGE=1` into a report — CI
     does this step, there is no Makefile target for it), and **python3**
     (`make test-manifest`).
 -   **cmake** ≥ 3.14: only for the CMake build path (`find_package` /

@@ -58,7 +58,7 @@ typedef struct {
     ow_stats_sensor_t sensors[OW_STATS_MAX_SENSORS];
     uint8_t sensor_count; /**< Number of known sensors */
     uint32_t histogram[OW_STATS_HIST_BUCKETS]; /**< Pulse-width distribution */
-    uint32_t total_cycles; /**< Full measurement cycles completed */
+    uint32_t total_cycles; /**< Application-counted cycles (advanced by ow_stats_tick()) */
     uint32_t total_errors; /**< Sum of all error counters */
     uint32_t capture_overruns; /**< TIMx_SR.CC4OF events: a capture arrived before the DMA read the previous one */
 } ow_stats_t;

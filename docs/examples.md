@@ -240,7 +240,7 @@ version, flags, counter, temperature, sensor index, CRC-8); `PEAK_RESET=1`
 ignores stored records at boot. `CLEAR_RECORDS=1` erases the four record/ROM
 blocks (0xFF) before the normal boot and then stops, so the next normal image
 starts from a clean EEPROM. Every stage is a `poll()` loop paced by
-`app_millis()`; there are no delays, waits or interrupts.
+`app_millis()`; there are no software delays, blocking waits or interrupts.
 Capture: [1-Wire bus](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=0&speed=standard),
 [PIOA (D2, raw pulse view)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=2&raw=1),
 [PIOB (D3, raw pulse view)](https://a5021.github.io/stm32-async-1wire/viewer/?src=./../examples/captures/9_multi.sr&chan=3&raw=1).

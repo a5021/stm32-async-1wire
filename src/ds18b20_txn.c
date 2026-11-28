@@ -51,10 +51,9 @@ __STATIC_FORCEINLINE uint8_t txn_can_start(void) {
  *       index of the mode actually used, not always at the end of the buffer.
  */
 __STATIC_FORCEINLINE void txn_build_pulses(void) {
-    // In scan mode the command must reach every sensor, so the Match ROM
-    // address is skipped even if a single-device address is still selected.
+    // txn_can_start() rejects scan mode, so a transaction uses Match ROM only
+    // for an explicitly selected device and a command that is not sent bare.
     const uint8_t use_match = ((ctx.flags & DS18B20_FLAG_ADDRESS_MODE) != 0u) &&
-                              ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) &&
                               (txn_ctx.flags & DS18B20_TXN_FLAG_BARE) == 0u;
     const uint8_t* rom = 0;
     if (use_match) {

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ShellCheck gate for repository scripts.** `make check-shell` runs ShellCheck
+  at warning level over `tests/*.sh` and `tests/ci/*.sh`, is part of `make check`,
+  and has a dedicated CI job.
+- **STM32F1 bus-drive contract tests.** `make test-bus-drive` checks all four
+  `OW_BUS_DRIVE` MODE10 mappings and runs as part of the F1 host suite.
+
+### Changed
+
+- **Scan rounds now require an explicit start request.**
+  `ds18b20_scan_start()` only arms scan mode; call
+  `ds18b20_start_measure()` for every simultaneous-conversion round.
+- **`OW_BUS_DRIVE` now controls STM32F1 drive strength.** WEAK/MEDIUM/STRONG/MAX
+  map to 2/10/50/50 MHz through `GPIO_CRH.MODE10`, matching the documented knob.
+
+### Fixed
+
+- **Documentation and code comments now match the current API.** Restored the
+  missing C5/U5 family entries, corrected DS2431 search/init examples, refreshed
+  the U5 hardware-notes link, added the DS2413 datasheet reference, and removed
+  stale scan, DMA-arbitration and inter-measurement wording.
+
 ## [3.2.0] - 2026-11-15
 
 ### Added

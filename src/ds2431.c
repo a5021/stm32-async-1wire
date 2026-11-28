@@ -50,11 +50,12 @@ _Static_assert(DS2431_SCRATCH_FRAME_CRC <= ONEWIRE_MAX_READ_BYTES,
  *       TIM1/DMA/GPIO resources for the lifetime of the driver (until reset),
  *       and parks the driver at DS2431_PH_IDLE: nothing runs until the
  *       application schedules a Read Memory, a Write Scratchpad cycle or a
- *       Copy Scratchpad. The DS18B20 driver and the DS2431 driver share that
- *       bus ownership, so call ds2431_init() INSTEAD of ds18b20_init().
+ *       Copy Scratchpad. The DS18B20, DS2431 and DS2413 drivers share that bus
+ *       ownership, so all three inits may run before the first bus operation.
  * @warning This function is a bootstrap operation, not a reinitialization hook.
- *          A second call is unsupported and does not fully reset the timer,
- *          DMA, low-power or DS2431 software state.
+ *          A second call before any bus operation re-applies the idle setup;
+ *          during activity it does not stop or fully reset the timer, DMA,
+ *          low-power or DS2431 software state.
  */
 void ds2431_init(void) {
     onewire_init();

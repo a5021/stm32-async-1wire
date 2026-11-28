@@ -1,10 +1,10 @@
 /**
  * @file main.c
- * @brief Peak and low temperature recorder: DS18B20 sensors + DS2431 EEPROM
+ * @brief Peak and low temperature recorder: DS18B20 sensors + DS2431 EEPROM + DS2413 switch
  *
- * One explicit bus-owner state machine uses the two drivers strictly in
- * sequence, because both share the TIM1/DMA/GPIO resources and neither may be
- * polled while the other owns the timer:
+ * One explicit bus-owner state machine uses the three drivers strictly in
+ * sequence, because they share the TIM1/DMA/GPIO resources and none may be
+ * polled while another owns the timer:
  *
  *   1. DS18B20 device search (fills the driver's scan-mode device table);
  *   2. a full-family search to locate the DS2431 (the search engine can only
@@ -18,6 +18,8 @@
  *      with the stored low. Every change becomes a write job, executed one
  *      after another: Write Scratchpad -> Read Scratchpad (echo + data verify)
  *      -> Copy Scratchpad -> Read Memory (read-back compare).
+ *   6. while waiting between rounds, the DS2413 PIOA/PIOB latches alternate
+ *      every 500 ms and are read back.
  *
  * EEPROM map (DS2431, 8-byte blocks, all records self-validating):
  *

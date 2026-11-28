@@ -72,7 +72,7 @@ __STATIC_FORCEINLINE void build_res_pulses(uint8_t res) {
  *       measurement cycles and only while the device search is idle; otherwise
  *       it is ignored. While running, it owns TIM1/DMA; poll it with
  *       ds18b20_set_resolution_poll() until it reports completion, then call
- *       ds18b20_poll() again to resume measuring with the new resolution.
+ *       ds18b20_start_measure() to request a measurement with the new resolution.
  */
 void ds18b20_set_resolution(uint8_t bits) {
     if (bits < DS18B20_RES_MIN || bits > DS18B20_RES_MAX) {

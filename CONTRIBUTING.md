@@ -87,6 +87,7 @@ make test-lowpower  # same suite with the -DOW_LOW_POWER=1 WFE path
 make test-ndebug    # same suite with asserts compiled out
 make test-clocks    # per-family clock-default compile checks
 make test-chips     # chips/<part>.mk part matrix (needs no toolchain)
+make check-shell    # ShellCheck over tests/*.sh and tests/ci/*.sh
 ```
 
 Thanks again for helping improve this driver!
