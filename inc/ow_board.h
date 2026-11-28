@@ -9,10 +9,10 @@
  *     STMicroelectronics device macro of the target (e.g. -DSTM32F030x6) or,
  *     for host-test mocks, PlatformIO and STM32CubeMX projects, from a family
  *     macro (STM32F0, STM32F1, STM32F3, STM32F4, STM32G0, STM32G4, STM32L4,
- *     STM32H5, STM32H7);
+ *     STM32C5, STM32H5, STM32U5, STM32H7);
  *   - ow_pulse_t, the DMA feed entry the public write API hands to the
- *     hardware: 8-bit on F0/F1/F3/G0/G4/L4/H5, 16-bit on F4/H7 (direct-mode
- *     feed);
+ *     hardware: 8-bit on F0/F1/F3/G0/G4/L4/C5/H5/U5, 16-bit on F4/H7
+ *     (direct-mode feed);
  *   - the board clock defaults read by the application layer (OW_HSE_MHZ and
  *     the OW_*_MAX_SYSCLK_MHZ part ceilings).
  *

@@ -14,7 +14,7 @@
  * shared timer/DMA engine and returns immediately; the caller advances by
  * polling ow_port_bus_done(). The CPU is never in the timing-critical path.
  *
- * Layout: protocol constants, then the target facts (ow_mcu.h: the ten MCU
+ * Layout: protocol constants, then the target facts (ow_mcu.h: the eleven MCU
  * sections, plus the family dispatch and ow_pulse_t from the public
  * ow_board.h), then the shared TIM1+DMA engine below.  Library-internal:
  * src/onewire.c is the only consumer, and the public headers never reach it.
@@ -69,9 +69,9 @@ extern "C" {
 #include "onewire.h"
 #include "ow_mcu.h"
 
-/* Default pin-mode switch for the ten families whose PA10 drive is the OTYPER
- * bit (F1 overrides this with its CRH-based macro). Each family supplies its
- * own bit spelling through OW_PORT_OTYPER_OT10 next to the pin mux. */
+/* Default pin-mode switch for the families other than F1, whose PA10 drive is
+ * the OTYPER bit (F1 overrides this with its CRH-based macro). Each family
+ * supplies its own bit spelling through OW_PORT_OTYPER_OT10 next to the pin mux. */
 #ifndef OW_PORT_SET_PIN_MODE
 #define OW_PORT_SET_PIN_MODE(push_pull)        \
     do {                                       \
@@ -217,8 +217,9 @@ _Static_assert((ONEWIRE_ONE_PULSE + ONEWIRE_ZERO_PULSE + ONEWIRE_GUARD_BAND) < 2
  *  Clocks stay per-family (OW_PORT_ENABLE_BUS_CLOCKS), and so does the pin
  *  mux: OW_PORT_CONFIG_BUS_PIN() and OW_PORT_SET_PIN_MODE() are two short
  *  statement macros per backend (F1's legacy CRH field proves the shapes are
- *  family-owned, not shared).  DMA request routing defaults to a no-op (fixed-map families) and G0/G4
- *  program their DMAMUX through the same two macros.
+ *  family-owned, not shared). DMA request routing defaults to a no-op for
+ *  fixed-map families; families that need a mux program it through the same
+ *  two macros.
  *
  *  The family facts above (ow_mcu.h: ow_pulse_t, OW_SYSCLK_MHZ /
  *  SystemCoreClock, OW_PORT_TIM1_UPD_IRQn, DMA spelling) must precede this
@@ -1087,7 +1088,7 @@ __STATIC_FORCEINLINE void ow_port_strong_pullup(uint8_t on) {
  *  machinery and the register shortcuts (RCC_AHBENR, TIM_CR1, ...).  The
  *  chain is header-only, so all of it had to stay visible while every inline
  *  body was parsed; this is where the last body is in, so this is where a TU
- *  that merely includes onewire.h is cleaned of the whole vocabulary.
+ *  that includes this internal engine header is cleaned of the whole vocabulary.
  *  Nothing else in the tree uses these names (make test-header-hygiene
  *  pins every one of them). */
 // Register shortcuts

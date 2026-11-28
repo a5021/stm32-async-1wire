@@ -65,20 +65,20 @@
 │       └── project-h743vi.jdebug  # SEGGER Ozone project (STM32H743VI, SWD; no J-Flash: ST-Link flow)
 ├── config/                # Build settings shared by both build systems
 │   └── optim.mk            # Optimisation profiles + the no-LTO family list
-├── chips/                  # Per-part build identity, one file per part
-│   ├── f103xb.mk           # CMSIS macro, startup, linker script, debugger
-│   ├── f030x6.mk           #   projects, SVD and default clock. Shared by
-│   ├── g031xx.mk           #   the Makefile and the CMake build
-│   ├── f407xx.mk           #   (selected by OW_MCU=<device macro>; the legacy
-│   ├── f303xc.mk           #   OW_TARGET/OW_CHIP pair selects them too)
-│   ├── f401xc.mk           # 256KB flash / 64KB RAM
-│   ├── f446xx.mk           # 512KB flash / 128KB RAM, 180MHz default
-│   ├── g474cb.mk           # 128KB flash / 96KB RAM, 170MHz default (WeAct G474 Long, 8MHz HSE)
-│   ├── l476rg.mk           # 1MB flash / 96KB SRAM1, 80MHz HSI16 default (NUCLEO-L476RG, no HSE)
-│   ├── c552ce.mk           # 512KB flash / 128KB SRAM, 144MHz HSE->PSI default (WeAct C5 48-pin, 8MHz HSE)
-│   ├── h503cb.mk           # 128KB flash / 32KB RAM, 64MHz HSI default (WeAct H503 Core, 8MHz HSE for later steps)
-│   ├── u585ci.mk           # 2MB flash / 768KB SRAM, 160MHz HSE25+PLL1 default (16MHz HSI16 fallback)
-│   └── h743vi.mk           # 2MB flash / 512KB AXI SRAM1, 240MHz HSE+PLL default (WeAct Studio STM32H7XX, 25MHz HSE)
+├── chips/                  # Per-part identity; every file defines the same schema
+│   ├── f103xb.mk           # STM32F103xB, 72MHz HSE+PLL default
+│   ├── f030x6.mk           # STM32F030x6, 48MHz HSI/2+PLL default
+│   ├── g031xx.mk           # STM32G031xx, 64MHz HSI16+PLL default
+│   ├── f407xx.mk           # STM32F407xx, 168MHz HSE+PLL default
+│   ├── f303xc.mk           # STM32F303xC, 72MHz HSE-bypass+PLL default
+│   ├── f401xc.mk           # STM32F401xC, 84MHz HSE+PLL, 256KB flash / 64KB RAM
+│   ├── f446xx.mk           # STM32F446xx, 180MHz HSE+PLL, 512KB flash / 128KB RAM
+│   ├── g474cb.mk           # STM32G474xx, 170MHz HSE+PLL, 128KB flash / 96KB RAM
+│   ├── l476rg.mk           # STM32L476xx, 80MHz HSI16+PLL, no HSE on NUCLEO-L476RG
+│   ├── c552ce.mk           # STM32C552xx, 144MHz HSE->PSI, 512KB flash / 128KB SRAM
+│   ├── h503cb.mk           # STM32H503xx, 64MHz HSI, 128KB flash / 32KB RAM
+│   ├── u585ci.mk           # STM32U585xx, 160MHz HSE25+PLL1, 2MB flash / 768KB SRAM
+│   └── h743vi.mk           # STM32H743xx, 240MHz HSE+PLL, 2MB flash / 512KB AXI SRAM1
 ├── src/                    # Library sources (the engine headers are private to the library)
 │   ├── ow_port.h           # 1-Wire port layer: TIM1+DMA engine (private; only src/onewire.c reaches it)
 │   ├── ow_mcu.h            # Per-family register/DMA facts for the engine (private; 11 family sections)

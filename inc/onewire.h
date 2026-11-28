@@ -5,8 +5,8 @@
  *          DS2431, ...) are built on top of this layer. Every operation is
  *          scheduled on TIM1/DMA and completes asynchronously: callers poll
  *          onewire_bus_done() / onewire_search_poll() to advance, never wait.
- *          The layer owns TIM1, its DMA1 channels and the bus GPIO pin from
- *          onewire_init() until reset (see there); access the bus only
+ *          The layer owns TIM1, its DMA feed/capture pair and the bus GPIO pin
+ *          from onewire_init() until reset (see there); access the bus only
  *          through this API.
  */
 
@@ -60,12 +60,13 @@ extern "C" {
  *  The token resolves from the CMSIS device macro of the target (e.g.
  *  -DSTM32F030x6) or, for host-test mocks, PlatformIO and STM32CubeMX
  *  projects, from a family macro (STM32F0, STM32F1, STM32F3, STM32F4,
- *  STM32G0, STM32G4, STM32L4, STM32H5, STM32H7).  Concrete device spellings
- *  are accepted for the parts this project supports (STM32F030x6 for F0;
- *  STM32F103xB for F1; STM32F303xC for F3;
+ *  STM32G0, STM32G4, STM32L4, STM32C5, STM32H5, STM32U5, STM32H7).
+ *  Concrete device spellings are accepted for the parts this project supports
+ *  (STM32F030x6 for F0; STM32F103xB for F1; STM32F303xC for F3;
  *  STM32F407xx / STM32F401xC / STM32F446xx for F4;
  *  STM32G031xx for G0; STM32G474xx for G4; STM32L476xx for L4;
- *  STM32H503xx for H5; STM32H743xx for H7).
+ *  STM32C552xx for C5; STM32H503xx for H5; STM32U585xx for U5;
+ *  STM32H743xx for H7).
  *  The token is the single point of family selection: app.c takes the device
  *  header and clock configuration from it, and the per-family facts
  *  ow_pulse_t and the OW_HSE_MHZ / OW_*_MAX_SYSCLK_MHZ defaults live in
@@ -100,8 +101,9 @@ extern "C" {
  *          call does not stop or reset an active TIM1/DMA operation, clear stale
  *          timer/DMA/low-power state, or fully reset slave-driver state. Calling
  *          it twice before any bus operation is harmless (it re-applies the same
- *          idle configuration, which is how both slave drivers are brought up in
- *          one image); starting a new driver lifecycle requires an MCU reset.
+ *          idle configuration, which is how all three slave drivers are brought
+ *          up in one image); starting a new driver lifecycle requires an MCU
+ *          reset.
  * @warning After initialization the 1-Wire layer exclusively owns TIM1, the
  *          DMA feed/capture pair of the active backend (DMA1 channels 3 and 4
  *          on F0/F1/G0, DMA2 streams 2 and 4 on F4), and the bus GPIO pin

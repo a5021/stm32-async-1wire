@@ -48,9 +48,9 @@ timing-critical path. The timer schedules bus edges at a nominal 1 µs
 resolution, so CPU activity does not introduce edge jitter. Actual timing
 accuracy depends on the timer clock and the electrical characteristics of the
 bus. Software delays degrade under interrupt load, and even timer-ISR approaches
-incur jitter from preemption. The trade-off is complexity: this driver's
-hardware configuration is ~150 lines of register-level code versus ~20 lines
-for a typical bit-bang implementation.
+incur jitter from preemption. The trade-off is complexity: this driver uses a
+substantial register-level timer/DMA configuration versus a few dozen lines for
+a typical bit-bang implementation.
 
 ## Architecture
 
@@ -109,7 +109,7 @@ a reusable 1-Wire master that the DS18B20 driver builds on:
   `onewire_search_count()`, `onewire_search_active()` — the generic Maxim
   Search ROM engine, shared by `ds18b20_search_*` and
   `ds18b20_alarm_search_*`.
-- `onewire_crc8()` — the Dallas/Maxim CRC-8 utility.
+- `onewire_crc8()` / `onewire_crc16()` — the Dallas/Maxim CRC utilities.
 
 Each bus transaction is timed and executed by TIM1 and DMA, without CPU-driven
 timing. The application calls `onewire_bus_done()` / `onewire_search_poll()` to
@@ -150,8 +150,9 @@ do not "fix" them without re-reading the reasoning:
   always-`uint16_t` type would double the pulse buffers on 4 KB-RAM parts;
   casts would hide the F4/H7 halfword requirement the backends document. It is
   declared next to the family token, in `inc/ow_board.h`.
-- **The public/private header split is acyclic.** `onewire.h` includes only
-  `ow_config.h` and `ow_board.h`; the engine `src/ow_port.h` includes
+- **The public/private header split is acyclic.** From the project headers,
+  `onewire.h` includes only `ow_config.h`, `ow_version.h` and `ow_board.h`;
+  the engine `src/ow_port.h` includes
   `onewire.h` and `src/ow_mcu.h`, and both of those include `ow_board.h`
   through their own guard. No header is included by a header that includes it
   back, so nothing depends on include order. The old `onewire.h` ↔ `ow_port.h`
@@ -173,8 +174,8 @@ do not "fix" them without re-reading the reasoning:
   in its withdraw block once the last body is in. The engine is now
   library-internal — only `src/onewire.c` includes it — so a
   `#include "onewire.h"` translation unit can never carry it; but
-  `make test-header-hygiene` still pins both halves across the four public
-  headers and the two engine headers, every family. The `8dba9d2` refactor
+  `make test-header-hygiene` still pins both halves across the eight public
+  headers and the three internal headers, every family. The `8dba9d2` refactor
   moved a backend include into `onewire.h` and the leak shipped in v2.1.0.
   `src/ow_mcu.h` defines none of it on its own: its family hooks only expand
   inside `src/ow_port.h`.
@@ -448,8 +449,8 @@ The driver is safe to call from an RTOS task, but it is **not re-entrant and
 not thread-safe by itself**. All driver state is global and shared: the DS18B20
 state machine, the DS2431 transaction context, the DS2413 PIO state, the 1-Wire
 search context (`search_ctx`, in `onewire.c`), and the TIM1/DMA peripherals
-(DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4, GPDMA1 on H5, LPDMA1 on C5, DMA1
-through DMAMUX1 on H7). There is no internal lock. The ownership guards
+(DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4, GPDMA1 on H5/U5, LPDMA1 on C5,
+DMA1 through DMAMUX1 on H7). There is no internal lock. The ownership guards
 (`txn_can_start`, the `ds18b20_search_*` checks) cover every bundled driver but
 only prevent *logical*
 conflicts within a single-threaded model — they are plain flag checks, not
@@ -489,8 +490,9 @@ Rules for correct RTOS use:
       F0/F1/F3, the same two channels via DMAMUX requests 21 (TIM1_CC2) and 23
       (TIM1_CH4) on G0, requests 43 and 45 on G4, DMA1_CSELR selection 7 on both
       channels on L4, **DMA2 streams 2 and 4 at `CHSEL=6`** on F4, GPDMA1
-      channels 2 and 3 at `REQSEL=59/61` on H5, LPDMA1 channels 2 and 3 at
-      `REQSEL=25/27` on C5, and DMA1 streams 2 and 3 through DMAMUX1 requests
+      channels 2 and 3 at `REQSEL=59/61` on H5 and `REQSEL=43/45` on U5,
+       LPDMA1 channels 2 and 3 at `REQSEL=25/27` on C5, and DMA1 streams 2 and 3
+       through DMAMUX1 requests
       12 (TIM1_CC2) and 14 (TIM1_CH4) on H7.
     - **The 1-Wire data pin** — PA10 as alternate-function open-drain, or
       the physical PA12 pad remapped to logical PA10 on G0 (those pads must

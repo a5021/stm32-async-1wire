@@ -9,7 +9,7 @@ console). Measurement logs are deliberately not kept in the repo. Deeper
 per-port bring-up and timing notes live next to the linker scripts:
 [STM32F1](../port/stm32f1/HARDWARE-NOTES.md),
 [STM32F4](../port/stm32f4/HARDWARE-NOTES.md) and
-[STM32C5](../port/stm32c5/HARDWARE-NOTES.md), [STM32U5](../port/stm32u5/STM32U585CI_FLASH.ld).
+[STM32C5](../port/stm32c5/HARDWARE-NOTES.md), [STM32U5](../port/stm32u5/HARDWARE-NOTES.md).
 
 ### STM32F103C8T6 (Blue Pill)
 
@@ -110,8 +110,8 @@ the F407 (RM0368 §9.3.3 Table 29 via
 port layer is chip-generic. The chip-specific parts (CMSIS device header
 `stm32f401xc.h`, `startup_stm32f401xc.s`, the `STM32F401CC_FLASH.ld` linker
 script, the `app.c` 84 MHz HSE+PLL clock-config branch, and the library's 84 MHz
-clock default) are selected with `OW_MCU=STM32F401xC` — all of it in
-`chips/f401xc.mk`.
+clock default) are selected with `OW_MCU=STM32F401xC`; the chip-specific
+file paths and scalars are recorded in `chips/f401xc.mk`.
 
 Bench-validated on a WeAct F401 Black Pill at the 84 MHz default (25 MHz
 crystal, HSE+PLL); `SYSCLK_MHZ=16` remains the no-crystal raw-HSI fallback.
@@ -121,7 +121,8 @@ crystal, HSE+PLL); `SYSCLK_MHZ=16` remains the no-crystal raw-HSI fallback.
 the crystal down before multiplying: `PLLM = HSE_MHZ` puts the PLL input at 1 MHz
 and `PLLN = 2 × SYSCLK` sets the VCO, so 25 MHz gives M=25/N=168 for the same
 84 MHz that 8 MHz reaches with M=8/N=168. `chips/f401xc.mk` therefore declares
-`CHIP_HSE_MHZ = 25`; every other board passes `HSE_MHZ=<n>` to the build. This
+`CHIP_HSE_MHZ = 25`; each board's `chips/*.mk` file provides its own default,
+and `HSE_MHZ=<n>` overrides it for different hardware. This
 matters more than it looks: with the divider hardcoded to 8, a 25 MHz crystal
 puts 3.125 MHz into a PLL input specified for 1–2 MHz, the PLL never locks, and
 the old unbounded wait left the board silent with no way to tell a dead board

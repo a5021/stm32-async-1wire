@@ -70,8 +70,8 @@ facts before wiring or porting:
   timer choice: the IC4→TI3 capture topology requires this pair.
 - **TIM1 + DMA pair + bus pin belong to the library after init.**
   `onewire_init()` takes exclusive ownership until MCU reset; there is no
-  deinit or release API (`inc/onewire.h:97-104`). Do not use TIM1, those DMA
-  channels, or the bus pin elsewhere while the layer is in use.
+  deinit or release API (see `onewire_init()` in `inc/onewire.h`). Do not use
+  TIM1, those DMA channels, or the bus pin elsewhere while the layer is in use.
 - **Initialization is not a reset.** A second `onewire_init()` /
   `ds18b20_init()` / `ds2431_init()` / `ds2413_init()` call does not stop an
   active operation, and it does not clear stale timer/DMA/low-power or
@@ -116,8 +116,9 @@ The system clock is one such optional setting. `OW_SYSCLK_MHZ` fixes the
 TIM1 prescaler that generates the 1-Wire timing at compile time. The Make and
 CMake builds pass it for the part being built
 (`-DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ)` from `chips/<part>.mk`: 48 on
-STM32F0, 72 on STM32F1, 72 on STM32F3, 64 on STM32G0, 170 on STM32G4, and on
-F4 the part's own clock: 168 on F407, 84 on F401, 180 on F446), and the
+STM32F0, 72 on STM32F1, 72 on STM32F3, 64 on STM32G0, 170 on STM32G4, 80 on
+STM32L4, 144 on STM32C5, 64 on STM32H5, 160 on STM32U5, 240 on STM32H7, and
+on F4 the part's own clock: 168 on F407, 84 on F401, 180 on F446), and the
 examples enable that clock in their `app_init()`. If your firmware runs the
 MCU at a different frequency, pass it explicitly — e.g.
 `-DOW_SYSCLK_MHZ=8` for an 8 MHz HSI build. If you omit it entirely, the

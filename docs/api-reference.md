@@ -36,7 +36,7 @@ void ds18b20_init(void);
 ```
 Initialize the DS18B20 driver. Enables the peripherals the backend needs (the bus
 GPIO port, TIM1 and the DMA controller — DMA1 on F0/F1/F3/G0/G4/L4, DMA2 on F4,
-GPDMA1 on H5, LPDMA1 on C5, DMA1 through DMAMUX1 on H7) and sets up the timer
+GPDMA1 on H5/U5, LPDMA1 on C5, DMA1 through DMAMUX1 on H7) and sets up the timer
 prescaler for a 1 µs resolution. System clock configuration is handled
 separately in the
 application (see `app.c`). This function does NOT start a measurement.

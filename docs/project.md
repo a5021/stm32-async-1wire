@@ -32,6 +32,8 @@ For issues and questions, please open an issue on GitHub.
 
 - DS2431 Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/DS2431.pdf
 
+- DS2413 Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/DS2413.pdf
+
 - STM32F103 Reference Manual  
   https://www.st.com/resource/en/reference_manual/cd00171190-stm32f101xx-stm32f102xx-stm32f103xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf
 

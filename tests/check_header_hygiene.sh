@@ -12,8 +12,8 @@
 # definitions, so this check is the tie.
 #
 # The engine is library-internal: src/ow_port.h is reached only by
-# src/onewire.c, and the public headers - onewire.h, ow_board.h, ds18b20.h,
-# ds2431.h - must never carry a single one of these names. The engine headers
+# src/onewire.c, and every public header under inc/ must never carry a single
+# one of these names. The engine headers
 # are checked too: ow_port.h's own TU must show the vocabulary fully withdrawn
 # by its end, and ow_mcu.h's family hooks only expand inside ow_port.h, so its
 # TU carries none either.
