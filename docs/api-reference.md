@@ -358,9 +358,9 @@ const uint8_t* ds18b20_device_rom(uint8_t index);
 uint8_t ds18b20_scan_index(void);
 ```
 
-Convert every discovered device in parallel. `ds18b20_scan_start()` switches the
-driver into scan mode, then `ds18b20_start_measure()` runs one round: a
-broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously,
+Convert every discovered device in parallel. `ds18b20_scan_start()` only arms
+scan mode; it does not start a round. Call `ds18b20_start_measure()` to request
+one: a broadcast `Convert T` (Skip ROM 0xCC) so all sensors convert simultaneously,
 followed by reading each one back via Match ROM in device-table order, with
 every result reported through `ds18b20_complete()`. N devices take one
 conversion wait plus N reads instead of N conversion waits. A missing device

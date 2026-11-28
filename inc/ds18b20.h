@@ -472,9 +472,10 @@ uint8_t ds18b20_last_command_ok(void);
  */
 
 /**
- * @brief Begin simultaneous conversion of every discovered device
- * @note Schedules a broadcast Convert T (Skip ROM) so all sensors convert in
- *       parallel; the driver then reads each one via Match ROM. Ignored
+ * @brief Arm simultaneous conversion of every discovered device
+ * @note Selects scan mode without starting a round. Call
+ *       ds18b20_start_measure() to request the next broadcast Convert T
+ *       (Skip ROM); the driver then reads each sensor via Match ROM. Ignored
  *       mid-cycle or while a device search / resolution change owns the timer.
  * @note ds18b20_select() (single-device addressing) clears scan mode; call
  *       ds18b20_scan_start() again to resume simultaneous conversion.

@@ -459,8 +459,9 @@ void test_parasite_scan_engages_pullup_across_pause(void) {
     ds18b20_test_set_device_count(1);
     ds18b20_scan_start();
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
+    ds18b20_start_measure();
 
-    /* IDLE -> CONVERT */
+    /* START -> CONVERT */
     hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());

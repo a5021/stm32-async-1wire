@@ -5,8 +5,9 @@
  * Runs the non-blocking device search (ds18b20_search_*) to discover every
  * sensor, then programs the conversion resolution to every sensor with one
  * broadcast Write Scratchpad (ds18b20_set_resolution(), Skip ROM), then
- * ds18b20_scan_start() to convert all sensors at the same time with a single
- * broadcast Convert T (Skip ROM) and read each one back through Match ROM.
+ * ds18b20_scan_start() to arm scan mode. Each ds18b20_start_measure() request
+ * converts all sensors at the same time with one broadcast Convert T (Skip ROM)
+ * and reads each one back through Match ROM.
  * Programming the resolution first makes the fleet uniform, so scan mode's
  * single conversion wait is correct even if a previous run left a sensor at a
  * different resolution. One conversion wait covers every device; the

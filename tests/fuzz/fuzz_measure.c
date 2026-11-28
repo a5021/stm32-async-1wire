@@ -242,6 +242,7 @@ static void measure_setup(void) {
         }
         ds18b20_test_set_device_count(g_dev_count);
         ds18b20_scan_start();
+        ds18b20_start_measure();
     } else {
         if (g_addr != 0u) {
             uint8_t rom[DS18B20_ROM_BYTES];

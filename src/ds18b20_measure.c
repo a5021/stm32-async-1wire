@@ -71,8 +71,9 @@ void ds18b20_start_measure(void) {
 }
 
 /**
- * @brief Begin simultaneous conversion of every discovered device
+ * @brief Arm simultaneous conversion of every discovered device
  * @see ds18b20_scan_start() in ds18b20.h
+ * @note Selects scan mode only. Call ds18b20_start_measure() to start a round.
  */
 void ds18b20_scan_start(void) {
     if (ctx.current_state != DS18B20_ST_IDLE) {
@@ -174,20 +175,10 @@ void ds18b20_poll(void) {
     // State machine to manage 1-Wire communication sequence
     switch (ctx.current_state) {
     case DS18B20_ST_IDLE:
-        // A parked driver advances on its own only for an armed scan round:
-        // ds18b20_scan_start() arms scan_mode and the first poll starts it
-        // (this keeps select-after-scan_start working: the driver is still
-        // IDLE until polled). Single cycles transition in
-        // ds18b20_start_measure() itself, so with scan_mode clear the bus
-        // stays idle here and the application's pause between rounds
-        // actually engages instead of the next round starting on the very
-        // next poll.
-        if ((ctx.flags & DS18B20_FLAG_SCAN_MODE) == 0u) {
-            break;
-        }
-        ctx.current_state = DS18B20_ST_START;
-        /* fallthrough to START state immediately */
-        __attribute__((fallthrough));
+        // A parked driver stays idle until ds18b20_start_measure() requests
+        // a round. scan_start() only selects the addressing mode; it does not
+        // schedule a conversion or a timer event.
+        break;
 
     case DS18B20_ST_START:
         // Turn on LED to indicate measurement in progress

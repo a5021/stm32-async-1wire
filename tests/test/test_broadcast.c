@@ -7,6 +7,7 @@
  *  ds18b20_complete() callback fires with ds18b20_scan_index() /
  *  ds18b20_device_rom() identifying the sensor:
  *   - scan_start() ownership guards and device-table requirement
+ *   - scan_start() arms the mode but requires an explicit start request
  *   - broadcast CONVERT forces Skip ROM even with a device selected
  *   - per-device REQUEST addresses the current device via Match ROM
  *   - a full round converts once and reads N times, ending at IDLE
@@ -175,7 +176,28 @@ void test_broadcast_start_guards(void) {
 }
 
 /*-------------------------------------------------------------
- *  2. Broadcast CONVERT forces Skip ROM
+ *  2. scan_start() does not start a round by itself
+ * -----------------------------------------------------------*/
+
+void test_broadcast_scan_start_requires_explicit_request(void) {
+    setup_scan(1);
+
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
+
+    /* Even a stale update event must not turn an armed scan mode into a round. */
+    hw_tim_update_event();
+    ds18b20_poll();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_IDLE, ds18b20_test_get_state());
+    TEST_ASSERT_FALSE(mock_tim1.CR1 & TIM_CR1_CEN);
+
+    ds18b20_start_measure();
+    TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_START, ds18b20_test_get_state());
+    TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
+}
+
+/*-------------------------------------------------------------
+ *  3. Broadcast CONVERT forces Skip ROM
  * -----------------------------------------------------------*/
 
 void test_broadcast_convert_forces_skip_rom(void) {
@@ -188,7 +210,10 @@ void test_broadcast_convert_forces_skip_rom(void) {
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_scan_mode());
     TEST_ASSERT_EQUAL_UINT8(1, ds18b20_test_get_address_mode()); /* still selected */
 
-    /* IDLE -> CONVERT */
+    /* Explicit request: scan_start() only armed the mode. */
+    ds18b20_start_measure();
+
+    /* START -> CONVERT */
     hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
@@ -208,8 +233,9 @@ void test_broadcast_convert_forces_skip_rom(void) {
 
 void test_broadcast_request_match_rom_per_device(void) {
     setup_scan(2);
+    ds18b20_start_measure();
 
-    /* IDLE -> CONVERT -> WAIT -> CONTINUE */
+    /* START -> CONVERT -> WAIT -> CONTINUE */
     hw_tim_update_event();
     ds18b20_poll();
     set_presence_ok();
@@ -244,8 +270,9 @@ void test_broadcast_request_match_rom_per_device(void) {
 
 void test_broadcast_full_round_three_devices(void) {
     setup_scan(3);
+    ds18b20_start_measure();
 
-    /* 1. IDLE -> CONVERT */
+    /* 1. START -> CONVERT */
     hw_tim_update_event();
     ds18b20_poll();
     TEST_ASSERT_EQUAL_UINT8(DS18B20_ST_CONVERT, ds18b20_test_get_state());
@@ -283,6 +310,7 @@ void test_broadcast_full_round_three_devices(void) {
 
 void test_broadcast_missing_device_continues(void) {
     setup_scan(3);
+    ds18b20_start_measure();
 
     /* Convert + wait, ready for the first read-back. */
     hw_tim_update_event();
@@ -325,6 +353,7 @@ void test_broadcast_missing_device_continues(void) {
 
 void test_broadcast_single_device_round(void) {
     setup_scan(1);
+    ds18b20_start_measure();
 
     hw_tim_update_event();
     ds18b20_poll();
@@ -412,6 +441,7 @@ void test_scan_rejected_while_txn_running(void) {
 
 void run_test_broadcast(void) {
     TEST_RUN(test_broadcast_start_guards);
+    TEST_RUN(test_broadcast_scan_start_requires_explicit_request);
     TEST_RUN(test_broadcast_convert_forces_skip_rom);
     TEST_RUN(test_broadcast_request_match_rom_per_device);
     TEST_RUN(test_broadcast_full_round_three_devices);
