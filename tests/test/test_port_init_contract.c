@@ -74,13 +74,22 @@ static const setup_row_t k_setup[] = {
 };
 #elif defined(STM32F1)
 /* clk packs APB2ENR in the low half (IOPAEN | TIM1EN) and AHBENR in the high
- * half (DMA1EN). mode is CRH: MODE10 = 0b10 (2 MHz) with CNF10 = 0b11
- * (alternate-function open-drain) after init, and CNF10 = 0b10 (AF push-pull)
+ * half (DMA1EN). mode is CRH: MODE10 follows OW_BUS_DRIVE, with CNF10 = 0b11
+ * (alternate-function open-drain) after init and CNF10 = 0b10 (AF push-pull)
  * in push-pull mode. */
+#if OW_BUS_DRIVE == OW_BUS_DRIVE_WEAK
+#define F1_EXPECT_MODE GPIO_CRH_MODE10_0
+#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
+#define F1_EXPECT_MODE GPIO_CRH_MODE10_1
+#else
+#define F1_EXPECT_MODE GPIO_CRH_MODE10
+#endif
+#define F1_EXPECT_OPEN_DRAIN (F1_EXPECT_MODE | GPIO_CRH_CNF10_0 | GPIO_CRH_CNF10_1)
+#define F1_EXPECT_PUSH_PULL (F1_EXPECT_MODE | GPIO_CRH_CNF10_1)
 static const setup_row_t k_setup[] = {
-    {"init", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
-    {"push_pull", 0x00010804u, 0x0047u, 0x8000u, 0x00000A00u, 0u, 0u, 0x00000200u, 0u},
-    {"open_drain", 0x00010804u, 0x0047u, 0x8000u, 0x00000E00u, 0u, 0u, 0x00000200u, 0u},
+    {"init", 0x00010804u, 0x0047u, 0x8000u, F1_EXPECT_OPEN_DRAIN, 0u, 0u, F1_EXPECT_MODE, 0u},
+    {"push_pull", 0x00010804u, 0x0047u, 0x8000u, F1_EXPECT_PUSH_PULL, 0u, 0u, F1_EXPECT_MODE, 0u},
+    {"open_drain", 0x00010804u, 0x0047u, 0x8000u, F1_EXPECT_OPEN_DRAIN, 0u, 0u, F1_EXPECT_MODE, 0u},
 };
 #elif defined(STM32F3)
 /* mode is PA10 = 0b10 in MODER (alternate function); otype 0x400 = PA10

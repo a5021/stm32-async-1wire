@@ -140,6 +140,7 @@ reference into `docs/api/` (gitignored), run `doxygen Doxyfile`.
 | `make test-ndebug` | Same suite with `-DNDEBUG -DOW_TEST_PARAM_GUARD`: asserts compiled out, so the rejected-size returns (0) are observable; adds `test_param_guard`. Firmware reject paths (`ONEWIRE_PARAM_CHECK`) return 0 — the trap lives only under the test harness, keeping `fprintf` out of firmware images |
 | `make test-ndebug-<family>` | Same as above for one backend (same family list as `test-active-<family>`) |
 | `make test-dma-prio` | Rebuild the contract suite with `-DOW_DMA_PRIO=3` for one family per DMA-priority encoding (`f0`, `f4`, `h5`, `u5`, `h7`) and check the class reaches the live register word; `make test-dma-prio-<family>` runs one backend |
+| `make test-bus-drive` | Check all four STM32F1 `OW_BUS_DRIVE` mappings (2/10/50/50 MHz); also runs as part of the F1 `make test` wrapper |
 | `make test-ds2431` | Run the DS2431 EEPROM driver suite alone (35 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-ds2413` | Run the DS2413 switch driver suite alone (14 tests against the F1 mock; also executed by `make test` and by every family wrapper) |
 | `make test-manifest` | Check that the PlatformIO manifests list every source and public header |

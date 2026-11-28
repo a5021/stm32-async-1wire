@@ -1667,6 +1667,23 @@ test: $(TEST_EXE) $(TEST_EXTRA_EXES) $(TEST_CLOCK_OBJ) $(TEST_CLOCK_NODEFAULT_OB
 	$(TEST_AUTO_EXE)
 	$(foreach x,$(TEST_EXTRA_EXES),$(x);)
 
+# --- STM32F1 bus-drive mapping ---------------------------------------------
+# OW_BUS_DRIVE is compile-time. Build a tiny register check once per class so
+# the F1 MODE10 mapping is pinned independently of the default MAX table row.
+TEST_BUS_DRIVE_VALUES = 0 1 2 3
+TEST_BUS_DRIVE_EXES = $(foreach v,$(TEST_BUS_DRIVE_VALUES),$(TEST_OUT)/test_bus_drive_f1_$(v).exe)
+
+.PHONY: test-bus-drive
+test-bus-drive: $(TEST_BUS_DRIVE_EXES)
+	$(foreach x,$(TEST_BUS_DRIVE_EXES),$(x);)
+
+$(TEST_OUT)/test_bus_drive_f1_%.exe: tests/test/test_bus_drive_f1.c $(TEST_MOCK)/hw_model.c $(wildcard inc/*.h src/*.h tests/mock/*.h) Makefile | $(TEST_OUT)
+	$(HOST_CC) -DHOST_BUILD -DSTM32F1 -DOW_SYSCLK_MHZ=$(CHIP_SYSCLK_MHZ) -DOW_BUS_DRIVE=$* $(TEST_CAST_FLAGS) $(TEST_INC) $(TEST_OPT) tests/test/test_bus_drive_f1.c $(TEST_MOCK)/hw_model.c -o $@
+
+ifeq ($(OW_TARGET),f1)
+test: test-bus-drive
+endif
+
 # --- Per-family wrappers, generated ---------------------------------------
 # Every variant is written once for the active OW_TARGET and reached from
 # another family through a generated test-<variant>-<family> wrapper, so the set
@@ -2129,6 +2146,7 @@ help:
 	@echo "  test-ndebug     - ... with NDEBUG (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-active     - ... with the active-drive write path (also -f0/-f1/-f3/-f4/-g0/-g4/-l4/-c5/-h5/-u5/-h7)"
 	@echo "  test-dma-prio   - contract suite with -DOW_DMA_PRIO=3 (f0/f4/h5/u5/h7, one per encoding)"
+	@echo "  test-bus-drive  - check every STM32F1 OW_BUS_DRIVE MODE10 mapping"
 	@echo "  test-ds2431     - run the DS2431 EEPROM driver suite alone"
 	@echo "  test-ds2413     - run the DS2413 switch driver suite alone"
 	@echo "  test-chips      - Check the chips/<part>.mk part matrix (no toolchain needed)"

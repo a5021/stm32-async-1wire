@@ -161,18 +161,27 @@
         RC.AHBENR |= RCC_AHBENR(DMA1EN);           \
     } while (0)
 
-/* @brief PA10: alternate function, open-drain, 2 MHz (TIM1_CH3, default map).
+/* @brief PA10: alternate function, open-drain (TIM1_CH3, default map).
  *
  *  F1 is the odd one out here: it has the legacy GPIO_CRH configuration field
  *  rather than the modern MODER/OTYPER/AFR split that F0 and G0 use, which is
- *  why this is a macro and not shared code.  The whole MODE10/CNF10 field is
+ *  why this is a macro and not shared code. The whole MODE10/CNF10 field is
  *  cleared first so the pin is configured correctly even if it was previously
- *  set to another mode.
+ *  set to another mode. OW_BUS_DRIVE selects the MODE10 speed: WEAK = 2 MHz,
+ *  MEDIUM = 10 MHz, STRONG/MAX = 50 MHz.
  */
-#define OW_PORT_CONFIG_BUS_PIN()                       \
-    do {                                               \
-        PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) | \
-                 GPIO_CRH(MODE10_1, CNF10_0, CNF10_1); \
+#if OW_BUS_DRIVE == OW_BUS_DRIVE_WEAK
+#define OW_PORT_F1_MODE10 GPIO_CRH(MODE10_0)
+#elif OW_BUS_DRIVE == OW_BUS_DRIVE_MEDIUM
+#define OW_PORT_F1_MODE10 GPIO_CRH(MODE10_1)
+#else
+#define OW_PORT_F1_MODE10 GPIO_CRH(MODE10)
+#endif
+
+#define OW_PORT_CONFIG_BUS_PIN()                                 \
+    do {                                                         \
+        PA.CRH = (PA.CRH & ~GPIO_CRH(MODE10, CNF10)) |           \
+                 OW_PORT_F1_MODE10 | GPIO_CRH(CNF10_0, CNF10_1); \
     } while (0)
 
 /* @brief Toggle the bus pin between open-drain and push-pull.

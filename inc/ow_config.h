@@ -129,15 +129,16 @@
 /**
  * @brief GPIO output speed / drive strength for the 1-Wire bus pin.
  *
- * Controls the OSPEEDR register bits (F0/F4/G0) or the MODE bits in
- * CRH (F1) for the bus pin (PA10).  Higher values increase the pad's
- * ability to source current into heavy capacitive loads at the cost
- * of higher EMI and marginally higher power consumption.
+ * Controls the OSPEEDR/OSPEEDER bits on families with a separate speed
+ * register, or the MODE10 bits in CRH on F1, for the bus pin (PA10).
+ * Higher values increase the pad's ability to source current into heavy
+ * capacitive loads at the cost of higher EMI and marginally higher power
+ * consumption.
  *
  * Values:  0 = WEAK   (2 MHz,  lowest drive)
  *          1 = MEDIUM (25 MHz / 10 MHz on F1)
  *          2 = STRONG (50 MHz / 50 MHz on F1 — F1 ceiling)
- *          3 = MAX    (100 MHz, F0/F4/G0 only; clamps to STRONG on F1)
+ *          3 = MAX    (100 MHz where the pad supports it; clamps to STRONG on F1)
  *
  * Default: MAX — safe for parasite-powered multi-drop buses where
  * the strong pull-up must source the whole fleet during broadcast
@@ -153,6 +154,9 @@
 
 #ifndef OW_BUS_DRIVE
 #define OW_BUS_DRIVE OW_BUS_DRIVE_MAX
+#endif
+#if (OW_BUS_DRIVE) > OW_BUS_DRIVE_MAX
+#error "OW_BUS_DRIVE must be 0..3 (GPIO drive-strength class)"
 #endif
 
 /* -------------------------------------------------------------------
