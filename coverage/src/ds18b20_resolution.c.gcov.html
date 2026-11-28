@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-11-25 18:42:37</td>
+            <td class="headerValue">2026-11-28 11:52:24</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -143,7 +143,7 @@
 <span id="L72"><span class="lineNum">      72</span>                 :             :  *       measurement cycles and only while the device search is idle; otherwise</span>
 <span id="L73"><span class="lineNum">      73</span>                 :             :  *       it is ignored. While running, it owns TIM1/DMA; poll it with</span>
 <span id="L74"><span class="lineNum">      74</span>                 :             :  *       ds18b20_set_resolution_poll() until it reports completion, then call</span>
-<span id="L75"><span class="lineNum">      75</span>                 :             :  *       ds18b20_poll() again to resume measuring with the new resolution.</span>
+<span id="L75"><span class="lineNum">      75</span>                 :             :  *       ds18b20_start_measure() to request a measurement with the new resolution.</span>
 <span id="L76"><span class="lineNum">      76</span>                 :             :  */</span>
 <span id="L77"><span class="lineNum">      77</span>                 :<span class="tlaGNC">         734 : void ds18b20_set_resolution(uint8_t bits) {</span></span>
 <span id="L78"><span class="lineNum">      78</span>   [<span class="tlaGBC" title="Branch 0 was taken 684 times"> + </span><span class="tlaGBC" title="Branch 1 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 2 was taken 50 times"> + </span><span class="tlaGBC" title="Branch 3 was taken 634 times"> + </span>]:<span class="tlaGNC">         734 :     if (bits &lt; DS18B20_RES_MIN || bits &gt; DS18B20_RES_MAX) {</span></span>
